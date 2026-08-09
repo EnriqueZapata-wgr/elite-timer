@@ -1,10 +1,12 @@
 # 📋 FIFO · todo lo que quedó pendiente
 
-**Actualizado:** 8-ago-2026, cierre conjunto de MB-29 (`feat/mb29-salud`) y
+**Actualizado:** 8-ago-2026, entrega de MB-30A (`feat/mb30a-sueno`, el sueño
+cobra vida: Sleep Cycle + import + pantalla llena) — SIN merge, espera audit
+de Cowork y corre EN PARALELO con MB-30B (`feat/mb30b-nativo`; este archivo
+lo tocan los dos: el conflicto al merge es esperado y lo arbitra Cowork).
+Actualización previa: cierre conjunto de MB-29 (`feat/mb29-salud`) y
 MB-28B (`feat/mb28b-despensa`) a `main` con audit VERDE de Cowork (corrieron
-en paralelo; orden de merge: MB-29 → MB-28B). Actualización previa: merge
-conjunto de MB-28A (`feat/mb28a-comida`) y MB-28C (`feat/mb28c-mente`) a
-`main` (`ce70c10`).
+en paralelo; orden de merge: MB-29 → MB-28B).
 **Para qué:** un solo lugar. Antes esto vivía repartido en tres audits, dos deliveries y
 la memoria de las conversaciones, y por eso se perdía.
 
@@ -64,7 +66,10 @@ recipe-save-service y barcode-product-service (este último es el del fetch
 fake). MB-29 sumó consulta-report-service (fail-closed de datos + gate de
 ciclo solo vía getCycleInfo), lab-no-pisa (lab_values append-only: la FORMA
 del upsert es el contrato) y paquetes-salud (aplicarPack instala por
-installApp, sin atajos). Sigue siendo un arranque: la mayoría
+installApp, sin atajos). MB-30A sumó sleep-services (la propia manda /
+el import nunca pisa: la forma de los DOS upserts es el contrato) y
+sleep-source-contract (CHECK de 261 vs código, lección MB-27 aplicada
+desde el día uno). Sigue siendo un arranque: la mayoría
 de los servicios con efectos continúan sin cobertura.
 
 **No bloquea nada**, pero es la deuda que más crece con cada MB.
@@ -109,6 +114,24 @@ caídas, guardado): al llegar el build, el visor solo alimenta
   sin juicio (doctrina MB-28B); la superficie vieja de MB-28A quedó intacta
   a propósito (cada superficie se toca una vez) — pero la tensión de
   doctrina existe y es del overhaul de nutrición resolverla.
+
+## B7 · Lo que MB-30A dejó a propósito (módulo de sueño)
+- **Migración 261 (`sleep_nights`) SIN aplicar al remoto** — `npx supabase db
+  push` va DESPUÉS del merge, como siempre.
+- **El run entero exige el BUILD nativo único** (permisos de micrófono
+  nocturno + `READ_SLEEP`): nada de esto se prueba por OTA. El build es UNO,
+  cuando MB-30A y MB-30B estén las dos en `main`.
+- **Device test nocturno real**: una noche entera con la app en el buró.
+  Los umbrales del score de calma (+8 dB sobre el piso, épocas de 5 min) y
+  del ronquido (picos rítmicos cada 2-10 s) son calibración de escritorio
+  sobre noches sintéticas — **con noches reales se ajustan en el core puro**
+  (`sleep-core.ts`, testeado) sin tocar pantalla.
+- **Sin economía a propósito**: dormir no otorga electrón en este run
+  (agregarlo es decisión de producto, no default silencioso).
+- **La paleta nocturna (`night-palette.ts`) la absorbe MB-31** en su sistema
+  de temas; los valores están en el reporte de entrega.
+- **`user_chronotype` como default de la ventana**: si el usuario no tiene
+  cronotipo, el default es 06:30 — honesto pero genérico.
 
 ---
 
