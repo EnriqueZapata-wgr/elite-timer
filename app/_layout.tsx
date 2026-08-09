@@ -274,6 +274,8 @@ function RootLayout() {
                 <Stack.Screen name="reports" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Batch 2 (#15/#8): pantalla propia de Sueño + vista Mi Cronotipo */}
                 <Stack.Screen name="sleep" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* MB-30A: sesión nocturna — sin gesto de regreso (una manga dormida no debe matar la alarma) */}
+                <Stack.Screen name="sleep-session" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
                 <Stack.Screen name="my-chronotype" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Suscripciones RevenueCat (sprint IAP V1.3) */}
                 <Stack.Screen name="paywall" options={{ headerShown: false, animation: 'slide_from_bottom' }} />

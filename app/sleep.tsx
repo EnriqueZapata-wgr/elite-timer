@@ -20,6 +20,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { type WearableData } from '@/src/services/wearable-service';
 import { fetchWearableToday } from '@/src/hooks/useWearableToday';
+import { sincronizarPendientes } from '@/src/services/sleep/sleep-session-service';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, TEXT_COLORS, SURFACES, SEMANTIC, withOpacity } from '@/src/constants/brand';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -53,6 +54,9 @@ export default function SleepScreen() {
     let active = true;
     (async () => {
       if (!user?.id) return;
+      // MB-30A: noches que quedaron encoladas sin red (modo avión) se suben
+      // al entrar aquí — la sesión nocturna nunca depende del internet.
+      try { await sincronizarPendientes(user.id); } catch { /* fail-soft */ }
       // Ventana de sueño del cronotipo — dato real que ya tenemos sin wearable.
       try {
         const { data, error } = await supabase
@@ -173,18 +177,25 @@ export default function SleepScreen() {
             </EliteText>
           </Animated.View>
 
-          {/* Próximamente — honesto, sin prometer lo que no hay */}
+          {/* Sleep Cycle propio (MB-30A): el hueco que era "Próximamente" ya vive */}
           <Animated.View entering={FadeInUp.delay(260).springify()} style={s.soonCard}>
             <View style={s.soonHeader}>
-              <EliteText style={[s.blockKicker, { color: ATP_BRAND.lime }]}>PRÓXIMAMENTE</EliteText>
-              <View style={s.soonPill}><EliteText style={s.soonPillText}>EN DESARROLLO</EliteText></View>
+              <EliteText style={[s.blockKicker, { color: ATP_BRAND.lime }]}>SLEEP CYCLE</EliteText>
+              <View style={s.soonPill}><EliteText style={s.soonPillText}>NUEVO</EliteText></View>
             </View>
-            <EliteText style={s.soonTitle}>ATP Sleep Track</EliteText>
+            <EliteText style={s.soonTitle}>Mide tu noche desde el buró</EliteText>
             <EliteText style={s.blockBody}>
-              Tu arquitectura de sueño ciclo por ciclo, cruzada con tu cronotipo: a qué hora
-              dormirte para despertar al final de un ciclo (no a la mitad), y cómo tu descanso
-              mueve tu energía del día siguiente.
+              Deja el teléfono cargando junto a tu cama con la app abierta: cuenta tus horas,
+              te da un score de qué tan movida estuvo la noche y te despierta dentro de tu
+              ventana con una alarma que empieza bajito. Todo se procesa en tu teléfono y
+              nada se graba.
             </EliteText>
+            <AnimatedPressable
+              style={s.cycleBtn}
+              onPress={() => { haptic.light(); router.push('/sleep-session'); }}
+            >
+              <EliteText style={s.cycleBtnText}>PREPARAR MI NOCHE</EliteText>
+            </AnimatedPressable>
           </Animated.View>
         </View>
       </ScrollView>
@@ -245,6 +256,12 @@ const s = StyleSheet.create({
     padding: Spacing.md, marginTop: Spacing.sm, gap: 8,
   },
   soonHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cycleBtn: {
+    backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderWidth: 0.5,
+    borderColor: withOpacity(ATP_BRAND.lime, 0.4), borderRadius: Radius.pill,
+    paddingVertical: 10, alignItems: 'center', marginTop: 4,
+  },
+  cycleBtnText: { fontSize: 11, fontFamily: Fonts.bold, color: ATP_BRAND.lime, letterSpacing: 2 },
   soonPill: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderRadius: Radius.pill,
     paddingHorizontal: 10, paddingVertical: 3,

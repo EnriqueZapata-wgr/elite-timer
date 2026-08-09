@@ -17,7 +17,7 @@
         "UIBackgroundModes": [
           "audio"
         ],
-        "NSMicrophoneUsageDescription": "ATP necesita el micrófono para que puedas dictar tus registros y conversar por voz con ARGOS, tu asistente de rendimiento, en vez de escribir.",
+        "NSMicrophoneUsageDescription": "ATP usa el micrófono para dictar tus registros y hablar por voz con ARGOS y, solo si activas el Sleep Cycle, para medir niveles de sonido desde tu buró mientras duermes. El audio se procesa en tu teléfono: nunca se graba, nunca se guarda y nunca se sube.",
         "NSSpeechRecognitionUsageDescription": "ATP convierte tu voz en texto para que registres comidas, entrenamientos y notas de journal hablando, sin teclear.",
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -93,7 +93,7 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "ATP necesita el micrófono para que puedas dictar tus registros y conversar por voz con ARGOS, tu asistente de rendimiento, en vez de escribir.",
+          "microphonePermission": "ATP usa el micrófono para dictar tus registros y hablar por voz con ARGOS y, solo si activas el Sleep Cycle, para medir niveles de sonido desde tu buró mientras duermes. El audio se procesa en tu teléfono: nunca se graba, nunca se guarda y nunca se sube.",
           "speechRecognitionPermission": "ATP convierte tu voz en texto para que registres comidas, entrenamientos y notas de journal hablando, sin teclear."
         }
       ],
