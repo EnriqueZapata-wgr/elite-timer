@@ -108,7 +108,9 @@ export async function getHealthPlatform(): Promise<HealthPlatform> {
  */
 const PRIMER_VERSION_CODE_CON_DELEGATE = 18;
 
-function binarioConDelegate(): boolean {
+// MB-30A: exportado — el import de SUEÑO reúsa este mismo gate (mismo
+// delegate nativo, mismo crash en binarios viejos si se abre el diálogo).
+export function binarioConDelegate(): boolean {
   try {
     // Lazy require (doctrina nativos): si el módulo falta, asumimos binario viejo.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
