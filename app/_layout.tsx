@@ -38,6 +38,7 @@ import { ProcessingMiniBanner } from '@/src/components/labs/ProcessingMiniBanner
 import { parseResetPasswordUrl, isResetPasswordLink } from '@/src/utils/reset-password-link';
 import { RevenueCatSync } from '@/src/components/RevenueCatSync';
 import { NightFilterBridge } from '@/src/components/NightFilterBridge';
+import { NotificationActionsBridge } from '@/src/components/NotificationActionsBridge';
 import { ArgosPresenceProvider } from '@/src/components/argos/ArgosPresenceContext';
 import { ArgosFloatingButton } from '@/src/components/argos/ArgosFloatingButton';
 import { HomeFloatingButton } from '@/src/components/ui/HomeFloatingButton';
@@ -149,6 +150,8 @@ function RootLayout() {
           <RevenueCatSync />
           {/* MB-30B: re-arma el filtro nocturno si quedó encendido (Android) */}
           <NightFilterBridge />
+          {/* MB-30B: categorías con botones + despacho de respuestas de aviso */}
+          <NotificationActionsBridge />
           <SettingsProvider>
             <ProgramsProvider>
               <SessionsProvider>
