@@ -116,7 +116,14 @@
         }
       ],
       "expo-localization",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "ATP necesita la cámara para que puedas fotografiar tus comidas, tus suplementos y tus estudios de laboratorio, y para escanear el código de barras de un producto.",
+          "recordAudioAndroid": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
