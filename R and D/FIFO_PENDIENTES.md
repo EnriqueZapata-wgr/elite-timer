@@ -1,8 +1,9 @@
 # 📋 FIFO · todo lo que quedó pendiente
 
-**Actualizado:** 8-ago-2026, tras el merge conjunto de MB-28A (`feat/mb28a-comida`)
-y MB-28C (`feat/mb28c-mente`) a `main` con audit VERDE de Cowork. Actualización
-previa: cierre de MB-27 (`main` en `9a1cf38`).
+**Actualizado:** 8-ago-2026, tras la entrega de MB-29 (`feat/mb29-salud`, SIN
+merge: espera audit de Cowork; corre en paralelo con MB-28B y el orden de
+merge lo decide Cowork). Actualización previa: merge conjunto de MB-28A y
+MB-28C a `main` (`ce70c10`).
 **Para qué:** un solo lugar. Antes esto vivía repartido en tres audits, dos deliveries y
 la memoria de las conversaciones, y por eso se perdía.
 
@@ -54,10 +55,14 @@ Necesitan datos en el momento de disparar, o sea **un despachador del lado del s
 no del cliente. Es un proyecto propio, no una pieza suelta.
 
 ## B2 · Tests de servicios con efectos
-✅ Hay **7 archivos** usando `supabase-fake` (MB-28A sumó food-log-service y
-nutrition-mode-service, y el fake ahora captura payloads: se puede afirmar la
-FORMA de lo escrito, no solo la tabla). Sigue siendo un arranque: la mayoría
-de los servicios con efectos continúan sin cobertura.
+✅ MB-29 sumó 3 archivos con `supabase-fake`: consulta-report-service
+(fail-closed de datos + gate de ciclo solo vía getCycleInfo), lab-no-pisa
+(lab_values append-only: la FORMA del upsert es el contrato) y
+paquetes-salud (aplicarPack instala por installApp, sin atajos). Antes de
+MB-29 había **7 archivos** (MB-28A sumó food-log-service y
+nutrition-mode-service, y el fake captura payloads: se puede afirmar la
+FORMA de lo escrito, no solo la tabla). Sigue siendo un arranque: la
+mayoría de los servicios con efectos continúan sin cobertura.
 
 **No bloquea nada**, pero es la deuda que más crece con cada MB.
 
@@ -66,6 +71,18 @@ de los servicios con efectos continúan sin cobertura.
 panel de coach (`ClientDetailScreen`). El candado de `registro-comida.test.ts`
 impide que vuelvan a una pantalla consumer; migrar el panel de coach a
 `food-log-service` (falta un `updateFoodLogChecked`) es de un run del coach.
+
+## B4 · Lo que MB-29 dejó fuera A CONCIENCIA (pilar SALUD)
+- **Upgrade visual de la guía de labs** (`labs-guide.tsx`, recorrido #21 ✂️):
+  la guía dejó de ser LA app (Labs ahora apunta a MIS laboratorios) pero
+  sigue plana. Es cosmético puro → MB-31 (la piel), donde pintar es barato.
+- **Cetonas multi-método en un solo evento** (recorrido #20 🏗️): "un
+  metadato" de aliento+orina+sangre comparables. Necesita modelo de datos
+  propio, no una pieza suelta.
+- **Extraer valores de una FOTO ya existe** y quedó como está: toda
+  extracción pasa por la pantalla de confirmación obligatoria
+  (lab-confirmation), así que un número mal leído no aterriza solo. No se
+  construyó pipeline nuevo.
 
 ## B3 · `CycleCalendar` estaba muerto
 El audit de MB-27 encontró que no tenía un solo importador vivo. Hay un commit que dice
@@ -103,6 +120,12 @@ test de los cierres de MB-28C (el 11 se ve tras el `db push` de la mig 258).
 es de las cosas que hacen desinstalar una app — confirmar en device que el singleton
 de audio de verdad mata al viejo.
 
+**Cerrado por MB-29 (los ✂️ del pilar SALUD del recorrido, pendiente device):**
+Sol sin emojis y con jerarquía (#18) · glucosa y cetonas con tendencia 7/30d
++ GKI del día + "Próximamente" honesto del monitor continuo (#19/#20) ·
+Labs reapuntada a MIS laboratorios con la guía como destino (#21, la parte
+✂️; el upgrade visual de la guía quedó en B4).
+
 ---
 
 # 🚦 D · LO QUE SOLO PUEDE HACER ENRIQUE
@@ -115,6 +138,8 @@ de audio de verdad mata al viejo.
 | Firma de Mariana a los 5 nombres de packs | copy antes de tiendas |
 | Solicitud de socio Oura / Garmin / Ultrahuman | integraciones futuras |
 | **Device test de MB-27** | MB-28 |
+| Firma (con Mariana) de los 3 paquetes de salud de MB-29 (nombre + copy) | copy definitivo |
+| `npx supabase db push` de la mig 259 tras el merge de MB-29 | el OTA de MB-29 |
 
 ---
 

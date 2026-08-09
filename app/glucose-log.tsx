@@ -25,6 +25,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { userErrorMessage } from '@/src/utils/user-error';
+import { resumenVentana, gki, inicioVentana, type ResumenVentana } from '@/src/services/salud/metabolic-stats-core';
 
 const CONTEXTS = [
   { id: 'fasting',       name: 'Ayuno',         icon: 'moon-outline' as const },
@@ -57,6 +58,10 @@ export default function GlucoseLogScreen() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [todayLogs, setTodayLogs] = useState<any[]>([]);
+  // MB-29 P5: la bitácora devuelve — ventanas de 7/30 días + GKI del día.
+  const [stats7, setStats7] = useState<ResumenVentana | null>(null);
+  const [stats30, setStats30] = useState<ResumenVentana | null>(null);
+  const [ketoneHoy, setKetoneHoy] = useState<number | null>(null);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -68,6 +73,26 @@ export default function GlucoseLogScreen() {
         // MB-8 Track B: un 400 no es "sin mediciones".
         if (error) logWarn('[glucose-log] load failed:', error.message);
         else setTodayLogs(data ?? []);
+      });
+    // MB-29 P5: 30 días para las ventanas; fail-soft (sin stats ≠ sin registro).
+    supabase.from('glucose_logs').select('date, value_mg_dl')
+      .eq('user_id', user.id).gte('date', inicioVentana(today, 30))
+      .then(({ data, error }) => {
+        if (error) { logWarn('[glucose-log] stats load failed:', error.message); return; }
+        const puntos = ((data ?? []) as { date: string; value_mg_dl: number }[])
+          .map((r) => ({ date: r.date, value: r.value_mg_dl }));
+        setStats7(resumenVentana(puntos, 7, today));
+        setStats30(resumenVentana(puntos, 30, today));
+      });
+    // GKI del día: la última cetona en SANGRE de hoy (la glucosa sale de
+    // todayLogs al render). Sin cetonas de hoy, el GKI no se inventa.
+    supabase.from('ketones_logs').select('value_mmol, time')
+      .eq('user_id', user.id).eq('date', today).eq('source', 'blood')
+      .not('value_mmol', 'is', null)
+      .order('time', { ascending: false }).limit(1).maybeSingle()
+      .then(({ data, error }) => {
+        if (error) { setKetoneHoy(null); return; }
+        setKetoneHoy((data as any)?.value_mmol ?? null);
       });
   }, [user?.id]));
 
@@ -200,6 +225,41 @@ export default function GlucoseLogScreen() {
           </Animated.View>
         )}
 
+        {/* MB-29 P5: tendencia, no bitácora — ventanas 7/30d + GKI del día. */}
+        {(stats7 || stats30) && (
+          <Animated.View entering={FadeInUp.delay(250).springify()} style={{ marginTop: Spacing.lg }}>
+            <SectionTitle>TU TENDENCIA</SectionTitle>
+            <View style={s.card}>
+              {stats7 && (
+                <View style={s.trendRow}>
+                  <EliteText style={s.trendLabel}>7 días</EliteText>
+                  <EliteText style={s.trendValue}>{stats7.avg} mg/dL</EliteText>
+                  <EliteText style={s.trendMeta}>{stats7.min} a {stats7.max} · {stats7.n} lecturas</EliteText>
+                </View>
+              )}
+              {stats30 && (
+                <View style={s.trendRow}>
+                  <EliteText style={s.trendLabel}>30 días</EliteText>
+                  <EliteText style={s.trendValue}>{stats30.avg} mg/dL</EliteText>
+                  <EliteText style={s.trendMeta}>{stats30.min} a {stats30.max} · {stats30.n} lecturas</EliteText>
+                </View>
+              )}
+              {(() => {
+                const g = gki(todayLogs[0]?.value_mg_dl ?? null, ketoneHoy);
+                return g != null ? (
+                  <View style={[s.trendRow, { borderBottomWidth: 0 }]}>
+                    <EliteText style={s.trendLabel}>GKI hoy</EliteText>
+                    <EliteText style={s.trendValue}>{g}</EliteText>
+                    <EliteText style={s.trendMeta}>glucosa entre cetonas, con tus registros de hoy</EliteText>
+                  </View>
+                ) : null;
+              })()}
+            </View>
+            {/* Decisión del recorrido (#19): la intención a la vista, sin fecha. */}
+            <EliteText style={s.cgmSoon}>Monitor continuo de glucosa: próximamente.</EliteText>
+          </Animated.View>
+        )}
+
         <View style={{ height: 80 }} />
         <MedicalDisclaimer feature="glucose" />
       </ScrollView>
@@ -215,6 +275,37 @@ const s = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
+  },
+  // MB-29 P5: filas de tendencia (7/30 días + GKI)
+  trendRow: {
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  trendLabel: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.bold,
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 2,
+  },
+  trendValue: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.bold,
+    color: '#fff',
+    marginTop: 2,
+  },
+  trendMeta: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.regular,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 1,
+  },
+  cgmSoon: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.regular,
+    color: 'rgba(255,255,255,0.35)',
+    marginTop: Spacing.xs,
+    textAlign: 'center',
   },
   label: {
     fontSize: FontSizes.xs,

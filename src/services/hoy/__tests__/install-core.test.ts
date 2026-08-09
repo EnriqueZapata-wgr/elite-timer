@@ -211,9 +211,10 @@ describe('gridApps — MB-22 Pieza 1: la cuadrícula solo lista lo instalado', (
 
   // MB-22.1 P3 — decisión de Enrique: Respirar para todos y Ciclo (propio)
   // para usuarias entran al set inicial, SIN encender electrones.
-  it('la siembra agrega Respirar a todos y Ciclo a usuarias, sin tocar TAREAS', () => {
-    expect(initialSeedApps(false)).toEqual(['respirar']);
-    expect(initialSeedApps(true)).toEqual(['respirar', 'ciclo']);
+  it('la siembra agrega Respirar y Edad ATP a todos y Ciclo a usuarias, sin tocar TAREAS', () => {
+    // MB-29 P3: edad-atp entra al set inicial (el gancho, a un toque).
+    expect(initialSeedApps(false)).toEqual(['respirar', 'edad-atp']);
+    expect(initialSeedApps(true)).toEqual(['respirar', 'edad-atp', 'ciclo']);
 
     const sembrado = initialSeedApps(true).reduce(
       (p, k) => applyInstallGridOnly(k, p), NUEVO,

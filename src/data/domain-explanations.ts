@@ -166,7 +166,7 @@ export const AGING_RATE_EXPLANATION = {
   examples: [
     '0.80x = Envejeces 20% más lento',
     '1.00x = Ritmo normal de envejecimiento',
-    '1.20x = Envejeces 20% más rápido — necesitas optimizar',
+    '1.20x = Envejeces 20% más rápido: hay margen por optimizar',
   ],
   howToImprove: 'Mejora sueño, nutrición, ejercicio y manejo de estrés. Cada dominio contribuye.',
 };

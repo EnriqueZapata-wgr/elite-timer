@@ -124,9 +124,13 @@ export function appInstallState(appKey: string, prefs: InstallPrefs): InstallSta
  * Decisión de Enrique: Respirar para todos y Ciclo (modo propio) para
  * usuarias. Entran a la cuadrícula SIN encender electrones: cero filas
  * nuevas en TAREAS — activar el hábito sigue siendo decisión del usuario.
+ *
+ * MB-29 P3: Edad ATP entra al set inicial (decisión de Enrique: es el
+ * gancho, queda a un toque). Para usuarios existentes la siembra la hace
+ * la migración 259 (esta función ya corrió y dejó su bandera).
  */
 export function initialSeedApps(isFemale: boolean): string[] {
-  return ['respirar', ...(isFemale ? ['ciclo'] : [])];
+  return ['respirar', 'edad-atp', ...(isFemale ? ['ciclo'] : [])];
 }
 
 /**

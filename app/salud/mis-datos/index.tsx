@@ -104,13 +104,36 @@ function MisDatosScreen() {
           </ImageBackground>
         </Animated.View>
 
+        {/* MB-29 P2 (H5): LA puerta de "tengo estudios nuevos". Antes la subida
+            con foto/PDF (my-health) no era alcanzable desde SALUD: solo la fila
+            de TAREAS llegaba. Una sola puerta, con el nombre que la gente busca. */}
+        <Animated.View entering={FadeInUp.delay(70).springify()}>
+          <AnimatedPressable
+            onPress={() => { haptic.medium(); router.push('/my-health'); }}
+            style={s.uploadCta}
+          >
+            <View style={s.uploadCtaIcon}>
+              <Ionicons name="camera-outline" size={22} color="#000" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <EliteText style={s.uploadCtaTitle}>Sube tus labs</EliteText>
+              <EliteText style={s.uploadCtaMeta}>
+                Foto, galería o PDF. La IA lee los valores y tú los confirmas antes de guardar.
+              </EliteText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="rgba(0,0,0,0.55)" />
+          </AnimatedPressable>
+        </Animated.View>
+
         {/* Labs de sangre */}
         <Section
           idx={0} icon="flask-outline" color="#60A5FA" title="Labs de sangre"
           value={sum.labsCount > 0 ? `${sum.labsCount} parámetros` : 'Sin datos'}
           meta={sum.labsLatestDate ? `Último: ${relativeDays(sum.labsLatestDate, now)}` : 'Sube tu primer estudio'}
           onPress={() => { haptic.medium(); router.push('/edad-atp/labs'); }}
-          onCapture={() => { haptic.medium(); router.push('/edad-atp/biomarkers'); }}
+          // MB-29 P2: el "+" abre la MISMA puerta de subir (antes iba a la
+          // captura manual, que sigue viva dentro de la puerta).
+          onCapture={() => { haptic.medium(); router.push('/my-health'); }}
         />
 
         {/* Composición corporal */}
@@ -193,6 +216,18 @@ const s = StyleSheet.create({
     backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
     borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.sm,
   },
+  // MB-29 P2: CTA de subir labs — acción primaria de la pantalla (lima, único).
+  uploadCta: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg,
+    padding: Spacing.md, marginBottom: Spacing.sm,
+  },
+  uploadCtaIcon: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  uploadCtaTitle: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000' },
+  uploadCtaMeta: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: 'rgba(0,0,0,0.65)', marginTop: 2 },
   iconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: TEXT.secondary },
   cardValue: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, color: TEXT.primary, marginTop: 1 },

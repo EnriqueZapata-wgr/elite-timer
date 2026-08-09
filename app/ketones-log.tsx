@@ -29,6 +29,7 @@ import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { userErrorMessage } from '@/src/utils/user-error';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { warn as logWarn } from '@/src/lib/logger';
+import { resumenVentana, gki, inicioVentana, type ResumenVentana } from '@/src/services/salud/metabolic-stats-core';
 
 const KETO_ACCENT = '#c084fc';
 
@@ -50,6 +51,10 @@ export default function KetonesLogScreen() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [todayLogs, setTodayLogs] = useState<any[]>([]);
+  // MB-29 P5: tendencia de cetonas en sangre (7/30 días) + GKI del día.
+  const [stats7, setStats7] = useState<ResumenVentana | null>(null);
+  const [stats30, setStats30] = useState<ResumenVentana | null>(null);
+  const [glucosaHoy, setGlucosaHoy] = useState<number | null>(null);
 
   const sourceMeta = KETONE_SOURCES.find((s) => s.id === source)!;
 
@@ -61,6 +66,27 @@ export default function KetonesLogScreen() {
       .order('time', { ascending: false })
       // D-2 (MB-12): con error NO se pisa la lista — "sin mediciones" sería mentira.
       .then(({ data, error }) => { if (!error) setTodayLogs(data ?? []); });
+    // MB-29 P5: 30 días de cetonas en SANGRE (la comparable en el tiempo);
+    // fail-soft, sin stats no se rompe el registro.
+    supabase.from('ketones_logs').select('date, value_mmol')
+      .eq('user_id', user.id).eq('source', 'blood')
+      .not('value_mmol', 'is', null)
+      .gte('date', inicioVentana(today, 30))
+      .then(({ data, error }) => {
+        if (error) { logWarn('[ketones-log] stats load failed:', error.message); return; }
+        const puntos = ((data ?? []) as { date: string; value_mmol: number }[])
+          .map((r) => ({ date: r.date, value: r.value_mmol }));
+        setStats7(resumenVentana(puntos, 7, today));
+        setStats30(resumenVentana(puntos, 30, today));
+      });
+    // GKI del día: la última glucosa de hoy (las cetonas salen de todayLogs).
+    supabase.from('glucose_logs').select('value_mg_dl, time')
+      .eq('user_id', user.id).eq('date', today)
+      .order('time', { ascending: false }).limit(1).maybeSingle()
+      .then(({ data, error }) => {
+        if (error) { setGlucosaHoy(null); return; }
+        setGlucosaHoy((data as any)?.value_mg_dl ?? null);
+      });
   }, [user?.id]));
 
   const handleSave = async () => {
@@ -243,6 +269,40 @@ export default function KetonesLogScreen() {
           </Animated.View>
         )}
 
+        {/* MB-29 P5: tendencia, no bitácora — sangre 7/30d + GKI del día. */}
+        {(stats7 || stats30) && (
+          <Animated.View entering={FadeInUp.delay(250).springify()} style={{ marginTop: Spacing.lg }}>
+            <SectionTitle>TU TENDENCIA (SANGRE)</SectionTitle>
+            <View style={s.card}>
+              {stats7 && (
+                <View style={s.trendRow}>
+                  <EliteText style={s.trendLabel}>7 días</EliteText>
+                  <EliteText style={s.trendValue}>{stats7.avg} mmol/L</EliteText>
+                  <EliteText style={s.trendMeta}>{stats7.min} a {stats7.max} · {stats7.n} lecturas</EliteText>
+                </View>
+              )}
+              {stats30 && (
+                <View style={s.trendRow}>
+                  <EliteText style={s.trendLabel}>30 días</EliteText>
+                  <EliteText style={s.trendValue}>{stats30.avg} mmol/L</EliteText>
+                  <EliteText style={s.trendMeta}>{stats30.min} a {stats30.max} · {stats30.n} lecturas</EliteText>
+                </View>
+              )}
+              {(() => {
+                const bloodHoy = todayLogs.find((l: any) => (l.source ?? 'blood') === 'blood' && l.value_mmol != null);
+                const g = gki(glucosaHoy, bloodHoy ? Number(bloodHoy.value_mmol) : null);
+                return g != null ? (
+                  <View style={[s.trendRow, { borderBottomWidth: 0 }]}>
+                    <EliteText style={s.trendLabel}>GKI hoy</EliteText>
+                    <EliteText style={s.trendValue}>{g}</EliteText>
+                    <EliteText style={s.trendMeta}>glucosa entre cetonas, con tus registros de hoy</EliteText>
+                  </View>
+                ) : null;
+              })()}
+            </View>
+          </Animated.View>
+        )}
+
         <View style={{ height: 80 }} />
         <MedicalDisclaimer feature="ketones" />
       </ScrollView>
@@ -258,6 +318,30 @@ const s = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
+  },
+  // MB-29 P5: filas de tendencia (7/30 días + GKI)
+  trendRow: {
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  trendLabel: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.bold,
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 2,
+  },
+  trendValue: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.bold,
+    color: '#fff',
+    marginTop: 2,
+  },
+  trendMeta: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.regular,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 1,
   },
   label: {
     fontSize: FontSizes.xs,
