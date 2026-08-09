@@ -1,11 +1,13 @@
 /**
  * Leer etiqueta — registro por código de barras (MB-28B · Pieza 1).
  *
- * El binario actual NO trae lector de cámara para códigos (la cámara de
- * MB-28A es expo-image-picker, que no decodifica barras; expo-camera sería
- * un módulo nativo nuevo y eso es de MB-30). V1: el número se teclea a mano
- * y la base OpenFoodFacts responde. Cuando llegue el build, el visor de
- * cámara alimenta EXACTAMENTE este mismo flujo con el código leído.
+ * MB-30B P3: llegó el visor en vivo (expo-camera). El lector alimenta
+ * EXACTAMENTE el mismo flujo que el teclado: onBarcodeScanned → handleLookup,
+ * cero rutas nuevas. La captura manual SE QUEDA como camino primario (en
+ * México la cobertura de la base es parcial: teclear no es plan B). El
+ * módulo va con lazy require (doctrina ExpoPrint): en un binario viejo sin
+ * expo-camera el botón del visor simplemente no existe y la pantalla sigue
+ * completa.
  *
  * Contratos que esta pantalla respeta (candados de registro-comida.test.ts):
  *  - Escribe SOLO vía saveFoodLog (ruta única a food_logs).
@@ -18,7 +20,7 @@
  * Código no encontrado o sin red NUNCA es callejón sin salida: siempre se
  * puede registrar a mano, con el código guardado en el registro.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, TextInput, Pressable, Image, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,6 +60,22 @@ function toNum(s: string): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+// ── MB-30B P3 · visor en vivo ───────────────────────────────────────────────
+// Lazy require SIEMPRE (doctrina ExpoPrint): en un binario sin expo-camera
+// esto cae a null, el botón del visor no se dibuja y la captura manual —
+// que es el camino primario — queda intacta.
+type CameraModule = typeof import('expo-camera');
+let cameraModuleCache: CameraModule | null | undefined;
+function getCameraModule(): CameraModule | null {
+  if (cameraModuleCache !== undefined) return cameraModuleCache;
+  try {
+    cameraModuleCache = require('expo-camera') as CameraModule;
+  } catch {
+    cameraModuleCache = null;
+  }
+  return cameraModuleCache;
+}
+
 export default function FoodBarcodeScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -66,6 +84,10 @@ export default function FoodBarcodeScreen() {
 
   const [step, setStep] = useState<Step>('entry');
   const [codeInput, setCodeInput] = useState('');
+  // MB-30B P3: visor de cámara (solo si el binario trae expo-camera).
+  const cameraModule = getCameraModule();
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const scannedOnce = useRef(false);
   const [inputError, setInputError] = useState<string | null>(null);
   const [barcode, setBarcode] = useState<string | null>(null);
   const [product, setProduct] = useState<BarcodeProduct | null>(null);
@@ -90,8 +112,13 @@ export default function FoodBarcodeScreen() {
   );
   const hasMacros = !!macros && (macros.kcal !== null || macros.proteinG !== null);
 
-  async function handleLookup() {
-    const normalized = normalizeBarcode(codeInput);
+  // MB-30B P3: `raw` llega del visor de cámara; sin él, se lee el input
+  // tecleado. MISMO flujo a partir de aquí — el visor solo alimenta el
+  // código leído (guard typeof: los onPress/onSubmitEditing pasan eventos).
+  async function handleLookup(raw?: unknown) {
+    const source = typeof raw === 'string' ? raw : codeInput;
+    if (typeof raw === 'string') setCodeInput(raw); // "Reintentar" sigue funcionando
+    const normalized = normalizeBarcode(source);
     if (!normalized) {
       setInputError('Un código de barras tiene entre 8 y 14 dígitos.');
       return;
@@ -113,6 +140,32 @@ export default function FoodBarcodeScreen() {
       haptic.error();
       setStep('network_error');
     }
+  }
+
+  // MB-30B P3: abrir el visor pide el permiso de cámara EN ese momento.
+  // Denegado no es callejón: el teclado sigue ahí y se dice con honestidad.
+  async function openScanner() {
+    const cam = getCameraModule();
+    if (!cam) return;
+    haptic.medium();
+    const { status } = await cam.Camera.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      setInputError('Sin permiso de cámara no hay visor, pero teclear el número funciona igual.');
+      return;
+    }
+    scannedOnce.current = false;
+    setInputError(null);
+    setCameraOpen(true);
+  }
+
+  // El visor alimenta handleLookup con el código leído: MISMO camino que el
+  // teclado (candado en tests). onBarcodeScanned dispara en ráfaga → guard.
+  function onBarcodeRead(data: string) {
+    if (scannedOnce.current) return;
+    scannedOnce.current = true;
+    setCameraOpen(false);
+    haptic.success();
+    handleLookup(data);
   }
 
   async function saveProduct() {
@@ -313,6 +366,35 @@ export default function FoodBarcodeScreen() {
                 <Ionicons name="alert-circle" size={18} color={SEMANTIC.error} />
                 <EliteText style={{ color: SEMANTIC.error, fontSize: FontSizes.md, flex: 1 }}>{inputError}</EliteText>
               </View>
+            )}
+
+            {/* MB-30B P3: visor en vivo — secundario; teclear es el camino
+                primario. En binarios sin expo-camera nada de esto existe. */}
+            {cameraModule && !cameraOpen && (
+              <AnimatedPressable onPress={openScanner} scaleDown={0.96} style={s.scanBtn}>
+                <Ionicons name="camera-outline" size={18} color={BLUE} />
+                <EliteText style={s.scanBtnText}>Apuntar la cámara al código</EliteText>
+              </AnimatedPressable>
+            )}
+            {cameraModule && cameraOpen && (
+              <Animated.View entering={FadeIn.duration(300)} style={s.cameraWrap}>
+                <cameraModule.CameraView
+                  style={s.cameraView}
+                  facing="back"
+                  barcodeScannerSettings={{
+                    barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128'],
+                  }}
+                  onBarcodeScanned={({ data }) => onBarcodeRead(data)}
+                />
+                <View style={s.cameraHintRow}>
+                  <EliteText variant="caption" style={s.cameraHint}>
+                    Centra las barras; el número se lee solo.
+                  </EliteText>
+                  <Pressable onPress={() => setCameraOpen(false)} hitSlop={8}>
+                    <EliteText style={s.cameraCancel}>Cancelar</EliteText>
+                  </Pressable>
+                </View>
+              </Animated.View>
             )}
           </Animated.View>
         )}
@@ -592,6 +674,24 @@ const s = StyleSheet.create({
     flexDirection: 'row', gap: 10, alignItems: 'center',
     backgroundColor: SEMANTIC.error + '10', borderRadius: Radius.card, padding: 14, marginTop: Spacing.md,
   },
+  // MB-30B P3: visor en vivo
+  scanBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    paddingVertical: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: BLUE + '55',
+    marginTop: Spacing.md,
+  },
+  scanBtnText: { color: BLUE, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  cameraWrap: {
+    marginTop: Spacing.md, borderRadius: Radius.card, overflow: 'hidden',
+    backgroundColor: SURFACES.cardLight, borderWidth: 1, borderColor: SURFACES.border,
+  },
+  cameraView: { height: 260 },
+  cameraHintRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 14, paddingVertical: 10,
+  },
+  cameraHint: { color: TEXT_COLORS.secondary, flex: 1 },
+  cameraCancel: { color: BLUE, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
   ctaBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     paddingVertical: 16, borderRadius: Radius.md,

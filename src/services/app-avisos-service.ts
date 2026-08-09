@@ -33,6 +33,9 @@ import {
   planAppAviso, parseAvisoCondition,
   type AppAvisoPref, type NotificationPrefs,
 } from '@/src/services/notification-prefs-core';
+// MB-30B P2: cada aviso lleva su categoría con botones ("Ya medité",
+// "Recordar en 15 min"); el catálogo vive en notification-actions-core.
+import { categoryForAviso } from '@/src/services/notification-actions-core';
 
 const KEY_NOTIF_IDS = '@atp/app_aviso_notif_ids';
 
@@ -181,8 +184,16 @@ async function syncOne(
     const fireDate = new Date(now);
     fireDate.setHours(h, m, 0, 0);
     if (plan === 'tomorrow') fireDate.setDate(fireDate.getDate() + 1);
+    const categoryId = categoryForAviso(appKey);
     ids[appKey] = await Notifications.scheduleNotificationAsync({
-      content: { title: meta.title, body: meta.body, sound: true },
+      content: {
+        title: meta.title,
+        body: meta.body,
+        sound: true,
+        // MB-30B P2: botones de acción en el aviso (responder sin abrir).
+        ...(categoryId ? { categoryIdentifier: categoryId } : {}),
+        data: { avisoAppKey: appKey },
+      },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireDate },
     });
   }

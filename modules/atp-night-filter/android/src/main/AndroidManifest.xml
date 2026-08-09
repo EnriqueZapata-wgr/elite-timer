@@ -1,0 +1,28 @@
+<!--
+  MB-30B Pieza 1 — Filtro nocturno de sistema (Android).
+  Permisos que este módulo introduce (van también listados en app.json para
+  visibilidad en revisión de tiendas):
+  - SYSTEM_ALERT_WINDOW: dibujar el filtro de color encima de otras apps
+    (tipo Twilight). Se pide SOLO cuando el usuario activa la función.
+  - FOREGROUND_SERVICE + FOREGROUND_SERVICE_SPECIAL_USE: mantener el filtro
+    vivo con un aviso persistente que siempre permite apagarlo de un toque.
+  - POST_NOTIFICATIONS: el aviso persistente del filtro (ya lo usa la app
+    para recordatorios; se declara por claridad del merge de manifiestos).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <application>
+    <service
+      android:name="expo.modules.atpnightfilter.NightFilterService"
+      android:exported="false"
+      android:foregroundServiceType="specialUse">
+      <property
+        android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+        android:value="Overlay de filtro de color nocturno activado explícitamente por el usuario para reducir luz azul antes de dormir (equivalente a Twilight). Siempre desactivable de un toque desde el aviso persistente." />
+    </service>
+  </application>
+</manifest>
