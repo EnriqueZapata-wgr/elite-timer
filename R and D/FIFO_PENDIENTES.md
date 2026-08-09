@@ -1,8 +1,11 @@
 # 📋 FIFO · todo lo que quedó pendiente
 
-**Actualizado:** 8-ago-2026, cierre conjunto de MB-29 (`feat/mb29-salud`) y
+**Actualizado:** 8-ago-2026, entrega de MB-30B (`feat/mb30b-nativo`, SIN
+mergear: corre en paralelo con MB-30A y el orden/resolución del merge los
+decide Cowork — conflicto esperado en `app.json` y en este archivo).
+Actualización previa: cierre conjunto de MB-29 (`feat/mb29-salud`) y
 MB-28B (`feat/mb28b-despensa`) a `main` con audit VERDE de Cowork (corrieron
-en paralelo; orden de merge: MB-29 → MB-28B). Actualización previa: merge
+en paralelo; orden de merge: MB-29 → MB-28B). Antes: merge
 conjunto de MB-28A (`feat/mb28a-comida`) y MB-28C (`feat/mb28c-mente`) a
 `main` (`ce70c10`).
 **Para qué:** un solo lugar. Antes esto vivía repartido en tres audits, dos deliveries y
@@ -55,6 +58,12 @@ cuando abre tu ventana de UV.
 Necesitan datos en el momento de disparar, o sea **un despachador del lado del servidor**,
 no del cliente. Es un proyecto propio, no una pieza suelta.
 
+**Avance MB-30B (la parte nativa):** el cliente ya registra las categorías
+con botones y sabe responderlas — incluida `hidratacion` con *"Ya tomé agua
+(+250 ml)"* que escribe por `addWater` (el writer canónico). **B1 solo tiene
+que emitir el push con `categoryId: 'hidratacion'`**; no hay que tocar nada
+del cliente.
+
 ## B2 · Tests de servicios con efectos
 ✅ Hay **13 archivos** con fakes de efectos: 12 usando `supabase-fake` + 1 con
 fetch fake, mismo espíritu. MB-28A sumó food-log-service y
@@ -91,13 +100,29 @@ que murió. ❓ **Confirmar que se borró de verdad** y no solo se desconectó.
   (lab-confirmation), así que un número mal leído no aterriza solo. No se
   construyó pipeline nuevo.
 
-## B5 · El visor de cámara del escáner de códigos (MB-28B → MB-30)
-El escáner de etiquetas quedó con captura del código A MANO: la cámara del
-binario es `expo-image-picker` (fotos), que **no decodifica códigos de
-barras**. El visor en vivo exige `expo-camera` (módulo nativo nuevo) y eso es
-de **MB-30, el único build del plan**. El flujo ya está completo (lookup,
-caídas, guardado): al llegar el build, el visor solo alimenta
-`/food-barcode` con el código leído.
+## ~~B5 · El visor de cámara del escáner de códigos (MB-28B → MB-30)~~ ✅ CERRADO (MB-30B · P3)
+`expo-camera` instalado y el visor en vivo enchufado a `/food-barcode`
+exactamente como estaba prometido: `onBarcodeScanned → handleLookup`, cero
+rutas nuevas, la captura manual sigue siendo el camino primario. Lazy
+require (doctrina ExpoPrint): binarios viejos ni se enteran. **Requiere el
+build de MB-30 para verse en device** (el módulo nativo no viaja por OTA).
+
+## B6b · Lo que MB-30B dejó fuera A CONCIENCIA
+- **"Ya lo hice" del SOL como acción de notificación:** su writer
+  (`persistBooleanToggle`) exige el mapa de estados del día; un
+  leer-mezclar-escribir del blob desde un handler en frío puede pisar
+  estados — la misma corrupción que el run vino a evitar. Cuando exista un
+  writer atómico por-fuente, el botón se agrega en una línea al catálogo
+  (`notification-actions-core.ts`).
+- **El filtro nocturno no sobrevive un reboot** hasta que la app se vuelve
+  a abrir (el bridge re-arma). Es a conciencia: `RECEIVE_BOOT_COMPLETED` es
+  otro permiso cuestionado en revisión y no lo vale para V1.
+- **El overlay Android no cubre la status bar al 100%** en todos los
+  fabricantes (limitación de `TYPE_APPLICATION_OVERLAY`); Twilight vive con
+  la misma. Verificar en device con el build.
+- **Kotlin sin compilar en este entorno:** el módulo `atp-night-filter` se
+  escribió conservador (API estándar) pero su primera compilación real es
+  el build de MB-30. El audit de Cowork debería ojear el `.kt`.
 
 ## B6 · Hallazgos MB-28B que no eran de este run
 - **`seedRecipes()` no tiene un solo importador vivo** y la tabla `recipes`
@@ -162,6 +187,7 @@ Labs reapuntada a MIS laboratorios con la guía como destino (#21, la parte
 | **Device test de MB-27** | MB-28 |
 | Firma (con Mariana) de los 3 paquetes de salud de MB-29 (nombre + copy) | copy definitivo |
 | `npx supabase db push` de la mig 259 tras el merge de MB-29 | el OTA de MB-29 |
+| **Build nativo MB-30** (bump de versión + `eas build`, UNA vez, con MB-30A y MB-30B ya en `main`) | ver el filtro, las acciones y el visor en device |
 
 ---
 
