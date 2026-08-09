@@ -37,6 +37,7 @@ import { FoodReviewEditor, parseAIToReview, type ReviewState } from '@/src/compo
 import { updateFrequentFood } from '@/src/services/frequent-foods-service';
 import { defaultMealTypeByHour } from '@/src/services/meal-times-core';
 import { addSupplementToPlan } from '@/src/services/supplements-plan-service';
+import { saveMealAsRecipe, logItemsToIngredients } from '@/src/services/recipe-save-service';
 import { useNutritionMode } from '@/src/hooks/useNutritionMode';
 import { useAuth } from '@/src/contexts/auth-context';
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
@@ -333,6 +334,10 @@ export default function FoodScanScreen() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showReview, setShowReview] = useState(false);
+  // P2 (MB-28B): lo que acabas de registrar se puede guardar como receta.
+  const [lastReview, setLastReview] = useState<ReviewState | null>(null);
+  const [savingRecipe, setSavingRecipe] = useState(false);
+  const [recipeSaved, setRecipeSaved] = useState(false);
   // SUP-1 (MB-2): scan de suplemento → "Agregar a mi plan" (antes era solo informativo).
   const [addingToPlan, setAddingToPlan] = useState(false);
   const [addedToPlan, setAddedToPlan] = useState(false);
@@ -496,6 +501,33 @@ export default function FoodScanScreen() {
     }
   };
 
+  // P2 (MB-28B): la mitad que faltaba de la promesa de Recetas — guardar la
+  // comida recién registrada como receta reutilizable (dedupe por nombre en
+  // el servicio; comer lo mismo tres veces no crea tres recetas).
+  const handleSaveAsRecipe = async () => {
+    if (!user?.id || !lastReview || savingRecipe || recipeSaved) return;
+    setSavingRecipe(true);
+    const res = await saveMealAsRecipe(user.id, {
+      name: lastReview.description || getTitle(),
+      calories: lastReview.totals.calories,
+      proteinG: lastReview.totals.protein_g,
+      carbsG: lastReview.totals.carbs_g,
+      fatG: lastReview.totals.fat_g,
+      mealType,
+      ingredients: logItemsToIngredients(lastReview.items),
+    });
+    setSavingRecipe(false);
+    if (res.status === 'created') {
+      haptic.success();
+      setRecipeSaved(true);
+    } else if (res.status === 'duplicate') {
+      setRecipeSaved(true);
+      Alert.alert('Ya la tienes', `"${res.existingName}" ya está en tus recetas: no se creó un duplicado.`);
+    } else {
+      Alert.alert('No se pudo guardar', 'Revisa tu conexión e intenta de nuevo.');
+    }
+  };
+
   const handleSaveFood = () => {
     if (!result) return;
     // Track C (MB-8): SIMPLE guarda la estimación tal cual (nunca se bloquea
@@ -567,6 +599,7 @@ export default function FoodScanScreen() {
       // T5 HARDENING: funnel core — comida registrada (sin descripción en props).
       analytics.track(ATP_EVENTS.FOOD_LOGGED, { source: 'scan_reviewed', meal_type: mealType, has_photo: !!photoUrl });
       haptic.success();
+      setLastReview(reviewed);
       setSaved(true);
     } catch (err: any) {
       // MB-SEC-1 §6: detalle al log, copy genérico a pantalla (err.message de
@@ -689,6 +722,7 @@ export default function FoodScanScreen() {
     setResult(null); setPhotoUri(null); setPhotoBase64(null);
     setSaved(false); setDescription(''); setProductName(''); setUseCtx(null);
     setAddedToPlan(false); setAddingToPlan(false);
+    setLastReview(null); setSavingRecipe(false); setRecipeSaved(false);
     setHungerKey(null); setMealType(defaultMealTypeByHour()); setStep('capture');
     // Reset nuevos estados de food editable
     setTextInput(''); setInputType('photo'); setIngredients([]);
@@ -1477,6 +1511,26 @@ export default function FoodScanScreen() {
                     Guardado
                   </EliteText>
                 </View>
+                {/* P2 (MB-28B): comes esto seguido → guárdalo como receta y
+                    la próxima vez lo registras con un toque desde Recetas. */}
+                {mode === 'food' && lastReview && (
+                  recipeSaved ? (
+                    <View style={[st.savedRow, { paddingVertical: Spacing.sm }]}>
+                      <Ionicons name="bookmark" size={16} color={ATP_BRAND.amber} />
+                      <EliteText style={{ color: ATP_BRAND.amber, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>
+                        En tus recetas
+                      </EliteText>
+                    </View>
+                  ) : (
+                    <AnimatedPressable onPress={handleSaveAsRecipe} disabled={savingRecipe} scaleDown={0.96}
+                      style={[st.outlineBtn, { borderColor: ATP_BRAND.amber + '50' }]}>
+                      <Ionicons name="bookmark-outline" size={18} color={ATP_BRAND.amber} />
+                      <EliteText style={{ color: ATP_BRAND.amber, fontFamily: Fonts.semiBold, fontSize: FontSizes.lg }}>
+                        {savingRecipe ? 'Guardando...' : 'Guardar como receta'}
+                      </EliteText>
+                    </AnimatedPressable>
+                  )
+                )}
               </Animated.View>
             )}
 

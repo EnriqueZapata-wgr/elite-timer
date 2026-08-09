@@ -121,10 +121,16 @@ export const APP_REGISTRY: AppEntry[] = [
     description: 'Timer de ayuno con protocolos de 12 a 72 horas, meta editable e historial de tus ventanas.' },
   { key: 'suplementos', label: 'Suplementos', icon: 'suplementos', section: 'diario', route: '/supplements', installable: true, alias: ['pastillas', 'vitaminas', 'magnesio'],
     description: 'Tu registro personal: crea tus fichas, agrúpalas por momento del día y marca cada toma. ATP no te sugiere qué tomar.' },
+  // MB-28B P2 — decisión: Recetas NO se vuelve instalable. `installable`
+  // significa "se puede activar como hábito del día" y Recetas es
+  // herramienta de captura/reúso, no una práctica diaria con electrón: el
+  // hábito es Comida (que sí es instalable). Mismo criterio que Rachas,
+  // 1RM y Medidas. Su promesa ya es verdad completa: registrar desde
+  // receta (un toque) Y guardar lo registrado como receta.
   { key: 'recetas', label: 'Recetas', icon: 'recetas', section: 'diario', route: '/my-recipes', installable: false, alias: ['cocinar', 'platillos', 'menú'],
     description: 'Guarda tus comidas como recetas y reúsalas al registrar, sin volver a capturar nada.' },
   { key: 'lista-compra', label: 'Lista', icon: 'lista-compra', section: 'diario', route: '/lista-compra', installable: false, alias: ['compras', 'súper', 'mandado', 'despensa'],
-    description: 'Elige recetas de tu semana y arma la lista del súper con sus ingredientes, lista para compartir.' },
+    description: 'Tu lista del súper: escríbela a mano o manda los ingredientes de una receta. Lo comprado queda en tu despensa y no se te vuelve a pedir.' },
 
   // ── Salud ──
   { key: 'sol', label: 'Sol', icon: 'sol', section: 'salud', route: '/solar', installable: true, alias: ['uv', 'vitamina d', 'luz', 'sunlight'],

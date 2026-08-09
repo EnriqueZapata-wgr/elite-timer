@@ -1,5 +1,8 @@
 /**
- * MB-28A P3 — el contrato de las tres pantallas de registro de comida.
+ * MB-28A P3 — el contrato de las pantallas de registro de comida.
+ * MB-28B P4 — food-barcode entra al MISMO contrato: cuarta pantalla, cero
+ * excepciones. Sus candados propios (caída a manual, sin juicio moral)
+ * viven en mb28b-etiquetas.test.ts.
  *
  * Tres candados, estilo censo (leen el fuente bajo node, sin montar RN):
  *   1. Modo simple/completo: las TRES pantallas leen useNutritionMode y gatean
@@ -19,7 +22,7 @@ import { join, sep } from 'node:path';
 
 const read = (f: string) => readFileSync(f, 'utf8');
 
-const PANTALLAS = ['app/food-scan.tsx', 'app/food-text.tsx', 'app/food-register.tsx'];
+const PANTALLAS = ['app/food-scan.tsx', 'app/food-text.tsx', 'app/food-register.tsx', 'app/food-barcode.tsx'];
 
 // ─── 1. Las tres pantallas leen el modo ─────────────────────────────────────
 

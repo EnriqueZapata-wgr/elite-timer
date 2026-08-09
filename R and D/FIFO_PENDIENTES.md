@@ -1,9 +1,10 @@
 # 📋 FIFO · todo lo que quedó pendiente
 
-**Actualizado:** 8-ago-2026, tras la entrega de MB-29 (`feat/mb29-salud`, SIN
-merge: espera audit de Cowork; corre en paralelo con MB-28B y el orden de
-merge lo decide Cowork). Actualización previa: merge conjunto de MB-28A y
-MB-28C a `main` (`ce70c10`).
+**Actualizado:** 8-ago-2026, cierre conjunto de MB-29 (`feat/mb29-salud`) y
+MB-28B (`feat/mb28b-despensa`) a `main` con audit VERDE de Cowork (corrieron
+en paralelo; orden de merge: MB-29 → MB-28B). Actualización previa: merge
+conjunto de MB-28A (`feat/mb28a-comida`) y MB-28C (`feat/mb28c-mente`) a
+`main` (`ce70c10`).
 **Para qué:** un solo lugar. Antes esto vivía repartido en tres audits, dos deliveries y
 la memoria de las conversaciones, y por eso se perdía.
 
@@ -55,14 +56,16 @@ Necesitan datos en el momento de disparar, o sea **un despachador del lado del s
 no del cliente. Es un proyecto propio, no una pieza suelta.
 
 ## B2 · Tests de servicios con efectos
-✅ MB-29 sumó 3 archivos con `supabase-fake`: consulta-report-service
-(fail-closed de datos + gate de ciclo solo vía getCycleInfo), lab-no-pisa
-(lab_values append-only: la FORMA del upsert es el contrato) y
-paquetes-salud (aplicarPack instala por installApp, sin atajos). Antes de
-MB-29 había **7 archivos** (MB-28A sumó food-log-service y
-nutrition-mode-service, y el fake captura payloads: se puede afirmar la
-FORMA de lo escrito, no solo la tabla). Sigue siendo un arranque: la
-mayoría de los servicios con efectos continúan sin cobertura.
+✅ Hay **13 archivos** con fakes de efectos: 12 usando `supabase-fake` + 1 con
+fetch fake, mismo espíritu. MB-28A sumó food-log-service y
+nutrition-mode-service, y el fake ahora captura payloads: se puede afirmar la
+FORMA de lo escrito, no solo la tabla. MB-28B sumó shopping-list-service,
+recipe-save-service y barcode-product-service (este último es el del fetch
+fake). MB-29 sumó consulta-report-service (fail-closed de datos + gate de
+ciclo solo vía getCycleInfo), lab-no-pisa (lab_values append-only: la FORMA
+del upsert es el contrato) y paquetes-salud (aplicarPack instala por
+installApp, sin atajos). Sigue siendo un arranque: la mayoría
+de los servicios con efectos continúan sin cobertura.
 
 **No bloquea nada**, pero es la deuda que más crece con cada MB.
 
@@ -71,6 +74,10 @@ mayoría de los servicios con efectos continúan sin cobertura.
 panel de coach (`ClientDetailScreen`). El candado de `registro-comida.test.ts`
 impide que vuelvan a una pantalla consumer; migrar el panel de coach a
 `food-log-service` (falta un `updateFoodLogChecked`) es de un run del coach.
+
+## B3 · `CycleCalendar` estaba muerto
+El audit de MB-27 encontró que no tenía un solo importador vivo. Hay un commit que dice
+que murió. ❓ **Confirmar que se borró de verdad** y no solo se desconectó.
 
 ## B4 · Lo que MB-29 dejó fuera A CONCIENCIA (pilar SALUD)
 - **Upgrade visual de la guía de labs** (`labs-guide.tsx`, recorrido #21 ✂️):
@@ -84,9 +91,24 @@ impide que vuelvan a una pantalla consumer; migrar el panel de coach a
   (lab-confirmation), así que un número mal leído no aterriza solo. No se
   construyó pipeline nuevo.
 
-## B3 · `CycleCalendar` estaba muerto
-El audit de MB-27 encontró que no tenía un solo importador vivo. Hay un commit que dice
-que murió. ❓ **Confirmar que se borró de verdad** y no solo se desconectó.
+## B5 · El visor de cámara del escáner de códigos (MB-28B → MB-30)
+El escáner de etiquetas quedó con captura del código A MANO: la cámara del
+binario es `expo-image-picker` (fotos), que **no decodifica códigos de
+barras**. El visor en vivo exige `expo-camera` (módulo nativo nuevo) y eso es
+de **MB-30, el único build del plan**. El flujo ya está completo (lookup,
+caídas, guardado): al llegar el build, el visor solo alimenta
+`/food-barcode` con el código leído.
+
+## B6 · Hallazgos MB-28B que no eran de este run
+- **`seedRecipes()` no tiene un solo importador vivo** y la tabla `recipes`
+  (recetas públicas de arranque) no se lee en ninguna pantalla. El copy ya
+  quedó limpio de promesas médicas por si se cablea; decidir si se cablea o
+  se borra.
+- **El scan de etiqueta CON FOTO (food-scan modo `label`) sigue mostrando
+  score de limpieza y semáforos de tags.** El escáner de códigos nuevo nace
+  sin juicio (doctrina MB-28B); la superficie vieja de MB-28A quedó intacta
+  a propósito (cada superficie se toca una vez) — pero la tensión de
+  doctrina existe y es del overhaul de nutrición resolverla.
 
 ---
 

@@ -29,6 +29,7 @@ export type FoodLogSource =
   | 'manual_text'  // food-text (builder manual / IA)
   | 'frequent'     // food-register frecuentes de 1 toque
   | 'recipe'       // my-recipes
+  | 'barcode'      // food-barcode (código de barras, MB-28B)
   | 'manual';      // fallback histórico (default de la columna)
 
 /** Extras estructurados que viven en notes (JSON, forma única). */
