@@ -13,16 +13,32 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
+import { AppIcon } from '@/src/components/ui/AppIcon';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { Screen } from '@/src/components/ui/Screen';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
-import { type WearableData } from '@/src/services/wearable-service';
-import { fetchWearableToday } from '@/src/hooks/useWearableToday';
-import { sincronizarPendientes } from '@/src/services/sleep/sleep-session-service';
+import {
+  fetchNoches,
+  hayPendientes,
+  sincronizarPendientes,
+  type SleepNightRow,
+} from '@/src/services/sleep/sleep-session-service';
+import {
+  importarNoches,
+  leerNochesDeSalud,
+  solicitarPermisosSueno,
+} from '@/src/services/sleep/sleep-import-service';
+import {
+  abrirAjustesHealthConnect,
+  getHealthPlatform,
+  type HealthPlatform,
+} from '@/src/services/fitness/health-import-service';
+import { desfaseAcostarse, etiquetaDeScore } from '@/src/services/sleep/sleep-core';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND, TEXT_COLORS, SURFACES, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, SURFACES, getScoreColor, withOpacity } from '@/src/constants/brand';
+import { parseLocalDate } from '@/src/utils/date-helpers';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 // Asset editorial del pilar (require estático · Metro).
@@ -41,10 +57,48 @@ function fmtHora(t?: string | null): string | null {
   return `${h12}:${m[2]} ${suffix}`;
 }
 
+/** ISO timestamptz → '11:42 pm' en hora local. */
+function fmtHoraISO(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const h = d.getHours();
+  const suffix = h < 12 ? 'am' : 'pm';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(d.getMinutes()).padStart(2, '0')} ${suffix}`;
+}
+
+/** 465 → '7 h 45 min'. */
+function fmtDur(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min`;
+}
+
+/** De dónde salió la noche — siempre visible, nunca dos verdades. */
+function fuenteLabel(source: string): string {
+  if (source === 'sleep_cycle') return 'Medida con tu Sleep Cycle';
+  if (source === 'health_connect') return 'Importada de Health Connect';
+  if (source === 'healthkit') return 'Importada de Salud de Apple';
+  return source;
+}
+
+const DIAS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+function diaCorto(nightDate: string): string {
+  try {
+    return DIAS[parseLocalDate(nightDate).getDay()] ?? '';
+  } catch {
+    return '';
+  }
+}
+
 export default function SleepScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const [wearable, setWearable] = useState<WearableData | null>(null);
+  const [noches, setNoches] = useState<SleepNightRow[]>([]);
+  const [pendientes, setPendientes] = useState(0);
+  const [plataforma, setPlataforma] = useState<HealthPlatform | null>(null);
+  const [importando, setImportando] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
   const [wake, setWake] = useState<string | null>(null);
   const [sleep, setSleep] = useState<string | null>(null);
   // D-2 (MB-12): fallo de red ≠ "no tienes cronotipo" — la card lo dice.
@@ -74,19 +128,67 @@ export default function SleepScreen() {
           }
         }
       } catch { /* sin cronotipo → solo estado de conexión */ }
-      // Wearable: si hay datos de hoy, mostrarlos (fail-soft).
-      // MB-11 B.3: fuente única — comparte la llamada del día con YO.
+      // MB-30A: las noches propias e importadas (fuente única: sleep_nights).
       try {
-        const data = await fetchWearableToday();
-        if (active && data) setWearable(data);
-      } catch { /* sin wearable — estado vacío honesto */ }
+        const data = await fetchNoches(user.id, 14);
+        if (active) setNoches(data);
+      } catch { /* sin datos — estado vacío honesto */ }
+      try {
+        const n = await hayPendientes();
+        if (active) setPendientes(n);
+      } catch { /* sin cola */ }
+      try {
+        const p = await getHealthPlatform();
+        if (active) setPlataforma(p);
+      } catch { /* plataforma desconocida: la card lo dice */ }
     })();
     return () => { active = false; };
   }, [user?.id]));
 
+  const importarDeSalud = useCallback(async () => {
+    if (!user?.id || importando) return;
+    haptic.light();
+    setImportando(true);
+    setImportMsg(null);
+    try {
+      const permiso = await solicitarPermisosSueno();
+      if (permiso === 'dialogo_no_disponible') {
+        // Binario sin delegate: el diálogo nativo crashearía — ruta manual.
+        abrirAjustesHealthConnect();
+        setImportMsg('Concede "Sueño" en Health Connect y vuelve a intentar.');
+        return;
+      }
+      if (permiso !== 'ok') {
+        setImportMsg('Sin permiso de lectura no podemos ver tu sueño.');
+        return;
+      }
+      const leidas = await leerNochesDeSalud(14);
+      if (leidas.length === 0) {
+        setImportMsg('Tu plataforma de salud no tiene noches en los últimos 14 días.');
+        return;
+      }
+      const res = await importarNoches(user.id, leidas);
+      if (!res.ok) {
+        setImportMsg('No se pudo importar. Intenta de nuevo.');
+        return;
+      }
+      setImportMsg(
+        res.importadas === 0
+          ? 'Nada nuevo: esas noches ya estaban registradas.'
+          : `${res.importadas} ${res.importadas === 1 ? 'noche importada' : 'noches importadas'}.`,
+      );
+      const data = await fetchNoches(user.id, 14);
+      setNoches(data);
+    } finally {
+      setImportando(false);
+    }
+  }, [user?.id, importando]);
+
   const sleepLabel = fmtHora(sleep);
   const wakeLabel = fmtHora(wake);
-  const sleepHours = wearable?.sleep?.totalHours ?? null;
+  // La noche más reciente (cualquier fuente — la base garantiza una por fecha).
+  const anoche = noches[0] ?? null;
+  const desfase = anoche?.bed_time ? desfaseAcostarse(anoche.bed_time, sleep) : null;
 
   return (
     <Screen edges={[]}>
@@ -141,39 +243,121 @@ export default function SleepScreen() {
             </Animated.View>
           )}
 
-          {/* Estado de conexión: dato real si hay wearable, estado vacío honesto si no */}
-          {sleepHours != null ? (
+          {/* ANOCHE — el dato propio (sleep_nights: sesión propia o import) */}
+          {anoche ? (
             <Animated.View entering={FadeInUp.delay(140).springify()} style={s.dataCard}>
               <EliteText style={s.windowKicker}>ANOCHE</EliteText>
-              <EliteText style={s.dataValue}>{Number(sleepHours).toFixed(1)} h</EliteText>
-              <EliteText style={s.dataSub}>Registradas por {wearable?.source ?? 'tu wearable'}</EliteText>
+              <EliteText style={s.dataValue}>
+                {anoche.duration_minutes != null ? fmtDur(anoche.duration_minutes) : '—'}
+              </EliteText>
+              {anoche.score != null && (
+                <EliteText style={[s.dataScore, { color: getScoreColor(anoche.score) }]}>
+                  {etiquetaDeScore(anoche.score)} · score {anoche.score}
+                </EliteText>
+              )}
+              {anoche.snore_minutes != null && anoche.snore_minutes > 0 && (
+                <EliteText style={s.dataSub}>~{anoche.snore_minutes} min con sonido de ronquido</EliteText>
+              )}
+              {anoche.bed_time && (
+                <EliteText style={s.dataSub}>
+                  Te acostaste a las {fmtHoraISO(anoche.bed_time)}
+                  {desfase != null && sleepLabel
+                    ? desfase > 15
+                      ? ` · ${desfase} min después de tu objetivo (${sleepLabel})`
+                      : desfase < -15
+                        ? ` · ${Math.abs(desfase)} min antes de tu objetivo`
+                        : ' · a tiempo con tu objetivo'
+                    : ''}
+                </EliteText>
+              )}
+              <EliteText style={s.dataFuente}>{fuenteLabel(anoche.source)}</EliteText>
             </Animated.View>
           ) : (
             <Animated.View entering={FadeInUp.delay(140).springify()} style={s.emptyCard}>
-              <Ionicons name="watch-outline" size={22} color={TEXT_COLORS.muted} />
+              <AppIcon name="sueno" size={22} color={TEXT_COLORS.muted} />
               <View style={{ flex: 1 }}>
                 <EliteText style={s.emptyTitle}>Aún no vemos tu descanso</EliteText>
                 <EliteText style={s.emptySub}>
-                  Conecta tu Apple Watch o Health Connect para ver tus horas y fases de sueño aquí.
+                  Usa el Sleep Cycle esta noche, o importa las horas de sueño que tu teléfono
+                  ya mide. Sin datos no te inventamos gráficas.
                 </EliteText>
               </View>
-              <AnimatedPressable
-                style={s.connectBtn}
-                onPress={() => { haptic.light(); router.push('/settings'); }}
-              >
-                <EliteText style={s.connectBtnText}>CONECTAR</EliteText>
-              </AnimatedPressable>
             </Animated.View>
           )}
 
-          {/* Por qué importa (mecanismo, sin autoridad) */}
-          <Animated.View entering={FadeInUp.delay(200).springify()} style={s.blockCard}>
+          {/* Noches esperando conexión (modo avión): se dice, no se esconde */}
+          {pendientes > 0 && (
+            <Animated.View entering={FadeInUp.delay(160).springify()}>
+              <EliteText style={s.pendientesTexto}>
+                {pendientes === 1
+                  ? '1 noche guardada en tu teléfono, esperando conexión para subirse.'
+                  : `${pendientes} noches guardadas en tu teléfono, esperando conexión para subirse.`}
+              </EliteText>
+            </Animated.View>
+          )}
+
+          {/* EN EL TIEMPO — tendencia simple, solo con 2+ noches reales */}
+          {noches.length >= 2 && (
+            <Animated.View entering={FadeInUp.delay(180).springify()} style={s.trendCard}>
+              <EliteText style={s.windowKicker}>TUS ÚLTIMAS NOCHES</EliteText>
+              <View style={s.trendRow}>
+                {[...noches].reverse().slice(-7).map((n) => {
+                  const min = n.duration_minutes ?? 0;
+                  const h = Math.max(0.15, Math.min(1, min / 540));
+                  return (
+                    <View key={n.night_date} style={s.trendCol}>
+                      <EliteText style={s.trendHoras}>{(min / 60).toFixed(1)}</EliteText>
+                      <View style={[s.trendBar, { height: Math.round(h * 56) }]} />
+                      <EliteText style={s.trendDia}>{diaCorto(n.night_date)}</EliteText>
+                    </View>
+                  );
+                })}
+              </View>
+              {noches.some((n) => (n.snore_minutes ?? 0) > 0) && (
+                <EliteText style={s.dataSub}>
+                  Ronquido detectado en {noches.filter((n) => (n.snore_minutes ?? 0) > 0).length} de
+                  tus últimas {Math.min(noches.length, 14)} noches (aproximado, por sonido).
+                </EliteText>
+              )}
+            </Animated.View>
+          )}
+
+          {/* Importar de la plataforma de salud — estado honesto por plataforma */}
+          <Animated.View entering={FadeInUp.delay(200).springify()} style={s.emptyCard}>
+            <Ionicons name="download-outline" size={22} color={REST} />
+            <View style={{ flex: 1 }}>
+              <EliteText style={s.emptyTitle}>
+                {plataforma ? plataforma.nombre : 'Tu plataforma de salud'}
+              </EliteText>
+              <EliteText style={s.emptySub}>
+                {plataforma?.status === 'disponible'
+                  ? 'Trae las horas de sueño que tu teléfono ya registra. Solo lectura.'
+                  : plataforma?.status === 'binario_viejo'
+                    ? 'Tu versión de la app aún no trae este módulo. Llega con la próxima actualización.'
+                    : plataforma?.status === 'sin_app'
+                      ? 'Instala o actualiza Health Connect para poder leer tu sueño.'
+                      : 'En esta plataforma no hay lectura de sueño.'}
+              </EliteText>
+              {importMsg && <EliteText style={s.importMsg}>{importMsg}</EliteText>}
+            </View>
+            {plataforma?.status === 'disponible' && (
+              <AnimatedPressable
+                style={[s.connectBtn, importando && { opacity: 0.5 }]}
+                onPress={() => { void importarDeSalud(); }}
+              >
+                <EliteText style={s.connectBtnText}>{importando ? '...' : 'IMPORTAR'}</EliteText>
+              </AnimatedPressable>
+            )}
+          </Animated.View>
+
+          {/* Por qué importa (mecanismo, sin autoridad — y sin prometer lo que
+              no medimos: aquí no se habla de arquitectura de la noche) */}
+          <Animated.View entering={FadeInUp.delay(240).springify()} style={s.blockCard}>
             <EliteText style={[s.blockKicker, { color: REST }]}>MIENTRAS DUERMES</EliteText>
             <EliteText style={s.blockBody}>
-              Cada noche tu cuerpo recorre 4-5 ciclos de ~90 minutos: el sueño profundo repara
-              músculo y tejido, y el sueño REM (la fase de los sueños) ordena lo que aprendiste
-              en el día. Cortar un ciclo a la mitad (dormir 6 horas en vez de 7.5) es despertar
-              a media reparación.
+              Dormir no es tiempo perdido: mientras duermes tu cuerpo repara músculo y tejido,
+              tu cerebro archiva lo que aprendiste y tus hormonas se reajustan para el día
+              siguiente. Recortarle una hora a la noche es recortarle a esa reparación.
             </EliteText>
           </Animated.View>
 
@@ -228,7 +412,26 @@ const s = StyleSheet.create({
     padding: Spacing.md, marginTop: Spacing.sm, alignItems: 'center', gap: 4,
   },
   dataValue: { fontSize: 34, fontFamily: Fonts.extraBold, color: '#fff' },
-  dataSub: { fontSize: FontSizes.xs, color: TEXT_COLORS.muted },
+  dataSub: { fontSize: FontSizes.xs, color: TEXT_COLORS.muted, textAlign: 'center' },
+  dataScore: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+  dataFuente: { fontSize: 10, fontFamily: Fonts.bold, color: TEXT_COLORS.muted, letterSpacing: 1.5, marginTop: 2 },
+
+  pendientesTexto: {
+    fontSize: FontSizes.xs, color: TEXT_COLORS.muted, marginTop: Spacing.xs,
+    textAlign: 'center', fontStyle: 'italic',
+  },
+
+  trendCard: {
+    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    padding: Spacing.md, marginTop: Spacing.sm, gap: 10,
+  },
+  trendRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around' },
+  trendCol: { alignItems: 'center', gap: 4 },
+  trendHoras: { fontSize: 10, fontFamily: Fonts.semiBold, color: TEXT_COLORS.secondary },
+  trendBar: { width: 14, borderRadius: 4, backgroundColor: withOpacity(REST, 0.55) },
+  trendDia: { fontSize: 9, fontFamily: Fonts.bold, color: TEXT_COLORS.muted, letterSpacing: 1 },
+
+  importMsg: { fontSize: FontSizes.xs, color: REST, marginTop: 4 },
 
   emptyCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

@@ -257,6 +257,25 @@ export function ajustarHora(hhmm: string, deltaMin: number): string {
 /** Sesión mínima para registrar una noche (evita basura de pruebas de 2 min). */
 export const MIN_NOCHE_MINUTOS = 30;
 
+/**
+ * Minutos entre tu hora REAL de acostarte y tu hora objetivo (cronotipo).
+ * Positivo = te acostaste después del objetivo. Maneja el cruce de
+ * medianoche: acostarse 00:30 con objetivo 22:30 son +120, no -1320.
+ */
+export function desfaseAcostarse(
+  bedISO: string,
+  objetivoHHMM: string | null | undefined,
+): number | null {
+  if (!objetivoHHMM) return null;
+  const m = /^(\d{1,2}):(\d{2})/.exec(objetivoHHMM);
+  if (!m) return null;
+  const bed = new Date(bedISO);
+  if (Number.isNaN(bed.getTime())) return null;
+  const bedMin = bed.getHours() * 60 + bed.getMinutes();
+  const objMin = Number(m[1]) * 60 + Number(m[2]);
+  return ((bedMin - objMin + 720 + 1440) % 1440) - 720;
+}
+
 // ── Armado de la noche ──
 
 /** Construye el registro persistible de una sesión propia terminada. */
