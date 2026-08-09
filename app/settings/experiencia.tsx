@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
+import { AppIcon } from '@/src/components/ui/AppIcon';
 import { EliteText } from '@/components/elite-text';
 import { EliteToggle } from '@/components/elite-toggle';
 import { useSettings, type VoiceLanguage, type SoundStyle, type FitnessVoiceMode } from '@/src/contexts/settings-context';
@@ -200,6 +201,24 @@ export default function SettingsExperienciaScreen() {
             value={settings.keepAwake}
             onValueChange={v => { haptic.light(); updateSetting('keepAwake', v); }}
           />
+          {/* MB-30B: filtro nocturno de sistema (overlay Android / guía iOS).
+              Fila inline porque el glifo es una FUNCIÓN y va por AppIcon
+              (SettingRow solo dibuja Ionicons y el ratchet lo veta). */}
+          <Pressable
+            onPress={() => { haptic.light(); router.push('/night-filter'); }}
+            style={ui.settingRow}
+          >
+            <View style={ui.settingRowLeft}>
+              <AppIcon name="off-pantallas" size={20} color={Colors.textSecondary} />
+              <View style={{ flex: 1 }}>
+                <EliteText variant="body" style={ui.settingRowLabel}>Filtro nocturno</EliteText>
+                <EliteText variant="caption" style={ui.settingRowSub}>
+                  Luz cálida sobre todo el teléfono hacia tu corte de pantallas
+                </EliteText>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+          </Pressable>
           <Divider />
         </Animated.View>
 

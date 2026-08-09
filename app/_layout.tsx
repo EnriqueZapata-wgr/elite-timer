@@ -37,6 +37,7 @@ import { LabProcessingSheet } from '@/src/components/labs/LabProcessingSheet';
 import { ProcessingMiniBanner } from '@/src/components/labs/ProcessingMiniBanner';
 import { parseResetPasswordUrl, isResetPasswordLink } from '@/src/utils/reset-password-link';
 import { RevenueCatSync } from '@/src/components/RevenueCatSync';
+import { NightFilterBridge } from '@/src/components/NightFilterBridge';
 import { ArgosPresenceProvider } from '@/src/components/argos/ArgosPresenceContext';
 import { ArgosFloatingButton } from '@/src/components/argos/ArgosFloatingButton';
 import { HomeFloatingButton } from '@/src/components/ui/HomeFloatingButton';
@@ -146,6 +147,8 @@ function RootLayout() {
         <AuthProvider>
           {/* Sync invisible: configura RevenueCat y vincula user.id como app_user_id */}
           <RevenueCatSync />
+          {/* MB-30B: re-arma el filtro nocturno si quedó encendido (Android) */}
+          <NightFilterBridge />
           <SettingsProvider>
             <ProgramsProvider>
               <SessionsProvider>
@@ -275,6 +278,8 @@ function RootLayout() {
                 {/* Batch 2 (#15/#8): pantalla propia de Sueño + vista Mi Cronotipo */}
                 <Stack.Screen name="sleep" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="my-chronotype" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* MB-30B: filtro nocturno de sistema (Android overlay / guía iOS) */}
+                <Stack.Screen name="night-filter" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Suscripciones RevenueCat (sprint IAP V1.3) */}
                 <Stack.Screen name="paywall" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="settings/subscription" options={{ headerShown: false, animation: 'slide_from_right' }} />
