@@ -429,6 +429,98 @@ export const SEMANTIC_THEME = {
 export type SemanticTheme = typeof SEMANTIC_THEME;
 
 // ═══════════════════════════════════════════════════════════════════
+// TEMAS (MB-31A — Manual de marca cap. 3.5/3.6, aprobado 9-ago-2026)
+// ═══════════════════════════════════════════════════════════════════
+// Un token nombra un ROL, no un color. Los nombres son los del brief para
+// que el audit los coteje 1:1 contra el manual. El oscuro son los valores
+// que la app YA usa (no se tocan); el claro es el acero del cap. 3.6.
+//
+// ⚠️ Nota de fidelidad (va también en el reporte de MB-31A): el manual 3.5
+// anota "fondo base #0A0A0A", pero el lienzo real de las pantallas hoy es
+// #000000 (ELEVATION[0] / BG.screen); #0A0A0A es SURFACES.base (tab bar,
+// sidebar, inputs). El brief manda "las de hoy, no se tocan" y el device
+// test exige que quien no elige nada vea la app IGUAL: fondo = #000000.
+
+export interface AppThemeTokens {
+  kind: 'dark' | 'light';
+  /** El lienzo de la pantalla. */
+  fondo: string;
+  /** Superficie de card (más clara que el fondo, en los dos modos). */
+  card: string;
+  /** Dato dentro de una card, campo de captura (en claro se oscurece). */
+  hundido: string;
+  /** Hoja modal, menú emergente. */
+  flotante: string;
+  /** Separadores, contorno de card. */
+  borde: string;
+  /** Campo con foco, selección. */
+  bordeMarcado: string;
+  /** Texto principal. */
+  texto: string;
+  /** Texto secundario. */
+  textoSecundario: string;
+  /** Texto tenue — solo etiquetas grandes o deshabilitadas (3.19 en claro). */
+  textoTenue: string;
+  /** Texto sobre relleno lima (negro en los dos modos). */
+  textoSobreLima: string;
+  /** Acento de texto/enlace: el teal, calibrado por fondo como una tinta
+   *  según el papel. En claro JAMÁS #1ABC9C (2.06) ni lima (1.34). */
+  tealTexto: string;
+  /** Error de interfaz. Coral apagado en oscuro; #B03A2E en claro (el coral
+   *  no se lee). Nunca grita más que un biomarcador crítico. */
+  error: string;
+  /** Sin datos. */
+  sinDatos: string;
+  /** Información como texto. */
+  info: string;
+  /** Borde de la card editorial: la card queda OSCURA en los dos modos
+   *  (es la ventana, no el marco); solo su borde cambia para despegarse. */
+  bordeEditorial: string;
+}
+
+/** Modo oscuro — el canónico, los valores que la app ya es. */
+export const THEME_DARK: AppThemeTokens = {
+  kind: 'dark',
+  fondo: '#000000',
+  card: SURFACES.card,          // #121212
+  hundido: '#0A0A0A',           // inputs recedidos (BG.input)
+  flotante: '#232323',          // ELEVATION[2] / "elevado" del manual 3.5
+  borde: SURFACES.border,       // #1F1F1F
+  bordeMarcado: '#333333',      // ELEVATION[2].border (foco/selección)
+  texto: TEXT_COLORS.primary,   // #FFFFFF
+  textoSecundario: TEXT_COLORS.secondary, // #888888
+  textoTenue: TEXT_COLORS.muted,          // #555555
+  textoSobreLima: TEXT_COLORS.onAccent,   // #000000
+  tealTexto: '#1ABC9C',
+  error: SEMANTIC.error,        // #E8877F coral apagado
+  sinDatos: SEMANTIC.noData,    // #444444
+  info: SEMANTIC.info,          // #5B9BD5
+  bordeEditorial: 'transparent',
+} as const;
+
+/** Modo claro · ACERO — manual 3.6, contrastes verificados por test. */
+export const THEME_LIGHT: AppThemeTokens = {
+  kind: 'light',
+  fondo: '#DBE2E7',
+  card: '#E9EEF1',
+  hundido: '#D3DBE1',
+  flotante: '#F2F5F7',
+  borde: '#CBD5DC',
+  bordeMarcado: '#B4C1CA',
+  texto: '#0F1518',             // 15.75 sobre card · AAA
+  textoSecundario: '#4A555C',   // 6.54 sobre card · AA
+  textoTenue: '#7A868E',        // 3.19 — solo texto grande
+  textoSobreLima: '#000000',    // 13.36 · AAA
+  tealTexto: '#086A5E',         // 5.56 sobre card · 4.96 sobre fondo · AA
+  error: '#B03A2E',
+  sinDatos: '#A9B4BC',
+  info: '#2E6DA4',
+  bordeEditorial: '#CBD5DC',
+} as const;
+
+export const APP_THEMES = { dark: THEME_DARK, light: THEME_LIGHT } as const;
+
+// ═══════════════════════════════════════════════════════════════════
 // HOY BACKGROUNDS — Imagenes de fondo dinamicas por hora
 // ═══════════════════════════════════════════════════════════════════
 // requires estaticos (Metro bundler los analiza en tiempo de compilacion).

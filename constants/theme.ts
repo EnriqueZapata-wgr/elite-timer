@@ -8,6 +8,10 @@
  */
 import { ATP_BRAND, SURFACES, TEXT_COLORS, BLOCK_COLORS, SEMANTIC } from '@/src/constants/brand';
 
+// MB-31A: los dos temas viven en brand.ts (única fuente); este archivo los
+// re-exporta para que el código que ya importa de constants/theme los tenga.
+export { THEME_DARK, THEME_LIGHT, APP_THEMES, type AppThemeTokens } from '@/src/constants/brand';
+
 // === COLORES ===
 
 export const Colors = {
