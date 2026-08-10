@@ -38,6 +38,8 @@ import { ProcessingMiniBanner } from '@/src/components/labs/ProcessingMiniBanner
 import { parseResetPasswordUrl, isResetPasswordLink } from '@/src/utils/reset-password-link';
 import { RevenueCatSync } from '@/src/components/RevenueCatSync';
 import { NightFilterBridge } from '@/src/components/NightFilterBridge';
+import { AtpThemeProvider } from '@/src/contexts/theme-context';
+import { NightVeil } from '@/src/components/theme/NightVeil';
 import { NotificationActionsBridge } from '@/src/components/NotificationActionsBridge';
 import { ArgosPresenceProvider } from '@/src/components/argos/ArgosPresenceContext';
 import { ArgosFloatingButton } from '@/src/components/argos/ArgosFloatingButton';
@@ -152,6 +154,10 @@ function RootLayout() {
           <NightFilterBridge />
           {/* MB-30B: categorías con botones + despacho de respuestas de aviso */}
           <NotificationActionsBridge />
+          {/* MB-31A: el motor de temas (4 modos) + velo nocturno in-app.
+              Vive DENTRO de AuthProvider: adaptativo necesita el horario
+              real del usuario (despertar + corte de pantallas). */}
+          <AtpThemeProvider>
           <SettingsProvider>
             <ProgramsProvider>
               <SessionsProvider>
@@ -311,14 +317,21 @@ function RootLayout() {
               <MeetArgosGate />
               {/* T5 ONBOARDING épico: celebración al aterrizar en HOY tras Meet ARGOS. */}
               <OnboardingCompletion />
+              {/* MB-31A: el velo nocturno in-app — encima de la UI, debajo
+                  del splash. Capa sin toque; entibia el tema que haya. */}
+              <NightVeil />
               {/* T2 ONBOARDING épico: splash cinemático sobre todo lo demás. */}
               {!splashDone && <AtpSplash onFinish={() => setSplashDone(true)} />}
+              {/* Tránsito MB-31A: la barra de estado global sigue clara
+                  (las pantallas sin migrar son oscuras); cada pantalla
+                  <ThemeReady> pone la suya según el tema. */}
               <StatusBar style="light" />
               </ArgosPresenceProvider>
               </LabProcessingProvider>
               </SessionsProvider>
             </ProgramsProvider>
           </SettingsProvider>
+          </AtpThemeProvider>
         </AuthProvider>
       </PostHogProvider>
     </ThemeProvider>

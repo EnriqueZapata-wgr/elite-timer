@@ -1,10 +1,12 @@
 /**
  * MB-30B Pieza 1 — núcleo PURO del filtro nocturno (sin RN, sin nativo).
  *
- * La rampa de color vive AQUÍ y solo aquí: es la fuente única. El servicio
- * Android (NightFilterService.kt) recibe estos stops serializados y solo
- * interpola; el fallback hardcodeado en Kotlin es un espejo de esta tabla y
- * hay un test que los compara (night-filter.test.ts).
+ * MB-31A: la rampa de color ya NO vive aquí — vive en night-curve.ts (la
+ * curva única del manual 3.7: velo in-app + filtro de sistema + pantalla
+ * del buró). Este módulo la re-exporta con la misma API y conserva la
+ * matemática que el servicio Android espeja. El fallback hardcodeado en
+ * Kotlin sigue siendo espejo byte a byte de la rampa y hay un test que los
+ * compara (night-filter-core.test.ts).
  *
  * Doctrina de la progresión (brief MB-30B):
  *   - Anclada al corte de pantallas del usuario (screen_time_cutoff), no a
@@ -13,28 +15,19 @@
  *   - Opacidades moderadas: el teléfono sigue siendo 100% usable. Un filtro
  *     que no deja ver es una desinstalación, no un hábito.
  */
+import {
+  NIGHT_FILTER_RAMP,
+  NIGHT_FILTER_END_MINUTES,
+  NIGHT_FILTER_FALLBACK_CUTOFF,
+  type RampStop,
+} from '@/src/constants/night-curve';
 
-export interface RampStop {
-  /** Minutos relativos al corte (negativo = antes del corte). */
-  at: number;
-  r: number;
-  g: number;
-  b: number;
-  /** Opacidad 0..1. */
-  a: number;
-}
-
-/** 05:00 — la mañana apaga el filtro aunque nadie lo toque. */
-export const NIGHT_FILTER_END_MINUTES = 5 * 60;
-
-/** Fallback si la hora del usuario no se puede leer (espejo de tareas-core). */
-export const NIGHT_FILTER_FALLBACK_CUTOFF = 21 * 60 + 45; // '21:45'
-
-export const NIGHT_FILTER_RAMP: RampStop[] = [
-  { at: -60, r: 255, g: 191, b: 0, a: 0.1 }, // ámbar suave, 1h antes del corte
-  { at: 0, r: 255, g: 140, b: 0, a: 0.22 }, // naranja al corte
-  { at: 60, r: 255, g: 60, b: 0, a: 0.34 }, // rojo 1h después; se sostiene
-];
+export {
+  NIGHT_FILTER_RAMP,
+  NIGHT_FILTER_END_MINUTES,
+  NIGHT_FILTER_FALLBACK_CUTOFF,
+  type RampStop,
+};
 
 /** ARGB de 32 bits CON SIGNO — el formato que espera el servicio Android. */
 export function stopToArgb(s: RampStop): number {

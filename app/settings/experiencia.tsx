@@ -22,6 +22,9 @@ import { playBeep, initAudio, setSoundStyle } from '@/src/utils/sounds';
 import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { SectionLabel, Divider, Chip, TestButton, SettingRow, ui } from '@/src/components/settings/settings-ui';
 import { Colors, Spacing, Radius } from '@/constants/theme';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import type { ThemeModeSetting } from '@/src/services/theme/theme-mode-core';
+import { minutesToHHMM } from '@/src/services/night-filter-core';
 
 const LANGUAGES: { value: VoiceLanguage; label: string }[] = [
   { value: 'es-MX', label: 'Español (MX)' },
@@ -35,6 +38,16 @@ const FITNESS_VOICE_MODES: { value: FitnessVoiceMode; label: string }[] = [
   { value: 'off', label: 'Apagada' },
 ];
 
+// MB-31A: los cuatro modos del manual 3.7b. Adaptativo NO es "como el
+// teléfono": usa el horario real del usuario (despertar → corte), no el
+// atardecer genérico del sistema.
+const THEME_MODES: { value: ThemeModeSetting; label: string }[] = [
+  { value: 'claro', label: 'Claro' },
+  { value: 'oscuro', label: 'Oscuro' },
+  { value: 'adaptativo', label: 'Adaptativo' },
+  { value: 'sistema', label: 'Como el teléfono' },
+];
+
 const SOUND_STYLES: { value: SoundStyle; label: string }[] = [
   { value: 'digital', label: 'Beep digital' },
   { value: 'boxing', label: 'Campana boxeo' },
@@ -46,6 +59,7 @@ const SOUND_STYLES: { value: SoundStyle; label: string }[] = [
 export default function SettingsExperienciaScreen() {
   const router = useRouter();
   const { settings, updateSetting } = useSettings();
+  const { mode, setMode, veilEnabled, setVeilEnabled, corteMinutes } = useAppTheme();
   const [edadSound, setEdadSound] = useState(true);
   useEffect(() => { loadSoundPref().then(setEdadSound); }, []);
 
@@ -58,8 +72,30 @@ export default function SettingsExperienciaScreen() {
         {/* ── App (display-only por ahora) ── */}
         <Animated.View entering={FadeInUp.delay(80).springify()}>
           <SectionLabel>APP</SectionLabel>
-          <SettingRow icon="moon-outline" label="Tema"
-            right={<EliteText variant="caption" style={{ color: Colors.neonGreen }}>Oscuro</EliteText>} />
+          {/* MB-31A: el selector de tema, ya de verdad. */}
+          <EliteText variant="caption" style={ui.chipLabel}>TEMA</EliteText>
+          <View style={ui.chipRow}>
+            {THEME_MODES.map((m) => (
+              <Chip
+                key={m.value}
+                label={m.label}
+                selected={mode === m.value}
+                onPress={() => { haptic.light(); setMode(m.value); }}
+              />
+            ))}
+          </View>
+          {mode === 'adaptativo' ? (
+            <EliteText variant="caption" style={styles.themeNote}>
+              Con tu horario: claro al despertar y oscuro desde tu corte de pantallas
+              ({minutesToHHMM(corteMinutes)}), no con el atardecer genérico del sistema.
+            </EliteText>
+          ) : null}
+          {/* Regla de tránsito MB-31A: la nota honesta mientras queden
+              pantallas sin migrar. Se retira cuando MB-31B termine. */}
+          <EliteText variant="caption" style={styles.themeNote}>
+            El modo claro va llegando por partes: el marco ya cambia, pero varias
+            pantallas siguen en oscuro mientras terminamos la migración.
+          </EliteText>
           <SettingRow icon="language-outline" label="Idioma"
             right={<EliteText variant="caption" style={{ color: Colors.neonGreen }}>Español</EliteText>} />
           <SettingRow icon="resize-outline" label="Unidades"
@@ -201,6 +237,16 @@ export default function SettingsExperienciaScreen() {
             value={settings.keepAwake}
             onValueChange={v => { haptic.light(); updateSetting('keepAwake', v); }}
           />
+          {/* MB-31A: el velo nocturno DENTRO de la app. OTRO ajuste, no un
+              tema: funciona con los cuatro modos y entibia el que esté
+              (en claro NO te manda a oscuro). Misma curva que el filtro de
+              sistema y la pantalla del buró (night-curve.ts). */}
+          <EliteToggle
+            label="Filtro nocturno en ATP"
+            description={`Entibia la app desde una hora antes de tu corte (${minutesToHHMM(corteMinutes)}), sobre cualquier tema`}
+            value={veilEnabled}
+            onValueChange={(v) => { haptic.light(); setVeilEnabled(v); }}
+          />
           {/* MB-30B: filtro nocturno de sistema (overlay Android / guía iOS).
               Fila inline porque el glifo es una FUNCIÓN y va por AppIcon
               (SettingRow solo dibuja Ionicons y el ratchet lo veta). */}
@@ -253,6 +299,11 @@ export default function SettingsExperienciaScreen() {
 }
 
 const styles = StyleSheet.create({
+  themeNote: {
+    color: Colors.textSecondary,
+    lineHeight: 16,
+    marginBottom: Spacing.sm,
+  },
   volumeRow: {
     flexDirection: 'row',
     alignItems: 'center',

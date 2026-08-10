@@ -198,7 +198,8 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/settings.tsx::pulse-outline',
   'app/settings/dev.tsx::analytics-outline',
   'app/settings/dev.tsx::eye-outline',
-  'app/settings/experiencia.tsx::moon-outline',
+  // MB-31A: moon-outline salió — la fila display-only "Tema" se volvió el
+  // selector real de chips, sin glifo.
   'app/settings/experiencia.tsx::phone-portrait-outline',
   'app/settings/legal.tsx::document-text-outline',
   'app/settings/legal.tsx::medkit-outline',
