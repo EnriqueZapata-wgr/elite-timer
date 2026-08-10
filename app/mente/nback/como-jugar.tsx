@@ -18,8 +18,9 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
 import { haptic } from '@/src/utils/haptics';
 import { NBACK_CONFIG } from '@/src/services/nback-core';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 const STEPS: { icon: string; title: string; body: string }[] = [
   {
@@ -54,6 +55,14 @@ export default function NBackComoJugarScreen() {
   const [scrolled, setScrolled] = useState(false);
   const [idx, setIdx] = useState(0);
 
+  // MB-31B3: tokens del tema — solo migran los neutros; el lima del juego
+  // (icono, dot activo, gradiente molécula) es identidad y se queda.
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
+  const priTxt = { color: t.texto };
+  const tenueTxt = { color: t.textoTenue };
+  const cardSurf = { backgroundColor: t.card, borderColor: t.borde };
+
   const last = idx === STEPS.length - 1;
   const step = STEPS[idx];
 
@@ -68,8 +77,9 @@ export default function NBackComoJugarScreen() {
   }, [idx, router]);
 
   return (
-    <View style={s.screen}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[s.screen, { backgroundColor: t.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <StickyPillarBanner scrolled={scrolled} onBack={() => router.back()} />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -79,10 +89,10 @@ export default function NBackComoJugarScreen() {
       >
         <View style={s.header}>
           <EliteText style={s.kicker}>N-BACK · TUTORIAL</EliteText>
-          <EliteText style={s.title}>Cómo jugar</EliteText>
+          <EliteText style={[s.title, priTxt]}>Cómo jugar</EliteText>
           {/* B-4 (MB-12): alineado con el artículo de Saber más — te prometemos
               el entrenamiento, no el milagro. */}
-          <EliteText style={s.subtitle}>
+          <EliteText style={[s.subtitle, secTxt]}>
             Dual N-Back: entrena tu memoria de trabajo con dificultad
             creciente. Te prometemos el entrenamiento, no el milagro.
           </EliteText>
@@ -90,12 +100,12 @@ export default function NBackComoJugarScreen() {
 
         <View style={s.body}>
           {/* Una idea por pantalla (D10) — la card re-entra al avanzar. */}
-          <Animated.View key={idx} entering={FadeInRight.duration(220)} style={s.stepCardBig}>
+          <Animated.View key={idx} entering={FadeInRight.duration(220)} style={[s.stepCardBig, cardSurf]}>
             <View style={s.stepIconBig}>
               <Ionicons name={step.icon as any} size={28} color={ATP_BRAND.lime} />
             </View>
-            <EliteText style={s.stepTitleBig}>{step.title}</EliteText>
-            <EliteText style={s.stepBodyBig}>{step.body}</EliteText>
+            <EliteText style={[s.stepTitleBig, priTxt]}>{step.title}</EliteText>
+            <EliteText style={[s.stepBodyBig, secTxt]}>{step.body}</EliteText>
           </Animated.View>
 
           {/* Progreso */}
@@ -116,11 +126,11 @@ export default function NBackComoJugarScreen() {
               style={s.backStepBtn}
               onPress={() => { haptic.light(); setIdx(i => Math.max(0, i - 1)); }}
             >
-              <EliteText style={s.backStepText}>Anterior</EliteText>
+              <EliteText style={[s.backStepText, secTxt]}>Anterior</EliteText>
             </AnimatedPressable>
           )}
           {last && (
-            <EliteText style={s.startHint}>
+            <EliteText style={[s.startHint, tenueTxt]}>
               Tu primera sesión arranca en N=1 para que aprendas la mecánica sin presión.
             </EliteText>
           )}
@@ -129,20 +139,21 @@ export default function NBackComoJugarScreen() {
         </View>
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#000' },
+  screen: { flex: 1 },
   scroll: { paddingBottom: Spacing.xxl },
   header: { paddingTop: 108, paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
   kicker: { color: '#7F77DD', fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 3 },
-  title: { color: '#fff', fontSize: 30, fontFamily: Fonts.extraBold, letterSpacing: 1, marginTop: 2 },
-  subtitle: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 8, lineHeight: 20 },
+  title: { fontSize: 30, fontFamily: Fonts.extraBold, letterSpacing: 1, marginTop: 2 },
+  subtitle: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 8, lineHeight: 20 },
   body: { paddingHorizontal: Spacing.md },
 
   stepCardBig: {
-    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 0.5,
+    borderWidth: 0.5,
     borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.md,
     minHeight: 230,
   },
@@ -151,15 +162,15 @@ const s = StyleSheet.create({
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.1),
     alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md,
   },
-  stepTitleBig: { color: '#fff', fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, letterSpacing: 0.5 },
-  stepBodyBig: { color: TEXT.secondary, fontSize: FontSizes.md, fontFamily: Fonts.regular, marginTop: 8, lineHeight: 23 },
+  stepTitleBig: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, letterSpacing: 0.5 },
+  stepBodyBig: { fontSize: FontSizes.md, fontFamily: Fonts.regular, marginTop: 8, lineHeight: 23 },
 
   dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: Spacing.md },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.18)' },
   dotActive: { backgroundColor: ATP_BRAND.lime, width: 18 },
 
   backStepBtn: { alignItems: 'center', paddingVertical: 12 },
-  backStepText: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+  backStepText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 
   // V1.5.2 (#1): CTA en gradiente molécula (fuera lime plano full-width)
   startBtn: { borderRadius: Radius.pill, overflow: 'hidden', marginTop: Spacing.md },
@@ -169,7 +180,7 @@ const s = StyleSheet.create({
   },
   startText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
   startHint: {
-    color: TEXT.tertiary, fontSize: FontSizes.xs, fontFamily: Fonts.regular,
+    fontSize: FontSizes.xs, fontFamily: Fonts.regular,
     textAlign: 'center', marginTop: 10,
   },
 });

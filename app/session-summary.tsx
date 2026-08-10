@@ -7,6 +7,7 @@ import { EliteButton } from '@/components/elite-button';
 import { SessionStat } from '@/components/session-stat';
 import { BlockBadge } from '@/components/block-badge';
 import { Colors, Spacing } from '@/constants/theme';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { convertLegacyRoutine } from '@/src/engine/convertLegacy';
 import type { Session } from '@/types/models';
 import { haptic } from '@/src/utils/haptics';
@@ -18,6 +19,10 @@ import { haptic } from '@/src/utils/haptics';
  */
 export default function SessionSummaryScreen() {
   const router = useRouter();
+  // MB-31B3: la pantalla migro a tokens y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
+  // Regla 1 del manual: el lima no es texto en claro; acento calibrado.
+  const acento = kind === 'dark' ? Colors.neonGreen : t.tealTexto;
   const params = useLocalSearchParams<{ session?: string }>();
 
   // Parsear sesión desde params (con try-catch para robustez)
@@ -30,12 +35,14 @@ export default function SessionSummaryScreen() {
 
   if (!session) {
     return (
-      <View style={[styles.screenRoot, styles.screenCentered]}>
-        <StatusBar style="light" />
+      <ThemeReady>
+      <View style={[styles.screenRoot, styles.screenCentered, { backgroundColor: t.fondo }]}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <ScreenHeader title="Resumen" />
         <EliteText variant="title">SIN DATOS</EliteText>
         <EliteButton label="VOLVER" onPress={() => { haptic.medium(); router.replace('/(tabs)'); }} />
       </View>
+      </ThemeReady>
     );
   }
 
@@ -53,15 +60,16 @@ export default function SessionSummaryScreen() {
     : 100;
 
   return (
-    <View style={styles.screenRoot}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[styles.screenRoot, { backgroundColor: t.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Resumen" />
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Encabezado */}
         <View style={styles.header}>
           <EliteText variant="title" style={styles.checkmark}>✓</EliteText>
           <EliteText variant="title">SESIÓN COMPLETA</EliteText>
-          <EliteText variant="body" style={styles.routineName}>
+          <EliteText variant="body" style={[styles.routineName, { color: t.textoSecundario }]}>
             {session.routineSnapshot.name}
           </EliteText>
         </View>
@@ -84,13 +92,14 @@ export default function SessionSummaryScreen() {
         </View>
 
         {/* Eficiencia */}
-        <View style={styles.efficiencyRow}>
+        <View style={[styles.efficiencyRow, { borderColor: t.borde }]}>
           <EliteText variant="label">EFICIENCIA</EliteText>
           <EliteText
             variant="subtitle"
             style={[
               styles.efficiency,
-              { color: efficiency >= 90 ? Colors.neonGreen : Colors.textSecondary },
+              // Hallazgo MB-31B3: lima como TEXTO de dato — acento calibrado.
+              { color: efficiency >= 90 ? acento : t.textoSecundario },
             ]}
           >
             {efficiency}%
@@ -105,8 +114,8 @@ export default function SessionSummaryScreen() {
           const mins = Math.floor(block.actualDuration / 60);
           const secs = block.actualDuration % 60;
           return (
-            <View key={index} style={styles.blockRow}>
-              <EliteText variant="caption" style={styles.blockIndex}>
+            <View key={index} style={[styles.blockRow, { borderBottomColor: t.borde }]}>
+              <EliteText variant="caption" style={[styles.blockIndex, { color: t.textoSecundario }]}>
                 {index + 1}
               </EliteText>
               <BlockBadge type={block.type} size="sm" />
@@ -114,7 +123,7 @@ export default function SessionSummaryScreen() {
                 {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
               </EliteText>
               {block.skipped && (
-                <EliteText variant="caption" style={styles.skippedBadge}>
+                <EliteText variant="caption" style={[styles.skippedBadge, { color: t.error }]}>
                   SALTADO
                 </EliteText>
               )}
@@ -146,13 +155,13 @@ export default function SessionSummaryScreen() {
         />
       </View>
     </View>
+    </ThemeReady>
   );
 }
 
 const styles = StyleSheet.create({
   screenRoot: {
     flex: 1,
-    backgroundColor: Colors.black,
     paddingHorizontal: Spacing.md,
   },
   screenCentered: {
@@ -169,7 +178,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   routineName: {
-    color: Colors.textSecondary,
     marginTop: Spacing.xs,
   },
   // Stats principales
@@ -186,7 +194,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: Colors.surfaceLight,
     marginBottom: Spacing.lg,
   },
   efficiency: {
@@ -203,10 +210,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.surfaceLight,
   },
   blockIndex: {
-    color: Colors.textSecondary,
     width: 20,
   },
   blockTime: {
@@ -215,7 +220,6 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   skippedBadge: {
-    color: Colors.error,
     fontSize: 10,
   },
   // Footer

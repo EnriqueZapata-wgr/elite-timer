@@ -18,7 +18,8 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { MenteHubCard } from '@/src/components/mente/MenteHubCard';
 import { promptForDate } from '@/src/data/checkin-prompts';
 import { getLocalToday } from '@/src/utils/date-helpers';
-import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { Spacing, FontSizes } from '@/constants/theme';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 // F12: portada MJ del check-in (única con arte dedicado hoy; explorar e
 // historia van con ícono hasta que lleguen sus portadas).
@@ -26,13 +27,14 @@ const CARD_CHECKIN = require('@/assets/images/mente/cards/card_checkin.webp');
 
 export default function EmotionsHubScreen() {
   const router = useRouter();
+  const { kind, tokens: t } = useAppTheme();
 
   return (
-    <Screen>
-      <StatusBar style="light" />
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="mind" title="Emociones" onBack={() => router.back()} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        <EliteText variant="caption" style={s.intro}>
+        <EliteText variant="caption" style={[s.intro, { color: t.textoSecundario }]}>
           Nombrar lo que sientes ya es la primera parte de la ayuda.
         </EliteText>
 
@@ -82,7 +84,7 @@ export default function EmotionsHubScreen() {
 const s = StyleSheet.create({
   content: { paddingHorizontal: Spacing.md },
   intro: {
-    color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 19,
+    fontSize: FontSizes.sm, lineHeight: 19,
     marginTop: Spacing.xs, marginBottom: Spacing.md, paddingHorizontal: Spacing.xs,
   },
 });

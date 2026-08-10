@@ -18,13 +18,22 @@ import { NBACK_CONFIG, type NBackResumeMode } from '@/src/services/nback-core';
 import {
   getNBackSettings, saveNBackSettings, DEFAULT_NBACK_SETTINGS, type NBackSettings,
 } from '@/src/services/nback-service';
-import { ATP_BRAND, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 export default function NBackPersonalizarScreen() {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [settings, setSettings] = useState<NBackSettings>(DEFAULT_NBACK_SETTINGS);
+
+  // MB-31B3: tokens del tema; el acento de texto en claro es teal (regla 1).
+  // El relleno lima de la pill activa es identidad y se queda.
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
+  const priTxt = { color: t.texto };
+  const tenueTxt = { color: t.textoTenue };
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
 
   useEffect(() => {
     let alive = true;
@@ -46,15 +55,16 @@ export default function NBackPersonalizarScreen() {
       style={[s.pill, settings[key] && s.pillActive]}
       onPress={() => update({ [key]: !settings[key] } as Partial<NBackSettings>)}
     >
-      <EliteText style={[s.pillText, settings[key] && s.pillTextActive]}>
+      <EliteText style={[s.pillText, secTxt, settings[key] && { color: acento }]}>
         {settings[key] ? 'ON' : 'OFF'}
       </EliteText>
     </AnimatedPressable>
   );
 
   return (
-    <View style={s.screen}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[s.screen, { backgroundColor: t.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <StickyPillarBanner scrolled={scrolled} onBack={() => router.back()} />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -64,14 +74,14 @@ export default function NBackPersonalizarScreen() {
       >
         <View style={s.header}>
           <EliteText style={s.kicker}>N-BACK · AJUSTES</EliteText>
-          <EliteText style={s.title}>Personalizar</EliteText>
+          <EliteText style={[s.title, priTxt]}>Personalizar</EliteText>
         </View>
 
         <View style={s.body}>
-          <EliteText style={s.sectionLabel}>JUEGO</EliteText>
+          <EliteText style={[s.sectionLabel, secTxt]}>JUEGO</EliteText>
 
           <View style={s.settingRow}>
-            <EliteText style={s.settingLabel}>Velocidad</EliteText>
+            <EliteText style={[s.settingLabel, priTxt]}>Velocidad</EliteText>
             <View style={s.pillGroup}>
               {NBACK_CONFIG.SPEEDS.map(sp => (
                 <AnimatedPressable
@@ -79,14 +89,14 @@ export default function NBackPersonalizarScreen() {
                   style={[s.pill, settings.speed === sp && s.pillActive]}
                   onPress={() => update({ speed: sp })}
                 >
-                  <EliteText style={[s.pillText, settings.speed === sp && s.pillTextActive]}>{sp}x</EliteText>
+                  <EliteText style={[s.pillText, secTxt, settings.speed === sp && { color: acento }]}>{sp}x</EliteText>
                 </AnimatedPressable>
               ))}
             </View>
           </View>
 
           <View style={s.settingRowColumn}>
-            <EliteText style={s.settingLabel}>Arrancar sesión en</EliteText>
+            <EliteText style={[s.settingLabel, priTxt]}>Arrancar sesión en</EliteText>
             <View style={[s.pillGroup, { marginTop: 8 }]}>
               {([
                 { mode: 'last', label: 'Último N' },
@@ -98,34 +108,34 @@ export default function NBackPersonalizarScreen() {
                   style={[s.pill, settings.resumeMode === mode && s.pillActive]}
                   onPress={() => update({ resumeMode: mode })}
                 >
-                  <EliteText style={[s.pillText, settings.resumeMode === mode && s.pillTextActive]}>{label}</EliteText>
+                  <EliteText style={[s.pillText, secTxt, settings.resumeMode === mode && { color: acento }]}>{label}</EliteText>
                 </AnimatedPressable>
               ))}
             </View>
           </View>
 
-          <EliteText style={s.sectionLabel}>FEEDBACK</EliteText>
+          <EliteText style={[s.sectionLabel, secTxt]}>FEEDBACK</EliteText>
 
           <View style={s.settingRow}>
             <View style={{ flex: 1, paddingRight: Spacing.sm }}>
-              <EliteText style={s.settingLabel}>Flash acierto/error</EliteText>
-              <EliteText style={s.settingHint}>Verde al acertar, rojo al fallar: apágalo si te distrae.</EliteText>
+              <EliteText style={[s.settingLabel, priTxt]}>Flash acierto/error</EliteText>
+              <EliteText style={[s.settingHint, tenueTxt]}>Verde al acertar, rojo al fallar: apágalo si te distrae.</EliteText>
             </View>
             {toggle('feedbackFlash')}
           </View>
 
           <View style={s.settingRow}>
             <View style={{ flex: 1, paddingRight: Spacing.sm }}>
-              <EliteText style={s.settingLabel}>Vibración acierto/error</EliteText>
-              <EliteText style={s.settingHint}>Háptico distinto al acertar y al fallar.</EliteText>
+              <EliteText style={[s.settingLabel, priTxt]}>Vibración acierto/error</EliteText>
+              <EliteText style={[s.settingHint, tenueTxt]}>Háptico distinto al acertar y al fallar.</EliteText>
             </View>
             {toggle('feedbackSound')}
           </View>
 
           <View style={s.settingRow}>
             <View style={{ flex: 1, paddingRight: Spacing.sm }}>
-              <EliteText style={s.settingLabel}>Contador de turno</EliteText>
-              <EliteText style={s.settingHint}>El “7/22” arriba a la derecha durante el round.</EliteText>
+              <EliteText style={[s.settingLabel, priTxt]}>Contador de turno</EliteText>
+              <EliteText style={[s.settingHint, tenueTxt]}>El “7/22” arriba a la derecha durante el round.</EliteText>
             </View>
             {toggle('showTurnNumber')}
           </View>
@@ -134,19 +144,20 @@ export default function NBackPersonalizarScreen() {
         </View>
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#000' },
+  screen: { flex: 1 },
   scroll: { paddingBottom: Spacing.xxl },
   header: { paddingTop: 108, paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
   kicker: { color: '#7F77DD', fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 3 },
-  title: { color: '#fff', fontSize: 30, fontFamily: Fonts.extraBold, letterSpacing: 1, marginTop: 2 },
+  title: { fontSize: 30, fontFamily: Fonts.extraBold, letterSpacing: 1, marginTop: 2 },
   body: { paddingHorizontal: Spacing.md },
 
   sectionLabel: {
-    color: TEXT.secondary, fontSize: 11, fontFamily: Fonts.semiBold, letterSpacing: 2,
+    fontSize: 11, fontFamily: Fonts.semiBold, letterSpacing: 2,
     marginTop: Spacing.md, marginBottom: Spacing.xs,
   },
   settingRow: {
@@ -155,8 +166,8 @@ const s = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   settingRowColumn: { paddingVertical: 12 },
-  settingLabel: { color: TEXT.primary, fontSize: FontSizes.md, fontFamily: Fonts.regular },
-  settingHint: { color: TEXT.tertiary, fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
+  settingLabel: { fontSize: FontSizes.md, fontFamily: Fonts.regular },
+  settingHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
   pillGroup: { flexDirection: 'row', gap: 8 },
   pill: {
     borderRadius: Radius.pill, paddingHorizontal: 14, paddingVertical: 6,
@@ -164,6 +175,5 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'transparent',
   },
   pillActive: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.15), borderColor: withOpacity(ATP_BRAND.lime, 0.5) },
-  pillText: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
-  pillTextActive: { color: ATP_BRAND.lime },
+  pillText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 });

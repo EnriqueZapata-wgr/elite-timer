@@ -21,6 +21,7 @@ import {
   type ImageSourcePropType,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -492,8 +493,12 @@ export default function MenteAudioPlayerScreen() {
   const catColor = piece?.categoria === 'respiracion' ? '#60a5fa'
     : piece?.categoria === 'descanso' ? '#818cf8' : MIND_PURPLE;
 
+  // MB-31B3: el player es superficie EDITORIAL full-bleed (foto + degradado
+  // negro + texto claro) — se queda oscuro en los dos temas (manual 3.8).
+  // Solo su barra de estado se ancla en claro para no heredar iconos oscuros.
   return (
     <View style={s.screen}>
+      <StatusBar style="light" />
       {piece && (
         <ImageBackground source={cover ?? undefined} style={StyleSheet.absoluteFill} resizeMode="cover">
           {/* V1.5.2 (#3): base gradiente mientras baja la remota (sin foto genérica) */}

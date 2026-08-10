@@ -14,6 +14,8 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Screen } from '@/src/components/ui/Screen';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { StatusBar } from 'expo-status-bar';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EliteText } from '@/components/elite-text';
@@ -28,7 +30,7 @@ import {
 } from '@/src/services/journal-service';
 import { parseLocalDate } from '@/src/utils/date-helpers';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND, ELEVATION, SEMANTIC, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, SEMANTIC, withOpacity } from '@/src/constants/brand';
 import { JOURNAL_TYPE_META as TYPE_META } from '@/src/constants/journal-types';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
@@ -54,6 +56,10 @@ function formatEntryDate(date: string): string {
 
 export default function JournalHistoryScreen() {
   const { user } = useAuth();
+  // MB-31B3: la pantalla migro a tokens (Screen themed) y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
+  // Regla 1 del manual: el lima no es texto en claro; acento calibrado.
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -143,31 +149,32 @@ export default function JournalHistoryScreen() {
   }
 
   return (
-    <Screen edges={[]}>
+    <Screen themed edges={[]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Journal" onBack={() => router.back()} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Streak */}
         {streak >= 2 && (
           <Animated.View entering={FadeInUp.delay(40).springify()} style={styles.streakPill}>
-            <EliteText style={styles.streakText}>🔥 {streak} días escribiendo</EliteText>
+            <EliteText style={[styles.streakText, { color: acento }]}>🔥 {streak} días escribiendo</EliteText>
           </Animated.View>
         )}
 
         {/* Búsqueda */}
-        <Animated.View entering={FadeInUp.delay(70).springify()} style={styles.searchBox}>
-          <Ionicons name="search" size={16} color={TEXT.tertiary} />
+        <Animated.View entering={FadeInUp.delay(70).springify()} style={[styles.searchBox, { backgroundColor: t.hundido, borderColor: t.borde }]}>
+          <Ionicons name="search" size={16} color={t.textoTenue} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: t.texto }]}
             value={search}
             onChangeText={setSearch}
             placeholder="Buscar en tus entradas…"
-            placeholderTextColor={TEXT.muted}
+            placeholderTextColor={t.sinDatos}
             returnKeyType="search"
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={16} color={TEXT.tertiary} />
+              <Ionicons name="close-circle" size={16} color={t.textoTenue} />
             </Pressable>
           )}
         </Animated.View>
@@ -181,9 +188,9 @@ export default function JournalHistoryScreen() {
                 <Pressable
                   key={r.label}
                   onPress={() => { haptic.light(); setRangeDays(r.days); }}
-                  style={[styles.chip, active && styles.chipActive]}
+                  style={[styles.chip, { backgroundColor: t.card, borderColor: t.bordeMarcado }, active && styles.chipActive]}
                 >
-                  <EliteText style={[styles.chipText, active && styles.chipTextActive]}>{r.label}</EliteText>
+                  <EliteText style={[styles.chipText, { color: t.textoSecundario }, active && [styles.chipTextActive, { color: acento }]]}>{r.label}</EliteText>
                 </Pressable>
               );
             })}
@@ -193,9 +200,9 @@ export default function JournalHistoryScreen() {
           <View style={styles.chipRow}>
             <Pressable
               onPress={() => { haptic.light(); setTypeFilter(null); }}
-              style={[styles.chip, typeFilter === null && styles.chipActive]}
+              style={[styles.chip, { backgroundColor: t.card, borderColor: t.bordeMarcado }, typeFilter === null && styles.chipActive]}
             >
-              <EliteText style={[styles.chipText, typeFilter === null && styles.chipTextActive]}>Todos</EliteText>
+              <EliteText style={[styles.chipText, { color: t.textoSecundario }, typeFilter === null && [styles.chipTextActive, { color: acento }]]}>Todos</EliteText>
             </Pressable>
             {Object.entries(TYPE_META).map(([key, meta]) => {
               const active = typeFilter === key;
@@ -203,9 +210,9 @@ export default function JournalHistoryScreen() {
                 <Pressable
                   key={key}
                   onPress={() => { haptic.light(); setTypeFilter(active ? null : key); }}
-                  style={[styles.chip, active && { borderColor: meta.color, backgroundColor: withOpacity(meta.color, 0.12) }]}
+                  style={[styles.chip, { backgroundColor: t.card, borderColor: t.bordeMarcado }, active && { borderColor: meta.color, backgroundColor: withOpacity(meta.color, 0.12) }]}
                 >
-                  <EliteText style={[styles.chipText, active && { color: meta.color, fontFamily: Fonts.semiBold }]}>
+                  <EliteText style={[styles.chipText, { color: t.textoSecundario }, active && { color: meta.color, fontFamily: Fonts.semiBold }]}>
                     {meta.label}
                   </EliteText>
                 </Pressable>
@@ -216,19 +223,19 @@ export default function JournalHistoryScreen() {
 
         {/* Lista */}
         {loading ? (
-          <EliteText style={styles.emptyText}>Cargando…</EliteText>
+          <EliteText style={[styles.emptyText, { color: t.textoTenue }]}>Cargando…</EliteText>
         ) : entries.length === 0 ? (
           <Animated.View entering={FadeInUp.delay(130).springify()} style={styles.emptyBox}>
             {/* T4 HARDENING: icono editorial B/N (paridad con los demás empty states) */}
             <Ionicons
               name={debouncedSearch || typeFilter ? 'funnel-outline' : 'book-outline'}
               size={44}
-              color="rgba(255,255,255,0.18)"
+              color={t.bordeMarcado}
             />
-            <EliteText style={styles.emptyTitle}>
+            <EliteText style={[styles.emptyTitle, { color: t.texto }]}>
               {debouncedSearch || typeFilter ? 'Nada con esos filtros' : 'Aún no hay entradas'}
             </EliteText>
-            <EliteText style={styles.emptyText}>
+            <EliteText style={[styles.emptyText, { color: t.textoTenue }]}>
               {debouncedSearch || typeFilter
                 ? 'Prueba ampliando el rango o quitando filtros.'
                 : 'Tu primera entrada está a un tap del botón +.'}
@@ -240,33 +247,34 @@ export default function JournalHistoryScreen() {
             const expanded = expandedId === entry.id;
             return (
               <Animated.View key={entry.id} entering={FadeInUp.delay(Math.min(130 + i * 35, 500)).springify()}>
-                <Pressable onPress={() => toggleExpand(entry.id)} style={styles.entryCard}>
+                <Pressable onPress={() => toggleExpand(entry.id)} style={[styles.entryCard, { backgroundColor: t.card, borderColor: t.borde }]}>
                   <View style={styles.entryHeader}>
-                    <EliteText style={styles.entryDate}>{formatEntryDate(entry.date)}</EliteText>
+                    <EliteText style={[styles.entryDate, { color: t.texto }]}>{formatEntryDate(entry.date)}</EliteText>
                     <View style={[styles.typeBadge, { backgroundColor: withOpacity(meta.color, 0.14) }]}>
                       <EliteText style={[styles.typeBadgeText, { color: meta.color }]}>{meta.label}</EliteText>
                     </View>
                   </View>
                   {entry.prompt ? (
-                    <EliteText style={styles.entryPrompt} numberOfLines={expanded ? undefined : 1}>
+                    <EliteText style={[styles.entryPrompt, { color: t.textoSecundario }]} numberOfLines={expanded ? undefined : 1}>
                       {entry.prompt}
                     </EliteText>
                   ) : null}
-                  <EliteText style={styles.entryContent} numberOfLines={expanded ? undefined : 3}>
+                  <EliteText style={[styles.entryContent, { color: t.textoSecundario }]} numberOfLines={expanded ? undefined : 3}>
                     {entry.content}
                   </EliteText>
                   {entry.tags && entry.tags.length > 0 && expanded && (
                     <View style={styles.tagRow}>
                       {entry.tags.map((tag) => (
-                        <EliteText key={tag} style={styles.tag}>#{tag}</EliteText>
+                        <EliteText key={tag} style={[styles.tag, { color: t.textoTenue }]}>#{tag}</EliteText>
                       ))}
                     </View>
                   )}
                   {expanded && (
-                    <View style={styles.actionRow}>
+                    <View style={[styles.actionRow, { borderTopColor: t.borde }]}>
+                      {/* Hallazgo MB-31B3: lima como texto/icono de accion; acento. */}
                       <AnimatedPressable onPress={() => startEdit(entry)} style={styles.actionBtn}>
-                        <Ionicons name="pencil-outline" size={14} color={ATP_BRAND.lime} />
-                        <EliteText style={styles.actionText}>Editar</EliteText>
+                        <Ionicons name="pencil-outline" size={14} color={acento} />
+                        <EliteText style={[styles.actionText, { color: acento }]}>Editar</EliteText>
                       </AnimatedPressable>
                       <AnimatedPressable onPress={() => confirmDelete(entry)} style={styles.actionBtn}>
                         <Ionicons name="trash-outline" size={14} color={SEMANTIC.error} />
@@ -287,28 +295,28 @@ export default function JournalHistoryScreen() {
         onPress={() => { haptic.medium(); router.push('/journal'); }}
         style={styles.fab}
       >
-        <Ionicons name="add" size={28} color="#000" />
+        <Ionicons name="add" size={28} color={ATP_BRAND.black} />
       </AnimatedPressable>
 
       {/* Modal editor */}
       <Modal visible={editing !== null} transparent animationType="fade" onRequestClose={() => setEditing(null)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <EliteText style={styles.modalTitle}>
+          <View style={[styles.modalCard, { backgroundColor: t.flotante, borderColor: t.bordeMarcado }]}>
+            <EliteText style={[styles.modalTitle, { color: t.texto }]}>
               Editar · {editing ? formatEntryDate(editing.date) : ''}
             </EliteText>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { backgroundColor: t.hundido, borderColor: t.bordeMarcado, color: t.texto }]}
               value={editContent}
               onChangeText={setEditContent}
               multiline
               autoFocus
               placeholder="Escribe…"
-              placeholderTextColor={TEXT.muted}
+              placeholderTextColor={t.sinDatos}
             />
             <View style={styles.modalActions}>
               <AnimatedPressable onPress={() => setEditing(null)} style={styles.modalBtnSecondary}>
-                <EliteText style={styles.modalBtnSecondaryText}>Cancelar</EliteText>
+                <EliteText style={[styles.modalBtnSecondaryText, { color: t.textoSecundario }]}>Cancelar</EliteText>
               </AnimatedPressable>
               <AnimatedPressable
                 onPress={saveEdit}
@@ -335,13 +343,11 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     marginBottom: Spacing.sm,
   },
-  streakText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: ATP_BRAND.lime },
+  streakText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: '#0a0a0a',
-    borderColor: ELEVATION[1].border,
     borderWidth: 0.5,
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.sm + 2,
@@ -350,7 +356,6 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: TEXT.primary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.md,
   },
@@ -365,18 +370,14 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: ELEVATION[2].border,
-    backgroundColor: ELEVATION[1].bg,
   },
   chipActive: {
     borderColor: ATP_BRAND.lime,
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.12),
   },
-  chipText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary },
-  chipTextActive: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold },
+  chipText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm },
+  chipTextActive: { fontFamily: Fonts.semiBold },
   entryCard: {
-    backgroundColor: ELEVATION[1].bg,
-    borderColor: ELEVATION[1].border,
     borderWidth: 0.5,
     borderRadius: Radius.md,
     padding: Spacing.md,
@@ -391,7 +392,6 @@ const styles = StyleSheet.create({
   entryDate: {
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.sm,
-    color: TEXT.primary,
     textTransform: 'capitalize',
   },
   typeBadge: {
@@ -403,34 +403,30 @@ const styles = StyleSheet.create({
   entryPrompt: {
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.sm,
-    color: TEXT.secondary,
     fontStyle: 'italic',
     marginBottom: 2,
   },
   entryContent: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
-    color: TEXT.secondary,
     lineHeight: 19,
   },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginTop: Spacing.xs },
-  tag: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary },
+  tag: { fontFamily: Fonts.regular, fontSize: FontSizes.xs },
   actionRow: {
     flexDirection: 'row',
     gap: Spacing.lg,
     marginTop: Spacing.sm,
     paddingTop: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: ELEVATION[1].border,
   },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  actionText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: ATP_BRAND.lime },
+  actionText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   emptyBox: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.xs },
-  emptyTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md, color: TEXT.primary },
+  emptyTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
   emptyText: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
-    color: TEXT.tertiary,
     textAlign: 'center',
   },
   fab: {
@@ -456,8 +452,6 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
   },
   modalCard: {
-    backgroundColor: ELEVATION[2].bg,
-    borderColor: ELEVATION[2].border,
     borderWidth: 0.5,
     borderRadius: Radius.md,
     padding: Spacing.md,
@@ -466,30 +460,26 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontFamily: Fonts.bold,
     fontSize: FontSizes.md,
-    color: TEXT.primary,
     textTransform: 'capitalize',
   },
   modalInput: {
     minHeight: 140,
     maxHeight: 320,
-    backgroundColor: '#0a0a0a',
-    borderColor: ELEVATION[2].border,
     borderWidth: 0.5,
     borderRadius: Radius.sm,
     padding: Spacing.sm,
-    color: TEXT.primary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.md,
     textAlignVertical: 'top',
   },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm },
   modalBtnSecondary: { paddingVertical: 10, paddingHorizontal: Spacing.md },
-  modalBtnSecondaryText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.secondary },
+  modalBtnSecondaryText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   modalBtnPrimary: {
     backgroundColor: ATP_BRAND.lime,
     borderRadius: Radius.sm,
     paddingVertical: 10,
     paddingHorizontal: Spacing.lg,
   },
-  modalBtnPrimaryText: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: '#000' },
+  modalBtnPrimaryText: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: ATP_BRAND.black },
 });

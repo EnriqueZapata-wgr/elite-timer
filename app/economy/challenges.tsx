@@ -5,6 +5,7 @@ import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
@@ -15,7 +16,8 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { listActiveChallenges, joinChallenge, getMyActiveChallenges, getMyChallengeHistory } from '@/src/services/economy/challenge-service';
 import type { Challenge, ChallengeParticipant } from '@/src/services/economy/economy-types';
-import { ELEVATION, TEXT, ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 type Tab = 'available' | 'active' | 'history';
@@ -25,6 +27,7 @@ const CHALLENGES_ENABLED = false;
 
 export default function ChallengesScreen() {
   const { user } = useAuth();
+  const { kind, tokens: t } = useAppTheme();
   const [tab, setTab] = useState<Tab>('available');
   const [available, setAvailable] = useState<Challenge[]>([]);
   const [active, setActive] = useState<ChallengeParticipant[]>([]);
@@ -61,14 +64,15 @@ export default function ChallengesScreen() {
   // para deep links. Encender CHALLENGES_ENABLED cuando el ciclo esté completo.
   if (!CHALLENGES_ENABLED) {
     return (
-      <Screen edges={[]}>
+      <Screen edges={[]} themed>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <ScreenHeader title="Retos" onBack={() => router.back()} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.sm }}>
-          <Ionicons name="construct-outline" size={40} color={TEXT.secondary} />
-          <EliteText style={{ color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.lg, textAlign: 'center' }}>
+          <Ionicons name="construct-outline" size={40} color={t.textoSecundario} />
+          <EliteText style={{ color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.lg, textAlign: 'center' }}>
             Los retos están en construcción
           </EliteText>
-          <EliteText variant="caption" style={{ color: TEXT.secondary, textAlign: 'center', lineHeight: 19 }}>
+          <EliteText variant="caption" style={{ color: t.textoSecundario, textAlign: 'center', lineHeight: 19 }}>
             Cuando el premio se pueda ganar de verdad, se abren. Nada de cobrar
             entradas por un reto que no se puede liquidar.
           </EliteText>
@@ -78,12 +82,13 @@ export default function ChallengesScreen() {
   }
 
   return (
-    <Screen edges={[]}>
+    <Screen edges={[]} themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Retos" onBack={() => router.back()} />
       <View style={styles.tabs}>
-        {([['available', 'Disponibles'], ['active', 'Activos'], ['history', 'Historial']] as [Tab, string][]).map(([t, label]) => (
-          <AnimatedPressable key={t} onPress={() => { haptic.light(); setTab(t); }} style={[styles.tab, tab === t && styles.tabActive]}>
-            <EliteText style={[styles.tabText, tab === t && styles.tabTextActive]}>{label}</EliteText>
+        {([['available', 'Disponibles'], ['active', 'Activos'], ['history', 'Historial']] as [Tab, string][]).map(([tabKey, label]) => (
+          <AnimatedPressable key={tabKey} onPress={() => { haptic.light(); setTab(tabKey); }} style={[styles.tab, { backgroundColor: t.card, borderColor: t.bordeMarcado }, tab === tabKey && styles.tabActive]}>
+            <EliteText style={[styles.tabText, { color: t.textoSecundario }, tab === tabKey && styles.tabTextActive]}>{label}</EliteText>
           </AnimatedPressable>
         ))}
       </View>
@@ -108,14 +113,16 @@ export default function ChallengesScreen() {
 }
 
 function Empty({ text }: { text: string }) {
-  return <EliteText variant="caption" style={styles.empty}>{text}</EliteText>;
+  const { tokens: t } = useAppTheme();
+  return <EliteText variant="caption" style={[styles.empty, { color: t.textoSecundario }]}>{text}</EliteText>;
 }
 
 function ParticipantRow({ p }: { p: ChallengeParticipant }) {
-  const color = p.status === 'completed' ? ATP_BRAND.lime : p.status === 'failed' ? '#fb7185' : TEXT.secondary;
+  const { tokens: t } = useAppTheme();
+  const color = p.status === 'completed' ? ATP_BRAND.lime : p.status === 'failed' ? '#fb7185' : t.textoSecundario;
   return (
-    <View style={styles.partRow}>
-      <EliteText style={styles.partLabel}>Reto {p.challenge_id.slice(0, 8)}…</EliteText>
+    <View style={[styles.partRow, { backgroundColor: t.card, borderColor: t.borde }]}>
+      <EliteText style={[styles.partLabel, { color: t.texto }]}>Reto {p.challenge_id.slice(0, 8)}…</EliteText>
       <EliteText variant="caption" style={[styles.partStatus, { color }]}>{p.status.toUpperCase()}</EliteText>
     </View>
   );
@@ -123,13 +130,13 @@ function ParticipantRow({ p }: { p: ChallengeParticipant }) {
 
 const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.md, marginBottom: Spacing.sm },
-  tab: { flex: 1, paddingVertical: 9, borderRadius: Radius.pill, alignItems: 'center', backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[2].border },
+  tab: { flex: 1, paddingVertical: 9, borderRadius: Radius.pill, alignItems: 'center', borderWidth: 0.5 },
   tabActive: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
-  tabText: { color: TEXT.secondary, fontFamily: Fonts.bold, fontSize: FontSizes.xs },
+  tabText: { fontFamily: Fonts.bold, fontSize: FontSizes.xs },
   tabTextActive: { color: '#000' },
   content: { padding: Spacing.md, gap: Spacing.md, paddingBottom: 80 },
-  empty: { color: TEXT.secondary, textAlign: 'center', marginTop: Spacing.xl },
-  partRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: ELEVATION[1].bg, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 0.5, borderColor: ELEVATION[1].border },
-  partLabel: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  empty: { textAlign: 'center', marginTop: Spacing.xl },
+  partRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: Radius.card, padding: Spacing.md, borderWidth: 0.5 },
+  partLabel: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   partStatus: { fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 1 },
 });

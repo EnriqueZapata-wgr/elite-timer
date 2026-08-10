@@ -17,6 +17,7 @@ import {
   Alert, DeviceEventEmitter, Modal, ScrollView, StyleSheet, View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import type { PurchasesStoreProduct } from 'react-native-purchases';
@@ -48,7 +49,8 @@ import {
   PRO_BOOST_WEEKLY_COST_H_PLUS,
   PRO_BOOST_WEEKLY_DURATION_HOURS,
 } from '@/src/services/subscription/subscription-service';
-import { ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 /** Acento bronce editorial del shop (guideline #101) — no existe en brand.ts */
@@ -83,6 +85,8 @@ const BOOSTS: BoostItem[] = [
 
 export default function ShopScreen() {
   const { user } = useAuth();
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
   const [hPlus, setHPlus] = useState<number | null>(null);
   const [confirming, setConfirming] = useState<BoostItem | null>(null);
   const [busy, setBusy] = useState(false);
@@ -234,16 +238,17 @@ export default function ShopScreen() {
   const recargasReady = packs.length > 0 && Object.keys(products).length > 0;
 
   return (
-    <Screen edges={[]}>
+    <Screen edges={[]} themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Tienda H+" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* Balance + manifiesto */}
         <Animated.View entering={FadeInDown.delay(40).springify()} style={styles.balanceRow}>
-          <EliteText style={styles.manifesto}>Cada pieza, ganada.</EliteText>
+          <EliteText style={[styles.manifesto, { color: t.texto }]}>Cada pieza, ganada.</EliteText>
           {hPlus !== null && (
-            <View style={styles.balancePill}>
-              <EliteText style={styles.balanceText}>💎 {formatFull(hPlus)} H+</EliteText>
+            <View style={[styles.balancePill, { backgroundColor: t.card, borderColor: t.borde }]}>
+              <EliteText style={[styles.balanceText, { color: t.texto }]}>💎 {formatFull(hPlus)} H+</EliteText>
             </View>
           )}
         </Animated.View>
@@ -252,7 +257,7 @@ export default function ShopScreen() {
         <SectionKicker delay={80} label="BOOSTS" />
         {BOOSTS.map((item, i) => (
           <Animated.View key={item.key} entering={FadeInDown.delay(120 + i * 70).springify()}>
-            <AnimatedPressable onPress={() => onBoostPress(item)} style={styles.galleryCard}>
+            <AnimatedPressable onPress={() => onBoostPress(item)} style={[styles.galleryCard, { backgroundColor: t.card, borderColor: t.borde }]}>
               <View style={styles.galleryHeader}>
                 <View style={styles.boltCircle}>
                   <Ionicons name="flash" size={20} color={BRONZE} />
@@ -263,8 +268,8 @@ export default function ShopScreen() {
                   </View>
                 )}
               </View>
-              <EliteText style={styles.galleryTitle}>{item.title}</EliteText>
-              <EliteText style={styles.galleryPoetic}>{item.poetic}</EliteText>
+              <EliteText style={[styles.galleryTitle, { color: t.texto }]}>{item.title}</EliteText>
+              <EliteText style={[styles.galleryPoetic, secTxt]}>{item.poetic}</EliteText>
               <View style={styles.priceRow}>
                 <EliteText style={styles.priceHPlus}>{formatFull(item.cost)} H+</EliteText>
                 <View style={styles.redeemBtn}>
@@ -280,21 +285,21 @@ export default function ShopScreen() {
         <Animated.View entering={FadeInDown.delay(300).springify()}>
           <AnimatedPressable
             onPress={() => { haptic.light(); router.push('/braverman-premium'); }}
-            style={styles.galleryCard}
+            style={[styles.galleryCard, { backgroundColor: t.card, borderColor: t.borde }]}
           >
             <View style={styles.boltCircle}>
               <EliteText style={{ fontSize: 18 }}>🧠</EliteText>
             </View>
-            <EliteText style={styles.galleryTitle}>Reporte Premium · Braverman</EliteText>
+            <EliteText style={[styles.galleryTitle, { color: t.texto }]}>Reporte Premium · Braverman</EliteText>
             {/* E-1 (MB-12): se COBRA con H+ a todos (doctrina correcta) — el
                 copy "incluido con Pro" era el que estaba mal, no el cobro. */}
-            <EliteText style={styles.galleryPoetic}>
+            <EliteText style={[styles.galleryPoetic, secTxt]}>
               Tu química cerebral leída a fondo por ARGOS. Se canjea con H+;
               el precio exacto lo ves antes de generar.
             </EliteText>
             <View style={styles.priceRow}>
-              <EliteText style={styles.includedText}>Se paga con H+</EliteText>
-              <Ionicons name="chevron-forward" size={16} color={TEXT.secondary} />
+              <EliteText style={[styles.includedText, secTxt]}>Se paga con H+</EliteText>
+              <Ionicons name="chevron-forward" size={16} color={t.textoSecundario} />
             </View>
           </AnimatedPressable>
         </Animated.View>
@@ -308,7 +313,7 @@ export default function ShopScreen() {
                 <Ionicons name="hourglass-outline" size={18} color={BRONZE} />
                 <View style={{ flex: 1 }}>
                   <EliteText style={styles.pendingTitle}>Pago recibido</EliteText>
-                  <EliteText style={styles.pendingBody}>
+                  <EliteText style={[styles.pendingBody, secTxt]}>
                     Tus H+ se acreditan en cuanto el servidor confirma la compra,
                     normalmente en menos de un minuto. Puedes seguir usando la app.
                   </EliteText>
@@ -330,7 +335,7 @@ export default function ShopScreen() {
               );
             })}
             <AnimatedPressable onPress={onReclaim} disabled={reclaiming} style={styles.reclaimLink}>
-              <EliteText style={styles.reclaimLinkText}>
+              <EliteText style={[styles.reclaimLinkText, secTxt]}>
                 {reclaiming ? 'Verificando con la tienda…' : '¿Pagaste y no ves tus H+? Reclamar recarga'}
               </EliteText>
             </AnimatedPressable>
@@ -340,19 +345,19 @@ export default function ShopScreen() {
         {/* ── PRÓXIMAMENTE (honesto, sin nav muerta) ── */}
         <SectionKicker delay={340} label="EN LA GALERÍA PRONTO" />
         <Animated.View entering={FadeInDown.delay(380).springify()} style={styles.soonRow}>
-          <View style={[styles.soonCard, { opacity: 0.7 }]}>
+          <View style={[styles.soonCard, { backgroundColor: t.card, borderColor: t.borde, opacity: 0.7 }]}>
             <EliteText style={{ fontSize: 18 }}>🗝️</EliteText>
-            <EliteText style={styles.soonTitle}>Protocolos premium</EliteText>
-            <View style={styles.soonBadge}><EliteText style={styles.soonBadgeText}>PRONTO</EliteText></View>
+            <EliteText style={[styles.soonTitle, { color: t.texto }]}>Protocolos premium</EliteText>
+            <View style={[styles.soonBadge, { backgroundColor: t.flotante }]}><EliteText style={[styles.soonBadgeText, { color: t.textoTenue }]}>PRONTO</EliteText></View>
           </View>
-          <View style={[styles.soonCard, { opacity: 0.7 }]}>
+          <View style={[styles.soonCard, { backgroundColor: t.card, borderColor: t.borde, opacity: 0.7 }]}>
             <EliteText style={{ fontSize: 18 }}>🎁</EliteText>
-            <EliteText style={styles.soonTitle}>Regalar H+</EliteText>
-            <View style={styles.soonBadge}><EliteText style={styles.soonBadgeText}>PRONTO</EliteText></View>
+            <EliteText style={[styles.soonTitle, { color: t.texto }]}>Regalar H+</EliteText>
+            <View style={[styles.soonBadge, { backgroundColor: t.flotante }]}><EliteText style={[styles.soonBadgeText, { color: t.textoTenue }]}>PRONTO</EliteText></View>
           </View>
         </Animated.View>
 
-        <EliteText style={styles.footNote}>
+        <EliteText style={[styles.footNote, { color: t.textoTenue }]}>
           {recargasReady
             ? 'Los H+ también se ganan: completa tu día y convierte tus E-.'
             : 'Las recargas con dinero llegan con los pagos de Apple/Google. Por ahora, los H+ se ganan: completa tu día y convierte tus E-.'}
@@ -362,16 +367,16 @@ export default function ShopScreen() {
       {/* ── Confirmación editorial ── */}
       <Modal visible={confirming !== null} transparent animationType="fade" onRequestClose={() => setConfirming(null)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: t.flotante, borderColor: t.bordeMarcado }]}>
             <EliteText style={styles.modalKicker}>CANJE</EliteText>
-            <EliteText style={styles.modalTitle}>{confirming?.title}</EliteText>
-            <EliteText style={styles.modalBody}>
+            <EliteText style={[styles.modalTitle, { color: t.texto }]}>{confirming?.title}</EliteText>
+            <EliteText style={[styles.modalBody, secTxt]}>
               Usarás {formatFull(confirming?.cost ?? 0)} H+ · Te quedarán{' '}
               {formatFull(Math.max(0, (hPlus ?? 0) - (confirming?.cost ?? 0)))} H+
             </EliteText>
             <View style={styles.modalActions}>
               <AnimatedPressable onPress={() => setConfirming(null)} style={styles.modalBtnSecondary}>
-                <EliteText style={styles.modalBtnSecondaryText}>Todavía no</EliteText>
+                <EliteText style={[styles.modalBtnSecondaryText, secTxt]}>Todavía no</EliteText>
               </AnimatedPressable>
               <AnimatedPressable onPress={confirmBoost} disabled={busy} style={styles.modalBtnPrimary}>
                 <EliteText style={styles.modalBtnPrimaryText}>{busy ? 'Canjeando…' : 'Canjear'}</EliteText>
@@ -384,13 +389,13 @@ export default function ShopScreen() {
       {/* ── Reveal item unlocked ── */}
       <Modal visible={unlocked !== null} transparent animationType="fade" onRequestClose={() => setUnlocked(null)}>
         <AnimatedPressable onPress={() => setUnlocked(null)} style={styles.modalOverlay}>
-          <Animated.View entering={ZoomIn.springify().damping(12)} style={styles.unlockedCard}>
+          <Animated.View entering={ZoomIn.springify().damping(12)} style={[styles.unlockedCard, { backgroundColor: t.flotante }]}>
             <Ionicons name="flash" size={44} color={BRONZE} />
             <EliteText style={styles.unlockedTitle}>Boost activo</EliteText>
-            <EliteText style={styles.unlockedBody}>
+            <EliteText style={[styles.unlockedBody, secTxt]}>
               {unlocked?.durationHours === 168 ? 'Siete días' : '24 horas'} de ARGOS Pro empiezan ahora.
             </EliteText>
-            <EliteText style={styles.unlockedHint}>Toca para continuar</EliteText>
+            <EliteText style={[styles.unlockedHint, { color: t.textoTenue }]}>Toca para continuar</EliteText>
           </Animated.View>
         </AnimatedPressable>
       </Modal>
@@ -399,9 +404,10 @@ export default function ShopScreen() {
 }
 
 function SectionKicker({ label, delay }: { label: string; delay: number }) {
+  const { tokens: t } = useAppTheme();
   return (
     <Animated.View entering={FadeInDown.delay(delay).springify()}>
-      <EliteText style={styles.kicker}>{label}</EliteText>
+      <EliteText style={[styles.kicker, { color: t.textoTenue }]}>{label}</EliteText>
     </Animated.View>
   );
 }
@@ -417,29 +423,23 @@ const styles = StyleSheet.create({
   manifesto: {
     fontFamily: Fonts.extraBold,
     fontSize: FontSizes.xl,
-    color: TEXT.primary,
     letterSpacing: 0.3,
   },
   balancePill: {
-    backgroundColor: ELEVATION[1].bg,
-    borderColor: ELEVATION[1].border,
     borderWidth: 0.5,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.sm + 2,
     paddingVertical: 5,
   },
-  balanceText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.primary },
+  balanceText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   kicker: {
     fontFamily: Fonts.semiBold,
     fontSize: 11,
-    color: TEXT.tertiary,
     letterSpacing: 2.5,
     marginTop: Spacing.lg,
     marginBottom: Spacing.xs,
   },
   galleryCard: {
-    backgroundColor: ELEVATION[1].bg,
-    borderColor: ELEVATION[1].border,
     borderWidth: 0.5,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
@@ -466,13 +466,11 @@ const styles = StyleSheet.create({
   galleryTitle: {
     fontFamily: Fonts.bold,
     fontSize: FontSizes.lg,
-    color: TEXT.primary,
     marginTop: Spacing.md,
   },
   galleryPoetic: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
-    color: TEXT.secondary,
     lineHeight: 19,
     marginTop: 4,
   },
@@ -491,44 +489,40 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   redeemText: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: BRONZE },
-  includedText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.secondary },
+  includedText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   soonRow: { flexDirection: 'row', gap: Spacing.sm },
   soonCard: {
     flex: 1,
     alignItems: 'center',
     gap: 6,
-    backgroundColor: ELEVATION[1].bg,
-    borderColor: ELEVATION[1].border,
     borderWidth: 0.5,
     borderRadius: Radius.md,
     padding: Spacing.md,
   },
-  soonTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.primary, textAlign: 'center' },
+  soonTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, textAlign: 'center' },
   soonBadge: {
-    backgroundColor: ELEVATION[2].bg,
     borderRadius: Radius.xs,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  soonBadgeText: { fontFamily: Fonts.bold, fontSize: 9, color: TEXT.tertiary, letterSpacing: 1 },
+  soonBadgeText: { fontFamily: Fonts.bold, fontSize: 9, letterSpacing: 1 },
+  // Estilos sin referencia en el JSX (los packs viven en PackageCard) — se
+  // les retira el color neutro sin borrarlos (regla 4 de la guía MB-31B3).
   packRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg,
-    borderColor: ELEVATION[1].border,
     borderWidth: 0.5,
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginBottom: Spacing.xs,
   },
-  packName: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md, color: TEXT.primary },
-  packProtons: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary, marginTop: 1 },
-  packPrice: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: TEXT.secondary },
+  packName: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  packProtons: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, marginTop: 1 },
+  packPrice: { fontFamily: Fonts.bold, fontSize: FontSizes.md },
   footNote: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
-    color: TEXT.tertiary,
     textAlign: 'center',
     marginTop: Spacing.sm,
   },
@@ -547,12 +541,11 @@ const styles = StyleSheet.create({
   pendingBody: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
-    color: TEXT.secondary,
     lineHeight: 17,
     marginTop: 2,
   },
   reclaimLink: { alignItems: 'center', paddingVertical: Spacing.xs },
-  reclaimLinkText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: TEXT.secondary },
+  reclaimLinkText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.8)',
@@ -562,19 +555,17 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
-    backgroundColor: ELEVATION[2].bg,
-    borderColor: ELEVATION[2].border,
     borderWidth: 0.5,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     gap: Spacing.xs,
   },
   modalKicker: { fontFamily: Fonts.semiBold, fontSize: 10, color: BRONZE, letterSpacing: 2.5 },
-  modalTitle: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xl, color: TEXT.primary },
-  modalBody: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary, lineHeight: 20 },
+  modalTitle: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xl },
+  modalBody: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 20 },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.md },
   modalBtnSecondary: { paddingVertical: 10, paddingHorizontal: Spacing.md },
-  modalBtnSecondaryText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.secondary },
+  modalBtnSecondaryText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   modalBtnPrimary: {
     backgroundColor: BRONZE,
     borderRadius: Radius.sm,
@@ -584,7 +575,6 @@ const styles = StyleSheet.create({
   modalBtnPrimaryText: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: '#000' },
   unlockedCard: {
     alignItems: 'center',
-    backgroundColor: ELEVATION[2].bg,
     borderColor: withOpacity(BRONZE, 0.4),
     borderWidth: 1,
     borderRadius: Radius.lg,
@@ -593,6 +583,6 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   unlockedTitle: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, color: BRONZE, marginTop: Spacing.sm },
-  unlockedBody: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary, textAlign: 'center' },
-  unlockedHint: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary, marginTop: Spacing.sm },
+  unlockedBody: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, textAlign: 'center' },
+  unlockedHint: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: Spacing.sm },
 });

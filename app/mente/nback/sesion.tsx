@@ -36,6 +36,7 @@ import {
 } from '@/src/services/nback-service';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 type Phase = 'loading' | 'countdown' | 'playing' | 'paused' | 'saving' | 'results';
@@ -86,6 +87,16 @@ export default function NBackSessionScreen() {
   const [showTurnNumber, setShowTurnNumber] = useState(true);
   // V1.5 (D10): coach del tutorial — pausa on-the-fly con "ENTENDIDO".
   const [coach, setCoach] = useState<CoachMsg | null>(null);
+
+  // MB-31B3: tokens del tema — SOLO el chrome neutro. El tablero, los botones
+  // POSICIÓN/SONIDO, el flash y el rojo del juego son re-skin (identidad) y
+  // quedan oscuros; el acento de TEXTO en claro es teal (regla 1).
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
+  const priTxt = { color: t.texto };
+  const tenueTxt = { color: t.textoTenue };
+  const cardSurf = { backgroundColor: t.card, borderColor: t.borde };
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
 
   const settingsRef = useRef<NBackSettings>(DEFAULT_NBACK_SETTINGS);
   const audioRef = useRef<NBackAudioHandle | null>(null);
@@ -390,36 +401,37 @@ export default function NBackSessionScreen() {
 
   // ── Render ──
   return (
-    <View style={[s.screen, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[s.screen, { backgroundColor: t.fondo, paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
 
       {/* Header */}
       <View style={s.header}>
         <AnimatedPressable style={s.headerBtn} onPress={handleExit}>
-          <Ionicons name="chevron-back" size={24} color="#fff" />
+          <Ionicons name="chevron-back" size={24} color={t.texto} />
         </AnimatedPressable>
-        <EliteText style={s.headerTitle}>
+        <EliteText style={[s.headerTitle, priTxt]}>
           Nivel {n}{isTutorial ? ' · Tutorial' : ''}
         </EliteText>
         <View style={s.headerBtn}>
           {/* V1.5 (#C9): contador apagable desde Personalizar. */}
           {phase === 'playing' && showTurnNumber && (
-            <EliteText style={s.trialCounter}>{Math.min(trialIdx + 1, totalTrials)}/{totalTrials}</EliteText>
+            <EliteText style={[s.trialCounter, tenueTxt]}>{Math.min(trialIdx + 1, totalTrials)}/{totalTrials}</EliteText>
           )}
         </View>
       </View>
 
       {phase === 'loading' && (
-        <View style={s.center}><EliteText style={s.countdownText}>…</EliteText></View>
+        <View style={s.center}><EliteText style={[s.countdownText, priTxt]}>…</EliteText></View>
       )}
 
       {phase === 'countdown' && (
         <View style={s.center}>
           <Animated.View key={countdownIdx} entering={FadeIn.duration(200)}>
-            <EliteText style={s.countdownText}>{COUNTDOWN_STEPS[countdownIdx]}</EliteText>
+            <EliteText style={[s.countdownText, priTxt]}>{COUNTDOWN_STEPS[countdownIdx]}</EliteText>
           </Animated.View>
           {/* V1.5 (A3): el hint acompaña TODO el countdown (antes solo 900ms). */}
-          <EliteText style={s.countdownHint}>
+          <EliteText style={[s.countdownHint, tenueTxt]}>
             POSICIÓN si la celda se repite de hace {n} · SONIDO si la letra se repite de hace {n}
           </EliteText>
         </View>
@@ -482,9 +494,9 @@ export default function NBackSessionScreen() {
       {/* Coach del tutorial (D10): pausa on-the-fly hasta ENTENDIDO. */}
       {coach && phase === 'playing' && (
         <View style={s.overlay}>
-          <Animated.View entering={FadeIn.duration(200)} style={s.coachCard}>
-            <EliteText style={s.coachTitle}>{coach.title}</EliteText>
-            <EliteText style={s.coachBody}>{coach.body}</EliteText>
+          <Animated.View entering={FadeIn.duration(200)} style={[s.coachCard, cardSurf]}>
+            <EliteText style={[s.coachTitle, { color: acento }]}>{coach.title}</EliteText>
+            <EliteText style={[s.coachBody, secTxt]}>{coach.body}</EliteText>
             <AnimatedPressable style={s.coachBtn} onPress={dismissCoach}>
               <LinearGradient colors={ATP_BRAND.moleculeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.coachBtnInner}>
                 <EliteText style={s.coachBtnText}>ENTENDIDO</EliteText>
@@ -497,9 +509,9 @@ export default function NBackSessionScreen() {
       {/* Pausa por background (2.7): reanudar o salir. */}
       {phase === 'paused' && (
         <View style={s.overlay}>
-          <Animated.View entering={FadeIn.duration(200)} style={s.coachCard}>
-            <EliteText style={s.coachTitle}>Sesión en pausa</EliteText>
-            <EliteText style={s.coachBody}>
+          <Animated.View entering={FadeIn.duration(200)} style={[s.coachCard, cardSurf]}>
+            <EliteText style={[s.coachTitle, { color: acento }]}>Sesión en pausa</EliteText>
+            <EliteText style={[s.coachBody, secTxt]}>
               La app pasó a segundo plano y el round se detuvo para no ensuciar tu score.
             </EliteText>
             <AnimatedPressable style={s.coachBtn} onPress={resumeFromPause}>
@@ -508,7 +520,7 @@ export default function NBackSessionScreen() {
               </LinearGradient>
             </AnimatedPressable>
             <AnimatedPressable style={s.endBtn} onPress={() => { haptic.light(); clearTimers(); router.back(); }}>
-              <EliteText style={s.endText}>Salir (el round se pierde)</EliteText>
+              <EliteText style={[s.endText, secTxt]}>Salir (el round se pierde)</EliteText>
             </AnimatedPressable>
           </Animated.View>
         </View>
@@ -516,18 +528,18 @@ export default function NBackSessionScreen() {
 
       {phase === 'results' && results && (
         <Animated.View entering={FadeInUp.duration(350)} style={s.resultsWrap}>
-          <EliteText style={s.resultsTitle}>
+          <EliteText style={[s.resultsTitle, priTxt]}>
             {results.result.promoted ? 'Nivel superado' : results.result.demoted ? 'Ajustamos el reto' : 'Buen round'}
           </EliteText>
 
           <ResultBar label="Posición" pct={Math.round(results.result.accuracyVisual * 100)} score={results.visual} />
           <ResultBar label="Sonido" pct={Math.round(results.result.accuracyAudio * 100)} score={results.audio} />
-          <EliteText style={s.thresholdHint}>
+          <EliteText style={[s.thresholdHint, tenueTxt]}>
             &lt;{DROP_PCT}% en un canal baja el nivel · ≥{RAISE_PCT}% en ambos lo sube
           </EliteText>
 
-          <View style={s.levelCard}>
-            <EliteText style={s.levelCardTitle}>
+          <View style={[s.levelCard, cardSurf]}>
+            <EliteText style={[s.levelCardTitle, { color: acento }]}>
               {results.result.promoted
                 ? `Nivel sube a ${results.result.nextN}`
                 : results.result.demoted
@@ -535,18 +547,18 @@ export default function NBackSessionScreen() {
                   : `Sigues en nivel ${results.result.nextN}`}
             </EliteText>
             {results.outcome && (
-              <EliteText style={s.levelCardSub}>
+              <EliteText style={[s.levelCardSub, secTxt]}>
                 {Math.max(0, NBACK_CONFIG.ROUNDS_PER_DAY - results.outcome.roundsToday)} rounds restantes hoy
               </EliteText>
             )}
             {/* Economía: e- del día + H+ (decisión #44-5) */}
             <View style={s.rewardsRow}>
               {results.outcome?.electronAwarded && (
-                <View style={s.rewardChip}><EliteText style={s.rewardText}>+2.5 e- · HOY ✓</EliteText></View>
+                <View style={s.rewardChip}><EliteText style={[s.rewardText, { color: acento }]}>+2.5 e- · HOY ✓</EliteText></View>
               )}
               {(results.outcome?.protons ?? []).map((p, i) => (
                 <View key={i} style={s.rewardChip}>
-                  <EliteText style={s.rewardText}>
+                  <EliteText style={[s.rewardText, { color: acento }]}>
                     +{p.amount} H+ {p.kind === 'daily' ? '· sesión completa' : p.kind === 'pr' ? `· récord N=${p.n ?? ''}` : p.kind === 'streak7' ? '· racha 7 días' : '· racha 30 días'}
                   </EliteText>
                 </View>
@@ -560,20 +572,24 @@ export default function NBackSessionScreen() {
             </LinearGradient>
           </AnimatedPressable>
           <AnimatedPressable style={s.endBtn} onPress={() => { haptic.light(); router.back(); }}>
-            <EliteText style={s.endText}>Terminar por hoy</EliteText>
+            <EliteText style={[s.endText, secTxt]}>Terminar por hoy</EliteText>
           </AnimatedPressable>
         </Animated.View>
       )}
     </View>
+    </ThemeReady>
   );
 }
 
 function ResultBar({ label, pct, score }: { label: string; pct: number; score: ChannelScore }) {
+  // MB-31B3: tokens del tema (el fill lima/rojo del juego se queda).
+  const { kind, tokens: t } = useAppTheme();
+  const tenueTxt = { color: t.textoTenue };
   return (
     <View style={s.barBlock}>
       <View style={s.barLabelRow}>
-        <EliteText style={s.barLabel}>{label}</EliteText>
-        <EliteText style={s.barPct}>{pct}%</EliteText>
+        <EliteText style={[s.barLabel, { color: t.textoSecundario }]}>{label}</EliteText>
+        <EliteText style={[s.barPct, { color: t.texto }]}>{pct}%</EliteText>
       </View>
       <View style={s.barTrack}>
         {/* V1.5.2 (#1): fill en gradiente molécula (fuera lime plano); rojo si cae bajo umbral */}
@@ -593,15 +609,15 @@ function ResultBar({ label, pct, score }: { label: string; pct: number; score: C
       {/* V1.5.2 (#2): breakdown de errores del canal — +comisión / −omisión,
           de los mismos conteos que produjeron el score. */}
       <View style={s.breakdownRow}>
-        <EliteText style={[s.breakdownText, score.falses > 0 && s.breakdownBad]}>
+        <EliteText style={[s.breakdownText, tenueTxt, score.falses > 0 && s.breakdownBad]}>
           +{score.falses} de más
         </EliteText>
-        <EliteText style={s.breakdownSep}>·</EliteText>
-        <EliteText style={[s.breakdownText, score.misses > 0 && s.breakdownBad]}>
+        <EliteText style={[s.breakdownSep, tenueTxt]}>·</EliteText>
+        <EliteText style={[s.breakdownText, tenueTxt, score.misses > 0 && s.breakdownBad]}>
           −{score.misses} sin marcar
         </EliteText>
         {score.falses === 0 && score.misses === 0 && (
-          <EliteText style={s.breakdownClean}>  canal limpio ✓</EliteText>
+          <EliteText style={[s.breakdownClean, { color: kind === 'dark' ? withOpacity(ATP_BRAND.lime, 0.8) : t.tealTexto }]}>  canal limpio ✓</EliteText>
         )}
       </View>
     </View>
@@ -609,16 +625,16 @@ function ResultBar({ label, pct, score }: { label: string; pct: number; score: C
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#000', paddingHorizontal: Spacing.md },
+  screen: { flex: 1, paddingHorizontal: Spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerBtn: { width: 64, height: 40, justifyContent: 'center' },
-  headerTitle: { color: '#fff', fontSize: FontSizes.lg, fontFamily: Fonts.bold, letterSpacing: 1 },
-  trialCounter: { color: TEXT.tertiary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, textAlign: 'right' },
+  headerTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, letterSpacing: 1 },
+  trialCounter: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, textAlign: 'right' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  countdownText: { color: '#fff', fontSize: 44, fontFamily: Fonts.extraBold, letterSpacing: 1 },
+  countdownText: { fontSize: 44, fontFamily: Fonts.extraBold, letterSpacing: 1 },
   countdownHint: {
-    color: TEXT.tertiary, fontSize: FontSizes.sm, fontFamily: Fonts.regular,
+    fontSize: FontSizes.sm, fontFamily: Fonts.regular,
     textAlign: 'center', marginTop: Spacing.lg, paddingHorizontal: Spacing.lg, lineHeight: 20,
   },
 
@@ -659,12 +675,12 @@ const s = StyleSheet.create({
   },
   coachCard: {
     width: '100%',
-    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 0.5,
+    borderWidth: 0.5,
     borderRadius: Radius.lg, padding: Spacing.lg,
   },
-  coachTitle: { color: ATP_BRAND.lime, fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, letterSpacing: 0.5 },
+  coachTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, letterSpacing: 0.5 },
   coachBody: {
-    color: TEXT.secondary, fontSize: FontSizes.md, fontFamily: Fonts.regular,
+    fontSize: FontSizes.md, fontFamily: Fonts.regular,
     lineHeight: 22, marginTop: Spacing.sm,
   },
   // V1.5.2 (#1): CTA en gradiente molécula (BUTTON_STYLES: gradiente para
@@ -675,39 +691,39 @@ const s = StyleSheet.create({
 
   resultsWrap: { flex: 1, justifyContent: 'center' },
   resultsTitle: {
-    color: '#fff', fontSize: 30, fontFamily: Fonts.extraBold, letterSpacing: 0.5,
+    fontSize: 30, fontFamily: Fonts.extraBold, letterSpacing: 0.5,
     marginBottom: Spacing.lg,
   },
   barBlock: { marginBottom: Spacing.md },
   barLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  barLabel: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, letterSpacing: 1 },
-  barPct: { color: '#fff', fontSize: FontSizes.sm, fontFamily: Fonts.bold },
+  barLabel: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, letterSpacing: 1 },
+  barPct: { fontSize: FontSizes.sm, fontFamily: Fonts.bold },
   barTrack: { height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.08)' },
   barFill: { height: '100%', borderRadius: 5, backgroundColor: ATP_BRAND.lime },
   barMark: { position: 'absolute', top: -3, width: 2, height: 16, backgroundColor: 'rgba(255,255,255,0.45)' },
-  thresholdHint: { color: TEXT.tertiary, fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginBottom: Spacing.md },
+  thresholdHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginBottom: Spacing.md },
 
   levelCard: {
-    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 0.5,
+    borderWidth: 0.5,
     borderRadius: Radius.lg, padding: Spacing.md, marginTop: Spacing.sm,
   },
-  levelCardTitle: { color: ATP_BRAND.lime, fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
-  levelCardSub: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 4 },
+  levelCardTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
+  levelCardSub: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 4 },
   rewardsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   rewardChip: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderRadius: Radius.pill,
     paddingHorizontal: 10, paddingVertical: 4,
   },
-  rewardText: { color: ATP_BRAND.lime, fontSize: FontSizes.xs, fontFamily: Fonts.bold },
+  rewardText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold },
 
   continueBtn: { borderRadius: Radius.pill, overflow: 'hidden', marginTop: Spacing.lg },
   continueBtnInner: { alignItems: 'center', paddingVertical: 14 },
   continueText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
   breakdownRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
-  breakdownText: { color: TEXT.tertiary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  breakdownText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
   breakdownBad: { color: '#f8a5a5' },
-  breakdownSep: { color: TEXT.tertiary, fontSize: FontSizes.xs },
-  breakdownClean: { color: withOpacity(ATP_BRAND.lime, 0.8), fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  breakdownSep: { fontSize: FontSizes.xs },
+  breakdownClean: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
   endBtn: { alignItems: 'center', paddingVertical: 14 },
-  endText: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+  endText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 });

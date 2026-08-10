@@ -7,6 +7,7 @@ import { View, ScrollView, StyleSheet, TextInput, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { StatusBar } from 'expo-status-bar';
 
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
@@ -20,6 +21,7 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { userErrorMessage } from '@/src/utils/user-error';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 const DIET_TYPES = [
   { id: 'omnivore', name: 'Omnívoro', icon: 'restaurant-outline' },
@@ -40,6 +42,8 @@ const COOKING_STYLES = [
 
 export default function FoodPreferencesScreen() {
   const { user } = useAuth();
+  // MB-31B3: la pantalla migró a tokens (Screen themed) y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
   const [diet, setDiet] = useState('omnivore');
   const [allergies, setAllergies] = useState<string[]>([]);
   const [dislikes, setDislikes] = useState('');
@@ -87,8 +91,13 @@ export default function FoodPreferencesScreen() {
     setSaving(false);
   };
 
+  // MB-31B3: rol repetido → const (patrón de la guía).
+  const chipBg = { backgroundColor: t.hundido };
+  const chipTxt = { color: t.textoSecundario };
+
   return (
-    <Screen keyboard>
+    <Screen keyboard themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="nutrition" title="Preferencias" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
         {/* Dieta */}
@@ -97,9 +106,9 @@ export default function FoodPreferencesScreen() {
           <View style={s.chipGrid}>
             {DIET_TYPES.map(d => (
               <AnimatedPressable key={d.id} onPress={() => { haptic.light(); setDiet(d.id); }}>
-                <View style={[s.chip, diet === d.id && s.chipActive]}>
-                  <Ionicons name={d.icon as any} size={16} color={diet === d.id ? '#000' : '#888'} />
-                  <EliteText style={[s.chipText, diet === d.id && { color: '#000' }]}>{d.name}</EliteText>
+                <View style={[s.chip, chipBg, diet === d.id && s.chipActive]}>
+                  <Ionicons name={d.icon as any} size={16} color={diet === d.id ? '#000' : t.textoSecundario} />
+                  <EliteText style={[s.chipText, chipTxt, diet === d.id && { color: '#000' }]}>{d.name}</EliteText>
                 </View>
               </AnimatedPressable>
             ))}
@@ -114,8 +123,8 @@ export default function FoodPreferencesScreen() {
               const active = a === 'Ninguna' ? allergies.length === 0 : allergies.includes(a);
               return (
                 <AnimatedPressable key={a} onPress={() => toggleAllergy(a)}>
-                  <View style={[s.chip, active && { backgroundColor: '#ef4444', borderColor: '#ef4444' }]}>
-                    <EliteText style={[s.chipText, active && { color: '#fff' }]}>{a}</EliteText>
+                  <View style={[s.chip, chipBg, active && { backgroundColor: '#ef4444', borderColor: '#ef4444' }]}>
+                    <EliteText style={[s.chipText, chipTxt, active && { color: '#fff' }]}>{a}</EliteText>
                   </View>
                 </AnimatedPressable>
               );
@@ -127,7 +136,7 @@ export default function FoodPreferencesScreen() {
         <Animated.View entering={FadeInUp.delay(150).springify()} style={{ marginTop: Spacing.lg }}>
           <SectionTitle>¿ALIMENTOS QUE NO TE GUSTAN?</SectionTitle>
           <TextInput
-            style={s.input}
+            style={[s.input, { backgroundColor: t.hundido, color: t.texto }]}
             value={dislikes}
             onChangeText={setDislikes}
             placeholder="hígado, natto, berenjenas..."
@@ -142,9 +151,9 @@ export default function FoodPreferencesScreen() {
           <View style={s.chipGrid}>
             {COOKING_STYLES.map(c => (
               <AnimatedPressable key={c.id} onPress={() => { haptic.light(); setCookingStyle(c.id); }}>
-                <View style={[s.chip, cookingStyle === c.id && s.chipActive]}>
-                  <Ionicons name={c.icon as any} size={16} color={cookingStyle === c.id ? '#000' : '#888'} />
-                  <EliteText style={[s.chipText, cookingStyle === c.id && { color: '#000' }]}>{c.name}</EliteText>
+                <View style={[s.chip, chipBg, cookingStyle === c.id && s.chipActive]}>
+                  <Ionicons name={c.icon as any} size={16} color={cookingStyle === c.id ? '#000' : t.textoSecundario} />
+                  <EliteText style={[s.chipText, chipTxt, cookingStyle === c.id && { color: '#000' }]}>{c.name}</EliteText>
                 </View>
               </AnimatedPressable>
             ))}
@@ -172,13 +181,13 @@ const s = StyleSheet.create({
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
-    backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
   chipActive: { backgroundColor: '#a8e02a', borderColor: '#a8e02a' },
-  chipText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#888' },
+  chipText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
   input: {
-    backgroundColor: '#0a0a0a', borderRadius: Radius.card, padding: Spacing.md,
-    color: '#fff', fontFamily: Fonts.regular, fontSize: FontSizes.md, minHeight: 60,
+    borderRadius: Radius.card, padding: Spacing.md,
+    fontFamily: Fonts.regular, fontSize: FontSizes.md, minHeight: 60,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
 });

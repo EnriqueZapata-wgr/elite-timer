@@ -36,8 +36,10 @@ import { STAY_COPY, type RegulationTool } from '@/src/data/emotion-navigation';
 import { emotionCanonColor } from '@/src/services/emotion-plane-core';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { haptic } from '@/src/utils/haptics';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SURFACES, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { StatusBar } from 'expo-status-bar';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 const CHAIN_STEP_MS = 1200; // la cámara se detiene a leer cada vecino
 // MB-16: el lienzo es el plano 12x12. Zoom CONSTANTE durante el ejercicio:
@@ -71,6 +73,12 @@ export default function EmotionNavigationScreen() {
   const [recheck, setRecheck] = useState<'offer' | 'saved' | null>(null);
   const [recheckSaving, setRecheckSaving] = useState(false);
 
+  // MB-31B3: tokens del tema — roles repetidos como consts (guía, regla 3).
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
+  const priTxt = { color: t.texto };
+  const cardSurf = { backgroundColor: t.card, borderColor: t.borde };
+
   useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
 
   // A-4 (MB-12): la Línea de la Vida es de NIVEL 2 — por emoción marcadora
@@ -98,7 +106,7 @@ export default function EmotionNavigationScreen() {
 
   const originColor = origin
     ? emotionCanonColor(origin)
-    : TEXT_COLORS.secondary;
+    : t.textoSecundario;
 
   // Al entrar al mapa: volver a SU emoción (ahí donde se registró).
   useEffect(() => {
@@ -110,10 +118,11 @@ export default function EmotionNavigationScreen() {
   if (!plan || !origin) {
     // Sin emoción válida no hay nada que navegar — salir silencioso.
     return (
-      <Screen>
+      <Screen themed>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <PillarHeader pillar="mind" title="Navegar" onBack={() => router.back()} />
         <View style={styles.center}>
-          <EliteText variant="body" style={{ color: Colors.textSecondary }}>
+          <EliteText variant="body" style={secTxt}>
             No encontramos tu emoción. Vuelve a intentarlo desde el check-in.
           </EliteText>
         </View>
@@ -124,12 +133,13 @@ export default function EmotionNavigationScreen() {
   // ═══ CRISIS: el flujo se rompe — acompañamiento, no reframing ═══
   if (plan.crisis) {
     return (
-      <Screen>
+      <Screen themed>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <PillarHeader pillar="mind" title="Acompañamiento" onBack={() => router.back()} />
         <View style={styles.crisisWrap}>
           {hotline && <CrisisSupportBanner />}
-          <Animated.View entering={FadeInDown.delay(150).duration(400)} style={styles.crisisCard}>
-            <EliteText variant="body" style={styles.crisisText}>
+          <Animated.View entering={FadeInDown.delay(150).duration(400)} style={[styles.crisisCard, cardSurf]}>
+            <EliteText variant="body" style={[styles.crisisText, priTxt]}>
               Ahora mismo no toca analizar nada. Toca acompañarte.
             </EliteText>
             {plan.crisisTool && (
@@ -144,7 +154,7 @@ export default function EmotionNavigationScreen() {
               </Pressable>
             )}
             <Pressable onPress={() => router.back()} style={styles.stayLink}>
-              <EliteText variant="caption" style={styles.stayText}>Volver</EliteText>
+              <EliteText variant="caption" style={[styles.stayText, secTxt]}>Volver</EliteText>
             </Pressable>
           </Animated.View>
         </View>
@@ -155,14 +165,15 @@ export default function EmotionNavigationScreen() {
   // ═══ FASE 1: LA FRASE QUE ENCUADRA ═══
   if (phase === 'frame') {
     return (
-      <Screen>
+      <Screen themed>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <View style={styles.ambient} pointerEvents="none">
           <LinearGradient colors={[withOpacity(originColor, 0.22), 'transparent']} style={{ flex: 1 }} />
         </View>
         <PillarHeader pillar="mind" title="Navegar" onBack={() => router.back()} />
         <View style={styles.frameWrap}>
           <Animated.View entering={FadeIn.duration(500)}>
-            <EliteText style={styles.framePhrase}>{phrase}</EliteText>
+            <EliteText style={[styles.framePhrase, priTxt]}>{phrase}</EliteText>
           </Animated.View>
           <Animated.View entering={FadeInDown.delay(500).duration(400)} style={styles.frameActions}>
             <Pressable
@@ -172,7 +183,7 @@ export default function EmotionNavigationScreen() {
               <EliteText style={styles.frameCtaText}>VAMOS</EliteText>
             </Pressable>
             <Pressable onPress={() => router.back()} style={styles.stayLink}>
-              <EliteText variant="caption" style={styles.stayText}>Ahora no</EliteText>
+              <EliteText variant="caption" style={[styles.stayText, secTxt]}>Ahora no</EliteText>
             </Pressable>
           </Animated.View>
         </View>
@@ -263,7 +274,8 @@ export default function EmotionNavigationScreen() {
     : originColor;
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <View style={styles.ambient} pointerEvents="none">
         <LinearGradient colors={[withOpacity(focusColor, 0.2), 'transparent']} style={{ flex: 1 }} />
       </View>
@@ -286,9 +298,9 @@ export default function EmotionNavigationScreen() {
           .filter((e): e is NonNullable<typeof e> => !!e)
           .slice(0, 4);
         return (
-          <Animated.View entering={SlideInDown.duration(280)} style={styles.card}>
+          <Animated.View entering={SlideInDown.duration(280)} style={[styles.card, cardSurf]}>
             <EliteText style={[styles.question, { color: focusColor }]}>¿Cómo quedaste?</EliteText>
-            <EliteText variant="body" style={styles.subtext}>
+            <EliteText variant="body" style={[styles.subtext, secTxt]}>
               Un toque y ya. Este segundo dato es el que enseña si moverte funciona.
             </EliteText>
             <View style={styles.recheckWrap}>
@@ -297,9 +309,9 @@ export default function EmotionNavigationScreen() {
                   key={e.id}
                   disabled={recheckSaving}
                   onPress={() => handleRecheckPick(e)}
-                  style={[styles.recheckChip, recheckSaving && { opacity: 0.6 }]}
+                  style={[styles.recheckChip, cardSurf, recheckSaving && { opacity: 0.6 }]}
                 >
-                  <EliteText variant="body" style={styles.recheckChipText}>
+                  <EliteText variant="body" style={[styles.recheckChipText, priTxt]}>
                     {e.label}{e.id === origin.id ? ' · igual' : ''}
                   </EliteText>
                 </Pressable>
@@ -307,7 +319,7 @@ export default function EmotionNavigationScreen() {
             </View>
             <View style={styles.cardActions}>
               <Pressable onPress={dismissRecheck} style={styles.stayLink}>
-                <EliteText variant="caption" style={styles.stayText}>Prefiero no decir</EliteText>
+                <EliteText variant="caption" style={[styles.stayText, secTxt]}>Prefiero no decir</EliteText>
               </Pressable>
             </View>
           </Animated.View>
@@ -315,9 +327,9 @@ export default function EmotionNavigationScreen() {
       })()}
 
       {recheck === 'saved' && (
-        <Animated.View entering={SlideInDown.duration(280)} style={styles.card}>
+        <Animated.View entering={SlideInDown.duration(280)} style={[styles.card, cardSurf]}>
           <EliteText style={[styles.question, { color: focusColor }]}>Registrado</EliteText>
-          <EliteText variant="body" style={styles.subtext}>
+          <EliteText variant="body" style={[styles.subtext, secTxt]}>
             Con cada ida y vuelta, tu estadística aprende qué movimiento te funciona a ti.
           </EliteText>
           <View style={styles.cardActions}>
@@ -334,9 +346,9 @@ export default function EmotionNavigationScreen() {
 
       {/* Tarjeta inferior según sub-paso */}
       {recheck === null && move && subStep === 'question' && (
-        <Animated.View entering={SlideInDown.duration(280)} style={styles.card}>
+        <Animated.View entering={SlideInDown.duration(280)} style={[styles.card, cardSurf]}>
           <EliteText style={[styles.question, { color: focusColor }]}>{move.question}</EliteText>
-          <EliteText variant="body" style={styles.subtext}>{move.subtext}</EliteText>
+          <EliteText variant="body" style={[styles.subtext, secTxt]}>{move.subtext}</EliteText>
           {/* B.2: el destino lejano es horizonte tenue; la app solo ofrece el
               siguiente paso. La ruta es un arco con escalas, no una cuerda. */}
           {move.chainIds.length > 2 && (
@@ -349,7 +361,7 @@ export default function EmotionNavigationScreen() {
           )}
           <View style={styles.cardActions}>
             <Pressable onPress={() => { haptic.light(); router.back(); }} style={styles.stayLink}>
-              <EliteText variant="caption" style={styles.stayText}>{STAY_COPY}</EliteText>
+              <EliteText variant="caption" style={[styles.stayText, secTxt]}>{STAY_COPY}</EliteText>
             </Pressable>
             <Pressable onPress={startMovement} style={[styles.cta, { backgroundColor: focusColor }]}>
               <EliteText style={styles.ctaText}>
@@ -361,39 +373,39 @@ export default function EmotionNavigationScreen() {
       )}
 
       {recheck === null && subStep === 'moving' && focusEmotion && (
-        <Animated.View key={focusId} entering={FadeIn.duration(250)} style={styles.card}>
+        <Animated.View key={focusId} entering={FadeIn.duration(250)} style={[styles.card, cardSurf]}>
           <EliteText style={[styles.movingLabel, { color: focusColor }]}>{focusEmotion.label}</EliteText>
-          <EliteText variant="caption" style={styles.movingDesc} numberOfLines={2}>
+          <EliteText variant="caption" style={[styles.movingDesc, secTxt]} numberOfLines={2}>
             {focusEmotion.description}
           </EliteText>
         </Animated.View>
       )}
 
       {recheck === null && move && subStep === 'tools' && (
-        <Animated.View entering={SlideInDown.duration(280)} style={styles.card}>
-          <EliteText variant="caption" style={styles.toolsTitle}>EL VEHÍCULO</EliteText>
-          <EliteText variant="body" style={styles.subtext}>
+        <Animated.View entering={SlideInDown.duration(280)} style={[styles.card, cardSurf]}>
+          <EliteText variant="caption" style={[styles.toolsTitle, secTxt]}>EL VEHÍCULO</EliteText>
+          <EliteText variant="body" style={[styles.subtext, secTxt]}>
             Moverse de verdad, no solo imaginarlo. Elige uno:
           </EliteText>
           <ScrollView style={{ maxHeight: 250 }} showsVerticalScrollIndicator={false}>
             {move.tools.map((tool, i) => (
               <Animated.View key={tool.id} entering={FadeInDown.delay(i * 60).duration(300)}>
-                <Pressable onPress={() => openTool(tool)} style={styles.toolRow}>
+                <Pressable onPress={() => openTool(tool)} style={[styles.toolRow, { borderBottomColor: t.borde }]}>
                   <View style={{ flex: 1 }}>
-                    <EliteText variant="body" style={styles.toolTitle}>{tool.title}</EliteText>
-                    <EliteText variant="caption" style={styles.toolDetail}>{tool.detail}</EliteText>
+                    <EliteText variant="body" style={[styles.toolTitle, priTxt]}>{tool.title}</EliteText>
+                    <EliteText variant="caption" style={[styles.toolDetail, secTxt]}>{tool.detail}</EliteText>
                   </View>
                   {tool.minutes != null && (
-                    <EliteText variant="caption" style={styles.toolMin}>{tool.minutes} min</EliteText>
+                    <EliteText variant="caption" style={[styles.toolMin, secTxt]}>{tool.minutes} min</EliteText>
                   )}
-                  <Ionicons name="chevron-forward" size={16} color={TEXT_COLORS.secondary} />
+                  <Ionicons name="chevron-forward" size={16} color={t.textoSecundario} />
                 </Pressable>
               </Animated.View>
             ))}
           </ScrollView>
           <View style={styles.cardActions}>
             <Pressable onPress={() => { haptic.light(); router.back(); }} style={styles.stayLink}>
-              <EliteText variant="caption" style={styles.stayText}>{STAY_COPY}</EliteText>
+              <EliteText variant="caption" style={[styles.stayText, secTxt]}>{STAY_COPY}</EliteText>
             </Pressable>
             {moveIndex < plan.moves.length - 1 && (
               <Pressable onPress={nextMove} style={[styles.cta, { backgroundColor: focusColor }]}>
@@ -416,7 +428,7 @@ const styles = StyleSheet.create({
   frameWrap: { flex: 1, justifyContent: 'center', paddingHorizontal: Spacing.xl, gap: Spacing.xl },
   framePhrase: {
     fontSize: 30, lineHeight: 40, fontFamily: Fonts.extraBold,
-    color: Colors.textPrimary, textAlign: 'center',
+    textAlign: 'center',
   },
   frameActions: { alignItems: 'center', gap: Spacing.md },
   frameCta: {
@@ -427,12 +439,12 @@ const styles = StyleSheet.create({
 
   // Tarjeta inferior
   card: {
-    backgroundColor: SURFACES.card, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg,
-    borderWidth: 0.5, borderColor: SURFACES.border,
+    borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg,
+    borderWidth: 0.5,
     paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.lg,
   },
   question: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, lineHeight: 30 },
-  subtext: { color: Colors.textSecondary, fontSize: FontSizes.md, lineHeight: 21, marginTop: Spacing.xs },
+  subtext: { fontSize: FontSizes.md, lineHeight: 21, marginTop: Spacing.xs },
   horizon: {
     color: withOpacity(TEXT_COLORS.secondary, 0.55), fontSize: FontSizes.xs,
     fontFamily: Fonts.semiBold, letterSpacing: 0.5, marginTop: Spacing.sm, fontStyle: 'italic',
@@ -446,41 +458,41 @@ const styles = StyleSheet.create({
   },
   ctaText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.sm, letterSpacing: 1.5 },
   stayLink: { paddingVertical: Spacing.sm },
-  stayText: { color: Colors.textSecondary, fontSize: FontSizes.sm },
+  stayText: { fontSize: FontSizes.sm },
 
   // Recorriendo la cadena
   movingLabel: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold },
-  movingDesc: { color: Colors.textSecondary, fontSize: FontSizes.md, lineHeight: 20, marginTop: 4 },
+  movingDesc: { fontSize: FontSizes.md, lineHeight: 20, marginTop: 4 },
 
   // Track F: re-check-in corto ("¿cómo quedaste?")
   recheckWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.md },
   recheckChip: {
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2,
-    borderRadius: Radius.pill, backgroundColor: SURFACES.card,
-    borderWidth: 1, borderColor: SURFACES.border,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
   },
-  recheckChipText: { color: Colors.textPrimary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+  recheckChipText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
 
   // Vehículo
   toolsTitle: {
-    color: Colors.textSecondary, fontSize: FontSizes.xs, fontFamily: Fonts.bold,
+    fontSize: FontSizes.xs, fontFamily: Fonts.bold,
     letterSpacing: 2, marginBottom: 2,
   },
   toolRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingVertical: Spacing.sm + 2, borderBottomWidth: 0.5, borderBottomColor: SURFACES.border,
+    paddingVertical: Spacing.sm + 2, borderBottomWidth: 0.5,
   },
-  toolTitle: { color: Colors.textPrimary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
-  toolDetail: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 18, marginTop: 1 },
-  toolMin: { color: Colors.textSecondary, fontSize: FontSizes.xs },
+  toolTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+  toolDetail: { fontSize: FontSizes.sm, lineHeight: 18, marginTop: 1 },
+  toolMin: { fontSize: FontSizes.xs },
 
   // Crisis
   crisisWrap: { flex: 1, padding: Spacing.md, gap: Spacing.md },
   crisisCard: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5,
-    borderColor: SURFACES.border, padding: Spacing.lg, gap: Spacing.md, alignItems: 'center',
+    borderRadius: Radius.card, borderWidth: 0.5,
+    padding: Spacing.lg, gap: Spacing.md, alignItems: 'center',
   },
-  crisisText: { color: Colors.textPrimary, fontSize: FontSizes.lg, lineHeight: 26, textAlign: 'center' },
+  crisisText: { fontSize: FontSizes.lg, lineHeight: 26, textAlign: 'center' },
   crisisBtn: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     borderWidth: 1, borderRadius: Radius.pill,

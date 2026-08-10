@@ -8,6 +8,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, RefreshControl, DeviceEventEmitter, Alert } from 'react-native';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -27,7 +28,8 @@ import {
 } from '@/src/services/community/friends-core';
 import { rankTierLabel } from '@/src/services/economy/rank';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 function openProfile(userId: string) {
@@ -38,51 +40,55 @@ function IncomingRow({ row, onRespond }: {
   row: PendingRequestRow;
   onRespond: (requestId: string, accept: boolean) => void;
 }) {
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const name = publicDisplayName(row);
   return (
-    <View style={s.row}>
+    <View style={[s.row, { backgroundColor: t.card, borderColor: t.borde }]}>
       <Pressable style={s.rowMain} onPress={() => openProfile(row.other_user_id)}>
         <UserAvatar uri={row.avatar_url} name={name} size={38} />
         <View style={{ flex: 1 }}>
-          <EliteText style={s.name} numberOfLines={1}>{name}</EliteText>
-          <EliteText style={s.sub}>Quiere ser tu amigo</EliteText>
+          <EliteText style={[s.name, { color: t.texto }]} numberOfLines={1}>{name}</EliteText>
+          <EliteText style={[s.sub, { color: t.textoTenue }]}>Quiere ser tu amigo</EliteText>
         </View>
       </Pressable>
       <Pressable style={s.acceptBtn} onPress={() => onRespond(row.request_id, true)} hitSlop={6}>
-        <EliteText style={s.acceptText}>Aceptar</EliteText>
+        <EliteText style={[s.acceptText, { color: acento }]}>Aceptar</EliteText>
       </Pressable>
-      <Pressable style={s.declineBtn} onPress={() => onRespond(row.request_id, false)} hitSlop={6}>
-        <Ionicons name="close" size={18} color={TEXT.secondary} />
+      <Pressable style={[s.declineBtn, { backgroundColor: t.flotante, borderColor: t.bordeMarcado }]} onPress={() => onRespond(row.request_id, false)} hitSlop={6}>
+        <Ionicons name="close" size={18} color={t.textoSecundario} />
       </Pressable>
     </View>
   );
 }
 
 function OutgoingRow({ row }: { row: PendingRequestRow }) {
+  const { tokens: t } = useAppTheme();
   const name = publicDisplayName(row);
   return (
-    <Pressable style={s.row} onPress={() => openProfile(row.other_user_id)}>
+    <Pressable style={[s.row, { backgroundColor: t.card, borderColor: t.borde }]} onPress={() => openProfile(row.other_user_id)}>
       <View style={s.rowMain}>
         <UserAvatar uri={row.avatar_url} name={name} size={38} />
         <View style={{ flex: 1 }}>
-          <EliteText style={s.name} numberOfLines={1}>{name}</EliteText>
-          <EliteText style={s.sub}>Solicitud enviada</EliteText>
+          <EliteText style={[s.name, { color: t.texto }]} numberOfLines={1}>{name}</EliteText>
+          <EliteText style={[s.sub, { color: t.textoTenue }]}>Solicitud enviada</EliteText>
         </View>
       </View>
-      <EliteText style={s.pendingBadge}>Pendiente</EliteText>
+      <EliteText style={[s.pendingBadge, { color: t.textoTenue }]}>Pendiente</EliteText>
     </Pressable>
   );
 }
 
 function FriendItem({ row }: { row: FriendRow }) {
+  const { tokens: t } = useAppTheme();
   const name = publicDisplayName(row);
   return (
-    <Pressable style={s.row} onPress={() => openProfile(row.user_id)}>
+    <Pressable style={[s.row, { backgroundColor: t.card, borderColor: t.borde }]} onPress={() => openProfile(row.user_id)}>
       <View style={s.rowMain}>
         <UserAvatar uri={row.avatar_url} name={name} size={38} />
         <View style={{ flex: 1 }}>
-          <EliteText style={s.name} numberOfLines={1}>{name}</EliteText>
-          <EliteText style={s.sub}>
+          <EliteText style={[s.name, { color: t.texto }]} numberOfLines={1}>{name}</EliteText>
+          <EliteText style={[s.sub, { color: t.textoTenue }]}>
             {row.current_rank != null
               ? `Nivel ${row.current_rank} · ${rankTierLabel(row.current_rank)}`
               : 'Nivel privado'}
@@ -90,9 +96,9 @@ function FriendItem({ row }: { row: FriendRow }) {
         </View>
       </View>
       {row.streak_days != null && row.streak_days > 0 && (
-        <EliteText style={s.streak}>🔥 {row.streak_days}</EliteText>
+        <EliteText style={[s.streak, { color: t.textoSecundario }]}>🔥 {row.streak_days}</EliteText>
       )}
-      <Ionicons name="chevron-forward" size={16} color={TEXT.tertiary} />
+      <Ionicons name="chevron-forward" size={16} color={t.textoTenue} />
     </Pressable>
   );
 }
@@ -103,6 +109,9 @@ export default function CommunityFriendsScreen() {
   useRegisterOwnNav();
 
   const insets = useSafeAreaInsets();
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
+  const secTxt = { color: t.textoSecundario };
   const [friends, setFriends] = useState<FriendRow[]>([]);
   const [incoming, setIncoming] = useState<PendingRequestRow[]>([]);
   const [outgoing, setOutgoing] = useState<PendingRequestRow[]>([]);
@@ -145,42 +154,44 @@ export default function CommunityFriendsScreen() {
   const hasAnything = friends.length > 0 || incoming.length > 0 || outgoing.length > 0;
 
   return (
+    <ThemeReady>
     <ScrollView
-      style={s.screen}
+      style={[s.screen, { backgroundColor: t.fondo }]}
       contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: 60 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ATP_BRAND.lime} />}
     >
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <View style={{ paddingTop: insets.top + 8 }}>
         <View style={s.headerRow}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
+            <Ionicons name="arrow-back" size={24} color={t.texto} />
           </Pressable>
           <Pressable onPress={() => router.push('/comunidad/buscar')} hitSlop={12}>
-            <Ionicons name="search" size={22} color={TEXT.primary} />
+            <Ionicons name="search" size={22} color={t.texto} />
           </Pressable>
         </View>
         <Animated.View entering={FadeInUp.delay(40).springify()}>
-          <EliteText style={s.title}>Amigos</EliteText>
-          <EliteText style={s.subtitle}>Tu tribu dentro de ATP. Sin chats: la constancia habla.</EliteText>
+          <EliteText style={[s.title, { color: t.texto }]}>Amigos</EliteText>
+          <EliteText style={[s.subtitle, secTxt]}>Tu tribu dentro de ATP. Sin chats: la constancia habla.</EliteText>
         </Animated.View>
       </View>
 
       {/* MB-4 Bloque 4: ánimo compartido de tu gente (opt-in, sin ranking) */}
       <Animated.View entering={FadeInUp.delay(70).springify()}>
-        <Pressable style={s.animoLink} onPress={() => { haptic.light(); router.push('/comunidad/animo'); }}>
-          <Ionicons name="pulse-outline" size={16} color={ATP_BRAND.teal} />
+        <Pressable style={[s.animoLink, { backgroundColor: t.card, borderColor: t.borde }]} onPress={() => { haptic.light(); router.push('/comunidad/animo'); }}>
+          <Ionicons name="pulse-outline" size={16} color={t.tealTexto} />
           <View style={{ flex: 1 }}>
-            <EliteText style={s.animoTitle}>Ánimo de tu gente</EliteText>
-            <EliteText style={s.animoSub}>Lo que tus amigos eligieron compartir</EliteText>
+            <EliteText style={[s.animoTitle, { color: t.texto }]}>Ánimo de tu gente</EliteText>
+            <EliteText style={[s.animoSub, secTxt]}>Lo que tus amigos eligieron compartir</EliteText>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={TEXT.secondary} />
+          <Ionicons name="chevron-forward" size={16} color={t.textoSecundario} />
         </Pressable>
       </Animated.View>
 
       {/* ── Solicitudes recibidas ── */}
       {incoming.length > 0 && (
         <Animated.View entering={FadeInUp.delay(90).springify()}>
-          <EliteText style={s.sectionTitle}>SOLICITUDES RECIBIDAS</EliteText>
+          <EliteText style={[s.sectionTitle, secTxt]}>SOLICITUDES RECIBIDAS</EliteText>
           {incoming.map((r) => <IncomingRow key={r.request_id} row={r} onRespond={onRespond} />)}
         </Animated.View>
       )}
@@ -188,19 +199,19 @@ export default function CommunityFriendsScreen() {
       {/* ── Solicitudes enviadas ── */}
       {outgoing.length > 0 && (
         <Animated.View entering={FadeInUp.delay(120).springify()}>
-          <EliteText style={s.sectionTitle}>SOLICITUDES ENVIADAS</EliteText>
+          <EliteText style={[s.sectionTitle, secTxt]}>SOLICITUDES ENVIADAS</EliteText>
           {outgoing.map((r) => <OutgoingRow key={r.request_id} row={r} />)}
         </Animated.View>
       )}
 
       {/* ── Mis amigos ── */}
       <Animated.View entering={FadeInUp.delay(150).springify()}>
-        <EliteText style={s.sectionTitle}>MIS AMIGOS{friends.length > 0 ? ` (${friends.length})` : ''}</EliteText>
+        <EliteText style={[s.sectionTitle, secTxt]}>MIS AMIGOS{friends.length > 0 ? ` (${friends.length})` : ''}</EliteText>
         {loading ? (
-          <EliteText style={s.empty}>Cargando…</EliteText>
+          <EliteText style={[s.empty, secTxt]}>Cargando…</EliteText>
         ) : friends.length === 0 ? (
           hasAnything ? (
-            <EliteText style={s.empty}>Aún no tienes amigos aceptados. Tus solicitudes están en camino.</EliteText>
+            <EliteText style={[s.empty, secTxt]}>Aún no tienes amigos aceptados. Tus solicitudes están en camino.</EliteText>
           ) : (
             <EmptyState
               icon="people-outline"
@@ -218,59 +229,60 @@ export default function CommunityFriendsScreen() {
 
       {friends.length > 0 && (
         <Pressable style={s.searchLink} onPress={() => router.push('/comunidad/buscar')}>
-          <Ionicons name="person-add-outline" size={16} color={ATP_BRAND.lime} />
-          <EliteText style={s.searchLinkText}>Buscar más personas</EliteText>
+          <Ionicons name="person-add-outline" size={16} color={acento} />
+          <EliteText style={[s.searchLinkText, { color: acento }]}>Buscar más personas</EliteText>
         </Pressable>
       )}
     </ScrollView>
+    </ThemeReady>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: ELEVATION[0].bg },
+  screen: { flex: 1 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 28, fontFamily: Fonts.bold, color: TEXT.primary, marginTop: Spacing.md },
-  subtitle: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: TEXT.secondary, marginTop: 4 },
+  title: { fontSize: 28, fontFamily: Fonts.bold, marginTop: Spacing.md },
+  subtitle: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 4 },
   sectionTitle: {
-    fontSize: 11, letterSpacing: 2, fontFamily: Fonts.semiBold, color: TEXT.secondary,
+    fontSize: 11, letterSpacing: 2, fontFamily: Fonts.semiBold,
     textTransform: 'uppercase', marginTop: Spacing.lg, marginBottom: 12,
   },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.md, paddingVertical: 10, paddingHorizontal: Spacing.md, marginBottom: 8,
   },
   rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  name: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.primary },
-  sub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.tertiary, marginTop: 2 },
-  streak: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.secondary },
+  name: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+  sub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
+  streak: { fontSize: FontSizes.xs, fontFamily: Fonts.regular },
   acceptBtn: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.14), borderRadius: Radius.sm,
     paddingHorizontal: 12, paddingVertical: 6,
   },
-  acceptText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: ATP_BRAND.lime },
+  acceptText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
   declineBtn: {
-    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
+    borderWidth: 1,
     borderRadius: Radius.sm, padding: 6,
   },
-  pendingBadge: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, color: TEXT.tertiary },
+  pendingBadge: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
   empty: {
-    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: TEXT.secondary,
+    fontSize: FontSizes.sm, fontFamily: Fonts.regular,
     textAlign: 'center', paddingVertical: Spacing.lg,
   },
   searchLink: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     marginTop: Spacing.md, paddingVertical: 10,
   },
-  searchLinkText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: ATP_BRAND.lime },
+  searchLinkText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 
   // MB-4 Bloque 4: acceso al ánimo compartido
   animoLink: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg, borderRadius: Radius.card,
-    borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    borderRadius: Radius.card,
+    borderWidth: 0.5,
     padding: Spacing.md, marginBottom: Spacing.md,
   },
-  animoTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.primary },
-  animoSub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.secondary, marginTop: 1 },
+  animoTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+  animoSub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 1 },
 });

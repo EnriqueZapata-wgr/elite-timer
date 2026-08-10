@@ -4,6 +4,7 @@
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { EliteText } from '@/components/elite-text';
@@ -13,7 +14,8 @@ import { haptic } from '@/src/utils/haptics';
 import { getElectronHistory } from '@/src/services/economy/electron-service';
 import { getProtonHistory } from '@/src/services/economy/proton-service';
 import { formatFull } from '@/src/services/economy/format';
-import { ELEVATION, TEXT, ATP_BRAND, SEMANTIC } from '@/src/constants/brand';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 type Tab = 'electrons' | 'protons';
@@ -59,6 +61,7 @@ function humanizeKey(key: string | null | undefined): string {
 
 export default function HistoryScreen() {
   const { user } = useAuth();
+  const { kind, tokens: t } = useAppTheme();
   const [tab, setTab] = useState<Tab>('protons');
   const [rows, setRows] = useState<Array<{ id: string; amount: number; label: string; created_at: string }>>([]);
 
@@ -83,28 +86,29 @@ export default function HistoryScreen() {
   const unit = tab === 'electrons' ? 'E-' : 'H+';
 
   return (
-    <Screen edges={[]}>
+    <Screen edges={[]} themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Historial" onBack={() => router.back()} />
       <View style={styles.tabs}>
-        {(['protons', 'electrons'] as Tab[]).map((t) => (
-          <AnimatedPressable key={t} onPress={() => { haptic.light(); setTab(t); }}
-            style={[styles.tab, tab === t && styles.tabActive]}>
-            <EliteText style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t === 'protons' ? 'H+' : 'E-'}
+        {(['protons', 'electrons'] as Tab[]).map((tabKey) => (
+          <AnimatedPressable key={tabKey} onPress={() => { haptic.light(); setTab(tabKey); }}
+            style={[styles.tab, { backgroundColor: t.card, borderColor: t.bordeMarcado }, tab === tabKey && styles.tabActive]}>
+            <EliteText style={[styles.tabText, { color: t.textoSecundario }, tab === tabKey && styles.tabTextActive]}>
+              {tabKey === 'protons' ? 'H+' : 'E-'}
             </EliteText>
           </AnimatedPressable>
         ))}
       </View>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {rows.length === 0 ? (
-          <EliteText variant="caption" style={styles.empty}>Sin movimientos todavía.</EliteText>
+          <EliteText variant="caption" style={[styles.empty, { color: t.textoSecundario }]}>Sin movimientos todavía.</EliteText>
         ) : rows.map((r) => (
-          <View key={r.id} style={styles.row}>
+          <View key={r.id} style={[styles.row, { backgroundColor: t.card, borderColor: t.borde }]}>
             <View style={{ flex: 1 }}>
-              <EliteText style={styles.rowLabel} numberOfLines={1}>{r.label}</EliteText>
-              <EliteText variant="caption" style={styles.rowDate}>{r.created_at?.slice(0, 10)}</EliteText>
+              <EliteText style={[styles.rowLabel, { color: t.texto }]} numberOfLines={1}>{r.label}</EliteText>
+              <EliteText variant="caption" style={[styles.rowDate, { color: t.textoTenue }]}>{r.created_at?.slice(0, 10)}</EliteText>
             </View>
-            <EliteText style={[styles.rowAmt, { color: r.amount >= 0 ? ATP_BRAND.lime : SEMANTIC.error }]}>
+            <EliteText style={[styles.rowAmt, { color: r.amount >= 0 ? ATP_BRAND.lime : t.error }]}>
               {r.amount >= 0 ? '+' : ''}{formatFull(r.amount)} {unit}
             </EliteText>
           </View>
@@ -117,18 +121,18 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.md, marginBottom: Spacing.sm },
-  tab: { flex: 1, paddingVertical: 10, borderRadius: Radius.pill, alignItems: 'center', backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[2].border },
+  tab: { flex: 1, paddingVertical: 10, borderRadius: Radius.pill, alignItems: 'center', borderWidth: 0.5 },
   tabActive: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
-  tabText: { color: TEXT.secondary, fontFamily: Fonts.bold, fontSize: FontSizes.sm },
+  tabText: { fontFamily: Fonts.bold, fontSize: FontSizes.sm },
   tabTextActive: { color: '#000' },
   content: { paddingHorizontal: Spacing.md, gap: Spacing.sm, paddingBottom: 80 },
-  empty: { color: TEXT.secondary, textAlign: 'center', marginTop: Spacing.xl },
+  empty: { textAlign: 'center', marginTop: Spacing.xl },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    backgroundColor: ELEVATION[1].bg, borderRadius: Radius.card, padding: Spacing.md,
-    borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    borderRadius: Radius.card, padding: Spacing.md,
+    borderWidth: 0.5,
   },
-  rowLabel: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
-  rowDate: { color: TEXT.tertiary, marginTop: 2 },
+  rowLabel: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  rowDate: { marginTop: 2 },
   rowAmt: { fontFamily: Fonts.bold, fontSize: FontSizes.sm },
 });

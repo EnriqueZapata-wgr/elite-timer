@@ -3,6 +3,7 @@
  */
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -13,7 +14,8 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, CATEGORY_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 // MB-3.6: Fuerza y Récords FUSIONADAS (un dato = un lugar); Movilidad
 // reactivada — la evaluación real vive en /mobility-assessment (Bloque 2).
@@ -30,9 +32,12 @@ const ITEMS = [
 
 export default function FitnessMyScreen() {
   const router = useRouter();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="fitness" title="Mi Fitness" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
@@ -45,10 +50,10 @@ export default function FitnessMyScreen() {
                     <Ionicons name={item.icon} size={22} color={item.color} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <EliteText style={s.name}>{item.name}</EliteText>
-                    <EliteText style={s.sub}>{item.subtitle}</EliteText>
+                    <EliteText style={[s.name, { color: t.texto }]}>{item.name}</EliteText>
+                    <EliteText style={[s.sub, { color: t.textoSecundario }]}>{item.subtitle}</EliteText>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.muted} />
+                  <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
                 </View>
               </GradientCard>
             </AnimatedPressable>
@@ -65,6 +70,6 @@ const s = StyleSheet.create({
   card: { padding: Spacing.md, marginBottom: Spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   icon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  name: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.primary, marginBottom: 2 },
-  sub: { fontSize: FontSizes.xs, color: TEXT_COLORS.secondary },
+  name: { fontSize: FontSizes.md, fontFamily: Fonts.bold, marginBottom: 2 },
+  sub: { fontSize: FontSizes.xs },
 });

@@ -4,6 +4,7 @@
  */
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -15,7 +16,8 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CARD, ATP_BRAND, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import type { Routine, Block } from '@/src/engine/types';
 
 // MB-3.6 §4.2: acento de intensidad = amber de marca (el naranja #fb923c era
@@ -95,6 +97,8 @@ const HIIT_PRESETS: HIITPreset[] = [
 
 export default function FitnessHIITScreen() {
   const router = useRouter();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
 
   const startPreset = (preset: HIITPreset) => {
     haptic.medium();
@@ -106,7 +110,8 @@ export default function FitnessHIITScreen() {
   };
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="fitness" title="HIIT" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
@@ -118,8 +123,8 @@ export default function FitnessHIITScreen() {
               <GradientCard gradient={ORANGE_GRADIENT} accentColor={ORANGE} accentPosition="left">
                 <View style={s.row}>
                   <View style={{ flex: 1 }}>
-                    <EliteText style={s.name}>{preset.name}</EliteText>
-                    <EliteText style={s.desc}>{preset.description}</EliteText>
+                    <EliteText style={[s.name, { color: t.texto }]}>{preset.name}</EliteText>
+                    <EliteText style={[s.desc, { color: t.textoSecundario }]}>{preset.description}</EliteText>
                   </View>
                   <View style={s.playBtn}>
                     <Ionicons name="play" size={14} color={TEXT_COLORS.onAccent} />
@@ -133,7 +138,7 @@ export default function FitnessHIITScreen() {
         {/* MB-3.6 §1.1: "Abrir timer libre" RETIRADO — /timer murió (duplicaba
             estos presets); la ruta redirige aquí para deep-links viejos. */}
         <AnimatedPressable
-          style={s.ctaButtonGhost}
+          style={[s.ctaButtonGhost, { backgroundColor: t.card }]}
           onPress={() => { haptic.light(); router.push('/builder'); }}
         >
           <Ionicons name="create-outline" size={18} color={ORANGE} />
@@ -158,12 +163,10 @@ const s = StyleSheet.create({
   name: {
     fontSize: FontSizes.lg,
     fontFamily: Fonts.bold,
-    color: TEXT_COLORS.primary,
   },
   desc: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.regular,
-    color: TEXT_COLORS.secondary,
     marginTop: 2,
   },
   playBtn: {
@@ -180,7 +183,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: CARD.bg,
     borderWidth: 1,
     borderColor: withOpacity(ATP_BRAND.amber, 0.3),
     paddingVertical: 12,

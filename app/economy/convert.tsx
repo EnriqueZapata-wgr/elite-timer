@@ -5,6 +5,7 @@
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
@@ -16,13 +17,17 @@ import { haptic } from '@/src/utils/haptics';
 import { getElectronBalance } from '@/src/services/economy/electron-service';
 import { getConversionRate, previewProtons, convertElectronsToProtons } from '@/src/services/economy/electron-to-proton-converter';
 import { formatFull } from '@/src/services/economy/format';
-import { ELEVATION, TEXT, ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const STEPS = [100, 500, 1000, 5000];
 
 export default function ConvertScreen() {
   const { user } = useAuth();
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
+  const secTxt = { color: t.textoSecundario };
   // D-2 (MB-12): null = sin lectura (cold start / fallo) — NO es "tienes 0 E-".
   const [available, setAvailable] = useState<number | null>(null);
   const [multiplier, setMultiplier] = useState(1);
@@ -62,40 +67,41 @@ export default function ConvertScreen() {
   }
 
   return (
-    <Screen edges={[]}>
+    <Screen edges={[]} themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Convertir" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.orbWrap}><ProtonOrb size={64} /></View>
 
-        <EliteText variant="caption" style={styles.muted}>
+        <EliteText variant="caption" style={[styles.muted, secTxt]}>
           {available == null
             ? `Tu balance no se pudo leer · tasa 100 E- = ${formatFull(300 * multiplier)} H+`
             : `Tienes ${formatFull(available)} E- · tasa 100 E- = ${formatFull(300 * multiplier)} H+${multiplier > 1 ? `  (reto ×${multiplier})` : ''}`}
         </EliteText>
         {available == null && (
-          <AnimatedPressable onPress={load} style={[styles.stepBtn, { alignSelf: 'center' }]}>
-            <EliteText style={[styles.stepText, { color: ATP_BRAND.lime }]}>Reintentar lectura</EliteText>
+          <AnimatedPressable onPress={load} style={[styles.stepBtn, { backgroundColor: t.card, borderColor: t.bordeMarcado, alignSelf: 'center' }]}>
+            <EliteText style={[styles.stepText, { color: acento }]}>Reintentar lectura</EliteText>
           </AnimatedPressable>
         )}
 
-        <View style={styles.amountCard}>
-          <EliteText variant="caption" style={styles.muted}>CONVERTIR</EliteText>
-          <EliteText style={styles.amount}>{formatFull(electrons)} <EliteText style={styles.unit}>E-</EliteText></EliteText>
-          <Ionicons name="arrow-down" size={20} color={TEXT.secondary} />
-          <EliteText style={[styles.amount, { color: ATP_BRAND.lime }]}>{formatFull(protons)} <EliteText style={styles.unit}>H+</EliteText></EliteText>
+        <View style={[styles.amountCard, { backgroundColor: t.card, borderColor: t.borde }]}>
+          <EliteText variant="caption" style={[styles.muted, secTxt]}>CONVERTIR</EliteText>
+          <EliteText style={[styles.amount, { color: t.texto }]}>{formatFull(electrons)} <EliteText style={[styles.unit, secTxt]}>E-</EliteText></EliteText>
+          <Ionicons name="arrow-down" size={20} color={t.textoSecundario} />
+          <EliteText style={[styles.amount, { color: ATP_BRAND.lime }]}>{formatFull(protons)} <EliteText style={[styles.unit, secTxt]}>H+</EliteText></EliteText>
         </View>
 
         <View style={styles.steps}>
           {STEPS.map((s) => (
-            <AnimatedPressable key={s} onPress={() => step(s)} style={styles.stepBtn}>
-              <EliteText style={styles.stepText}>+{s >= 1000 ? `${s / 1000}K` : s}</EliteText>
+            <AnimatedPressable key={s} onPress={() => step(s)} style={[styles.stepBtn, { backgroundColor: t.card, borderColor: t.bordeMarcado }]}>
+              <EliteText style={[styles.stepText, { color: t.texto }]}>+{s >= 1000 ? `${s / 1000}K` : s}</EliteText>
             </AnimatedPressable>
           ))}
-          <AnimatedPressable onPress={() => { haptic.light(); setElectrons(maxConvertible); }} style={[styles.stepBtn, styles.maxBtn]}>
-            <EliteText style={[styles.stepText, { color: ATP_BRAND.lime }]}>MÁX</EliteText>
+          <AnimatedPressable onPress={() => { haptic.light(); setElectrons(maxConvertible); }} style={[styles.stepBtn, { backgroundColor: t.card }, styles.maxBtn]}>
+            <EliteText style={[styles.stepText, { color: acento }]}>MÁX</EliteText>
           </AnimatedPressable>
-          <AnimatedPressable onPress={() => { haptic.light(); setElectrons(0); }} style={styles.stepBtn}>
-            <EliteText style={styles.stepText}>Reset</EliteText>
+          <AnimatedPressable onPress={() => { haptic.light(); setElectrons(0); }} style={[styles.stepBtn, { backgroundColor: t.card, borderColor: t.bordeMarcado }]}>
+            <EliteText style={[styles.stepText, { color: t.texto }]}>Reset</EliteText>
           </AnimatedPressable>
         </View>
 
@@ -106,7 +112,7 @@ export default function ConvertScreen() {
         >
           <EliteText style={styles.ctaText}>{busy ? 'Convirtiendo…' : 'Confirmar conversión'}</EliteText>
         </AnimatedPressable>
-        <EliteText variant="caption" style={[styles.muted, { textAlign: 'center' }]}>
+        <EliteText variant="caption" style={[styles.muted, secTxt, { textAlign: 'center' }]}>
           Convertir NO baja tu rank (los E- lifetime se conservan).
         </EliteText>
       </ScrollView>
@@ -117,20 +123,20 @@ export default function ConvertScreen() {
 const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.md, paddingBottom: 80 },
   orbWrap: { alignItems: 'center', marginTop: Spacing.sm },
-  muted: { color: TEXT.secondary, textAlign: 'center' },
+  muted: { textAlign: 'center' },
   amountCard: {
-    backgroundColor: ELEVATION[1].bg, borderRadius: Radius.card, padding: Spacing.lg,
-    borderWidth: 0.5, borderColor: ELEVATION[1].border, alignItems: 'center', gap: Spacing.sm,
+    borderRadius: Radius.card, padding: Spacing.lg,
+    borderWidth: 0.5, alignItems: 'center', gap: Spacing.sm,
   },
-  amount: { fontSize: FontSizes.hero, fontFamily: Fonts.extraBold, color: TEXT.primary },
-  unit: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.secondary },
+  amount: { fontSize: FontSizes.hero, fontFamily: Fonts.extraBold },
+  unit: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
   steps: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, justifyContent: 'center' },
   stepBtn: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: Radius.pill,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[2].border,
+    borderWidth: 0.5,
   },
   maxBtn: { borderColor: ATP_BRAND.lime },
-  stepText: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  stepText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   cta: { backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.sm },
   ctaDisabled: { opacity: 0.4 },
   ctaText: { color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.md },

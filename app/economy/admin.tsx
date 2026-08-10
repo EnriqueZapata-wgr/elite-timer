@@ -7,6 +7,7 @@
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, DeviceEventEmitter } from 'react-native';
 import { router, useFocusEffect , type Href } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Screen } from '@/src/components/ui/Screen';
@@ -20,7 +21,8 @@ import { haptic } from '@/src/utils/haptics';
 import { getElectronBalance } from '@/src/services/economy/electron-service';
 import { getProtonBalance } from '@/src/services/economy/proton-service';
 import type { ElectronBalance, ProtonBalance } from '@/src/services/economy/economy-types';
-import { ELEVATION, TEXT, ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 interface NavItem {
@@ -30,6 +32,8 @@ interface NavItem {
 
 export default function EconomyAdminScreen() {
   const { user } = useAuth();
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const [electrons, setElectrons] = useState<ElectronBalance | null>(null);
   const [protons, setProtons] = useState<ProtonBalance | null>(null);
 
@@ -61,7 +65,8 @@ export default function EconomyAdminScreen() {
   ];
 
   return (
-    <Screen edges={[]}>
+    <Screen edges={[]} themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Mi Progreso" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* D-2 (MB-12): balance null = no se pudo leer — jamás pintar 0 real */}
@@ -80,10 +85,10 @@ export default function EconomyAdminScreen() {
           </Animated.View>
         ) : (
           <Animated.View entering={FadeInDown.delay(90).springify()} style={styles.eRow}>
-            <Ionicons name="cloud-offline-outline" size={16} color={TEXT.secondary} />
-            <EliteText variant="caption" style={styles.eText}>
+            <Ionicons name="cloud-offline-outline" size={16} color={t.textoSecundario} />
+            <EliteText variant="caption" style={[styles.eText, { color: t.textoSecundario }]}>
               Tu balance no se pudo leer.{' '}
-              <EliteText variant="caption" style={{ color: ATP_BRAND.lime }} onPress={load}>
+              <EliteText variant="caption" style={{ color: acento }} onPress={load}>
                 Reintentar
               </EliteText>
             </EliteText>
@@ -92,7 +97,7 @@ export default function EconomyAdminScreen() {
 
         <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.eRow}>
           <Ionicons name="flash" size={16} color={ATP_BRAND.lime} />
-          <EliteText variant="caption" style={styles.eText}>
+          <EliteText variant="caption" style={[styles.eText, { color: t.textoSecundario }]}>
             {electrons != null ? `${electrons.current_electrons.toLocaleString('en-US')} E- disponibles para convertir` : 'E- sin lectura'}
           </EliteText>
         </Animated.View>
@@ -102,16 +107,16 @@ export default function EconomyAdminScreen() {
             <AnimatedPressable
               disabled={item.soon}
               onPress={() => { if (item.route) { haptic.light(); router.push(item.route); } }}
-              style={[styles.navRow, item.soon && styles.navSoon]}
+              style={[styles.navRow, { backgroundColor: t.card, borderColor: t.borde }, item.soon && styles.navSoon]}
             >
               <View style={styles.navIcon}><Ionicons name={item.icon} size={20} color={ATP_BRAND.lime} /></View>
               <View style={{ flex: 1 }}>
-                <EliteText style={styles.navLabel}>{item.label}</EliteText>
-                {item.sublabel ? <EliteText variant="caption" style={styles.navSub}>{item.sublabel}</EliteText> : null}
+                <EliteText style={[styles.navLabel, { color: t.texto }]}>{item.label}</EliteText>
+                {item.sublabel ? <EliteText variant="caption" style={[styles.navSub, { color: t.textoSecundario }]}>{item.sublabel}</EliteText> : null}
               </View>
               {item.soon
-                ? <View style={styles.soonBadge}><EliteText style={styles.soonText}>PRONTO</EliteText></View>
-                : <Ionicons name="chevron-forward" size={18} color={TEXT.secondary} />}
+                ? <View style={styles.soonBadge}><EliteText style={[styles.soonText, { color: acento }]}>PRONTO</EliteText></View>
+                : <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />}
             </AnimatedPressable>
           </Animated.View>
         ))}
@@ -124,19 +129,19 @@ export default function EconomyAdminScreen() {
 const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.md, paddingBottom: 80 },
   eRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.xs },
-  eText: { color: TEXT.secondary },
+  eText: {},
   navRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    backgroundColor: ELEVATION[1].bg, borderRadius: Radius.card, padding: Spacing.md,
-    borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    borderRadius: Radius.card, padding: Spacing.md,
+    borderWidth: 0.5,
   },
   navSoon: { opacity: 0.6 },
   navIcon: {
     width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
     backgroundColor: `${ATP_BRAND.lime}1A`,
   },
-  navLabel: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.primary },
-  navSub: { color: TEXT.secondary, marginTop: 2 },
+  navLabel: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+  navSub: { marginTop: 2 },
   soonBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: `${ATP_BRAND.lime}1A` },
-  soonText: { fontSize: 9, fontFamily: Fonts.bold, color: ATP_BRAND.lime, letterSpacing: 1 },
+  soonText: { fontSize: 9, fontFamily: Fonts.bold, letterSpacing: 1 },
 });

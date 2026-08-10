@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, Alert, Dimensions, DeviceEventEmitter, Modal } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,7 +22,8 @@ import * as fastingService from '../src/services/fasting-service';
 import { useAnalytics, ATP_EVENTS } from '../src/lib/analytics';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { BreakFastGuide } from '@/src/components/nutrition/BreakFastGuide';
-import { ATP_BRAND, brandGradient } from '@/src/constants/brand';
+import { ATP_BRAND, brandGradient, type AppThemeTokens } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { FASTING_PHASES, getCurrentPhase, getNextPhase } from '@/src/constants/fasting-phases';
 import { FASTING_MEASURED_MODE } from '@/src/constants/flags';
 import { measuredState, type MeasuredState } from '@/src/services/fasting-metrics-core';
@@ -124,7 +126,7 @@ function formatSince(totalMinutes: number): string {
 }
 
 /** F.4: anillo chico de la tira semanal (consistencia de un vistazo). */
-function DayRing({ letter, pct, isToday }: { letter: string; pct: number; isToday: boolean }) {
+function DayRing({ letter, pct, isToday, t }: { letter: string; pct: number; isToday: boolean; t: AppThemeTokens }) {
   const size = 30;
   const sw = 3;
   const r = (size - sw) / 2;
@@ -132,7 +134,7 @@ function DayRing({ letter, pct, isToday }: { letter: string; pct: number; isToda
   return (
     <View style={{ alignItems: 'center', gap: 4 }}>
       <Svg width={size} height={size}>
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke="#1f1f1f" strokeWidth={sw} fill="transparent" />
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={t.borde} strokeWidth={sw} fill="transparent" />
         {pct > 0 && (
           <Circle
             cx={size / 2} cy={size / 2} r={r}
@@ -142,7 +144,7 @@ function DayRing({ letter, pct, isToday }: { letter: string; pct: number; isToda
           />
         )}
       </Svg>
-      <Text style={{ color: isToday ? '#fff' : '#555', fontSize: 10, fontWeight: isToday ? '800' : '600' }}>
+      <Text style={{ color: isToday ? t.texto : t.textoTenue, fontSize: 10, fontWeight: isToday ? '800' : '600' }}>
         {letter}
       </Text>
     </View>
@@ -167,6 +169,18 @@ export default function FastingScreen() {
 
   const insets = useSafeAreaInsets();
   const analytics = useAnalytics();
+  // MB-31B3: la pantalla migro a tokens y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
+  // Regla 1 del manual: el lima no es texto en claro; acento calibrado.
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
+  // Verde/ambar de estado fuera de paleta: se conservan en oscuro (como hoy)
+  // y en claro caen a tokens legibles (reportado en el run).
+  const verdeOk = kind === 'dark' ? '#22c55e' : t.tealTexto;
+  const ambarParcial = kind === 'dark' ? '#f59e0b' : t.textoSecundario;
+  // Texto suave de lectura en hojas (#ccc/#bbb no mapean a token; en claro
+  // caen a texto principal para no perder legibilidad).
+  const suave = kind === 'dark' ? '#ccc' : t.texto;
+  const suave2 = kind === 'dark' ? '#bbb' : t.texto;
   const [userId, setUserId] = useState('');
   const [activeFast, setActiveFast] = useState<any>(null);
   const [selectedProtocol, setSelectedProtocol] = useState(FASTING_PROTOCOLS[2]); // 16:8
@@ -821,24 +835,26 @@ export default function FastingScreen() {
 
   // === RENDER ===
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#000' }} contentContainerStyle={{ paddingBottom: 40 }}>
+    <ThemeReady>
+    <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 }}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 8, paddingBottom: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable onPress={() => router.back()} hitSlop={12}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
+              <Ionicons name="arrow-back" size={24} color={t.texto} />
             </Pressable>
             <View>
               <Text style={{ color: '#5B9BD5', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ATP</Text>
               {/* F.0.6: el estado se anuncia con palabras */}
-              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>
+              <Text style={{ color: t.texto, fontSize: 22, fontWeight: '800' }}>
                 {activeFast ? 'Estás ayunando' : 'AYUNO'}
               </Text>
             </View>
           </View>
           <Pressable onPress={() => setShowHistory(!showHistory)} hitSlop={12}>
-            <Ionicons name={showHistory ? 'timer-outline' : 'time-outline'} size={24} color="#999" />
+            <Ionicons name={showHistory ? 'timer-outline' : 'time-outline'} size={24} color={t.textoSecundario} />
           </Pressable>
         </View>
       </View>
@@ -848,14 +864,14 @@ export default function FastingScreen() {
       ════════════════════════════════════════════════════════════════ */}
       {showHistory ? (
         <View style={{ paddingHorizontal: 20 }}>
-          <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 16 }}>
+          <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 16 }}>
             HISTORIAL ({history.length})
           </Text>
 
           {history.length === 0 ? (
             <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-              <Ionicons name="hourglass-outline" size={40} color="#333" />
-              <Text style={{ color: '#666', fontSize: 14, marginTop: 12 }}>Aún no tienes ayunos completados</Text>
+              <Ionicons name="hourglass-outline" size={40} color={t.bordeMarcado} />
+              <Text style={{ color: t.textoSecundario, fontSize: 14, marginTop: 12 }}>Aún no tienes ayunos completados</Text>
             </View>
           ) : (
             history.map(fast => {
@@ -869,7 +885,7 @@ export default function FastingScreen() {
                   onPress={() => openEditFast(fast)}
                   onLongPress={() => deleteFast(fast.id)}
                   style={{
-                    backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginBottom: 8,
+                    backgroundColor: t.hundido, borderRadius: 16, padding: 16, marginBottom: 8,
                     borderLeftWidth: 3, borderLeftColor: zone.color,
                     flexDirection: 'row', alignItems: 'center', gap: 14,
                   }}
@@ -884,10 +900,10 @@ export default function FastingScreen() {
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>
+                    <Text style={{ color: t.texto, fontSize: 14, fontWeight: '600' }}>
                       Ayuno de {Math.round(hours * 10) / 10} horas
                     </Text>
-                    <Text style={{ color: '#666', fontSize: 11, marginTop: 2 }}>
+                    <Text style={{ color: t.textoSecundario, fontSize: 11, marginTop: 2 }}>
                       {date ? date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : '--'}
                       {' · '}{zone.label}
                     </Text>
@@ -896,7 +912,7 @@ export default function FastingScreen() {
                     <Text style={{ color: zone.color, fontSize: 11, fontWeight: '600' }}>
                       {fast.target_hours}h objetivo
                     </Text>
-                    <Text style={{ color: hours >= fast.target_hours ? '#22c55e' : '#f59e0b', fontSize: 10, marginTop: 2 }}>
+                    <Text style={{ color: hours >= fast.target_hours ? verdeOk : ambarParcial, fontSize: 10, marginTop: 2 }}>
                       {hours >= fast.target_hours ? '✓ Completado' : 'Parcial'}
                     </Text>
                   </View>
@@ -904,7 +920,7 @@ export default function FastingScreen() {
               );
             })
           )}
-          <Text style={{ color: '#444', fontSize: 9, textAlign: 'center', marginTop: 8 }}>
+          <Text style={{ color: t.sinDatos, fontSize: 9, textAlign: 'center', marginTop: 8 }}>
             Toca para editar · mantén presionado para eliminar
           </Text>
 
@@ -913,16 +929,16 @@ export default function FastingScreen() {
             onPress={() => { setPastStart(new Date(Date.now() - 16 * 60 * 60 * 1000)); setPastEnd(new Date()); setPastPickerMode('start'); setShowPastFast(true); }}
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, marginTop: 12 }}
           >
-            <Ionicons name="add-circle-outline" size={18} color="#a8e02a" />
-            <Text style={{ color: '#a8e02a', fontSize: 13, fontWeight: '600' }}>Registrar ayuno pasado</Text>
+            <Ionicons name="add-circle-outline" size={18} color={acento} />
+            <Text style={{ color: acento, fontSize: 13, fontWeight: '600' }}>Registrar ayuno pasado</Text>
           </Pressable>
 
           {showPastFast && (
             <View style={{
-              backgroundColor: '#0a0a0a', borderRadius: 20, padding: 20, marginTop: 16,
+              backgroundColor: t.hundido, borderRadius: 20, padding: 20, marginTop: 16,
               borderWidth: 1, borderColor: 'rgba(168,224,42,0.15)',
             }}>
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 16 }}>
+              <Text style={{ color: t.texto, fontSize: 16, fontWeight: '800', marginBottom: 16 }}>
                 Registrar ayuno pasado
               </Text>
 
@@ -932,12 +948,12 @@ export default function FastingScreen() {
                   onPress={() => { setPastPickerMode('start'); setPastWheelOpen(true); analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { which: 'past_start' }); }}
                   style={{
                     flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
-                    backgroundColor: pastPickerMode === 'start' ? 'rgba(168,224,42,0.15)' : '#111',
-                    borderWidth: 1, borderColor: pastPickerMode === 'start' ? '#a8e02a' : '#1a1a1a',
+                    backgroundColor: pastPickerMode === 'start' ? 'rgba(168,224,42,0.15)' : t.card,
+                    borderWidth: 1, borderColor: pastPickerMode === 'start' ? ATP_BRAND.lime : t.borde,
                   }}
                 >
-                  <Text style={{ color: pastPickerMode === 'start' ? '#a8e02a' : '#666', fontSize: 11, fontWeight: '700' }}>INICIO</Text>
-                  <Text style={{ color: pastPickerMode === 'start' ? '#fff' : '#999', fontSize: 14, fontWeight: '600', marginTop: 4 }}>
+                  <Text style={{ color: pastPickerMode === 'start' ? acento : t.textoSecundario, fontSize: 11, fontWeight: '700' }}>INICIO</Text>
+                  <Text style={{ color: pastPickerMode === 'start' ? t.texto : t.textoSecundario, fontSize: 14, fontWeight: '600', marginTop: 4 }}>
                     {pastStart.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} {formatTime(pastStart)}
                   </Text>
                 </Pressable>
@@ -945,18 +961,18 @@ export default function FastingScreen() {
                   onPress={() => { setPastPickerMode('end'); setPastWheelOpen(true); analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { which: 'past_end' }); }}
                   style={{
                     flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
-                    backgroundColor: pastPickerMode === 'end' ? 'rgba(168,224,42,0.15)' : '#111',
-                    borderWidth: 1, borderColor: pastPickerMode === 'end' ? '#a8e02a' : '#1a1a1a',
+                    backgroundColor: pastPickerMode === 'end' ? 'rgba(168,224,42,0.15)' : t.card,
+                    borderWidth: 1, borderColor: pastPickerMode === 'end' ? ATP_BRAND.lime : t.borde,
                   }}
                 >
-                  <Text style={{ color: pastPickerMode === 'end' ? '#a8e02a' : '#666', fontSize: 11, fontWeight: '700' }}>FIN</Text>
-                  <Text style={{ color: pastPickerMode === 'end' ? '#fff' : '#999', fontSize: 14, fontWeight: '600', marginTop: 4 }}>
+                  <Text style={{ color: pastPickerMode === 'end' ? acento : t.textoSecundario, fontSize: 11, fontWeight: '700' }}>FIN</Text>
+                  <Text style={{ color: pastPickerMode === 'end' ? t.texto : t.textoSecundario, fontSize: 14, fontWeight: '600', marginTop: 4 }}>
                     {pastEnd.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} {formatTime(pastEnd)}
                   </Text>
                 </Pressable>
               </View>
 
-              <Text style={{ color: '#555', fontSize: 11, textAlign: 'center', marginBottom: 4 }}>
+              <Text style={{ color: t.textoTenue, fontSize: 11, textAlign: 'center', marginBottom: 4 }}>
                 Toca INICIO o FIN para ajustar la fecha y hora.
               </Text>
 
@@ -977,8 +993,8 @@ export default function FastingScreen() {
 
               {/* Duración calculada */}
               <View style={{ alignItems: 'center', marginVertical: 12 }}>
-                <Text style={{ color: '#999', fontSize: 11 }}>Duración:</Text>
-                <Text style={{ color: '#a8e02a', fontSize: 22, fontWeight: '800' }}>
+                <Text style={{ color: t.textoSecundario, fontSize: 11 }}>Duración:</Text>
+                <Text style={{ color: acento, fontSize: 22, fontWeight: '800' }}>
                   {formatDuration((pastEnd.getTime() - pastStart.getTime()) / (1000 * 60))}
                 </Text>
               </View>
@@ -986,15 +1002,15 @@ export default function FastingScreen() {
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <Pressable
                   onPress={() => setShowPastFast(false)}
-                  style={{ flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center', backgroundColor: '#111', borderWidth: 1, borderColor: '#1a1a1a' }}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center', backgroundColor: t.card, borderWidth: 1, borderColor: t.borde }}
                 >
-                  <Text style={{ color: '#999', fontSize: 14 }}>Cancelar</Text>
+                  <Text style={{ color: t.textoSecundario, fontSize: 14 }}>Cancelar</Text>
                 </Pressable>
                 <Pressable
                   onPress={savePastFast}
                   style={{ flex: 1, backgroundColor: ATP_BRAND.lime, borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}
                 >
-                  <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>GUARDAR</Text>
+                  <Text style={{ color: ATP_BRAND.black, fontSize: 14, fontWeight: '800' }}>GUARDAR</Text>
                 </Pressable>
               </View>
             </View>
@@ -1011,7 +1027,7 @@ export default function FastingScreen() {
             <Svg width={RING_SIZE} height={RING_SIZE}>
               <Circle
                 cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS}
-                stroke="#1a1a1a" strokeWidth={STROKE_WIDTH} fill="transparent"
+                stroke={t.borde} strokeWidth={STROKE_WIDTH} fill="transparent"
                 strokeDasharray={activeFast ? undefined : '3 9'}
               />
               {activeFast && (
@@ -1026,12 +1042,12 @@ export default function FastingScreen() {
                     origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}
                   />
                   {/* F.4: marcador que viaja — ves dónde vas, no solo cuánto falta */}
-                  <Circle cx={markerX} cy={markerY} r={STROKE_WIDTH / 2 + 3} fill={currentZone.color} stroke="#000" strokeWidth={2.5} />
+                  <Circle cx={markerX} cy={markerY} r={STROKE_WIDTH / 2 + 3} fill={currentZone.color} stroke={t.fondo} strokeWidth={2.5} />
                   {/* E.1: sobretiempo — arco delgado y apagado, sin color ni premio */}
                   {overtimeFrac > 0 && (
                     <Circle
                       cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={OVERTIME_RADIUS}
-                      stroke="#444" strokeWidth={3} fill="transparent"
+                      stroke={t.sinDatos} strokeWidth={3} fill="transparent"
                       strokeDasharray={`${OVERTIME_CIRCUMFERENCE}`}
                       strokeDashoffset={OVERTIME_CIRCUMFERENCE * (1 - overtimeFrac)}
                       strokeLinecap="round"
@@ -1047,8 +1063,8 @@ export default function FastingScreen() {
             <View style={{ position: 'absolute', alignItems: 'center', paddingHorizontal: 28 }}>
               {activeFast ? (
                 <>
-                  <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>TRANSCURRIDO</Text>
-                  <Text style={{ color: '#fff', fontSize: 44, fontWeight: '900', fontVariant: ['tabular-nums'], marginTop: 2 }}>
+                  <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>TRANSCURRIDO</Text>
+                  <Text style={{ color: t.texto, fontSize: 44, fontWeight: '900', fontVariant: ['tabular-nums'], marginTop: 2 }}>
                     {formatDuration(elapsed)}
                   </Text>
                   {remainingMinutes > 0 ? (
@@ -1059,10 +1075,10 @@ export default function FastingScreen() {
                     /* E.1: al cumplir la meta el copy empuja a romperlo bien, no
                        a seguir alargando. El botón TERMINAR abre el cierre guiado. */
                     <>
-                      <Text style={{ color: '#22c55e', fontSize: 13, fontWeight: '800', marginTop: 6 }}>
+                      <Text style={{ color: verdeOk, fontSize: 13, fontWeight: '800', marginTop: 6 }}>
                         YA LLEGASTE
                       </Text>
-                      <Text style={{ color: '#8a8a8a', fontSize: 11, marginTop: 3, textAlign: 'center', lineHeight: 15 }}>
+                      <Text style={{ color: t.textoSecundario, fontSize: 11, marginTop: 3, textAlign: 'center', lineHeight: 15 }}>
                         Romperlo bien cuenta{'\n'}tanto como sostenerlo
                       </Text>
                     </>
@@ -1071,22 +1087,22 @@ export default function FastingScreen() {
               ) : lastCompleted ? (
                 /* F.3: vacío que informa — dato real en vez de anillo muerto */
                 <>
-                  <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, textAlign: 'center' }}>DESDE TU ÚLTIMO AYUNO</Text>
-                  <Text style={{ color: '#fff', fontSize: 40, fontWeight: '900', fontVariant: ['tabular-nums'], marginTop: 2 }}>
+                  <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2, textAlign: 'center' }}>DESDE TU ÚLTIMO AYUNO</Text>
+                  <Text style={{ color: t.texto, fontSize: 40, fontWeight: '900', fontVariant: ['tabular-nums'], marginTop: 2 }}>
                     {formatSince(sinceLastMin)}
                   </Text>
-                  <Text style={{ color: '#666', fontSize: 12, marginTop: 6 }}>
+                  <Text style={{ color: t.textoSecundario, fontSize: 12, marginTop: 6 }}>
                     ayunaste {Math.round((lastCompleted.actual_hours || 0) * 10) / 10} h
                   </Text>
                 </>
               ) : (
                 /* F.3: primera vez — el vacío invita, no acusa */
                 <>
-                  <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>TU PRIMER AYUNO</Text>
-                  <Text style={{ color: '#fff', fontSize: 44, fontWeight: '900', marginTop: 2 }}>
+                  <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>TU PRIMER AYUNO</Text>
+                  <Text style={{ color: t.texto, fontSize: 44, fontWeight: '900', marginTop: 2 }}>
                     {selectedProtocol.hours} h
                   </Text>
-                  <Text style={{ color: '#666', fontSize: 12, marginTop: 6 }}>empieza cuando tú digas</Text>
+                  <Text style={{ color: t.textoSecundario, fontSize: 12, marginTop: 6 }}>empieza cuando tú digas</Text>
                 </>
               )}
             </View>
@@ -1098,7 +1114,7 @@ export default function FastingScreen() {
               style={{
                 position: 'absolute', top: 0, right: 0,
                 width: 40, height: 40, borderRadius: 20,
-                backgroundColor: '#121212', borderWidth: 1, borderColor: `${selectedProtocol.color}55`,
+                backgroundColor: t.card, borderWidth: 1, borderColor: `${selectedProtocol.color}55`,
                 alignItems: 'center', justifyContent: 'center',
               }}
             >
@@ -1118,15 +1134,15 @@ export default function FastingScreen() {
             >
               <Ionicons name={currentZone.icon} size={15} color={currentZone.color} />
               <Text style={{ color: currentZone.color, fontSize: 13, fontWeight: '700' }}>{currentZone.label}</Text>
-              <Ionicons name="chevron-up" size={13} color="#666" />
+              <Ionicons name="chevron-up" size={13} color={t.textoSecundario} />
             </Pressable>
           )}
 
           {/* INICIO · META — se edita donde se ve (F.2), 3 niveles de texto (F.0.4) */}
           <View style={{ flexDirection: 'row', width: '100%', marginTop: 14 }}>
             <View style={{ flex: 1, alignItems: 'center', gap: 3 }}>
-              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>INICIO</Text>
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>INICIO</Text>
+              <Text style={{ color: t.texto, fontSize: 15, fontWeight: '700' }}>
                 {activeFast
                   ? (activeStart ? formatTime(activeStart) : '--:--')
                   : customStartSet ? formatTime(customStartTime) : 'Ahora'}
@@ -1137,24 +1153,24 @@ export default function FastingScreen() {
                   : () => { setCustomStartTime(customStartSet ? customStartTime : new Date()); setStartWheelOpen(true); analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { which: 'start' }); }}
                 hitSlop={8}
               >
-                <Text style={{ color: '#a8e02a', fontSize: 12, fontWeight: '600' }}>
+                <Text style={{ color: acento, fontSize: 12, fontWeight: '600' }}>
                   {activeFast ? 'Editar inicio' : '¿Empezaste antes?'}
                 </Text>
               </Pressable>
               {!activeFast && customStartSet && (
                 <Pressable onPress={() => setCustomStartSet(false)} hitSlop={8}>
-                  <Text style={{ color: '#666', fontSize: 11 }}>Usar ahora</Text>
+                  <Text style={{ color: t.textoSecundario, fontSize: 11 }}>Usar ahora</Text>
                 </Pressable>
               )}
             </View>
-            <View style={{ width: 1, backgroundColor: '#1a1a1a' }} />
+            <View style={{ width: 1, backgroundColor: t.borde }} />
             <View style={{ flex: 1, alignItems: 'center', gap: 3 }}>
-              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>META</Text>
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>META</Text>
+              <Text style={{ color: t.texto, fontSize: 15, fontWeight: '700' }}>
                 {selectedProtocol.hours} h{activeFast && goalEnd ? ` · ${formatTime(goalEnd)}` : ''}
               </Text>
               <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setGoalSheetOpen(true); }} hitSlop={8}>
-                <Text style={{ color: '#a8e02a', fontSize: 12, fontWeight: '600' }}>Cambiar meta</Text>
+                <Text style={{ color: acento, fontSize: 12, fontWeight: '600' }}>Cambiar meta</Text>
               </Pressable>
             </View>
           </View>
@@ -1162,7 +1178,7 @@ export default function FastingScreen() {
           {/* F.4: tu semana de un vistazo */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingHorizontal: 10, marginTop: 18 }}>
             {week.map((d) => (
-              <DayRing key={d.key} letter={d.letter} pct={d.pct} isToday={d.isToday} />
+              <DayRing key={d.key} letter={d.letter} pct={d.pct} isToday={d.isToday} t={t} />
             ))}
           </View>
 
@@ -1177,7 +1193,7 @@ export default function FastingScreen() {
                 backgroundColor: 'rgba(168,224,42,0.13)', borderWidth: 1, borderColor: 'rgba(168,224,42,0.35)',
               }}
             >
-              <Text style={{ color: ATP_BRAND.lime, fontSize: 17, fontWeight: '800', letterSpacing: 1 }}>TERMINAR AYUNO</Text>
+              <Text style={{ color: acento, fontSize: 17, fontWeight: '800', letterSpacing: 1 }}>TERMINAR AYUNO</Text>
             </Pressable>
           ) : (
             <Pressable onPress={startFast} style={{ width: '100%', borderRadius: 18, overflow: 'hidden', marginTop: 22 }}>
@@ -1186,7 +1202,7 @@ export default function FastingScreen() {
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 style={{ paddingVertical: 18, alignItems: 'center' }}
               >
-                <Text style={{ color: '#000', fontSize: 17, fontWeight: '900', letterSpacing: 1 }}>INICIAR AYUNO</Text>
+                <Text style={{ color: ATP_BRAND.black, fontSize: 17, fontWeight: '900', letterSpacing: 1 }}>INICIAR AYUNO</Text>
               </LinearGradient>
             </Pressable>
           )}
@@ -1194,7 +1210,7 @@ export default function FastingScreen() {
           {/* Único secundario del estado activo (destructivo, con confirmación) */}
           {activeFast && (
             <Pressable onPress={cancelFast} style={{ paddingVertical: 14 }}>
-              <Text style={{ color: '#666', fontSize: 13 }}>Cancelar y eliminar</Text>
+              <Text style={{ color: t.textoSecundario, fontSize: 13 }}>Cancelar y eliminar</Text>
             </Pressable>
           )}
         </View>
@@ -1205,11 +1221,11 @@ export default function FastingScreen() {
       <Modal visible={goalSheetOpen} transparent animationType="slide" onRequestClose={() => setGoalSheetOpen(false)}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }} onPress={() => setGoalSheetOpen(false)}>
           <Pressable
-            style={{ backgroundColor: '#121212', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34, borderWidth: 1, borderColor: '#1f1f1f' }}
+            style={{ backgroundColor: t.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34, borderWidth: 1, borderColor: t.borde }}
             onPress={() => {}}
           >
-            <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800', marginBottom: 4 }}>Tu meta de ayuno</Text>
-            <Text style={{ color: '#777', fontSize: 12, marginBottom: 14 }}>
+            <Text style={{ color: t.texto, fontSize: 17, fontWeight: '800', marginBottom: 4 }}>Tu meta de ayuno</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 12, marginBottom: 14 }}>
               {activeFast ? 'Puedes ajustarla sin cortar el ayuno en curso.' : 'Se recuerda para tus próximos ayunos.'}
             </Text>
             {FASTING_PROTOCOLS.filter(p => p.hours <= MAX_FAST_HOURS).map(p => (
@@ -1228,8 +1244,8 @@ export default function FastingScreen() {
                   <Text style={{ color: p.color, fontSize: 12, fontWeight: '900' }}>{p.hours}h</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>{p.label}</Text>
-                  <Text style={{ color: '#666', fontSize: 11 }}>{p.description}</Text>
+                  <Text style={{ color: t.texto, fontSize: 14, fontWeight: '700' }}>{p.label}</Text>
+                  <Text style={{ color: t.textoSecundario, fontSize: 11 }}>{p.description}</Text>
                 </View>
                 {selectedProtocol.id === p.id && <Ionicons name="checkmark-circle" size={20} color={p.color} />}
               </Pressable>
@@ -1242,7 +1258,7 @@ export default function FastingScreen() {
       <Modal visible={phaseSheetOpen} transparent animationType="slide" onRequestClose={() => setPhaseSheetOpen(false)}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }} onPress={() => setPhaseSheetOpen(false)}>
           <Pressable
-            style={{ backgroundColor: '#121212', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34, borderWidth: 1, borderColor: '#1f1f1f' }}
+            style={{ backgroundColor: t.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34, borderWidth: 1, borderColor: t.borde }}
             onPress={() => {}}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -1250,31 +1266,31 @@ export default function FastingScreen() {
                 <Ionicons name={currentZone.icon} size={20} color={currentZone.color} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>AHORA, EN TU CUERPO</Text>
+                <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>AHORA, EN TU CUERPO</Text>
                 <Text style={{ color: currentZone.color, fontSize: 17, fontWeight: '800' }}>{currentZone.label}</Text>
                 {/* E.3: dos modos. Con sangre → estado real medido (GKI = profundidad
                     de cetosis, nunca autofagia). Sin sangre → estimado por tiempo. */}
                 {measured ? (
-                  <Text style={{ color: '#a8e02a', fontSize: 11, fontWeight: '700', marginTop: 2 }}>
+                  <Text style={{ color: acento, fontSize: 11, fontWeight: '700', marginTop: 2 }}>
                     MEDIDO · GKI {measured.gki} · {measured.zone.label}
                   </Text>
                 ) : (
-                  <Text style={{ color: '#666', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginTop: 2 }}>
+                  <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginTop: 2 }}>
                     ESTIMADO POR TIEMPO
                   </Text>
                 )}
               </View>
             </View>
-            <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 20 }}>{currentZone.now}</Text>
+            <Text style={{ color: suave, fontSize: 13, lineHeight: 20 }}>{currentZone.now}</Text>
 
             {/* E.1: no se anuncia una fase que cae DESPUÉS de tu meta — nada de
                 niveles por desbloquear más allá de lo que te propusiste. */}
             {nextZone && nextZone.hours < selectedProtocol.hours && (
-              <View style={{ backgroundColor: '#0a0a0a', borderRadius: 12, padding: 12, marginTop: 14 }}>
-                <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>
+              <View style={{ backgroundColor: t.hundido, borderRadius: 12, padding: 12, marginTop: 14 }}>
+                <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>
                   SIGUIENTE · {nextZone.label.toUpperCase()} · EN {formatDuration(timeToNext).toUpperCase()}
                 </Text>
-                <Text style={{ color: '#888', fontSize: 12, marginTop: 4, lineHeight: 18 }}>{nextZone.description}</Text>
+                <Text style={{ color: t.textoSecundario, fontSize: 12, marginTop: 4, lineHeight: 18 }}>{nextZone.description}</Text>
               </View>
             )}
 
@@ -1285,13 +1301,13 @@ export default function FastingScreen() {
                 const reached = elapsedHours >= p.hours;
                 return (
                   <View key={p.hours} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5, opacity: reached ? 1 : 0.45 }}>
-                    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: reached ? `${p.color}20` : '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: reached ? `${p.color}20` : t.flotante, justifyContent: 'center', alignItems: 'center' }}>
                       {reached
                         ? <Ionicons name="checkmark" size={13} color={p.color} />
-                        : <Text style={{ color: '#555', fontSize: 8, fontWeight: '700' }}>{p.hours}h</Text>}
+                        : <Text style={{ color: t.textoTenue, fontSize: 8, fontWeight: '700' }}>{p.hours}h</Text>}
                     </View>
-                    <Text style={{ color: reached ? '#fff' : '#666', fontSize: 12, flex: 1 }}>{p.label}</Text>
-                    <Text style={{ color: '#555', fontSize: 10 }}>{p.hours} h</Text>
+                    <Text style={{ color: reached ? t.texto : t.textoSecundario, fontSize: 12, flex: 1 }}>{p.label}</Text>
+                    <Text style={{ color: t.textoTenue, fontSize: 10 }}>{p.hours} h</Text>
                   </View>
                 );
               })}
@@ -1299,12 +1315,12 @@ export default function FastingScreen() {
 
             {/* E.2: la métrica de mejora cambia de eje — velocidad, no duración.
                 Framing + vacío que informa (se mide con sangre). */}
-            <View style={{ marginTop: 16, backgroundColor: '#0a0a0a', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#1a1a1a' }}>
-              <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '800', letterSpacing: 1.5 }}>TU PROGRESO REAL</Text>
-              <Text style={{ color: '#bbb', fontSize: 12, marginTop: 6, lineHeight: 18 }}>
+            <View style={{ marginTop: 16, backgroundColor: t.hundido, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: t.borde }}>
+              <Text style={{ color: acento, fontSize: 10, fontWeight: '800', letterSpacing: 1.5 }}>TU PROGRESO REAL</Text>
+              <Text style={{ color: suave2, fontSize: 12, marginTop: 6, lineHeight: 18 }}>
                 Lo que importa no son las horas que aguantas, sino qué tan rápido cambias de combustible: eso es flexibilidad metabólica. La curva se mueve a la izquierda, no la barra más lejos.
               </Text>
-              <Text style={{ color: '#666', fontSize: 11, marginTop: 6, lineHeight: 16 }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 11, marginTop: 6, lineHeight: 16 }}>
                 Para verla, mide tu glucosa y cetonas durante el ayuno. Con eso ATP calcula cuándo entraste en cetosis y si cada vez lo haces antes.
               </Text>
             </View>
@@ -1395,5 +1411,6 @@ export default function FastingScreen() {
 
       <MedicalDisclaimer feature="fasting" />
     </ScrollView>
+    </ThemeReady>
   );
 }

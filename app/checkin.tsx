@@ -53,13 +53,21 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { CrisisSupportBanner } from '@/src/components/global/CrisisSupportBanner';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SURFACES, TEXT_COLORS, withOpacity, SKOOL_URL, ATP_BRAND } from '@/src/constants/brand';
+import { TEXT_COLORS, withOpacity, SKOOL_URL, ATP_BRAND } from '@/src/constants/brand';
 import { Screen } from '@/src/components/ui/Screen';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { StatusBar } from 'expo-status-bar';
 
 export default function CheckinScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ protocolItemId?: string; emotionId?: string; gate?: string }>();
   const analytics = useAnalytics();
+  // MB-31B3: la pantalla migró a tokens (Screen themed) y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
+  const priTxt = { color: t.texto };
+  // Regla 1 del manual: el lima no es texto en claro — acento calibrado.
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
 
   const [step, setStep] = useState(1);
   const [quadrant, setQuadrant] = useState<QuadrantKey | null>(null);
@@ -178,7 +186,7 @@ export default function CheckinScreen() {
   }, [sheetOpen, setArgosHidden]);
 
   const qd = quadrant ? QUADRANTS[quadrant] : null;
-  const qColor = qd?.color ?? TEXT_COLORS.secondary;
+  const qColor = qd?.color ?? t.textoSecundario;
   // A-1 (MB-12): crisis en DOS niveles. Nivel 1 rompe el flujo (acompañamiento,
   // sin celebración); nivel 2 además muestra la Línea de la Vida — por emoción
   // marcadora o por trayectoria (3+ check-ins con nivel 1 en 7 días), para que
@@ -389,7 +397,8 @@ export default function CheckinScreen() {
     // scrollea cuando no cabe, se centra cuando sí, y reserva el área segura
     // inferior (edges bottom) para que "Volver" nunca quede cortado.
     return (
-      <Screen keyboard edges={['top', 'bottom']}>
+      <Screen themed keyboard edges={['top', 'bottom']}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <ScrollView
           contentContainerStyle={styles.doneScroll}
           showsVerticalScrollIndicator={false}
@@ -403,7 +412,7 @@ export default function CheckinScreen() {
           <EliteText style={[styles.doneTitle, { color: qColor }]}>
             {crisisSelected ? 'Queda registrado' : 'Check-in registrado'}
           </EliteText>
-          <EliteText variant="caption" style={styles.doneSub}>
+          <EliteText variant="caption" style={[styles.doneSub, secTxt]}>
             {crisisSelected
               ? 'No tienes que hacer nada más ahora.'
               : selectedEmotions.map(id => EMOTIONS.find(e => e.id === id)?.label).join(' · ')}
@@ -413,13 +422,14 @@ export default function CheckinScreen() {
               ningún tipo (tramo A MB-12: a alguien en crisis no se le
               reencuadra nada) — el gate es crisisSelected. */}
           {!crisisSelected && quadrant && (
-            <EliteText variant="body" style={styles.closingPhrase}>
+            <EliteText variant="body" style={[styles.closingPhrase, priTxt]}>
               {closingPhraseForDate(quadrant, getLocalToday())}
             </EliteText>
           )}
-          {/* T4 MENTE: streak de días consecutivos — nunca sobre una crisis (A-3) */}
+          {/* T4 MENTE: streak de días consecutivos — nunca sobre una crisis (A-3).
+              Hallazgo MB-31B3: iba en lima como TEXTO (1.34 en claro) — acento. */}
           {!crisisSelected && checkinStreak > 1 && (
-            <EliteText variant="caption" style={{ color: '#a8e02a', fontFamily: Fonts.bold, fontSize: FontSizes.md }}>
+            <EliteText variant="caption" style={{ color: acento, fontFamily: Fonts.bold, fontSize: FontSizes.md }}>
               🔥 {checkinStreak} días seguidos escuchándote
             </EliteText>
           )}
@@ -431,8 +441,8 @@ export default function CheckinScreen() {
               — su rama de acompañamiento ("ahora no toca analizar nada"), nunca
               la excepción. Se ofrece, no se impone. */}
           {crisisSelected && selectedEmotions.length > 0 && (
-            <Animated.View entering={FadeIn.delay(400).duration(400)} style={styles.navInviteCard}>
-              <EliteText variant="caption" style={styles.navInviteSub}>
+            <Animated.View entering={FadeIn.delay(400).duration(400)} style={[styles.navInviteCard, { backgroundColor: t.card, borderColor: t.borde }]}>
+              <EliteText variant="caption" style={[styles.navInviteSub, secTxt]}>
                 Si quieres, te acompañamos un momento. Sin analizar nada.
               </EliteText>
               <View style={styles.navInviteRow}>
@@ -452,12 +462,12 @@ export default function CheckinScreen() {
               Recién ahora la invitación a navegar — opcional, y un "no" se
               respeta. */}
           {!crisisSelected && !navDeclined && selectedEmotions.length > 0 && (
-            <Animated.View entering={FadeIn.delay(400).duration(400)} style={styles.navInviteCard}>
-              <EliteText variant="body" style={styles.navInviteTitle}>{INVITE_TITLE}</EliteText>
-              <EliteText variant="caption" style={styles.navInviteSub}>{INVITE_SUBTEXT}</EliteText>
+            <Animated.View entering={FadeIn.delay(400).duration(400)} style={[styles.navInviteCard, { backgroundColor: t.card, borderColor: t.borde }]}>
+              <EliteText variant="body" style={[styles.navInviteTitle, priTxt]}>{INVITE_TITLE}</EliteText>
+              <EliteText variant="caption" style={[styles.navInviteSub, secTxt]}>{INVITE_SUBTEXT}</EliteText>
               <View style={styles.navInviteRow}>
                 <Pressable onPress={() => { haptic.light(); setNavDeclined(true); }} style={styles.navInviteNo}>
-                  <EliteText variant="caption" style={styles.navInviteNoText}>{INVITE_NO}</EliteText>
+                  <EliteText variant="caption" style={[styles.navInviteNoText, secTxt]}>{INVITE_NO}</EliteText>
                 </Pressable>
                 <Pressable
                   onPress={() => {
@@ -473,22 +483,22 @@ export default function CheckinScreen() {
           )}
           {/* MB-4 Bloque 4: compartir con tu gente — opt-in explícito y granular
               POR check-in. Nunca por defecto; se puede retirar. */}
-          <Animated.View entering={FadeIn.delay(550).duration(400)} style={styles.shareCard}>
+          <Animated.View entering={FadeIn.delay(550).duration(400)} style={[styles.shareCard, { backgroundColor: t.card, borderColor: t.borde }]}>
             {sharedId ? (
               <>
-                <EliteText variant="caption" style={styles.shareDone}>
+                <EliteText variant="caption" style={[styles.shareDone, priTxt]}>
                   Compartido con tu gente ✓
                 </EliteText>
                 <Pressable onPress={handleUnshare} hitSlop={8}>
-                  <EliteText variant="caption" style={styles.shareUndo}>Dejar de compartir</EliteText>
+                  <EliteText variant="caption" style={[styles.shareUndo, secTxt]}>Dejar de compartir</EliteText>
                 </Pressable>
               </>
             ) : (
               <>
-                <EliteText variant="caption" style={styles.shareTitle}>
+                <EliteText variant="caption" style={[styles.shareTitle, priTxt]}>
                   ¿Compartir cómo estás con tu gente?
                 </EliteText>
-                <EliteText variant="caption" style={styles.shareSub}>
+                <EliteText variant="caption" style={[styles.shareSub, secTxt]}>
                   Solo tus amigos de ATP lo ven. Nada se comparte solo.
                 </EliteText>
                 <Pressable
@@ -496,8 +506,8 @@ export default function CheckinScreen() {
                   style={styles.shareToggleRow}
                   hitSlop={6}
                 >
-                  <View style={[styles.shareCheck, shareIncludeEmotion && { backgroundColor: qColor, borderColor: qColor }]} />
-                  <EliteText variant="caption" style={styles.shareToggleText}>
+                  <View style={[styles.shareCheck, { borderColor: t.bordeMarcado }, shareIncludeEmotion && { backgroundColor: qColor, borderColor: qColor }]} />
+                  <EliteText variant="caption" style={[styles.shareToggleText, secTxt]}>
                     Incluir la emoción (si no, solo la zona)
                   </EliteText>
                 </Pressable>
@@ -518,13 +528,15 @@ export default function CheckinScreen() {
 
           {/* C5 COMUNIDAD: mood bajo sostenido → puente cálido a la Tribu (Skool) */}
           {showTribeBridge && (
-            <Animated.View entering={FadeIn.delay(600).duration(500)} style={styles.tribeCard}>
-              <EliteText variant="body" style={styles.tribeCopy}>{TRIBE_BRIDGE_COPY}</EliteText>
+            <Animated.View entering={FadeIn.delay(600).duration(500)} style={[styles.tribeCard, { backgroundColor: t.card, borderColor: t.borde }]}>
+              <EliteText variant="body" style={[styles.tribeCopy, priTxt]}>{TRIBE_BRIDGE_COPY}</EliteText>
+              {/* Hallazgo MB-31B3: el CTA iba en lima como TEXTO — acento calibrado
+                  (el tinte lima del fondo es de marca y se queda). */}
               <Pressable
                 onPress={() => { haptic.light(); Linking.openURL(SKOOL_URL).catch(() => {}); }}
                 style={styles.tribeBtn}
               >
-                <EliteText variant="body" style={styles.tribeBtnText}>Únete a la Tribu ATP</EliteText>
+                <EliteText variant="body" style={[styles.tribeBtnText, { color: acento }]}>Únete a la Tribu ATP</EliteText>
               </Pressable>
             </Animated.View>
           )}
@@ -538,7 +550,8 @@ export default function CheckinScreen() {
   }
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       {/* MB-4 Bloque 1: glow ambiental — el color de la emoción activa tiñe
           el fondo de la pantalla, detrás de todo. */}
       {ambientColor && (
@@ -559,7 +572,7 @@ export default function CheckinScreen() {
       {/* Dots */}
       <View style={styles.dots}>
         {[1, 2].map(i => (
-          <View key={i} style={[styles.dotIndicator, i <= step && { backgroundColor: qColor }]} />
+          <View key={i} style={[styles.dotIndicator, { backgroundColor: t.bordeMarcado }, i <= step && { backgroundColor: qColor }]} />
         ))}
       </View>
 
@@ -576,19 +589,20 @@ export default function CheckinScreen() {
         <Animated.View entering={FadeIn.duration(200)} style={styles.mapFlex}>
           <View style={styles.mapHeaderRow}>
             <View style={{ flex: 1 }}>
-              <EliteText style={styles.wheelTitle}>¿Cómo te sientes?</EliteText>
-              <EliteText variant="caption" style={styles.mapHint}>
+              <EliteText style={[styles.wheelTitle, priTxt]}>¿Cómo te sientes?</EliteText>
+              <EliteText variant="caption" style={[styles.mapHint, secTxt]}>
                 {GRID_HINT}
               </EliteText>
             </View>
-            <Pressable onPress={() => { haptic.light(); setSearchOpen(o => !o); }} style={styles.mapTool} hitSlop={8}>
-              <Ionicons name="search" size={18} color={TEXT_COLORS.secondary} />
+            <Pressable onPress={() => { haptic.light(); setSearchOpen(o => !o); }} style={[styles.mapTool, { backgroundColor: t.card, borderColor: t.borde }]} hitSlop={8}>
+              <Ionicons name="search" size={18} color={t.textoSecundario} />
             </Pressable>
           </View>
 
-          {/* #21: racha viva visible al entrar */}
+          {/* #21: racha viva visible al entrar. Hallazgo MB-31B3: lima como
+              TEXTO (1.34 en claro) — acento calibrado. */}
           {checkinStreak > 1 && (
-            <EliteText variant="caption" style={styles.streakBadge}>
+            <EliteText variant="caption" style={[styles.streakBadge, { color: acento }]}>
               🔥 {checkinStreak} días seguidos escuchándote
             </EliteText>
           )}
@@ -605,13 +619,13 @@ export default function CheckinScreen() {
 
             {/* Buscador por nombre */}
             {searchOpen && (
-              <Animated.View entering={FadeIn.duration(180)} style={styles.searchOverlay}>
+              <Animated.View entering={FadeIn.duration(180)} style={[styles.searchOverlay, { backgroundColor: t.card, borderColor: t.borde }]}>
                 <TextInput
-                  style={styles.searchInput}
+                  style={[styles.searchInput, { backgroundColor: t.hundido, color: t.texto }]}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   placeholder="Busca una emoción…"
-                  placeholderTextColor={TEXT_COLORS.muted}
+                  placeholderTextColor={t.textoTenue}
                   autoFocus
                   autoCorrect={false}
                 />
@@ -620,7 +634,7 @@ export default function CheckinScreen() {
                   // familia cromática que la celda donde va a aterrizar.
                   <Pressable key={e.id} onPress={() => handleSearchPick(e)} style={styles.searchRow}>
                     <View style={[styles.searchDot, { backgroundColor: QUADRANTS[e.quadrant].color }]} />
-                    <EliteText variant="body" style={styles.searchLabel}>{e.label}</EliteText>
+                    <EliteText variant="body" style={[styles.searchLabel, priTxt]}>{e.label}</EliteText>
                   </Pressable>
                 ))}
               </Animated.View>
@@ -637,18 +651,18 @@ export default function CheckinScreen() {
               <Animated.View
                 entering={SlideInDown.duration(260)}
                 exiting={SlideOutDown.duration(200)}
-                style={styles.defSheet}
+                style={[styles.defSheet, { backgroundColor: t.card, borderColor: t.borde }]}
               >
                 <View style={styles.defHeader}>
                   <EliteText style={[styles.defName, { color: sheetColor }]}>{sheetEmotion.label}</EliteText>
                   <Pressable onPress={() => removeEmotion(sheetEmotion.id)} hitSlop={8}>
-                    <EliteText variant="caption" style={styles.defRemove}>Quitar</EliteText>
+                    <EliteText variant="caption" style={[styles.defRemove, secTxt]}>Quitar</EliteText>
                   </Pressable>
                 </View>
-                <EliteText variant="body" style={styles.defDesc}>{sheetEmotion.description}</EliteText>
+                <EliteText variant="body" style={[styles.defDesc, priTxt]}>{sheetEmotion.description}</EliteText>
                 {/* A.6: el mecanismo, nombrado — no es copy motivacional, es
                     Lieberman (2007). Vive en checkin-config. */}
-                <EliteText variant="caption" style={styles.defMechanism}>{NAMING_MECHANISM_LINE}</EliteText>
+                <EliteText variant="caption" style={[styles.defMechanism, secTxt]}>{NAMING_MECHANISM_LINE}</EliteText>
                 {/* B.1: la segunda emoción ya no se ofrece aquí — CONTINUAR
                     abre la oferta (o sigue de largo si ya hay dos). */}
                 <View style={styles.defActions}>
@@ -668,10 +682,10 @@ export default function CheckinScreen() {
             <Animated.View
               entering={SlideInDown.duration(260)}
               exiting={SlideOutDown.duration(200)}
-              style={styles.defSheet}
+              style={[styles.defSheet, { backgroundColor: t.card, borderColor: t.borde }]}
             >
-              <EliteText style={styles.askTitle}>¿Sumar una segunda emoción?</EliteText>
-              <EliteText variant="caption" style={styles.askSub}>
+              <EliteText style={[styles.askTitle, priTxt]}>¿Sumar una segunda emoción?</EliteText>
+              <EliteText variant="caption" style={[styles.askSub, secTxt]}>
                 A veces conviven dos. Si con una basta, sigue.
               </EliteText>
               <View style={styles.defActions}>
@@ -679,7 +693,7 @@ export default function CheckinScreen() {
                   onPress={() => { haptic.light(); setAskSecond(false); setAddSecond(true); }}
                   style={styles.defSecondary}
                 >
-                  <EliteText variant="caption" style={styles.defSecondaryText}>Sumar otra</EliteText>
+                  <EliteText variant="caption" style={[styles.defSecondaryText, secTxt]}>Sumar otra</EliteText>
                 </Pressable>
                 <Pressable
                   onPress={() => { haptic.medium(); setAskSecond(false); proceedToContext(); }}
@@ -734,18 +748,18 @@ export default function CheckinScreen() {
 
             {/* T4 MENTE: prompt del día — rotativo, determinista por fecha.
                 Si escribes algo, se guarda también como mini-entrada de journal. */}
-            <View style={[styles.promptCard, { borderColor: qColor + '30' }]}>
-              <EliteText variant="caption" style={styles.promptLabel}>PROMPT DEL DÍA</EliteText>
-              <EliteText variant="body" style={styles.promptText}>{dailyPrompt}</EliteText>
+            <View style={[styles.promptCard, { backgroundColor: t.card, borderColor: qColor + '30' }]}>
+              <EliteText variant="caption" style={[styles.promptLabel, secTxt]}>PROMPT DEL DÍA</EliteText>
+              <EliteText variant="body" style={[styles.promptText, priTxt]}>{dailyPrompt}</EliteText>
             </View>
 
             {/* V1.5.1 (#4): sin scroll interno — el drag sobre el input scrollea la página. */}
             <TextInput
-              style={styles.noteInput}
+              style={[styles.noteInput, { backgroundColor: t.flotante, borderColor: t.borde, color: t.texto }]}
               value={note}
               onChangeText={setNote}
               placeholder="Respóndelo aquí si quieres: se guarda en tu journal"
-              placeholderTextColor={Colors.textSecondary + '50'}
+              placeholderTextColor={t.textoSecundario + '50'}
               multiline
               scrollEnabled={false}
               maxLength={500}
@@ -779,16 +793,17 @@ function ContextSection({ label, items, selected, onSelect, color }: {
 }) {
   // B.9 (MB-7): los chips ENVUELVEN — el scroll horizontal cortaba opciones en
   // el borde ("Comp…", "D…") sin leerse como scroll. Press con spring, no plano.
+  const { tokens: t } = useAppTheme();
   return (
     <View style={styles.ctxSection}>
-      <EliteText variant="caption" style={styles.ctxLabel}>{label}</EliteText>
+      <EliteText variant="caption" style={[styles.ctxLabel, { color: t.textoSecundario }]}>{label}</EliteText>
       <View style={styles.ctxWrap}>
         {items.map(item => {
           const sel = selected === item;
           return (
             <AnimatedPressable key={item} onPress={() => onSelect(item)}>
-              <View style={[styles.ctxPill, sel && { backgroundColor: color + '22', borderColor: color + '55' }]}>
-                <EliteText variant="caption" style={[styles.ctxText, sel && { color, fontFamily: Fonts.semiBold }]}>
+              <View style={[styles.ctxPill, { backgroundColor: t.card, borderColor: t.borde }, sel && { backgroundColor: color + '22', borderColor: color + '55' }]}>
+                <EliteText variant="caption" style={[styles.ctxText, { color: t.textoSecundario }, sel && { color, fontFamily: Fonts.semiBold }]}>
                   {item}
                 </EliteText>
               </View>
@@ -802,17 +817,20 @@ function ContextSection({ label, items, selected, onSelect, color }: {
 
 // === ESTILOS ===
 
+// MB-31B3: superficies/texto neutros → tokens inline; aquí queda layout +
+// identidad (colores de cuadrante emocional, tintes de marca).
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.black },
+  screen: { flex: 1 },
   dots: {
     flexDirection: 'row', justifyContent: 'center', gap: 6,
     paddingTop: Spacing.sm, marginBottom: Spacing.xs,
   },
-  dotIndicator: { width: 8, height: 8, borderRadius: Radius.xs, backgroundColor: SURFACES.disabled },
+  dotIndicator: { width: 8, height: 8, borderRadius: Radius.xs },
 
   stepFlex: { flex: 1, paddingHorizontal: Spacing.md, paddingTop: Spacing.lg },
-  // #21: racha visible al entrar (mismo tono que el done screen)
-  streakBadge: { color: '#a8e02a', fontFamily: Fonts.bold, fontSize: FontSizes.md, textAlign: 'center', marginTop: 2, marginBottom: Spacing.xs },
+  // #21: racha visible al entrar (mismo tono que el done screen; color inline
+  // — hallazgo lima-texto, va en acento calibrado)
+  streakBadge: { fontFamily: Fonts.bold, fontSize: FontSizes.md, textAlign: 'center', marginTop: 2, marginBottom: Spacing.xs },
 
   // MB-4 Bloque 1: glow ambiental (detrás de todo, tercio superior)
   ambientGlow: {
@@ -826,11 +844,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: Spacing.sm,
   },
   mapTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
-  wheelTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, color: Colors.textPrimary },
-  mapHint: { color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: 2 },
+  wheelTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
+  mapHint: { fontSize: FontSizes.sm, marginTop: 2 },
   mapTool: {
     width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: SURFACES.card, borderWidth: 0.5, borderColor: SURFACES.border,
+    borderWidth: 0.5,
   },
   // Full-bleed: los círculos se salen de los bordes (sensación de infinito).
   mapCanvas: { flex: 1 },
@@ -838,34 +856,34 @@ const styles = StyleSheet.create({
   // Buscador
   searchOverlay: {
     position: 'absolute', top: 0, left: Spacing.md, right: Spacing.md, zIndex: 20,
-    backgroundColor: SURFACES.card, borderRadius: Radius.card,
-    borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.sm,
+    borderRadius: Radius.card,
+    borderWidth: 0.5, padding: Spacing.sm,
   },
   searchInput: {
-    backgroundColor: Colors.black, borderRadius: Radius.sm,
+    borderRadius: Radius.sm,
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    color: Colors.textPrimary, fontFamily: Fonts.regular, fontSize: FontSizes.md,
+    fontFamily: Fonts.regular, fontSize: FontSizes.md,
   },
   searchRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     paddingVertical: Spacing.sm, paddingHorizontal: Spacing.xs,
   },
   searchDot: { width: 10, height: 10, borderRadius: 5 },
-  searchLabel: { color: Colors.textPrimary, fontSize: FontSizes.md, flexShrink: 0 },
+  searchLabel: { fontSize: FontSizes.md, flexShrink: 0 },
 
   // Hoja de definición
   defSheet: {
-    backgroundColor: SURFACES.card, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg,
-    borderWidth: 0.5, borderColor: SURFACES.border,
+    borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg,
+    borderWidth: 0.5,
     paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.lg,
   },
   defHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   defName: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold },
-  defRemove: { color: Colors.textSecondary, fontSize: FontSizes.sm },
-  defDesc: { color: Colors.textPrimary, fontSize: FontSizes.md, lineHeight: 22, marginTop: Spacing.xs },
+  defRemove: { fontSize: FontSizes.sm },
+  defDesc: { fontSize: FontSizes.md, lineHeight: 22, marginTop: Spacing.xs },
   // A.6: la línea del mecanismo (Lieberman) — voz baja, sin empalago.
   defMechanism: {
-    color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 18,
+    fontSize: FontSizes.sm, lineHeight: 18,
     marginTop: Spacing.sm, fontStyle: 'italic',
   },
   defActions: {
@@ -873,10 +891,10 @@ const styles = StyleSheet.create({
     gap: Spacing.md, marginTop: Spacing.md,
   },
   defSecondary: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.sm },
-  defSecondaryText: { color: Colors.textSecondary, fontSize: FontSizes.md },
+  defSecondaryText: { fontSize: FontSizes.md },
   // B.1: oferta de segunda emoción (post-CONTINUAR)
-  askTitle: { color: Colors.textPrimary, fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
-  askSub: { color: Colors.textSecondary, fontSize: FontSizes.md, lineHeight: 20, marginTop: Spacing.xs },
+  askTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
+  askSub: { fontSize: FontSizes.md, lineHeight: 20, marginTop: Spacing.xs },
   defContinue: {
     paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 2, borderRadius: Radius.pill,
   },
@@ -902,32 +920,32 @@ const styles = StyleSheet.create({
   // Context
   ctxSection: { marginBottom: Spacing.md },
   ctxLabel: {
-    color: Colors.textSecondary, fontFamily: Fonts.bold, letterSpacing: 2,
+    fontFamily: Fonts.bold, letterSpacing: 2,
     fontSize: FontSizes.sm, marginBottom: Spacing.sm,
   },
   ctxWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
   ctxPill: {
     paddingHorizontal: Spacing.sm + 4, paddingVertical: Spacing.xs + 3,
-    borderRadius: Radius.pill, backgroundColor: SURFACES.card, borderWidth: 1, borderColor: SURFACES.border,
+    borderRadius: Radius.pill, borderWidth: 1,
   },
-  ctxText: { color: Colors.textSecondary, fontSize: FontSizes.md },
+  ctxText: { fontSize: FontSizes.md },
 
   noteInput: {
-    backgroundColor: SURFACES.cardLight, borderRadius: Radius.sm,
+    borderRadius: Radius.sm,
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2,
-    color: Colors.textPrimary, fontFamily: Fonts.regular, fontSize: FontSizes.md,
-    marginTop: Spacing.sm, borderWidth: 0.5, borderColor: SURFACES.border,
+    fontFamily: Fonts.regular, fontSize: FontSizes.md,
+    marginTop: Spacing.sm, borderWidth: 0.5,
     minHeight: 72, textAlignVertical: 'top',
   },
   // T4 MENTE: prompt del día
   promptCard: {
-    backgroundColor: SURFACES.card, borderWidth: 1, borderRadius: Radius.md,
+    borderWidth: 1, borderRadius: Radius.md,
     padding: Spacing.md, marginTop: Spacing.sm, gap: 4,
   },
   promptLabel: {
-    color: Colors.textSecondary, fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2,
+    fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2,
   },
-  promptText: { color: Colors.textPrimary, fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, lineHeight: 24 },
+  promptText: { fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, lineHeight: 24 },
 
   registerCta: { alignSelf: 'center', marginTop: Spacing.lg },
 
@@ -939,10 +957,10 @@ const styles = StyleSheet.create({
   donePulse: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
   doneDot: { width: 32, height: 32, borderRadius: Radius.md },
   doneTitle: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold },
-  doneSub: { color: Colors.textSecondary, fontSize: FontSizes.md },
+  doneSub: { fontSize: FontSizes.md },
   // Pieza 3 (MB-14): la frase al cierre — editorial, voz baja, sin firma.
   closingPhrase: {
-    color: Colors.textPrimary, fontSize: FontSizes.md, lineHeight: 22,
+    fontSize: FontSizes.md, lineHeight: 22,
     textAlign: 'center', marginHorizontal: Spacing.xl, marginTop: Spacing.xs,
   },
   doneBtn: {
@@ -955,14 +973,13 @@ const styles = StyleSheet.create({
   navInviteCard: {
     alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.sm,
     marginHorizontal: Spacing.lg, padding: Spacing.md,
-    backgroundColor: SURFACES.card, borderRadius: Radius.md,
-    borderWidth: 0.5, borderColor: SURFACES.border,
+    borderRadius: Radius.md, borderWidth: 0.5,
   },
-  navInviteTitle: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.lg, textAlign: 'center' },
-  navInviteSub: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 19, textAlign: 'center' },
+  navInviteTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, textAlign: 'center' },
+  navInviteSub: { fontSize: FontSizes.sm, lineHeight: 19, textAlign: 'center' },
   navInviteRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginTop: Spacing.sm },
   navInviteNo: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.sm },
-  navInviteNoText: { color: Colors.textSecondary, fontSize: FontSizes.md },
+  navInviteNoText: { fontSize: FontSizes.md },
   navInviteYes: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radius.pill },
   navInviteYesText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.md, letterSpacing: 1 },
 
@@ -970,35 +987,35 @@ const styles = StyleSheet.create({
   shareCard: {
     alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs,
     marginHorizontal: Spacing.lg, padding: Spacing.md,
-    backgroundColor: SURFACES.card, borderRadius: Radius.md,
-    borderWidth: 0.5, borderColor: SURFACES.border,
+    borderRadius: Radius.md, borderWidth: 0.5,
   },
-  shareTitle: { color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md, textAlign: 'center' },
-  shareSub: { color: Colors.textSecondary, fontSize: FontSizes.sm, textAlign: 'center' },
+  shareTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md, textAlign: 'center' },
+  shareSub: { fontSize: FontSizes.sm, textAlign: 'center' },
   shareToggleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs },
   shareCheck: {
-    width: 16, height: 16, borderRadius: 4, borderWidth: 1.5, borderColor: SURFACES.disabled,
+    width: 16, height: 16, borderRadius: 4, borderWidth: 1.5,
   },
-  shareToggleText: { color: Colors.textSecondary, fontSize: FontSizes.sm },
+  shareToggleText: { fontSize: FontSizes.sm },
   shareBtn: {
     borderWidth: 1, borderRadius: Radius.pill,
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, marginTop: Spacing.xs,
   },
   shareBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
-  shareDone: { color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
-  shareUndo: { color: Colors.textSecondary, fontSize: FontSizes.sm },
+  shareDone: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  shareUndo: { fontSize: FontSizes.sm },
 
   // C5 COMUNIDAD: puente a la Tribu (mood bajo sostenido)
   tribeCard: {
     alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.sm,
     marginHorizontal: Spacing.lg, padding: Spacing.md,
-    backgroundColor: SURFACES.card, borderRadius: Radius.md,
-    borderWidth: 0.5, borderColor: SURFACES.border,
+    borderRadius: Radius.md, borderWidth: 0.5,
   },
-  tribeCopy: { color: TEXT_COLORS.primary, fontSize: FontSizes.md, textAlign: 'center', lineHeight: 22 },
+  tribeCopy: { fontSize: FontSizes.md, textAlign: 'center', lineHeight: 22 },
   tribeBtn: {
+    // Tinte lima de marca: acento, se queda en los dos temas.
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.14), borderRadius: Radius.pill,
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
   },
-  tribeBtnText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  // Hallazgo MB-31B3: era lima como TEXTO — el color va inline (acento).
+  tribeBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 });

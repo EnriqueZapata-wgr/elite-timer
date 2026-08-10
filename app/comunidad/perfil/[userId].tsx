@@ -9,6 +9,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Modal, Alert, DeviceEventEmitter } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -38,6 +39,7 @@ import { rankTierLabel } from '@/src/services/economy/rank';
 import { REPORT_REASONS, type ReportReasonKey } from '@/src/constants/community';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 interface RelationInfo {
@@ -47,10 +49,11 @@ interface RelationInfo {
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
+  const { tokens: t } = useAppTheme();
   return (
-    <View style={s.stat}>
-      <EliteText style={s.statValue}>{value}</EliteText>
-      <EliteText style={s.statLabel}>{label}</EliteText>
+    <View style={[s.stat, { backgroundColor: t.card, borderColor: t.borde }]}>
+      <EliteText style={[s.statValue, { color: t.texto }]}>{value}</EliteText>
+      <EliteText style={[s.statLabel, { color: t.textoTenue }]}>{label}</EliteText>
     </View>
   );
 }
@@ -61,6 +64,8 @@ export default function CommunityPublicProfileScreen() {
   useRegisterOwnNav();
 
   const insets = useSafeAreaInsets();
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
   const { user } = useAuth();
   const { userId } = useLocalSearchParams<{ userId: string }>();
   const [profile, setProfile] = useState<VisiblePublicProfile | null>(null);
@@ -195,36 +200,38 @@ export default function CommunityPublicProfileScreen() {
   const name = profile ? publicDisplayName(profile) : 'Atleta ATP';
 
   return (
+    <ThemeReady>
     <ScrollView
-      style={s.screen}
+      style={[s.screen, { backgroundColor: t.fondo }]}
       contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: 60 }}
     >
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <View style={{ paddingTop: insets.top + 8 }}>
         <View style={s.headerRow}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
+            <Ionicons name="arrow-back" size={24} color={t.texto} />
           </Pressable>
           {!isMe && (
             <Pressable onPress={() => setMenuOpen(true)} hitSlop={12}>
-              <Ionicons name="ellipsis-horizontal" size={22} color={TEXT.primary} />
+              <Ionicons name="ellipsis-horizontal" size={22} color={t.texto} />
             </Pressable>
           )}
         </View>
       </View>
 
       {loading ? (
-        <EliteText style={s.empty}>Cargando…</EliteText>
+        <EliteText style={[s.empty, secTxt]}>Cargando…</EliteText>
       ) : !profile ? (
-        <EliteText style={s.empty}>Este perfil no está disponible.</EliteText>
+        <EliteText style={[s.empty, secTxt]}>Este perfil no está disponible.</EliteText>
       ) : (
         <>
           {/* ── Identidad ── */}
           <Animated.View entering={FadeInUp.delay(40).springify()} style={s.identity}>
             <UserAvatar uri={profile.avatar_url} name={name} size={84} />
-            <EliteText style={s.name}>{name}</EliteText>
-            {profile.username && <EliteText style={s.username}>@{profile.username}</EliteText>}
+            <EliteText style={[s.name, { color: t.texto }]}>{name}</EliteText>
+            {profile.username && <EliteText style={[s.username, secTxt]}>@{profile.username}</EliteText>}
             {(profile.country || profile.chronotype) && (
-              <EliteText style={s.meta}>
+              <EliteText style={[s.meta, { color: t.textoTenue }]}>
                 {[profile.country, profile.chronotype].filter(Boolean).join(' · ')}
               </EliteText>
             )}
@@ -254,9 +261,9 @@ export default function CommunityPublicProfileScreen() {
                 </Pressable>
               )}
               {relation.state === 'outgoing' && (
-                <View style={s.secondaryBtn}>
-                  <Ionicons name="hourglass-outline" size={16} color={TEXT.secondary} />
-                  <EliteText style={s.secondaryBtnText}>Solicitud enviada</EliteText>
+                <View style={[s.secondaryBtn, { backgroundColor: t.card, borderColor: t.borde }]}>
+                  <Ionicons name="hourglass-outline" size={16} color={t.textoSecundario} />
+                  <EliteText style={[s.secondaryBtnText, secTxt]}>Solicitud enviada</EliteText>
                 </View>
               )}
               {relation.state === 'incoming' && (
@@ -266,21 +273,21 @@ export default function CommunityPublicProfileScreen() {
                 </Pressable>
               )}
               {relation.state === 'friends' && (
-                <Pressable style={s.secondaryBtn} onPress={onUnfriend}>
-                  <Ionicons name="person-remove-outline" size={16} color={TEXT.secondary} />
-                  <EliteText style={s.secondaryBtnText}>Eliminar amigo</EliteText>
+                <Pressable style={[s.secondaryBtn, { backgroundColor: t.card, borderColor: t.borde }]} onPress={onUnfriend}>
+                  <Ionicons name="person-remove-outline" size={16} color={t.textoSecundario} />
+                  <EliteText style={[s.secondaryBtnText, secTxt]}>Eliminar amigo</EliteText>
                 </Pressable>
               )}
               {relation.state === 'blocked' && (
-                <Pressable style={s.secondaryBtn} onPress={onUnblock} disabled={busy}>
-                  <Ionicons name="lock-open-outline" size={16} color={TEXT.secondary} />
-                  <EliteText style={s.secondaryBtnText}>Desbloquear</EliteText>
+                <Pressable style={[s.secondaryBtn, { backgroundColor: t.card, borderColor: t.borde }]} onPress={onUnblock} disabled={busy}>
+                  <Ionicons name="lock-open-outline" size={16} color={t.textoSecundario} />
+                  <EliteText style={[s.secondaryBtnText, secTxt]}>Desbloquear</EliteText>
                 </Pressable>
               )}
             </Animated.View>
           )}
 
-          <EliteText style={s.footNote}>
+          <EliteText style={[s.footNote, { color: t.textoTenue }]}>
             Solo se muestra lo que esta persona decidió compartir. Nada clínico es público, nunca.
           </EliteText>
         </>
@@ -310,43 +317,44 @@ export default function CommunityPublicProfileScreen() {
       {/* ── Sheet de razones de report ── */}
       <Modal visible={reportOpen} transparent animationType="slide" onRequestClose={() => setReportOpen(false)}>
         <Pressable style={s.backdrop} onPress={() => setReportOpen(false)}>
-          <View style={s.sheet}>
-            <EliteText style={s.sheetTitle}>¿Por qué reportas este perfil?</EliteText>
+          <View style={[s.sheet, { backgroundColor: t.flotante, borderColor: t.bordeMarcado }]}>
+            <EliteText style={[s.sheetTitle, { color: t.texto }]}>¿Por qué reportas este perfil?</EliteText>
             {REPORT_REASONS.map((r) => (
-              <Pressable key={r.key} style={s.reasonRow} onPress={() => onReport(r.key)}>
-                <EliteText style={s.reasonText}>{r.label}</EliteText>
-                <Ionicons name="chevron-forward" size={16} color={TEXT.tertiary} />
+              <Pressable key={r.key} style={[s.reasonRow, { backgroundColor: t.card, borderColor: t.borde }]} onPress={() => onReport(r.key)}>
+                <EliteText style={[s.reasonText, { color: t.texto }]}>{r.label}</EliteText>
+                <Ionicons name="chevron-forward" size={16} color={t.textoTenue} />
               </Pressable>
             ))}
             <Pressable style={s.cancelBtn} onPress={() => setReportOpen(false)}>
-              <EliteText style={s.cancelText}>Cancelar</EliteText>
+              <EliteText style={[s.cancelText, secTxt]}>Cancelar</EliteText>
             </Pressable>
           </View>
         </Pressable>
       </Modal>
     </ScrollView>
+    </ThemeReady>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: ELEVATION[0].bg },
+  screen: { flex: 1 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   identity: { alignItems: 'center', marginTop: Spacing.lg, gap: 4 },
-  name: { fontSize: FontSizes.xxl, fontFamily: Fonts.bold, color: TEXT.primary, marginTop: Spacing.sm },
-  username: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: TEXT.secondary },
-  meta: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.tertiary, marginTop: 2 },
+  name: { fontSize: FontSizes.xxl, fontFamily: Fonts.bold, marginTop: Spacing.sm },
+  username: { fontSize: FontSizes.sm, fontFamily: Fonts.regular },
+  meta: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
   statsRow: {
     flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8,
     marginTop: Spacing.lg,
   },
   stat: {
     alignItems: 'center', minWidth: 90,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.md, paddingVertical: 12, paddingHorizontal: Spacing.md,
   },
-  statValue: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT.primary },
+  statValue: { fontSize: FontSizes.md, fontFamily: Fonts.bold },
   statLabel: {
-    fontSize: 10, letterSpacing: 1, fontFamily: Fonts.semiBold, color: TEXT.tertiary,
+    fontSize: 10, letterSpacing: 1, fontFamily: Fonts.semiBold,
     textTransform: 'uppercase', marginTop: 4,
   },
   primaryBtn: {
@@ -357,16 +365,16 @@ const s = StyleSheet.create({
   primaryBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: ATP_BRAND.black },
   secondaryBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.md, paddingVertical: 13, marginTop: Spacing.lg,
   },
-  secondaryBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.secondary },
+  secondaryBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
   footNote: {
-    fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.tertiary,
+    fontSize: FontSizes.xs, fontFamily: Fonts.regular,
     textAlign: 'center', marginTop: Spacing.lg, lineHeight: 16,
   },
   empty: {
-    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: TEXT.secondary,
+    fontSize: FontSizes.sm, fontFamily: Fonts.regular,
     textAlign: 'center', paddingVertical: Spacing.xl,
   },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
@@ -381,20 +389,20 @@ const s = StyleSheet.create({
   },
   menuItemText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.primary },
   sheet: {
-    backgroundColor: ELEVATION[2].bg, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg,
-    borderWidth: 1, borderColor: ELEVATION[2].border,
+    borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg,
+    borderWidth: 1,
     paddingHorizontal: Spacing.md, paddingTop: Spacing.lg, paddingBottom: 34,
   },
   sheetTitle: {
-    fontSize: FontSizes.lg, fontFamily: Fonts.bold, color: TEXT.primary,
+    fontSize: FontSizes.lg, fontFamily: Fonts.bold,
     textAlign: 'center', marginBottom: Spacing.md,
   },
   reasonRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.md, paddingVertical: 13, paddingHorizontal: Spacing.md, marginBottom: 8,
   },
-  reasonText: { fontSize: FontSizes.md, fontFamily: Fonts.regular, color: TEXT.primary },
+  reasonText: { fontSize: FontSizes.md, fontFamily: Fonts.regular },
   cancelBtn: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
-  cancelText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.secondary },
+  cancelText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
 });

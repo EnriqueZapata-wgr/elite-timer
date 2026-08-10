@@ -8,6 +8,7 @@
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -21,8 +22,9 @@ import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { haptic } from '@/src/utils/haptics';
 import { useAuth } from '@/src/contexts/auth-context';
 import { autoSyncSiActiva } from '@/src/services/fitness/health-import-service';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import {
   getCardioRecordsByDiscipline,
   formatDuration,
@@ -47,6 +49,10 @@ const DISCIPLINES: { key: CardioDiscipline; name: string; icon: keyof typeof Ion
 export default function FitnessCardioScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
+  // Regla 1 de la guía: el lima como TEXTO no sobrevive el modo claro.
+  const acento = kind === 'dark' ? CARDIO_ACCENT : t.tealTexto;
   const [recordsByDiscipline, setRecordsByDiscipline] = useState<Record<CardioDiscipline, CardioRecord[]>>({
     running: [], cycling: [], swimming: [], rowing: [], other: [],
   });
@@ -64,7 +70,8 @@ export default function FitnessCardioScreen() {
   }, [cargar, user]));
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="fitness" title="Cardio" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
@@ -82,7 +89,7 @@ export default function FitnessCardioScreen() {
                 <GradientCard gradient={CARDIO_GRADIENT} accentColor={CARDIO_ACCENT} accentPosition="left">
                   <View style={s.disciplineHeader}>
                     <Ionicons name={d.icon} size={22} color={CARDIO_ACCENT} />
-                    <EliteText style={s.disciplineName}>{d.name}</EliteText>
+                    <EliteText style={[s.disciplineName, { color: t.texto }]}>{d.name}</EliteText>
                   </View>
 
                   {/* MB-3.7 §1.4: "Última: …" RETIRADA — el hub es navegación
@@ -93,8 +100,8 @@ export default function FitnessCardioScreen() {
                     <View style={s.prsRow}>
                       {records.slice(0, 5).map(pr => (
                         <View key={pr.id} style={s.prChip}>
-                          <EliteText style={s.prChipLabel}>{pr.distance_label}</EliteText>
-                          <EliteText style={s.prChipValue}>{formatDuration(pr.best_time_seconds)}</EliteText>
+                          <EliteText style={[s.prChipLabel, { color: t.textoSecundario }]}>{pr.distance_label}</EliteText>
+                          <EliteText style={[s.prChipValue, { color: acento }]}>{formatDuration(pr.best_time_seconds)}</EliteText>
                         </View>
                       ))}
                     </View>
@@ -122,7 +129,7 @@ export default function FitnessCardioScreen() {
           onPress={() => { haptic.light(); router.push('/cardio-import'); }}
         >
           <Ionicons name="download-outline" size={18} color={CARDIO_ACCENT} />
-          <EliteText style={s.ctaTextGhost}>IMPORTAR DE TU APP DE SALUD</EliteText>
+          <EliteText style={[s.ctaTextGhost, { color: acento }]}>IMPORTAR DE TU APP DE SALUD</EliteText>
         </AnimatedPressable>
 
         <View style={{ height: 80 }} />
@@ -144,7 +151,6 @@ const s = StyleSheet.create({
   disciplineName: {
     fontSize: FontSizes.lg,
     fontFamily: Fonts.bold,
-    color: TEXT_COLORS.primary,
   },
   prsRow: {
     flexDirection: 'row',
@@ -162,13 +168,11 @@ const s = StyleSheet.create({
   prChipLabel: {
     fontSize: 9,
     fontFamily: Fonts.semiBold,
-    color: Colors.textSecondary,
     letterSpacing: 1,
   },
   prChipValue: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
-    color: CARDIO_ACCENT,
   },
 
   ctaButtonGhost: {
@@ -185,7 +189,6 @@ const s = StyleSheet.create({
   ctaTextGhost: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
-    color: CARDIO_ACCENT,
     letterSpacing: 1.5,
   },
 });

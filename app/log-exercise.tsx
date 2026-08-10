@@ -12,6 +12,7 @@ import {
   Modal, Pressable, Text, DeviceEventEmitter,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
@@ -27,8 +28,9 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { generateUUID } from '@/src/services/routine-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
-  ATP_BRAND, TEXT, TEXT_COLORS, BG, BORDER, ELEVATION, SEMANTIC, CATEGORY_COLORS, withOpacity,
+  ATP_BRAND, TEXT, TEXT_COLORS, BORDER, ELEVATION, SEMANTIC, CATEGORY_COLORS, withOpacity,
 } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { TRAINING_METHODS, type TrainingMethodId } from '@/src/constants/training-methods';
 import { Method35 } from '@/src/components/training/Method35';
 import { EMOMAuto } from '@/src/components/training/EMOMAuto';
@@ -88,6 +90,11 @@ export default function LogExerciseScreen() {
   const { user } = useAuth();
   // MB-3 Track E: los métodos heredan voz (+ keep-awake) también por este camino.
   const { cue } = useMethodVoice();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: tk } = useAppTheme();
+  // Regla 1 de la guía: lima como TEXTO no sobrevive el claro → teal calibrado.
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tk.tealTexto;
+  const secTxt = { color: tk.textoSecundario };
 
   // --- Estado de flujo ---
   const [step, setStep] = useState<Step>('benchmark');
@@ -637,14 +644,16 @@ export default function LogExerciseScreen() {
   // === RENDER ===
 
   return (
-    <View style={s.screen}>
+    <ThemeReady>
+    <View style={[s.screen, { backgroundColor: tk.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader
         title="Registrar"
         rightAction={
           (step === 'variant' || step === 'log') ? (
             <AnimatedPressable onPress={goBack} hitSlop={8} style={s.backStep}>
               <Ionicons name="arrow-back" size={16} color={ATP_BRAND.lime} />
-              <Text style={s.backStepText}>Cambiar</Text>
+              <Text style={[s.backStepText, { color: acento }]}>Cambiar</Text>
             </AnimatedPressable>
           ) : <View style={{ width: 44 }} />
         }
@@ -659,64 +668,64 @@ export default function LogExerciseScreen() {
         {/* ========== PASO 1: BENCHMARKS ========== */}
         {step === 'benchmark' && (
           <Animated.View entering={FadeInUp.duration(300)}>
-            <EliteText variant="label" style={s.stepLabel}>
+            <EliteText variant="label" style={[s.stepLabel, { color: acento }]}>
               SELECCIONA UN EJERCICIO
             </EliteText>
 
             {/* Buscador */}
             <View style={{ marginBottom: Spacing.md }}>
               <TextInput
-                style={[s.input, { textAlign: 'left', paddingHorizontal: Spacing.md }]}
+                style={[s.input, { color: tk.texto, backgroundColor: tk.flotante, textAlign: 'left', paddingHorizontal: Spacing.md }]}
                 value={searchQuery}
                 onChangeText={searchExercises}
                 placeholder="Buscar ejercicio..."
-                placeholderTextColor={TEXT.tertiary}
+                placeholderTextColor={tk.textoTenue}
                 returnKeyType="search"
               />
               {searchResults.length > 0 && (
                 <View style={{ marginTop: Spacing.xs }}>
                   {searchResults.map(ex => (
-                    <AnimatedPressable key={ex.id} onPress={() => selectSearchResult(ex)} style={s.benchmarkCard}>
+                    <AnimatedPressable key={ex.id} onPress={() => selectSearchResult(ex)} style={[s.benchmarkCard, { backgroundColor: tk.hundido }]}>
                       <View style={s.benchmarkRow}>
                         <View style={s.benchmarkInfo}>
                           <EliteText variant="subtitle" style={s.benchmarkName}>{ex.name_es}</EliteText>
-                          <EliteText variant="caption" style={s.muscleText}>
+                          <EliteText variant="caption" style={[s.muscleText, secTxt]}>
                             {(ex.muscle_groups || []).join(' / ')}
                             {ex.is_benchmark ? '' : ' · Variante'}
                           </EliteText>
                         </View>
-                        <Ionicons name="chevron-forward" size={18} color={TEXT.tertiary} />
+                        <Ionicons name="chevron-forward" size={18} color={tk.textoTenue} />
                       </View>
                     </AnimatedPressable>
                   ))}
                 </View>
               )}
               {searchError && (
-                <EliteText variant="caption" style={[s.emptyText, { marginTop: Spacing.sm }]}>
+                <EliteText variant="caption" style={[s.emptyText, { color: tk.textoTenue, marginTop: Spacing.sm }]}>
                   {searchError}
                 </EliteText>
               )}
               {!searchError && searchQuery.trim().length >= 2 && searchResults.length === 0 && !searching && (
                 <AnimatedPressable onPress={handleCreateCustomExercise} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: Spacing.md, marginTop: Spacing.xs }}>
                   <Ionicons name="add-circle-outline" size={20} color={ATP_BRAND.lime} />
-                  <Text style={{ color: ATP_BRAND.lime, fontSize: 14 }}>Crear &quot;{searchQuery.trim()}&quot;</Text>
+                  <Text style={{ color: acento, fontSize: 14 }}>Crear &quot;{searchQuery.trim()}&quot;</Text>
                 </AnimatedPressable>
               )}
             </View>
 
             {loading ? (
-              <EliteText variant="body" style={s.loadingText}>Cargando...</EliteText>
+              <EliteText variant="body" style={[s.loadingText, { color: tk.textoTenue }]}>Cargando...</EliteText>
             ) : loadError ? (
               <View style={{ alignItems: 'center', marginTop: Spacing.xl, gap: Spacing.sm }}>
-                <EliteText variant="body" style={s.emptyText}>
+                <EliteText variant="body" style={[s.emptyText, { color: tk.textoTenue }]}>
                   {loadError}
                 </EliteText>
                 <AnimatedPressable onPress={loadBenchmarks} style={{ paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs }}>
-                  <Text style={{ color: ATP_BRAND.lime, fontFamily: Fonts.semiBold }}>Reintentar</Text>
+                  <Text style={{ color: acento, fontFamily: Fonts.semiBold }}>Reintentar</Text>
                 </AnimatedPressable>
               </View>
             ) : benchmarks.length === 0 ? (
-              <EliteText variant="body" style={s.emptyText}>
+              <EliteText variant="body" style={[s.emptyText, { color: tk.textoTenue }]}>
                 No hay ejercicios benchmark configurados.
               </EliteText>
             ) : (
@@ -726,14 +735,14 @@ export default function LogExerciseScreen() {
                   <AnimatedPressable
                     key={bm.id}
                     onPress={() => selectBenchmark(bm)}
-                    style={s.benchmarkCard}
+                    style={[s.benchmarkCard, { backgroundColor: tk.hundido }]}
                   >
                     <View style={s.benchmarkRow}>
                       <View style={s.benchmarkInfo}>
                         <EliteText variant="subtitle" style={s.benchmarkName}>
                           {bm.name_es}
                         </EliteText>
-                        <EliteText variant="caption" style={s.muscleText}>
+                        <EliteText variant="caption" style={[s.muscleText, secTxt]}>
                           {(bm.muscle_groups || []).join(' / ')}
                         </EliteText>
                       </View>
@@ -743,7 +752,7 @@ export default function LogExerciseScreen() {
                           <Text style={s.prText}>{pr.estimated_1rm.toFixed(0)} kg</Text>
                         </View>
                       )}
-                      <Ionicons name="chevron-forward" size={18} color={TEXT.tertiary} />
+                      <Ionicons name="chevron-forward" size={18} color={tk.textoTenue} />
                     </View>
                   </AnimatedPressable>
                 );
@@ -755,14 +764,14 @@ export default function LogExerciseScreen() {
         {/* ========== PASO 2: VARIANTES ========== */}
         {step === 'variant' && selectedBenchmark && (
           <Animated.View entering={FadeInUp.duration(300)}>
-            <EliteText variant="label" style={s.stepLabel}>
+            <EliteText variant="label" style={[s.stepLabel, { color: acento }]}>
               ELIGE VARIANTE
             </EliteText>
 
             {/* Benchmark oficial (estrella) */}
             <AnimatedPressable
               onPress={selectBenchmarkAsVariant}
-              style={s.officialCard}
+              style={[s.officialCard, { backgroundColor: tk.hundido }]}
             >
               <View style={s.officialRow}>
                 <Ionicons name="star" size={18} color={SEMANTIC.acceptable} />
@@ -775,7 +784,7 @@ export default function LogExerciseScreen() {
                       <Text style={s.officialBadgeText}>OFICIAL</Text>
                     </View>
                   </View>
-                  <EliteText variant="caption" style={s.muscleText}>
+                  <EliteText variant="caption" style={[s.muscleText, secTxt]}>
                     {(selectedBenchmark.muscle_groups || []).join(' / ')}
                   </EliteText>
                 </View>
@@ -795,14 +804,14 @@ export default function LogExerciseScreen() {
               <AnimatedPressable
                 key={v.id}
                 onPress={() => selectVariant(v)}
-                style={s.variantCard}
+                style={[s.variantCard, { backgroundColor: tk.hundido }]}
               >
                 <View style={s.variantRow}>
                   <View style={s.variantInfo}>
                     <EliteText variant="body" style={s.variantName}>
                       {v.name_es}
                     </EliteText>
-                    <EliteText variant="caption" style={s.equipmentText}>
+                    <EliteText variant="caption" style={[s.equipmentText, { color: tk.textoTenue }]}>
                       {(v.equipment_list || []).join(', ')}
                     </EliteText>
                   </View>
@@ -814,7 +823,7 @@ export default function LogExerciseScreen() {
                       </Text>
                     </View>
                   )}
-                  <Ionicons name="chevron-forward" size={16} color={TEXT.tertiary} />
+                  <Ionicons name="chevron-forward" size={16} color={tk.textoTenue} />
                 </View>
               </AnimatedPressable>
             ))}
@@ -825,7 +834,7 @@ export default function LogExerciseScreen() {
               style={s.addVariantBtn}
             >
               <Ionicons name="add-circle-outline" size={20} color={ATP_BRAND.lime} />
-              <EliteText variant="body" style={s.addVariantText}>
+              <EliteText variant="body" style={[s.addVariantText, { color: acento }]}>
                 Agregar variante
               </EliteText>
             </AnimatedPressable>
@@ -835,13 +844,14 @@ export default function LogExerciseScreen() {
         {/* ========== PASO 3: LOG DE SETS ========== */}
         {step === 'log' && activeExercise && (
           <Animated.View entering={FadeInUp.duration(300)}>
-            {/* Header del ejercicio */}
+            {/* Header del ejercicio \u2014 GradientCard plano: sigue OSCURO (componente
+                compartido sin tematizar), as\u00ED que su texto se queda claro fijo. */}
             <GradientCard style={s.exerciseHeader}>
               <View style={s.exerciseHeaderRow}>
                 <Ionicons name="barbell-outline" size={22} color={ATP_BRAND.lime} />
                 <View style={s.exerciseHeaderInfo}>
-                  <EliteText variant="subtitle">{activeExercise.name_es}</EliteText>
-                  <EliteText variant="caption" style={s.muscleText}>
+                  <EliteText variant="subtitle" style={{ color: TEXT_COLORS.primary }}>{activeExercise.name_es}</EliteText>
+                  <EliteText variant="caption" style={[s.muscleText, { color: TEXT.secondary }]}>
                     {(activeExercise.muscle_groups || []).join(' / ')}
                     {(activeExercise.equipment_list || []).length > 0 &&
                       ` \u00B7 ${activeExercise.equipment_list.join(', ')}`}
@@ -861,7 +871,7 @@ export default function LogExerciseScreen() {
 
             {/* Selector de método */}
             <View style={{ marginBottom: 16 }}>
-              <Text style={{ color: TEXT.secondary, fontSize: 10, fontWeight: '600', letterSpacing: 1, marginBottom: 8 }}>MÉTODO</Text>
+              <Text style={{ color: tk.textoSecundario, fontSize: 10, fontWeight: '600', letterSpacing: 1, marginBottom: 8 }}>MÉTODO</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   {Object.values(TRAINING_METHODS).map(method => (
@@ -875,12 +885,12 @@ export default function LogExerciseScreen() {
                       <View style={{
                         flexDirection: 'row', alignItems: 'center', gap: 6,
                         paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-                        backgroundColor: selectedMethod === method.id ? `${method.color}20` : ELEVATION[2].bg,
+                        backgroundColor: selectedMethod === method.id ? `${method.color}20` : tk.flotante,
                         borderWidth: 1,
                         borderColor: selectedMethod === method.id ? method.color : ELEVATION[3].border,
                       }}>
-                        <Ionicons name={method.icon as any} size={14} color={selectedMethod === method.id ? method.color : TEXT.tertiary} />
-                        <Text style={{ color: selectedMethod === method.id ? method.color : TEXT.tertiary, fontSize: 12, fontWeight: '600' }}>
+                        <Ionicons name={method.icon as any} size={14} color={selectedMethod === method.id ? method.color : tk.textoTenue} />
+                        <Text style={{ color: selectedMethod === method.id ? method.color : tk.textoTenue, fontSize: 12, fontWeight: '600' }}>
                           {method.name}
                         </Text>
                       </View>
@@ -895,14 +905,14 @@ export default function LogExerciseScreen() {
 
             {/* Encabezados de columnas */}
             <View style={s.colHeaders}>
-              <View style={s.colSet}><Text style={s.colLabel}>SERIE</Text></View>
-              <View style={s.colWeight}><Text style={s.colLabel}>KG</Text></View>
-              <View style={s.colReps}><Text style={s.colLabel}>REPS</Text></View>
+              <View style={s.colSet}><Text style={[s.colLabel, { color: tk.textoTenue }]}>SERIE</Text></View>
+              <View style={s.colWeight}><Text style={[s.colLabel, { color: tk.textoTenue }]}>KG</Text></View>
+              <View style={s.colReps}><Text style={[s.colLabel, { color: tk.textoTenue }]}>REPS</Text></View>
               <View style={[s.colRir, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 }]}>
-                <Text style={s.colLabel}>RIR</Text>
-                <InfoButton title="RIR" explanation="Reps in Reserve: repeticiones que podrías hacer antes del fallo. RIR 2 = podrías hacer 2 más." color={TEXT.secondary} size={11} />
+                <Text style={[s.colLabel, { color: tk.textoTenue }]}>RIR</Text>
+                <InfoButton title="RIR" explanation="Reps in Reserve: repeticiones que podrías hacer antes del fallo. RIR 2 = podrías hacer 2 más." color={tk.textoSecundario} size={11} />
               </View>
-              <View style={s.col1rm}><Text style={s.colLabel}>1RM</Text></View>
+              <View style={s.col1rm}><Text style={[s.colLabel, { color: tk.textoTenue }]}>1RM</Text></View>
               <View style={{ width: 28 }} />
             </View>
 
@@ -916,16 +926,18 @@ export default function LogExerciseScreen() {
                 <Animated.View
                   key={set.id}
                   entering={FadeInUp.delay(index * 50).duration(250)}
-                  style={s.setRow}
+                  style={[s.setRow, { backgroundColor: tk.hundido }]}
                 >
                   {/* Número de set */}
                   <View style={s.colSet}>
                     <View style={[
                       s.setCircle,
+                      { backgroundColor: tk.flotante },
                       (w > 0 && r > 0) && s.setCircleComplete,
                     ]}>
                       <Text style={[
                         s.setCircleText,
+                        secTxt,
                         (w > 0 && r > 0) && s.setCircleTextComplete,
                       ]}>
                         {index + 1}
@@ -936,12 +948,12 @@ export default function LogExerciseScreen() {
                   {/* Peso */}
                   <View style={s.colWeight}>
                     <TextInput
-                      style={s.input}
+                      style={[s.input, { color: tk.texto, backgroundColor: tk.flotante }]}
                       value={set.weight}
                       onChangeText={v => updateSet(index, 'weight', v)}
                       keyboardType="decimal-pad"
                       placeholder="0"
-                      placeholderTextColor={TEXT.muted}
+                      placeholderTextColor={tk.sinDatos}
                       maxLength={6}
                     />
                   </View>
@@ -949,12 +961,12 @@ export default function LogExerciseScreen() {
                   {/* Reps */}
                   <View style={s.colReps}>
                     <TextInput
-                      style={s.input}
+                      style={[s.input, { color: tk.texto, backgroundColor: tk.flotante }]}
                       value={set.reps}
                       onChangeText={v => updateSet(index, 'reps', v)}
                       keyboardType="number-pad"
                       placeholder="0"
-                      placeholderTextColor={TEXT.muted}
+                      placeholderTextColor={tk.sinDatos}
                       maxLength={3}
                     />
                   </View>
@@ -962,19 +974,19 @@ export default function LogExerciseScreen() {
                   {/* RIR */}
                   <View style={s.colRir}>
                     <TextInput
-                      style={[s.input, s.rirInput]}
+                      style={[s.input, { backgroundColor: tk.flotante }, s.rirInput]}
                       value={set.rir}
                       onChangeText={v => updateSet(index, 'rir', v)}
                       keyboardType="number-pad"
                       placeholder="-"
-                      placeholderTextColor={TEXT.muted}
+                      placeholderTextColor={tk.sinDatos}
                       maxLength={2}
                     />
                   </View>
 
                   {/* 1RM en vivo */}
                   <View style={s.col1rm}>
-                    <Text style={s.live1rmText}>
+                    <Text style={[s.live1rmText, { color: acento }]}>
                       {live1RM > 0 ? live1RM.toFixed(0) : '-'}
                     </Text>
                   </View>
@@ -994,7 +1006,7 @@ export default function LogExerciseScreen() {
             {/* Agregar set */}
             <AnimatedPressable onPress={addSet} style={s.addSetBtn}>
               <Ionicons name="add-circle-outline" size={20} color={ATP_BRAND.lime} />
-              <EliteText variant="body" style={s.addSetText}>
+              <EliteText variant="body" style={[s.addSetText, { color: acento }]}>
                 Agregar serie
               </EliteText>
             </AnimatedPressable>
@@ -1070,33 +1082,33 @@ export default function LogExerciseScreen() {
           style={s.modalOverlay}
           onPress={() => setVariantModalVisible(false)}
         >
-          <Pressable style={s.modalContent} onPress={() => {}}>
+          <Pressable style={[s.modalContent, { backgroundColor: tk.card }]} onPress={() => {}}>
             <EliteText variant="subtitle" style={s.modalTitle}>
               Nueva variante
             </EliteText>
             {selectedBenchmark && (
-              <EliteText variant="caption" style={s.modalSubtitle}>
+              <EliteText variant="caption" style={[s.modalSubtitle, secTxt]}>
                 Variante de {selectedBenchmark.name_es}
               </EliteText>
             )}
 
-            <Text style={s.modalLabel}>Nombre</Text>
+            <Text style={[s.modalLabel, secTxt]}>Nombre</Text>
             <TextInput
-              style={s.modalInput}
+              style={[s.modalInput, { color: tk.texto, backgroundColor: tk.flotante }]}
               value={newVariantName}
               onChangeText={setNewVariantName}
               placeholder="Ej: Press banca inclinado con mancuernas"
-              placeholderTextColor={TEXT.tertiary}
+              placeholderTextColor={tk.textoTenue}
               autoFocus
             />
 
-            <Text style={s.modalLabel}>Equipamiento (separado por comas)</Text>
+            <Text style={[s.modalLabel, secTxt]}>Equipamiento (separado por comas)</Text>
             <TextInput
-              style={s.modalInput}
+              style={[s.modalInput, { color: tk.texto, backgroundColor: tk.flotante }]}
               value={newVariantEquipment}
               onChangeText={setNewVariantEquipment}
               placeholder="Ej: mancuernas, banco inclinado"
-              placeholderTextColor={TEXT.tertiary}
+              placeholderTextColor={tk.textoTenue}
             />
 
             <View style={s.modalActions}>
@@ -1104,7 +1116,7 @@ export default function LogExerciseScreen() {
                 onPress={() => setVariantModalVisible(false)}
                 style={s.modalCancel}
               >
-                <Text style={s.modalCancelText}>Cancelar</Text>
+                <Text style={[s.modalCancelText, secTxt]}>Cancelar</Text>
               </AnimatedPressable>
               <AnimatedPressable
                 onPress={handleAddVariant}
@@ -1122,6 +1134,7 @@ export default function LogExerciseScreen() {
         </Pressable>
       </Modal>
     </View>
+    </ThemeReady>
   );
 }
 
@@ -1130,7 +1143,6 @@ export default function LogExerciseScreen() {
 const s = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: BG.screen,
   },
   flex: { flex: 1 },
   scrollContent: {
@@ -1146,40 +1158,33 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.xs,
   },
   backStepText: {
-    color: ATP_BRAND.lime,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.sm,
   },
 
   // --- Comunes ---
   stepLabel: {
-    color: ATP_BRAND.lime,
     letterSpacing: 2,
     marginBottom: Spacing.md,
     marginTop: Spacing.sm,
   },
   loadingText: {
-    color: TEXT.tertiary,
     textAlign: 'center',
     marginTop: Spacing.xl,
   },
   emptyText: {
-    color: TEXT.tertiary,
     textAlign: 'center',
     marginTop: Spacing.xl,
   },
   muscleText: {
-    color: TEXT.secondary,
     marginTop: 2,
   },
   equipmentText: {
-    color: TEXT.tertiary,
     marginTop: 2,
   },
 
   // --- Paso 1: Benchmarks ---
   benchmarkCard: {
-    backgroundColor: BG.input,
     borderRadius: Radius.card,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
@@ -1212,7 +1217,6 @@ const s = StyleSheet.create({
 
   // --- Paso 2: Variantes ---
   officialCard: {
-    backgroundColor: BG.input,
     borderRadius: Radius.card,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
@@ -1246,7 +1250,6 @@ const s = StyleSheet.create({
     letterSpacing: 1,
   },
   variantCard: {
-    backgroundColor: BG.input,
     borderRadius: Radius.card,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
@@ -1273,7 +1276,6 @@ const s = StyleSheet.create({
     borderStyle: 'dashed',
   },
   addVariantText: {
-    color: ATP_BRAND.lime,
     fontFamily: Fonts.semiBold,
   },
 
@@ -1311,7 +1313,6 @@ const s = StyleSheet.create({
     gap: Spacing.xs,
   },
   colLabel: {
-    color: TEXT.tertiary,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.xs,
     letterSpacing: 1,
@@ -1329,7 +1330,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.xs,
     marginBottom: Spacing.sm,
-    backgroundColor: BG.input,
     borderRadius: Radius.sm,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.xs,
@@ -1338,7 +1338,6 @@ const s = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: ELEVATION[2].bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1346,7 +1345,6 @@ const s = StyleSheet.create({
     backgroundColor: ATP_BRAND.lime,
   },
   setCircleText: {
-    color: TEXT.secondary,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.sm,
   },
@@ -1356,8 +1354,6 @@ const s = StyleSheet.create({
   input: {
     fontFamily: Fonts.bold,
     fontSize: FontSizes.md,
-    color: TEXT.primary,
-    backgroundColor: ELEVATION[2].bg,
     borderRadius: Radius.sm,
     paddingVertical: Spacing.xs + 2,
     paddingHorizontal: Spacing.xs,
@@ -1368,7 +1364,6 @@ const s = StyleSheet.create({
     color: CATEGORY_COLORS.mind,
   },
   live1rmText: {
-    color: ATP_BRAND.lime,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.sm,
     textAlign: 'center',
@@ -1386,7 +1381,6 @@ const s = StyleSheet.create({
     borderStyle: 'dashed',
   },
   addSetText: {
-    color: ATP_BRAND.lime,
     fontFamily: Fonts.semiBold,
   },
 
@@ -1415,7 +1409,6 @@ const s = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: ELEVATION[1].bg,
     borderTopLeftRadius: Radius.lg,
     borderTopRightRadius: Radius.lg,
     padding: Spacing.lg,
@@ -1426,12 +1419,10 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   modalSubtitle: {
-    color: TEXT.secondary,
     textAlign: 'center',
     marginBottom: Spacing.lg,
   },
   modalLabel: {
-    color: TEXT.secondary,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.sm,
     marginBottom: Spacing.xs,
@@ -1440,8 +1431,6 @@ const s = StyleSheet.create({
   modalInput: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.md,
-    color: TEXT.primary,
-    backgroundColor: ELEVATION[2].bg,
     borderRadius: Radius.sm,
     paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.md,
@@ -1461,7 +1450,6 @@ const s = StyleSheet.create({
     borderColor: ELEVATION[3].border,
   },
   modalCancelText: {
-    color: TEXT.secondary,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.md,
   },

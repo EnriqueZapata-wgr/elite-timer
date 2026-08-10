@@ -16,8 +16,9 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND, ELEVATION, TEXT } from '@/src/constants/brand';
+import { ATP_BRAND } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 interface Section {
   title: string;
@@ -86,9 +87,17 @@ export default function NBackSaberMasScreen() {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
 
+  // MB-31B3: tokens del tema — solo neutros; lima (bullet) y gradiente quedan.
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
+  const priTxt = { color: t.texto };
+  const tenueTxt = { color: t.textoTenue };
+  const cardSurf = { backgroundColor: t.card, borderColor: t.borde };
+
   return (
-    <View style={s.screen}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[s.screen, { backgroundColor: t.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <StickyPillarBanner scrolled={scrolled} onBack={() => router.back()} />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -98,8 +107,8 @@ export default function NBackSaberMasScreen() {
       >
         <View style={s.header}>
           <EliteText style={s.kicker}>N-BACK · LA CIENCIA</EliteText>
-          <EliteText style={s.title}>Saber más</EliteText>
-          <EliteText style={s.subtitle}>
+          <EliteText style={[s.title, priTxt]}>Saber más</EliteText>
+          <EliteText style={[s.subtitle, secTxt]}>
             Qué entrena el N-Back, de dónde viene y qué dice la evidencia, sin
             marketing.
           </EliteText>
@@ -108,26 +117,26 @@ export default function NBackSaberMasScreen() {
         <View style={s.body}>
           {SECTIONS.map(section => (
             <View key={section.title} style={s.section}>
-              <EliteText style={s.sectionTitle}>{section.title}</EliteText>
+              <EliteText style={[s.sectionTitle, priTxt]}>{section.title}</EliteText>
               {section.paragraphs?.map((p, i) => (
-                <EliteText key={i} style={s.paragraph}>{p}</EliteText>
+                <EliteText key={i} style={[s.paragraph, secTxt]}>{p}</EliteText>
               ))}
               {section.bullets?.map((b, i) => (
                 <View key={i} style={s.bulletRow}>
                   <View style={s.bulletDot} />
-                  <EliteText style={s.bulletText}>{b}</EliteText>
+                  <EliteText style={[s.bulletText, secTxt]}>{b}</EliteText>
                 </View>
               ))}
               {section.outro?.map((p, i) => (
-                <EliteText key={i} style={s.paragraph}>{p}</EliteText>
+                <EliteText key={i} style={[s.paragraph, secTxt]}>{p}</EliteText>
               ))}
             </View>
           ))}
 
-          <View style={s.sourcesCard}>
-            <EliteText style={s.sourcesTitle}>FUENTES</EliteText>
+          <View style={[s.sourcesCard, cardSurf]}>
+            <EliteText style={[s.sourcesTitle, tenueTxt]}>FUENTES</EliteText>
             {SOURCES.map((src, i) => (
-              <EliteText key={i} style={s.sourceText}>{src}</EliteText>
+              <EliteText key={i} style={[s.sourceText, tenueTxt]}>{src}</EliteText>
             ))}
           </View>
 
@@ -145,25 +154,26 @@ export default function NBackSaberMasScreen() {
         </View>
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#000' },
+  screen: { flex: 1 },
   scroll: { paddingBottom: Spacing.xxl },
   header: { paddingTop: 108, paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
   kicker: { color: '#7F77DD', fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 3 },
-  title: { color: '#fff', fontSize: 30, fontFamily: Fonts.extraBold, letterSpacing: 1, marginTop: 2 },
-  subtitle: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 8, lineHeight: 20 },
+  title: { fontSize: 30, fontFamily: Fonts.extraBold, letterSpacing: 1, marginTop: 2 },
+  subtitle: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 8, lineHeight: 20 },
   body: { paddingHorizontal: Spacing.md },
 
   section: { marginBottom: Spacing.lg },
   sectionTitle: {
-    color: '#fff', fontSize: FontSizes.lg, fontFamily: Fonts.extraBold,
+    fontSize: FontSizes.lg, fontFamily: Fonts.extraBold,
     letterSpacing: 0.5, marginBottom: Spacing.xs,
   },
   paragraph: {
-    color: TEXT.secondary, fontSize: FontSizes.md, fontFamily: Fonts.regular,
+    fontSize: FontSizes.md, fontFamily: Fonts.regular,
     lineHeight: 23, marginTop: Spacing.xs,
   },
   bulletRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
@@ -172,20 +182,20 @@ const s = StyleSheet.create({
     marginTop: 8,
   },
   bulletText: {
-    flex: 1, color: TEXT.secondary, fontSize: FontSizes.md, fontFamily: Fonts.regular,
+    flex: 1, fontSize: FontSizes.md, fontFamily: Fonts.regular,
     lineHeight: 23,
   },
 
   sourcesCard: {
-    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 0.5,
+    borderWidth: 0.5,
     borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.md,
   },
   sourcesTitle: {
-    color: TEXT.tertiary, fontSize: 11, fontFamily: Fonts.bold,
+    fontSize: 11, fontFamily: Fonts.bold,
     letterSpacing: 2, marginBottom: Spacing.xs,
   },
   sourceText: {
-    color: TEXT.tertiary, fontSize: FontSizes.xs, fontFamily: Fonts.regular,
+    fontSize: FontSizes.xs, fontFamily: Fonts.regular,
     lineHeight: 17, marginTop: 6,
   },
 

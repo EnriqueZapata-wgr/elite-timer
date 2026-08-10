@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { StatusBar } from 'expo-status-bar';
 
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
@@ -34,6 +35,7 @@ import type { ScoreBreakdown } from '@/src/services/nutrition-score-core';
 import { NutritionScoreCard } from '@/src/components/nutricion/NutritionScoreCard';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, TEXT_COLORS } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { ArgosMark } from '@/src/components/argos/ArgosMark';
 
@@ -65,6 +67,8 @@ const MACRO_BANNER_KEY = '@atp/macro_banner_seen';
 export default function NutritionScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B3: la pantalla migró a tokens (Screen themed) y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
   const { macroMode } = useMacroMode();
   // T1/T2 NUTRICIÓN: cards visibles según modo simple/completo (#52)
   const { mode } = useNutritionMode();
@@ -168,7 +172,8 @@ export default function NutritionScreen() {
   // Nu1: addWater/waterPct removidos junto con la card de Hidratación (ahora en Hábitos).
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="nutrition" title="Nutrición" rightContent={
         <HelpButton
           title="¿Cómo registrar tu comida?"
@@ -221,7 +226,7 @@ export default function NutritionScreen() {
               hitSlop={8}
               style={({ pressed }) => pressed && { opacity: 0.5, transform: [{ scale: 0.9 }] }}
             >
-              <Ionicons name="close" size={18} color="#888" />
+              <Ionicons name="close" size={18} color={t.textoSecundario} />
             </Pressable>
           </Animated.View>
         )}
@@ -368,6 +373,9 @@ function NavCard({ icon, mark, color, title, subtitle, badge, badgeColor, onPres
   icon?: string; mark?: boolean; color: string; title: string; subtitle: string;
   badge?: string; badgeColor?: string; onPress: () => void;
 }) {
+  // MB-31B3: el degradado de la card es tinte transparente sobre el fondo —
+  // el texto neutro sigue el tema (mismo criterio que fitness-hub).
+  const { tokens: t } = useAppTheme();
   return (
     <AnimatedPressable onPress={onPress} style={s.navCard}>
       <GradientCard gradient={{ start: `${color}12`, end: `${color}04` }} accentColor={color} accentPosition="left" padding={16}>
@@ -377,7 +385,7 @@ function NavCard({ icon, mark, color, title, subtitle, badge, badgeColor, onPres
             {mark ? <ArgosMark size={22} /> : <Ionicons name={icon as any} size={22} color={color} />}
           </View>
           <View style={{ flex: 1 }}>
-            <EliteText style={s.navTitle}>{title}</EliteText>
+            <EliteText style={[s.navTitle, { color: t.texto }]}>{title}</EliteText>
             <EliteText style={s.navSub}>{subtitle}</EliteText>
           </View>
           {badge ? (
@@ -423,7 +431,7 @@ const s = StyleSheet.create({
   insightText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#cbd5e1', lineHeight: 19, fontStyle: 'italic' },
   navRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   navIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  navTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, color: '#fff' },
+  navTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.bold },
   navSub: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   badgeText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold },

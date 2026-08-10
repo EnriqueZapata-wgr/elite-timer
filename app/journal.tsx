@@ -22,7 +22,9 @@ import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, BG, ATP_BRAND, CATEGORY_COLORS } from '@/src/constants/brand';
+import { SEMANTIC, withOpacity, ATP_BRAND, CATEGORY_COLORS } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { StatusBar } from 'expo-status-bar';
 import { JOURNAL_TYPES } from '@/src/constants/journal-types';
 import { MenteHubCard } from '@/src/components/mente/MenteHubCard';
 import { Screen } from '@/src/components/ui/Screen';
@@ -72,6 +74,9 @@ const STOIC_QUOTES = [
 export default function JournalScreen() {
   const { user } = useAuth();
   const analytics = useAnalytics();
+  // MB-31B3: la pantalla migró a tokens (Screen themed) y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
   // Track F (MB-10): la navegación emocional aterriza AQUÍ con tipo
   // preseleccionado y su prompt — el journal es el vehículo de cruzar/reencuadrar.
   const params = useLocalSearchParams<{ journalType?: string; prompt?: string }>();
@@ -313,7 +318,8 @@ export default function JournalScreen() {
   if (selectedType) {
     const typeInfo = JOURNAL_TYPES.find(t => t.key === selectedType)!;
     return (
-      <Screen edges={['top']}>
+      <Screen themed edges={['top']}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         {/* 3.3 (V1.5): el editor también carga hero editorial — antes caía del
             hero del home a un header de texto pelón (nivel-down). El back del
             hero regresa al selector. */}
@@ -338,15 +344,15 @@ export default function JournalScreen() {
           {/* Track F (MB-10): el prompt de la navegación emocional encabeza el
               formulario — la herramienta llega con la pregunta puesta. */}
           {typeof params.prompt === 'string' && params.prompt.length > 0 && (
-            <Animated.View entering={FadeInUp.delay(80).springify()} style={s.navPromptCard}>
-              <EliteText variant="caption" style={s.navPromptKicker}>DESDE TU NAVEGACIÓN</EliteText>
-              <EliteText variant="body" style={s.navPromptText}>{params.prompt}</EliteText>
+            <Animated.View entering={FadeInUp.delay(80).springify()} style={[s.navPromptCard, { backgroundColor: t.card }]}>
+              <EliteText variant="caption" style={[s.navPromptKicker, secTxt]}>DESDE TU NAVEGACIÓN</EliteText>
+              <EliteText variant="body" style={[s.navPromptText, { color: t.texto }]}>{params.prompt}</EliteText>
             </Animated.View>
           )}
 
           {/* Mood antes */}
           <Animated.View entering={FadeInUp.delay(100).springify()}>
-            <EliteText variant="caption" style={s.label}>¿Cómo te sientes ahora?</EliteText>
+            <EliteText variant="caption" style={[s.label, secTxt]}>¿Cómo te sientes ahora?</EliteText>
             <MoodSelector value={moodBefore} onChange={setMoodBefore} />
           </Animated.View>
 
@@ -361,7 +367,7 @@ export default function JournalScreen() {
           {/* Mood después */}
           {hasEnoughContent() && (
             <Animated.View entering={FadeInUp.springify()}>
-              <EliteText variant="caption" style={s.label}>¿Cómo te sientes después de escribir?</EliteText>
+              <EliteText variant="caption" style={[s.label, secTxt]}>¿Cómo te sientes después de escribir?</EliteText>
               <MoodSelector value={moodAfter} onChange={setMoodAfter} />
             </Animated.View>
           )}
@@ -381,7 +387,8 @@ export default function JournalScreen() {
   // ═══ SELECTOR DE TIPO ═══
 
   return (
-    <Screen edges={['top']}>
+    <Screen themed edges={['top']}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       {/* #138: hero editorial del pilar (reusa mente.jpg); conserva historial + ayuda. */}
       <MenteHero
         image={HERO_MENTE}
@@ -391,12 +398,13 @@ export default function JournalScreen() {
         rightContent={
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             {/* #39: historial dedicado con filtros/búsqueda/edición */}
+            {/* Iconos sobre el hero fotográfico: blanco anclado (no se tematiza). */}
             <Pressable onPress={() => { haptic.light(); router.push('/journal-history'); }} hitSlop={8}>
-              <Ionicons name="time-outline" size={22} color="#fff" />
+              <Ionicons name="time-outline" size={22} color={ATP_BRAND.white} />
             </Pressable>
             <HelpButton
               title="Tu diario ATP"
-              color="#fff"
+              color={ATP_BRAND.white}
               tips={[
                 'Elige entre 4 tipos: Gratitud, Visión, Estoico o Descarga',
                 'Escribe libremente: no hay longitud mínima',
@@ -427,23 +435,24 @@ export default function JournalScreen() {
         {/* Recordatorio diario */}
         <View style={{
           flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-          backgroundColor: SURFACES.card, borderRadius: Radius.card, padding: Spacing.md,
+          backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md,
           marginTop: Spacing.md,
         }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Ionicons name="notifications-outline" size={18} color={PURPLE} />
-            <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.sm }}>Recordatorio diario</EliteText>
+            <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: FontSizes.sm }}>Recordatorio diario</EliteText>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {/* Regla 2 del manual: el teal como texto va calibrado por tema. */}
             <Pressable onPress={() => setReminderPickerOpen(true)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <EliteText variant="caption" style={{ color: ATP_BRAND.teal, fontSize: FontSizes.sm, fontFamily: Fonts.bold }}>{reminderTime}</EliteText>
-              <Ionicons name="pencil-outline" size={12} color={ATP_BRAND.teal} />
+              <EliteText variant="caption" style={{ color: t.tealTexto, fontSize: FontSizes.sm, fontFamily: Fonts.bold }}>{reminderTime}</EliteText>
+              <Ionicons name="pencil-outline" size={12} color={t.tealTexto} />
             </Pressable>
             <Switch
               value={reminderEnabled}
               onValueChange={toggleReminder}
-              trackColor={{ true: ATP_BRAND.teal, false: '#333' }}
-              thumbColor="#fff"
+              trackColor={{ true: ATP_BRAND.teal, false: t.bordeMarcado }}
+              thumbColor={ATP_BRAND.white}
             />
           </View>
         </View>
@@ -459,7 +468,7 @@ export default function JournalScreen() {
         {/* Entradas recientes */}
         {entries.length > 0 && (
           <View style={s.recentSection}>
-            <EliteText variant="caption" style={s.recentLabel}>ENTRADAS RECIENTES</EliteText>
+            <EliteText variant="caption" style={[s.recentLabel, secTxt]}>ENTRADAS RECIENTES</EliteText>
             {entries.map((entry, idx) => {
               const typeInfo = JOURNAL_TYPES.find(t => t.key === entry.journal_type);
               const typeColor = typeInfo?.color ?? PURPLE;
@@ -470,21 +479,21 @@ export default function JournalScreen() {
                 <StaggerItem key={entry.id ?? idx} index={idx}>
                   <SwipeToDeleteRow onConfirmDelete={() => deleteEntry(entry.id)}>
                     <Pressable onLongPress={() => deleteEntry(entry.id)}>
-                      <View style={s.entryCard}>
+                      <View style={[s.entryCard, { backgroundColor: t.card }]}>
                         <View style={s.entryHeader}>
-                          <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontFamily: Fonts.bold, fontSize: FontSizes.xs }}>{dateStr}</EliteText>
+                          <EliteText variant="caption" style={{ color: t.textoSecundario, fontFamily: Fonts.bold, fontSize: FontSizes.xs }}>{dateStr}</EliteText>
                           <View style={[s.typeBadge, { backgroundColor: withOpacity(typeColor, 0.12) }]}>
                             <EliteText variant="caption" style={{ color: typeColor, fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>{typeLabel}</EliteText>
                           </View>
                         </View>
-                        <EliteText variant="caption" numberOfLines={2} style={s.entryPreview}>{preview}</EliteText>
+                        <EliteText variant="caption" numberOfLines={2} style={[s.entryPreview, secTxt]}>{preview}</EliteText>
                       </View>
                     </Pressable>
                   </SwipeToDeleteRow>
                 </StaggerItem>
               );
             })}
-            <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs, textAlign: 'center', marginTop: 8 }}>
+            <EliteText variant="caption" style={{ color: t.textoTenue, fontSize: FontSizes.xs, textAlign: 'center', marginTop: 8 }}>
               Desliza ← (o mantén presionado) para eliminar
             </EliteText>
           </View>
@@ -504,12 +513,17 @@ export default function JournalScreen() {
  * drag vertical que empieza sobre el input siempre scrollea la página. */
 function JournalInput({ style, onFocus, onBlur, multiline, ...rest }: TextInputProps) {
   const [focused, setFocused] = useState(false);
+  // MB-31B3: superficie/texto/placeholder del input desde tokens. El foco
+  // eleva (#161616 → flotante, delta imperceptible en oscuro) y mantiene el
+  // borde del pilar.
+  const { tokens: t } = useAppTheme();
   return (
     <TextInput
+      placeholderTextColor={t.textoTenue}
       {...rest}
       multiline={multiline}
       scrollEnabled={multiline ? false : undefined}
-      style={[s.input, focused && s.inputFocused, style]}
+      style={[s.input, { backgroundColor: t.card, color: t.texto }, focused && [s.inputFocused, { backgroundColor: t.flotante }], style]}
       onFocus={(e) => { setFocused(true); onFocus?.(e); }}
       onBlur={(e) => { setFocused(false); onBlur?.(e); }}
     />
@@ -538,7 +552,7 @@ function GratitudeForm({ personal, setPersonal, professional, setProfessional, s
           <EliteText variant="caption" style={[s.sectionTitle, { color: CATEGORY_COLORS.cycle }]}>{sec.title}</EliteText>
           {sec.data.map((val, i) => (
             <JournalInput key={i} value={val} onChangeText={v => updateArr(sec.data, sec.setter, i, v)}
-              placeholder={`${i + 1}. ${sec.placeholder}`} placeholderTextColor={TEXT_COLORS.muted} />
+              placeholder={`${i + 1}. ${sec.placeholder}`} />
           ))}
         </View>
       ))}
@@ -560,7 +574,7 @@ function VisionForm({ v1, setV1, v3, setV3, v5, setV5 }: {
         <View key={f.label} style={s.formSection}>
           <EliteText variant="caption" style={[s.sectionTitle, { color: CATEGORY_COLORS.metrics }]}>{f.label}</EliteText>
           <JournalInput style={{ minHeight: 100 }} value={f.value} onChangeText={f.setter}
-            placeholder={f.placeholder} placeholderTextColor={TEXT_COLORS.muted} multiline textAlignVertical="top" />
+            placeholder={f.placeholder} multiline textAlignVertical="top" />
         </View>
       ))}
     </View>
@@ -581,7 +595,7 @@ function StoicForm({ answers, setAnswers }: { answers: string[]; setAnswers: (v:
         <View key={i} style={s.formSection}>
           <EliteText variant="caption" style={[s.sectionTitle, { color: PURPLE }]}>{q}</EliteText>
           <JournalInput value={answers[i]} onChangeText={v => update(i, v)}
-            placeholder="Tu reflexión..." placeholderTextColor={TEXT_COLORS.muted} multiline />
+            placeholder="Tu reflexión..." multiline />
         </View>
       ))}
     </View>
@@ -600,7 +614,7 @@ function WorkDumpForm({ tasks, setTasks, freeform, setFreeform }: {
       {tasks.map((t, i) => (
         <View key={i} style={s.taskRow}>
           <JournalInput style={{ flex: 1 }} value={t} onChangeText={v => updateTask(i, v)}
-            placeholder={`Pendiente ${i + 1}...`} placeholderTextColor={TEXT_COLORS.muted} />
+            placeholder={`Pendiente ${i + 1}...`} />
           <Pressable onPress={() => removeTask(i)} hitSlop={8} style={s.removeBtn}>
             <Ionicons name="close-circle" size={20} color={SEMANTIC.error} />
           </Pressable>
@@ -613,7 +627,7 @@ function WorkDumpForm({ tasks, setTasks, freeform, setFreeform }: {
 
       <EliteText variant="caption" style={[s.sectionTitle, { color: CATEGORY_COLORS.optimization, marginTop: Spacing.lg }]}>Descarga libre</EliteText>
       <JournalInput style={{ minHeight: 120 }} value={freeform} onChangeText={setFreeform}
-        placeholder="Escribe todo lo que tengas en la cabeza..." placeholderTextColor={TEXT_COLORS.muted} multiline textAlignVertical="top" />
+        placeholder="Escribe todo lo que tengas en la cabeza..." multiline textAlignVertical="top" />
     </View>
   );
 }
@@ -621,6 +635,9 @@ function WorkDumpForm({ tasks, setTasks, freeform, setFreeform }: {
 // ═══ MOOD SELECTOR ═══
 
 function MoodSelector({ value, onChange }: { value: number | null; onChange: (v: number) => void }) {
+  // MB-31B3: aro y número desde tokens; el activo es relleno semántico con
+  // negro encima (decisión del manual: texto sobre relleno = negro).
+  const { tokens: t } = useAppTheme();
   return (
     <View style={s.moodRow}>
       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => {
@@ -628,9 +645,9 @@ function MoodSelector({ value, onChange }: { value: number | null; onChange: (v:
         const color = v <= 3 ? SEMANTIC.error : v <= 6 ? SEMANTIC.warning : SEMANTIC.success;
         return (
           <Pressable key={v} onPress={() => { haptic.light(); onChange(v); }}
-            style={[s.moodDot, isActive && { backgroundColor: color, borderColor: color }]}>
+            style={[s.moodDot, { borderColor: t.textoTenue }, isActive && { backgroundColor: color, borderColor: color }]}>
             {/* F31: mostrar el número siempre (antes solo activo → círculos casi invisibles). */}
-            <EliteText style={{ color: isActive ? Colors.black : '#888', fontSize: 9, fontFamily: Fonts.bold }}>{v}</EliteText>
+            <EliteText style={{ color: isActive ? Colors.black : t.textoSecundario, fontSize: 9, fontFamily: Fonts.bold }}>{v}</EliteText>
           </Pressable>
         );
       })}
@@ -640,46 +657,48 @@ function MoodSelector({ value, onChange }: { value: number | null; onChange: (v:
 
 // ═══ ESTILOS ═══
 
+// MB-31B3: superficies/texto neutros → tokens inline; aquí queda layout +
+// identidad (morado del pilar, colores de tipo de journal, semánticos).
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: BG.screen },
+  screen: { flex: 1 },
   scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
-  subtitle: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginBottom: Spacing.md, marginTop: Spacing.xs },
+  subtitle: { fontSize: FontSizes.sm, marginBottom: Spacing.md, marginTop: Spacing.xs },
 
   // Entradas recientes
   recentSection: { marginTop: Spacing.xl },
-  recentLabel: { color: TEXT_COLORS.secondary, letterSpacing: 2, fontFamily: Fonts.bold, fontSize: FontSizes.xs, marginBottom: Spacing.sm },
+  recentLabel: { letterSpacing: 2, fontFamily: Fonts.bold, fontSize: FontSizes.xs, marginBottom: Spacing.sm },
   entryCard: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    borderRadius: Radius.card,
     padding: Spacing.md, marginBottom: Spacing.sm,
   },
   entryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
   typeBadge: { borderRadius: Radius.pill, paddingHorizontal: Spacing.sm, paddingVertical: 2 },
-  entryPreview: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, lineHeight: 18 },
+  entryPreview: { fontSize: FontSizes.sm, lineHeight: 18 },
 
   // Formulario
   formSection: { marginBottom: Spacing.md },
   // 3.3 (V1.5): las preguntas/labels pasan de caption a header editorial.
   sectionTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.md, letterSpacing: 0.3, marginBottom: Spacing.xs },
   input: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card,
-    color: TEXT_COLORS.primary, fontFamily: Fonts.regular, fontSize: FontSizes.md,
+    borderRadius: Radius.card,
+    fontFamily: Fonts.regular, fontSize: FontSizes.md,
     padding: Spacing.md, marginBottom: Spacing.xs, lineHeight: 22,
     // 3.3 (V1.5): borde transparente reservado — el focus lo pinta sin brincos.
     borderWidth: 1, borderColor: 'transparent',
   },
-  inputFocused: { borderColor: withOpacity(PURPLE, 0.6), backgroundColor: '#161616' },
+  inputFocused: { borderColor: withOpacity(PURPLE, 0.6) },
 
   // Mood
-  label: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginBottom: Spacing.xs, marginTop: Spacing.md },
+  label: { fontSize: FontSizes.xs, marginBottom: Spacing.xs, marginTop: Spacing.md },
   // Track F (MB-10): prompt que llega desde la navegación emocional
   navPromptCard: {
-    backgroundColor: BG.card, borderRadius: Radius.md, borderWidth: 0.5,
+    borderRadius: Radius.md, borderWidth: 0.5,
     borderColor: withOpacity(PURPLE, 0.35), padding: Spacing.md, gap: 4,
   },
-  navPromptKicker: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2 },
-  navPromptText: { color: TEXT_COLORS.primary, fontSize: FontSizes.md, lineHeight: 22 },
+  navPromptKicker: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2 },
+  navPromptText: { fontSize: FontSizes.md, lineHeight: 22 },
   moodRow: { flexDirection: 'row', gap: 6, marginBottom: Spacing.md },
-  moodDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: '#555', alignItems: 'center', justifyContent: 'center' },
+  moodDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
 
   // Work dump
   taskRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
@@ -693,7 +712,7 @@ const s = StyleSheet.create({
     padding: Spacing.md, borderWidth: 1, borderColor: withOpacity(PURPLE, 0.2),
     marginBottom: Spacing.lg,
   },
-  quoteText: { flex: 1, color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, lineHeight: 18, fontStyle: 'italic' },
+  quoteText: { flex: 1, fontSize: FontSizes.sm, lineHeight: 18, fontStyle: 'italic' },
 
   // Guardar
   saveBtn: {

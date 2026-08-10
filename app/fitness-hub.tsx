@@ -13,6 +13,7 @@
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, ImageBackground, DeviceEventEmitter } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
@@ -27,7 +28,8 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { pickFitnessImage } from '@/src/utils/yo-image-picker';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT, SEMANTIC, CATEGORY_COLORS, ELEVATION, GLOW, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT, SEMANTIC, CATEGORY_COLORS, GLOW, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { supabase } from '@/src/lib/supabase';
 import { toLocalDateString } from '@/src/utils/date-helpers';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -57,6 +59,8 @@ const NAV_ITEMS = [
 export default function FitnessHubScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
   // D-3 (MB-12): null = aún sin leer o falló — jamás pintar ceros por error.
   const [stats, setStats] = useState<{ sessions: number; volume: number; prs: number } | null>(null);
   const [today, setToday] = useState<TodayFitnessState | null>(null);
@@ -155,8 +159,8 @@ export default function FitnessHubScreen() {
   function renderHoy() {
     if (!today) {
       return (
-        <View style={s.heroLoading}>
-          <EliteText style={s.heroLoadingText}>Preparando tu día…</EliteText>
+        <View style={[s.heroLoading, { backgroundColor: t.card, borderColor: t.borde }]}>
+          <EliteText style={[s.heroLoadingText, { color: t.textoSecundario }]}>Preparando tu día…</EliteText>
         </View>
       );
     }
@@ -318,7 +322,8 @@ export default function FitnessHubScreen() {
   }
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="fitness" title="Fitness" />
       <View style={{ paddingHorizontal: Spacing.md, marginBottom: Spacing.sm }}>
         <CommunityPresence pillar="fitness" />
@@ -335,24 +340,24 @@ export default function FitnessHubScreen() {
             MB-3.7 §1.5: el día que YA entrenaste, la card se oculta — el hero
             de completado trae los logros de hoy y no compiten dos resúmenes. */}
         {today?.kind !== 'entrenado' && (
-        <Animated.View entering={FadeInUp.delay(120).springify()} style={s.weekCard}>
-          <EliteText style={s.weekLabel}>ESTA SEMANA</EliteText>
+        <Animated.View entering={FadeInUp.delay(120).springify()} style={[s.weekCard, { backgroundColor: t.card, borderColor: t.borde }]}>
+          <EliteText style={[s.weekLabel, { color: t.textoSecundario }]}>ESTA SEMANA</EliteText>
           <View style={s.statsRow}>
             <View style={s.statItem}>
-              <EliteText style={s.statValue}>{stats ? stats.sessions : '–'}</EliteText>
-              <EliteText style={s.statLabel}>Sesiones</EliteText>
+              <EliteText style={[s.statValue, { color: t.texto }]}>{stats ? stats.sessions : '–'}</EliteText>
+              <EliteText style={[s.statLabel, { color: t.textoSecundario }]}>Sesiones</EliteText>
             </View>
             <View style={s.statDivider} />
             <View style={s.statItem}>
-              <EliteText style={s.statValue}>
+              <EliteText style={[s.statValue, { color: t.texto }]}>
                 {stats ? (stats.volume > 1000 ? `${(stats.volume / 1000).toFixed(1)}k` : stats.volume) : '–'}
               </EliteText>
-              <EliteText style={s.statLabel}>Kg movidos</EliteText>
+              <EliteText style={[s.statLabel, { color: t.textoSecundario }]}>Kg movidos</EliteText>
             </View>
             <View style={s.statDivider} />
             <View style={s.statItem}>
               <EliteText style={[s.statValue, { color: SEMANTIC.acceptable }]}>{stats ? stats.prs : '–'}</EliteText>
-              <EliteText style={s.statLabel}>PRs nuevos</EliteText>
+              <EliteText style={[s.statLabel, { color: t.textoSecundario }]}>PRs nuevos</EliteText>
             </View>
           </View>
         </Animated.View>
@@ -369,10 +374,10 @@ export default function FitnessHubScreen() {
                       <Ionicons name={item.icon} size={20} color={item.color} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <EliteText style={s.navName}>{item.name}</EliteText>
-                      <EliteText style={s.navSub}>{item.subtitle}</EliteText>
+                      <EliteText style={[s.navName, { color: t.texto }]}>{item.name}</EliteText>
+                      <EliteText style={[s.navSub, { color: t.textoSecundario }]}>{item.subtitle}</EliteText>
                     </View>
-                    <Ionicons name="chevron-forward" size={18} color={TEXT.tertiary} />
+                    <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
                   </View>
                 </GradientCard>
               </AnimatedPressable>
@@ -414,9 +419,9 @@ const s = StyleSheet.create({
   heroInner: { padding: 20 },
   heroLoading: {
     borderRadius: 20, minHeight: 300, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
   },
-  heroLoadingText: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: FontSizes.sm },
+  heroLoadingText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm },
   heroKicker: {
     fontSize: 10, fontFamily: Fonts.bold, color: 'rgba(255,255,255,0.7)',
     letterSpacing: 2, marginBottom: 6,
@@ -446,23 +451,23 @@ const s = StyleSheet.create({
 
   // La semana (secundario)
   weekCard: {
-    marginTop: Spacing.md, backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    marginTop: Spacing.md, borderWidth: 1,
     borderRadius: 16, padding: Spacing.md,
   },
   weekLabel: {
-    fontSize: 9, fontFamily: Fonts.bold, color: TEXT.secondary,
+    fontSize: 9, fontFamily: Fonts.bold,
     letterSpacing: 2, marginBottom: Spacing.sm,
   },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
   statItem: { alignItems: 'center', flex: 1 },
-  statValue: { fontSize: 22, fontFamily: Fonts.extraBold, color: TEXT.primary, fontVariant: ['tabular-nums'] },
-  statLabel: { fontSize: 10, fontFamily: Fonts.semiBold, color: TEXT.secondary, marginTop: 2 },
+  statValue: { fontSize: 22, fontFamily: Fonts.extraBold, fontVariant: ['tabular-nums'] },
+  statLabel: { fontSize: 10, fontFamily: Fonts.semiBold, marginTop: 2 },
   statDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.06)' },
 
   // Navegación terciaria
   navCard: { padding: Spacing.md, marginBottom: Spacing.sm },
   navRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   navIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  navName: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT.primary, marginBottom: 2 },
-  navSub: { fontSize: FontSizes.xs, color: TEXT.secondary },
+  navName: { fontSize: FontSizes.md, fontFamily: Fonts.bold, marginBottom: 2 },
+  navSub: { fontSize: FontSizes.xs },
 });

@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, FlatList, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,6 +29,7 @@ import {
 } from '@/src/constants/exercise-matrix';
 import { ATP_BRAND, TEXT, TEXT_COLORS, ELEVATION, withOpacity, brandGradient } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 // MB-3.5 #9: filtros por los ejes que el usuario realmente piensa.
 const GRUPOS = ['Todos', ...Object.keys(GRUPOS_MUSCULARES)];
@@ -44,6 +46,10 @@ function normaliza(s: string): string {
 export default function ExerciseLibraryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ tab?: string }>();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: tk } = useAppTheme();
+  // Regla 1 de la guía: lima como TEXTO no sobrevive el claro → teal calibrado.
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tk.tealTexto;
   // MB-3.6 §1.1: los métodos ATP viven aquí (antes /training-methods suelto) —
   // la teoría junto a los ejercicios, no como destino hermano.
   const [tab, setTab] = useState<'ejercicios' | 'metodos'>(params.tab === 'metodos' ? 'metodos' : 'ejercicios');
@@ -99,7 +105,8 @@ export default function ExerciseLibraryScreen() {
   const ejeActivo = EJES.find((e) => e.key === ejeAbierto) ?? null;
 
   return (
-    <Screen edges={[]}>
+    <Screen themed edges={[]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Biblioteca" />
 
       {/* Tabs: ejercicios | métodos ATP — MB-5 Bloque 3: activo = degradado editorial */}
@@ -111,12 +118,12 @@ export default function ExerciseLibraryScreen() {
           <AnimatedPressable
             key={t.key}
             onPress={() => { haptic.light(); setTab(t.key); }}
-            style={[s.tabChip, tab === t.key && s.chipActivoGrad]}
+            style={[s.tabChip, { backgroundColor: tk.card, borderColor: tk.borde }, tab === t.key && s.chipActivoGrad]}
           >
             {tab === t.key && (
               <LinearGradient colors={brandGradient()} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
             )}
-            <Text style={[s.tabText, tab === t.key && s.tabTextActivo]}>{t.label}</Text>
+            <Text style={[s.tabText, { color: tk.textoSecundario }, tab === t.key && s.tabTextActivo]}>{t.label}</Text>
           </AnimatedPressable>
         ))}
       </View>
@@ -128,19 +135,19 @@ export default function ExerciseLibraryScreen() {
       ) : (
       <>
       {/* Buscador */}
-      <View style={s.searchWrap}>
-        <Ionicons name="search" size={16} color={TEXT.tertiary} />
+      <View style={[s.searchWrap, { backgroundColor: tk.card, borderColor: tk.borde }]}>
+        <Ionicons name="search" size={16} color={tk.textoTenue} />
         <TextInput
-          style={s.searchInput}
+          style={[s.searchInput, { color: tk.texto }]}
           value={busqueda}
           onChangeText={setBusqueda}
           placeholder="Buscar ejercicio, músculo, equipo…"
-          placeholderTextColor={TEXT.tertiary}
+          placeholderTextColor={tk.textoTenue}
           returnKeyType="search"
         />
         {busqueda.length > 0 && (
           <AnimatedPressable onPress={() => setBusqueda('')}>
-            <Ionicons name="close-circle" size={16} color={TEXT.tertiary} />
+            <Ionicons name="close-circle" size={16} color={tk.textoTenue} />
           </AnimatedPressable>
         )}
       </View>
@@ -155,18 +162,18 @@ export default function ExerciseLibraryScreen() {
             <AnimatedPressable
               key={eje.key}
               onPress={() => { haptic.light(); setEjeAbierto(abierto ? null : eje.key); }}
-              style={[s.ejeChip, activo ? s.chipActivoGrad : (abierto && s.ejeChipAbierto)]}
+              style={[s.ejeChip, { backgroundColor: tk.card, borderColor: tk.borde }, activo ? s.chipActivoGrad : (abierto && s.ejeChipAbierto)]}
             >
               {activo && (
                 <LinearGradient colors={brandGradient()} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
               )}
-              <Text style={[s.ejeChipText, activo ? s.ejeChipTextGrad : (abierto && s.ejeChipTextAbierto)]}>
+              <Text style={[s.ejeChipText, { color: tk.textoSecundario }, activo ? s.ejeChipTextGrad : (abierto && { color: acento })]}>
                 {activo ? `${eje.label} · ${eje.valor}` : eje.label}
               </Text>
               <Ionicons
                 name={abierto ? 'chevron-up' : 'chevron-down'}
                 size={12}
-                color={activo ? TEXT_COLORS.onAccent : abierto ? ATP_BRAND.lime : TEXT.tertiary}
+                color={activo ? TEXT_COLORS.onAccent : abierto ? ATP_BRAND.lime : tk.textoTenue}
               />
             </AnimatedPressable>
           );
@@ -182,12 +189,12 @@ export default function ExerciseLibraryScreen() {
               <AnimatedPressable
                 key={op}
                 onPress={() => { haptic.light(); ejeActivo.set(op); setEjeAbierto(null); }}
-                style={[s.opcionChip, activa && s.chipActivoGrad]}
+                style={[s.opcionChip, { backgroundColor: tk.flotante, borderColor: tk.bordeMarcado }, activa && s.chipActivoGrad]}
               >
                 {activa && (
                   <LinearGradient colors={brandGradient()} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
                 )}
-                <Text style={[s.opcionText, activa && s.opcionTextActiva]}>{op}</Text>
+                <Text style={[s.opcionText, { color: tk.textoSecundario }, activa && s.opcionTextActiva]}>{op}</Text>
               </AnimatedPressable>
             );
           })}
@@ -196,7 +203,7 @@ export default function ExerciseLibraryScreen() {
 
       {/* Grid de cards con poster */}
       {catalogo === null ? (
-        <View style={s.center}><Text style={s.metaText}>Cargando catálogo…</Text></View>
+        <View style={s.center}><Text style={[s.metaText, { color: tk.textoSecundario }]}>Cargando catálogo…</Text></View>
       ) : filtrados.length === 0 ? (
         <EmptyState
           icon="barbell-outline"
@@ -210,7 +217,7 @@ export default function ExerciseLibraryScreen() {
           numColumns={2}
           columnWrapperStyle={{ gap: Spacing.sm, paddingHorizontal: Spacing.md }}
           contentContainerStyle={{ gap: Spacing.sm, paddingTop: Spacing.sm, paddingBottom: 120 }}
-          ListHeaderComponent={<Text style={s.countText}>{filtrados.length} ejercicios</Text>}
+          ListHeaderComponent={<Text style={[s.countText, { color: tk.textoTenue }]}>{filtrados.length} ejercicios</Text>}
           renderItem={({ item, index }) => (
             // MB-4.1 · Bloque B: entrada escalonada (era la única del pilar sin
             // `entering`). El delay se topa: es lista virtualizada larga y con
@@ -253,9 +260,9 @@ export default function ExerciseLibraryScreen() {
 
 const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  metaText: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 14 },
+  metaText: { fontFamily: Fonts.regular, fontSize: 14 },
   countText: {
-    color: TEXT.tertiary, fontFamily: Fonts.semiBold, fontSize: 11, letterSpacing: 1,
+    fontFamily: Fonts.semiBold, fontSize: 11, letterSpacing: 1,
     paddingHorizontal: Spacing.md, marginBottom: 2,
   },
 
@@ -265,21 +272,21 @@ const s = StyleSheet.create({
   },
   tabChip: {
     flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: Radius.pill,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
   },
   // MB-5 Bloque 3: activo = degradado molécula clippeado al pill.
   chipActivoGrad: { borderColor: 'transparent', overflow: 'hidden' },
-  tabText: { color: TEXT.secondary, fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 1.5 },
+  tabText: { fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 1.5 },
   tabTextActivo: { color: TEXT_COLORS.onAccent },
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: Spacing.md, marginBottom: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg, borderRadius: Radius.card,
+    borderRadius: Radius.card,
     paddingHorizontal: Spacing.md, paddingVertical: 10,
-    borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
   },
-  searchInput: { flex: 1, color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 14, padding: 0 },
+  searchInput: { flex: 1, fontFamily: Fonts.regular, fontSize: 14, padding: 0 },
 
   ejesRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8,
@@ -288,11 +295,10 @@ const s = StyleSheet.create({
   ejeChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.pill,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
   },
   ejeChipAbierto: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderColor: withOpacity(ATP_BRAND.lime, 0.5) },
-  ejeChipText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 12 },
-  ejeChipTextAbierto: { color: ATP_BRAND.lime },
+  ejeChipText: { fontFamily: Fonts.semiBold, fontSize: 12 },
   ejeChipTextGrad: { color: TEXT_COLORS.onAccent },
 
   opcionesWrap: {
@@ -302,9 +308,9 @@ const s = StyleSheet.create({
   },
   opcionChip: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.pill,
-    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
+    borderWidth: 1,
   },
-  opcionText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 12 },
+  opcionText: { fontFamily: Fonts.semiBold, fontSize: 12 },
   opcionTextActiva: { color: TEXT_COLORS.onAccent },
 
   card: {

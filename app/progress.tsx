@@ -17,6 +17,8 @@ import { formatTime } from '@/src/engine/helpers';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { StatusBar } from 'expo-status-bar';
 import { MUSCLE_GROUP_COLORS } from '@/src/types/exercise';
 import {
   getMonthlyStats,
@@ -41,6 +43,10 @@ function BarChart({ data: rawData, color, height = 120 }: {
   color: string;
   height?: number;
 }) {
+  // MB-31B3: etiquetas del chart en tokens; la barra conserva su color (fill).
+  // El numero de la semana actual iba en el color del dato como TEXTO; en
+  // claro cae a texto principal (el color es barra, no letra).
+  const { kind, tokens: t } = useAppTheme();
   // Si hay datos en pocas semanas, mostrar solo las que tienen datos + 1 vacía a cada lado
   const hasData = rawData.some(d => d.value > 0);
   let data = rawData;
@@ -65,7 +71,7 @@ function BarChart({ data: rawData, color, height = 120 }: {
           <View key={i} style={{ flex: 1, alignItems: 'center' }}>
             <EliteText variant="caption" style={{
               fontSize: FontSizes.xs, fontFamily: Fonts.bold, marginBottom: 2,
-              color: item.value > 0 ? (item.isCurrent ? color : Colors.textSecondary) : 'transparent',
+              color: item.value > 0 ? (item.isCurrent ? (kind === 'dark' ? color : t.texto) : t.textoSecundario) : 'transparent',
             }}>
               {item.value > 999 ? `${Math.round(item.value / 1000)}k` : item.value}
             </EliteText>
@@ -76,8 +82,8 @@ function BarChart({ data: rawData, color, height = 120 }: {
               borderRadius: 4,
               minHeight: item.value > 0 ? 6 : 2,
             }} />
-            {item.value === 0 && <View style={{ width: '70%', height: 2, backgroundColor: Colors.surfaceLight, borderRadius: 1 }} />}
-            <EliteText variant="caption" style={{ fontSize: FontSizes.xs, color: Colors.textSecondary, marginTop: 4 }}>
+            {item.value === 0 && <View style={{ width: '70%', height: 2, backgroundColor: t.flotante, borderRadius: 1 }} />}
+            <EliteText variant="caption" style={{ fontSize: FontSizes.xs, color: t.textoSecundario, marginTop: 4 }}>
               {item.label}
             </EliteText>
           </View>
@@ -135,6 +141,9 @@ function MiniSparkline({ points, color }: { points: number[]; color: string }) {
 
 export default function ProgressScreen() {
   const router = useRouter();
+  // MB-31B3: la pantalla migro a tokens y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? Colors.neonGreen : t.tealTexto;
   const [loading, setLoading] = useState(true);
   const [monthly, setMonthly] = useState<MonthlyStats | null>(null);
   const [freqChart, setFreqChart] = useState<WeekChartData[]>([]);
@@ -164,7 +173,9 @@ export default function ProgressScreen() {
 
   if (loading) {
     return (
-      <View style={styles.screen}>
+      <ThemeReady>
+      <View style={[styles.screen, { backgroundColor: t.fondo }]}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <ScreenHeader title="Progreso" />
         <View style={{ paddingHorizontal: Spacing.md, gap: Spacing.sm }}>
           <SkeletonLoader variant="card" height={120} />
@@ -172,48 +183,51 @@ export default function ProgressScreen() {
           <SkeletonLoader variant="card" height={140} />
         </View>
       </View>
+      </ThemeReady>
     );
   }
 
   return (
-    <View style={styles.screen}>
+    <ThemeReady>
+    <View style={[styles.screen, { backgroundColor: t.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       {/* Header */}
       <ScreenHeader title="Progreso" />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* ── Sección 1: Resumen del mes ── */}
         <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <LinearGradient colors={['#0a2a2a', '#0a1a1a']} style={styles.heroCard}>
+          <LinearGradient colors={kind === 'dark' ? ['#0a2a2a', '#0a1a1a'] : [t.card, t.card]} style={[styles.heroCard, { borderColor: kind === 'dark' ? '#1a3a3a' : t.borde }]}>
             <View style={styles.heroAccent} />
             <EliteText style={styles.heroWatermark}>📊</EliteText>
 
-            <EliteText variant="caption" style={styles.heroLabel}>
+            <EliteText variant="caption" style={[styles.heroLabel, { color: t.textoSecundario }]}>
               {monthly?.monthLabel ?? ''}
             </EliteText>
 
             <View style={styles.heroStatsRow}>
               <View style={styles.heroStatItem}>
-                <EliteText style={styles.heroStatNum}>{monthly?.workouts ?? 0}</EliteText>
-                <EliteText variant="caption" style={styles.heroStatLabel}>entrenos</EliteText>
+                <EliteText style={[styles.heroStatNum, { color: t.texto }]}>{monthly?.workouts ?? 0}</EliteText>
+                <EliteText variant="caption" style={[styles.heroStatLabel, { color: t.textoSecundario }]}>entrenos</EliteText>
               </View>
-              <View style={styles.heroStatDivider} />
+              <View style={[styles.heroStatDivider, { backgroundColor: t.borde }]} />
               <View style={styles.heroStatItem}>
-                <EliteText style={styles.heroStatNum}>{formatHours(monthly?.totalSeconds ?? 0)}</EliteText>
-                <EliteText variant="caption" style={styles.heroStatLabel}>horas</EliteText>
+                <EliteText style={[styles.heroStatNum, { color: t.texto }]}>{formatHours(monthly?.totalSeconds ?? 0)}</EliteText>
+                <EliteText variant="caption" style={[styles.heroStatLabel, { color: t.textoSecundario }]}>horas</EliteText>
               </View>
-              <View style={styles.heroStatDivider} />
+              <View style={[styles.heroStatDivider, { backgroundColor: t.borde }]} />
               <View style={styles.heroStatItem}>
-                <EliteText style={styles.heroStatNum}>
+                <EliteText style={[styles.heroStatNum, { color: t.texto }]}>
                   {(monthly?.volumeKg ?? 0) > 999
                     ? `${Math.round((monthly?.volumeKg ?? 0) / 1000)}k`
                     : `${monthly?.volumeKg ?? 0}kg`}
                 </EliteText>
-                <EliteText variant="caption" style={styles.heroStatLabel}>volumen</EliteText>
+                <EliteText variant="caption" style={[styles.heroStatLabel, { color: t.textoSecundario }]}>volumen</EliteText>
               </View>
-              <View style={styles.heroStatDivider} />
+              <View style={[styles.heroStatDivider, { backgroundColor: t.borde }]} />
               <View style={styles.heroStatItem}>
-                <EliteText style={styles.heroStatNum}>{monthly?.prs ?? 0}</EliteText>
-                <EliteText variant="caption" style={styles.heroStatLabel}>PRs</EliteText>
+                <EliteText style={[styles.heroStatNum, { color: t.texto }]}>{monthly?.prs ?? 0}</EliteText>
+                <EliteText variant="caption" style={[styles.heroStatLabel, { color: t.textoSecundario }]}>PRs</EliteText>
               </View>
             </View>
           </LinearGradient>
@@ -221,14 +235,14 @@ export default function ProgressScreen() {
 
         {/* ── Sección 2: Frecuencia semanal ── */}
         <Animated.View entering={FadeInUp.delay(100).springify()}>
-          <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.chartCard}>
-            <EliteText variant="caption" style={styles.chartLabel}>FRECUENCIA SEMANAL</EliteText>
-            <EliteText variant="caption" style={styles.chartSublabel}>Sesiones por semana · 8 semanas</EliteText>
+          <LinearGradient colors={kind === 'dark' ? ['#1a2a1a', t.card] : [t.card, t.card]} style={[styles.chartCard, { borderColor: t.borde }]}>
+            <EliteText variant="caption" style={[styles.chartLabel, { color: t.textoSecundario }]}>FRECUENCIA SEMANAL</EliteText>
+            <EliteText variant="caption" style={[styles.chartSublabel, { color: t.textoSecundario }]}>Sesiones por semana · 8 semanas</EliteText>
             {freqChart.length > 0 ? (
               <BarChart data={freqChart} color={Colors.neonGreen} />
             ) : (
               <View style={styles.chartEmpty}>
-                <EliteText variant="caption" style={{ color: Colors.textSecondary }}>
+                <EliteText variant="caption" style={{ color: t.textoSecundario }}>
                   Sin datos suficientes
                 </EliteText>
               </View>
@@ -238,14 +252,14 @@ export default function ProgressScreen() {
 
         {/* ── Sección 3: Volumen semanal ── */}
         <Animated.View entering={FadeInUp.delay(150).springify()}>
-          <LinearGradient colors={['#2a1f0a', '#111111']} style={styles.chartCard}>
-            <EliteText variant="caption" style={styles.chartLabel}>VOLUMEN SEMANAL</EliteText>
-            <EliteText variant="caption" style={styles.chartSublabel}>kg totales por semana · 8 semanas</EliteText>
+          <LinearGradient colors={kind === 'dark' ? ['#2a1f0a', t.card] : [t.card, t.card]} style={[styles.chartCard, { borderColor: t.borde }]}>
+            <EliteText variant="caption" style={[styles.chartLabel, { color: t.textoSecundario }]}>VOLUMEN SEMANAL</EliteText>
+            <EliteText variant="caption" style={[styles.chartSublabel, { color: t.textoSecundario }]}>kg totales por semana · 8 semanas</EliteText>
             {volChart.length > 0 ? (
               <BarChart data={volChart} color={SEMANTIC.warning} />
             ) : (
               <View style={styles.chartEmpty}>
-                <EliteText variant="caption" style={{ color: Colors.textSecondary }}>
+                <EliteText variant="caption" style={{ color: t.textoSecundario }}>
                   Sin datos suficientes
                 </EliteText>
               </View>
@@ -256,24 +270,25 @@ export default function ProgressScreen() {
         {/* ── Sección 4: Ejercicios más trabajados ── */}
         {topExercises.length > 0 && (
           <Animated.View entering={FadeInUp.delay(200).springify()}>
-            <EliteText variant="caption" style={[styles.sectionLabel, { paddingHorizontal: Spacing.md, marginBottom: Spacing.sm }]}>
+            <EliteText variant="caption" style={[styles.sectionLabel, { color: t.textoSecundario, paddingHorizontal: Spacing.md, marginBottom: Spacing.sm }]}>
               MÁS TRABAJADOS ESTE MES
             </EliteText>
             {topExercises.map((ex, i) => {
-              const mgColor = MUSCLE_GROUP_COLORS[ex.muscleGroup] ?? Colors.textSecondary;
+              const mgColor = MUSCLE_GROUP_COLORS[ex.muscleGroup] ?? t.textoSecundario;
               const trendIcon = ex.trend === 'up' ? 'arrow-up' : ex.trend === 'down' ? 'arrow-down' : 'remove';
-              const trendColor = ex.trend === 'up' ? Colors.neonGreen : ex.trend === 'down' ? SEMANTIC.error : Colors.textSecondary;
+              // El icono de tendencia en lima cae al acento calibrado en claro.
+              const trendColor = ex.trend === 'up' ? acento : ex.trend === 'down' ? t.error : t.textoSecundario;
 
               return (
                 <Pressable key={ex.exerciseId} onPress={() => { haptic.light(); router.push('/fitness-strength'); }}>
-                  <View style={styles.topExRow}>
-                    <EliteText variant="caption" style={styles.topExRank}>{i + 1}</EliteText>
+                  <View style={[styles.topExRow, { borderBottomColor: t.borde }]}>
+                    <EliteText variant="caption" style={[styles.topExRank, { color: t.textoSecundario }]}>{i + 1}</EliteText>
                     <View style={[styles.topExDot, { backgroundColor: mgColor }]} />
                     <View style={styles.topExContent}>
                       <EliteText variant="body" style={styles.topExName} numberOfLines={1}>
                         {ex.exerciseName}
                       </EliteText>
-                      <EliteText variant="caption" style={styles.topExMeta}>
+                      <EliteText variant="caption" style={[styles.topExMeta, { color: t.textoSecundario }]}>
                         {ex.totalSets} sets · {Math.round(ex.latestEstimated1RM)}kg 1RM
                       </EliteText>
                     </View>
@@ -292,16 +307,16 @@ export default function ProgressScreen() {
         {/* ── Sección 5: PRs recientes agrupados por día ── */}
         <Animated.View entering={FadeInUp.delay(250).springify()}>
           <View style={styles.sectionHeader}>
-            <EliteText variant="caption" style={styles.sectionLabel}>PRs RECIENTES</EliteText>
+            <EliteText variant="caption" style={[styles.sectionLabel, { color: t.textoSecundario }]}>PRs RECIENTES</EliteText>
             <Pressable onPress={() => { haptic.light(); router.push('/fitness-strength'); }}>
-              <EliteText variant="caption" style={styles.sectionLink}>Ver todos ›</EliteText>
+              <EliteText variant="caption" style={[styles.sectionLink, { color: acento }]}>Ver todos ›</EliteText>
             </Pressable>
           </View>
 
           {recentPRs.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="trophy-outline" size={32} color={Colors.textSecondary} />
-              <EliteText variant="caption" style={{ color: Colors.textSecondary, marginTop: Spacing.sm }}>
+              <Ionicons name="trophy-outline" size={32} color={t.textoSecundario} />
+              <EliteText variant="caption" style={{ color: t.textoSecundario, marginTop: Spacing.sm }}>
                 Aún no tienes récords. ¡A entrenar!
               </EliteText>
             </View>
@@ -318,23 +333,23 @@ export default function ProgressScreen() {
 
               return Array.from(grouped.entries()).map(([dayLabel, prs]) => (
                 <View key={dayLabel} style={styles.prDayGroup}>
-                  <EliteText variant="caption" style={styles.prDayLabel}>{dayLabel}</EliteText>
+                  <EliteText variant="caption" style={[styles.prDayLabel, { color: t.textoSecundario }]}>{dayLabel}</EliteText>
                   {prs.map(pr => {
-                    const mgColor = MUSCLE_GROUP_COLORS[pr.muscle_group ?? ''] ?? Colors.textSecondary;
+                    const mgColor = MUSCLE_GROUP_COLORS[pr.muscle_group ?? ''] ?? t.textoSecundario;
                     return (
                       <Pressable key={pr.id} onPress={() => { haptic.light(); router.push('/fitness-strength'); }}>
-                        <View style={styles.prRow}>
+                        <View style={[styles.prRow, { borderBottomColor: t.borde }]}>
                           <View style={[styles.prDot, { backgroundColor: mgColor }]} />
                           <View style={styles.prContent}>
                             <EliteText variant="body" style={styles.prName} numberOfLines={1}>
                               {pr.exercise_name}
                             </EliteText>
-                            <EliteText variant="caption" style={styles.prMeta}>
+                            <EliteText variant="caption" style={[styles.prMeta, { color: t.textoSecundario }]}>
                               {pr.weight_kg}kg × {pr.rep_range} rep{pr.rep_range > 1 ? 's' : ''}
                             </EliteText>
                           </View>
                           <View style={styles.prBadge}>
-                            <EliteText variant="caption" style={styles.prBadgeText}>
+                            <EliteText variant="caption" style={[styles.prBadgeText, { color: acento }]}>
                               {pr.rep_range}RM
                             </EliteText>
                           </View>
@@ -351,6 +366,7 @@ export default function ProgressScreen() {
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
@@ -359,7 +375,6 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.black,
   },
   centered: {
     justifyContent: 'center',
@@ -387,7 +402,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     overflow: 'hidden',
     borderWidth: 0.5,
-    borderColor: '#1a3a3a',
   },
   heroAccent: {
     position: 'absolute',
@@ -407,7 +421,6 @@ const styles = StyleSheet.create({
     opacity: 0.06,
   },
   heroLabel: {
-    color: Colors.textSecondary,
     letterSpacing: 3,
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
@@ -424,17 +437,14 @@ const styles = StyleSheet.create({
   heroStatNum: {
     fontSize: FontSizes.xxl,
     fontFamily: Fonts.bold,
-    color: Colors.textPrimary,
   },
   heroStatLabel: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.xs,
     marginTop: 2,
   },
   heroStatDivider: {
     width: 1,
     height: 28,
-    backgroundColor: Colors.border,
   },
 
   // Chart cards
@@ -444,17 +454,14 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     marginBottom: Spacing.md,
     borderWidth: 0.5,
-    borderColor: Colors.border,
   },
   chartLabel: {
-    color: Colors.textSecondary,
     letterSpacing: 2,
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
     marginBottom: 2,
   },
   chartSublabel: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.xs,
     marginBottom: Spacing.md,
     opacity: 0.6,
@@ -474,13 +481,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   sectionLabel: {
-    color: Colors.textSecondary,
     letterSpacing: 2,
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
   },
+  // Hallazgo MB-31B3: lima como TEXTO de enlace y de badge — color inline.
   sectionLink: {
-    color: Colors.neonGreen,
     fontSize: FontSizes.sm,
     fontFamily: Fonts.semiBold,
   },
@@ -499,7 +505,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.surfaceLight,
   },
   prDot: {
     width: 8,
@@ -514,7 +519,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
   },
   prMeta: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.sm,
     marginTop: 2,
   },
@@ -525,7 +529,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   prBadgeText: {
-    color: Colors.neonGreen,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.xs,
   },
@@ -538,10 +541,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.surfaceLight,
   },
   topExRank: {
-    color: Colors.textSecondary,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.sm,
     width: 16,
@@ -560,7 +561,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
   },
   topExMeta: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.sm,
     marginTop: 1,
   },
@@ -570,7 +570,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   prDayLabel: {
-    color: Colors.textSecondary,
     fontFamily: Fonts.bold,
     letterSpacing: 1,
     fontSize: FontSizes.sm,

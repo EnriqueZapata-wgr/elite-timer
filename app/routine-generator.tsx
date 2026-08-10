@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -43,8 +44,9 @@ import {
   type MatrixExercise,
   type NivelUsuario,
 } from '@/src/constants/exercise-matrix';
-import { ATP_BRAND, TEXT, TEXT_COLORS, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 const OBJETIVOS: { key: Objetivo; label: string }[] = [
   { key: 'fuerza', label: 'Fuerza' },
@@ -83,12 +85,16 @@ const SLOT_LABELS: Record<string, string> = {
 // ── Chips reutilizables ──
 
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  // MB-31B3: tokens del tema global (la pantalla vive dentro de <Screen themed>).
+  const { kind, tokens: tk } = useAppTheme();
+  // Regla 1 de la guía: lima como TEXTO no sobrevive el claro → teal calibrado.
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tk.tealTexto;
   return (
     <AnimatedPressable
       onPress={() => { haptic.light(); onPress(); }}
-      style={[c.chip, active && c.chipActive]}
+      style={[c.chip, { backgroundColor: tk.card, borderColor: tk.borde }, active && c.chipActive]}
     >
-      <Text style={[c.chipText, active && c.chipTextActive]}>{label}</Text>
+      <Text style={[c.chipText, { color: active ? acento : tk.textoSecundario }]}>{label}</Text>
     </AnimatedPressable>
   );
 }
@@ -96,11 +102,10 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 const c = StyleSheet.create({
   chip: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.pill,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
   },
   chipActive: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.15), borderColor: ATP_BRAND.lime },
-  chipText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 12 },
-  chipTextActive: { color: ATP_BRAND.lime },
+  chipText: { fontFamily: Fonts.semiBold, fontSize: 12 },
 });
 
 // ── Pantalla ──
@@ -108,6 +113,10 @@ const c = StyleSheet.create({
 export default function RoutineGeneratorScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: tk } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tk.tealTexto;
+  const secTxt = { color: tk.textoSecundario };
   // MB-3.6 Bloque 2: la evaluación de movilidad entra con ?objetivo=movilidad.
   // MB-27 P2: la asignación del día entra con ?enfoque= (Entrenar contesta
   // "hoy te toca X" y este deep-link trae el enfoque ya elegido).
@@ -275,25 +284,26 @@ export default function RoutineGeneratorScreen() {
     set(arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item]);
 
   return (
-    <Screen edges={[]}>
+    <Screen themed edges={[]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Generador" />
       <ScrollView contentContainerStyle={{ padding: Spacing.md, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
 
         {/* 2 puertas */}
         <View style={s.doorRow}>
           {(['auto', 'explorar'] as const).map((p) => (
-            <AnimatedPressable key={p} onPress={() => { haptic.light(); setPuerta(p); }} style={[s.door, puerta === p && s.doorActive]}>
-              <Ionicons name={p === 'auto' ? 'flash' : 'search'} size={15} color={puerta === p ? TEXT_COLORS.onAccent : TEXT.secondary} />
-              <Text style={[s.doorText, puerta === p && s.doorTextActive]}>{p === 'auto' ? 'AUTO' : 'EXPLORAR'}</Text>
+            <AnimatedPressable key={p} onPress={() => { haptic.light(); setPuerta(p); }} style={[s.door, { backgroundColor: tk.card, borderColor: tk.borde }, puerta === p && s.doorActive]}>
+              <Ionicons name={p === 'auto' ? 'flash' : 'search'} size={15} color={puerta === p ? TEXT_COLORS.onAccent : tk.textoSecundario} />
+              <Text style={[s.doorText, secTxt, puerta === p && s.doorTextActive]}>{p === 'auto' ? 'AUTO' : 'EXPLORAR'}</Text>
             </AnimatedPressable>
           ))}
         </View>
 
         {/* Contador de pool (corazón del modo Explorar, visible siempre en él) */}
         {puerta === 'explorar' && (
-          <Animated.View entering={FadeInDown.duration(250)} style={s.poolCard}>
-            <Text style={s.poolCount}>{activos}</Text>
-            <Text style={s.poolLabel}>
+          <Animated.View entering={FadeInDown.duration(250)} style={[s.poolCard, { backgroundColor: tk.card, borderColor: tk.borde }]}>
+            <Text style={[s.poolCount, { color: acento }]}>{activos}</Text>
+            <Text style={[s.poolLabel, secTxt]}>
               ejercicios ejecutables con tus filtros
               {excluidos.size > 0 ? ` (${excluidos.size} vetado${excluidos.size === 1 ? '' : 's'} por ti)` : ''}
             </Text>
@@ -301,7 +311,7 @@ export default function RoutineGeneratorScreen() {
         )}
 
         {/* Objetivo */}
-        <Text style={s.sectionLabel}>OBJETIVO</Text>
+        <Text style={[s.sectionLabel, secTxt]}>OBJETIVO</Text>
         <View style={s.chipsRow}>
           {OBJETIVOS.map((o) => (
             <Chip key={o.key} label={o.label} active={objetivo === o.key} onPress={() => { eligioObjetivoRef.current = true; setObjetivo(o.key); }} />
@@ -312,12 +322,12 @@ export default function RoutineGeneratorScreen() {
             completo: sin enfoque que recorte. */}
         {objetivo === 'movilidad' ? (
           <>
-            <Text style={s.sectionLabel}>ENFOQUE</Text>
-            <Text style={s.sectionHint}>Sesión de movilidad de cuerpo completo: estiramientos, movilidad y estabilidad de tu matriz.</Text>
+            <Text style={[s.sectionLabel, secTxt]}>ENFOQUE</Text>
+            <Text style={[s.sectionHint, { color: tk.textoTenue }]}>Sesión de movilidad de cuerpo completo: estiramientos, movilidad y estabilidad de tu matriz.</Text>
           </>
         ) : (
           <>
-            <Text style={s.sectionLabel}>ENFOQUE</Text>
+            <Text style={[s.sectionLabel, secTxt]}>ENFOQUE</Text>
             <View style={s.chipsRow}>
               {ENFOQUES.map((e) => (
                 <Chip key={e.key} label={e.label} active={!broSplit && enfoque === e.key} onPress={() => { eligioEnfoqueRef.current = true; setBroSplit(false); setEnfoque(e.key); }} />
@@ -335,8 +345,8 @@ export default function RoutineGeneratorScreen() {
         )}
 
         {/* Equipo (filtro duro) */}
-        <Text style={s.sectionLabel}>EQUIPO DISPONIBLE</Text>
-        <Text style={s.sectionHint}>Peso corporal siempre cuenta. Marca lo que tienes hoy.</Text>
+        <Text style={[s.sectionLabel, secTxt]}>EQUIPO DISPONIBLE</Text>
+        <Text style={[s.sectionHint, { color: tk.textoTenue }]}>Peso corporal siempre cuenta. Marca lo que tienes hoy.</Text>
         <View style={s.chipsRow}>
           {EQUIPO_TOKENS.filter((t) => t !== 'Peso corporal').map((t) => (
             <Chip key={t} label={t} active={equipo.includes(t)} onPress={() => toggle(equipo, setEquipo, t)} />
@@ -346,7 +356,7 @@ export default function RoutineGeneratorScreen() {
         {/* Candado de cantidad (MB-3.5 #11): ¿1 pieza o par? Filtro duro del motor. */}
         {EQUIPO_CON_UNIDADES.filter((t) => equipo.includes(t)).map((t) => (
           <View key={t} style={s.unidadesRow}>
-            <Text style={s.unidadesLabel}>{t === 'Mancuerna' ? 'Mancuernas' : 'Kettlebells'}: ¿cuántas tienes?</Text>
+            <Text style={[s.unidadesLabel, secTxt]}>{t === 'Mancuerna' ? 'Mancuernas' : 'Kettlebells'}: ¿cuántas tienes?</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Chip label="Solo 1" active={unidades[t] === '1'} onPress={() => setUnidades((u) => ({ ...u, [t]: '1' }))} />
               <Chip label="Par" active={(unidades[t] ?? 'par') === 'par'} onPress={() => setUnidades((u) => ({ ...u, [t]: 'par' }))} />
@@ -355,22 +365,22 @@ export default function RoutineGeneratorScreen() {
         ))}
 
         {/* Tiempo */}
-        <Text style={s.sectionLabel}>TIEMPO</Text>
+        <Text style={[s.sectionLabel, secTxt]}>TIEMPO</Text>
         <View style={s.timeRow}>
-          <AnimatedPressable onPress={() => { haptic.light(); setTiempoMin((t) => Math.max(15, t - 5)); }} style={s.timeBtn}>
-            <Text style={s.timeBtnText}>−</Text>
+          <AnimatedPressable onPress={() => { haptic.light(); setTiempoMin((t) => Math.max(15, t - 5)); }} style={[s.timeBtn, { backgroundColor: tk.card, borderColor: tk.borde }]}>
+            <Text style={[s.timeBtnText, { color: tk.texto }]}>−</Text>
           </AnimatedPressable>
           <View style={{ alignItems: 'center' }}>
-            <Text style={s.timeValue}>{tiempoMin}</Text>
-            <Text style={s.timeUnit}>minutos</Text>
+            <Text style={[s.timeValue, { color: tk.texto }]}>{tiempoMin}</Text>
+            <Text style={[s.timeUnit, secTxt]}>minutos</Text>
           </View>
-          <AnimatedPressable onPress={() => { haptic.light(); setTiempoMin((t) => Math.min(150, t + 5)); }} style={s.timeBtn}>
-            <Text style={s.timeBtnText}>+</Text>
+          <AnimatedPressable onPress={() => { haptic.light(); setTiempoMin((t) => Math.min(150, t + 5)); }} style={[s.timeBtn, { backgroundColor: tk.card, borderColor: tk.borde }]}>
+            <Text style={[s.timeBtnText, { color: tk.texto }]}>+</Text>
           </AnimatedPressable>
         </View>
 
         {/* Nivel + senior — el nivel vive en el PERFIL (224); cambiarlo aquí lo actualiza allá. */}
-        <Text style={s.sectionLabel}>NIVEL</Text>
+        <Text style={[s.sectionLabel, secTxt]}>NIVEL</Text>
         <View style={s.chipsRow}>
           {NIVELES_USUARIO.map((n) => (
             <Chip
@@ -387,7 +397,7 @@ export default function RoutineGeneratorScreen() {
         </View>
 
         {/* Contraindicaciones */}
-        <Text style={s.sectionLabel}>CUIDA DE</Text>
+        <Text style={[s.sectionLabel, secTxt]}>CUIDA DE</Text>
         <View style={s.chipsRow}>
           {CONTRAINDICACIONES.map((f) => (
             <Chip key={f} label={f} active={flags.includes(f)} onPress={() => toggle(flags, setFlags, f)} />
@@ -398,18 +408,18 @@ export default function RoutineGeneratorScreen() {
             vetar/re-incluir con estado visible — la selección alimenta el generado. */}
         {puerta === 'explorar' && poolEjecutable.length > 0 && (
           <View style={{ marginTop: Spacing.md }}>
-            <Text style={s.sectionLabel}>EL POOL · TOCA PARA VETAR / INCLUIR</Text>
+            <Text style={[s.sectionLabel, secTxt]}>EL POOL · TOCA PARA VETAR / INCLUIR</Text>
             {poolEjecutable.map((e) => {
               const vetado = excluidos.has(e.slug);
               return (
-                <AnimatedPressable key={e.slug} onPress={() => toggleExcluido(e.slug)} style={s.poolRow}>
+                <AnimatedPressable key={e.slug} onPress={() => toggleExcluido(e.slug)} style={[s.poolRow, { borderBottomColor: tk.borde }]}>
                   <Ionicons
                     name={vetado ? 'close-circle' : 'checkmark-circle'}
                     size={18}
-                    color={vetado ? TEXT.tertiary : ATP_BRAND.lime}
+                    color={vetado ? tk.textoTenue : ATP_BRAND.lime}
                   />
-                  <Text style={[s.poolRowName, vetado && s.poolRowNameVetado]} numberOfLines={1}>{e.nombre}</Text>
-                  <Text style={s.poolRowMeta}>{e.musculoPrincipal}</Text>
+                  <Text style={[s.poolRowName, { color: vetado ? tk.textoTenue : tk.texto }, vetado && s.poolRowNameVetado]} numberOfLines={1}>{e.nombre}</Text>
+                  <Text style={[s.poolRowMeta, secTxt]}>{e.musculoPrincipal}</Text>
                 </AnimatedPressable>
               );
             })}
@@ -422,15 +432,15 @@ export default function RoutineGeneratorScreen() {
           {catalogoError ? (
             <View style={s.avisoCard}>
               <Ionicons name="cloud-offline-outline" size={16} color={ATP_BRAND.teal} />
-              <Text style={s.avisoText}>No se pudo cargar el catálogo de ejercicios.</Text>
+              <Text style={[s.avisoText, { color: tk.texto }]}>No se pudo cargar el catálogo de ejercicios.</Text>
               <AnimatedPressable onPress={() => { haptic.light(); cargarCatalogo(); }}>
-                <Text style={s.retryText}>Reintentar</Text>
+                <Text style={[s.retryText, { color: acento }]}>Reintentar</Text>
               </AnimatedPressable>
             </View>
           ) : catalogo.length === 0 ? (
             <View style={s.avisoCard}>
               <Ionicons name="hourglass-outline" size={16} color={ATP_BRAND.teal} />
-              <Text style={s.avisoText}>Cargando catálogo de ejercicios…</Text>
+              <Text style={[s.avisoText, { color: tk.texto }]}>Cargando catálogo de ejercicios…</Text>
             </View>
           ) : (
             <GradientCTA
@@ -448,29 +458,29 @@ export default function RoutineGeneratorScreen() {
             {rutina.avisos.map((a) => (
               <View key={a} style={s.avisoCard}>
                 <Ionicons name="information-circle" size={16} color={ATP_BRAND.teal} />
-                <Text style={s.avisoText}>{a}</Text>
+                <Text style={[s.avisoText, { color: tk.texto }]}>{a}</Text>
               </View>
             ))}
             {rutina.bloques.length > 0 && (
               <>
                 <View style={s.previewHeader}>
-                  <Text style={s.sectionLabel}>TU SESIÓN · ~{Math.round(rutina.tiempoTotalSeg / 60)} MIN</Text>
+                  <Text style={[s.sectionLabel, secTxt]}>TU SESIÓN · ~{Math.round(rutina.tiempoTotalSeg / 60)} MIN</Text>
                 </View>
                 {rutina.bloques.map((b, i) => (
-                  <View key={`${b.slug}-${i}`} style={s.bloqueRow}>
-                    <View style={s.bloqueNum}><Text style={s.bloqueNumText}>{i + 1}</Text></View>
+                  <View key={`${b.slug}-${i}`} style={[s.bloqueRow, { backgroundColor: tk.card, borderColor: tk.borde }]}>
+                    <View style={s.bloqueNum}><Text style={[s.bloqueNumText, { color: acento }]}>{i + 1}</Text></View>
                     <View style={{ flex: 1 }}>
-                      <Text style={s.bloqueName} numberOfLines={1}>{b.nombre}</Text>
-                      <Text style={s.bloqueMeta}>
+                      <Text style={[s.bloqueName, { color: tk.texto }]} numberOfLines={1}>{b.nombre}</Text>
+                      <Text style={[s.bloqueMeta, secTxt]}>
                         {SLOT_LABELS[b.slot]} · {b.series}×{b.reps}{b.esIsometrico ? ' s' : ''}
                         {b.metodo !== 'Estándar' ? ` · ${b.metodo}` : ''}
                       </Text>
                     </View>
-                    <Text style={s.bloqueTime}>{Math.round(b.tiempoSeg / 60)}′</Text>
+                    <Text style={[s.bloqueTime, secTxt]}>{Math.round(b.tiempoSeg / 60)}′</Text>
                   </View>
                 ))}
                 {rutina.recoveryExtraMin > 0 && (
-                  <Text style={s.extraText}>
+                  <Text style={[s.extraText, secTxt]}>
                     +{rutina.recoveryExtraMin} min de tu tiempo van a movilidad/recovery libre (por encima de tu techo de hoy).
                   </Text>
                 )}
@@ -495,69 +505,69 @@ const s = StyleSheet.create({
   door: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     paddingVertical: Spacing.sm, borderRadius: Radius.pill,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
   },
   doorActive: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
-  doorText: { color: TEXT.secondary, fontFamily: Fonts.bold, fontSize: 12, letterSpacing: 1 },
+  doorText: { fontFamily: Fonts.bold, fontSize: 12, letterSpacing: 1 },
   doorTextActive: { color: TEXT_COLORS.onAccent },
 
   poolCard: {
     alignItems: 'center', paddingVertical: Spacing.md, marginBottom: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 1, borderRadius: Radius.card,
+    borderWidth: 1, borderRadius: Radius.card,
   },
-  poolCount: { color: ATP_BRAND.lime, fontFamily: Fonts.extraBold, fontSize: 40, fontVariant: ['tabular-nums'] },
-  poolLabel: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 12 },
+  poolCount: { fontFamily: Fonts.extraBold, fontSize: 40, fontVariant: ['tabular-nums'] },
+  poolLabel: { fontFamily: Fonts.regular, fontSize: 12 },
   poolRow: {
     flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: ELEVATION[1].border, gap: Spacing.sm,
+    paddingVertical: 8, borderBottomWidth: 1, gap: Spacing.sm,
   },
-  poolRowName: { color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 13, flex: 1 },
-  poolRowNameVetado: { color: TEXT.tertiary, textDecorationLine: 'line-through' },
-  poolRowMeta: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 11 },
+  poolRowName: { fontFamily: Fonts.regular, fontSize: 13, flex: 1 },
+  poolRowNameVetado: { textDecorationLine: 'line-through' },
+  poolRowMeta: { fontFamily: Fonts.regular, fontSize: 11 },
 
   unidadesRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     gap: Spacing.sm, marginTop: Spacing.sm, flexWrap: 'wrap',
   },
-  unidadesLabel: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 13 },
-  retryText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: 13 },
+  unidadesLabel: { fontFamily: Fonts.regular, fontSize: 13 },
+  retryText: { fontFamily: Fonts.semiBold, fontSize: 13 },
 
   sectionLabel: {
-    color: TEXT.secondary, fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 2,
+    fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 2,
     marginTop: Spacing.lg, marginBottom: Spacing.sm,
   },
-  sectionHint: { color: TEXT.tertiary, fontFamily: Fonts.regular, fontSize: 12, marginTop: -6, marginBottom: Spacing.sm },
+  sectionHint: { fontFamily: Fonts.regular, fontSize: 12, marginTop: -6, marginBottom: Spacing.sm },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 
   timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xl },
   timeBtn: {
     width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
   },
-  timeBtnText: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: 22 },
-  timeValue: { color: TEXT.primary, fontFamily: Fonts.extraBold, fontSize: 36, fontVariant: ['tabular-nums'] },
-  timeUnit: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 11 },
+  timeBtnText: { fontFamily: Fonts.bold, fontSize: 22 },
+  timeValue: { fontFamily: Fonts.extraBold, fontSize: 36, fontVariant: ['tabular-nums'] },
+  timeUnit: { fontFamily: Fonts.regular, fontSize: 11 },
 
   avisoCard: {
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
     backgroundColor: withOpacity(ATP_BRAND.teal, 0.08), borderRadius: Radius.card,
     padding: Spacing.md, marginBottom: Spacing.sm,
   },
-  avisoText: { color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 19 },
+  avisoText: { fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 19 },
 
   previewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   bloqueRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 1,
+    borderWidth: 1,
     borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.xs,
   },
   bloqueNum: {
     width: 26, height: 26, borderRadius: 13, backgroundColor: withOpacity(ATP_BRAND.lime, 0.15),
     alignItems: 'center', justifyContent: 'center',
   },
-  bloqueNumText: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: 12 },
-  bloqueName: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: 14 },
-  bloqueMeta: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 12, marginTop: 1 },
-  bloqueTime: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 12, fontVariant: ['tabular-nums'] },
-  extraText: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 12, marginTop: Spacing.xs, lineHeight: 18 },
+  bloqueNumText: { fontFamily: Fonts.bold, fontSize: 12 },
+  bloqueName: { fontFamily: Fonts.semiBold, fontSize: 14 },
+  bloqueMeta: { fontFamily: Fonts.regular, fontSize: 12, marginTop: 1 },
+  bloqueTime: { fontFamily: Fonts.semiBold, fontSize: 12, fontVariant: ['tabular-nums'] },
+  extraText: { fontFamily: Fonts.regular, fontSize: 12, marginTop: Spacing.xs, lineHeight: 18 },
 });

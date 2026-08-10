@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TextInput, Alert, DeviceEventEmitter } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -54,8 +55,9 @@ import { bridgeRoutineToSession, type SessionBlock } from '@/src/services/fitnes
 import type { Routine as EngineRoutine } from '@/src/engine/types';
 import { clipDe, posterDe } from '@/src/constants/exercise-matrix';
 import { esBenchmarkDistancia } from '@/src/services/fitness/edad-bridge-core';
-import { ATP_BRAND, TEXT, TEXT_COLORS, BG, ELEVATION, PILLAR_GRADIENTS, SEMANTIC, withOpacity, CATEGORY_COLORS } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT, TEXT_COLORS, ELEVATION, PILLAR_GRADIENTS, SEMANTIC, withOpacity, CATEGORY_COLORS } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 const CARDIO_LABELS: Record<string, string> = {
   running: 'Correr', cycling: 'Ciclismo', swimming: 'Natación', rowing: 'Remo', other: 'Cardio',
@@ -78,6 +80,10 @@ function StandardBlockRunner({ block, onCue, onDone, onSetLogged, initialLogged 
   const [reps, setReps] = useState(String(block.reps));
   const [distancia, setDistancia] = useState('');
   const [logged, setLogged] = useState<SessionSet[]>(initialLogged ?? []);
+  // MB-31B3: tokens del tema global (la pantalla vive dentro de <Screen themed>).
+  const { kind, tokens: tk } = useAppTheme();
+  // Regla 1 de la guía: lima como TEXTO no sobrevive el claro → teal calibrado.
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tk.tealTexto;
   // MB-3.6 Bloque 5: broad jump es benchmark de DISTANCIA — se captura en cm
   // (activa su nudge de Edad ATP; reps no significaban nada aquí).
   const esDistancia = esBenchmarkDistancia(block.slug);
@@ -136,9 +142,9 @@ function StandardBlockRunner({ block, onCue, onDone, onSetLogged, initialLogged 
     <View>
       {/* Serie actual */}
       {!resting && (
-        <Animated.View entering={FadeInUp.duration(250)} style={s.serieCard}>
-          <Text style={s.serieLabel}>{esDistancia ? `INTENTO ${serie} DE ${block.series}` : `SERIE ${serie} DE ${block.series}`}</Text>
-          <Text style={s.serieMeta}>
+        <Animated.View entering={FadeInUp.duration(250)} style={[s.serieCard, { backgroundColor: tk.card, borderColor: tk.borde }]}>
+          <Text style={[s.serieLabel, { color: acento }]}>{esDistancia ? `INTENTO ${serie} DE ${block.series}` : `SERIE ${serie} DE ${block.series}`}</Text>
+          <Text style={[s.serieMeta, { color: tk.textoSecundario }]}>
             {esDistancia
               ? 'Salto horizontal máximo: mide la distancia talón a talón'
               : block.esIsometrico ? `Aguante objetivo: ${block.reps} s` : `Objetivo: ${block.reps} reps`}
@@ -147,14 +153,14 @@ function StandardBlockRunner({ block, onCue, onDone, onSetLogged, initialLogged 
           {esDistancia ? (
             <View style={s.inputsRow}>
               <View style={s.inputCol}>
-                <Text style={s.inputLabel}>DISTANCIA (CM)</Text>
+                <Text style={[s.inputLabel, { color: tk.textoSecundario }]}>DISTANCIA (CM)</Text>
                 <TextInput
-                  style={s.input}
+                  style={[s.input, { color: tk.texto, backgroundColor: tk.hundido }]}
                   value={distancia}
                   onChangeText={setDistancia}
                   keyboardType="decimal-pad"
                   placeholder="0"
-                  placeholderTextColor={TEXT.muted}
+                  placeholderTextColor={tk.sinDatos}
                   maxLength={5}
                 />
               </View>
@@ -162,26 +168,26 @@ function StandardBlockRunner({ block, onCue, onDone, onSetLogged, initialLogged 
           ) : (
             <View style={s.inputsRow}>
               <View style={s.inputCol}>
-                <Text style={s.inputLabel}>KG</Text>
+                <Text style={[s.inputLabel, { color: tk.textoSecundario }]}>KG</Text>
                 <TextInput
-                  style={s.input}
+                  style={[s.input, { color: tk.texto, backgroundColor: tk.hundido }]}
                   value={peso}
                   onChangeText={setPeso}
                   keyboardType="decimal-pad"
                   placeholder="0"
-                  placeholderTextColor={TEXT.muted}
+                  placeholderTextColor={tk.sinDatos}
                   maxLength={6}
                 />
               </View>
               <View style={s.inputCol}>
-                <Text style={s.inputLabel}>{block.esIsometrico ? 'SEG' : 'REPS'}</Text>
+                <Text style={[s.inputLabel, { color: tk.textoSecundario }]}>{block.esIsometrico ? 'SEG' : 'REPS'}</Text>
                 <TextInput
-                  style={s.input}
+                  style={[s.input, { color: tk.texto, backgroundColor: tk.hundido }]}
                   value={reps}
                   onChangeText={setReps}
                   keyboardType="number-pad"
                   placeholder="0"
-                  placeholderTextColor={TEXT.muted}
+                  placeholderTextColor={tk.sinDatos}
                   maxLength={3}
                 />
               </View>
@@ -207,7 +213,7 @@ function StandardBlockRunner({ block, onCue, onDone, onSetLogged, initialLogged 
           {logged.map((l) => (
             <View key={l.setNumber} style={s.loggedRow}>
               <View style={s.loggedDot}><Text style={s.loggedDotText}>{l.setNumber}</Text></View>
-              <Text style={s.loggedText}>
+              <Text style={[s.loggedText, { color: tk.texto }]}>
                 {l.distanceCm != null
                   ? `${l.distanceCm} cm`
                   : `${l.weightKg ? `${l.weightKg} kg × ` : ''}${l.reps}${l.esIsometrico ? ' s' : ' reps'}`}
@@ -253,15 +259,18 @@ function TiempoBlockRunner({ block, onCue, onDone }: {
 
   const min = Math.floor(restante / 60);
   const seg = restante % 60;
+  // MB-31B3: tokens del tema global (la pantalla vive dentro de <Screen themed>).
+  const { kind, tokens: tk } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tk.tealTexto;
   return (
-    <Animated.View entering={FadeInUp.duration(250)} style={s.serieCard}>
-      <Text style={s.serieLabel}>{block.esDescansoTiempo ? 'DESCANSO' : 'POR TIEMPO'}</Text>
-      <Text style={[s.tiempoTime, block.esDescansoTiempo && { color: ATP_BRAND.teal }]}>
+    <Animated.View entering={FadeInUp.duration(250)} style={[s.serieCard, { backgroundColor: tk.card, borderColor: tk.borde }]}>
+      <Text style={[s.serieLabel, { color: acento }]}>{block.esDescansoTiempo ? 'DESCANSO' : 'POR TIEMPO'}</Text>
+      <Text style={[s.tiempoTime, { color: block.esDescansoTiempo ? tk.tealTexto : acento }]}>
         {min}:{String(seg).padStart(2, '0')}
       </Text>
       <View style={s.tiempoActions}>
-        <AnimatedPressable onPress={() => { haptic.light(); setRestante((r) => r + 30); }} style={s.tiempoSecondary}>
-          <Text style={s.tiempoSecondaryText}>+30 s</Text>
+        <AnimatedPressable onPress={() => { haptic.light(); setRestante((r) => r + 30); }} style={[s.tiempoSecondary, { backgroundColor: tk.flotante, borderColor: tk.bordeMarcado }]}>
+          <Text style={[s.tiempoSecondaryText, { color: tk.texto }]}>+30 s</Text>
         </AnimatedPressable>
         <AnimatedPressable onPress={() => { haptic.light(); setRestante(0); }} style={s.tiempoSkip}>
           <Ionicons name="play-skip-forward" size={16} color={TEXT_COLORS.onAccent} />
@@ -286,6 +295,10 @@ export default function StrengthSessionScreen() {
   const { user } = useAuth();
   const { cue } = useMethodVoice();
   const { settings, updateSetting } = useSettings();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: tk } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tk.tealTexto;
+  const secTxt = { color: tk.textoSecundario };
 
   const plan = useMemo((): GeneratedRoutine | null => {
     if (!params.plan) return null;
@@ -533,7 +546,8 @@ export default function StrengthSessionScreen() {
     const { summary, prs = [], edadSignal, cardioHoy = [] } = resultado;
     const celebrar = prs.some((p) => p.celebrar);
     return (
-      <Screen edges={[]}>
+      <Screen themed edges={[]}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <ScreenHeader title="Sesión completa" onBack={() => router.back()} />
         <ConfettiCelebration visible={celebrar} />
         <ScrollView contentContainerStyle={{ padding: Spacing.md, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
@@ -563,15 +577,15 @@ export default function StrengthSessionScreen() {
 
           {/* Cardio del día (MB-3.6 §3.3: la sesión unifica fuerza + cardio) */}
           {cardioHoy.length > 0 && (
-            <Animated.View entering={FadeInDown.delay(60).duration(300)} style={s.sectionCard}>
+            <Animated.View entering={FadeInDown.delay(60).duration(300)} style={[s.sectionCard, { backgroundColor: tk.card, borderColor: tk.borde }]}>
               <View style={s.sectionHeader}>
                 <Ionicons name="pulse" size={16} color={SEMANTIC.info} />
-                <Text style={s.sectionTitle}>CARDIO DE HOY · TAMBIÉN CUENTA</Text>
+                <Text style={[s.sectionTitle, { color: tk.texto }]}>CARDIO DE HOY · TAMBIÉN CUENTA</Text>
               </View>
               {cardioHoy.map((c, i) => (
                 <View key={`${c.discipline}-${i}`} style={s.prRow}>
-                  <Text style={s.prName}>{CARDIO_LABELS[c.discipline] ?? c.discipline}</Text>
-                  <Text style={s.cardioValue}>
+                  <Text style={[s.prName, { color: tk.texto }]}>{CARDIO_LABELS[c.discipline] ?? c.discipline}</Text>
+                  <Text style={[s.cardioValue, { color: tk.info }]}>
                     {Math.round(c.durationSeconds / 60)} min
                     {c.distanceMeters ? ` · ${(c.distanceMeters / 1000).toFixed(1)} km` : ''}
                   </Text>
@@ -582,47 +596,47 @@ export default function StrengthSessionScreen() {
 
           {/* PRs */}
           {prs.length > 0 && (
-            <Animated.View entering={FadeInDown.delay(80).duration(300)} style={s.sectionCard}>
+            <Animated.View entering={FadeInDown.delay(80).duration(300)} style={[s.sectionCard, { backgroundColor: tk.card, borderColor: tk.borde }]}>
               <View style={s.sectionHeader}>
                 <Ionicons name="trophy" size={16} color={SEMANTIC.acceptable} />
-                <Text style={s.sectionTitle}>RÉCORDS NUEVOS</Text>
+                <Text style={[s.sectionTitle, { color: tk.texto }]}>RÉCORDS NUEVOS</Text>
               </View>
               {prs.map((pr) => (
                 <View key={pr.slug} style={s.prRow}>
-                  <Text style={s.prName} numberOfLines={1}>{pr.nombre}</Text>
+                  <Text style={[s.prName, { color: tk.texto }]} numberOfLines={1}>{pr.nombre}</Text>
                   <Text style={s.prValue}>
                     {pr.new1RM.toFixed(0)} kg 1RM
                     {pr.mejoraPct != null ? `  (+${pr.mejoraPct.toFixed(0)}%)` : '  · primero'}
                   </Text>
                 </View>
               ))}
-              {celebrar && <Text style={s.prCelebrate}>Brinco de más de 15%. Día grande. 🔥</Text>}
+              {celebrar && <Text style={[s.prCelebrate, { color: acento }]}>Brinco de más de 15%. Día grande. 🔥</Text>}
             </Animated.View>
           )}
 
           {/* Señal Edad ATP (el bucle sudor → dato → edad) */}
           {edadSignal && (edadSignal.alimentado.length > 0 || edadSignal.proyeccion || edadSignal.avisos.length > 0) && (
-            <Animated.View entering={FadeInDown.delay(160).duration(300)} style={s.sectionCard}>
+            <Animated.View entering={FadeInDown.delay(160).duration(300)} style={[s.sectionCard, { backgroundColor: tk.card, borderColor: tk.borde }]}>
               <View style={s.sectionHeader}>
                 <Ionicons name="pulse" size={16} color={ATP_BRAND.teal} />
-                <Text style={s.sectionTitle}>TU EDAD ATP</Text>
+                <Text style={[s.sectionTitle, { color: tk.texto }]}>TU EDAD ATP</Text>
               </View>
               {edadSignal.alimentado.map((a) => (
                 <View key={a} style={s.edadRow}>
                   <Ionicons name="checkmark-circle" size={15} color={ATP_BRAND.lime} />
-                  <Text style={s.edadText}>{a} · verdad medida, alimentó tu score de fitness.</Text>
+                  <Text style={[s.edadText, { color: tk.texto }]}>{a} · verdad medida, alimentó tu score de fitness.</Text>
                 </View>
               ))}
               {edadSignal.proyeccion?.texto && (
                 <View style={s.edadRow}>
                   <Ionicons name="trending-down" size={15} color={ATP_BRAND.teal} />
-                  <Text style={s.edadText}>{edadSignal.proyeccion.texto}</Text>
+                  <Text style={[s.edadText, { color: tk.texto }]}>{edadSignal.proyeccion.texto}</Text>
                 </View>
               )}
               {edadSignal.avisos.map((a) => (
                 <View key={a} style={s.edadRow}>
-                  <Ionicons name="information-circle-outline" size={15} color={TEXT.secondary} />
-                  <Text style={[s.edadText, { color: TEXT.secondary }]}>{a}</Text>
+                  <Ionicons name="information-circle-outline" size={15} color={tk.textoSecundario} />
+                  <Text style={[s.edadText, secTxt]}>{a}</Text>
                 </View>
               ))}
             </Animated.View>
@@ -639,18 +653,20 @@ export default function StrengthSessionScreen() {
   // ── Carga / vacío ──
   if (!bloques) {
     return (
-      <Screen edges={[]}>
+      <Screen themed edges={[]}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <ScreenHeader title="Sesión" onBack={() => router.back()} />
-        <View style={s.center}><Text style={s.metaText}>Cargando…</Text></View>
+        <View style={s.center}><Text style={[s.metaText, secTxt]}>Cargando…</Text></View>
       </Screen>
     );
   }
   if (bloques.length === 0 || !actual) {
     return (
-      <Screen edges={[]}>
+      <Screen themed edges={[]}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <ScreenHeader title="Sesión" onBack={() => router.back()} />
         <View style={s.center}>
-          <Text style={s.metaText}>No hay ejercicios en esta sesión.</Text>
+          <Text style={[s.metaText, secTxt]}>No hay ejercicios en esta sesión.</Text>
         </View>
       </Screen>
     );
@@ -659,7 +675,8 @@ export default function StrengthSessionScreen() {
   // ── Ejecución ──
   const nivelMetodo = 'intermediate' as const;
   return (
-    <Screen edges={[]}>
+    <Screen themed edges={[]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <KeepAwakeActive />
       <ScreenHeader
         title={params.name ?? 'Sesión de hoy'}
@@ -674,9 +691,9 @@ export default function StrengthSessionScreen() {
           <AnimatedPressable
             hitSlop={8}
             onPress={() => { haptic.light(); updateSetting('fitnessVoice', VOZ_CICLO[settings.fitnessVoice]); }}
-            style={s.voiceBtn}
+            style={[s.voiceBtn, { backgroundColor: tk.card, borderColor: tk.borde }]}
           >
-            <Ionicons name={VOZ_ICONO[settings.fitnessVoice]} size={17} color={settings.fitnessVoice === 'off' ? TEXT.tertiary : ATP_BRAND.lime} />
+            <Ionicons name={VOZ_ICONO[settings.fitnessVoice]} size={17} color={settings.fitnessVoice === 'off' ? tk.textoTenue : ATP_BRAND.lime} />
           </AnimatedPressable>
         }
       />
@@ -684,8 +701,8 @@ export default function StrengthSessionScreen() {
         {/* Progreso — MB-3.7 §1.2: el número manda (en el gym se lee rápido);
             la barra queda como indicador ambiental delgado, sin label propio. */}
         <View style={s.progressRow}>
-          <Text style={s.progressText}>{actual.esTiempo ? 'BLOQUE' : 'EJERCICIO'} {idx + 1} / {bloques.length}</Text>
-          <View style={s.progressBar}>
+          <Text style={[s.progressText, secTxt]}>{actual.esTiempo ? 'BLOQUE' : 'EJERCICIO'} {idx + 1} / {bloques.length}</Text>
+          <View style={[s.progressBar, { backgroundColor: tk.card }]}>
             <View style={[s.progressFill, { width: `${((idx) / bloques.length) * 100}%` }]} />
           </View>
         </View>
@@ -762,11 +779,11 @@ export default function StrengthSessionScreen() {
         {/* Acciones */}
         <View style={s.actionsRow}>
           <AnimatedPressable onPress={saltarEjercicio} style={s.skipExercise}>
-            <Ionicons name="play-skip-forward-outline" size={15} color={TEXT.secondary} />
-            <Text style={s.skipExerciseText}>{actual.esTiempo ? 'Saltar bloque' : 'Saltar ejercicio'}</Text>
+            <Ionicons name="play-skip-forward-outline" size={15} color={tk.textoSecundario} />
+            <Text style={[s.skipExerciseText, secTxt]}>{actual.esTiempo ? 'Saltar bloque' : 'Saltar ejercicio'}</Text>
           </AnimatedPressable>
-          <AnimatedPressable onPress={() => finalizar(sets)} disabled={saving} style={s.endBtn}>
-            <Text style={s.endBtnText}>{saving ? 'GUARDANDO…' : 'TERMINAR'}</Text>
+          <AnimatedPressable onPress={() => finalizar(sets)} disabled={saving} style={[s.endBtn, { backgroundColor: tk.flotante, borderColor: tk.bordeMarcado }]}>
+            <Text style={[s.endBtnText, { color: tk.texto }]}>{saving ? 'GUARDANDO…' : 'TERMINAR'}</Text>
           </AnimatedPressable>
         </View>
       </ScrollView>
@@ -778,11 +795,11 @@ export default function StrengthSessionScreen() {
 
 const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  metaText: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 14 },
+  metaText: { fontFamily: Fonts.regular, fontSize: 14 },
 
   progressRow: { marginBottom: Spacing.md },
-  progressText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 11, letterSpacing: 2, marginBottom: 6 },
-  progressBar: { height: 2, backgroundColor: ELEVATION[1].bg, borderRadius: 1 },
+  progressText: { fontFamily: Fonts.semiBold, fontSize: 11, letterSpacing: 2, marginBottom: 6 },
+  progressBar: { height: 2, borderRadius: 1 },
   progressFill: { height: '100%', backgroundColor: withOpacity(ATP_BRAND.lime, 0.75), borderRadius: 1 },
 
   heroCard: {
@@ -804,34 +821,32 @@ const s = StyleSheet.create({
   heroPillText: { color: 'rgba(255,255,255,0.85)', fontFamily: Fonts.semiBold, fontSize: 11 },
 
   serieCard: {
-    backgroundColor: ELEVATION[1].bg,
-    borderColor: ELEVATION[1].border,
     borderWidth: 1,
     borderRadius: Radius.card,
     padding: Spacing.md,
     gap: Spacing.sm,
   },
-  serieLabel: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: 13, letterSpacing: 2 },
-  serieMeta: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 13 },
+  serieLabel: { fontFamily: Fonts.bold, fontSize: 13, letterSpacing: 2 },
+  serieMeta: { fontFamily: Fonts.regular, fontSize: 13 },
   inputsRow: { flexDirection: 'row', gap: Spacing.md, marginVertical: Spacing.sm },
   inputCol: { flex: 1 },
-  inputLabel: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 10, letterSpacing: 1, marginBottom: 6, textAlign: 'center' },
+  inputLabel: { fontFamily: Fonts.semiBold, fontSize: 10, letterSpacing: 1, marginBottom: 6, textAlign: 'center' },
   input: {
-    fontFamily: Fonts.bold, fontSize: 22, color: TEXT.primary, backgroundColor: BG.input,
+    fontFamily: Fonts.bold, fontSize: 22,
     borderRadius: Radius.sm, paddingVertical: Spacing.sm, textAlign: 'center',
   },
 
   // MB-7 Track C: bloque de tiempo inline
   tiempoTime: {
-    color: ATP_BRAND.lime, fontFamily: Fonts.extraBold, fontSize: 64,
+    fontFamily: Fonts.extraBold, fontSize: 64,
     fontVariant: ['tabular-nums'], textAlign: 'center', marginVertical: Spacing.xs,
   },
   tiempoActions: { flexDirection: 'row', gap: Spacing.md, justifyContent: 'center', marginTop: Spacing.xs },
   tiempoSecondary: {
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: Radius.pill,
-    borderWidth: 1, borderColor: ELEVATION[2].border, backgroundColor: ELEVATION[2].bg,
+    borderWidth: 1,
   },
-  tiempoSecondaryText: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: 13 },
+  tiempoSecondaryText: { fontFamily: Fonts.semiBold, fontSize: 13 },
   tiempoSkip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
@@ -845,20 +860,20 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   loggedDotText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: 11 },
-  loggedText: { color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 13 },
+  loggedText: { fontFamily: Fonts.regular, fontSize: 13 },
 
   actionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.xl },
   skipExercise: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: Spacing.sm },
-  skipExerciseText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 13 },
+  skipExerciseText: { fontFamily: Fonts.semiBold, fontSize: 13 },
   endBtn: {
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
-    borderRadius: Radius.pill, borderWidth: 1, borderColor: ELEVATION[2].border, backgroundColor: ELEVATION[2].bg,
+    borderRadius: Radius.pill, borderWidth: 1,
   },
-  endBtnText: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: 12, letterSpacing: 1 },
+  endBtnText: { fontFamily: Fonts.bold, fontSize: 12, letterSpacing: 1 },
 
   voiceBtn: {
     width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
   },
 
   summaryHero: { borderRadius: Radius.card, padding: Spacing.lg, marginBottom: Spacing.md },
@@ -869,16 +884,16 @@ const s = StyleSheet.create({
   statLabel: { color: 'rgba(255,255,255,0.7)', fontFamily: Fonts.semiBold, fontSize: 10, letterSpacing: 1.5 },
 
   sectionCard: {
-    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 1,
+    borderWidth: 1,
     borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.md,
   },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.sm },
-  sectionTitle: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: 12, letterSpacing: 2 },
+  sectionTitle: { fontFamily: Fonts.bold, fontSize: 12, letterSpacing: 2 },
   prRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: Spacing.sm },
-  prName: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: 14, flex: 1 },
+  prName: { fontFamily: Fonts.semiBold, fontSize: 14, flex: 1 },
   prValue: { color: SEMANTIC.acceptable, fontFamily: Fonts.bold, fontSize: 13 },
-  cardioValue: { color: SEMANTIC.info, fontFamily: Fonts.bold, fontSize: 13, fontVariant: ['tabular-nums'] },
-  prCelebrate: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: 13, marginTop: Spacing.xs },
+  cardioValue: { fontFamily: Fonts.bold, fontSize: 13, fontVariant: ['tabular-nums'] },
+  prCelebrate: { fontFamily: Fonts.semiBold, fontSize: 13, marginTop: Spacing.xs },
   edadRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
-  edadText: { color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 19 },
+  edadText: { fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 19 },
 });

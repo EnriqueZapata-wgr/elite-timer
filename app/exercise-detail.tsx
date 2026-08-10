@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,18 +25,25 @@ import { benchmarkInfo } from '@/src/services/fitness/edad-bridge-core';
 import { clipDe, posterDe, type MatrixExercise } from '@/src/constants/exercise-matrix';
 import { ATP_BRAND, TEXT, ELEVATION, withOpacity, SEMANTIC } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 function Tag({ label, tone = 'neutro' }: { label: string; tone?: 'neutro' | 'lime' | 'teal' }) {
+  // MB-31B3: tokens del tema global (la pantalla vive dentro de <Screen themed>).
+  const { kind, tokens: tk } = useAppTheme();
+  // Regla 1 de la guía: lima como TEXTO no sobrevive el claro → teal calibrado.
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tk.tealTexto;
   return (
     <View style={[
       t.tag,
+      { backgroundColor: tk.card, borderColor: tk.borde },
       tone === 'lime' && { backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderColor: withOpacity(ATP_BRAND.lime, 0.4) },
       tone === 'teal' && { backgroundColor: withOpacity(ATP_BRAND.teal, 0.12), borderColor: withOpacity(ATP_BRAND.teal, 0.4) },
     ]}>
       <Text style={[
         t.tagText,
-        tone === 'lime' && { color: ATP_BRAND.lime },
-        tone === 'teal' && { color: ATP_BRAND.teal },
+        { color: tk.textoSecundario },
+        tone === 'lime' && { color: acento },
+        tone === 'teal' && { color: tk.tealTexto },
       ]}>{label}</Text>
     </View>
   );
@@ -44,15 +52,18 @@ function Tag({ label, tone = 'neutro' }: { label: string; tone?: 'neutro' | 'lim
 const t = StyleSheet.create({
   tag: {
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: Radius.pill,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
   },
-  tagText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 11 },
+  tagText: { fontFamily: Fonts.semiBold, fontSize: 11 },
 });
 
 export default function ExerciseDetailScreen() {
   const router = useRouter();
   const { slug } = useLocalSearchParams<{ slug?: string }>();
   const [catalogo, setCatalogo] = useState<MatrixExercise[]>([]);
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: tk } = useAppTheme();
+  const secTxt = { color: tk.textoSecundario };
 
   // D-2 (MB-12): sin catch, un rechazo dejaba la ficha cargando por siempre.
   useEffect(() => { getExerciseMatrix().then(setCatalogo).catch(() => setCatalogo([])); }, []);
@@ -65,9 +76,10 @@ export default function ExerciseDetailScreen() {
 
   if (!ex) {
     return (
-      <Screen edges={[]}>
+      <Screen themed edges={[]}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <ScreenHeader title="Ejercicio" />
-        <View style={s.center}><Text style={s.metaText}>{catalogo.length === 0 ? 'Cargando…' : 'Ejercicio no encontrado.'}</Text></View>
+        <View style={s.center}><Text style={[s.metaText, secTxt]}>{catalogo.length === 0 ? 'Cargando…' : 'Ejercicio no encontrado.'}</Text></View>
       </Screen>
     );
   }
@@ -75,7 +87,8 @@ export default function ExerciseDetailScreen() {
   const bench = benchmarkInfo(ex);
 
   return (
-    <Screen edges={[]}>
+    <Screen themed edges={[]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title={ex.familia} />
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
 
@@ -104,23 +117,23 @@ export default function ExerciseDetailScreen() {
               un clip que casi nunca existe. */}
           {ex.instrucciones && (
             <>
-              <Text style={s.sectionLabel}>CÓMO SE HACE</Text>
-              <Text style={s.bodyText}>{ex.instrucciones}</Text>
+              <Text style={[s.sectionLabel, secTxt]}>CÓMO SE HACE</Text>
+              <Text style={[s.bodyText, { color: tk.texto }]}>{ex.instrucciones}</Text>
             </>
           )}
 
           {/* Equipo */}
-          <Text style={s.sectionLabel}>EQUIPO</Text>
-          <Text style={s.bodyText}>{ex.equipo}</Text>
+          <Text style={[s.sectionLabel, secTxt]}>EQUIPO</Text>
+          <Text style={[s.bodyText, { color: tk.texto }]}>{ex.equipo}</Text>
 
           {/* Cualidades (pills que manejan el slotting del generador) */}
-          <Text style={s.sectionLabel}>CUALIDADES</Text>
+          <Text style={[s.sectionLabel, secTxt]}>CUALIDADES</Text>
           <View style={s.tagsWrap}>
             {ex.cualidades.map((q) => <Tag key={q} label={q} tone="teal" />)}
           </View>
 
           {/* Métodos ATP */}
-          <Text style={s.sectionLabel}>MÉTODOS ATP</Text>
+          <Text style={[s.sectionLabel, secTxt]}>MÉTODOS ATP</Text>
           <View style={s.tagsWrap}>
             {ex.metodos.map((m) => <Tag key={m} label={m} />)}
             {ex.emomApto !== 'No' && <Tag label={`EMOM: ${ex.emomApto}`} tone="lime" />}
@@ -128,12 +141,12 @@ export default function ExerciseDetailScreen() {
 
           {/* Benchmark Edad ATP (Track C, copy honesto por tier) */}
           {ex.benchmark.tier && (
-            <View style={s.benchCard}>
+            <View style={[s.benchCard, { backgroundColor: tk.card, borderColor: tk.borde }]}>
               <View style={s.benchHeader}>
                 <Ionicons name="pulse" size={16} color={ex.benchmark.tier === 'A' ? ATP_BRAND.lime : ATP_BRAND.teal} />
-                <Text style={s.benchTitle}>BENCHMARK EDAD ATP · TIER {ex.benchmark.tier}</Text>
+                <Text style={[s.benchTitle, { color: tk.texto }]}>BENCHMARK EDAD ATP · TIER {ex.benchmark.tier}</Text>
               </View>
-              <Text style={s.benchText}>
+              <Text style={[s.benchText, secTxt]}>
                 {bench.alimentaDirecto
                   ? 'Registrar este ejercicio en tu sesión ES el test: tu mejor set alimenta directo tu Edad ATP de fitness (norma clínica).'
                   : ex.benchmark.tier === 'A'
@@ -147,7 +160,7 @@ export default function ExerciseDetailScreen() {
           {ex.contraindicaciones.length > 0 && (
             <View style={s.warnCard}>
               <Ionicons name="alert-circle-outline" size={16} color={SEMANTIC.error} />
-              <Text style={s.warnText}>
+              <Text style={[s.warnText, { color: tk.texto }]}>
                 Cuidado con: {ex.contraindicaciones.join(' · ')}. Si aplica a ti, el generador te da la variante segura.
               </Text>
             </View>
@@ -157,18 +170,18 @@ export default function ExerciseDetailScreen() {
               MB-3.7 §1.3: la familia ya está en el header — aquí solo el conteo. */}
           {variantes.length > 0 && (
             <>
-              <Text style={s.sectionLabel}>{variantes.length} {variantes.length === 1 ? 'VARIANTE' : 'VARIANTES'}</Text>
+              <Text style={[s.sectionLabel, secTxt]}>{variantes.length} {variantes.length === 1 ? 'VARIANTE' : 'VARIANTES'}</Text>
               {variantes.map((v) => (
                 <AnimatedPressable
                   key={v.slug}
-                  style={s.varRow}
+                  style={[s.varRow, { backgroundColor: tk.card, borderColor: tk.borde }]}
                   onPress={() => { haptic.light(); router.replace({ pathname: '/exercise-detail', params: { slug: v.slug } }); }}
                 >
                   <View style={{ flex: 1 }}>
-                    <Text style={s.varName} numberOfLines={1}>{v.nombre}</Text>
-                    <Text style={s.varMeta} numberOfLines={1}>{v.equipo} · {v.nivel}</Text>
+                    <Text style={[s.varName, { color: tk.texto }]} numberOfLines={1}>{v.nombre}</Text>
+                    <Text style={[s.varMeta, secTxt]} numberOfLines={1}>{v.equipo} · {v.nivel}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color={TEXT.tertiary} />
+                  <Ionicons name="chevron-forward" size={16} color={tk.textoTenue} />
                 </AnimatedPressable>
               ))}
             </>
@@ -194,7 +207,7 @@ export default function ExerciseDetailScreen() {
 
 const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  metaText: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 14 },
+  metaText: { fontFamily: Fonts.regular, fontSize: 14 },
 
   hero: {
     height: 300, justifyContent: 'flex-end', backgroundColor: ELEVATION[1].bg,
@@ -206,31 +219,31 @@ const s = StyleSheet.create({
 
   tagsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: Spacing.md },
   sectionLabel: {
-    color: TEXT.secondary, fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 2,
+    fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 2,
     marginTop: Spacing.lg, marginBottom: Spacing.xs,
   },
-  bodyText: { color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 14 },
+  bodyText: { fontFamily: Fonts.regular, fontSize: 14 },
 
   benchCard: {
-    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 1,
+    borderWidth: 1,
     borderRadius: Radius.card, padding: Spacing.md, marginTop: Spacing.lg,
   },
   benchHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  benchTitle: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 1.5 },
-  benchText: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 13, lineHeight: 19 },
+  benchTitle: { fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 1.5 },
+  benchText: { fontFamily: Fonts.regular, fontSize: 13, lineHeight: 19 },
 
   warnCard: {
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
     backgroundColor: withOpacity(SEMANTIC.error, 0.08), borderRadius: Radius.card,
     padding: Spacing.md, marginTop: Spacing.md,
   },
-  warnText: { color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 19 },
+  warnText: { fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 19 },
 
   varRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 1,
+    borderWidth: 1,
     borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.xs,
   },
-  varName: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: 14 },
-  varMeta: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 12, marginTop: 1 },
+  varName: { fontFamily: Fonts.semiBold, fontSize: 14 },
+  varMeta: { fontFamily: Fonts.regular, fontSize: 12, marginTop: 1 },
 });

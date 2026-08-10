@@ -22,8 +22,9 @@ import {
   fetchNBackState, fetchChallengeStats, fetchNBackPercentiles,
   type NBackUserState, type NBackChallengeStats, type NBackPercentiles,
 } from '@/src/services/nback-service';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 type Tab = 'overview' | 'reto' | 'ranking';
 
@@ -38,6 +39,14 @@ export default function NBackStatsScreen() {
   const [state, setState] = useState<NBackUserState | null>(null);
   const [challenge, setChallenge] = useState<NBackChallengeStats | null>(null);
   const [pct, setPct] = useState<NBackPercentiles | null>(null);
+
+  // MB-31B3: tokens del tema; el acento de texto en claro es teal (regla 1).
+  const { kind, tokens: tk } = useAppTheme();
+  const secTxt = { color: tk.textoSecundario };
+  const priTxt = { color: tk.texto };
+  const tenueTxt = { color: tk.textoTenue };
+  const cardSurf = { backgroundColor: tk.card, borderColor: tk.borde };
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tk.tealTexto;
 
   useFocusEffect(useCallback(() => {
     let alive = true;
@@ -71,8 +80,9 @@ export default function NBackStatsScreen() {
   const badge = badgeForBestN(state?.best_n ?? NBACK_CONFIG.N_START);
 
   return (
-    <View style={s.screen}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[s.screen, { backgroundColor: tk.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <StickyPillarBanner scrolled={scrolled} onBack={() => router.back()} />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -82,7 +92,7 @@ export default function NBackStatsScreen() {
       >
         <View style={s.header}>
           <EliteText style={s.kicker}>N-BACK</EliteText>
-          <EliteText style={s.title}>Estadísticas</EliteText>
+          <EliteText style={[s.title, priTxt]}>Estadísticas</EliteText>
         </View>
 
         <View style={s.body}>
@@ -98,7 +108,7 @@ export default function NBackStatsScreen() {
                 style={[s.tabBtn, tab === t.key && s.tabBtnActive]}
                 onPress={() => { haptic.light(); setTab(t.key); }}
               >
-                <EliteText style={[s.tabText, tab === t.key && s.tabTextActive]}>{t.label}</EliteText>
+                <EliteText style={[s.tabText, secTxt, tab === t.key && { color: acento }]}>{t.label}</EliteText>
               </AnimatedPressable>
             ))}
           </View>
@@ -130,8 +140,8 @@ export default function NBackStatsScreen() {
 
           {tab === 'reto' && (
             <>
-              <View style={s.card}>
-                <EliteText style={s.cardKicker}>NIVEL A LO LARGO DEL RETO</EliteText>
+              <View style={[s.card, cardSurf]}>
+                <EliteText style={[s.cardKicker, secTxt]}>NIVEL A LO LARGO DEL RETO</EliteText>
                 {chart ? (
                   <>
                     <Svg width={CHART_W} height={CHART_H} style={{ alignSelf: 'center', marginTop: Spacing.sm }}>
@@ -145,10 +155,10 @@ export default function NBackStatsScreen() {
                         strokeLinecap="round"
                       />
                     </Svg>
-                    <EliteText style={s.chartHint}>Máx del periodo: N = {chart.maxN.toFixed(1)}</EliteText>
+                    <EliteText style={[s.chartHint, tenueTxt]}>Máx del periodo: N = {chart.maxN.toFixed(1)}</EliteText>
                   </>
                 ) : (
-                  <EliteText style={s.empty}>Completa tu primer round para ver tu curva.</EliteText>
+                  <EliteText style={[s.empty, secTxt]}>Completa tu primer round para ver tu curva.</EliteText>
                 )}
               </View>
               <View style={s.miniGrid}>
@@ -161,10 +171,10 @@ export default function NBackStatsScreen() {
           )}
 
           {tab === 'ranking' && (
-            <View style={s.card}>
-              <View style={s.soonBadge}><EliteText style={s.soonText}>PRONTO</EliteText></View>
-              <EliteText style={s.cardTitle}>Leaderboard de la comunidad</EliteText>
-              <EliteText style={s.empty}>
+            <View style={[s.card, cardSurf]}>
+              <View style={s.soonBadge}><EliteText style={[s.soonText, secTxt]}>PRONTO</EliteText></View>
+              <EliteText style={[s.cardTitle, priTxt]}>Leaderboard de la comunidad</EliteText>
+              <EliteText style={[s.empty, secTxt]}>
                 Compite por N máximo y racha, estilo Strava. Llega con el módulo
                 Comunidad. Tus datos cognitivos son privados y solo entran al
                 ranking si tú decides compartirlos (opt-in).
@@ -176,39 +186,44 @@ export default function NBackStatsScreen() {
         </View>
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
 function StatCard({ label, value, percentile, extra }: {
   label: string; value: string; percentile?: string; extra?: string;
 }) {
+  // MB-31B3: tokens del tema (acento de texto en claro = teal, regla 1).
+  const { kind, tokens: tk } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tk.tealTexto;
   return (
-    <View style={s.card}>
-      <EliteText style={s.cardKicker}>{label}</EliteText>
+    <View style={[s.card, { backgroundColor: tk.card, borderColor: tk.borde }]}>
+      <EliteText style={[s.cardKicker, { color: tk.textoSecundario }]}>{label}</EliteText>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-        <EliteText style={s.statValue}>{value}</EliteText>
+        <EliteText style={[s.statValue, { color: tk.texto }]}>{value}</EliteText>
         {extra && <EliteText style={s.statExtra}>{extra}</EliteText>}
       </View>
-      {percentile && <EliteText style={s.statPct}>{percentile}</EliteText>}
+      {percentile && <EliteText style={[s.statPct, { color: acento }]}>{percentile}</EliteText>}
     </View>
   );
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
+  const { tokens: tk } = useAppTheme();
   return (
-    <View style={s.miniStat}>
-      <EliteText style={s.miniValue}>{value}</EliteText>
-      <EliteText style={s.miniLabel}>{label}</EliteText>
+    <View style={[s.miniStat, { backgroundColor: tk.card, borderColor: tk.borde }]}>
+      <EliteText style={[s.miniValue, { color: tk.texto }]}>{value}</EliteText>
+      <EliteText style={[s.miniLabel, { color: tk.textoTenue }]}>{label}</EliteText>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#000' },
+  screen: { flex: 1 },
   scroll: { paddingBottom: Spacing.xxl },
   header: { paddingTop: 108, paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
   kicker: { color: '#7F77DD', fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 3 },
-  title: { color: '#fff', fontSize: 30, fontFamily: Fonts.extraBold, letterSpacing: 1, marginTop: 2 },
+  title: { fontSize: 30, fontFamily: Fonts.extraBold, letterSpacing: 1, marginTop: 2 },
   body: { paddingHorizontal: Spacing.md },
 
   tabs: {
@@ -220,33 +235,32 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'transparent',
   },
   tabBtnActive: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.15), borderColor: withOpacity(ATP_BRAND.lime, 0.5) },
-  tabText: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
-  tabTextActive: { color: ATP_BRAND.lime },
+  tabText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 
   card: {
-    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 0.5,
+    borderWidth: 0.5,
     borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.sm,
   },
-  cardKicker: { color: TEXT.secondary, fontSize: 11, fontFamily: Fonts.semiBold, letterSpacing: 2 },
-  cardTitle: { color: '#fff', fontSize: FontSizes.xl, fontFamily: Fonts.bold, marginTop: 6 },
-  statValue: { color: '#fff', fontSize: 32, fontFamily: Fonts.extraBold, marginTop: 4 },
+  cardKicker: { fontSize: 11, fontFamily: Fonts.semiBold, letterSpacing: 2 },
+  cardTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, marginTop: 6 },
+  statValue: { fontSize: 32, fontFamily: Fonts.extraBold, marginTop: 4 },
   statExtra: { color: '#b9b3f0', fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
-  statPct: { color: ATP_BRAND.lime, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, marginTop: 4 },
-  chartHint: { color: TEXT.tertiary, fontSize: FontSizes.xs, fontFamily: Fonts.regular, textAlign: 'center', marginTop: 6 },
-  empty: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 8, lineHeight: 20 },
+  statPct: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, marginTop: 4 },
+  chartHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, textAlign: 'center', marginTop: 6 },
+  empty: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 8, lineHeight: 20 },
 
   miniGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   miniStat: {
     flexBasis: '47%', flexGrow: 1,
-    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 0.5,
+    borderWidth: 0.5,
     borderRadius: Radius.lg, padding: Spacing.md, alignItems: 'center',
   },
-  miniValue: { color: '#fff', fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold },
-  miniLabel: { color: TEXT.tertiary, fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
+  miniValue: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold },
+  miniLabel: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
 
   soonBadge: {
     alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 3, marginBottom: 6,
   },
-  soonText: { color: TEXT.secondary, fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 2 },
+  soonText: { fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 2 },
 });

@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -25,8 +26,9 @@ import { haptic } from '@/src/utils/haptics';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import {
-  ATP_BRAND, TEXT, ELEVATION, CATEGORY_COLORS, GLOW, getScoreColor, withOpacity,
+  ATP_BRAND, TEXT, CATEGORY_COLORS, GLOW, getScoreColor, withOpacity,
 } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import {
   MOBILITY_TESTS,
   EMPTY_MOBILITY_INPUT,
@@ -74,6 +76,8 @@ function CmInput({ valor, onChange, permiteNegativo }: {
   permiteNegativo: boolean;
 }) {
   const [texto, setTexto] = useState(valor != null ? String(valor) : '');
+  // MB-31B3: tokens del tema global (vive dentro de <Screen themed>).
+  const { tokens: tk } = useAppTheme();
 
   function commit(t: string) {
     setTexto(t);
@@ -95,23 +99,25 @@ function CmInput({ valor, onChange, permiteNegativo }: {
 
   return (
     <View style={cm.row}>
-      <AnimatedPressable onPress={() => step(-1)} style={cm.btn}>
-        <EliteText style={cm.btnText}>−</EliteText>
+      <AnimatedPressable onPress={() => step(-1)} style={[cm.btn, { backgroundColor: tk.flotante, borderColor: tk.bordeMarcado }]}>
+        <EliteText style={[cm.btnText, { color: tk.texto }]}>−</EliteText>
       </AnimatedPressable>
       <View style={cm.inputWrap}>
+        {/* El fill era ELEVATION[0].bg (#000 sobre pantalla #000): t.fondo
+            preserva el oscuro exacto y en claro sigue fundido con el lienzo. */}
         <TextInput
-          style={cm.input}
+          style={[cm.input, { color: tk.texto, backgroundColor: tk.fondo }]}
           value={texto}
           onChangeText={commit}
           keyboardType={permiteNegativo ? 'numbers-and-punctuation' : 'decimal-pad'}
           placeholder="0"
-          placeholderTextColor={TEXT.muted}
+          placeholderTextColor={tk.sinDatos}
           maxLength={5}
         />
-        <EliteText style={cm.unidad}>cm</EliteText>
+        <EliteText style={[cm.unidad, { color: tk.textoSecundario }]}>cm</EliteText>
       </View>
-      <AnimatedPressable onPress={() => step(1)} style={cm.btn}>
-        <EliteText style={cm.btnText}>+</EliteText>
+      <AnimatedPressable onPress={() => step(1)} style={[cm.btn, { backgroundColor: tk.flotante, borderColor: tk.bordeMarcado }]}>
+        <EliteText style={[cm.btnText, { color: tk.texto }]}>+</EliteText>
       </AnimatedPressable>
     </View>
   );
@@ -121,21 +127,26 @@ const cm = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
   btn: {
     width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
+    borderWidth: 1,
   },
-  btnText: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: 20 },
+  btnText: { fontFamily: Fonts.bold, fontSize: 20 },
   inputWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
   input: {
-    minWidth: 76, textAlign: 'center', color: TEXT.primary, fontFamily: Fonts.extraBold,
-    fontSize: 30, backgroundColor: ELEVATION[0].bg, borderRadius: Radius.sm,
+    minWidth: 76, textAlign: 'center', fontFamily: Fonts.extraBold,
+    fontSize: 30, borderRadius: Radius.sm,
     paddingVertical: 8, paddingHorizontal: 10,
   },
-  unidad: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 13 },
+  unidad: { fontFamily: Fonts.semiBold, fontSize: 13 },
 });
 
 export default function MobilityAssessmentScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: tk } = useAppTheme();
+  // Regla 1 de la guía: lima como TEXTO no sobrevive el claro → teal calibrado.
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tk.tealTexto;
+  const secTxt = { color: tk.textoSecundario };
 
   const [fase, setFase] = useState<Fase>('inicio');
   const [paso, setPaso] = useState(0);
@@ -187,7 +198,8 @@ export default function MobilityAssessmentScreen() {
   // ── Fase INICIO ──
   if (fase === 'inicio') {
     return (
-      <Screen edges={[]}>
+      <Screen themed edges={[]}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <ScreenHeader title="Movilidad" />
         <ScrollView contentContainerStyle={{ padding: Spacing.md, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
           <Animated.View entering={FadeInDown.duration(300)}>
@@ -219,12 +231,12 @@ export default function MobilityAssessmentScreen() {
 
           <Animated.View entering={FadeInUp.delay(120).springify()}>
             {MOBILITY_TESTS.map((t, i) => (
-              <View key={t.key} style={s.indexRow}>
+              <View key={t.key} style={[s.indexRow, { borderBottomColor: tk.borde }]}>
                 <View style={[s.indexNum, { backgroundColor: withOpacity(MOR, 0.12) }]}>
                   <EliteText style={[s.indexNumText, { color: MOR }]}>{i + 1}</EliteText>
                 </View>
-                <EliteText style={s.indexName}>{t.nombre}</EliteText>
-                <Ionicons name={t.icono as any} size={16} color={TEXT.tertiary} />
+                <EliteText style={[s.indexName, { color: tk.texto }]}>{t.nombre}</EliteText>
+                <Ionicons name={t.icono as any} size={16} color={tk.textoTenue} />
               </View>
             ))}
           </Animated.View>
@@ -260,7 +272,8 @@ export default function MobilityAssessmentScreen() {
     const deltas = cmp ? new Map(cmp.porTest.map((t) => [t.key, t.delta])) : null;
 
     return (
-      <Screen edges={[]}>
+      <Screen themed edges={[]}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <ScreenHeader title="Tu movilidad" onBack={() => router.back()} />
         <ScrollView contentContainerStyle={{ padding: Spacing.md, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
           {/* Overall — el dato heroico */}
@@ -272,20 +285,20 @@ export default function MobilityAssessmentScreen() {
                     {overall.toFixed(1)}
                   </EliteText>
                 </View>
-                <EliteText style={s.resultDe10}>de 10 · movilidad {READING_LABELS[lecturaDe(overall)].toLowerCase()}</EliteText>
+                <EliteText style={[s.resultDe10, secTxt]}>de 10 · movilidad {READING_LABELS[lecturaDe(overall)].toLowerCase()}</EliteText>
                 {cmp?.deltaOverall != null && (
-                  <View style={s.deltaPill}>
+                  <View style={[s.deltaPill, { backgroundColor: tk.card, borderColor: tk.borde }]}>
                     <Ionicons
                       name={cmp.deltaOverall >= 0 ? 'trending-up' : 'trending-down'}
                       size={13}
-                      color={cmp.deltaOverall >= 0 ? ATP_BRAND.lime : TEXT.secondary}
+                      color={cmp.deltaOverall >= 0 ? ATP_BRAND.lime : tk.textoSecundario}
                     />
-                    <EliteText style={[s.deltaText, cmp.deltaOverall >= 0 && { color: ATP_BRAND.lime }]}>
+                    <EliteText style={[s.deltaText, secTxt, cmp.deltaOverall >= 0 && { color: acento }]}>
                       {cmp.deltaOverall > 0 ? '+' : ''}{cmp.deltaOverall.toFixed(1)} vs tu evaluación del {anterior!.date}
                     </EliteText>
                   </View>
                 )}
-                <EliteText style={s.honestNote}>
+                <EliteText style={[s.honestNote, { color: tk.textoTenue }]}>
                   Los tests de cm son medida física; los demás son tu auto-evaluación con anclas.
                 </EliteText>
               </>
@@ -294,8 +307,8 @@ export default function MobilityAssessmentScreen() {
             )}
             {errorGuardado && (
               <View style={s.errorRow}>
-                <Ionicons name="cloud-offline-outline" size={14} color={TEXT.secondary} />
-                <EliteText style={s.errorText}>No se guardó en la nube: {errorGuardado}</EliteText>
+                <Ionicons name="cloud-offline-outline" size={14} color={tk.textoSecundario} />
+                <EliteText style={[s.errorText, secTxt]}>No se guardó en la nube: {errorGuardado}</EliteText>
               </View>
             )}
           </Animated.View>
@@ -305,11 +318,11 @@ export default function MobilityAssessmentScreen() {
             const spec = MOBILITY_TESTS.find((m) => m.key === t.key)!;
             const delta = deltas?.get(t.key) ?? null;
             return (
-              <Animated.View key={t.key} entering={FadeInUp.delay(80 + i * 40).springify()} style={s.testRow}>
+              <Animated.View key={t.key} entering={FadeInUp.delay(80 + i * 40).springify()} style={[s.testRow, { backgroundColor: tk.card, borderColor: tk.borde }]}>
                 <View style={[s.testDot, { backgroundColor: getScoreColor((t.score ?? 0) * 10) }]} />
                 <View style={{ flex: 1 }}>
-                  <EliteText style={s.testName}>{spec.nombre}</EliteText>
-                  <EliteText style={s.testReading}>
+                  <EliteText style={[s.testName, { color: tk.texto }]}>{spec.nombre}</EliteText>
+                  <EliteText style={[s.testReading, secTxt]}>
                     {READING_LABELS[lecturaDe(t.score!)]}
                     {t.asimetria ? ' · asimetría izq/der, vale la pena trabajarla' : ''}
                     {delta != null ? `  (${delta > 0 ? '+' : ''}${delta.toFixed(1)})` : ''}
@@ -341,14 +354,15 @@ export default function MobilityAssessmentScreen() {
 
   // ── Fase TEST (un test por paso) ──
   return (
-    <Screen edges={[]}>
+    <Screen themed edges={[]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title={`Test ${paso + 1} de ${MOBILITY_TESTS.length}`} onBack={() => {
         if (paso === 0) setFase('inicio');
         else setPaso(paso - 1);
       }} />
       <ScrollView contentContainerStyle={{ padding: Spacing.md, paddingBottom: 140 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Progreso */}
-        <View style={s.progressBar}>
+        <View style={[s.progressBar, { backgroundColor: tk.card }]}>
           <View style={[s.progressFill, { width: `${((paso + 1) / MOBILITY_TESTS.length) * 100}%` }]} />
         </View>
 
@@ -358,27 +372,27 @@ export default function MobilityAssessmentScreen() {
             <View style={[s.heroIcon, { backgroundColor: withOpacity(MOR, 0.15) }]}>
               <Ionicons name={test.icono as any} size={26} color={MOR} />
             </View>
-            <EliteText style={s.testTitle}>{test.nombre}</EliteText>
+            <EliteText style={[s.testTitle, { color: tk.texto }]}>{test.nombre}</EliteText>
             <EliteText style={s.testWhy}>{test.porQue}</EliteText>
           </View>
 
           {/* Cómo se hace */}
-          <EliteText style={s.sectionLabel}>CÓMO SE HACE</EliteText>
+          <EliteText style={[s.sectionLabel, secTxt]}>CÓMO SE HACE</EliteText>
           {test.comoSeHace.map((pasoTxt, i) => (
             <View key={i} style={s.howRow}>
               <View style={[s.indexNum, { backgroundColor: withOpacity(MOR, 0.12) }]}>
                 <EliteText style={[s.indexNumText, { color: MOR }]}>{i + 1}</EliteText>
               </View>
-              <EliteText style={s.howText}>{pasoTxt}</EliteText>
+              <EliteText style={[s.howText, secTxt]}>{pasoTxt}</EliteText>
             </View>
           ))}
 
           {/* Captura */}
-          <EliteText style={s.sectionLabel}>
+          <EliteText style={[s.sectionLabel, secTxt]}>
             {test.medida === 'cm' ? 'TU MEDIDA' : 'TU EVALUACIÓN'}
           </EliteText>
           {test.medida === 'cm' && test.unidadHint && (
-            <EliteText style={s.unidadHint}>{test.unidadHint}</EliteText>
+            <EliteText style={[s.unidadHint, { color: tk.textoTenue }]}>{test.unidadHint}</EliteText>
           )}
 
           {test.bilateral ? (
@@ -387,7 +401,7 @@ export default function MobilityAssessmentScreen() {
               const valor = input[campo];
               return (
                 <View key={lado} style={s.ladoBlock}>
-                  <EliteText style={s.ladoLabel}>{lado === 'l' ? 'LADO IZQUIERDO' : 'LADO DERECHO'}</EliteText>
+                  <EliteText style={[s.ladoLabel, { color: tk.textoTenue }]}>{lado === 'l' ? 'LADO IZQUIERDO' : 'LADO DERECHO'}</EliteText>
                   {test.medida === 'cm' ? (
                     <CmInput valor={valor} onChange={(v) => setCampo(campo, v)} permiteNegativo={false} />
                   ) : (
@@ -396,12 +410,12 @@ export default function MobilityAssessmentScreen() {
                         <AnimatedPressable
                           key={a.valor}
                           onPress={() => { haptic.light(); setCampo(campo, a.valor); }}
-                          style={[s.anchorCard, valor === a.valor && s.anchorCardActiva]}
+                          style={[s.anchorCard, { backgroundColor: tk.card, borderColor: tk.borde }, valor === a.valor && s.anchorCardActiva]}
                         >
-                          <EliteText style={[s.anchorValor, valor === a.valor && { color: ATP_BRAND.lime }]}>
+                          <EliteText style={[s.anchorValor, secTxt, valor === a.valor && { color: acento }]}>
                             {a.valor}
                           </EliteText>
-                          <EliteText style={[s.anchorTexto, valor === a.valor && { color: TEXT.primary }]}>
+                          <EliteText style={[s.anchorTexto, secTxt, valor === a.valor && { color: tk.texto }]}>
                             {a.texto}
                           </EliteText>
                         </AnimatedPressable>
@@ -426,10 +440,10 @@ export default function MobilityAssessmentScreen() {
                   <AnimatedPressable
                     key={a.valor}
                     onPress={() => { haptic.light(); setCampo(campo, a.valor); }}
-                    style={[s.anchorCard, activo && s.anchorCardActiva]}
+                    style={[s.anchorCard, { backgroundColor: tk.card, borderColor: tk.borde }, activo && s.anchorCardActiva]}
                   >
-                    <EliteText style={[s.anchorValor, activo && { color: ATP_BRAND.lime }]}>{a.valor}</EliteText>
-                    <EliteText style={[s.anchorTexto, activo && { color: TEXT.primary }]}>{a.texto}</EliteText>
+                    <EliteText style={[s.anchorValor, secTxt, activo && { color: acento }]}>{a.valor}</EliteText>
+                    <EliteText style={[s.anchorTexto, secTxt, activo && { color: tk.texto }]}>{a.texto}</EliteText>
                   </AnimatedPressable>
                 );
               })}
@@ -478,74 +492,74 @@ const s = StyleSheet.create({
   prevText: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 12, flex: 1, lineHeight: 17 },
   indexRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: ELEVATION[1].border,
+    paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth,
   },
   indexNum: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   indexNumText: { fontSize: 11, fontFamily: Fonts.bold },
-  indexName: { color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 14, flex: 1 },
+  indexName: { fontFamily: Fonts.regular, fontSize: 14, flex: 1 },
 
   // Test
-  progressBar: { height: 3, backgroundColor: ELEVATION[1].bg, borderRadius: 2, marginBottom: Spacing.md },
+  progressBar: { height: 3, borderRadius: 2, marginBottom: Spacing.md },
   progressFill: { height: '100%', backgroundColor: ATP_BRAND.lime, borderRadius: 2 },
   testHeader: { borderRadius: Radius.card, padding: Spacing.lg, marginBottom: Spacing.sm },
-  testTitle: { color: TEXT.primary, fontFamily: Fonts.extraBold, fontSize: 21 },
+  testTitle: { fontFamily: Fonts.extraBold, fontSize: 21 },
   testWhy: {
     color: 'rgba(255,255,255,0.8)', fontFamily: Fonts.regular, fontSize: 13,
     lineHeight: 19, marginTop: 6,
   },
   sectionLabel: {
-    color: TEXT.secondary, fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 2,
+    fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 2,
     marginTop: Spacing.lg, marginBottom: Spacing.sm,
   },
   howRow: { flexDirection: 'row', gap: 10, marginBottom: 8, alignItems: 'flex-start' },
   // MB-5 Bloque 3: un solo mecanismo de muteo — token de color, sin opacity apilada.
-  howText: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 19 },
-  unidadHint: { color: TEXT.tertiary, fontFamily: Fonts.regular, fontSize: 12, marginTop: -6, marginBottom: Spacing.sm },
+  howText: { fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 19 },
+  unidadHint: { fontFamily: Fonts.regular, fontSize: 12, marginTop: -6, marginBottom: Spacing.sm },
 
   ladoBlock: { marginBottom: Spacing.md },
   ladoLabel: {
-    color: TEXT.tertiary, fontFamily: Fonts.bold, fontSize: 10, letterSpacing: 1.5,
+    fontFamily: Fonts.bold, fontSize: 10, letterSpacing: 1.5,
     marginBottom: Spacing.xs,
   },
   anchorsWrap: { gap: Spacing.xs },
   anchorCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.md, padding: Spacing.md,
   },
   anchorCardActiva: {
     borderColor: ATP_BRAND.lime, backgroundColor: withOpacity(ATP_BRAND.lime, 0.06),
   },
   anchorValor: {
-    width: 30, textAlign: 'center', color: TEXT.secondary, fontFamily: Fonts.extraBold,
+    width: 30, textAlign: 'center', fontFamily: Fonts.extraBold,
     fontSize: 18, fontVariant: ['tabular-nums'],
   },
-  anchorTexto: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 18 },
+  anchorTexto: { fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 18 },
 
   // Resultado
   resultHero: { alignItems: 'center', paddingVertical: Spacing.lg },
   resultScore: { fontSize: 64, fontFamily: Fonts.extraBold, fontVariant: ['tabular-nums'] },
-  resultDe10: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 14, marginTop: 2 },
+  resultDe10: { fontFamily: Fonts.semiBold, fontSize: 14, marginTop: 2 },
   deltaPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: Spacing.sm,
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.pill,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
   },
-  deltaText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 12 },
+  deltaText: { fontFamily: Fonts.semiBold, fontSize: 12 },
   honestNote: {
-    color: TEXT.tertiary, fontFamily: Fonts.regular, fontSize: 11, textAlign: 'center',
+    fontFamily: Fonts.regular, fontSize: 11, textAlign: 'center',
     marginTop: Spacing.sm, paddingHorizontal: Spacing.lg, lineHeight: 16,
   },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.sm },
-  errorText: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 12 },
+  errorText: { fontFamily: Fonts.regular, fontSize: 12 },
 
   testRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.xs,
   },
   testDot: { width: 10, height: 10, borderRadius: 5 },
-  testName: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: 14 },
-  testReading: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 12, marginTop: 1 },
+  testName: { fontFamily: Fonts.semiBold, fontSize: 14 },
+  testReading: { fontFamily: Fonts.regular, fontSize: 12, marginTop: 1 },
   testScore: { fontFamily: Fonts.extraBold, fontSize: 18, fontVariant: ['tabular-nums'] },
 });

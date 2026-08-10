@@ -7,6 +7,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Alert, ScrollView, Animated as RNAnimated, DeviceEventEmitter, Text, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -55,8 +56,9 @@ import {
   INITIAL_STEP,
   type BreathStep,
 } from '@/src/services/breath-timer-core';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, ATP_BRAND } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { MenteHero } from '@/src/components/mente/MenteHero';
 
@@ -178,7 +180,7 @@ export default function BreathingScreen() {
 
   if (needsGate) {
     return (
-      <SafeAreaView style={styles.screen}>
+      <GateHolderScreen>
         <AttestationGateModal
           visible={!!gate}
           decision={gate}
@@ -187,7 +189,7 @@ export default function BreathingScreen() {
           onProceed={() => { setGate(null); setClearedId(selected.id); }}
           onClose={closeGate}
         />
-      </SafeAreaView>
+      </GateHolderScreen>
     );
   }
 
@@ -211,6 +213,20 @@ export default function BreathingScreen() {
   );
 }
 
+// MB-31B3: fondo tematizado detrás del gate de atestación (el modal de
+// seguridad es componente compartido y conserva su superficie propia).
+function GateHolderScreen({ children }: { children: React.ReactNode }) {
+  const { kind, tokens: t } = useAppTheme();
+  return (
+    <ThemeReady>
+    <SafeAreaView style={[styles.screen, { backgroundColor: t.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
+      {children}
+    </SafeAreaView>
+    </ThemeReady>
+  );
+}
+
 // ══════════════════════════════
 // SELECTOR
 // ══════════════════════════════
@@ -226,6 +242,8 @@ function SelectorScreen({ onSelect, onBack }: {
   const [pieces, setPieces] = useState<AudioPiece[]>([]);
   const [scrolled, setScrolled] = useState(false);
   const { isPro } = useSubscription();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
 
   // MB-28C P1: candado de navegación — el doble tap empujaba DOS modales del
   // player y sus cargas corrían en paralelo (empalme). Se suelta al volver.
@@ -261,7 +279,9 @@ function SelectorScreen({ onSelect, onBack }: {
   }, [isPro, router]);
 
   return (
-    <View style={styles.screen}>
+    <ThemeReady>
+    <View style={[styles.screen, { backgroundColor: t.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <StickyPillarBanner scrolled={scrolled} onBack={onBack} />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -284,13 +304,13 @@ function SelectorScreen({ onSelect, onBack }: {
 
         {pieces.length > 0 && (
           <>
-            <Text style={styles.selectorSection}>CON GUÍA</Text>
+            <Text style={[styles.selectorSection, { color: t.textoSecundario }]}>CON GUÍA</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 10, marginBottom: 14 }}>
               {pieces.map(piece => (
                 <AudioPieceCard key={piece.slug} piece={piece} onPress={openPiece} />
               ))}
             </View>
-            <Text style={styles.selectorSection}>TIMER VISUAL</Text>
+            <Text style={[styles.selectorSection, { color: t.textoSecundario }]}>TIMER VISUAL</Text>
           </>
         )}
 
@@ -319,7 +339,8 @@ function SelectorScreen({ onSelect, onBack }: {
                   <Ionicons name={getBreathIcon(t.id) as any} size={18} color={PURPLE} />
                 </View>
                 <View style={{ padding: 14 }}>
-                  <Text style={{ color: '#fff', fontSize: 16, fontFamily: Fonts.bold }}>{t.title}</Text>
+                  {/* Card editorial: texto anclado al blanco en los dos temas. */}
+                  <Text style={{ color: ATP_BRAND.white, fontSize: 16, fontFamily: Fonts.bold }}>{t.title}</Text>
                   <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 }}>{t.description}</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                     <View style={{ backgroundColor: `${PURPLE}2A`, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
@@ -357,6 +378,7 @@ function SelectorScreen({ onSelect, onBack }: {
         </View>
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
@@ -379,6 +401,9 @@ function BoxConfigScreen({ template, onStart, onBack }: {
   const totalSeconds = cycles * cycleSeconds;
   const totalMin = Math.floor(totalSeconds / 60);
   const totalSec = totalSeconds % 60;
+  // MB-31B3: tokens del tema global.
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
 
   const handleStart = () => {
     const customTemplate: BreathingTemplate = {
@@ -396,14 +421,16 @@ function BoxConfigScreen({ template, onStart, onBack }: {
   };
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <ThemeReady>
+    <SafeAreaView style={[styles.screen, { backgroundColor: t.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <View style={styles.backBtn}>
         <BackButton onPress={onBack} color={PURPLE} />
       </View>
 
       <View style={styles.configContainer}>
         <EliteText style={styles.configTitle}>BOX BREATHING</EliteText>
-        <EliteText variant="caption" style={styles.configSub}>Configura cada lado de la caja</EliteText>
+        <EliteText variant="caption" style={[styles.configSub, secTxt]}>Configura cada lado de la caja</EliteText>
 
         <View style={styles.configRows}>
           <ConfigRow label="Inhala" value={inhale} onChange={setInhale} />
@@ -412,12 +439,12 @@ function BoxConfigScreen({ template, onStart, onBack }: {
           <ConfigRow label="Vacío" value={holdEmpty} onChange={setHoldEmpty} />
         </View>
 
-        <View style={styles.configDivider} />
+        <View style={[styles.configDivider, { backgroundColor: t.borde }]} />
 
         {/* Ciclos son repeticiones, no segundos: sin unidad. */}
         <ConfigRow label="Ciclos" value={cycles} onChange={setCycles} min={1} max={50} unit="" />
 
-        <EliteText variant="caption" style={styles.configTotal}>
+        <EliteText variant="caption" style={[styles.configTotal, secTxt]}>
           Tiempo total: {totalMin > 0 ? `${totalMin}m ` : ''}{totalSec > 0 ? `${totalSec}s` : ''}
           {' '}({inhale}-{holdFull}-{exhale}-{holdEmpty} × {cycles})
         </EliteText>
@@ -425,30 +452,33 @@ function BoxConfigScreen({ template, onStart, onBack }: {
         <GradientCTA label="COMENZAR" onPress={handleStart} />
       </View>
     </SafeAreaView>
+    </ThemeReady>
   );
 }
 
 function ConfigRow({ label, value, onChange, min = 1, max = 30, unit = 's' }: {
   label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; unit?: string;
 }) {
+  // MB-31B3: el teal de acento va calibrado por tema (en oscuro es el mismo hex).
+  const { tokens: t } = useAppTheme();
   return (
     <View style={styles.configRow}>
-      <EliteText variant="body" style={styles.configRowLabel}>{label}</EliteText>
+      <EliteText variant="body" style={[styles.configRowLabel, { color: t.texto }]}>{label}</EliteText>
       <View style={styles.configStepper}>
         <Pressable
           onPress={() => { haptic.light(); onChange(Math.max(min, value - 1)); }}
           disabled={value <= min}
           style={[styles.configStepBtn, value <= min && { opacity: 0.3 }]}
         >
-          <Ionicons name="remove" size={18} color={ATP_BRAND.teal} />
+          <Ionicons name="remove" size={18} color={t.tealTexto} />
         </Pressable>
-        <EliteText style={styles.configStepValue}>{value}{unit ? <EliteText style={styles.configStepUnit}>{unit}</EliteText> : null}</EliteText>
+        <EliteText style={styles.configStepValue}>{value}{unit ? <EliteText style={[styles.configStepUnit, { color: t.textoSecundario }]}>{unit}</EliteText> : null}</EliteText>
         <Pressable
           onPress={() => { haptic.light(); onChange(Math.min(max, value + 1)); }}
           disabled={value >= max}
           style={[styles.configStepBtn, value >= max && { opacity: 0.3 }]}
         >
-          <Ionicons name="add" size={18} color={ATP_BRAND.teal} />
+          <Ionicons name="add" size={18} color={t.tealTexto} />
         </Pressable>
       </View>
     </View>
@@ -466,6 +496,11 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
   onComplete: () => void;
 }) {
   useKeepAwake();
+
+  // MB-31B3: tokens del tema global + acento sin lima-texto en claro (regla 1).
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
 
   const totalSeconds = templateTotalSeconds(template);
 
@@ -682,38 +717,43 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
     const m = Math.floor(totalElapsed / 60);
     const s = totalElapsed % 60;
     return (
-      <SafeAreaView style={styles.screen}>
+      <ThemeReady>
+      <SafeAreaView style={[styles.screen, { backgroundColor: t.fondo }]}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <View style={styles.completedContainer}>
           <View style={{
             width: 80, height: 80, borderRadius: 40,
             backgroundColor: 'rgba(168,224,42,0.15)',
             justifyContent: 'center', alignItems: 'center', marginBottom: 20,
           }}>
-            <Ionicons name="checkmark" size={40} color="#a8e02a" />
+            {/* Lima como icono-indicador sobre tinte de marca: se queda. */}
+            <Ionicons name="checkmark" size={40} color={ATP_BRAND.lime} />
           </View>
           <EliteText style={styles.completedTitle}>¡Sesión completada!</EliteText>
-          <EliteText variant="caption" style={styles.completedSub}>
+          <EliteText variant="caption" style={[styles.completedSub, secTxt]}>
             {template.title} · {m > 0 ? `${m}m ${s}s` : `${s}s`} · {currentCycle + 1} rondas
           </EliteText>
-          <EliteText variant="body" style={styles.completedMessage}>
+          <EliteText variant="body" style={[styles.completedMessage, secTxt]}>
             {template.closingMessage}
           </EliteText>
 
           {/* Electrón ganado — Delta economía: solo si de verdad se otorgó
-              (≥80% real + cap/espaciado server-side); si no, mensaje suave. */}
+              (≥80% real + cap/espaciado server-side); si no, mensaje suave.
+              Hallazgo MB-31B3: el dato iba en lima como TEXTO (1.34 en claro)
+              y el sub en #999 (2.8 en claro) — acento calibrado + token. */}
           <View style={{
             backgroundColor: 'rgba(168,224,42,0.1)', borderRadius: 16,
             padding: 16, marginVertical: 16, width: '80%', alignItems: 'center',
           }}>
             {electronStatus === 'awarded_first' || electronStatus === 'awarded_extra' ? (
               <>
-                <Text style={{ color: '#a8e02a', fontSize: 18, fontFamily: Fonts.extraBold }}>
+                <Text style={{ color: acento, fontSize: 18, fontFamily: Fonts.extraBold }}>
                   +{ELECTRON_WEIGHTS.breathwork.weight.toFixed(1)} {ELECTRON_WEIGHTS.breathwork.weight === 1 ? 'electrón' : 'electrones'}
                 </Text>
-                <Text style={{ color: '#999', fontSize: 12, fontFamily: Fonts.regular, marginTop: 4 }}>Breathwork completado</Text>
+                <Text style={{ color: t.textoSecundario, fontSize: 12, fontFamily: Fonts.regular, marginTop: 4 }}>Breathwork completado</Text>
               </>
             ) : (
-              <Text style={{ color: '#999', fontSize: 12, fontFamily: Fonts.regular, textAlign: 'center' }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 12, fontFamily: Fonts.regular, textAlign: 'center' }}>
                 {electronStatus === 'cap_reached' || electronStatus === 'spacing'
                   ? 'Ya registraste tu práctica. Vuelve en un rato para sumar otro electrón.'
                   : electronStatus === 'not_eligible'
@@ -726,12 +766,15 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
           <GradientCTA label="CONTINUAR" onPress={onComplete} />
         </View>
       </SafeAreaView>
+      </ThemeReady>
     );
   }
 
   // === Timer activo ===
   return (
-    <SafeAreaView style={styles.screen}>
+    <ThemeReady>
+    <SafeAreaView style={[styles.screen, { backgroundColor: t.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <View style={styles.backBtn}>
         <BackButton onPress={handleBack} color={PURPLE} />
       </View>
@@ -776,10 +819,11 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
             <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} style={styles.sphereShade} pointerEvents="none">
               <Defs>
                 <SvgRadialGradient id="breathDepth" cx="35%" cy="28%" r="85%">
-                  <Stop offset="0%" stopColor="#fff" stopOpacity={0.5} />
-                  <Stop offset="38%" stopColor="#fff" stopOpacity={0.12} />
-                  <Stop offset="75%" stopColor="#000" stopOpacity={0.16} />
-                  <Stop offset="100%" stopColor="#000" stopOpacity={0.55} />
+                  {/* Volumen de la esfera de color: identidad, igual en los dos temas. */}
+                  <Stop offset="0%" stopColor={ATP_BRAND.white} stopOpacity={0.5} />
+                  <Stop offset="38%" stopColor={ATP_BRAND.white} stopOpacity={0.12} />
+                  <Stop offset="75%" stopColor={ATP_BRAND.black} stopOpacity={0.16} />
+                  <Stop offset="100%" stopColor={ATP_BRAND.black} stopOpacity={0.55} />
                 </SvgRadialGradient>
               </Defs>
               <Circle cx={CIRCLE_SIZE / 2} cy={CIRCLE_SIZE / 2} r={CIRCLE_SIZE / 2} fill="url(#breathDepth)" />
@@ -799,13 +843,13 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
         {!preSession && (
           <AnimatedRN.View entering={FadeIn.duration(300)} style={styles.infoSection}>
             {/* MB-28C P5: mismo vocabulario que el cierre ("N rondas"). */}
-            <EliteText variant="caption" style={styles.cycleText}>
+            <EliteText variant="caption" style={[styles.cycleText, secTxt]}>
               Ronda {currentCycle + 1} de {template.cycles}
             </EliteText>
             <EliteText variant="body" style={styles.remainingText}>
               {formatMmSs(totalRemaining)}
             </EliteText>
-            <View style={styles.totalProgressBar}>
+            <View style={[styles.totalProgressBar, { backgroundColor: t.flotante }]}>
               <View style={[styles.totalProgressFill, { width: `${totalProgress * 100}%` }]} />
             </View>
           </AnimatedRN.View>
@@ -816,39 +860,43 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
             {/* MB-28C P5: "18 ciclos · 4s-4s-4s-4s" leía como si los ciclos
                 fueran segundos. Ahora la ronda y sus segundos van separados:
                 qué repites, y cuánto dura cada paso. */}
-            <EliteText variant="caption" style={styles.idleInfo}>
+            <EliteText variant="caption" style={[styles.idleInfo, secTxt]}>
               {template.durationMinutes} min · {template.cycles} rondas
             </EliteText>
-            <EliteText variant="caption" style={styles.idleInfoDetail}>
+            <EliteText variant="caption" style={[styles.idleInfoDetail, secTxt]}>
               Cada ronda: {template.phases.map(p => `${p.label} ${p.seconds}s`).join(' · ')}
             </EliteText>
             {/* MB-23 P5: vibración en vez de sonido — con el teléfono en
                 silencio, que es como se respira de verdad. */}
+            {/* Hallazgo MB-31B3: el estado activo iba en lima como texto/icono
+                sobre superficie neutra (1.34 en claro) — acento calibrado. */}
             <Pressable
               onPress={toggleVibrateOnly}
-              style={styles.vibrateRow}
+              style={[styles.vibrateRow, { backgroundColor: t.hundido, borderColor: t.borde }]}
               accessibilityRole="switch"
               accessibilityState={{ checked: vibrateOnly }}
             >
               <Ionicons
                 name={vibrateOnly ? 'volume-mute' : 'volume-medium-outline'}
                 size={15}
-                color={vibrateOnly ? '#a8e02a' : 'rgba(255,255,255,0.5)'}
+                color={vibrateOnly ? acento : t.textoTenue}
               />
-              <EliteText style={[styles.vibrateText, vibrateOnly && { color: '#a8e02a' }]}>
+              <EliteText style={[styles.vibrateText, secTxt, vibrateOnly && { color: acento }]}>
                 Vibración en vez de sonido
               </EliteText>
               <Ionicons
                 name={vibrateOnly ? 'checkbox' : 'square-outline'}
                 size={17}
-                color={vibrateOnly ? '#a8e02a' : 'rgba(255,255,255,0.4)'}
+                color={vibrateOnly ? acento : t.sinDatos}
               />
             </Pressable>
             {/* T2 MENTE: contraindicaciones ANTES de iniciar (Wim Hof et al) */}
             {template.contraindications && template.contraindications.length > 0 && (
               <View style={styles.contraCard}>
                 <Ionicons name="warning-outline" size={16} color="#EF9F27" />
-                <EliteText variant="caption" style={styles.contraText}>
+                {/* Manual 3.9: la advertencia en claro no es texto ámbar (1.9),
+                    es tinte ámbar con texto oscuro. En oscuro no cambia. */}
+                <EliteText variant="caption" style={[styles.contraText, { color: kind === 'dark' ? '#EF9F27' : t.texto }]}>
                   No recomendado con: {template.contraindications.join(' · ')}.
                   {' '}Si aplica, consulta con un experto antes.
                 </EliteText>
@@ -877,6 +925,7 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
         </View>
       </View>
     </SafeAreaView>
+    </ThemeReady>
   );
 }
 
@@ -887,8 +936,10 @@ const CIRCLE_SIZE = 200;
 // respira con la misma escala (borde 100% transparente, el overflow no se nota).
 const GLOW_SIZE = CIRCLE_SIZE * 1.5;
 
+// MB-31B3: superficies/texto neutros → tokens inline; aquí queda layout +
+// identidad (morado del pilar, teal de marca, ámbar de advertencia).
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.black },
+  screen: { flex: 1 },
   backBtn: {
     position: 'absolute', top: Spacing.xxl, left: Spacing.md, zIndex: 10, padding: Spacing.sm,
   },
@@ -898,19 +949,21 @@ const styles = StyleSheet.create({
   selectorContent: {
     paddingHorizontal: Spacing.md, paddingTop: Spacing.sm,
   },
+  // Hallazgo MB-31B3: el label iba en #666 (sin token, y marginal en claro) —
+  // normalizado a textoSecundario, el rol canónico de SECTION_TITLE.
   selectorSection: {
-    color: '#666', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1,
+    fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1,
     marginTop: Spacing.sm, marginBottom: 12,
   },
-  selectorSub: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: FontSizes.md },
+  selectorSub: { marginBottom: Spacing.lg, fontSize: FontSizes.md },
   selectorCard: { marginBottom: Spacing.sm },
   selectorCardBody: {
     flexDirection: 'row', alignItems: 'center', padding: Spacing.md,
   },
   selectorCardInfo: { flex: 1 },
   selectorCardTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, color: PURPLE },
-  selectorCardDesc: { color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: 2 },
-  selectorCardMeta: { color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: 4, fontFamily: Fonts.semiBold },
+  selectorCardDesc: { fontSize: FontSizes.sm, marginTop: 2 },
+  selectorCardMeta: { fontSize: FontSizes.sm, marginTop: 4, fontFamily: Fonts.semiBold },
 
   // Timer
   timerContainer: {
@@ -936,8 +989,9 @@ const styles = StyleSheet.create({
   sphereShade: { ...StyleSheet.absoluteFillObject, borderRadius: CIRCLE_SIZE / 2 },
   sphereGlow: { position: 'absolute', width: GLOW_SIZE, height: GLOW_SIZE },
   // Número flotando sobre la esfera — sombra de texto, sin caja (G15).
+  // Número sobre la esfera de color: blanco anclado (no se tematiza).
   sphereCount: {
-    fontSize: 54, fontFamily: Fonts.extraBold, color: '#fff', fontVariant: ['tabular-nums'],
+    fontSize: 54, fontFamily: Fonts.extraBold, color: ATP_BRAND.white, fontVariant: ['tabular-nums'],
     textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10,
   },
   actionText: {
@@ -947,30 +1001,32 @@ const styles = StyleSheet.create({
 
   // Info
   infoSection: { alignItems: 'center', marginBottom: Spacing.lg, width: '60%' },
-  cycleText: { color: Colors.textSecondary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold, marginBottom: Spacing.xs },
+  cycleText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, marginBottom: Spacing.xs },
   remainingText: {
     color: PURPLE, fontSize: 20, fontFamily: Fonts.bold, fontVariant: ['tabular-nums'],
     marginBottom: Spacing.sm,
   },
   totalProgressBar: {
-    width: '100%', height: 3, backgroundColor: Colors.surfaceLight, borderRadius: Radius.xs, overflow: 'hidden',
+    width: '100%', height: 3, borderRadius: Radius.xs, overflow: 'hidden',
   },
   totalProgressFill: { height: '100%', backgroundColor: PURPLE, borderRadius: Radius.xs },
-  idleInfo: { color: Colors.textSecondary, marginBottom: Spacing.xs, fontSize: FontSizes.md },
+  idleInfo: { marginBottom: Spacing.xs, fontSize: FontSizes.md },
   // MB-28C P5: el desglose de la ronda (fase + segundos), debajo del total.
   idleInfoDetail: {
-    color: Colors.textSecondary, marginBottom: Spacing.md, fontSize: FontSizes.sm,
+    marginBottom: Spacing.md, fontSize: FontSizes.sm,
     textAlign: 'center', paddingHorizontal: Spacing.lg, lineHeight: 18,
   },
-  // MB-23 P5: toggle de vibración en vez de sonido (pre-sesión)
+  // MB-23 P5: toggle de vibración en vez de sonido (pre-sesión).
+  // MB-31B3: los rgba de blanco sobre negro eran superficie neutra —
+  // normalizados a hundido/borde del tema (delta imperceptible en oscuro).
   vibrateRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
-    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)',
-    backgroundColor: 'rgba(255,255,255,0.05)', marginBottom: Spacing.md,
+    borderWidth: 0.5, marginBottom: Spacing.md,
   },
-  vibrateText: { color: 'rgba(255,255,255,0.7)', fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
-  // T2 MENTE: advertencia de contraindicaciones antes de iniciar
+  vibrateText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  // T2 MENTE: advertencia de contraindicaciones antes de iniciar.
+  // El tinte ámbar es semántico (advertencia): se queda en los dos temas.
   contraCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: 'rgba(239,159,39,0.10)', borderColor: 'rgba(239,159,39,0.35)',
@@ -978,7 +1034,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
     marginBottom: Spacing.lg, marginHorizontal: Spacing.lg, maxWidth: 340,
   },
-  contraText: { flex: 1, color: '#EF9F27', fontSize: FontSizes.sm, lineHeight: 18 },
+  contraText: { flex: 1, fontSize: FontSizes.sm, lineHeight: 18 },
 
   // Controles (botones = GradientCTA del design system)
   controls: { alignItems: 'center', gap: Spacing.md },
@@ -988,9 +1044,9 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.lg, gap: Spacing.sm,
   },
   completedTitle: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, color: PURPLE },
-  completedSub: { color: Colors.textSecondary, fontSize: FontSizes.md },
+  completedSub: { fontSize: FontSizes.md },
   completedMessage: {
-    color: Colors.textSecondary, fontStyle: 'italic', textAlign: 'center',
+    fontStyle: 'italic', textAlign: 'center',
     fontSize: FontSizes.lg, paddingHorizontal: Spacing.xl, marginVertical: Spacing.md,
   },
   // Config
@@ -1000,16 +1056,16 @@ const styles = StyleSheet.create({
   configTitle: {
     fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 3, marginBottom: Spacing.xs,
   },
-  configSub: { color: Colors.textSecondary, marginBottom: Spacing.xl, fontSize: FontSizes.md },
+  configSub: { marginBottom: Spacing.xl, fontSize: FontSizes.md },
   configRows: { width: '100%', gap: Spacing.sm },
   configDivider: {
-    width: '100%', height: 1, backgroundColor: Colors.surfaceLight, marginVertical: Spacing.md,
+    width: '100%', height: 1, marginVertical: Spacing.md,
   },
   configRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     width: '100%', paddingVertical: Spacing.xs,
   },
-  configRowLabel: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg, color: Colors.textPrimary },
+  configRowLabel: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg },
   configStepper: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   configStepBtn: {
     width: 44, height: 44, borderRadius: Radius.lg, borderWidth: 1, borderColor: ATP_BRAND.teal + '55',
@@ -1019,9 +1075,9 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.extraBold, fontSize: FontSizes.hero, color: PURPLE, minWidth: 50, textAlign: 'center',
     fontVariant: ['tabular-nums'],
   },
-  configStepUnit: { fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, color: Colors.textSecondary },
+  configStepUnit: { fontSize: FontSizes.lg, fontFamily: Fonts.semiBold },
   configTotal: {
-    color: Colors.textSecondary, marginTop: Spacing.lg, marginBottom: Spacing.xl, fontSize: FontSizes.md,
+    marginTop: Spacing.lg, marginBottom: Spacing.xl, fontSize: FontSizes.md,
     fontFamily: Fonts.semiBold,
   },
 });
