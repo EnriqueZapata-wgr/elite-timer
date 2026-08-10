@@ -24,7 +24,8 @@ import { ageFromDob, ageGateTier } from '@/src/utils/age-gate';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS } from '@/src/constants/brand';
+import { useOnboardingTheme } from '@/src/components/onboarding/onboarding-theme';
 import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
 
 const COPY = ONBOARDING_COPY.profile;
@@ -33,6 +34,7 @@ export default function V2ProfileScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const analytics = useAnalytics();
+  const th = useOnboardingTheme();
 
   const [sex, setSex] = useState<'male' | 'female' | null>(null);
   const [day, setDay] = useState('');
@@ -137,22 +139,22 @@ export default function V2ProfileScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
           <Animated.View entering={FadeInUp.duration(400)}>
-            <EliteText style={s.title}>{COPY.title}</EliteText>
-            <EliteText style={s.subtitle}>{COPY.subtitle}</EliteText>
+            <EliteText style={[s.title, th.titulo]}>{COPY.title}</EliteText>
+            <EliteText style={[s.subtitle, th.subTenue]}>{COPY.subtitle}</EliteText>
           </Animated.View>
 
           {/* Sexo biológico */}
           <Animated.View entering={FadeInUp.delay(100).duration(400)}>
-            <EliteText style={s.inputLabel}>{COPY.sexLabel}</EliteText>
+            <EliteText style={[s.inputLabel, th.sub]}>{COPY.sexLabel}</EliteText>
             <View style={s.sexRow}>
               {(['male', 'female'] as const).map(v => (
                 <AnimatedPressable
                   key={v}
-                  style={[s.sexBtn, sex === v && s.sexBtnActive]}
+                  style={[s.sexBtn, { backgroundColor: th.tokens.hundido, borderColor: th.tokens.borde }, sex === v && s.sexBtnActive]}
                   onPress={() => { haptic.light(); setSex(v); }}
                 >
-                  <Ionicons name={v === 'male' ? 'man-outline' : 'woman-outline'} size={24} color={sex === v ? '#000' : '#666'} />
-                  <EliteText style={[s.sexBtnText, sex === v && s.sexBtnTextActive]}>
+                  <Ionicons name={v === 'male' ? 'man-outline' : 'woman-outline'} size={24} color={sex === v ? TEXT_COLORS.onAccent : th.subTenue.color} />
+                  <EliteText style={[s.sexBtnText, th.subTenue, sex === v && { color: TEXT_COLORS.onAccent }]}>
                     {v === 'male' ? COPY.sexMale : COPY.sexFemale}
                   </EliteText>
                 </AnimatedPressable>
@@ -162,22 +164,22 @@ export default function V2ProfileScreen() {
 
           {/* Fecha de nacimiento */}
           <Animated.View entering={FadeInUp.delay(180).duration(400)}>
-            <EliteText style={s.inputLabel}>{COPY.dobLabel}</EliteText>
+            <EliteText style={[s.inputLabel, th.sub]}>{COPY.dobLabel}</EliteText>
             <View style={s.dateRow}>
               <TextInput
-                style={[s.input, s.dateInput]} placeholder="DD" placeholderTextColor="#444"
+                style={[s.input, th.input, s.dateInput]} placeholder="DD" placeholderTextColor={th.placeholder}
                 value={day} onChangeText={(t) => setDay(t.replace(/\D/g, '').slice(0, 2))}
                 keyboardType="number-pad" maxLength={2}
               />
-              <EliteText style={s.dateSep}>/</EliteText>
+              <EliteText style={[s.dateSep, th.hint]}>/</EliteText>
               <TextInput
-                style={[s.input, s.dateInput]} placeholder="MM" placeholderTextColor="#444"
+                style={[s.input, th.input, s.dateInput]} placeholder="MM" placeholderTextColor={th.placeholder}
                 value={month} onChangeText={(t) => setMonth(t.replace(/\D/g, '').slice(0, 2))}
                 keyboardType="number-pad" maxLength={2}
               />
-              <EliteText style={s.dateSep}>/</EliteText>
+              <EliteText style={[s.dateSep, th.hint]}>/</EliteText>
               <TextInput
-                style={[s.input, s.dateInputYear]} placeholder="AAAA" placeholderTextColor="#444"
+                style={[s.input, th.input, s.dateInputYear]} placeholder="AAAA" placeholderTextColor={th.placeholder}
                 value={year} onChangeText={(t) => setYear(t.replace(/\D/g, '').slice(0, 4))}
                 keyboardType="number-pad" maxLength={4}
               />
@@ -188,36 +190,36 @@ export default function V2ProfileScreen() {
           <Animated.View entering={FadeInUp.delay(260).duration(400)}>
             <View style={s.hwRow}>
               <View style={{ flex: 1 }}>
-                <EliteText style={s.inputLabel}>{COPY.heightLabel}</EliteText>
+                <EliteText style={[s.inputLabel, th.sub]}>{COPY.heightLabel}</EliteText>
                 <TextInput
-                  style={s.input} placeholder="170" placeholderTextColor="#444"
+                  style={[s.input, th.input]} placeholder="170" placeholderTextColor={th.placeholder}
                   value={height} onChangeText={(t) => setHeight(t.replace(/[^\d.,]/g, '').slice(0, 5))}
                   keyboardType="decimal-pad"
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <EliteText style={s.inputLabel}>{COPY.weightLabel}</EliteText>
+                <EliteText style={[s.inputLabel, th.sub]}>{COPY.weightLabel}</EliteText>
                 <TextInput
-                  style={s.input} placeholder="70" placeholderTextColor="#444"
+                  style={[s.input, th.input]} placeholder="70" placeholderTextColor={th.placeholder}
                   value={weight} onChangeText={(t) => setWeight(t.replace(/[^\d.,]/g, '').slice(0, 5))}
                   keyboardType="decimal-pad"
                 />
               </View>
             </View>
-            <EliteText style={s.hint}>{COPY.hint}</EliteText>
+            <EliteText style={[s.hint, th.hint]}>{COPY.hint}</EliteText>
           </Animated.View>
         </ScrollView>
 
         <View style={s.bottomBar}>
           <AnimatedPressable
-            style={[s.continueBtn, !isValid && s.continueBtnDisabled]}
+            style={[s.continueBtn, !isValid && th.ctaDisabled]}
             onPress={handleContinue}
             disabled={!isValid || loading}
           >
             <EliteText style={[s.continueBtnText, !isValid && { opacity: 0.4 }]}>
               {loading ? ONBOARDING_COPY.common.saving : ONBOARDING_COPY.common.continue}
             </EliteText>
-            {!loading && <Ionicons name="arrow-forward" size={18} color={isValid ? '#000' : '#666'} />}
+            {!loading && <Ionicons name="arrow-forward" size={18} color={isValid ? TEXT_COLORS.onAccent : th.arrowOff} />}
           </AnimatedPressable>
         </View>
       </KeyboardAvoidingView>
@@ -236,40 +238,38 @@ export default function V2ProfileScreen() {
 
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
-  title: { fontSize: 28, fontFamily: Fonts.bold, color: '#fff', marginTop: 24 },
+  title: { fontSize: 28, fontFamily: Fonts.bold, marginTop: 24 },
   subtitle: {
-    fontSize: FontSizes.md, fontFamily: Fonts.regular, color: '#666',
+    fontSize: FontSizes.md, fontFamily: Fonts.regular,
     marginTop: 8, lineHeight: 21,
   },
   inputLabel: {
-    fontSize: 10, fontFamily: Fonts.semiBold, color: '#888',
+    fontSize: 10, fontFamily: Fonts.semiBold,
     letterSpacing: 2, marginTop: 24, marginBottom: 8,
   },
   input: {
-    backgroundColor: '#0a0a0a', borderRadius: Radius.lg, paddingHorizontal: 16,
+    borderRadius: Radius.lg, paddingHorizontal: 16,
     paddingVertical: 14, fontSize: FontSizes.md, fontFamily: Fonts.regular,
-    color: '#fff', borderWidth: 0.5, borderColor: '#222',
+    borderWidth: 0.5,
   },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dateInput: { flex: 1, textAlign: 'center' },
   dateInputYear: { flex: 1.5, textAlign: 'center' },
-  dateSep: { fontSize: FontSizes.lg, fontFamily: Fonts.regular, color: '#444' },
+  dateSep: { fontSize: FontSizes.lg, fontFamily: Fonts.regular },
   hwRow: { flexDirection: 'row', gap: 12 },
-  hint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#444', marginTop: 10 },
+  hint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 10 },
   sexRow: { flexDirection: 'row', gap: 12 },
   sexBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#0a0a0a', borderRadius: Radius.lg, paddingVertical: 16,
-    borderWidth: 1, borderColor: '#222',
+    borderRadius: Radius.lg, paddingVertical: 16,
+    borderWidth: 1,
   },
   sexBtnActive: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
-  sexBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#666' },
-  sexBtnTextActive: { color: '#000' },
+  sexBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
   bottomBar: { paddingHorizontal: Spacing.md, paddingBottom: 40 },
   continueBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  continueBtnDisabled: { backgroundColor: '#1a1a1a' },
-  continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.onAccent, letterSpacing: 1 },
 });

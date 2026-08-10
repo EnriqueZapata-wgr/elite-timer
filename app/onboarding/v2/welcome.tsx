@@ -16,7 +16,8 @@ import { haptic } from '@/src/utils/haptics';
 import { completeV2Step } from '@/src/services/onboarding-v2-service';
 import { v2StepNumber, V2_STEPS } from '@/src/services/onboarding-v2-core';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS } from '@/src/constants/brand';
+import { useOnboardingTheme } from '@/src/components/onboarding/onboarding-theme';
 import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
 
 const COPY = ONBOARDING_COPY.welcome;
@@ -24,6 +25,7 @@ const COPY = ONBOARDING_COPY.welcome;
 export default function V2WelcomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const th = useOnboardingTheme();
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -55,37 +57,37 @@ export default function V2WelcomeScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
           <Animated.View entering={FadeInUp.duration(400)}>
-            <EliteText style={s.kicker}>{COPY.kicker}</EliteText>
-            <EliteText style={s.title}>{COPY.title}</EliteText>
-            <EliteText style={s.subtitle}>{COPY.subtitle}</EliteText>
+            <EliteText style={[s.kicker, th.acento != null && { color: th.acento }]}>{COPY.kicker}</EliteText>
+            <EliteText style={[s.title, th.titulo]}>{COPY.title}</EliteText>
+            <EliteText style={[s.subtitle, th.sub]}>{COPY.subtitle}</EliteText>
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(150).duration(400)}>
-            <EliteText style={s.inputLabel}>{COPY.nameLabel}</EliteText>
+            <EliteText style={[s.inputLabel, th.sub]}>{COPY.nameLabel}</EliteText>
             <TextInput
-              style={s.input}
+              style={[s.input, th.input]}
               placeholder={COPY.namePlaceholder}
-              placeholderTextColor="#444"
+              placeholderTextColor={th.placeholder}
               value={name}
               onChangeText={setName}
               autoCapitalize="words"
               returnKeyType="done"
               autoFocus
             />
-            <EliteText style={s.hint}>{COPY.photoHint}</EliteText>
+            <EliteText style={[s.hint, th.hint]}>{COPY.photoHint}</EliteText>
           </Animated.View>
         </ScrollView>
 
         <View style={s.bottomBar}>
           <AnimatedPressable
-            style={[s.continueBtn, !isValid && s.continueBtnDisabled]}
+            style={[s.continueBtn, !isValid && th.ctaDisabled]}
             onPress={handleContinue}
             disabled={!isValid || loading}
           >
             <EliteText style={[s.continueBtnText, !isValid && { opacity: 0.4 }]}>
               {loading ? ONBOARDING_COPY.common.saving : COPY.cta}
             </EliteText>
-            {!loading && <Ionicons name="arrow-forward" size={18} color={isValid ? '#000' : '#666'} />}
+            {!loading && <Ionicons name="arrow-forward" size={18} color={isValid ? TEXT_COLORS.onAccent : th.arrowOff} />}
           </AnimatedPressable>
         </View>
       </KeyboardAvoidingView>
@@ -99,26 +101,25 @@ const s = StyleSheet.create({
     fontSize: 10, fontFamily: Fonts.semiBold, color: ATP_BRAND.lime,
     letterSpacing: 2, marginTop: 32,
   },
-  title: { fontSize: 28, fontFamily: Fonts.bold, color: '#fff', marginTop: 8, lineHeight: 36 },
+  title: { fontSize: 28, fontFamily: Fonts.bold, marginTop: 8, lineHeight: 36 },
   subtitle: {
-    fontSize: FontSizes.md, fontFamily: Fonts.regular, color: '#888',
+    fontSize: FontSizes.md, fontFamily: Fonts.regular,
     marginTop: 12, lineHeight: 22,
   },
   inputLabel: {
-    fontSize: 10, fontFamily: Fonts.semiBold, color: '#888',
+    fontSize: 10, fontFamily: Fonts.semiBold,
     letterSpacing: 2, marginTop: 40, marginBottom: 8,
   },
   input: {
-    backgroundColor: '#0a0a0a', borderRadius: Radius.lg, paddingHorizontal: 16,
+    borderRadius: Radius.lg, paddingHorizontal: 16,
     paddingVertical: 14, fontSize: FontSizes.md, fontFamily: Fonts.regular,
-    color: '#fff', borderWidth: 0.5, borderColor: '#222',
+    borderWidth: 0.5,
   },
-  hint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#444', marginTop: 8 },
+  hint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 8 },
   bottomBar: { paddingHorizontal: Spacing.md, paddingBottom: 40 },
   continueBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  continueBtnDisabled: { backgroundColor: '#1a1a1a' },
-  continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.onAccent, letterSpacing: 1 },
 });

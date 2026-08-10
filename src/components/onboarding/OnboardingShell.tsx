@@ -16,10 +16,13 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
+import { StatusBar } from 'expo-status-bar';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, Spacing } from '@/constants/theme';
+import { ATP_BRAND, PILL } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
 
 interface Props {
@@ -36,6 +39,12 @@ interface Props {
 const PROGRESS_FILL_MS = 550;
 
 export function OnboardingShell({ step, totalSteps = 9, onBack, onSkip, children }: Props) {
+  // MB-31B: el shell ES el marco de todo el onboarding — abre el scope
+  // (ThemeReady) una sola vez y pinta fondo/barra por tema. Un usuario nuevo
+  // sin preferencia ve el oscuro de siempre; quien vuelve en claro (p.ej.
+  // reconfigurar voz) ya no queda a fuerza en negro.
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
   // La línea arranca donde quedó el paso anterior y se llena hasta el actual.
   const progress = useSharedValue(Math.max(0, (step - 1) / totalSteps));
 
@@ -50,7 +59,9 @@ export function OnboardingShell({ step, totalSteps = 9, onBack, onSkip, children
   const fillStyle = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ThemeReady>
+    <SafeAreaView style={[styles.container, { backgroundColor: tokens.fondo }]}>
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <View style={styles.header}>
         <View style={styles.topRow}>
           {onBack ? (
@@ -59,29 +70,35 @@ export function OnboardingShell({ step, totalSteps = 9, onBack, onSkip, children
               hitSlop={12}
               style={styles.backBtn}
             >
-              <Ionicons name="chevron-back" size={22} color="#888" />
+              <Ionicons name="chevron-back" size={22} color={tokens.textoSecundario} />
             </AnimatedPressable>
           ) : (
             <View style={styles.backBtn} />
           )}
-          <EliteText style={styles.stepText}>PASO {step} DE {totalSteps}</EliteText>
+          {/* El lima como texto solo en oscuro (regla 1 del manual 3.6). */}
+          <EliteText style={[styles.stepText, { color: dark ? ATP_BRAND.lime : tokens.tealTexto }]}>
+            PASO {step} DE {totalSteps}
+          </EliteText>
           {onSkip ? (
             <AnimatedPressable onPress={() => { haptic.light(); onSkip(); }} hitSlop={12}>
-              <EliteText style={styles.skipText}>{ONBOARDING_COPY.common.skip}</EliteText>
+              <EliteText style={[styles.skipText, { color: dark ? PILL.textColor : tokens.textoSecundario }]}>
+                {ONBOARDING_COPY.common.skip}
+              </EliteText>
             </AnimatedPressable>
           ) : null}
         </View>
-        <View style={styles.progressTrack}>
+        <View style={[styles.progressTrack, { backgroundColor: dark ? PILL.borderColor : tokens.hundido }]}>
           <Animated.View style={[styles.progressFill, fillStyle]} />
         </View>
       </View>
       {children}
     </SafeAreaView>
+    </ThemeReady>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1 },
   header: { paddingHorizontal: Spacing.md, paddingTop: 16 },
   topRow: {
     flexDirection: 'row',
@@ -99,19 +116,16 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 10,
     fontFamily: Fonts.semiBold,
-    color: '#a8e02a',
     letterSpacing: 2,
   },
   skipText: {
     fontSize: 12,
     fontFamily: Fonts.semiBold,
-    color: '#666',
     letterSpacing: 1,
     paddingVertical: 4,
   },
   progressTrack: {
     height: 3,
-    backgroundColor: '#1a1a1a',
     borderRadius: 2,
     marginTop: 8,
     overflow: 'hidden',
@@ -119,6 +133,6 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 2,
-    backgroundColor: '#a8e02a',
+    backgroundColor: ATP_BRAND.lime,
   },
 });

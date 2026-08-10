@@ -19,7 +19,8 @@ import { v2StepNumber, v2Route, V2_STEPS } from '@/src/services/onboarding-v2-co
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { useOnboardingTheme } from '@/src/components/onboarding/onboarding-theme';
 import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
 
 const COPY = ONBOARDING_COPY.notifications;
@@ -33,6 +34,7 @@ export default function V2NotificationsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const analytics = useAnalytics();
+  const th = useOnboardingTheme();
   const [loading, setLoading] = useState(false);
 
   async function finish(withPrompt: boolean, destino?: Href) {
@@ -64,21 +66,21 @@ export default function V2NotificationsScreen() {
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View entering={FadeInUp.duration(400)}>
           <View style={s.bellWrap}>
-            <Ionicons name="notifications-outline" size={36} color={ATP_BRAND.lime} />
+            <Ionicons name="notifications-outline" size={36} color={th.dark ? ATP_BRAND.lime : th.tokens.tealTexto} />
           </View>
-          <EliteText style={s.title}>{COPY.title}</EliteText>
-          <EliteText style={s.subtitle}>{COPY.subtitle}</EliteText>
+          <EliteText style={[s.title, th.titulo]}>{COPY.title}</EliteText>
+          <EliteText style={[s.subtitle, th.subTenue]}>{COPY.subtitle}</EliteText>
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(120).duration(400)} style={{ marginTop: Spacing.lg, gap: 10 }}>
           {COPY.reasons.map(r => (
-            <View key={r.title} style={s.reasonCard}>
+            <View key={r.title} style={[s.reasonCard, { backgroundColor: th.tokens.hundido, borderColor: th.tokens.borde }]}>
               <View style={s.reasonIcon}>
-                <Ionicons name={r.icon as any} size={18} color={ATP_BRAND.lime} />
+                <Ionicons name={r.icon as any} size={18} color={th.dark ? ATP_BRAND.lime : th.tokens.tealTexto} />
               </View>
               <View style={{ flex: 1 }}>
-                <EliteText style={s.reasonTitle}>{r.title}</EliteText>
-                <EliteText style={s.reasonDesc}>{r.desc}</EliteText>
+                <EliteText style={[s.reasonTitle, th.titulo]}>{r.title}</EliteText>
+                <EliteText style={[s.reasonDesc, th.dark ? null : th.sub]}>{r.desc}</EliteText>
               </View>
             </View>
           ))}
@@ -92,14 +94,15 @@ export default function V2NotificationsScreen() {
           </EliteText>
         </AnimatedPressable>
         <AnimatedPressable style={s.skipBtn} onPress={() => finish(false)} disabled={loading}>
-          <EliteText style={s.skipText}>{COPY.skip}</EliteText>
+          <EliteText style={[s.skipText, th.subTenue]}>{COPY.skip}</EliteText>
         </AnimatedPressable>
         <AnimatedPressable
           style={s.armarBtn}
           onPress={() => finish(false, ARMAR_ROUTE)}
           disabled={loading}
         >
-          <EliteText style={s.armarText}>{COPY.armarLink}</EliteText>
+          {/* El lima como texto solo en oscuro (regla 1). */}
+          <EliteText style={[s.armarText, th.acento != null && { color: th.acento }]}>{COPY.armarLink}</EliteText>
         </AnimatedPressable>
       </View>
     </OnboardingShell>
@@ -112,30 +115,30 @@ const s = StyleSheet.create({
     width: 72, height: 72, borderRadius: 36, backgroundColor: withOpacity(ATP_BRAND.lime, 0.1),
     alignItems: 'center', justifyContent: 'center', marginTop: 32,
   },
-  title: { fontSize: 28, fontFamily: Fonts.bold, color: '#fff', marginTop: 16 },
+  title: { fontSize: 28, fontFamily: Fonts.bold, marginTop: 16 },
   subtitle: {
-    fontSize: FontSizes.md, fontFamily: Fonts.regular, color: '#666',
+    fontSize: FontSizes.md, fontFamily: Fonts.regular,
     marginTop: 8, lineHeight: 21,
   },
   reasonCard: {
     flexDirection: 'row', gap: 12, alignItems: 'center',
-    backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: '#1a1a1a',
+    borderWidth: 1,
     borderRadius: Radius.card, padding: Spacing.md,
   },
   reasonIcon: {
     width: 36, height: 36, borderRadius: 18, backgroundColor: withOpacity(ATP_BRAND.lime, 0.08),
     alignItems: 'center', justifyContent: 'center',
   },
-  reasonTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#fff' },
-  reasonDesc: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#777', marginTop: 2 },
+  reasonTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+  reasonDesc: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.47)', marginTop: 2 },
   bottomBar: { paddingHorizontal: Spacing.md, paddingBottom: 40, gap: 8 },
   continueBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 16,
     alignItems: 'center',
   },
-  continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.onAccent, letterSpacing: 1 },
   skipBtn: { alignItems: 'center', paddingVertical: 12 },
-  skipText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#666' },
+  skipText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
   armarBtn: { alignItems: 'center', paddingVertical: 4 },
   armarText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: withOpacity(ATP_BRAND.lime, 0.85) },
 });

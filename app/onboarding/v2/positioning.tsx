@@ -19,7 +19,8 @@ import { completeV2Step } from '@/src/services/onboarding-v2-service';
 import { v2StepNumber, v2Route, V2_STEPS } from '@/src/services/onboarding-v2-core';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { useOnboardingTheme } from '@/src/components/onboarding/onboarding-theme';
 
 /** §2 versión precisa — copy legal, no editar sin actualizar el master. */
 const POSITIONING_STATEMENT =
@@ -34,6 +35,7 @@ const PILLARS = [
 export default function V2PositioningScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const th = useOnboardingTheme();
   const [loading, setLoading] = useState(false);
 
   async function handleContinue() {
@@ -56,21 +58,25 @@ export default function V2PositioningScreen() {
     >
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View entering={FadeInUp.duration(400)}>
-          <EliteText style={s.kicker}>ANTES DE EMPEZAR</EliteText>
-          <EliteText style={s.title}>Qué es ATP{'\n'}(y qué no es)</EliteText>
+          {/* El teal de marca como texto solo en oscuro (regla 2). */}
+          <EliteText style={[s.kicker, th.acento != null && { color: th.acento }]}>ANTES DE EMPEZAR</EliteText>
+          <EliteText style={[s.title, th.titulo]}>Qué es ATP{'\n'}(y qué no es)</EliteText>
         </Animated.View>
 
-        <Animated.View entering={FadeInUp.delay(120).duration(400)} style={s.statementCard}>
-          <EliteText style={s.statement}>{POSITIONING_STATEMENT}</EliteText>
+        <Animated.View
+          entering={FadeInUp.delay(120).duration(400)}
+          style={[s.statementCard, { backgroundColor: th.tokens.card }]}
+        >
+          <EliteText style={[s.statement, th.dark ? null : th.titulo]}>{POSITIONING_STATEMENT}</EliteText>
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(220).duration(400)} style={{ gap: 10, marginTop: Spacing.lg }}>
           {PILLARS.map((p, i) => (
-            <View key={i} style={s.pillarRow}>
+            <View key={i} style={[s.pillarRow, { backgroundColor: th.tokens.hundido, borderColor: th.tokens.borde }]}>
               <View style={s.pillarIcon}>
-                <Ionicons name={p.icon} size={18} color={ATP_BRAND.teal} />
+                <Ionicons name={p.icon} size={18} color={th.dark ? ATP_BRAND.teal : th.tokens.tealTexto} />
               </View>
-              <EliteText style={s.pillarText}>{p.text}</EliteText>
+              <EliteText style={[s.pillarText, th.dark ? null : th.sub]}>{p.text}</EliteText>
             </View>
           ))}
         </Animated.View>
@@ -85,7 +91,7 @@ export default function V2PositioningScreen() {
           <EliteText style={s.continueBtnText}>
             {loading ? 'Un momento…' : 'ENTENDIDO, VAMOS'}
           </EliteText>
-          {!loading && <Ionicons name="arrow-forward" size={18} color="#000" />}
+          {!loading && <Ionicons name="arrow-forward" size={18} color={TEXT_COLORS.onAccent} />}
         </AnimatedPressable>
       </View>
     </OnboardingShell>
@@ -98,28 +104,28 @@ const s = StyleSheet.create({
     fontSize: 10, fontFamily: Fonts.semiBold, color: ATP_BRAND.teal,
     letterSpacing: 2, marginTop: 24,
   },
-  title: { fontSize: 28, fontFamily: Fonts.bold, color: '#fff', marginTop: 8, lineHeight: 36 },
+  title: { fontSize: 28, fontFamily: Fonts.bold, marginTop: 8, lineHeight: 36 },
   statementCard: {
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: withOpacity(ATP_BRAND.teal, 0.35),
+    borderWidth: 1, borderColor: withOpacity(ATP_BRAND.teal, 0.35),
     borderRadius: Radius.card, padding: Spacing.lg, marginTop: Spacing.lg,
   },
   statement: {
-    fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#eee', lineHeight: 25,
+    fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: 'rgba(255,255,255,0.93)', lineHeight: 25,
   },
   pillarRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: '#1a1a1a',
+    borderWidth: 1,
     borderRadius: Radius.card, padding: Spacing.md,
   },
   pillarIcon: {
     width: 36, height: 36, borderRadius: 18, backgroundColor: withOpacity(ATP_BRAND.teal, 0.12),
     alignItems: 'center', justifyContent: 'center',
   },
-  pillarText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#bbb', lineHeight: 20 },
+  pillarText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.73)', lineHeight: 20 },
   bottomBar: { paddingHorizontal: Spacing.md, paddingBottom: 40 },
   continueBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.onAccent, letterSpacing: 1 },
 });

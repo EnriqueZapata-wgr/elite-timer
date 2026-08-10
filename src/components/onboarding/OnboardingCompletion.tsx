@@ -133,7 +133,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontFamily: Fonts.bold,
-    color: '#fff',
+    // Celebración sobre velo negro: blanco de marca en los dos temas.
+    color: ATP_BRAND.white,
     textAlign: 'center',
   },
   subtitle: {

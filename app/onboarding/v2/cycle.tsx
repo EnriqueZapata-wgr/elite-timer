@@ -24,7 +24,8 @@ import { ContextualConsentModal } from '@/src/components/legal/ContextualConsent
 import { logConsent } from '@/src/services/consent-log-service';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, BORDER, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { useOnboardingTheme } from '@/src/components/onboarding/onboarding-theme';
 import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
 
 const COPY = ONBOARDING_COPY.cycle;
@@ -34,6 +35,7 @@ const CYCLE_PINK = '#D4537E'; // color de categoría ciclo (brand)
 export default function V2CycleScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const th = useOnboardingTheme();
   const [sex, setSex] = useState<'male' | 'female'>('female');
   const [modality, setModality] = useState<CycleModality | null>(null);
   const [loading, setLoading] = useState(false);
@@ -91,10 +93,10 @@ export default function V2CycleScreen() {
     >
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View entering={FadeInUp.duration(400)}>
-          <EliteText style={s.title}>
+          <EliteText style={[s.title, th.titulo]}>
             {sex === 'female' ? COPY.titleFemale : COPY.titleMale}
           </EliteText>
-          <EliteText style={s.subtitle}>
+          <EliteText style={[s.subtitle, th.subTenue]}>
             {sex === 'female' ? COPY.subtitleFemale : COPY.subtitleMale}
           </EliteText>
         </Animated.View>
@@ -106,35 +108,41 @@ export default function V2CycleScreen() {
               <AnimatedPressable
                 key={opt.value}
                 onPress={() => { haptic.light(); setModality(opt.value); }}
-                style={[s.card, selected && s.cardSelected]}
+                style={[
+                  s.card,
+                  { backgroundColor: th.tokens.hundido, borderColor: th.tokens.borde },
+                  selected && s.cardSelected,
+                ]}
               >
-                <View style={[s.iconWrap, selected && { backgroundColor: withOpacity(CYCLE_PINK, 0.15) }]}>
-                  <Ionicons name={opt.icon as any} size={20} color={selected ? CYCLE_PINK : '#666'} />
+                {/* El rosa de ciclo es color de sección: como glifo apagado
+                    usa el gris del tema; seleccionado se queda (identidad). */}
+                <View style={[s.iconWrap, !th.dark && { backgroundColor: th.tokens.flotante }, selected && { backgroundColor: withOpacity(CYCLE_PINK, 0.15) }]}>
+                  <Ionicons name={opt.icon as any} size={20} color={selected ? CYCLE_PINK : th.subTenue.color} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <EliteText style={[s.cardTitle, selected && { color: '#fff' }]}>{opt.label}</EliteText>
-                  <EliteText style={s.cardDesc}>{opt.description}</EliteText>
+                  <EliteText style={[s.cardTitle, th.dark ? null : th.sub, selected && th.titulo]}>{opt.label}</EliteText>
+                  <EliteText style={[s.cardDesc, th.dark ? null : th.sub]}>{opt.description}</EliteText>
                 </View>
-                <View style={[s.radio, selected && s.radioSelected]}>
+                <View style={[s.radio, { borderColor: th.tokens.bordeMarcado }, selected && s.radioSelected]}>
                   {selected && <View style={s.radioDot} />}
                 </View>
               </AnimatedPressable>
             );
           })}
-          <EliteText style={s.hint}>{COPY.hint}</EliteText>
+          <EliteText style={[s.hint, th.hint]}>{COPY.hint}</EliteText>
         </Animated.View>
       </ScrollView>
 
       <View style={s.bottomBar}>
         <AnimatedPressable
-          style={[s.continueBtn, !modality && s.continueBtnDisabled]}
+          style={[s.continueBtn, !modality && th.ctaDisabled]}
           onPress={handleContinue}
           disabled={!modality || loading}
         >
           <EliteText style={[s.continueBtnText, !modality && { opacity: 0.4 }]}>
             {loading ? ONBOARDING_COPY.common.saving : ONBOARDING_COPY.common.continue}
           </EliteText>
-          {!loading && <Ionicons name="arrow-forward" size={18} color={modality ? '#000' : '#666'} />}
+          {!loading && <Ionicons name="arrow-forward" size={18} color={modality ? TEXT_COLORS.onAccent : th.arrowOff} />}
         </AnimatedPressable>
       </View>
 
@@ -153,35 +161,34 @@ export default function V2CycleScreen() {
 
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
-  title: { fontSize: 28, fontFamily: Fonts.bold, color: '#fff', marginTop: 24 },
+  title: { fontSize: 28, fontFamily: Fonts.bold, marginTop: 24 },
   subtitle: {
-    fontSize: FontSizes.md, fontFamily: Fonts.regular, color: '#666',
+    fontSize: FontSizes.md, fontFamily: Fonts.regular,
     marginTop: 8, lineHeight: 21,
   },
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: '#1a1a1a',
+    borderWidth: 1,
     borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.sm,
   },
   cardSelected: { borderColor: CYCLE_PINK, backgroundColor: withOpacity(CYCLE_PINK, 0.05) },
   iconWrap: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: '#141414',
+    width: 38, height: 38, borderRadius: 19, backgroundColor: BORDER.subtle,
     alignItems: 'center', justifyContent: 'center',
   },
-  cardTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#ccc' },
-  cardDesc: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#666', marginTop: 2, lineHeight: 16 },
+  cardTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: 'rgba(255,255,255,0.8)' },
+  cardDesc: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.4)', marginTop: 2, lineHeight: 16 },
   radio: {
-    width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#333',
+    width: 22, height: 22, borderRadius: 11, borderWidth: 2,
     alignItems: 'center', justifyContent: 'center',
   },
   radioSelected: { borderColor: CYCLE_PINK },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: CYCLE_PINK },
-  hint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#444', marginTop: 8 },
+  hint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 8 },
   bottomBar: { paddingHorizontal: Spacing.md, paddingBottom: 40 },
   continueBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  continueBtnDisabled: { backgroundColor: '#1a1a1a' },
-  continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.onAccent, letterSpacing: 1 },
 });

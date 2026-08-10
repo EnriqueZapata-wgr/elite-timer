@@ -17,7 +17,8 @@ import { completeV2Step } from '@/src/services/onboarding-v2-service';
 import { v2StepNumber, v2Route, V2_STEPS, GOAL_OPTIONS } from '@/src/services/onboarding-v2-core';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS } from '@/src/constants/brand';
+import { useOnboardingTheme } from '@/src/components/onboarding/onboarding-theme';
 import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
 
 const COPY = ONBOARDING_COPY.goal;
@@ -25,6 +26,7 @@ const COPY = ONBOARDING_COPY.goal;
 export default function V2GoalScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const th = useOnboardingTheme();
   const [goal, setGoal] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -71,8 +73,8 @@ export default function V2GoalScreen() {
     >
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View entering={FadeInUp.duration(400)}>
-          <EliteText style={s.title}>{COPY.title}</EliteText>
-          <EliteText style={s.subtitle}>{COPY.subtitle}</EliteText>
+          <EliteText style={[s.title, th.titulo]}>{COPY.title}</EliteText>
+          <EliteText style={[s.subtitle, th.subTenue]}>{COPY.subtitle}</EliteText>
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(120).duration(400)} style={{ marginTop: Spacing.lg }}>
@@ -90,14 +92,14 @@ export default function V2GoalScreen() {
 
       <View style={s.bottomBar}>
         <AnimatedPressable
-          style={[s.continueBtn, !goal && s.continueBtnDisabled]}
+          style={[s.continueBtn, !goal && th.ctaDisabled]}
           onPress={handleContinue}
           disabled={!goal || loading}
         >
           <EliteText style={[s.continueBtnText, !goal && { opacity: 0.4 }]}>
             {loading ? ONBOARDING_COPY.common.saving : ONBOARDING_COPY.common.continue}
           </EliteText>
-          {!loading && <Ionicons name="arrow-forward" size={18} color={goal ? '#000' : '#666'} />}
+          {!loading && <Ionicons name="arrow-forward" size={18} color={goal ? TEXT_COLORS.onAccent : th.arrowOff} />}
         </AnimatedPressable>
       </View>
     </OnboardingShell>
@@ -106,9 +108,9 @@ export default function V2GoalScreen() {
 
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
-  title: { fontSize: 28, fontFamily: Fonts.bold, color: '#fff', marginTop: 24 },
+  title: { fontSize: 28, fontFamily: Fonts.bold, marginTop: 24 },
   subtitle: {
-    fontSize: FontSizes.md, fontFamily: Fonts.regular, color: '#666',
+    fontSize: FontSizes.md, fontFamily: Fonts.regular,
     marginTop: 8, lineHeight: 21,
   },
   bottomBar: { paddingHorizontal: Spacing.md, paddingBottom: 40 },
@@ -116,6 +118,5 @@ const s = StyleSheet.create({
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  continueBtnDisabled: { backgroundColor: '#1a1a1a' },
-  continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.onAccent, letterSpacing: 1 },
 });

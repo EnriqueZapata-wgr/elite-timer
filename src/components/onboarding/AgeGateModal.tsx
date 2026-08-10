@@ -13,7 +13,8 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, TEXT } from '@/src/constants/brand';
+import { ATP_BRAND, PILL, TEXT_COLORS } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface Props {
   visible: boolean;
@@ -24,15 +25,19 @@ interface Props {
 }
 
 export function AgeGateModal({ visible, onExit, onDismiss }: Props) {
+  // MB-31B: hoja flotante del scope. El #ef4444 no mapea a token (reporte);
+  // en claro usa el token de error para no perderse sobre acero.
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onExit}>
       <View style={s.overlay}>
-        <View style={s.card}>
+        <View style={[s.card, { backgroundColor: t.flotante, borderColor: t.bordeMarcado }]}>
           <View style={s.iconWrap}>
-            <Ionicons name="hand-left-outline" size={32} color="#ef4444" />
+            <Ionicons name="hand-left-outline" size={32} color={dark ? '#ef4444' : t.error} />
           </View>
-          <EliteText style={s.title}>ATP no está disponible{'\n'}para menores de 18 años</EliteText>
-          <EliteText style={s.body}>
+          <EliteText style={[s.title, { color: t.texto }]}>ATP no está disponible{'\n'}para menores de 18 años</EliteText>
+          <EliteText style={[s.body, !dark && { color: t.textoSecundario }]}>
             ATP trata datos sensibles de salud y está dirigida exclusivamente a personas
             mayores de 18 años. No podemos crear tu cuenta. Te esperamos cuando cumplas 18.
           </EliteText>
@@ -40,7 +45,7 @@ export function AgeGateModal({ visible, onExit, onDismiss }: Props) {
             <EliteText style={s.primaryBtnText}>ENTENDIDO</EliteText>
           </AnimatedPressable>
           <AnimatedPressable style={s.secondaryBtn} onPress={() => { haptic.light(); onDismiss(); }}>
-            <EliteText style={s.secondaryText}>Corregir mi fecha de nacimiento</EliteText>
+            <EliteText style={[s.secondaryText, { color: dark ? PILL.textColor : t.textoSecundario }]}>Corregir mi fecha de nacimiento</EliteText>
           </AnimatedPressable>
         </View>
       </View>
@@ -54,7 +59,7 @@ const s = StyleSheet.create({
     justifyContent: 'center', paddingHorizontal: Spacing.md,
   },
   card: {
-    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
+    borderWidth: 1,
     borderRadius: 24, padding: Spacing.lg, alignItems: 'center',
   },
   iconWrap: {
@@ -62,18 +67,18 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md,
   },
   title: {
-    fontSize: 20, fontFamily: Fonts.bold, color: TEXT.primary,
+    fontSize: 20, fontFamily: Fonts.bold,
     textAlign: 'center', lineHeight: 28,
   },
   body: {
-    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#999',
+    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.6)',
     textAlign: 'center', marginTop: 10, lineHeight: 20,
   },
   primaryBtn: {
     alignSelf: 'stretch', backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg,
     paddingVertical: 15, alignItems: 'center', marginTop: Spacing.lg,
   },
-  primaryBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  primaryBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.onAccent, letterSpacing: 1 },
   secondaryBtn: { paddingVertical: 12, marginTop: 4 },
-  secondaryText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#666' },
+  secondaryText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 });

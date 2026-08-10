@@ -21,7 +21,8 @@ import {
 } from '@/src/services/onboarding-v2-core';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { useOnboardingTheme } from '@/src/components/onboarding/onboarding-theme';
 import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
 
 const COPY = ONBOARDING_COPY.chronotype;
@@ -32,6 +33,9 @@ const ACCENT = ATP_BRAND.teal;
 export default function V2ChronotypeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const th = useOnboardingTheme();
+  // El teal de marca como TEXTO/glifo solo en oscuro (regla 2 del manual 3.6).
+  const accent = th.dark ? ACCENT : th.tokens.tealTexto;
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [result, setResult] = useState<Chronotype | null>(null);
@@ -108,9 +112,9 @@ export default function V2ChronotypeScreen() {
         <ScrollView contentContainerStyle={s.scroll}>
           <Animated.View entering={FadeInUp.duration(400)} style={s.insightCard}>
             <EliteText style={{ fontSize: 56, textAlign: 'center' }}>{meta.emoji}</EliteText>
-            <EliteText style={s.insightKicker}>{COPY.resultKicker}</EliteText>
-            <EliteText style={s.insightTitle}>{COPY.resultTitlePrefix} {meta.name}</EliteText>
-            <EliteText style={s.insightBlurb}>{meta.blurb}</EliteText>
+            <EliteText style={[s.insightKicker, { color: accent }]}>{COPY.resultKicker}</EliteText>
+            <EliteText style={[s.insightTitle, th.titulo]}>{COPY.resultTitlePrefix} {meta.name}</EliteText>
+            <EliteText style={[s.insightBlurb, th.dark ? null : th.sub]}>{meta.blurb}</EliteText>
             <View style={s.scheduleBox}>
               {[
                 { icon: 'sunny-outline', label: COPY.scheduleWake, time: schedule.wake },
@@ -119,9 +123,9 @@ export default function V2ChronotypeScreen() {
                 { icon: 'bed-outline', label: COPY.scheduleSleep, time: schedule.sleep },
               ].map(row => (
                 <View key={row.label} style={s.scheduleRow}>
-                  <Ionicons name={row.icon as any} size={16} color={ACCENT} />
-                  <EliteText style={s.scheduleLabel}>{row.label}</EliteText>
-                  <EliteText style={s.scheduleTime}>{row.time}</EliteText>
+                  <Ionicons name={row.icon as any} size={16} color={accent} />
+                  <EliteText style={[s.scheduleLabel, th.sub]}>{row.label}</EliteText>
+                  <EliteText style={[s.scheduleTime, th.titulo]}>{row.time}</EliteText>
                 </View>
               ))}
             </View>
@@ -130,7 +134,7 @@ export default function V2ChronotypeScreen() {
         <View style={s.bottomBar}>
           <AnimatedPressable style={s.continueBtn} onPress={handleContinue} disabled={loading}>
             <EliteText style={s.continueBtnText}>{loading ? ONBOARDING_COPY.common.saving : ONBOARDING_COPY.common.continue}</EliteText>
-            {!loading && <Ionicons name="arrow-forward" size={18} color="#000" />}
+            {!loading && <Ionicons name="arrow-forward" size={18} color={TEXT_COLORS.onAccent} />}
           </AnimatedPressable>
         </View>
       </OnboardingShell>
@@ -142,10 +146,10 @@ export default function V2ChronotypeScreen() {
     <OnboardingShell step={v2StepNumber('chronotype')} totalSteps={V2_STEPS.length} onBack={handleBack} onSkip={handleSkip}>
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View key={animKey} entering={FadeInUp.duration(300)}>
-          <EliteText style={s.counter}>
+          <EliteText style={[s.counter, th.sub]}>
             {COPY.counterKicker} · {currentQ + 1} DE {CHRONO_QUESTIONS.length}
           </EliteText>
-          <EliteText style={s.title}>{question.text}</EliteText>
+          <EliteText style={[s.title, th.titulo]}>{question.text}</EliteText>
           <View style={{ marginTop: Spacing.lg }}>
             {question.options.map(opt => (
               <OptionCard
@@ -165,31 +169,31 @@ export default function V2ChronotypeScreen() {
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
   counter: {
-    fontSize: 10, fontFamily: Fonts.semiBold, color: '#888',
+    fontSize: 10, fontFamily: Fonts.semiBold,
     letterSpacing: 2, marginTop: 24,
   },
-  title: { fontSize: 24, fontFamily: Fonts.bold, color: '#fff', marginTop: 8, lineHeight: 32 },
+  title: { fontSize: 24, fontFamily: Fonts.bold, marginTop: 8, lineHeight: 32 },
   insightCard: {
     backgroundColor: withOpacity(ACCENT, 0.06), borderRadius: 20, padding: Spacing.lg,
     borderWidth: 1, borderColor: withOpacity(ACCENT, 0.2), marginTop: 32,
   },
   insightKicker: {
-    fontSize: 10, fontFamily: Fonts.semiBold, color: ACCENT,
+    fontSize: 10, fontFamily: Fonts.semiBold,
     letterSpacing: 2, textAlign: 'center', marginTop: 12,
   },
-  insightTitle: { fontSize: 26, fontFamily: Fonts.bold, color: '#fff', textAlign: 'center', marginTop: 4 },
+  insightTitle: { fontSize: 26, fontFamily: Fonts.bold, textAlign: 'center', marginTop: 4 },
   insightBlurb: {
-    fontSize: FontSizes.md, fontFamily: Fonts.regular, color: '#aaa',
+    fontSize: FontSizes.md, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.67)',
     textAlign: 'center', marginTop: 8, lineHeight: 21,
   },
   scheduleBox: { marginTop: Spacing.lg, gap: 10 },
   scheduleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  scheduleLabel: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#888' },
-  scheduleTime: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#fff' },
+  scheduleLabel: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular },
+  scheduleTime: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
   bottomBar: { paddingHorizontal: Spacing.md, paddingBottom: 40 },
   continueBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.onAccent, letterSpacing: 1 },
 });

@@ -29,7 +29,9 @@ import {
   saveBlockProgress, loadBlockProgress, clearBlockProgress,
 } from '@/src/services/onboarding-v2-service';
 import { Fonts, FontSizes, Spacing } from '@/constants/theme';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, PILL } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { StatusBar } from 'expo-status-bar';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const TOTAL = VOICE_CONFIG_QUESTIONS.length;
@@ -117,13 +119,19 @@ export default function VoiceConfigOnboardingScreen() {
   const q = VOICE_CONFIG_QUESTIONS[currentQ];
   const showBack = currentQ > 0; // back disponible salvo en Q1
 
+  // MB-31B: pantalla standalone (sin OnboardingShell) — abre su propio scope.
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
+
   return (
-    <SafeAreaView style={s.container}>
+    <ThemeReady>
+    <SafeAreaView style={[s.container, { backgroundColor: tokens.fondo }]}>
+      <StatusBar style={dark ? 'light' : 'dark'} />
       {/* Progress header */}
       <View style={s.progressHeader}>
         {showBack ? (
           <AnimatedPressable onPress={handleBack} hitSlop={12} style={s.backBtn}>
-            <Ionicons name="chevron-back" size={24} color="#888" />
+            <Ionicons name="chevron-back" size={24} color={tokens.textoSecundario} />
           </AnimatedPressable>
         ) : (
           <View style={s.backBtn} />
@@ -132,11 +140,15 @@ export default function VoiceConfigOnboardingScreen() {
           {VOICE_CONFIG_QUESTIONS.map((_, i) => (
             <View
               key={i}
-              style={[s.progressSegment, i <= currentQ && s.progressSegmentFilled]}
+              style={[
+                s.progressSegment,
+                { backgroundColor: dark ? PILL.borderColor : tokens.hundido },
+                i <= currentQ && s.progressSegmentFilled,
+              ]}
             />
           ))}
         </View>
-        <EliteText style={s.progressLabel}>{currentQ + 1}/{TOTAL}</EliteText>
+        <EliteText style={[s.progressLabel, { color: dark ? tokens.textoTenue : tokens.textoSecundario }]}>{currentQ + 1}/{TOTAL}</EliteText>
       </View>
 
       <ScrollView
@@ -146,14 +158,14 @@ export default function VoiceConfigOnboardingScreen() {
       >
         <Animated.View key={animKey} entering={SlideInRight.duration(250).springify()}>
           {isBackfill && currentQ === 0 && (
-            <EliteText style={s.backfillBanner}>
+            <EliteText style={[s.backfillBanner, !dark && { color: tokens.tealTexto }]}>
               Tu coach necesita conocerte mejor: 16 preguntas rápidas (3-5 min).
             </EliteText>
           )}
-          <EliteText style={s.questionText}>{q.text}</EliteText>
+          <EliteText style={[s.questionText, { color: tokens.texto }]}>{q.text}</EliteText>
 
           {q.helperText && (
-            <EliteText style={s.helperText}>{q.helperText}</EliteText>
+            <EliteText style={[s.helperText, { color: dark ? PILL.textColor : tokens.textoSecundario }]}>{q.helperText}</EliteText>
           )}
 
           <View style={s.optionsWrap}>
@@ -172,18 +184,19 @@ export default function VoiceConfigOnboardingScreen() {
           </View>
 
           {saving && (
-            <EliteText style={s.savingText}>Calibrando tu coach…</EliteText>
+            <EliteText style={[s.savingText, !dark && { color: tokens.tealTexto }]}>Calibrando tu coach…</EliteText>
           )}
         </Animated.View>
 
         <View style={{ height: 80 }} />
       </ScrollView>
     </SafeAreaView>
+    </ThemeReady>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1 },
 
   progressHeader: {
     flexDirection: 'row',
@@ -207,7 +220,6 @@ const s = StyleSheet.create({
   progressSegment: {
     flex: 1,
     height: 3,
-    backgroundColor: '#1a1a1a',
     borderRadius: 2,
   },
   progressSegmentFilled: {
@@ -216,7 +228,6 @@ const s = StyleSheet.create({
   progressLabel: {
     fontSize: 11,
     fontFamily: Fonts.semiBold,
-    color: '#555',
     width: 34,
     textAlign: 'right',
   },
@@ -235,14 +246,12 @@ const s = StyleSheet.create({
   questionText: {
     fontSize: 22,
     fontFamily: Fonts.bold,
-    color: '#fff',
     lineHeight: 30,
     marginBottom: Spacing.sm,
   },
   helperText: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.regular,
-    color: '#666',
     lineHeight: 18,
     marginBottom: Spacing.lg,
   },

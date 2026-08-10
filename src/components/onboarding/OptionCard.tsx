@@ -8,6 +8,8 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
+import { ATP_BRAND, PILL, TEXT_COLORS } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface Props {
   text: string;
@@ -18,16 +20,25 @@ interface Props {
 }
 
 export function OptionCard({ text, icon, selected, multi = false, onPress }: Props) {
+  // MB-31B: superficies/texto del scope; el lima del indicador es relleno
+  // con negro encima (igual en los dos temas); como icono suelto en claro
+  // pasa al teal calibrado.
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
   return (
     <AnimatedPressable
       onPress={() => { haptic.light(); onPress(); }}
-      style={[styles.card, selected && styles.cardSelected]}
+      style={[
+        styles.card,
+        { backgroundColor: t.hundido, borderColor: t.borde },
+        selected && styles.cardSelected,
+      ]}
     >
       {/* Radio / Checkbox */}
-      <View style={[styles.indicator, selected && styles.indicatorSelected]}>
+      <View style={[styles.indicator, { borderColor: t.bordeMarcado }, selected && styles.indicatorSelected]}>
         {selected && (
           multi
-            ? <Ionicons name="checkmark" size={12} color="#000" />
+            ? <Ionicons name="checkmark" size={12} color={TEXT_COLORS.onAccent} />
             : <View style={styles.radioDot} />
         )}
       </View>
@@ -37,13 +48,19 @@ export function OptionCard({ text, icon, selected, multi = false, onPress }: Pro
         <Ionicons
           name={icon as any}
           size={20}
-          color={selected ? '#a8e02a' : '#666'}
+          color={selected ? (dark ? ATP_BRAND.lime : t.tealTexto) : (dark ? PILL.textColor : t.textoSecundario)}
           style={{ marginRight: 4 }}
         />
       )}
 
       {/* Texto */}
-      <EliteText style={[styles.text, selected && styles.textSelected]}>
+      <EliteText
+        style={[
+          styles.text,
+          { color: dark ? 'rgba(255,255,255,0.8)' : t.textoSecundario },
+          selected && [styles.textSelected, { color: t.texto }],
+        ]}
+      >
         {text}
       </EliteText>
     </AnimatedPressable>
@@ -55,15 +72,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#0a0a0a',
     borderWidth: 1,
-    borderColor: '#1a1a1a',
     borderRadius: Radius.card,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
   },
   cardSelected: {
-    borderColor: '#a8e02a',
+    borderColor: ATP_BRAND.lime,
     backgroundColor: 'rgba(168,224,42,0.06)',
   },
   indicator: {
@@ -71,28 +86,25 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#333',
     alignItems: 'center',
     justifyContent: 'center',
   },
   indicatorSelected: {
-    borderColor: '#a8e02a',
-    backgroundColor: '#a8e02a',
+    borderColor: ATP_BRAND.lime,
+    backgroundColor: ATP_BRAND.lime,
   },
   radioDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#000',
+    backgroundColor: TEXT_COLORS.onAccent,
   },
   text: {
     flex: 1,
-    color: '#ccc',
     fontSize: FontSizes.md,
     fontFamily: Fonts.regular,
   },
   textSelected: {
-    color: '#fff',
     fontFamily: Fonts.semiBold,
   },
 });
