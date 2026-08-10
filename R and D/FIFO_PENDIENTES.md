@@ -73,6 +73,41 @@ esto es lo que se DESTAPÓ y se anota sin arreglar (regla de la Pieza 2):
 
 ---
 
+# 🖌️ MB-31B REMATE (B2+B3 mergeados, huérfanas, SaludHub, Edad ATP) — lo que quedó
+
+**Rama `feat/mb31b-remate`, 10-ago-2026.** Cierra las pantallas sin dueño, la
+frontera SaludHub y el árbol Edad ATP que B2 dejó fuera. Lo que se DESTAPÓ y
+queda sin arreglar (regla de la Pieza 2):
+
+- **Restos con color fijo fuera de todo reparto:** `functional-quiz` (~50
+  colores a mano, pilar TESTS — nadie lo tuvo nunca), `feedback-dashboard`,
+  `dev/index`, y en `afiliados/` dos rezagos que B3 dejó (`dashboard` barra de
+  chart, `aplicar` submitBtnDisabled). `SplashLoader` (#1A1A1A, marco global).
+  `components/dashboard-card.tsx` es código muerto (cero consumidores) — al
+  run de limpieza junto con los de B1.
+- **El flujo auth es frontera entera:** login/register quedan OSCUROS en ambos
+  temas a propósito — su cuerpo es `AuthScreen` (gradiente editorial fijo) +
+  `EliteInput`/`EliteButton`/`AuthLinksFooter` + logo oscuro. Tematizarlo es un
+  run propio; los literales quedaron anclados a constantes para el ratchet.
+- **Piezas globales del chat ARGOS siguen oscuras** dentro de un chat ya claro
+  (tránsito esperado): `TopBanner`, `MedicalDisclaimer`, `CrisisSupportBanner`,
+  `ContextualConsentModal`, `RateLimitCard`, `ArgosVoiceMode`. El kit propio
+  del chat (6 piezas) sí migró.
+- **`TestQuestionScreen` y `app/quiz/chronotype.tsx`** (compartidos con
+  quiz/*, my-chronotype, onboarding) — frontera, los usa medio mundo.
+- **Ámbar como letra, sin legislar en el manual:** `night-filter` stepNumber
+  (ATP_BRAND.amber sobre card clara ≈ no se lee), `#EF9F27` (ChatInput offline,
+  RecalculateDiff empeora, cycle warn), `#e0a020` (biomarkers pendTitle).
+  Decisión de marca: ¿token de warning o se quedan como señal?
+- **Semáforos clínicos intactos** (EDAD_STATUS, `EDAD_PENDING_COLOR` #8E8E93 en
+  `edad-atp/tokens.ts`, rojo NO-GO del test de reacción, verde rango funcional):
+  son señal, no tema. Si el claro los necesita calibrados, es otro cierre.
+- **Nota de fidelidad en oscuro:** cuerpo legal `#bbb` → textoSecundario (#888),
+  burbuja ARGOS/typing `#0a0a0a` → card (#121212), sheet del menú `#2F2F2F` →
+  flotante (#232323) — rol ganó sobre valor, visible solo con lupa.
+
+---
+
 # 🔴 A · ABIERTO Y VERIFICADO
 
 ## ~~A1 · Los iconos siguen mezclados~~ ✅ CERRADO (MB-28A · pieza 0.1)

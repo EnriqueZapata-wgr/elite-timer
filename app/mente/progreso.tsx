@@ -53,8 +53,11 @@ export default function MenteProgresoScreen() {
   const tenueTxt = { color: t.textoTenue };
   const sinDatosTxt = { color: t.sinDatos };
   const cardSurf = { backgroundColor: t.card, borderColor: t.borde };
-  // MB-31B remate: el círculo del icono era #1A1A1A a mano → flotante (card sobre card).
+  // MB-31B remate: el círculo del icono era #1A1A1A a mano → flotante (card
+  // sobre card); el borde de medalla era #222 → borde (derivado AQUÍ porque
+  // MEDAL_TIERS.map((t) => …) sombrea los tokens adentro).
   const circleSurf = { backgroundColor: t.flotante };
+  const medalBorde = { borderColor: t.borde };
   const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
 
   useFocusEffect(useCallback(() => {
@@ -168,6 +171,7 @@ export default function MenteProgresoScreen() {
                         key={t.tier}
                         style={[
                           s.medal,
+                          medalBorde,
                           earned && s.medalEarned,
                           isNew && s.medalNew,
                         ]}
@@ -242,7 +246,7 @@ const s = StyleSheet.create({
   medalRowTiers: { flexDirection: 'row', gap: 6 },
   medal: {
     minWidth: 44, alignItems: 'center', borderRadius: Radius.pill,
-    borderWidth: 1, borderColor: '#222', paddingVertical: 4, paddingHorizontal: 6,
+    borderWidth: 1, paddingVertical: 4, paddingHorizontal: 6,
   },
   medalEarned: {
     borderColor: withOpacity(ATP_BRAND.lime, 0.5),
