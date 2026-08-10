@@ -31,7 +31,8 @@ import { appInstallState, type InstallPrefs, type InstallState } from '@/src/ser
 import { getUserPacks } from '@/src/services/pack-service';
 import { packAplicado, type UserPackRow } from '@/src/services/pack-core';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { APP_SECTION_COLORS, ATP_BRAND, TEXT, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { APP_SECTION_COLORS, ATP_BRAND, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
 
 const STATE_LABEL: Record<InstallState, string> = {
@@ -43,6 +44,16 @@ const STATE_LABEL: Record<InstallState, string> = {
 export default function CentroScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B: pantalla migrada — superficies/texto del tema; los colores de
+  // sección de iconos y encabezados son identidad y no se tematizan.
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
+  const acento = dark ? ATP_BRAND.lime : tokens.tealTexto;
+  const tenueInformativo = dark ? tokens.textoTenue : tokens.textoSecundario;
+  const grupo = { backgroundColor: tokens.card, borderColor: tokens.borde };
+  const iconoNeutro = dark
+    ? undefined
+    : { backgroundColor: tokens.hundido, borderColor: tokens.borde };
   // El buscador de la sala manda aquí su término cuando no lo encontró.
   const { q } = useLocalSearchParams<{ q?: string }>();
 
@@ -78,26 +89,30 @@ export default function CentroScreen() {
     return (
       <AnimatedPressable
         key={app.key}
-        style={[s.row, !isLast && s.rowDivider]}
+        style={[s.row, !isLast && [s.rowDivider, { borderBottomColor: tokens.borde }]]}
         onPress={() => { haptic.light(); router.push(`/centro/${app.key}`); }}
       >
         <View style={[s.rowIcon, { backgroundColor: withOpacity(color, 0.10), borderColor: withOpacity(color, 0.22) }]}>
           <AppIcon name={app.icon} size={18} color={color} />
         </View>
-        <EliteText style={s.rowLabel} numberOfLines={1}>{app.label}</EliteText>
+        <EliteText style={[s.rowLabel, { color: tokens.texto }]} numberOfLines={1}>{app.label}</EliteText>
         {state !== 'no' && (
-          <EliteText style={[s.rowState, state === 'instalada' && s.rowStateOn]}>
+          <EliteText style={{
+            fontFamily: Fonts.regular,
+            fontSize: FontSizes.xs,
+            color: state === 'instalada' ? tenueInformativo : tokens.sinDatos,
+          }}>
             {STATE_LABEL[state]}
           </EliteText>
         )}
-        <Ionicons name="chevron-forward" size={15} color={TEXT.muted} />
+        <Ionicons name="chevron-forward" size={15} color={tokens.sinDatos} />
       </AnimatedPressable>
     );
   };
 
   return (
-    <Screen>
-      <StatusBar style="light" />
+    <Screen themed>
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <ScreenHeader title="Centro ATP" onBack={() => router.back()} />
 
       <ScrollView
@@ -109,48 +124,48 @@ export default function CentroScreen() {
             completa; buscar una función la esconde para no estorbar. */}
         {!searching && (
           <Animated.View entering={FadeInUp.delay(20).springify()}>
-            <EliteText style={s.packsTitle}>ÁRMALA POR MÍ</EliteText>
-            <EliteText style={s.packsHint}>
+            <EliteText style={[s.packsTitle, { color: tenueInformativo }]}>ÁRMALA POR MÍ</EliteText>
+            <EliteText style={[s.packsHint, { color: tokens.textoSecundario }]}>
               Contesta dos preguntas y tu app queda armada para lo que
               quieres cambiar primero. Los packs se aplican y se acumulan.
             </EliteText>
             {/* MB-26 P4: la puerta de Ordenar mi día también vive aquí — el
                 Centro es donde se cambia la configuración. */}
-            <View style={[s.group, { marginBottom: Spacing.xs }]}>
+            <View style={[s.group, grupo, { marginBottom: Spacing.xs }]}>
               <AnimatedPressable
                 style={s.row}
                 onPress={() => { haptic.light(); router.push('/ordenar-dia'); }}
               >
-                <View style={s.packIcon}>
-                  <Ionicons name="sparkles-outline" size={16} color={TEXT.secondary} />
+                <View style={[s.packIcon, iconoNeutro]}>
+                  <Ionicons name="sparkles-outline" size={16} color={tokens.textoSecundario} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <EliteText style={s.rowLabel} numberOfLines={1}>Ordenar mi día</EliteText>
-                  <EliteText style={s.packParaQuien} numberOfLines={1}>
+                  <EliteText style={[s.rowLabel, { color: tokens.texto }]} numberOfLines={1}>Ordenar mi día</EliteText>
+                  <EliteText style={[s.packParaQuien, { color: tokens.textoSecundario }]} numberOfLines={1}>
                     Graduar, reposar o empezar de cero. Nada se borra.
                   </EliteText>
                 </View>
-                <Ionicons name="chevron-forward" size={15} color={TEXT.muted} />
+                <Ionicons name="chevron-forward" size={15} color={tokens.sinDatos} />
               </AnimatedPressable>
             </View>
-            <View style={[s.group, { marginBottom: Spacing.md }]}>
+            <View style={[s.group, grupo, { marginBottom: Spacing.md }]}>
               {PACKS.map((p, i) => {
                 const esAplicado = packAplicado(packs, p.key) != null;
                 return (
                   <AnimatedPressable
                     key={p.key}
-                    style={[s.row, i < PACKS.length - 1 && s.rowDivider]}
+                    style={[s.row, i < PACKS.length - 1 && [s.rowDivider, { borderBottomColor: tokens.borde }]]}
                     onPress={() => { haptic.light(); router.push(`/packs/${p.key}`); }}
                   >
-                    <View style={s.packIcon}>
-                      <AppIcon name={p.icon} size={18} color={TEXT.secondary} />
+                    <View style={[s.packIcon, iconoNeutro]}>
+                      <AppIcon name={p.icon} size={18} color={tokens.textoSecundario} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <EliteText style={s.rowLabel} numberOfLines={1}>{p.nombre}</EliteText>
-                      <EliteText style={s.packParaQuien} numberOfLines={1}>{p.paraQuien}</EliteText>
+                      <EliteText style={[s.rowLabel, { color: tokens.texto }]} numberOfLines={1}>{p.nombre}</EliteText>
+                      <EliteText style={[s.packParaQuien, { color: tokens.textoSecundario }]} numberOfLines={1}>{p.paraQuien}</EliteText>
                     </View>
-                    {esAplicado && <EliteText style={s.packAplicadoChip}>APLICADO</EliteText>}
-                    <Ionicons name="chevron-forward" size={15} color={TEXT.muted} />
+                    {esAplicado && <EliteText style={[s.packAplicadoChip, { color: acento }]}>APLICADO</EliteText>}
+                    <Ionicons name="chevron-forward" size={15} color={tokens.sinDatos} />
                   </AnimatedPressable>
                 );
               })}
@@ -158,25 +173,25 @@ export default function CentroScreen() {
 
             {/* MB-29 P4: los paquetes de salud — mismo motor, misma ficha.
                 Instalan el grupo de apps que se usan juntas. */}
-            <EliteText style={s.packsTitle}>PAQUETES DE SALUD</EliteText>
-            <View style={[s.group, { marginBottom: Spacing.md }]}>
+            <EliteText style={[s.packsTitle, { color: tenueInformativo }]}>PAQUETES DE SALUD</EliteText>
+            <View style={[s.group, grupo, { marginBottom: Spacing.md }]}>
               {PAQUETES_SALUD.map((p, i) => {
                 const esAplicado = packAplicado(packs, p.key) != null;
                 return (
                   <AnimatedPressable
                     key={p.key}
-                    style={[s.row, i < PAQUETES_SALUD.length - 1 && s.rowDivider]}
+                    style={[s.row, i < PAQUETES_SALUD.length - 1 && [s.rowDivider, { borderBottomColor: tokens.borde }]]}
                     onPress={() => { haptic.light(); router.push(`/packs/${p.key}`); }}
                   >
-                    <View style={s.packIcon}>
-                      <AppIcon name={p.icon} size={18} color={TEXT.secondary} />
+                    <View style={[s.packIcon, iconoNeutro]}>
+                      <AppIcon name={p.icon} size={18} color={tokens.textoSecundario} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <EliteText style={s.rowLabel} numberOfLines={1}>{p.nombre}</EliteText>
-                      <EliteText style={s.packParaQuien} numberOfLines={1}>{p.paraQuien}</EliteText>
+                      <EliteText style={[s.rowLabel, { color: tokens.texto }]} numberOfLines={1}>{p.nombre}</EliteText>
+                      <EliteText style={[s.packParaQuien, { color: tokens.textoSecundario }]} numberOfLines={1}>{p.paraQuien}</EliteText>
                     </View>
-                    {esAplicado && <EliteText style={s.packAplicadoChip}>APLICADO</EliteText>}
-                    <Ionicons name="chevron-forward" size={15} color={TEXT.muted} />
+                    {esAplicado && <EliteText style={[s.packAplicadoChip, { color: acento }]}>APLICADO</EliteText>}
+                    <Ionicons name="chevron-forward" size={15} color={tokens.sinDatos} />
                   </AnimatedPressable>
                 );
               })}
@@ -184,27 +199,30 @@ export default function CentroScreen() {
           </Animated.View>
         )}
 
-        <EliteText style={s.hint}>
+        <EliteText style={[s.hint, { color: tokens.textoSecundario }]}>
           Todas las funciones de ATP. Entra a una para ver qué hace, instalarla
           en tu cuadrícula o ajustarla. Desinstalar nunca borra tus datos.
         </EliteText>
 
         {/* Buscador — busca entre TODAS, que para eso es el Centro. */}
-        <Animated.View entering={FadeInUp.delay(40).springify()} style={s.searchRow}>
-          <Ionicons name="search" size={16} color={TEXT.tertiary} />
+        <Animated.View
+          entering={FadeInUp.delay(40).springify()}
+          style={[s.searchRow, { backgroundColor: tokens.hundido, borderColor: tokens.borde }]}
+        >
+          <Ionicons name="search" size={16} color={tokens.textoTenue} />
           <TextInput
             value={query}
             onChangeText={setQuery}
             placeholder="Buscar una función"
-            placeholderTextColor={TEXT.muted}
-            style={s.searchInput}
+            placeholderTextColor={tokens.sinDatos}
+            style={[s.searchInput, { color: tokens.texto }]}
             autoCorrect={false}
             returnKeyType="search"
             clearButtonMode="while-editing"
           />
           {searching && (
             <Pressable onPress={() => setQuery('')} hitSlop={10}>
-              <Ionicons name="close-circle" size={16} color={TEXT.tertiary} />
+              <Ionicons name="close-circle" size={16} color={tokens.textoTenue} />
             </Pressable>
           )}
         </Animated.View>
@@ -214,7 +232,7 @@ export default function CentroScreen() {
             <EliteText style={[s.sectionTitle, { color: APP_SECTION_COLORS[g.section] }]}>
               {g.label.toUpperCase()}
             </EliteText>
-            <View style={s.group}>
+            <View style={[s.group, grupo]}>
               {g.apps.map((app, i) => renderRow(app, i === g.apps.length - 1))}
             </View>
           </Animated.View>
@@ -222,7 +240,7 @@ export default function CentroScreen() {
 
         {searching && listed.length === 0 && (
           <View style={s.empty}>
-            <EliteText style={s.emptyText}>Nada con ese nombre</EliteText>
+            <EliteText style={[s.emptyText, { color: tenueInformativo }]}>Nada con ese nombre</EliteText>
           </View>
         )}
 
@@ -232,17 +250,16 @@ export default function CentroScreen() {
   );
 }
 
+// MB-31B: solo layout — el color entra inline desde los tokens del tema.
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
   packsTitle: {
-    color: TEXT.tertiary,
     fontSize: 11,
     fontFamily: Fonts.bold,
     letterSpacing: 2,
     marginBottom: 4,
   },
   packsHint: {
-    color: TEXT.secondary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     lineHeight: 20,
@@ -259,19 +276,16 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   packParaQuien: {
-    color: TEXT.secondary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     marginTop: 1,
   },
   packAplicadoChip: {
-    color: ATP_BRAND.lime,
     fontFamily: Fonts.bold,
     fontSize: 10,
     letterSpacing: 1.5,
   },
   hint: {
-    color: TEXT.secondary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     lineHeight: 20,
@@ -282,16 +296,13 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#0a0a0a',
     borderWidth: 0.5,
-    borderColor: ELEVATION[1].border,
     borderRadius: 14,
     paddingHorizontal: 12,
     height: 42,
   },
   searchInput: {
     flex: 1,
-    color: TEXT.primary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     padding: 0,
@@ -305,9 +316,7 @@ const s = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   group: {
-    backgroundColor: ELEVATION[1].bg,
     borderWidth: 0.5,
-    borderColor: ELEVATION[1].border,
     borderRadius: 14,
     overflow: 'hidden',
   },
@@ -320,7 +329,6 @@ const s = StyleSheet.create({
   },
   rowDivider: {
     borderBottomWidth: 0.5,
-    borderBottomColor: ELEVATION[1].border,
   },
   rowIcon: {
     width: 32,
@@ -330,10 +338,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowLabel: { flex: 1, color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
-  rowState: { color: TEXT.muted, fontFamily: Fonts.regular, fontSize: FontSizes.xs },
-  rowStateOn: { color: TEXT.tertiary },
+  rowLabel: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 
   empty: { paddingVertical: Spacing.xl, alignItems: 'center' },
-  emptyText: { color: TEXT.tertiary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  emptyText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 });

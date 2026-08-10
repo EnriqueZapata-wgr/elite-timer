@@ -35,7 +35,8 @@ import { getHistorialBooleanos } from '@/src/services/hoy/graduacion-service';
 import { ultimasFechas, ETAPA_PACK, type HistorialHabitos } from '@/src/services/hoy/graduacion-core';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
 
 const nombreElectron = (key: string) =>
@@ -54,6 +55,14 @@ export default function FichaPackScreen() {
   const { user } = useAuth();
   const { packKey } = useLocalSearchParams<{ packKey: string }>();
   const pack = typeof packKey === 'string' ? PACK_BY_KEY[packKey] : undefined;
+
+  // MB-31B: pantalla migrada — parches de tema (mismo esquema que armar.tsx).
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
+  const thTexto = { color: tokens.texto };
+  const thSec = { color: tokens.textoSecundario };
+  const thTenue = { color: dark ? tokens.textoTenue : tokens.textoSecundario };
+  const thCard = { backgroundColor: tokens.card, borderColor: tokens.borde };
 
   const [filas, setFilas] = useState<UserPackRow[] | null>(null);
   const [historial, setHistorial] = useState<HistorialHabitos | null>(null);
@@ -74,11 +83,11 @@ export default function FichaPackScreen() {
   if (!pack) {
     // Llave desconocida (deep link viejo o typo): fuera, sin inventar pantalla.
     return (
-      <Screen>
-        <StatusBar style="light" />
+      <Screen themed>
+        <StatusBar style={dark ? 'light' : 'dark'} />
         <ScreenHeader title="Packs" onBack={() => router.back()} />
         <View style={s.vacio}>
-          <EliteText style={s.vacioText}>Ese pack no existe en esta versión.</EliteText>
+          <EliteText style={[s.vacioText, thTenue]}>Ese pack no existe en esta versión.</EliteText>
         </View>
       </Screen>
     );
@@ -119,73 +128,78 @@ export default function FichaPackScreen() {
   };
 
   return (
-    <Screen>
-      <StatusBar style="light" />
+    <Screen themed>
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <ScreenHeader title={pack.nombre} onBack={() => router.back()} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         {/* Qué es */}
         <Animated.View entering={FadeInUp.delay(40).springify()} style={s.hero}>
-          <View style={s.heroIcon}>
-            <AppIcon name={pack.icon} size={30} color={TEXT.secondary} />
+          <View style={[s.heroIcon, !dark && { backgroundColor: tokens.hundido, borderColor: tokens.borde }]}>
+            <AppIcon name={pack.icon} size={30} color={tokens.textoSecundario} />
           </View>
           <View style={{ flex: 1 }}>
-            <EliteText style={s.heroTitle}>{pack.nombre}</EliteText>
-            <EliteText style={s.heroTag}>PACK</EliteText>
+            <EliteText style={[s.heroTitle, thTexto]}>{pack.nombre}</EliteText>
+            <EliteText style={[s.heroTag, thTenue]}>PACK</EliteText>
           </View>
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(80).springify()}>
-          <EliteText style={s.paraQuien}>{pack.paraQuien}</EliteText>
-          <EliteText style={s.queEsperar}>{pack.queEsperar}</EliteText>
+          <EliteText style={[s.paraQuien, thTexto]}>{pack.paraQuien}</EliteText>
+          <EliteText style={[s.queEsperar, thSec]}>{pack.queEsperar}</EliteText>
         </Animated.View>
 
         {/* Estado / acción principal */}
         <Animated.View entering={FadeInUp.delay(120).springify()}>
           {fila ? (
-            <View style={s.activoCard}>
+            <View style={[s.activoCard, thCard]}>
               <View style={s.activoRow}>
                 <Ionicons name="checkmark-circle" size={16} color={ATP_BRAND.lime} />
-                <EliteText style={s.activoText}>
+                <EliteText style={[s.activoText, thTexto]}>
                   Aplicado el {fechaLegible(fila.activated_at)}
                 </EliteText>
               </View>
               {etapa?.etapa === 1 && extra.length === 0 ? (
                 // MB-29 P4: paquete sin hábitos de etapa 2 (salud) — no hay
                 // "resto" que encender y el copy no lo inventa.
-                <EliteText style={s.etapaText}>
+                <EliteText style={[s.etapaText, thSec]}>
                   Sus hábitos están encendidos y sus apps en tu cuadrícula.
                 </EliteText>
               ) : etapa?.etapa === 1 ? (
                 <>
-                  <EliteText style={s.etapaText}>
+                  <EliteText style={[s.etapaText, thSec]}>
                     {etapa.sostiene
                       ? 'Ya sostienes los hábitos base. ¿Encendemos el resto?'
                       : `Encendidos sus ${core.length} hábitos base. Los demás llegan cuando los sostengas ${ETAPA_PACK.minimo} de ${ETAPA_PACK.dias} días` +
                         (etapa.progreso ? ` (vas en ${etapa.progreso.cumplidos} de ${etapa.progreso.objetivo}).` : '. Puedes adelantarlos cuando quieras.')}
                   </EliteText>
                   <AnimatedPressable
-                    style={etapa.sostiene ? s.reajustarBtn : s.quietBtn}
+                    style={etapa.sostiene
+                      ? [s.reajustarBtn, !dark && { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime }]
+                      : [s.quietBtn, !dark && { borderColor: tokens.bordeMarcado }]}
                     onPress={doAvanzar}
                     disabled={busy}
                   >
-                    <EliteText style={etapa.sostiene ? s.reajustarText : s.quietText}>
+                    <EliteText style={etapa.sostiene
+                      ? [s.reajustarText, !dark && { color: tokens.textoSobreLima }]
+                      : [s.quietText, thSec]}
+                    >
                       {etapa.sostiene ? 'Encender el resto' : 'Encenderlos ahora'}
                     </EliteText>
                   </AnimatedPressable>
                 </>
               ) : (
-                <EliteText style={s.etapaText}>
+                <EliteText style={[s.etapaText, thSec]}>
                   El pack completo está encendido.
                 </EliteText>
               )}
               <AnimatedPressable
-                style={s.quietBtn}
+                style={[s.quietBtn, !dark && { borderColor: tokens.bordeMarcado }]}
                 onPress={() => { haptic.light(); router.push(`/packs/armar?pack=${pack.key}`); }}
               >
-                <EliteText style={s.quietText}>Volver a sintonizar</EliteText>
+                <EliteText style={[s.quietText, thSec]}>Volver a sintonizar</EliteText>
               </AnimatedPressable>
-              <EliteText style={s.nota}>
+              <EliteText style={[s.nota, thTenue]}>
                 Los packs se acumulan: puedes aplicar varios. Aplicar nunca
                 borra ni desinstala nada.
               </EliteText>
@@ -202,9 +216,9 @@ export default function FichaPackScreen() {
 
         {/* Qué instala */}
         <Animated.View entering={FadeInUp.delay(160).springify()}>
-          <EliteText style={s.seccion}>QUÉ INSTALA</EliteText>
-          <View style={s.card}>
-            <EliteText style={s.cardTexto}>
+          <EliteText style={[s.seccion, thTenue]}>QUÉ INSTALA</EliteText>
+          <View style={[s.card, thCard]}>
+            <EliteText style={[s.cardTexto, thTexto]}>
               {pack.instala.map((k) => APP_BY_KEY[k]?.label ?? k).join(' · ')}
             </EliteText>
           </View>
@@ -212,21 +226,21 @@ export default function FichaPackScreen() {
 
         {/* Qué enciende */}
         <Animated.View entering={FadeInUp.delay(200).springify()}>
-          <EliteText style={s.seccion}>QUÉ ENCIENDE</EliteText>
-          <View style={s.card}>
-            <EliteText style={s.cardLabel}>Desde el inicio</EliteText>
-            <EliteText style={s.cardTexto}>
+          <EliteText style={[s.seccion, thTenue]}>QUÉ ENCIENDE</EliteText>
+          <View style={[s.card, thCard]}>
+            <EliteText style={[s.cardLabel, thTenue]}>Desde el inicio</EliteText>
+            <EliteText style={[s.cardTexto, thTexto]}>
               {core.map((h) => nombreElectron(h.electron)).join(' · ')}
             </EliteText>
             {extra.length > 0 && (
               <>
-                <EliteText style={[s.cardLabel, { marginTop: 10 }]}>Llegan después</EliteText>
-                <EliteText style={s.cardTexto}>
+                <EliteText style={[s.cardLabel, thTenue, { marginTop: 10 }]}>Llegan después</EliteText>
+                <EliteText style={[s.cardTexto, thTexto]}>
                   {extra.map((h) => nombreElectron(h.electron)).join(' · ')}
                 </EliteText>
               </>
             )}
-            <EliteText style={s.nota}>
+            <EliteText style={[s.nota, thTenue]}>
               Cada hábito queda con su hora anclada a tu vida (despertar,
               dormir o tu ventana de sol) y se recorre sola si tu horario
               cambia. Todo se puede ajustar después, hábito por hábito.
@@ -237,10 +251,10 @@ export default function FichaPackScreen() {
         {/* Metas y avisos, solo si el pack los trae */}
         {(pack.metas.length > 0 || pack.avisos.length > 0) && (
           <Animated.View entering={FadeInUp.delay(240).springify()}>
-            <EliteText style={s.seccion}>ADEMÁS</EliteText>
-            <View style={s.card}>
+            <EliteText style={[s.seccion, thTenue]}>ADEMÁS</EliteText>
+            <View style={[s.card, thCard]}>
               {pack.metas.length > 0 && (
-                <EliteText style={s.cardTexto}>
+                <EliteText style={[s.cardTexto, thTexto]}>
                   Fija {pack.metas
                     .map((m) =>
                       m.tipo === 'proteina_g' ? `tu meta de proteína (${m.valor} g)` :
@@ -250,7 +264,7 @@ export default function FichaPackScreen() {
                 </EliteText>
               )}
               {pack.avisos.length > 0 && (
-                <EliteText style={s.cardTexto}>
+                <EliteText style={[s.cardTexto, thTexto]}>
                   Configura avisos de {pack.avisos
                     .map((a) => APP_BY_KEY[a.app]?.label ?? a.app)
                     .join(' y ')} a tu horario, solo si no lo has hecho ese día.
@@ -281,9 +295,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroTitle: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: 20 },
+  heroTitle: { fontFamily: Fonts.bold, fontSize: 20 },
   heroTag: {
-    color: TEXT.tertiary,
     fontFamily: Fonts.bold,
     fontSize: 10,
     letterSpacing: 2,
@@ -291,13 +304,11 @@ const s = StyleSheet.create({
   },
 
   paraQuien: {
-    color: TEXT.primary,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.md,
     lineHeight: 22,
   },
   queEsperar: {
-    color: TEXT.secondary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     lineHeight: 20,
@@ -311,19 +322,16 @@ const s = StyleSheet.create({
     paddingVertical: 15,
     alignItems: 'center',
   },
-  ctaText: { color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.md, letterSpacing: 0.5 },
+  ctaText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: FontSizes.md, letterSpacing: 0.5 },
 
   activoCard: {
-    backgroundColor: ELEVATION[1].bg,
     borderWidth: 0.5,
-    borderColor: ELEVATION[1].border,
     borderRadius: 14,
     padding: Spacing.md,
   },
   activoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  activoText: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  activoText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   etapaText: {
-    color: TEXT.secondary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     lineHeight: 20,
@@ -347,10 +355,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  quietText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  quietText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 
   seccion: {
-    color: TEXT.tertiary,
     fontFamily: Fonts.bold,
     fontSize: 11,
     letterSpacing: 2,
@@ -358,28 +365,23 @@ const s = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   card: {
-    backgroundColor: ELEVATION[1].bg,
     borderWidth: 0.5,
-    borderColor: ELEVATION[1].border,
     borderRadius: 14,
     padding: Spacing.md,
     gap: 4,
   },
   cardLabel: {
-    color: TEXT.tertiary,
     fontFamily: Fonts.bold,
     fontSize: 10,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   cardTexto: {
-    color: TEXT.primary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     lineHeight: 20,
   },
   nota: {
-    color: TEXT.tertiary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     lineHeight: 17,
@@ -387,5 +389,5 @@ const s = StyleSheet.create({
   },
 
   vacio: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  vacioText: { color: TEXT.tertiary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  vacioText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 });

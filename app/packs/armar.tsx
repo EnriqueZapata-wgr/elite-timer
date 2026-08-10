@@ -45,7 +45,8 @@ import { APP_BY_KEY } from '@/src/constants/app-registry';
 import { normalizarHora } from '@/src/services/pack-core';
 import { aplicarPack, type ResultadoAplicacion } from '@/src/services/pack-service';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT, ELEVATION, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, ELEVATION, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
 
 type Paso = 'pack' | 'horario' | 'resumen';
@@ -68,6 +69,15 @@ export default function ArmarScreen() {
   const { user } = useAuth();
   const { pack: packParam, origen } = useLocalSearchParams<{ pack?: string; origen?: string }>();
   const desdeOnboarding = origen === 'onboarding';
+
+  // MB-31B: pantalla migrada — parches de tema reutilizados en los 3 pasos.
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
+  const thTexto = { color: tokens.texto };
+  const thSec = { color: tokens.textoSecundario };
+  const thTenue = { color: dark ? tokens.textoTenue : tokens.textoSecundario };
+  const thCard = { backgroundColor: tokens.card, borderColor: tokens.borde };
+  const thIcono = dark ? null : { backgroundColor: tokens.hundido, borderColor: tokens.borde };
 
   const packInicial = typeof packParam === 'string' ? PACK_BY_KEY[packParam] ?? null : null;
   const [pack, setPack] = useState<PackDef | null>(packInicial);
@@ -140,8 +150,8 @@ export default function ArmarScreen() {
   const renderPack = () => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
       <Animated.View entering={FadeInUp.delay(40).springify()}>
-        <EliteText style={s.pregunta}>¿Qué quieres cambiar primero?</EliteText>
-        <EliteText style={s.hint}>
+        <EliteText style={[s.pregunta, thTexto]}>¿Qué quieres cambiar primero?</EliteText>
+        <EliteText style={[s.hint, thSec]}>
           Elige un pack y armamos tu app para eso: apps, hábitos con su hora,
           metas y avisos. Todo se puede ajustar después.
         </EliteText>
@@ -149,17 +159,17 @@ export default function ArmarScreen() {
       {PACKS.map((p, i) => (
         <Animated.View key={p.key} entering={FadeInUp.delay(80 + i * 40).springify()}>
           <AnimatedPressable
-            style={s.packCard}
+            style={[s.packCard, thCard]}
             onPress={() => { haptic.light(); setPack(p); setPaso('horario'); }}
           >
-            <View style={s.packIcon}>
-              <AppIcon name={p.icon} size={22} color={TEXT.secondary} />
+            <View style={[s.packIcon, thIcono]}>
+              <AppIcon name={p.icon} size={22} color={tokens.textoSecundario} />
             </View>
             <View style={{ flex: 1 }}>
-              <EliteText style={s.packNombre}>{p.nombre}</EliteText>
-              <EliteText style={s.packParaQuien}>{p.paraQuien}</EliteText>
+              <EliteText style={[s.packNombre, thTexto]}>{p.nombre}</EliteText>
+              <EliteText style={[s.packParaQuien, thSec]}>{p.paraQuien}</EliteText>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={TEXT.muted} />
+            <Ionicons name="chevron-forward" size={16} color={tokens.sinDatos} />
           </AnimatedPressable>
         </Animated.View>
       ))}
@@ -172,33 +182,34 @@ export default function ArmarScreen() {
   const renderHorario = () => (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
       <Animated.View entering={FadeInUp.delay(40).springify()}>
-        <EliteText style={s.pregunta}>¿A qué hora despiertas y a qué hora te duermes?</EliteText>
-        <EliteText style={s.hint}>
+        <EliteText style={[s.pregunta, thTexto]}>¿A qué hora despiertas y a qué hora te duermes?</EliteText>
+        <EliteText style={[s.hint, thSec]}>
           Con esto anclamos cada hábito y cada aviso del pack a tu día real.
           Es la diferencia entre un recordatorio útil y uno que se ignora.
         </EliteText>
       </Animated.View>
-      <Animated.View entering={FadeInUp.delay(100).springify()} style={s.grupo}>
+      <Animated.View entering={FadeInUp.delay(100).springify()} style={[s.grupo, thCard]}>
         <AnimatedPressable
-          style={[s.horaRow, s.rowDivider]}
+          style={[s.horaRow, s.rowDivider, { borderBottomColor: tokens.borde }]}
           onPress={() => { haptic.light(); setPicker('despertar'); }}
         >
-          <AppIcon name="sol" size={18} color={TEXT.secondary} />
-          <EliteText style={s.horaLabel}>Despierto a las</EliteText>
-          <EliteText style={s.horaValor}>{despertar}</EliteText>
+          <AppIcon name="sol" size={18} color={tokens.textoSecundario} />
+          <EliteText style={[s.horaLabel, thTexto]}>Despierto a las</EliteText>
+          {/* La hora es dato: en claro el lima no es texto (regla 1). */}
+          <EliteText style={[s.horaValor, !dark && { color: tokens.tealTexto }]}>{despertar}</EliteText>
         </AnimatedPressable>
         <AnimatedPressable
           style={s.horaRow}
           onPress={() => { haptic.light(); setPicker('dormir'); }}
         >
-          <AppIcon name="sueno" size={18} color={TEXT.secondary} />
-          <EliteText style={s.horaLabel}>Me duermo a las</EliteText>
-          <EliteText style={s.horaValor}>{dormir}</EliteText>
+          <AppIcon name="sueno" size={18} color={tokens.textoSecundario} />
+          <EliteText style={[s.horaLabel, thTexto]}>Me duermo a las</EliteText>
+          <EliteText style={[s.horaValor, !dark && { color: tokens.tealTexto }]}>{dormir}</EliteText>
         </AnimatedPressable>
       </Animated.View>
       {pack && (
         <Animated.View entering={FadeInUp.delay(130).springify()}>
-          <EliteText style={s.etapaNota}>
+          <EliteText style={[s.etapaNota, thTenue]}>
             Se encienden los {habitosPorIntensidad(pack, 'suave').length} hábitos
             base: {habitosPorIntensidad(pack, 'suave').map((h) => nombreElectron(h.electron)).join(' · ')}.
             Los demás llegan cuando los sostengas 14 de 21 días, o antes si
@@ -217,8 +228,8 @@ export default function ArmarScreen() {
       </Animated.View>
       {busy && (
         <View style={s.busyRow}>
-          <ActivityIndicator color={ATP_BRAND.lime} />
-          <EliteText style={s.busyText}>Armando tu app…</EliteText>
+          <ActivityIndicator color={dark ? ATP_BRAND.lime : tokens.tealTexto} />
+          <EliteText style={[s.busyText, thSec]}>Armando tu app…</EliteText>
         </View>
       )}
       <View style={{ height: Spacing.xxl }} />
@@ -234,10 +245,10 @@ export default function ArmarScreen() {
     return (
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         <Animated.View entering={FadeInUp.delay(40).springify()}>
-          <EliteText style={s.pregunta}>
+          <EliteText style={[s.pregunta, thTexto]}>
             {resultado.ok ? 'Tu app quedó armada' : 'Casi: algo no entró'}
           </EliteText>
-          <EliteText style={s.hint}>
+          <EliteText style={[s.hint, thSec]}>
             {resultado.ok
               ? `${pack.nombre} quedó aplicado. Esto fue lo que se configuró:`
               : 'Esto fue lo que sí entró y lo que faltó. Puedes intentar de nuevo cuando quieras.'}
@@ -248,8 +259,8 @@ export default function ArmarScreen() {
           <Animated.View entering={FadeInUp.delay(80).springify()} style={s.fallasCard}>
             {fallas.map((f) => (
               <View key={f.paso} style={s.fallaRow}>
-                <Ionicons name="alert-circle-outline" size={15} color={SEMANTIC.error} />
-                <EliteText style={s.fallaText}>{f.detalle ?? f.paso}</EliteText>
+                <Ionicons name="alert-circle-outline" size={15} color={tokens.error} />
+                <EliteText style={[s.fallaText, thTexto]}>{f.detalle ?? f.paso}</EliteText>
               </View>
             ))}
           </Animated.View>
@@ -258,39 +269,39 @@ export default function ArmarScreen() {
         {plan && (
           <>
             <Animated.View entering={FadeInUp.delay(120).springify()}>
-              <EliteText style={s.seccion}>SE INSTALÓ EN TU SALA</EliteText>
-              <View style={s.resumenCard}>
-                <EliteText style={s.resumenTexto}>
+              <EliteText style={[s.seccion, thTenue]}>SE INSTALÓ EN TU SALA</EliteText>
+              <View style={[s.resumenCard, thCard]}>
+                <EliteText style={[s.resumenTexto, thTexto]}>
                   {[...plan.installFull, ...plan.installGrid].map(labelApp).join(' · ')}
                 </EliteText>
               </View>
             </Animated.View>
 
             <Animated.View entering={FadeInUp.delay(160).springify()}>
-              <EliteText style={s.seccion}>SE ENCENDIÓ EN TAREAS</EliteText>
-              <View style={s.resumenCard}>
+              <EliteText style={[s.seccion, thTenue]}>SE ENCENDIÓ EN TAREAS</EliteText>
+              <View style={[s.resumenCard, thCard]}>
                 {plan.encendidos.map((e) => (
                   <View key={e} style={s.resumenRow}>
-                    <EliteText style={s.resumenTexto}>{nombreElectron(e)}</EliteText>
+                    <EliteText style={[s.resumenTexto, thTexto]}>{nombreElectron(e)}</EliteText>
                     {plan.habitTimes[e] && (
-                      <EliteText style={s.resumenHora}>{plan.habitTimes[e]}</EliteText>
+                      <EliteText style={[s.resumenHora, thSec]}>{plan.habitTimes[e]}</EliteText>
                     )}
                   </View>
                 ))}
                 {plan.enModulo.length > 0 && (
-                  <EliteText style={s.resumenNota}>
+                  <EliteText style={[s.resumenNota, thTenue]}>
                     {plan.enModulo.map(nombreElectron).join(' · ')}: se registran en su
                     momento, dentro de su app.
                   </EliteText>
                 )}
                 {plan.habitReglas.sunlight?.ancla === 'uv' && (
-                  <EliteText style={s.resumenNota}>
+                  <EliteText style={[s.resumenNota, thTenue]}>
                     Luz solar se ancla cada día a tu ventana buena de UV. Sin
                     dato de ubicación cae a media hora después de despertar.
                   </EliteText>
                 )}
                 {pack.enciende.some((h) => !h.core) && (
-                  <EliteText style={s.resumenNota}>
+                  <EliteText style={[s.resumenNota, thTenue]}>
                     Los demás hábitos del pack llegan cuando sostengas estos
                     14 de 21 días. Puedes adelantarlos en la ficha del pack.
                   </EliteText>
@@ -300,10 +311,10 @@ export default function ArmarScreen() {
 
             {plan.metas.length > 0 && (
               <Animated.View entering={FadeInUp.delay(200).springify()}>
-                <EliteText style={s.seccion}>TUS METAS</EliteText>
-                <View style={s.resumenCard}>
+                <EliteText style={[s.seccion, thTenue]}>TUS METAS</EliteText>
+                <View style={[s.resumenCard, thCard]}>
                   {plan.metas.map((m) => (
-                    <EliteText key={m.tipo} style={s.resumenTexto}>
+                    <EliteText key={m.tipo} style={[s.resumenTexto, thTexto]}>
                       {m.tipo === 'proteina_g' ? `Proteína ${m.valor} g` :
                        m.tipo === 'agua_ml' ? `Agua ${m.valor} ml` :
                        `Ayuno ${m.valor} h`}
@@ -314,24 +325,24 @@ export default function ArmarScreen() {
             )}
 
             <Animated.View entering={FadeInUp.delay(240).springify()}>
-              <EliteText style={s.seccion}>ASÍ TE AVISAMOS</EliteText>
-              <View style={s.resumenCard}>
+              <EliteText style={[s.seccion, thTenue]}>ASÍ TE AVISAMOS</EliteText>
+              <View style={[s.resumenCard, thCard]}>
                 {plan.avisos.length === 0 ? (
-                  <EliteText style={s.resumenNota}>
+                  <EliteText style={[s.resumenNota, thTenue]}>
                     Este pack no configura avisos. Los de tus apps siguen como
                     los tengas.
                   </EliteText>
                 ) : (
                   plan.avisos.map((a) => (
                     <View key={a.app} style={s.resumenRow}>
-                      <EliteText style={s.resumenTexto}>
+                      <EliteText style={[s.resumenTexto, thTexto]}>
                         {labelApp(a.app)}, solo si no lo has hecho
                       </EliteText>
-                      <EliteText style={s.resumenHora}>{a.time}</EliteText>
+                      <EliteText style={[s.resumenHora, thSec]}>{a.time}</EliteText>
                     </View>
                   ))
                 )}
-                <EliteText style={s.resumenNota}>
+                <EliteText style={[s.resumenNota, thTenue]}>
                   El interruptor general de notificaciones siempre manda.
                 </EliteText>
               </View>
@@ -350,8 +361,8 @@ export default function ArmarScreen() {
   };
 
   return (
-    <Screen>
-      <StatusBar style="light" />
+    <Screen themed>
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <ScreenHeader
         title={pack ? pack.nombre : 'Ármala por mí'}
         onBack={paso === 'resumen' ? undefined : atras}
@@ -385,14 +396,12 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
 
   pregunta: {
-    color: TEXT.primary,
     fontFamily: Fonts.bold,
     fontSize: 24,
     lineHeight: 30,
     marginTop: Spacing.sm,
   },
   hint: {
-    color: TEXT.secondary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     lineHeight: 20,
@@ -404,9 +413,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: ELEVATION[1].bg,
     borderWidth: 0.5,
-    borderColor: ELEVATION[1].border,
     borderRadius: 14,
     padding: Spacing.md,
     marginBottom: 10,
@@ -421,9 +428,8 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  packNombre: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  packNombre: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
   packParaQuien: {
-    color: TEXT.secondary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     lineHeight: 17,
@@ -431,9 +437,7 @@ const s = StyleSheet.create({
   },
 
   grupo: {
-    backgroundColor: ELEVATION[1].bg,
     borderWidth: 0.5,
-    borderColor: ELEVATION[1].border,
     borderRadius: 14,
     overflow: 'hidden',
     marginBottom: Spacing.lg,
@@ -445,12 +449,11 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 14,
   },
-  rowDivider: { borderBottomWidth: 0.5, borderBottomColor: ELEVATION[1].border },
-  horaLabel: { flex: 1, color: TEXT.primary, fontFamily: Fonts.regular, fontSize: FontSizes.sm },
+  rowDivider: { borderBottomWidth: 0.5 },
+  horaLabel: { flex: 1, fontFamily: Fonts.regular, fontSize: FontSizes.sm },
   horaValor: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.md },
 
   etapaNota: {
-    color: TEXT.tertiary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     lineHeight: 18,
@@ -464,10 +467,9 @@ const s = StyleSheet.create({
     gap: 10,
     paddingVertical: Spacing.md,
   },
-  busyText: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: FontSizes.sm },
+  busyText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm },
 
   seccion: {
-    color: TEXT.tertiary,
     fontFamily: Fonts.bold,
     fontSize: 11,
     letterSpacing: 2,
@@ -475,23 +477,19 @@ const s = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   resumenCard: {
-    backgroundColor: ELEVATION[1].bg,
     borderWidth: 0.5,
-    borderColor: ELEVATION[1].border,
     borderRadius: 14,
     padding: Spacing.md,
     gap: 6,
   },
   resumenRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   resumenTexto: {
-    color: TEXT.primary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     lineHeight: 20,
   },
-  resumenHora: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  resumenHora: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   resumenNota: {
-    color: TEXT.tertiary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     lineHeight: 17,
@@ -510,7 +508,6 @@ const s = StyleSheet.create({
   fallaRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   fallaText: {
     flex: 1,
-    color: TEXT.primary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     lineHeight: 17,
@@ -523,5 +520,5 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.md,
   },
-  ctaText: { color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.md, letterSpacing: 0.5 },
+  ctaText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: FontSizes.md, letterSpacing: 0.5 },
 });

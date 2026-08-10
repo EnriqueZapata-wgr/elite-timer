@@ -48,8 +48,19 @@ import {
 } from '@/src/services/app-avisos-service';
 import type { AppAvisoPref } from '@/src/services/notification-prefs-core';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { APP_SECTION_COLORS, ATP_BRAND, TEXT, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { APP_SECTION_COLORS, ATP_BRAND, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import type { AppThemeTokens } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
+
+// MB-31B: parches de tema compartidos por los bloques de la ficha. Los
+// valores oscuros son los de siempre (los tokens dark == ELEVATION/TEXT);
+// en claro los chips y campos se hunden (hundido/borde) en vez de flotar.
+const cardTheme = (t: AppThemeTokens) => ({ backgroundColor: t.card, borderColor: t.borde });
+const chipTheme = (t: AppThemeTokens) =>
+  t.kind === 'dark' ? null : { backgroundColor: t.hundido, borderColor: t.borde };
+const hintColor = (t: AppThemeTokens) => (t.kind === 'dark' ? t.sinDatos : t.textoSecundario);
+const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
 
 const WATER_PRESETS_ML = [1500, 2000, 2500, 3000, 3500];
 
@@ -63,6 +74,10 @@ export default function FichaAppScreen() {
   const { user } = useAuth();
   const { appKey } = useLocalSearchParams<{ appKey: string }>();
   const app = typeof appKey === 'string' ? APP_BY_KEY[appKey] : undefined;
+  // MB-31B: pantalla migrada — el scope se abre con <Screen themed> y estos
+  // tokens (t) alimentan el chrome propio de la ficha.
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
 
   const [installPrefs, setInstallPrefs] = useState<InstallPrefs | null>(null);
   const [busy, setBusy] = useState(false);
@@ -96,7 +111,7 @@ export default function FichaAppScreen() {
     }
   }, [appKey, app, router]);
 
-  if (!app) return <Screen><StatusBar style="light" /></Screen>;
+  if (!app) return <Screen themed><StatusBar style={dark ? 'light' : 'dark'} /></Screen>;
 
   const color = APP_SECTION_COLORS[app.section];
   const state: InstallState = installPrefs ? appInstallState(app.key, installPrefs) : 'no';
@@ -170,8 +185,8 @@ export default function FichaAppScreen() {
   };
 
   return (
-    <Screen>
-      <StatusBar style="light" />
+    <Screen themed>
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <ScreenHeader title={app.label} onBack={() => router.back()} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
@@ -181,7 +196,7 @@ export default function FichaAppScreen() {
             <AppIcon name={app.icon} size={34} color={color} />
           </View>
           <View style={s.heroBody}>
-            <EliteText style={s.heroTitle}>{app.label}</EliteText>
+            <EliteText style={[s.heroTitle, { color: t.texto }]}>{app.label}</EliteText>
             <EliteText style={[s.heroSection, { color }]}>
               {SECTION_LABELS[app.section].toUpperCase()}
             </EliteText>
@@ -190,10 +205,10 @@ export default function FichaAppScreen() {
 
         <Animated.View entering={FadeInUp.delay(80).springify()}>
           {app.description ? (
-            <EliteText style={s.description}>{app.description}</EliteText>
+            <EliteText style={[s.description, { color: t.textoSecundario }]}>{app.description}</EliteText>
           ) : (
             // Honestidad antes que relleno: sin copy aprobado no se inventa.
-            <EliteText style={s.descriptionMissing}>Descripción en camino.</EliteText>
+            <EliteText style={[s.descriptionMissing, { color: hintColor(t) }]}>Descripción en camino.</EliteText>
           )}
         </Animated.View>
 
@@ -212,46 +227,53 @@ export default function FichaAppScreen() {
         {/* Instalar / desinstalar */}
         <Animated.View entering={FadeInUp.delay(120).springify()}>
           {state === 'fija' ? (
-            <View style={s.fijaCard}>
-              <Ionicons name="lock-closed-outline" size={15} color={TEXT.tertiary} />
-              <EliteText style={s.fijaText}>
+            <View style={[s.fijaCard, cardTheme(t)]}>
+              <Ionicons name="lock-closed-outline" size={15} color={tenue(t)} />
+              <EliteText style={[s.fijaText, { color: t.textoSecundario }]}>
                 Parte del núcleo: siempre está en tu cuadrícula.
               </EliteText>
             </View>
           ) : state === 'instalada' ? (
             <AnimatedPressable style={s.uninstallBtn} onPress={doUninstall} disabled={busy || !installPrefs}>
-              <EliteText style={s.uninstallText}>Desinstalar</EliteText>
+              {/* #ef4444 no mapea a token (va al reporte); en claro usa el
+                  token de error para leerse. */}
+              <EliteText style={[s.uninstallText, !dark && { color: t.error }]}>Desinstalar</EliteText>
             </AnimatedPressable>
           ) : !cicloInstalable ? (
             // Ciclo sin perfil femenino: no hay nada que instalar. El registro
             // de ciclo es de quien lo vive; asomarse al de otra persona, con
             // su permiso, es otro proyecto — aquí no se promete.
-            <View style={s.fijaCard}>
-              <Ionicons name="information-circle-outline" size={15} color={TEXT.tertiary} />
-              <EliteText style={s.fijaText}>
+            <View style={[s.fijaCard, cardTheme(t)]}>
+              <Ionicons name="information-circle-outline" size={15} color={tenue(t)} />
+              <EliteText style={[s.fijaText, { color: t.textoSecundario }]}>
                 Ciclo se instala solo para registrar tu propio ciclo.
               </EliteText>
             </View>
           ) : (
             <AnimatedPressable
-              style={[s.installBtn, { backgroundColor: withOpacity(ATP_BRAND.lime, 0.14), borderColor: withOpacity(ATP_BRAND.lime, 0.4) }]}
+              style={[
+                s.installBtn,
+                dark
+                  ? { backgroundColor: withOpacity(ATP_BRAND.lime, 0.14), borderColor: withOpacity(ATP_BRAND.lime, 0.4) }
+                  : { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
+              ]}
               onPress={doInstall}
               disabled={busy || !installPrefs}
             >
-              <Ionicons name="add" size={16} color={ATP_BRAND.lime} />
-              <EliteText style={s.installText}>Instalar en mi cuadrícula</EliteText>
+              <Ionicons name="add" size={16} color={dark ? ATP_BRAND.lime : t.textoSobreLima} />
+              <EliteText style={[s.installText, !dark && { color: t.textoSobreLima }]}>Instalar en mi cuadrícula</EliteText>
             </AnimatedPressable>
           )}
           {/* La verdad por clase de app: cuatro no generan fila y no la prometen. */}
           {state !== 'fija' && (state === 'instalada' || cicloInstalable) && (
-            <EliteText style={s.rowNote}>
+            <EliteText style={[s.rowNote, { color: tenue(t) }]}>
               {creaFila
                 ? 'Instalada, su hábito vive también en TAREAS.'
                 : 'Su registro vive dentro de la app: no agrega fila en TAREAS.'}
             </EliteText>
           )}
           {(state === 'instalada' || cicloInstalable) && (
-            <EliteText style={s.dataNote}>
+            <EliteText style={[s.dataNote, { color: hintColor(t) }]}>
               Desinstalar nunca borra tu historial. Si la reinstalas, tu historia sigue ahí.
             </EliteText>
           )}
@@ -260,12 +282,12 @@ export default function FichaAppScreen() {
         {/* Abrir */}
         <Animated.View entering={FadeInUp.delay(150).springify()}>
           <AnimatedPressable
-            style={s.openRow}
+            style={[s.openRow, cardTheme(t)]}
             onPress={() => { haptic.light(); router.push(app.route); }}
           >
-            <Ionicons name="open-outline" size={16} color={TEXT.secondary} />
-            <EliteText style={s.openText}>Abrir {app.label}</EliteText>
-            <Ionicons name="chevron-forward" size={15} color={TEXT.muted} />
+            <Ionicons name="open-outline" size={16} color={t.textoSecundario} />
+            <EliteText style={[s.openText, { color: t.texto }]}>Abrir {app.label}</EliteText>
+            <Ionicons name="chevron-forward" size={15} color={t.sinDatos} />
           </AnimatedPressable>
         </Animated.View>
 
@@ -313,7 +335,8 @@ export default function FichaAppScreen() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function SectionTitleText({ children }: { children: string }) {
-  return <EliteText style={s.configTitle}>{children.toUpperCase()}</EliteText>;
+  const t = useSurfaceTokens();
+  return <EliteText style={[s.configTitle, { color: tenue(t) }]}>{children.toUpperCase()}</EliteText>;
 }
 
 /**
@@ -353,21 +376,26 @@ function CicloRetiroAcomp({ userId, isFemale, onChanged }: {
     ]);
   };
 
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
   return (
     <Animated.View entering={FadeInUp.delay(100).springify()}>
       <SectionTitleText>Modo acompañante</SectionTitleText>
-      <View style={s.configCard}>
-        <EliteText style={s.modeDesc}>
+      <View style={[s.configCard, cardTheme(t)]}>
+        <EliteText style={[s.modeDesc, { color: tenue(t) }]}>
           El modo acompañante se retiró: llevar a mano el calendario de otra
           persona duplica un registro que no es tuyo. Todos tus registros se
           conservan tal cual.
         </EliteText>
         {isFemale && (
-          <AnimatedPressable style={s.claimBtn} onPress={usarComoPropio}>
-            <EliteText style={s.claimText}>Usar como mi ciclo</EliteText>
+          <AnimatedPressable
+            style={[s.claimBtn, !dark && { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime }]}
+            onPress={usarComoPropio}
+          >
+            <EliteText style={[s.claimText, !dark && { color: t.textoSobreLima }]}>Usar como mi ciclo</EliteText>
           </AnimatedPressable>
         )}
-        <EliteText style={s.configHint}>
+        <EliteText style={[s.configHint, { color: hintColor(t) }]}>
           {isFemale
             ? 'Si este calendario no es tuyo, desinstala la app: nada se borra.'
             : 'Para dejarlo, desinstala la app: nada se borra.'}
@@ -396,21 +424,23 @@ function ConfigHidratacion({ userId }: { userId?: string }) {
     }
   };
 
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
   return (
     <Animated.View entering={FadeInUp.delay(180).springify()}>
       <SectionTitleText>Meta de agua</SectionTitleText>
-      <View style={s.configCard}>
-        <EliteText style={s.configValue}>
+      <View style={[s.configCard, cardTheme(t)]}>
+        <EliteText style={[s.configValue, { color: t.texto }]}>
           {goal != null ? `${goal} ml al día` : '…'}
         </EliteText>
         <View style={s.chipRow}>
           {WATER_PRESETS_ML.map((ml) => (
             <AnimatedPressable
               key={ml}
-              style={[s.chip, goal === ml && s.chipActive]}
+              style={[s.chip, chipTheme(t), goal === ml && (dark ? s.chipActive : { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime })]}
               onPress={() => apply(ml)}
             >
-              <EliteText style={[s.chipText, goal === ml && s.chipTextActive]}>
+              <EliteText style={[s.chipText, { color: t.textoSecundario }, goal === ml && { color: dark ? ATP_BRAND.lime : t.textoSobreLima }]}>
                 {ml >= 1000 ? `${ml / 1000} L` : `${ml} ml`}
               </EliteText>
             </AnimatedPressable>
@@ -437,11 +467,13 @@ function ConfigAyuno({ userId }: { userId?: string }) {
     if (!ok) Alert.alert('No se pudo', 'Inténtalo de nuevo en un momento.');
   };
 
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
   return (
     <Animated.View entering={FadeInUp.delay(180).springify()}>
       <SectionTitleText>Meta de ayuno</SectionTitleText>
-      <View style={s.configCard}>
-        <EliteText style={s.configValue}>
+      <View style={[s.configCard, cardTheme(t)]}>
+        <EliteText style={[s.configValue, { color: t.texto }]}>
           {hours != null
             ? `${FASTING_PROTOCOLS.find((p) => p.hours === hours)?.label ?? `${hours} h`} · ${hours} horas`
             : '…'}
@@ -450,16 +482,16 @@ function ConfigAyuno({ userId }: { userId?: string }) {
           {FASTING_PROTOCOLS.map((p) => (
             <AnimatedPressable
               key={p.id}
-              style={[s.chip, hours === p.hours && s.chipActive]}
+              style={[s.chip, chipTheme(t), hours === p.hours && (dark ? s.chipActive : { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime })]}
               onPress={() => apply(p.hours)}
             >
-              <EliteText style={[s.chipText, hours === p.hours && s.chipTextActive]}>
+              <EliteText style={[s.chipText, { color: t.textoSecundario }, hours === p.hours && { color: dark ? ATP_BRAND.lime : t.textoSobreLima }]}>
                 {p.label}
               </EliteText>
             </AnimatedPressable>
           ))}
         </View>
-        <EliteText style={s.configHint}>
+        <EliteText style={[s.configHint, { color: hintColor(t) }]}>
           Es la meta con la que arranca tu próximo ayuno. Un ayuno en curso se
           ajusta desde su timer, que corre el chequeo de seguridad.
         </EliteText>
@@ -476,6 +508,7 @@ function ConfigAyuno({ userId }: { userId?: string }) {
  * importa solo, una vez, en el primer sync).
  */
 function ConfigAviso({ userId, appKey }: { userId?: string; appKey: AvisoAppKey }) {
+  const t = useSurfaceTokens();
   const [pref, setPref] = useState<AppAvisoPref | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -507,38 +540,38 @@ function ConfigAviso({ userId, appKey }: { userId?: string; appKey: AvisoAppKey 
   return (
     <Animated.View entering={FadeInUp.delay(180).springify()}>
       <SectionTitleText>Avisos</SectionTitleText>
-      <View style={s.configCard}>
+      <View style={[s.configCard, cardTheme(t)]}>
         <View style={s.switchRow}>
-          <EliteText style={s.switchLabel}>Aviso diario</EliteText>
+          <EliteText style={[s.switchLabel, { color: t.texto }]}>Aviso diario</EliteText>
           <Switch
             value={pref.enabled}
             onValueChange={(v) => apply({ enabled: v })}
-            trackColor={{ true: ATP_BRAND.teal, false: '#333' }}
-            thumbColor="#fff"
+            trackColor={{ true: ATP_BRAND.teal, false: t.bordeMarcado }}
+            thumbColor={ATP_BRAND.white}
           />
         </View>
         {pref.enabled && (
           <>
             <AnimatedPressable
-              style={s.timeRow}
+              style={[s.timeRow, { borderTopColor: t.borde }]}
               onPress={() => { haptic.light(); setPickerOpen(true); }}
             >
-              <EliteText style={s.switchLabel}>Hora</EliteText>
-              <EliteText style={s.timeValue}>{pref.time}</EliteText>
-              <Ionicons name="chevron-forward" size={15} color={TEXT.muted} />
+              <EliteText style={[s.switchLabel, { color: t.texto }]}>Hora</EliteText>
+              <EliteText style={[s.timeValue, { color: t.textoSecundario }]}>{pref.time}</EliteText>
+              <Ionicons name="chevron-forward" size={15} color={t.sinDatos} />
             </AnimatedPressable>
-            <View style={[s.switchRow, s.timeRow]}>
-              <EliteText style={s.switchLabel}>Solo si no lo has hecho</EliteText>
+            <View style={[s.switchRow, s.timeRow, { borderTopColor: t.borde }]}>
+              <EliteText style={[s.switchLabel, { color: t.texto }]}>Solo si no lo has hecho</EliteText>
               <Switch
                 value={pref.condition === 'not_done_today'}
                 onValueChange={(v) => apply({ condition: v ? 'not_done_today' : 'always' })}
-                trackColor={{ true: ATP_BRAND.teal, false: '#333' }}
-                thumbColor="#fff"
+                trackColor={{ true: ATP_BRAND.teal, false: t.bordeMarcado }}
+                thumbColor={ATP_BRAND.white}
               />
             </View>
           </>
         )}
-        <EliteText style={s.configHint}>
+        <EliteText style={[s.configHint, { color: hintColor(t) }]}>
           El interruptor general y las horas de silencio de Ajustes mandan:
           si están apagados o en silencio, este aviso también se calla.
         </EliteText>
@@ -589,28 +622,29 @@ function ConfigProteina({ userId }: { userId?: string }) {
     }
   };
 
+  const t = useSurfaceTokens();
   return (
     <Animated.View entering={FadeInUp.delay(180).springify()}>
       <SectionTitleText>Meta de proteína</SectionTitleText>
-      <View style={s.configCard}>
+      <View style={[s.configCard, cardTheme(t)]}>
         <View style={s.stepperRow}>
           <AnimatedPressable
-            style={[s.stepBtn, grams != null && grams <= PROTEIN_GOAL_MIN_G && { opacity: 0.35 }]}
+            style={[s.stepBtn, chipTheme(t), grams != null && grams <= PROTEIN_GOAL_MIN_G && { opacity: 0.35 }]}
             onPress={() => grams != null && apply(grams - PROTEIN_GOAL_STEP_G)}
           >
-            <Ionicons name="remove" size={18} color={TEXT.primary} />
+            <Ionicons name="remove" size={18} color={t.texto} />
           </AnimatedPressable>
-          <EliteText style={s.stepperValue}>
+          <EliteText style={[s.stepperValue, { color: t.texto }]}>
             {grams != null ? `${grams} g al día` : '…'}
           </EliteText>
           <AnimatedPressable
-            style={[s.stepBtn, grams != null && grams >= PROTEIN_GOAL_MAX_G && { opacity: 0.35 }]}
+            style={[s.stepBtn, chipTheme(t), grams != null && grams >= PROTEIN_GOAL_MAX_G && { opacity: 0.35 }]}
             onPress={() => grams != null && apply(grams + PROTEIN_GOAL_STEP_G)}
           >
-            <Ionicons name="add" size={18} color={TEXT.primary} />
+            <Ionicons name="add" size={18} color={t.texto} />
           </AnimatedPressable>
         </View>
-        <EliteText style={s.configHint}>
+        <EliteText style={[s.configHint, { color: hintColor(t) }]}>
           La meta que ves en HOY y en tu adherencia. Se registra en la app,
           aquí solo se ajusta el objetivo.
         </EliteText>
@@ -625,6 +659,7 @@ function ConfigProteina({ userId }: { userId?: string }) {
  * la lente AGENDA. Override en goals.habit_times; sin él, la canónica.
  */
 function ConfigHorario({ userId, source }: { userId?: string; source: string }) {
+  const t = useSurfaceTokens();
   const [time, setTime] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -655,16 +690,16 @@ function ConfigHorario({ userId, source }: { userId?: string; source: string }) 
   return (
     <Animated.View entering={FadeInUp.delay(180).springify()}>
       <SectionTitleText>Momento del día</SectionTitleText>
-      <View style={s.configCard}>
+      <View style={[s.configCard, cardTheme(t)]}>
         <AnimatedPressable
           style={s.switchRow}
           onPress={() => { haptic.light(); setPickerOpen(true); }}
         >
-          <EliteText style={s.switchLabel}>Hora</EliteText>
-          <EliteText style={s.timeValue}>{time} · {MOMENTO_LABELS[momento]}</EliteText>
-          <Ionicons name="chevron-forward" size={15} color={TEXT.muted} style={{ marginLeft: 8 }} />
+          <EliteText style={[s.switchLabel, { color: t.texto }]}>Hora</EliteText>
+          <EliteText style={[s.timeValue, { color: t.textoSecundario }]}>{time} · {MOMENTO_LABELS[momento]}</EliteText>
+          <Ionicons name="chevron-forward" size={15} color={t.sinDatos} style={{ marginLeft: 8 }} />
         </AnimatedPressable>
-        <EliteText style={s.configHint}>
+        <EliteText style={[s.configHint, { color: hintColor(t) }]}>
           Mueve la hora y su tarea cambia de bloque en HOY y de lugar en la
           agenda del día.
         </EliteText>
@@ -685,15 +720,16 @@ function ConfigHorario({ userId, source }: { userId?: string; source: string }) 
 }
 
 function ConfigLinkRow({ label, hint, onPress }: { label: string; hint: string; onPress: () => void }) {
+  const t = useSurfaceTokens();
   return (
     <Animated.View entering={FadeInUp.delay(180).springify()}>
       <SectionTitleText>Configuración</SectionTitleText>
-      <AnimatedPressable style={s.configCard} onPress={onPress}>
+      <AnimatedPressable style={[s.configCard, cardTheme(t)]} onPress={onPress}>
         <View style={s.switchRow}>
-          <EliteText style={s.switchLabel}>{label}</EliteText>
-          <Ionicons name="chevron-forward" size={15} color={TEXT.muted} />
+          <EliteText style={[s.switchLabel, { color: t.texto }]}>{label}</EliteText>
+          <Ionicons name="chevron-forward" size={15} color={t.sinDatos} />
         </View>
-        <EliteText style={s.configHint}>{hint}</EliteText>
+        <EliteText style={[s.configHint, { color: hintColor(t) }]}>{hint}</EliteText>
       </AnimatedPressable>
     </Animated.View>
   );
@@ -712,18 +748,16 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   heroBody: { flex: 1 },
-  heroTitle: { color: TEXT.primary, fontFamily: Fonts.extraBold, fontSize: 22 },
+  heroTitle: { fontFamily: Fonts.extraBold, fontSize: 22 },
   heroSection: { fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 2, marginTop: 2 },
 
   description: {
-    color: TEXT.secondary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     lineHeight: 21,
     marginBottom: Spacing.lg,
   },
   descriptionMissing: {
-    color: TEXT.muted,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     fontStyle: 'italic',
@@ -760,16 +794,14 @@ const s = StyleSheet.create({
     borderRadius: 14,
     padding: 12,
   },
-  fijaText: { flex: 1, color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, lineHeight: 17 },
+  fijaText: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, lineHeight: 17 },
   rowNote: {
-    color: TEXT.tertiary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     marginTop: Spacing.xs,
     lineHeight: 17,
   },
   dataNote: {
-    color: TEXT.muted,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     marginTop: 4,
@@ -788,10 +820,9 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     marginTop: Spacing.md,
   },
-  openText: { flex: 1, color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  openText: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 
   configTitle: {
-    color: TEXT.tertiary,
     fontSize: 11,
     fontFamily: Fonts.bold,
     letterSpacing: 2,
@@ -805,9 +836,8 @@ const s = StyleSheet.create({
     borderRadius: 14,
     padding: 12,
   },
-  configValue: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.sm, marginBottom: 10 },
+  configValue: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, marginBottom: 10 },
   configHint: {
-    color: TEXT.muted,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     lineHeight: 17,
@@ -825,10 +855,9 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   chipActive: { backgroundColor: 'rgba(168,224,42,0.14)', borderColor: 'rgba(168,224,42,0.45)' },
-  chipText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
-  chipTextActive: { color: ATP_BRAND.lime },
+  chipText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
 
-  modeDesc: { color: TEXT.tertiary, fontFamily: Fonts.regular, fontSize: FontSizes.xs, lineHeight: 16, marginTop: 1 },
+  modeDesc: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, lineHeight: 16, marginTop: 1 },
   claimBtn: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -853,8 +882,8 @@ const s = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: ELEVATION[2].border,
   },
-  stepperValue: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.md, fontVariant: ['tabular-nums'] },
-  switchLabel: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  stepperValue: { fontFamily: Fonts.bold, fontSize: FontSizes.md, fontVariant: ['tabular-nums'] },
+  switchLabel: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -862,7 +891,6 @@ const s = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 0.5,
-    borderTopColor: ELEVATION[1].border,
   },
-  timeValue: { marginLeft: 'auto', color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  timeValue: { marginLeft: 'auto', fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 });

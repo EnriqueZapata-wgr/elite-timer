@@ -2,6 +2,8 @@ import React, { useRef, useEffect, useMemo } from 'react';
 import { View, Text, FlatList, Pressable, StyleSheet } from 'react-native';
 import { Modal } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { ATP_BRAND, TEXT_COLORS } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 const ITEM_HEIGHT = 44;
 const VISIBLE_ITEMS = 5; // wheel muestra 5 items, centro destacado
@@ -40,6 +42,11 @@ export function TimeWheelPicker({
   onConfirm,
   onCancel,
 }: TimeWheelPickerProps) {
+  // MB-31B: hoja flotante del scope (oscuro de siempre fuera de <ThemeReady>).
+  // El lima como texto solo en oscuro; en claro los presets pasan a relleno
+  // sólido con negro y el título al teal calibrado (regla 1 del manual 3.6).
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
   // Estado interno de la wheel (no se commitea hasta Aceptar)
   const [draftDate, setDraftDate] = React.useState(initialValue);
 
@@ -149,8 +156,8 @@ export function TimeWheelPicker({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
       <Pressable style={styles.backdrop} onPress={onCancel}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
-          <Text style={styles.title}>{title}</Text>
+        <Pressable style={[styles.sheet, { backgroundColor: dark ? t.hundido : t.flotante }]} onPress={() => {}}>
+          <Text style={[styles.title, { color: dark ? ATP_BRAND.lime : t.tealTexto }]}>{title}</Text>
 
           {/* Presets */}
           {presets.length > 0 && (
@@ -158,10 +165,10 @@ export function TimeWheelPicker({
               {presets.map((p) => (
                 <Pressable
                   key={p.label}
-                  style={styles.presetBtn}
+                  style={[styles.presetBtn, !dark && { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime }]}
                   onPress={() => applyPreset(p.getDate)}
                 >
-                  <Text style={styles.presetText}>{p.label}</Text>
+                  <Text style={[styles.presetText, !dark && { color: t.textoSobreLima }]}>{p.label}</Text>
                 </Pressable>
               ))}
             </View>
@@ -183,7 +190,7 @@ export function TimeWheelPicker({
               onIndexChange={handleHourChange}
               flexWeight={1}
             />
-            <Text style={styles.separator}>:</Text>
+            <Text style={[styles.separator, { color: t.texto }]}>:</Text>
             <Wheel
               ref={minuteRef}
               data={minuteOptions.map(o => o.label)}
@@ -197,8 +204,8 @@ export function TimeWheelPicker({
 
           {/* Botones */}
           <View style={styles.btnRow}>
-            <Pressable style={[styles.btn, styles.cancelBtn]} onPress={onCancel}>
-              <Text style={styles.cancelText}>Cancelar</Text>
+            <Pressable style={[styles.btn, { backgroundColor: dark ? t.flotante : t.hundido }]} onPress={onCancel}>
+              <Text style={[styles.cancelText, { color: t.textoSecundario }]}>Cancelar</Text>
             </Pressable>
             <Pressable
               style={[styles.btn, styles.confirmBtn]}
@@ -221,6 +228,7 @@ interface WheelProps {
 }
 
 const Wheel = React.forwardRef<FlatList, WheelProps>(({ data, initialIndex, onIndexChange, flexWeight }, ref) => {
+  const itemColor = useSurfaceTokens().texto;
   const internalRef = useRef<FlatList>(null);
   // Expone la ref interna a los padres (que hacen scroll programático).
   React.useImperativeHandle(ref, () => internalRef.current as FlatList, []);
@@ -272,7 +280,7 @@ const Wheel = React.forwardRef<FlatList, WheelProps>(({ data, initialIndex, onIn
             }}
             style={wheelStyles.item}
           >
-            <Text style={wheelStyles.itemText}>{item}</Text>
+            <Text style={[wheelStyles.itemText, { color: itemColor }]}>{item}</Text>
           </Pressable>
         )}
       />
@@ -281,32 +289,32 @@ const Wheel = React.forwardRef<FlatList, WheelProps>(({ data, initialIndex, onIn
 });
 Wheel.displayName = 'Wheel';
 
+// MB-31B: solo layout + acentos de marca; superficies/texto entran inline.
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: '#000a', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#0a0a0a', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32, gap: 16 },
-  title: { color: '#a8e02a', fontSize: 13, fontWeight: '700', letterSpacing: 1, textAlign: 'center' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32, gap: 16 },
+  title: { fontSize: 13, fontWeight: '700', letterSpacing: 1, textAlign: 'center' },
   presetsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
   presetBtn: { paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#1a2a0a', borderRadius: 20, borderWidth: 1, borderColor: '#a8e02a55' },
-  presetText: { color: '#a8e02a', fontSize: 13, fontWeight: '600' },
+  presetText: { color: ATP_BRAND.lime, fontSize: 13, fontWeight: '600' },
   wheelsRow: { flexDirection: 'row', height: WHEEL_HEIGHT, alignItems: 'center', position: 'relative' },
-  separator: { color: '#fff', fontSize: 22, fontWeight: '700', paddingHorizontal: 4 },
+  separator: { fontSize: 22, fontWeight: '700', paddingHorizontal: 4 },
   centerIndicator: {
     // Hijo de wheelsRow (position:relative). El item central ocupa la franja
     // [(WHEEL_HEIGHT - ITEM_HEIGHT)/2, (WHEEL_HEIGHT + ITEM_HEIGHT)/2].
     position: 'absolute', left: 0, right: 0,
     top: (WHEEL_HEIGHT - ITEM_HEIGHT) / 2,
-    height: ITEM_HEIGHT, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#a8e02a',
+    height: ITEM_HEIGHT, borderTopWidth: 1, borderBottomWidth: 1, borderColor: ATP_BRAND.lime,
   },
   btnRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
   btn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  cancelBtn: { backgroundColor: '#1a1a1a' },
-  confirmBtn: { backgroundColor: '#a8e02a' },
-  cancelText: { color: '#888', fontSize: 15, fontWeight: '600' },
-  confirmText: { color: '#000', fontSize: 15, fontWeight: '700' },
+  confirmBtn: { backgroundColor: ATP_BRAND.lime },
+  cancelText: { fontSize: 15, fontWeight: '600' },
+  confirmText: { color: TEXT_COLORS.onAccent, fontSize: 15, fontWeight: '700' },
 });
 
 const wheelStyles = StyleSheet.create({
   container: { height: WHEEL_HEIGHT },
   item: { height: ITEM_HEIGHT, justifyContent: 'center', alignItems: 'center' },
-  itemText: { color: '#fff', fontSize: 18, fontWeight: '500' },
+  itemText: { fontSize: 18, fontWeight: '500' },
 });
