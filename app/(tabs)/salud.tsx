@@ -13,20 +13,18 @@ import { SaludHub } from '@/src/screens/salud/SaludHub';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 export default function SaludTab() {
-  // MB-31B (tránsito): el chrome ya lee tokens, pero la pantalla NO se marca
-  // `themed` porque su cuerpo (SaludHub, src/screens/salud) sigue con colores
-  // fijos y es frontera del ámbito B2. Fuera de <ThemeReady> estos tokens
-  // entregan el oscuro de siempre: nada cambia hoy. Al migrar SaludHub basta
-  // con poner `themed` aquí y la barra de estado por tema.
-  const t = useSurfaceTokens();
+  // MB-31B remate: SaludHub ya migró — la frontera B2 se cerró. La ruta lee
+  // el tema GLOBAL (useSurfaceTokens aquí devolvería oscuro perpetuo: el
+  // <ThemeReady> que abre el claro lo pone TabScreen más abajo).
+  const t = useAppTheme().tokens;
   const acento = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   return (
     <MedicalDisclaimerGate>
-      <TabScreen>
-        <StatusBar style="light" />
+      <TabScreen themed>
+        <StatusBar style={t.kind === 'light' ? 'dark' : 'light'} />
         <View style={s.header}>
           <EliteText style={[s.eyebrow, { color: acento }]}>TU SALUD FUNCIONAL</EliteText>
           <EliteText style={[s.title, { color: t.texto }]}>SALUD</EliteText>

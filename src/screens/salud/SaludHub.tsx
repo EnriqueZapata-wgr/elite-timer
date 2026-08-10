@@ -11,7 +11,7 @@
  * un scroll. Es la válvula que evita el desastre de Garmin, cuyo rediseño
  * curado fue rechazado por los veteranos porque les costaba más clics.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, DeviceEventEmitter } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,7 +28,8 @@ import {
 } from '@/src/constants/salud-puertas';
 import { loadModoDenso, SALUD_DENSO_EVENT } from '@/src/services/salud-denso-store';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { TEXT, ELEVATION } from '@/src/constants/brand';
+import { type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
 
 /** Foto por puerta. Todas ya viven en assets: no se movió ni se borró ninguna. */
@@ -46,6 +47,11 @@ const PUERTA_IMAGES: Record<string, any> = {
 // sistema que se ven distintos en cada teléfono.
 
 export function SaludHub() {
+  // MB-31B remate: es un CUERPO compartido (lo montan el tab SALUD y
+  // /health-hub) — lee el scope, no el tema global: si la montura no declara
+  // themed, sigue oscuro (regla de tránsito).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const router = useRouter();
   const { user } = useAuth();
   const [isFemale, setIsFemale] = useState(false);
@@ -99,7 +105,7 @@ export function SaludHub() {
                   <EliteText style={s.densoTitle}>{d.title}</EliteText>
                   <EliteText style={s.densoSub} numberOfLines={1}>{d.subtitle}</EliteText>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={TEXT.muted} />
+                <Ionicons name="chevron-forward" size={16} color={t.textoTenue} />
               </AnimatedPressable>
             </Animated.View>
           ))}
@@ -129,23 +135,27 @@ export function SaludHub() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del scope. El tenue del oscuro
+// (#555) baja a secundario en claro: 3.19 no alcanza para letra chica
+// (mismo criterio que centro/[appKey]).
+const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
   sectionTitle: {
-    color: TEXT.tertiary, fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2,
+    color: tenue(t), fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2,
     marginTop: Spacing.lg, marginBottom: Spacing.sm,
   },
   densoRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: ELEVATION[1].bg,
-    borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card,
+    borderWidth: 0.5, borderColor: t.borde,
     borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11, marginBottom: 8,
   },
   densoIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  densoTitle: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
-  densoSub: { color: TEXT.tertiary, fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: 1 },
+  densoTitle: { color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  densoSub: { color: tenue(t), fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: 1 },
   densoHint: {
-    color: TEXT.muted, fontFamily: Fonts.regular, fontSize: FontSizes.xs,
+    color: tenue(t), fontFamily: Fonts.regular, fontSize: FontSizes.xs,
     marginTop: Spacing.md, textAlign: 'center',
   },
 });
