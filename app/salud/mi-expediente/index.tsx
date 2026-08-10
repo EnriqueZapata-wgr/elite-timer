@@ -6,7 +6,7 @@
  * rastreo diagnóstico + motivación + ruta. ARGOS podrá leerlo (V1.1) para
  * correlacionar patrones. Exportable al médico post-beta.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -24,12 +24,16 @@ import {
   type TimelineEvent, type TimelineSources,
 } from '@/src/services/salud/mi-expediente-core';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
-import { ELEVATION, TEXT, TEXT_COLORS } from '@/src/constants/brand';
+import { ELEVATION, TEXT, TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
 const EMPTY: TimelineSources = { symptoms: [], interventionsActivated: [], labs: [], measurements: [], glucose: [], ketones: [] };
 
 function MiExpedienteScreen() {
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const router = useRouter();
   const [events, setEvents] = useState<TimelineEvent[]>([]);
@@ -64,7 +68,7 @@ function MiExpedienteScreen() {
   const groups = groupByMonth(events);
 
   return (
-    <Screen>
+    <Screen themed>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         <PillarHeader pillar="health" title="Mi Expediente" />
 
@@ -109,17 +113,18 @@ function MiExpedienteScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md },
   subtitle: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginBottom: Spacing.lg, marginTop: Spacing.xs, fontFamily: Fonts.regular },
-  monthLabel: { color: TEXT.tertiary, fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2, marginTop: Spacing.lg, marginBottom: Spacing.sm },
+  monthLabel: { color: t.textoTenue, fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2, marginTop: Spacing.lg, marginBottom: Spacing.sm },
   eventRow: { flexDirection: 'row', gap: Spacing.sm },
   eventLeft: { alignItems: 'center', width: 28 },
   eventIcon: { fontSize: 16 },
-  eventLine: { flex: 1, width: 1.5, backgroundColor: ELEVATION[2].border, marginTop: 2 },
+  eventLine: { flex: 1, width: 1.5, backgroundColor: t.bordeMarcado, marginTop: 2 },
   eventBody: { flex: 1, paddingBottom: Spacing.md },
-  eventTitle: { color: TEXT.primary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
-  eventMeta: { color: TEXT.tertiary, fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 1 },
+  eventTitle: { color: t.texto, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+  eventMeta: { color: t.textoTenue, fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 1 },
 });
 
 export default function MiExpedienteGated() {

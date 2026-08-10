@@ -33,10 +33,14 @@ import {
   partitionByStatus, durationLabel, validateSymptomInput, type UserSymptom,
 } from '@/src/services/salud/user-symptoms-core';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
-import { ELEVATION, TEXT, TEXT_COLORS, ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ELEVATION, TEXT, TEXT_COLORS, ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
 function MisSintomasScreen() {
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const [symptoms, setSymptoms] = useState<UserSymptom[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -87,7 +91,7 @@ function MisSintomasScreen() {
     key ? (FUNCTIONAL_SYSTEMS.find(s => s.key === key)?.name ?? key) : null;
 
   return (
-    <Screen>
+    <Screen themed>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         <PillarHeader pillar="health" title="Mis Síntomas" />
 
@@ -99,7 +103,7 @@ function MisSintomasScreen() {
 
         <Animated.View entering={FadeInUp.delay(70).springify()}>
           <AnimatedPressable onPress={openModal} style={s.addBtn}>
-            <Ionicons name="add-circle" size={20} color="#000" />
+            <Ionicons name="add-circle" size={20} color={t.textoSobreLima} />
             <Text style={s.addBtnText}>Registrar síntoma</Text>
           </AnimatedPressable>
         </Animated.View>
@@ -133,14 +137,14 @@ function MisSintomasScreen() {
             <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>{`RESUELTOS (${resolved.length})`}</SectionTitle>
             {resolved.slice(0, 30).map((sym, idx) => (
               <Animated.View key={sym.id} entering={FadeInUp.delay(60 + Math.min(idx, 8) * 25).springify()} style={[s.row, s.rowResolved]}>
-                <View style={[s.sevDot, { backgroundColor: TEXT.muted }]} />
+                <View style={[s.sevDot, { backgroundColor: t.sinDatos }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={[s.symName, s.symNameResolved]} numberOfLines={1}>{sym.name}</Text>
                   <Text style={s.symMeta}>Duró {durationLabel(sym, now)}{systemName(sym.system_key) ? ` · ${systemName(sym.system_key)}` : ''}</Text>
                 </View>
                 <Pressable onPress={() => toggleResolved(sym)} hitSlop={6}><Text style={s.reactivate}>Reactivar</Text></Pressable>
                 <Pressable onPress={() => remove(sym)} hitSlop={6} style={{ marginLeft: 10 }}>
-                  <Ionicons name="trash-outline" size={15} color={TEXT.muted} />
+                  <Ionicons name="trash-outline" size={15} color={t.sinDatos} />
                 </Pressable>
               </Animated.View>
             ))}
@@ -159,7 +163,7 @@ function MisSintomasScreen() {
             <TextInput
               value={name} onChangeText={setName}
               placeholder="¿Qué sientes? (ej. fatiga por la tarde)"
-              placeholderTextColor={TEXT.muted} style={s.modalInput} autoFocus
+              placeholderTextColor={t.sinDatos} style={s.modalInput} autoFocus
             />
             <View style={s.chipsRow}>
               {SINTOMAS_QUICK_TAGS.slice(0, 8).map(tag => (
@@ -203,39 +207,40 @@ function MisSintomasScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md },
   subtitle: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginBottom: Spacing.md, marginTop: Spacing.xs, fontFamily: Fonts.regular },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md, paddingVertical: 12 },
-  addBtnText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold },
-  emptyBox: { backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border, borderRadius: Radius.md, padding: Spacing.md },
-  emptyText: { color: TEXT.tertiary, fontSize: FontSizes.sm, fontFamily: Fonts.regular, lineHeight: 19 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border, borderRadius: Radius.md, padding: Spacing.md, marginBottom: 6 },
+  addBtnText: { color: t.textoSobreLima, fontSize: FontSizes.sm, fontFamily: Fonts.bold },
+  emptyBox: { backgroundColor: t.card, borderWidth: 0.5, borderColor: t.borde, borderRadius: Radius.md, padding: Spacing.md },
+  emptyText: { color: t.textoTenue, fontSize: FontSizes.sm, fontFamily: Fonts.regular, lineHeight: 19 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: t.card, borderWidth: 0.5, borderColor: t.borde, borderRadius: Radius.md, padding: Spacing.md, marginBottom: 6 },
   rowResolved: { opacity: 0.7 },
   sevDot: { width: 9, height: 9, borderRadius: 4.5 },
-  symName: { color: TEXT.primary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
-  symNameResolved: { textDecorationLine: 'line-through', color: TEXT.secondary },
-  symMeta: { color: TEXT.tertiary, fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
+  symName: { color: t.texto, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+  symNameResolved: { textDecorationLine: 'line-through', color: t.textoSecundario },
+  symMeta: { color: t.textoTenue, fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
   resolveBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  resolveText: { color: ATP_BRAND.lime, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
-  reactivate: { color: TEXT.secondary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  resolveText: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  reactivate: { color: t.textoSecundario, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalCard: { backgroundColor: ELEVATION[2].bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: ELEVATION[2].border, padding: Spacing.lg, paddingBottom: Spacing.xl },
-  modalLabel: { color: TEXT.tertiary, fontSize: 10, fontFamily: Fonts.semiBold, letterSpacing: 2, marginBottom: Spacing.md },
-  modalInput: { backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: '#222', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary, fontSize: 14, fontFamily: Fonts.regular },
+  modalCard: { backgroundColor: t.flotante, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: t.bordeMarcado, padding: Spacing.lg, paddingBottom: Spacing.xl },
+  modalLabel: { color: t.textoTenue, fontSize: 10, fontFamily: Fonts.semiBold, letterSpacing: 2, marginBottom: Spacing.md },
+  modalInput: { backgroundColor: t.hundido, borderWidth: 1, borderColor: t.bordeMarcado, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: t.texto, fontSize: 14, fontFamily: Fonts.regular },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-  chip: { backgroundColor: '#0a0a0a', borderWidth: 0.5, borderColor: '#1a1a1a', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6 },
-  chipText: { color: TEXT.secondary, fontSize: 11, fontFamily: Fonts.regular },
-  fieldLabel: { color: TEXT.tertiary, fontSize: 10, fontFamily: Fonts.semiBold, letterSpacing: 2, marginTop: Spacing.md, marginBottom: 8 },
+  chip: { backgroundColor: t.hundido, borderWidth: 0.5, borderColor: t.borde, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6 },
+  chipText: { color: t.textoSecundario, fontSize: 11, fontFamily: Fonts.regular },
+  fieldLabel: { color: t.textoTenue, fontSize: 10, fontFamily: Fonts.semiBold, letterSpacing: 2, marginTop: Spacing.md, marginBottom: 8 },
   sevRow: { flexDirection: 'row', gap: 8 },
-  sevOption: { flex: 1, height: 42, borderRadius: 12, borderWidth: 1, borderColor: '#222', backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center' },
-  sevOptionText: { color: TEXT.secondary, fontSize: 15, fontFamily: Fonts.bold },
-  sysChip: { backgroundColor: '#0a0a0a', borderWidth: 0.5, borderColor: '#1a1a1a', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6 },
+  sevOption: { flex: 1, height: 42, borderRadius: 12, borderWidth: 1, borderColor: t.bordeMarcado, backgroundColor: t.hundido, justifyContent: 'center', alignItems: 'center' },
+  sevOptionText: { color: t.textoSecundario, fontSize: 15, fontFamily: Fonts.bold },
+  sysChip: { backgroundColor: t.hundido, borderWidth: 0.5, borderColor: t.borde, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6 },
   sysChipActive: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderColor: withOpacity(ATP_BRAND.lime, 0.4) },
-  sysChipText: { color: TEXT.secondary, fontSize: 11, fontFamily: Fonts.regular },
-  sysChipTextActive: { color: ATP_BRAND.lime },
+  sysChipText: { color: t.textoSecundario, fontSize: 11, fontFamily: Fonts.regular },
+  sysChipTextActive: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   modalSave: { backgroundColor: ATP_BRAND.lime, borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: Spacing.lg },
-  modalSaveText: { color: '#000', fontSize: 14, fontFamily: Fonts.extraBold },
+  modalSaveText: { color: t.textoSobreLima, fontSize: 14, fontFamily: Fonts.extraBold },
 });
 
 export default function MisSintomasGated() {

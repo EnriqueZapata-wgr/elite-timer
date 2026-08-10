@@ -28,7 +28,8 @@ import { MASTER_QUIZ_SECTIONS, type MasterQuizQuestion } from '@/src/constants/m
 import { personalizeInterventions } from '@/src/services/interventions/personalize-interventions';
 import { ROOT_LABELS } from '@/src/constants/intervention-vocab';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
-import { ELEVATION, TEXT, ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ELEVATION, TEXT, ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
 const SYSTEM_LABELS: Record<string, string> = {
@@ -38,6 +39,9 @@ const SYSTEM_LABELS: Record<string, string> = {
 };
 
 function MasterQuizScreen() {
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const router = useRouter();
   const { user } = useAuth();
 
@@ -127,7 +131,7 @@ function MasterQuizScreen() {
   }, [router]);
 
   if (loading) {
-    return <Screen><View style={s.center}><ActivityIndicator size="large" color={ATP_BRAND.lime} /></View></Screen>;
+    return <Screen themed><View style={s.center}><ActivityIndicator size="large" color={ATP_BRAND.lime} /></View></Screen>;
   }
 
   if (done) {
@@ -138,7 +142,7 @@ function MasterQuizScreen() {
   if (preview && current) {
     const nextMeta = MASTER_QUIZ_SECTIONS.find((x) => x.id === preview.nextSection);
     return (
-      <Screen>
+      <Screen themed>
         <View style={s.previewWrap}>
           <Animated.View entering={FadeIn.duration(300)} style={s.previewCard}>
             <Text style={s.previewEmoji}>{nextMeta?.emoji}</Text>
@@ -146,7 +150,7 @@ function MasterQuizScreen() {
             <EliteText style={s.previewIntro}>{nextMeta?.intro}</EliteText>
             <AnimatedPressable onPress={() => { haptic.medium(); setPreview(null); }} style={s.previewBtn}>
               <Text style={s.previewBtnText}>Continuar</Text>
-              <Ionicons name="arrow-forward" size={16} color="#000" />
+              <Ionicons name="arrow-forward" size={16} color={t.textoSobreLima} />
             </AnimatedPressable>
           </Animated.View>
         </View>
@@ -154,13 +158,13 @@ function MasterQuizScreen() {
     );
   }
 
-  if (!current) return <Screen><View style={s.center}><ActivityIndicator color={ATP_BRAND.lime} /></View></Screen>;
+  if (!current) return <Screen themed><View style={s.center}><ActivityIndicator color={ATP_BRAND.lime} /></View></Screen>;
 
   const sectionMeta = MASTER_QUIZ_SECTIONS.find((x) => x.id === current.section);
   const canContinue = draft != null && !(Array.isArray(draft) && draft.length === 0);
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top']} themed>
       {/* Header: progreso + guardar-y-salir */}
       <View style={s.header}>
         <BackButton onPress={onBack} />
@@ -200,7 +204,7 @@ function MasterQuizScreen() {
         <AnimatedPressable onPress={onContinue} disabled={!canContinue}
           style={[s.continueBtn, !canContinue && { opacity: 0.4 }]}>
           <Text style={s.continueText}>Continuar</Text>
-          <Ionicons name="arrow-forward" size={18} color="#000" />
+          <Ionicons name="arrow-forward" size={18} color={t.textoSobreLima} />
         </AnimatedPressable>
       </View>
     </Screen>
@@ -213,6 +217,8 @@ function SummaryView({ answers, ctx, userId, onGoProtocol, onBack }: {
   answers: QuizAnswers; ctx: QuizContext; userId: string;
   onGoProtocol: () => void; onBack: () => void;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const quiz = useMemo(() => scoreToPhenotype(answers), [answers]);
   const top5 = useMemo(() => {
     try {
@@ -224,7 +230,7 @@ function SummaryView({ answers, ctx, userId, onGoProtocol, onBack }: {
   const levelColor = (lvl: number) => (lvl <= 2 ? '#ef4444' : lvl <= 3 ? '#fbbf24' : '#4ade80');
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top']} themed>
       <View style={s.header}>
         <BackButton onPress={onBack} />
         <EliteText style={s.summaryHeaderTitle}>Tu fenotipo</EliteText>
@@ -241,7 +247,8 @@ function SummaryView({ answers, ctx, userId, onGoProtocol, onBack }: {
                 <View key={sys.system} style={s.sysRow}>
                   <View style={[s.sysDot, { backgroundColor: levelColor(sys.level) }]} />
                   <Text style={s.sysName}>{SYSTEM_LABELS[sys.system] ?? sys.system}</Text>
-                  <Text style={[s.sysLevel, { color: levelColor(sys.level) }]}>Nivel {sys.level}/5</Text>
+                  {/* El punto ya trae el color del nivel; en claro la letra va en texto. */}
+                  <Text style={[s.sysLevel, { color: t.kind === 'dark' ? levelColor(sys.level) : t.texto }]}>Nivel {sys.level}/5</Text>
                 </View>
               ))}
             </>
@@ -270,7 +277,7 @@ function SummaryView({ answers, ctx, userId, onGoProtocol, onBack }: {
 
           <AnimatedPressable onPress={onGoProtocol} style={s.protocolBtn}>
             <Text style={s.protocolBtnText}>Ver Mi Protocolo</Text>
-            <Ionicons name="arrow-forward" size={18} color="#000" />
+            <Ionicons name="arrow-forward" size={18} color={t.textoSobreLima} />
           </AnimatedPressable>
 
           <View style={{ height: Spacing.xxl }} />
@@ -280,47 +287,48 @@ function SummaryView({ answers, ctx, userId, onGoProtocol, onBack }: {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: Spacing.md },
-  progressLabel: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: TEXT.tertiary, marginBottom: 4 },
-  progressBar: { height: 4, borderRadius: 2, backgroundColor: ELEVATION[2].bg, overflow: 'hidden' },
+  progressLabel: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.textoTenue, marginBottom: 4 },
+  progressBar: { height: 4, borderRadius: 2, backgroundColor: t.flotante, overflow: 'hidden' },
   progressFill: { height: 4, borderRadius: 2, backgroundColor: ATP_BRAND.lime },
-  saveExit: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: TEXT.secondary },
+  saveExit: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.textoSecundario },
   scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.lg },
-  questionText: { fontFamily: Fonts.extraBold, fontSize: 22, color: TEXT.primary, lineHeight: 28 },
+  questionText: { fontFamily: Fonts.extraBold, fontSize: 22, color: t.texto, lineHeight: 28 },
   whyBox: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: withOpacity(ATP_BRAND.lime, 0.06), borderRadius: Radius.md, padding: Spacing.sm, marginTop: Spacing.md },
-  whyText: { flex: 1, fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.secondary, lineHeight: 17 },
+  whyText: { flex: 1, fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoSecundario, lineHeight: 17 },
   preferNot: { alignSelf: 'center', marginTop: Spacing.lg, paddingVertical: Spacing.sm },
-  preferNotText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.tertiary, textDecorationLine: 'underline' },
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, borderTopWidth: 0.5, borderTopColor: ELEVATION[1].border },
-  skipText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.tertiary, paddingHorizontal: Spacing.md, paddingVertical: 10 },
+  preferNotText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.textoTenue, textDecorationLine: 'underline' },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, borderTopWidth: 0.5, borderTopColor: t.borde },
+  skipText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.textoTenue, paddingHorizontal: Spacing.md, paddingVertical: 10 },
   continueBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: ATP_BRAND.lime, borderRadius: Radius.pill, paddingHorizontal: Spacing.xl, paddingVertical: 12 },
-  continueText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: '#000', letterSpacing: 0.5 },
+  continueText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: t.textoSobreLima, letterSpacing: 0.5 },
   // preview
   previewWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.lg },
   previewCard: { alignItems: 'center', gap: Spacing.sm },
   previewEmoji: { fontSize: 48 },
-  previewTitle: { fontFamily: Fonts.extraBold, fontSize: 24, color: TEXT.primary, textAlign: 'center' },
-  previewIntro: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary, textAlign: 'center', lineHeight: 20, marginBottom: Spacing.md },
+  previewTitle: { fontFamily: Fonts.extraBold, fontSize: 24, color: t.texto, textAlign: 'center' },
+  previewIntro: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoSecundario, textAlign: 'center', lineHeight: 20, marginBottom: Spacing.md },
   previewBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: ATP_BRAND.lime, borderRadius: Radius.pill, paddingHorizontal: Spacing.xl, paddingVertical: 12 },
-  previewBtnText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: '#000' },
+  previewBtnText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: t.textoSobreLima },
   // summary
-  summaryHeaderTitle: { flex: 1, fontFamily: Fonts.bold, fontSize: FontSizes.lg, color: TEXT.primary },
-  summaryKicker: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: ATP_BRAND.lime, letterSpacing: 1, marginBottom: Spacing.md },
-  summarySection: { fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 2, color: TEXT.tertiary, marginTop: Spacing.lg, marginBottom: Spacing.sm },
-  sysRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border, borderRadius: Radius.md, padding: Spacing.md, marginBottom: 6 },
+  summaryHeaderTitle: { flex: 1, fontFamily: Fonts.bold, fontSize: FontSizes.lg, color: t.texto },
+  summaryKicker: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, letterSpacing: 1, marginBottom: Spacing.md },
+  summarySection: { fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 2, color: t.textoTenue, marginTop: Spacing.lg, marginBottom: Spacing.sm },
+  sysRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: t.card, borderWidth: 0.5, borderColor: t.borde, borderRadius: Radius.md, padding: Spacing.md, marginBottom: 6 },
   sysDot: { width: 10, height: 10, borderRadius: 5 },
-  sysName: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.primary },
+  sysName: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.texto },
   sysLevel: { fontFamily: Fonts.bold, fontSize: FontSizes.sm },
-  rootLine: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary, lineHeight: 22 },
+  rootLine: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoSecundario, lineHeight: 22 },
   rxBox: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.06), borderWidth: 0.5, borderColor: withOpacity(ATP_BRAND.lime, 0.3), borderRadius: Radius.lg, padding: Spacing.md, marginTop: Spacing.lg, gap: 8 },
-  rxTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: TEXT.primary, marginBottom: 4 },
+  rxTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: t.texto, marginBottom: 4 },
   rxRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  rxRank: { fontFamily: Fonts.extraBold, fontSize: FontSizes.md, color: ATP_BRAND.lime, width: 20 },
-  rxName: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.primary },
+  rxRank: { fontFamily: Fonts.extraBold, fontSize: FontSizes.md, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, width: 20 },
+  rxName: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.texto },
   protocolBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md, paddingVertical: 14, marginTop: Spacing.xl },
-  protocolBtnText: { fontFamily: Fonts.extraBold, fontSize: FontSizes.md, color: '#000', letterSpacing: 0.5 },
+  protocolBtnText: { fontFamily: Fonts.extraBold, fontSize: FontSizes.md, color: t.textoSobreLima, letterSpacing: 0.5 },
 });
 
 export default function MasterQuizGated() {

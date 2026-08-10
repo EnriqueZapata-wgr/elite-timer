@@ -10,7 +10,7 @@
  * expediente, no un diagnóstico. Todo DENTRO de cards; formulario en bottom
  * sheet modal (patrón quick-add de health-hub.tsx).
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, DeviceEventEmitter, KeyboardAvoidingView,
   LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet,
@@ -46,13 +46,17 @@ import {
   resolveEpisodio,
   PADECIMIENTOS_CHANGED_EVENT,
 } from '@/src/services/salud/padecimientos-service';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 const DX_NOTE = 'Esto alimenta tu Mapa Funcional. No sustituye la valoración de tu profesional de salud.';
 
 export default function PadecimientosScreen() {
   const { user } = useAuth();
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const [views, setViews] = useState<PadecimientoView[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -168,7 +172,7 @@ export default function PadecimientosScreen() {
 
   return (
     <MedicalDisclaimerGate>
-      <Screen edges={[]}>
+      <Screen edges={[]} themed>
         <ScreenHeader title="Padecimientos" onBack={() => router.back()} />
 
         {loading ? (
@@ -187,7 +191,7 @@ export default function PadecimientosScreen() {
                   a tu Mapa Funcional.
                 </EliteText>
                 <AnimatedPressable onPress={openForm} style={styles.cta}>
-                  <Ionicons name="add" size={18} color="#000" />
+                  <Ionicons name="add" size={18} color={t.textoSobreLima} />
                   <EliteText style={styles.ctaText}>Registrar padecimiento</EliteText>
                 </AnimatedPressable>
                 <EliteText style={styles.dxNote}>{DX_NOTE}</EliteText>
@@ -227,7 +231,7 @@ export default function PadecimientosScreen() {
                               <EliteText style={styles.epBadgeText}>{v.episodios.length}×</EliteText>
                             </View>
                           )}
-                          <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={TEXT.tertiary} />
+                          <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={t.textoTenue} />
                         </Pressable>
 
                         {isOpen && (
@@ -260,13 +264,13 @@ export default function PadecimientosScreen() {
                             <View style={styles.pedActions}>
                               {!v.isActive && (
                                 <Pressable onPress={() => onNewEpisodio(v)} style={styles.pedActionBtn} hitSlop={6}>
-                                  <Ionicons name="repeat" size={14} color={TEXT.secondary} />
+                                  <Ionicons name="repeat" size={14} color={t.textoSecundario} />
                                   <EliteText style={styles.pedActionText}>Volvió a presentarse</EliteText>
                                 </Pressable>
                               )}
                               <Pressable onPress={() => onDelete(v)} style={styles.pedActionBtn} hitSlop={6}>
-                                <Ionicons name="trash-outline" size={14} color={TEXT.muted} />
-                                <EliteText style={[styles.pedActionText, { color: TEXT.muted }]}>Eliminar</EliteText>
+                                <Ionicons name="trash-outline" size={14} color={t.sinDatos} />
+                                <EliteText style={[styles.pedActionText, { color: t.sinDatos }]}>Eliminar</EliteText>
                               </Pressable>
                             </View>
                           </View>
@@ -294,7 +298,7 @@ export default function PadecimientosScreen() {
                   value={fName}
                   onChangeText={setFName}
                   placeholder="¿Qué padecimiento? (ej. gripe, gastritis)"
-                  placeholderTextColor={TEXT.muted}
+                  placeholderTextColor={t.sinDatos}
                   style={styles.input}
                   maxLength={80}
                   autoFocus
@@ -323,7 +327,7 @@ export default function PadecimientosScreen() {
                   value={fStartedOn}
                   onChangeText={setFStartedOn}
                   placeholder="AAAA-MM-DD"
-                  placeholderTextColor={TEXT.muted}
+                  placeholderTextColor={t.sinDatos}
                   style={styles.input}
                   maxLength={10}
                   keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
@@ -353,7 +357,7 @@ export default function PadecimientosScreen() {
                   <Ionicons
                     name={fChronic ? 'checkbox' : 'square-outline'}
                     size={20}
-                    color={fChronic ? ATP_BRAND.lime : TEXT.tertiary}
+                    color={fChronic ? ATP_BRAND.lime : t.textoTenue}
                   />
                   <EliteText style={styles.chronicText}>Es crónico (me acompaña de forma continua)</EliteText>
                 </Pressable>
@@ -362,14 +366,14 @@ export default function PadecimientosScreen() {
                   value={fNotes}
                   onChangeText={setFNotes}
                   placeholder="Notas opcionales (manejo, contexto)…"
-                  placeholderTextColor={TEXT.muted}
+                  placeholderTextColor={t.sinDatos}
                   style={[styles.input, { minHeight: 60 }]}
                   maxLength={500}
                   multiline
                 />
 
                 <AnimatedPressable onPress={onSave} disabled={saving} style={styles.modalSave}>
-                  {saving && <ActivityIndicator size="small" color="#000" style={{ marginRight: 8 }} />}
+                  {saving && <ActivityIndicator size="small" color={t.textoSobreLima} style={{ marginRight: 8 }} />}
                   <EliteText style={styles.modalSaveText}>{saving ? 'Guardando…' : 'GUARDAR'}</EliteText>
                 </AnimatedPressable>
 
@@ -383,99 +387,101 @@ export default function PadecimientosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: Spacing.md, paddingBottom: 60 },
 
   // Intro
-  introLabel: { fontFamily: Fonts.bold, fontSize: 10, color: TEXT.tertiary, letterSpacing: 2, marginBottom: 6 },
-  introText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary, lineHeight: 20 },
+  introLabel: { fontFamily: Fonts.bold, fontSize: 10, color: t.textoTenue, letterSpacing: 2, marginBottom: 6 },
+  introText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoSecundario, lineHeight: 20 },
   cta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md,
     paddingVertical: 13, marginTop: Spacing.md,
   },
-  ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: '#000' },
+  ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: t.textoSobreLima },
   dxNote: {
-    fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary,
+    fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue,
     lineHeight: 16, marginTop: Spacing.sm, textAlign: 'center',
   },
-  emptyText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.tertiary, lineHeight: 20 },
+  emptyText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoTenue, lineHeight: 20 },
 
   // Lista (card contenedora ELEVATION[1] + padecimientos ELEVATION[2], patrón health-hub FIX 3)
   listCard: { padding: Spacing.sm, paddingBottom: 4 },
   pedCard: {
-    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
+    backgroundColor: t.flotante, borderWidth: 1, borderColor: t.bordeMarcado,
     borderRadius: 12, marginBottom: Spacing.sm, overflow: 'hidden',
   },
   pedHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: Spacing.md },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
-  pedName: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md, color: TEXT.primary },
-  pedMeta: { fontFamily: Fonts.regular, fontSize: 11, color: TEXT.tertiary, marginTop: 1 },
+  pedName: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md, color: t.texto },
+  pedMeta: { fontFamily: Fonts.regular, fontSize: 11, color: t.textoTenue, marginTop: 1 },
   epBadge: {
     minWidth: 24, height: 20, borderRadius: 10, paddingHorizontal: 6,
     backgroundColor: withOpacity('#1D9E75', 0.18), justifyContent: 'center', alignItems: 'center',
   },
-  epBadgeText: { fontFamily: Fonts.bold, fontSize: 11, color: '#1D9E75' },
+  epBadgeText: { fontFamily: Fonts.bold, fontSize: 11, color: t.kind === 'dark' ? '#1D9E75' : t.tealTexto },
   pedBody: {
     paddingHorizontal: Spacing.md, paddingBottom: Spacing.md,
-    borderTopWidth: 1, borderTopColor: ELEVATION[2].border, paddingTop: Spacing.sm,
+    borderTopWidth: 1, borderTopColor: t.bordeMarcado, paddingTop: Spacing.sm,
   },
-  pedNotes: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.secondary, lineHeight: 17, marginBottom: 6 },
+  pedNotes: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoSecundario, lineHeight: 17, marginBottom: 6 },
   epRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7 },
   epDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#4ade80' },
-  epDates: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: TEXT.primary },
-  epStatus: { fontFamily: Fonts.regular, fontSize: 11, color: TEXT.tertiary, marginTop: 1 },
+  epDates: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.texto },
+  epStatus: { fontFamily: Fonts.regular, fontSize: 11, color: t.textoTenue, marginTop: 1 },
   epAction: {
-    backgroundColor: ELEVATION[3].bg, borderWidth: 1, borderColor: ELEVATION[3].border,
+    backgroundColor: t.kind === 'dark' ? ELEVATION[3].bg : t.hundido, borderWidth: 1, borderColor: t.bordeMarcado,
     borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5,
   },
-  epActionText: { fontFamily: Fonts.semiBold, fontSize: 11, color: TEXT.primary },
+  epActionText: { fontFamily: Fonts.semiBold, fontSize: 11, color: t.texto },
   pedActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
   pedActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
-  pedActionText: { fontFamily: Fonts.semiBold, fontSize: 12, color: TEXT.secondary },
+  pedActionText: { fontFamily: Fonts.semiBold, fontSize: 12, color: t.textoSecundario },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modalCard: {
-    backgroundColor: ELEVATION[2].bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    borderWidth: 1, borderColor: ELEVATION[2].border,
+    backgroundColor: t.flotante, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderWidth: 1, borderColor: t.bordeMarcado,
     padding: Spacing.lg, paddingBottom: Spacing.xl, maxHeight: '86%',
   },
   modalLabel: {
-    fontFamily: Fonts.semiBold, fontSize: 10, color: TEXT.tertiary,
+    fontFamily: Fonts.semiBold, fontSize: 10, color: t.textoTenue,
     letterSpacing: 2, marginBottom: Spacing.md,
   },
   input: {
-    backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: '#222', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 12, color: TEXT.primary,
+    backgroundColor: t.hundido, borderWidth: 1, borderColor: t.bordeMarcado, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12, color: t.texto,
     fontSize: 14, fontFamily: Fonts.regular,
   },
   fieldLabel: {
-    fontFamily: Fonts.semiBold, fontSize: 10, color: TEXT.tertiary,
+    fontFamily: Fonts.semiBold, fontSize: 10, color: t.textoTenue,
     letterSpacing: 2, marginTop: Spacing.md, marginBottom: 8,
   },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 2 },
   chip: {
-    backgroundColor: '#0a0a0a', borderWidth: 0.5, borderColor: '#1a1a1a',
+    backgroundColor: t.hundido, borderWidth: 0.5, borderColor: t.borde,
     borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6,
   },
-  chipOn: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderColor: ATP_BRAND.lime },
-  chipText: { fontFamily: Fonts.regular, fontSize: 11, color: TEXT.secondary },
-  chipTextOn: { fontFamily: Fonts.semiBold, color: ATP_BRAND.lime },
+  // Regla 1 del claro: chip activo = relleno lima pleno con negro encima.
+  chipOn: { backgroundColor: t.kind === 'dark' ? withOpacity(ATP_BRAND.lime, 0.12) : ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
+  chipText: { fontFamily: Fonts.regular, fontSize: 11, color: t.textoSecundario },
+  chipTextOn: { fontFamily: Fonts.semiBold, color: t.kind === 'dark' ? ATP_BRAND.lime : t.textoSobreLima },
   togglesRow: { flexDirection: 'row', gap: 8, marginTop: Spacing.md },
   toggleChip: {
-    flex: 1, height: 42, borderRadius: 12, borderWidth: 1, borderColor: '#222',
-    backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center',
+    flex: 1, height: 42, borderRadius: 12, borderWidth: 1, borderColor: t.bordeMarcado,
+    backgroundColor: t.hundido, justifyContent: 'center', alignItems: 'center',
   },
-  toggleChipOn: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderColor: ATP_BRAND.lime },
-  toggleText: { fontFamily: Fonts.semiBold, fontSize: 13, color: TEXT.secondary },
-  toggleTextOn: { color: ATP_BRAND.lime },
+  toggleChipOn: { backgroundColor: t.kind === 'dark' ? withOpacity(ATP_BRAND.lime, 0.12) : ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
+  toggleText: { fontFamily: Fonts.semiBold, fontSize: 13, color: t.textoSecundario },
+  toggleTextOn: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.textoSobreLima },
   chronicRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing.md, marginBottom: Spacing.md },
-  chronicText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary, flex: 1 },
+  chronicText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoSecundario, flex: 1 },
   modalSave: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: ATP_BRAND.lime, borderRadius: 14, paddingVertical: 14, marginTop: Spacing.sm,
   },
-  modalSaveText: { fontFamily: Fonts.extraBold, fontSize: 14, color: '#000' },
+  modalSaveText: { fontFamily: Fonts.extraBold, fontSize: 14, color: t.textoSobreLima },
 });

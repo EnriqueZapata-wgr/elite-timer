@@ -8,7 +8,7 @@
  * lo tiene incluido. El cobro real es server-side (argos-proxy); aquí sólo se
  * comunica el precio y se maneja el 402 (insufficient).
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { ActivityIndicator, Alert, DeviceEventEmitter, ImageBackground, ScrollView, StyleSheet, View } from 'react-native';
 import { router , type Href } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -37,7 +37,8 @@ import { ROOT_LABELS, type InterventionRoot } from '@/src/constants/intervention
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
 import { formatEdadDeltaValue } from '@/src/services/edad-atp/edad-delta-core';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 const LEVEL_LABELS: Record<number, string> = DX_LEVEL_LABELS;
@@ -57,6 +58,10 @@ const MISSING_ROUTES: Partial<Record<DxMissingKey, Href>> = {
 };
 
 function LevelBadge({ level }: { level: number }) {
+  // Interior de la card editorial: estilos anclados (no siguen el tema),
+  // pero el sheet es el mismo — se instancia aquí para poder usarlo.
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
   return (
     <View style={styles.levelBadge}>
       <EliteText style={styles.levelNum}>{level}</EliteText>
@@ -78,6 +83,9 @@ function LevelBadge({ level }: { level: number }) {
 }
 
 export default function DiagnosticoScreen() {
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const { isPro } = useSubscription();
   const [dx, setDx] = useState<FunctionalDxRow | null>(null);
@@ -194,7 +202,7 @@ export default function DiagnosticoScreen() {
 
   return (
     <MedicalDisclaimerGate>
-      <Screen edges={[]}>
+      <Screen edges={[]} themed>
         <ScreenHeader title="Mi Mapa Funcional" onBack={() => router.back()} />
 
         {loading ? (
@@ -368,7 +376,7 @@ export default function DiagnosticoScreen() {
             {/* ── CTA actualizar (regenera análisis + produce PDF entregable) ── */}
             <Animated.View entering={FadeIn.delay(300)}>
               <AnimatedPressable onPress={onUpdate} disabled={generating || sharing} style={[styles.cta, (generating || sharing) && { opacity: 0.6 }]}>
-                {generating && <ActivityIndicator size="small" color="#000" style={{ marginRight: 8 }} />}
+                {generating && <ActivityIndicator size="small" color={t.textoSobreLima} style={{ marginRight: 8 }} />}
                 <EliteText style={styles.ctaText}>{ctaLabel}</EliteText>
               </AnimatedPressable>
               {dx && (
@@ -397,7 +405,8 @@ export default function DiagnosticoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: Spacing.md, paddingBottom: 60, gap: Spacing.xs },
   protocolCta: {
@@ -406,18 +415,19 @@ const styles = StyleSheet.create({
     borderWidth: 0.5, borderColor: withOpacity(ATP_BRAND.lime, 0.3),
     borderRadius: Radius.md, padding: Spacing.md, marginTop: Spacing.md,
   },
-  protocolCtaTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: ATP_BRAND.lime },
-  protocolCtaSub: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary, marginTop: 2 },
-  protocolCtaArrow: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: ATP_BRAND.lime },
+  protocolCtaTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
+  protocolCtaSub: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue, marginTop: 2 },
+  protocolCtaArrow: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   levelBadge: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   levelNum: {
     fontFamily: Fonts.extraBold, fontSize: 40, color: ATP_BRAND.lime,
     width: 52, textAlign: 'center',
   },
+  // Interior editorial (sobre el velo oscuro): anclado, no tematizado.
   levelCaption: { fontFamily: Fonts.bold, fontSize: 9, color: TEXT.tertiary, letterSpacing: 1.5 },
   levelName: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md, color: TEXT.primary },
   levelDots: { flexDirection: 'row', gap: 4, marginLeft: 'auto' },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#333' },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: ELEVATION[2].border },
   dotOn: { backgroundColor: ATP_BRAND.lime },
   // #71: Card A editorial (imagen + overlay)
   heroCard: { borderRadius: Radius.lg, overflow: 'hidden', minHeight: 150, justifyContent: 'flex-end' },
@@ -426,71 +436,71 @@ const styles = StyleSheet.create({
   summary: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary, lineHeight: 20, marginTop: Spacing.sm },
   summaryEmpty: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.tertiary, lineHeight: 20, marginTop: Spacing.sm },
   hintCard: { marginTop: Spacing.sm },
-  hintLabel: { fontFamily: Fonts.bold, fontSize: 9, color: ATP_BRAND.lime, letterSpacing: 1.5 },
-  hintText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.primary, marginTop: 4, lineHeight: 19 },
+  hintLabel: { fontFamily: Fonts.bold, fontSize: 9, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, letterSpacing: 1.5 },
+  hintText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.texto, marginTop: 4, lineHeight: 19 },
   missingRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: Spacing.sm },
   missingChip: {
-    backgroundColor: ELEVATION[2].bg, borderRadius: Radius.xs,
+    backgroundColor: t.flotante, borderRadius: Radius.xs,
     paddingHorizontal: 8, paddingVertical: 4,
   },
-  missingChipText: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.secondary },
+  missingChipText: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoSecundario },
   missingChipCta: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.1), borderWidth: 1,
     borderColor: withOpacity(ATP_BRAND.lime, 0.25), borderRadius: Radius.xs,
     paddingHorizontal: 8, paddingVertical: 5,
   },
-  missingChipCtaText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
+  missingChipCtaText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   missingChipArrow: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: ATP_BRAND.lime, marginTop: -1 },
   rootRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card, borderWidth: 0.5, borderColor: t.borde,
     borderRadius: Radius.md, padding: Spacing.md, marginBottom: 6,
   },
   // Edad ATP métrica (B2.3)
   edadCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: withOpacity(ATP_BRAND.lime, 0.3),
+    backgroundColor: t.card, borderWidth: 0.5, borderColor: withOpacity(ATP_BRAND.lime, 0.3),
     borderRadius: Radius.md, padding: Spacing.md,
   },
-  edadNum: { fontFamily: Fonts.extraBold, fontSize: 24, color: ATP_BRAND.lime },
-  edadUnit: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.tertiary },
-  edadMeta: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.secondary, marginTop: 2 },
-  edadArrow: { fontFamily: Fonts.bold, fontSize: 20, color: ATP_BRAND.lime },
-  rootName: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.primary },
-  rootMeta: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary, marginTop: 2 },
+  edadNum: { fontFamily: Fonts.extraBold, fontSize: 24, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
+  edadUnit: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoTenue },
+  edadMeta: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoSecundario, marginTop: 2 },
+  edadArrow: { fontFamily: Fonts.bold, fontSize: 20, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
+  rootName: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.texto },
+  rootMeta: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue, marginTop: 2 },
   sevBar: { flexDirection: 'row', gap: 3 },
-  sevPip: { width: 6, height: 16, borderRadius: 2, backgroundColor: '#2a2a2a' },
+  sevPip: { width: 6, height: 16, borderRadius: 2, backgroundColor: t.bordeMarcado },
   sevPipOn: { backgroundColor: ATP_BRAND.lime },
   sourceChip: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.1), borderRadius: Radius.xs,
     paddingHorizontal: 8, paddingVertical: 4,
   },
-  sourceChipText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
+  sourceChipText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   // Sprint 2 B: contenedora ELEVATION[1] (patrón #67 — nada flota sobre el fondo).
   versionsCard: {
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card, borderWidth: 1, borderColor: t.borde,
     borderRadius: Radius.md, paddingVertical: 4, paddingHorizontal: Spacing.md,
   },
   versionRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     paddingVertical: 8,
   },
-  versionDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#333' },
+  versionDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: t.bordeMarcado },
   versionDotOn: { backgroundColor: ATP_BRAND.lime },
-  versionTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.primary },
-  versionMeta: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary, marginTop: 2 },
+  versionTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.texto },
+  versionMeta: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue, marginTop: 2 },
   cta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md,
     paddingVertical: 14, marginTop: Spacing.lg,
   },
-  ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: '#000' },
+  ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: t.textoSobreLima },
   ctaSecondary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'transparent', borderWidth: 1, borderColor: withOpacity(ATP_BRAND.lime, 0.4),
     borderRadius: Radius.md, paddingVertical: 12, marginTop: Spacing.sm,
   },
-  ctaSecondaryText: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: ATP_BRAND.lime, letterSpacing: 1 },
-  ctaHint: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary, textAlign: 'center', marginTop: 8 },
+  ctaSecondaryText: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, letterSpacing: 1 },
+  ctaHint: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue, textAlign: 'center', marginTop: 8 },
 });

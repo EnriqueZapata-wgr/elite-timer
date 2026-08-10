@@ -9,7 +9,7 @@
  * Las tres puertas nuevas usan este mismo componente. Su contenido sale de
  * salud-puertas.ts, que es donde se verifica que nada se quedó fuera.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +26,8 @@ import { visibleDestinos, type Destino } from '@/src/constants/salud-puertas';
 import { canAccessCycle } from '@/src/services/cycle/cycle-access-core';
 import { getCycleAppMode } from '@/src/services/app-mode-service';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { TEXT, ELEVATION } from '@/src/constants/brand';
+import { type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
 
 interface Props {
@@ -38,6 +39,9 @@ interface Props {
 export function PuertaScreen({ title, intro, destinos }: Props) {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B2: tokens del tema; la barra de estado sigue al tema (pieza 1.4).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [isFemale, setIsFemale] = useState(false);
 
   useEffect(() => {
@@ -61,8 +65,8 @@ export function PuertaScreen({ title, intro, destinos }: Props) {
   const rows = visibleDestinos(destinos, isFemale);
 
   return (
-    <Screen>
-      <StatusBar style="light" />
+    <Screen themed>
+      <StatusBar style={t.kind === 'dark' ? 'light' : 'dark'} />
       <PillarHeader pillar="health" title={title} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
@@ -82,7 +86,7 @@ export function PuertaScreen({ title, intro, destinos }: Props) {
                 <EliteText style={s.title}>{d.title}</EliteText>
                 <EliteText style={s.sub}>{d.subtitle}</EliteText>
               </View>
-              <Ionicons name="chevron-forward" size={16} color={TEXT.muted} />
+              <Ionicons name="chevron-forward" size={16} color={t.sinDatos} />
             </AnimatedPressable>
           </Animated.View>
         ))}
@@ -93,19 +97,20 @@ export function PuertaScreen({ title, intro, destinos }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.xs },
   intro: {
-    color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: FontSizes.sm,
+    color: t.textoSecundario, fontFamily: Fonts.regular, fontSize: FontSizes.sm,
     lineHeight: 20, marginBottom: Spacing.md,
   },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: ELEVATION[1].bg,
-    borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card,
+    borderWidth: 0.5, borderColor: t.borde,
     borderRadius: 14, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 8,
   },
   icon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  title: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
-  sub: { color: TEXT.tertiary, fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: 2 },
+  title: { color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  sub: { color: t.textoTenue, fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: 2 },
 });
