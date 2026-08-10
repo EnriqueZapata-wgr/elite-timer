@@ -101,6 +101,6 @@ const styles = StyleSheet.create({
   infoCard: { backgroundColor: 'rgba(168,224,42,0.08)', borderRadius: Radius.card, padding: Spacing.md, gap: 6 },
   infoTitle: { color: TEXT.primary, fontFamily: Fonts.bold },
   infoText: { color: Colors.textSecondary, fontSize: FontSizes.xs, lineHeight: 18 },
-  card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
   saveBtn: { marginTop: Spacing.sm },
 });

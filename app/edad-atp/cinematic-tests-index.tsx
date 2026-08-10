@@ -89,7 +89,7 @@ export default function CinematicTestsIndex() {
 const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm },
   intro: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20, marginBottom: Spacing.xs },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
   iconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   label: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
   subtitle: { color: Colors.textSecondary, fontSize: FontSizes.xs },

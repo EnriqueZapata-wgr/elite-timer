@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
   intro: { color: Colors.textSecondary, fontSize: FontSizes.xs },
   diff: { color: SEMANTIC.success, fontSize: FontSizes.xs, textAlign: 'right', marginTop: -4, marginBottom: 2 },
-  card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
   sumRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.xs },
   sumLabel: { color: Colors.textSecondary },
   sumValue: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },

@@ -342,7 +342,7 @@ export default function LabConfirmationScreen() {
 const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
   intro: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
-  dateCard: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
+  dateCard: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
   dateRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   dateLabel: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, marginBottom: 4 },
   dateInput: {
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   doneBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold },
   editBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: Radius.pill, borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)' },
   editBtnText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
-  derivedCard: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a', marginTop: Spacing.xs },
+  derivedCard: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, marginTop: Spacing.xs },
   derivedTitle: { color: Colors.textSecondary, fontFamily: Fonts.bold, fontSize: FontSizes.sm, marginBottom: Spacing.xs },
   derivedRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
   derivedLabel: { color: Colors.textSecondary },

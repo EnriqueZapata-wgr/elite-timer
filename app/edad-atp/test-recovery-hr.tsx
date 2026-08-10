@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   intro: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20 },
   helpLink: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
   helpLinkText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
-  card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a', marginTop: Spacing.sm },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, marginTop: Spacing.sm },
   delta: { color: ATP_BRAND.lime, fontSize: FontSizes.sm, textAlign: 'right', marginTop: Spacing.xs, fontFamily: Fonts.semiBold },
   saveBtn: { marginTop: Spacing.md },
   backBtn: { paddingVertical: Spacing.sm, alignItems: 'center' },

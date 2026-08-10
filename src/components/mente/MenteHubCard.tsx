@@ -94,7 +94,7 @@ const s = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   iconCircle: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: ELEVATION[2].bg,
     alignItems: 'center', justifyContent: 'center',
   },
   title: {

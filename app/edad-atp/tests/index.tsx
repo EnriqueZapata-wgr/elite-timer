@@ -72,7 +72,7 @@ export default function TestsHub() {
 
 const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
   emoji: { fontSize: 22 },
   title: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
   sub: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 2 },

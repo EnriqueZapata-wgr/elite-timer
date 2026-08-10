@@ -514,7 +514,7 @@ export default function FoodTextScreen() {
                       {/* Input de cantidad — más grande y visible */}
                       <View style={s.gramsInputRow}>
                         <TextInput
-                          style={s.gramsInput}
+                          style={[s.gramsInput, { backgroundColor: t.flotante, color: acento }]}
                           value={ing.grams > 0 ? ing.grams.toString() : ''}
                           onChangeText={(t) => updateGrams(ing.id, t)}
                           keyboardType="decimal-pad"
@@ -834,14 +834,13 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  // MB-31B remate: bg/acento por tema en el uso (lima como texto solo en oscuro).
   gramsInput: {
     width: 80,
     height: 50,
-    color: '#a8e02a',
     fontFamily: Fonts.bold,
     fontSize: 22,
     textAlign: 'center',
-    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     paddingHorizontal: 8,
   },

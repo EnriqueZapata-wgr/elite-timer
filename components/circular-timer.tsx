@@ -89,7 +89,8 @@ const styles = StyleSheet.create({
     height: SIZE,
     borderRadius: HALF_SIZE,
     borderWidth: STROKE_WIDTH,
-    borderColor: '#1A1A1A',
+    // La pista del timer es cardLight por MB-17 4.3 (nota en brand.ts).
+    borderColor: Colors.surfaceLight,
   },
   rightMask: {
     position: 'absolute',

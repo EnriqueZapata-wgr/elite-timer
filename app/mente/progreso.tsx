@@ -53,6 +53,8 @@ export default function MenteProgresoScreen() {
   const tenueTxt = { color: t.textoTenue };
   const sinDatosTxt = { color: t.sinDatos };
   const cardSurf = { backgroundColor: t.card, borderColor: t.borde };
+  // MB-31B remate: el círculo del icono era #1A1A1A a mano → flotante (card sobre card).
+  const circleSurf = { backgroundColor: t.flotante };
   const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
 
   useFocusEffect(useCallback(() => {
@@ -105,7 +107,7 @@ export default function MenteProgresoScreen() {
         {/* D-2 (MB-12): falló ≠ rachas en 0 — se dice la verdad */}
         {loadFailed && (
           <View style={[s.streakCard, cardSurf]}>
-            <View style={s.streakLeft}>
+            <View style={[s.streakLeft, circleSurf]}>
               <Ionicons name="cloud-offline-outline" size={20} color={t.textoTenue} />
             </View>
             <View style={{ flex: 1 }}>
@@ -124,7 +126,7 @@ export default function MenteProgresoScreen() {
           return (
             <Animated.View key={cat} entering={FadeInUp.delay(50 + idx * 60).springify()}>
               <View style={[s.streakCard, cardSurf]}>
-                <View style={s.streakLeft}>
+                <View style={[s.streakLeft, circleSurf]}>
                   {/* P6: nombre lógico del registro, no un Ionicon a mano —
                       leaf-outline significaba Grounding, no Respiración. */}
                   <AppIcon name={copy.icon} size={20} color={streak > 0 ? ATP_BRAND.lime : t.textoTenue} />
@@ -213,7 +215,7 @@ const s = StyleSheet.create({
     padding: Spacing.md, marginBottom: Spacing.sm,
   },
   streakLeft: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#1A1A1A',
+    width: 40, height: 40, borderRadius: 20,
     alignItems: 'center', justifyContent: 'center',
   },
   streakLabel: {

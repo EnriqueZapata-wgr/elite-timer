@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md,
-    borderWidth: 1, borderColor: '#1a1a1a',
+    borderWidth: 1, borderColor: Colors.border,
   },
   rowDone: { borderColor: 'rgba(168,224,42,0.35)' },
   emoji: { fontSize: 22 },
