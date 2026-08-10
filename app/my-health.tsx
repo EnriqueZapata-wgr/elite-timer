@@ -1,7 +1,7 @@
 /**
  * Mi Salud — Cliente sube estudios de laboratorio y ve resultados.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter , type Href } from 'expo-router';
@@ -37,7 +37,8 @@ import { needsCompression } from '@/src/services/lab-compressor';
 import { warn as logWarn } from '@/src/lib/logger';
 import { useLabProcessing } from '@/src/hooks/useLabProcessing';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity, TEXT_COLORS } from '@/src/constants/brand';
+import { CATEGORY_COLORS, SEMANTIC, withOpacity, TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Screen } from '@/src/components/ui/Screen';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
@@ -50,6 +51,11 @@ function MyHealthScreen() {
   const analytics = useAnalytics();
   const labProcessing = useLabProcessing();
   const userId = user?.id ?? '';
+  // MB-31B2: tokens del tema. El teal de sección como LETRA solo vale en
+  // oscuro; sobre acero usa el teal calibrado (manual 3.6, regla 2).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
+  const tealTxt = t.kind === 'dark' ? TEAL : t.tealTexto;
 
   /** Confirm con Promise<boolean> para el soft-warn de PDFs largos (Capa 1). */
   const confirmDialog = (title: string, message: string): Promise<boolean> =>
@@ -323,7 +329,7 @@ function MyHealthScreen() {
   const recs = getRecommendations(healthMeasure, labs);
 
   return (
-    <Screen>
+    <Screen themed>
       <PillarHeader pillar="metrics" title="Mi Salud" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
@@ -340,25 +346,25 @@ function MyHealthScreen() {
         <GradientCard color={TEAL} style={s.uploadCard}>
           <View style={s.uploadBody}>
             <Ionicons name="cloud-upload-outline" size={32} color={TEAL} />
-            <EliteText variant="body" style={{ color: TEAL, fontFamily: Fonts.bold, marginTop: Spacing.sm }}>
+            <EliteText variant="body" style={{ color: tealTxt, fontFamily: Fonts.bold, marginTop: Spacing.sm }}>
               Sube tu estudio de laboratorio
             </EliteText>
-            <EliteText variant="caption" style={{ color: Colors.textSecondary, marginTop: 4, textAlign: 'center' }}>
+            <EliteText variant="caption" style={{ color: t.textoSecundario, marginTop: 4, textAlign: 'center' }}>
               Toma foto o sube PDF: la IA extrae los valores automáticamente
             </EliteText>
 
             <View style={s.uploadBtns}>
               <Pressable onPress={() => openTypePicker('camera')} style={s.uploadBtn} disabled={uploading || processing}>
                 <Ionicons name="camera-outline" size={18} color={TEAL} />
-                <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.semiBold }}>Cámara</EliteText>
+                <EliteText variant="caption" style={{ color: tealTxt, fontFamily: Fonts.semiBold }}>Cámara</EliteText>
               </Pressable>
               <Pressable onPress={() => openTypePicker('gallery')} style={s.uploadBtn} disabled={uploading || processing}>
                 <Ionicons name="images-outline" size={18} color={TEAL} />
-                <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.semiBold }}>Galería</EliteText>
+                <EliteText variant="caption" style={{ color: tealTxt, fontFamily: Fonts.semiBold }}>Galería</EliteText>
               </Pressable>
               <Pressable onPress={() => openTypePicker('pdf')} style={s.uploadBtn} disabled={uploading || processing}>
                 <Ionicons name="document-outline" size={18} color={TEAL} />
-                <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.semiBold }}>PDF</EliteText>
+                <EliteText variant="caption" style={{ color: tealTxt, fontFamily: Fonts.semiBold }}>PDF</EliteText>
               </Pressable>
             </View>
           </View>
@@ -372,24 +378,24 @@ function MyHealthScreen() {
           onPress={() => { haptic.light(); router.push({ pathname: '/edad-atp/biomarkers', params: { update: '1' } }); }}
           style={s.manualRow}
         >
-          <Ionicons name="create-outline" size={16} color={Colors.textSecondary} />
+          <Ionicons name="create-outline" size={16} color={t.textoSecundario} />
           <EliteText variant="caption" style={s.manualRowText}>
             ¿Prefieres teclear los valores? Captura manual
           </EliteText>
-          <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
+          <Ionicons name="chevron-forward" size={14} color={t.textoTenue} />
         </AnimatedPressable>
 
         {/* Status */}
         {uploading && (
           <View style={s.statusBox}>
             <ActivityIndicator color={TEAL} />
-            <EliteText variant="caption" style={{ color: TEAL }}>Subiendo archivo...</EliteText>
+            <EliteText variant="caption" style={{ color: tealTxt }}>Subiendo archivo...</EliteText>
           </View>
         )}
         {processing && (
           <View style={s.statusBox}>
             <ActivityIndicator color={TEAL} />
-            <EliteText variant="caption" style={{ color: TEAL }}>
+            <EliteText variant="caption" style={{ color: tealTxt }}>
               {multiProgress
                 ? `Analizando ${multiProgress.done + 1} de ${multiProgress.total} con IA...`
                 : 'Analizando con IA...'}
@@ -400,13 +406,14 @@ function MyHealthScreen() {
           <View style={[s.statusBox, { borderColor: Colors.neonGreen + '30', alignItems: 'flex-start' }]}>
             <Ionicons name="checkmark-circle" size={20} color={Colors.neonGreen} />
             <View style={{ flex: 1 }}>
-              <EliteText variant="caption" style={{ color: Colors.neonGreen }}>
+              {/* Regla 1 del claro: el lima jamás es letra — el icono ya trae el color. */}
+              <EliteText variant="caption" style={{ color: t.kind === 'dark' ? Colors.neonGreen : t.texto }}>
                 {result.files && result.files > 1
                   ? `¡${result.files} estudios analizados! ${result.count} valores extraídos en total. Tu Edad ATP se actualizó.`
                   : `¡Estudio analizado! ${result.count} valores extraídos. Tu Edad ATP se actualizó.`}
               </EliteText>
               {!!result.rejected && result.rejected > 0 && (
-                <EliteText variant="caption" style={{ color: SEMANTIC.warning, marginTop: 6 }}>
+                <EliteText variant="caption" style={{ color: t.kind === 'dark' ? SEMANTIC.warning : t.textoSecundario, marginTop: 6 }}>
                   ⚠️ {result.rejected} {result.rejected === 1 ? 'valor no pasó' : 'valores no pasaron'} la validación clínica y {result.rejected === 1 ? 'queda' : 'quedan'} como {result.rejected === 1 ? 'pendiente' : 'pendientes'}. Puedes ingresarlos a mano tocando cada biomarcador.
                 </EliteText>
               )}
@@ -414,14 +421,14 @@ function MyHealthScreen() {
           </View>
         )}
         {result && 'error' in result && (
-          <View style={[s.statusBox, { borderColor: SEMANTIC.error + '30', alignItems: 'flex-start' }]}>
-            <Ionicons name="alert-circle" size={20} color={SEMANTIC.error} />
+          <View style={[s.statusBox, { borderColor: t.error + '30', alignItems: 'flex-start' }]}>
+            <Ionicons name="alert-circle" size={20} color={t.error} />
             <View style={{ flex: 1 }}>
-              <EliteText variant="caption" style={{ color: SEMANTIC.error }}>{result.error}</EliteText>
+              <EliteText variant="caption" style={{ color: t.error }}>{result.error}</EliteText>
               {result.retriable && result.uploadId && (
                 <Pressable onPress={() => retryExtraction(result.uploadId!)} disabled={processing} style={s.retryBtn}>
                   <Ionicons name="refresh" size={14} color={TEAL} />
-                  <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.semiBold }}>Reintentar</EliteText>
+                  <EliteText variant="caption" style={{ color: tealTxt, fontFamily: Fonts.semiBold }}>Reintentar</EliteText>
                 </Pressable>
               )}
             </View>
@@ -430,7 +437,7 @@ function MyHealthScreen() {
         {result && 'context' in result && (
           <View style={[s.statusBox, { borderColor: TEAL + '30' }]}>
             <Ionicons name="document-attach-outline" size={20} color={TEAL} />
-            <EliteText variant="caption" style={{ color: TEAL }}>{result.context}</EliteText>
+            <EliteText variant="caption" style={{ color: tealTxt }}>{result.context}</EliteText>
           </View>
         )}
 
@@ -442,11 +449,12 @@ function MyHealthScreen() {
               <AnimatedPressable key={rec.title} onPress={() => { haptic.light(); router.push(rec.route); }} style={s.recCard}>
                 <Ionicons name={rec.icon as any} size={20} color={impactColor(rec.impact)} />
                 <View style={{ flex: 1 }}>
-                  <EliteText variant="body" style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>{rec.title}</EliteText>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>{rec.desc}</EliteText>
+                  <EliteText variant="body" style={{ color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>{rec.title}</EliteText>
+                  <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: FontSizes.xs }}>{rec.desc}</EliteText>
                 </View>
-                <View style={{ backgroundColor: withOpacity(impactColor(rec.impact), 0.12), paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm }}>
-                  <EliteText variant="caption" style={{ color: impactColor(rec.impact), fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>{rec.impact.toUpperCase()}</EliteText>
+                {/* Manual 3.9: en claro el estado es RELLENO con negro encima. */}
+                <View style={{ backgroundColor: t.kind === 'dark' ? withOpacity(impactColor(rec.impact), 0.12) : impactColor(rec.impact), paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm }}>
+                  <EliteText variant="caption" style={{ color: t.kind === 'dark' ? impactColor(rec.impact) : TEXT_COLORS.onAccent, fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>{rec.impact.toUpperCase()}</EliteText>
                 </View>
               </AnimatedPressable>
             ))}
@@ -456,12 +464,12 @@ function MyHealthScreen() {
         {/* Uploads fallidos */}
         {uploads.filter(u => u.status === 'failed' || u.status === 'processing').length > 0 && (
           <>
-            <SectionTitle style={[s.sectionLabelSpacing, { color: SEMANTIC.error }]}>UPLOADS CON ERROR</SectionTitle>
+            <SectionTitle style={[s.sectionLabelSpacing, { color: t.error }]}>UPLOADS CON ERROR</SectionTitle>
             {uploads.filter(u => u.status === 'failed' || u.status === 'processing').map(u => (
-              <View key={u.id} style={[s.labCard, { borderColor: SEMANTIC.error + '20' }]}>
+              <View key={u.id} style={[s.labCard, { borderColor: t.error + '20' }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-                  <Ionicons name="alert-circle" size={16} color={SEMANTIC.error} />
-                  <EliteText variant="caption" style={{ color: Colors.textSecondary, flex: 1, fontSize: FontSizes.sm }}>
+                  <Ionicons name="alert-circle" size={16} color={t.error} />
+                  <EliteText variant="caption" style={{ color: t.textoSecundario, flex: 1, fontSize: FontSizes.sm }}>
                     {u.file_name ?? 'Archivo'} · {u.status === 'failed' ? 'Fallido' : 'Procesando'}
                   </EliteText>
                   {u.status === 'failed' && (
@@ -491,11 +499,11 @@ function MyHealthScreen() {
                     }}
                     style={{ padding: 6 }}
                   >
-                    <Ionicons name="trash-outline" size={18} color={SEMANTIC.error} />
+                    <Ionicons name="trash-outline" size={18} color={t.error} />
                   </Pressable>
                 </View>
                 {u.error_message && (
-                  <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: FontSizes.xs, marginTop: 4 }}>
+                  <EliteText variant="caption" style={{ color: t.error, fontSize: FontSizes.xs, marginTop: 4 }}>
                     {userErrorMessage(u.error_message, 'No se pudo procesar este archivo. Reintenta.')}
                   </EliteText>
                 )}
@@ -514,7 +522,7 @@ function MyHealthScreen() {
           <Animated.View entering={FadeInUp.delay(250).springify()}>
             <SectionTitle style={s.sectionLabelSpacing}>MIS LABS</SectionTitle>
             {labs.length === 0 ? (
-              <EliteText variant="caption" style={{ color: Colors.textMuted, textAlign: 'center', padding: Spacing.lg }}>
+              <EliteText variant="caption" style={{ color: t.textoTenue, textAlign: 'center', padding: Spacing.lg }}>
                 Sin labs registrados
               </EliteText>
             ) : (
@@ -531,30 +539,27 @@ function MyHealthScreen() {
                       {displayName}
                     </EliteText>
                     {isManual ? (
-                      <View style={[s.badge, { backgroundColor: CATEGORY_COLORS.nutrition + '15' }]}>
-                        <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>
+                      /* Manual 3.9: en claro el badge es relleno con negro encima. */
+                      <View style={[s.badge, { backgroundColor: t.kind === 'dark' ? CATEGORY_COLORS.nutrition + '15' : CATEGORY_COLORS.nutrition }]}>
+                        <EliteText variant="caption" style={{ color: t.kind === 'dark' ? CATEGORY_COLORS.nutrition : TEXT_COLORS.onAccent, fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>
                           Captura manual
                         </EliteText>
                       </View>
-                    ) : (
-                      <View style={[s.badge, {
-                        backgroundColor: lab.status === 'approved' ? Colors.neonGreen + '15'
-                          : lab.status === 'draft' ? TEAL + '15'
-                          : SEMANTIC.warning + '15'
-                      }]}>
-                        <EliteText variant="caption" style={{
-                          color: lab.status === 'approved' ? Colors.neonGreen
-                            : lab.status === 'draft' ? TEAL
-                            : SEMANTIC.warning,
-                          fontSize: FontSizes.xs, fontFamily: Fonts.bold
-                        }}>
-                          {lab.status === 'approved' ? 'Aprobado' : lab.status === 'draft' ? 'Extraído' : 'En revisión'}
-                        </EliteText>
-                      </View>
-                    )}
+                    ) : (() => {
+                      const stColor = lab.status === 'approved' ? Colors.neonGreen
+                        : lab.status === 'draft' ? TEAL
+                        : SEMANTIC.warning;
+                      return (
+                        <View style={[s.badge, { backgroundColor: t.kind === 'dark' ? stColor + '15' : stColor }]}>
+                          <EliteText variant="caption" style={{ color: t.kind === 'dark' ? stColor : TEXT_COLORS.onAccent, fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>
+                            {lab.status === 'approved' ? 'Aprobado' : lab.status === 'draft' ? 'Extraído' : 'En revisión'}
+                          </EliteText>
+                        </View>
+                      );
+                    })()}
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-                    <EliteText variant="caption" style={{ color: Colors.textSecondary }}>
+                    <EliteText variant="caption" style={{ color: t.textoSecundario }}>
                       {new Date(lab.lab_date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </EliteText>
                     {lab.status !== 'approved' && (
@@ -569,7 +574,7 @@ function MyHealthScreen() {
                         }}
                         style={{ padding: 4 }}
                       >
-                        <Ionicons name="trash-outline" size={16} color={SEMANTIC.error} />
+                        <Ionicons name="trash-outline" size={16} color={t.error} />
                       </Pressable>
                     )}
                   </View>
@@ -594,18 +599,18 @@ function MyHealthScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
                     <EliteText style={{ fontSize: FontSizes.xxl }}>{st.emoji}</EliteText>
                     <View style={{ flex: 1 }}>
-                      <EliteText variant="body" style={{ color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>{study.study_name}</EliteText>
-                      <EliteText variant="caption" style={{ color: Colors.textSecondary, fontSize: FontSizes.sm }}>
+                      <EliteText variant="body" style={{ color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>{study.study_name}</EliteText>
+                      <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: FontSizes.sm }}>
                         {parseLocalDate(study.study_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </EliteText>
                     </View>
-                    <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.textSecondary} />
+                    <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={t.textoSecundario} />
                   </View>
                   {findings.length > 0 && (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: Spacing.sm }}>
                       {findings.map((f, i) => (
                         <View key={i} style={{ backgroundColor: TEAL + '15', paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.card }}>
-                          <EliteText variant="caption" style={{ color: TEAL, fontSize: FontSizes.xs }}>{f}</EliteText>
+                          <EliteText variant="caption" style={{ color: tealTxt, fontSize: FontSizes.xs }}>{f}</EliteText>
                         </View>
                       ))}
                     </View>
@@ -614,17 +619,17 @@ function MyHealthScreen() {
                     <View style={{ marginTop: Spacing.md }}>
                       {isReviewed && study.patient_summary ? (
                         <View style={s.studySummary}>
-                          <EliteText variant="caption" style={{ color: TEAL, fontSize: FontSizes.xs, fontFamily: Fonts.bold, marginBottom: 4 }}>
+                          <EliteText variant="caption" style={{ color: tealTxt, fontSize: FontSizes.xs, fontFamily: Fonts.bold, marginBottom: 4 }}>
                             ¿Qué significa tu estudio?
                           </EliteText>
-                          <EliteText variant="caption" style={{ color: Colors.textPrimary, fontSize: FontSizes.md, lineHeight: 20 }}>
+                          <EliteText variant="caption" style={{ color: t.texto, fontSize: FontSizes.md, lineHeight: 20 }}>
                             {study.patient_summary}
                           </EliteText>
                         </View>
                       ) : (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.sm }}>
-                          <Ionicons name="time-outline" size={16} color={Colors.textSecondary} />
-                          <EliteText variant="caption" style={{ color: Colors.textSecondary }}>
+                          <Ionicons name="time-outline" size={16} color={t.textoSecundario} />
+                          <EliteText variant="caption" style={{ color: t.textoSecundario }}>
                             Tu coach está revisando tu estudio
                           </EliteText>
                         </View>
@@ -649,8 +654,9 @@ function MyHealthScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.black },
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: t.fondo },
   content: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
   uploadCard: { marginBottom: Spacing.md },
   uploadBody: { alignItems: 'center', padding: Spacing.lg },
@@ -664,9 +670,9 @@ const s = StyleSheet.create({
   manualRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, marginBottom: Spacing.md,
-    borderRadius: Radius.card, borderWidth: 1, borderColor: '#1F1F1F',
+    borderRadius: Radius.card, borderWidth: 1, borderColor: t.borde,
   },
-  manualRowText: { color: Colors.textSecondary, flex: 1 },
+  manualRowText: { color: t.textoSecundario, flex: 1 },
   statusBox: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: TEAL + '08', borderWidth: 1, borderColor: TEAL + '20',
@@ -679,18 +685,18 @@ const s = StyleSheet.create({
   },
   sectionLabelSpacing: { marginTop: Spacing.lg },
   labCard: {
-    backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.sm,
+    backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.sm,
   },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill },
 
   // Scores
   recCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    backgroundColor: SURFACES.card, borderRadius: Radius.card, padding: Spacing.md,
+    backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md,
     marginBottom: Spacing.sm,
   },
   studyCard: {
-    backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.sm,
+    backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.sm,
     borderLeftWidth: 3, borderLeftColor: TEAL,
   },
   studySummary: {

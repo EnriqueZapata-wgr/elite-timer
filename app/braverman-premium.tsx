@@ -4,7 +4,7 @@
  * gatea por tier. Cache por resultado = compra permanente (releer gratis).
  * Precio y balance siempre visibles antes del tap (consentimiento explícito).
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, DeviceEventEmitter, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
@@ -25,7 +25,8 @@ import {
 } from '@/src/services/braverman-premium-service';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 const LOADING_PHRASES = [
@@ -38,6 +39,11 @@ const LOADING_PHRASES = [
 
 export default function BravermanPremiumScreen() {
   const { user } = useAuth();
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero). Regla 1: el
+  // lima como letra (precio, links, headings del reporte) pasa a teal calibrado.
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
+  const acento = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const analytics = useAnalytics();
   const [state, setState] = useState<'idle' | 'offer' | 'loading' | 'done' | 'error' | 'no_test'>('idle');
   const [quote, setQuote] = useState<PremiumQuote | null>(null);
@@ -104,7 +110,7 @@ export default function BravermanPremiumScreen() {
   // B-5 (MB-12): markdown de LLM sin disclaimer → gate obligatorio.
   return (
     <MedicalDisclaimerGate>
-    <Screen edges={[]}>
+    <Screen edges={[]} themed>
       <ScreenHeader title="Reporte Premium" onBack={() => router.back()} />
 
       {/* #143: card previa — precio + balance visibles ANTES de generar */}
@@ -201,17 +207,17 @@ export default function BravermanPremiumScreen() {
             </View>
             <Markdown
               style={{
-                body: { color: '#e2e2e2', fontSize: 14, lineHeight: 22 },
-                heading2: { color: ATP_BRAND.lime, fontSize: 18, fontWeight: '800', marginTop: 20, marginBottom: 8 },
-                heading3: { color: ATP_BRAND.lime, fontSize: 15, fontWeight: '700', marginTop: 12, marginBottom: 4 },
-                strong: { color: '#fff', fontWeight: '700' },
+                body: { color: t.texto, fontSize: 14, lineHeight: 22 },
+                heading2: { color: acento, fontSize: 18, fontWeight: '800', marginTop: 20, marginBottom: 8 },
+                heading3: { color: acento, fontSize: 15, fontWeight: '700', marginTop: 12, marginBottom: 4 },
+                strong: { color: t.texto, fontWeight: '700' },
                 bullet_list: { marginLeft: 8 },
-                list_item: { color: '#e2e2e2', marginBottom: 5 },
-                hr: { backgroundColor: '#333', height: 0.5, marginVertical: 14 },
-                em: { color: '#ccc', fontStyle: 'italic' },
-                paragraph: { color: '#e2e2e2', fontSize: 14, lineHeight: 22, marginBottom: 10 },
+                list_item: { color: t.texto, marginBottom: 5 },
+                hr: { backgroundColor: t.bordeMarcado, height: 0.5, marginVertical: 14 },
+                em: { color: t.textoSecundario, fontStyle: 'italic' },
+                paragraph: { color: t.texto, fontSize: 14, lineHeight: 22, marginBottom: 10 },
                 blockquote: {
-                  backgroundColor: '#111',
+                  backgroundColor: t.hundido,
                   borderLeftColor: ATP_BRAND.lime,
                   borderLeftWidth: 3,
                   borderRadius: 8,
@@ -219,9 +225,9 @@ export default function BravermanPremiumScreen() {
                   paddingVertical: 8,
                   marginVertical: 8,
                 },
-                code_inline: { backgroundColor: '#1a1a1a', color: '#e2e2e2', borderWidth: 0, fontSize: 13 },
-                code_block: { backgroundColor: '#111', color: '#e2e2e2', borderColor: '#1f1f1f', borderWidth: 0.5, borderRadius: 8, padding: 12 },
-                fence: { backgroundColor: '#111', color: '#e2e2e2', borderColor: '#1f1f1f', borderWidth: 0.5, borderRadius: 8, padding: 12 },
+                code_inline: { backgroundColor: t.hundido, color: t.texto, borderWidth: 0, fontSize: 13 },
+                code_block: { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde, borderWidth: 0.5, borderRadius: 8, padding: 12 },
+                fence: { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde, borderWidth: 0.5, borderRadius: 8, padding: 12 },
               }}
             >
               {markdown}
@@ -234,22 +240,23 @@ export default function BravermanPremiumScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   lockContainer: { flex: 1, justifyContent: 'center', padding: Spacing.md },
   lockCard: {
     alignItems: 'center',
-    backgroundColor: ELEVATION[1].bg,
+    backgroundColor: t.card,
     borderColor: withOpacity(ATP_BRAND.lime, 0.3),
     borderWidth: 1,
     borderRadius: Radius.lg,
     padding: Spacing.xl,
     gap: Spacing.sm,
   },
-  lockTitle: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, color: TEXT.primary },
+  lockTitle: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, color: t.texto },
   lockBody: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
-    color: TEXT.secondary,
+    color: t.textoSecundario,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -260,11 +267,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     marginTop: Spacing.sm,
   },
-  lockCtaPrimaryText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: '#000' },
+  lockCtaPrimaryText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: t.textoSobreLima },
   lockHint: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
-    color: TEXT.tertiary,
+    color: t.textoTenue,
     textAlign: 'center',
     marginTop: Spacing.xs,
   },
@@ -278,19 +285,19 @@ const styles = StyleSheet.create({
   loadingText: {
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.md,
-    color: TEXT.primary,
+    color: t.texto,
     textAlign: 'center',
   },
-  loadingHint: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary },
+  loadingHint: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue },
   priceRow: {
     alignItems: 'center',
     gap: 2,
     marginTop: Spacing.xs,
   },
-  priceText: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, color: ATP_BRAND.lime },
-  balanceText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary },
+  priceText: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
+  balanceText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoSecundario },
   shopLink: { paddingVertical: 6 },
-  shopLinkText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: ATP_BRAND.lime },
+  shopLinkText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -298,7 +305,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   ownedBadge: {
-    backgroundColor: ELEVATION[2].bg,
+    backgroundColor: t.flotante,
     borderRadius: Radius.xs,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
@@ -306,7 +313,7 @@ const styles = StyleSheet.create({
   ownedBadgeText: {
     fontFamily: Fonts.semiBold,
     fontSize: 10,
-    color: TEXT.secondary,
+    color: t.textoSecundario,
     letterSpacing: 0.5,
   },
   reportContent: { padding: Spacing.md, paddingBottom: 60 },
@@ -319,7 +326,7 @@ const styles = StyleSheet.create({
   reportBadgeText: {
     fontFamily: Fonts.bold,
     fontSize: 10,
-    color: ATP_BRAND.lime,
+    color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto,
     letterSpacing: 1.5,
   },
 });

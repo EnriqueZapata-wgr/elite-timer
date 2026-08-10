@@ -5,7 +5,7 @@
  * releer gratis. Precio y balance visibles antes del tap (consentimiento).
  * Patrón visual de app/braverman-premium.tsx.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { ActivityIndicator, Alert, DeviceEventEmitter, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
@@ -26,7 +26,8 @@ import {
 } from '@/src/services/interventions/intervention-rationale-service';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 const LOADING_PHRASES = [
@@ -37,6 +38,9 @@ const LOADING_PHRASES = [
 ];
 
 export default function InterventionRationaleScreen() {
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [state, setState] = useState<'idle' | 'offer' | 'loading' | 'done' | 'error' | 'no_dx' | 'no_protocol'>('idle');
@@ -107,7 +111,7 @@ export default function InterventionRationaleScreen() {
   // B-5 (MB-12): markdown de LLM sin disclaimer → gate obligatorio.
   return (
     <MedicalDisclaimerGate>
-    <Screen edges={[]}>
+    <Screen edges={[]} themed>
       <ScreenHeader title="¿Por qué esto?" onBack={() => router.back()} />
 
       {state === 'offer' && quote && (
@@ -224,17 +228,17 @@ export default function InterventionRationaleScreen() {
             </View>
             <Markdown
               style={{
-                body: { color: '#e2e2e2', fontSize: 14, lineHeight: 22 },
-                heading2: { color: ATP_BRAND.lime, fontSize: 18, fontWeight: '800', marginTop: 20, marginBottom: 8 },
-                heading3: { color: ATP_BRAND.lime, fontSize: 15, fontWeight: '700', marginTop: 12, marginBottom: 4 },
-                strong: { color: '#fff', fontWeight: '700' },
+                body: { color: t.texto, fontSize: 14, lineHeight: 22 },
+                heading2: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, fontSize: 18, fontWeight: '800', marginTop: 20, marginBottom: 8 },
+                heading3: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, fontSize: 15, fontWeight: '700', marginTop: 12, marginBottom: 4 },
+                strong: { color: t.texto, fontWeight: '700' },
                 bullet_list: { marginLeft: 8 },
-                list_item: { color: '#e2e2e2', marginBottom: 5 },
-                hr: { backgroundColor: '#333', height: 0.5, marginVertical: 14 },
-                em: { color: '#ccc', fontStyle: 'italic' },
-                paragraph: { color: '#e2e2e2', fontSize: 14, lineHeight: 22, marginBottom: 10 },
+                list_item: { color: t.texto, marginBottom: 5 },
+                hr: { backgroundColor: t.bordeMarcado, height: 0.5, marginVertical: 14 },
+                em: { color: t.textoSecundario, fontStyle: 'italic' },
+                paragraph: { color: t.texto, fontSize: 14, lineHeight: 22, marginBottom: 10 },
                 blockquote: {
-                  backgroundColor: '#111',
+                  backgroundColor: t.hundido,
                   borderLeftColor: ATP_BRAND.lime,
                   borderLeftWidth: 3,
                   borderRadius: 8,
@@ -258,22 +262,23 @@ export default function InterventionRationaleScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   lockContainer: { flex: 1, justifyContent: 'center', padding: Spacing.md },
   lockCard: {
     alignItems: 'center',
-    backgroundColor: ELEVATION[1].bg,
+    backgroundColor: t.card,
     borderColor: withOpacity(ATP_BRAND.lime, 0.3),
     borderWidth: 1,
     borderRadius: Radius.lg,
     padding: Spacing.xl,
     gap: Spacing.sm,
   },
-  lockTitle: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xl, color: TEXT.primary, textAlign: 'center' },
+  lockTitle: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xl, color: t.texto, textAlign: 'center' },
   lockBody: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
-    color: TEXT.secondary,
+    color: t.textoSecundario,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -284,11 +289,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     marginTop: Spacing.sm,
   },
-  lockCtaPrimaryText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: '#000' },
+  lockCtaPrimaryText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: t.textoSobreLima },
   lockHint: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
-    color: TEXT.tertiary,
+    color: t.textoTenue,
     textAlign: 'center',
     marginTop: Spacing.xs,
   },
@@ -302,23 +307,23 @@ const styles = StyleSheet.create({
   loadingText: {
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.md,
-    color: TEXT.primary,
+    color: t.texto,
     textAlign: 'center',
   },
-  loadingHint: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary },
+  loadingHint: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue },
   priceRow: { alignItems: 'center', gap: 2, marginTop: Spacing.xs },
-  priceText: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, color: ATP_BRAND.lime },
-  balanceText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary },
+  priceText: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
+  balanceText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoSecundario },
   shopLink: { paddingVertical: 6 },
-  shopLinkText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: ATP_BRAND.lime },
+  shopLinkText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.sm },
   ownedBadge: {
-    backgroundColor: ELEVATION[2].bg,
+    backgroundColor: t.flotante,
     borderRadius: Radius.xs,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
   },
-  ownedBadgeText: { fontFamily: Fonts.semiBold, fontSize: 10, color: TEXT.secondary, letterSpacing: 0.5 },
+  ownedBadgeText: { fontFamily: Fonts.semiBold, fontSize: 10, color: t.textoSecundario, letterSpacing: 0.5 },
   reportContent: { padding: Spacing.md, paddingBottom: 60 },
   reportBadge: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.12),
@@ -326,11 +331,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
   },
-  reportBadgeText: { fontFamily: Fonts.bold, fontSize: 10, color: ATP_BRAND.lime, letterSpacing: 1.5 },
+  reportBadgeText: { fontFamily: Fonts.bold, fontSize: 10, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, letterSpacing: 1.5 },
   disclaimer: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
-    color: TEXT.muted,
+    color: t.sinDatos,
     textAlign: 'center',
     marginTop: Spacing.lg,
     lineHeight: 16,

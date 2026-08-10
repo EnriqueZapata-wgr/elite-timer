@@ -12,7 +12,7 @@
  * vista/navegación consolidada · cero riesgo de pérdida de datos. La captura
  * sigue escribiendo la MISMA tabla canónica que antes.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { ScrollView, StyleSheet, View, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -32,7 +32,8 @@ import {
   type MisDatosSummary,
 } from '@/src/services/salud/mis-datos-core';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
-import { ELEVATION, TEXT, TEXT_COLORS, ATP_BRAND, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { ELEVATION, TEXT, TEXT_COLORS, ATP_BRAND, SEMANTIC, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
 // Batch 3 (#10): imagen editorial del hero (require estático · Metro).
@@ -43,6 +44,9 @@ const LEVEL_COLOR: Record<'ok' | 'warn' | 'high', string> = {
 };
 
 function MisDatosScreen() {
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const router = useRouter();
   const { user } = useAuth();
   const [sum, setSum] = useState<MisDatosSummary>(EMPTY_SUMMARY);
@@ -84,7 +88,7 @@ function MisDatosScreen() {
   const kStatus = ketosisStatus(sum.ketonesMmol);
 
   return (
-    <Screen>
+    <Screen themed>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         <PillarHeader pillar="health" title="Mis Datos" />
 
@@ -113,7 +117,7 @@ function MisDatosScreen() {
             style={s.uploadCta}
           >
             <View style={s.uploadCtaIcon}>
-              <Ionicons name="camera-outline" size={22} color="#000" />
+              <Ionicons name="camera-outline" size={22} color={t.textoSobreLima} />
             </View>
             <View style={{ flex: 1 }}>
               <EliteText style={s.uploadCtaTitle}>Sube tus labs</EliteText>
@@ -180,6 +184,8 @@ function Section({ idx, icon, color, title, value, meta, metaColor, onPress, onC
   idx: number; icon: string; color: string; title: string; value: string;
   meta: string; metaColor?: string; onPress: () => void; onCapture?: () => void;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   return (
     <Animated.View entering={FadeInUp.delay(80 + idx * 45).springify()}>
       <AnimatedPressable onPress={onPress} style={s.card}>
@@ -189,21 +195,23 @@ function Section({ idx, icon, color, title, value, meta, metaColor, onPress, onC
         <View style={{ flex: 1 }}>
           <EliteText style={s.cardTitle}>{title}</EliteText>
           <EliteText style={s.cardValue}>{value}</EliteText>
-          <EliteText style={[s.cardMeta, metaColor ? { color: metaColor } : null]}>{meta}</EliteText>
+          {/* El semáforo como letra solo en oscuro; en claro el estado va en texto. */}
+          <EliteText style={[s.cardMeta, metaColor && t.kind === 'dark' ? { color: metaColor } : null]}>{meta}</EliteText>
         </View>
         {onCapture ? (
           <AnimatedPressable onPress={onCapture} style={s.captureBtn} hitSlop={6}>
-            <Ionicons name="add" size={18} color="#000" />
+            <Ionicons name="add" size={18} color={t.textoSobreLima} />
           </AnimatedPressable>
         ) : (
-          <Ionicons name="chevron-forward" size={18} color={TEXT.tertiary} />
+          <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
         )}
       </AnimatedPressable>
     </Animated.View>
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md },
   // Batch 3 (#10): hero editorial
   hero: { height: 120, justifyContent: 'flex-end', borderRadius: Radius.lg, overflow: 'hidden', marginBottom: Spacing.md },
@@ -213,7 +221,7 @@ const s = StyleSheet.create({
   subtitle: { color: 'rgba(255,255,255,0.8)', fontSize: FontSizes.sm, fontFamily: Fonts.regular },
   card: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card, borderWidth: 0.5, borderColor: t.borde,
     borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.sm,
   },
   // MB-29 P2: CTA de subir labs — acción primaria de la pantalla (lima, único).
@@ -226,12 +234,12 @@ const s = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
-  uploadCtaTitle: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000' },
+  uploadCtaTitle: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: t.textoSobreLima },
   uploadCtaMeta: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: 'rgba(0,0,0,0.65)', marginTop: 2 },
   iconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: TEXT.secondary },
-  cardValue: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, color: TEXT.primary, marginTop: 1 },
-  cardMeta: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.tertiary, marginTop: 2 },
+  cardTitle: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: t.textoSecundario },
+  cardValue: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, color: t.texto, marginTop: 1 },
+  cardMeta: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.textoTenue, marginTop: 2 },
   captureBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: ATP_BRAND.lime, alignItems: 'center', justifyContent: 'center' },
 });
 

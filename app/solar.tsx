@@ -29,11 +29,18 @@ import {
   type UVData,
 } from '../src/services/uv-service';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
+import { TEXT_COLORS } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 export default function Solar() {
   // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
   // casita flotante global se retira sola (ver useOwnNavPresence).
   useRegisterOwnNav();
+
+  // MB-31B2: sin <Screen>, la pantalla lee el tema global y se declara lista
+  // envolviendo su árbol en <ThemeReady> (mismo contrato que Screen themed).
+  const t = useAppTheme().tokens;
+  const dark = t.kind === 'dark';
 
   const insets = useSafeAreaInsets();
   const [uvData, setUvData] = useState<UVData | null>(null);
@@ -121,24 +128,26 @@ export default function Solar() {
   const fitz = FITZPATRICK_TYPES.find(t => t.type === skinType)!;
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#000' }} contentContainerStyle={{ paddingBottom: 40 }}>
+    <ThemeReady>
+    <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 }}>
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 8, paddingBottom: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color={t.texto} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#fbbf24', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ATP SOL</Text>
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800' }}>Exposición Solar</Text>
+            {/* Regla 3 del claro: el sol como LETRA solo en oscuro. */}
+            <Text style={{ color: dark ? '#fbbf24' : t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ATP SOL</Text>
+            <Text style={{ color: t.texto, fontSize: 20, fontWeight: '800' }}>Exposición Solar</Text>
           </View>
           {/* MB-29 P5: control neutro (recorrido #18: fuera emojis; el acento
               ámbar se reserva al héroe UV y a la ventana de vitamina D). */}
           <Pressable
             onPress={() => { setShowSkinPicker(!showSkinPicker); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-            style={{ backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#2A2A2A' }}
+            style={{ backgroundColor: dark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.55)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: t.bordeMarcado }}
           >
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700' }}>Piel tipo {skinType}</Text>
+            <Text style={{ color: dark ? 'rgba(255,255,255,0.7)' : t.texto, fontSize: 12, fontWeight: '700' }}>Piel tipo {skinType}</Text>
           </Pressable>
         </View>
         {/* Sprint 1.5 A: CTA SIEMPRE visible al tipo de piel (antes el selector vivía
@@ -149,13 +158,13 @@ export default function Solar() {
             onPress={() => { setShowSkinPicker(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10,
-              backgroundColor: 'transparent', borderWidth: 1, borderColor: '#1F1F1F',
+              backgroundColor: 'transparent', borderWidth: 1, borderColor: t.borde,
               borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14,
             }}
           >
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700', flex: 1 }}>Actualizar tipo de piel</Text>
-            <Text style={{ color: '#666', fontSize: 11 }}>cuestionario o manual</Text>
-            <Ionicons name="chevron-down" size={14} color="#666" />
+            <Text style={{ color: dark ? 'rgba(255,255,255,0.7)' : t.texto, fontSize: 12, fontWeight: '700', flex: 1 }}>Actualizar tipo de piel</Text>
+            <Text style={{ color: t.textoTenue, fontSize: 11 }}>cuestionario o manual</Text>
+            <Ionicons name="chevron-down" size={14} color={t.textoTenue} />
           </Pressable>
         )}
       </View>
@@ -164,9 +173,9 @@ export default function Solar() {
           (con UV cargando, sin GPS o sin red el cuestionario sigue accesible). */}
       {showSkinPicker && (
         <View style={{ paddingHorizontal: 20 }}>
-          <View style={{ backgroundColor: '#0a0a0a', borderRadius: 20, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.15)' }}>
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Tu tipo de piel</Text>
-            <Text style={{ color: '#999', fontSize: 12, marginBottom: 16 }}>Escala Fitzpatrick: determina tu tiempo de quemadura</Text>
+          <View style={{ backgroundColor: t.hundido, borderRadius: 20, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.15)' }}>
+            <Text style={{ color: t.texto, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Tu tipo de piel</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 12, marginBottom: 16 }}>Escala Fitzpatrick: determina tu tiempo de quemadura</Text>
             {/* Sprint 2 A: CTA del cuestionario como banner editorial B/N (fitzpatrick.png
                 estaba en disco sin cablear). Overlay fuerte para legibilidad (DS §3). */}
             <Pressable
@@ -177,16 +186,18 @@ export default function Solar() {
                 source={require('@/assets/images/health-hub/fitzpatrick.webp')}
                 resizeMode="cover"
               >
+                {/* Card editorial (manual 3.8): foto + velo negro + texto claro,
+                    IGUAL en los dos temas — la ventana no cambia de tema. */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, backgroundColor: 'rgba(0,0,0,0.55)' }}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: '#fbbf24', fontSize: 14, fontWeight: '700' }}>Descúbrelo con el cuestionario</Text>
-                    <Text style={{ color: '#ccc', fontSize: 11 }}>6 preguntas · ATP calcula tu fototipo exacto</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11 }}>6 preguntas · ATP calcula tu fototipo exacto</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color="#fbbf24" />
                 </View>
               </ImageBackground>
             </Pressable>
-            <Text style={{ color: '#666', fontSize: 11, fontWeight: '600', marginBottom: 8, letterSpacing: 1 }}>O ELÍGELO MANUALMENTE</Text>
+            <Text style={{ color: t.textoTenue, fontSize: 11, fontWeight: '600', marginBottom: 8, letterSpacing: 1 }}>O ELÍGELO MANUALMENTE</Text>
             {FITZPATRICK_TYPES.map(type => (
               <Pressable key={type.type} onPress={() => saveSkin(type.type)}>
                 <View style={{
@@ -195,8 +206,8 @@ export default function Solar() {
                   borderWidth: skinType === type.type ? 1 : 0, borderColor: '#fbbf24',
                 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>{type.label}</Text>
-                    <Text style={{ color: '#999', fontSize: 11 }}>{type.description}</Text>
+                    <Text style={{ color: t.texto, fontSize: 14, fontWeight: '600' }}>{type.label}</Text>
+                    <Text style={{ color: t.textoSecundario, fontSize: 11 }}>{type.description}</Text>
                   </View>
                   {skinType === type.type && <Ionicons name="checkmark-circle" size={20} color="#fbbf24" />}
                 </View>
@@ -209,7 +220,7 @@ export default function Solar() {
       {loading ? (
         <View style={{ alignItems: 'center', paddingVertical: 80 }}>
           <ActivityIndicator size="large" color="#fbbf24" />
-          <Text style={{ color: '#999', fontSize: 13, marginTop: 12 }}>Obteniendo datos UV...</Text>
+          <Text style={{ color: t.textoSecundario, fontSize: 13, marginTop: 12 }}>Obteniendo datos UV...</Text>
         </View>
       ) : uvData ? (
         <View style={{ paddingHorizontal: 20 }}>
@@ -219,23 +230,25 @@ export default function Solar() {
             colors={[`${level?.color}15`, 'transparent']}
             style={{ borderRadius: 20, padding: 28, marginBottom: 16, borderWidth: 1, borderColor: `${level?.color}25`, alignItems: 'center' }}
           >
-            <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>ÍNDICE UV AHORA</Text>
-            <Text style={{ color: level?.color, fontSize: 72, fontWeight: '900', lineHeight: 80 }}>{uvData.currentUV}</Text>
-            <Text style={{ color: level?.color, fontSize: 20, fontWeight: '800' }}>{level?.level}</Text>
-            <Text style={{ color: '#ccc', fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 20 }}>{level?.advice}</Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }}>
+            <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>ÍNDICE UV AHORA</Text>
+            {/* En claro los colores de nivel UV no alcanzan como letra: el dato
+                heroico va en texto y el nivel viaja en el tinte del gradiente. */}
+            <Text style={{ color: dark ? level?.color : t.texto, fontSize: 72, fontWeight: '900', lineHeight: 80 }}>{uvData.currentUV}</Text>
+            <Text style={{ color: dark ? level?.color : t.texto, fontSize: 20, fontWeight: '800' }}>{level?.level}</Text>
+            <Text style={{ color: t.texto, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 20 }}>{level?.advice}</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: t.borde }}>
               <View style={{ alignItems: 'center' }}>
-                <Text style={{ color: '#666', fontSize: 9, fontWeight: '700', letterSpacing: 1 }}>MÁX HOY</Text>
-                <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{uvData.maxUV}</Text>
-                <Text style={{ color: '#666', fontSize: 11 }}>a las {uvData.maxUVTime}</Text>
+                <Text style={{ color: t.textoTenue, fontSize: 9, fontWeight: '700', letterSpacing: 1 }}>MÁX HOY</Text>
+                <Text style={{ color: t.texto, fontSize: 22, fontWeight: '800' }}>{uvData.maxUV}</Text>
+                <Text style={{ color: t.textoTenue, fontSize: 11 }}>a las {uvData.maxUVTime}</Text>
               </View>
               <View style={{ alignItems: 'center' }}>
-                <Text style={{ color: '#666', fontSize: 9, fontWeight: '700', letterSpacing: 1 }}>AMANECER</Text>
-                <Text style={{ color: '#fbbf24', fontSize: 16, fontWeight: '600' }}>{uvData.sunrise}</Text>
+                <Text style={{ color: t.textoTenue, fontSize: 9, fontWeight: '700', letterSpacing: 1 }}>AMANECER</Text>
+                <Text style={{ color: dark ? '#fbbf24' : t.texto, fontSize: 16, fontWeight: '600' }}>{uvData.sunrise}</Text>
               </View>
               <View style={{ alignItems: 'center' }}>
-                <Text style={{ color: '#666', fontSize: 9, fontWeight: '700', letterSpacing: 1 }}>ATARDECER</Text>
-                <Text style={{ color: '#fb923c', fontSize: 16, fontWeight: '600' }}>{uvData.sunset}</Text>
+                <Text style={{ color: t.textoTenue, fontSize: 9, fontWeight: '700', letterSpacing: 1 }}>ATARDECER</Text>
+                <Text style={{ color: dark ? '#fb923c' : t.texto, fontSize: 16, fontWeight: '600' }}>{uvData.sunset}</Text>
               </View>
             </View>
           </LinearGradient>
@@ -245,15 +258,15 @@ export default function Solar() {
             <View style={{ backgroundColor: 'rgba(251,191,36,0.06)', borderRadius: 16, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.12)' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <Ionicons name="sunny" size={18} color="#fbbf24" />
-                <Text style={{ color: '#fbbf24', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>VENTANA DE VITAMINA D</Text>
+                <Text style={{ color: dark ? '#fbbf24' : t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>VENTANA DE VITAMINA D</Text>
               </View>
-              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>{uvData.vitaminDWindow.start} – {uvData.vitaminDWindow.end}</Text>
-              <Text style={{ color: '#ccc', fontSize: 13, marginTop: 6, lineHeight: 20 }}>
+              <Text style={{ color: t.texto, fontSize: 24, fontWeight: '800' }}>{uvData.vitaminDWindow.start} – {uvData.vitaminDWindow.end}</Text>
+              <Text style={{ color: t.texto, fontSize: 13, marginTop: 6, lineHeight: 20 }}>
                 Exponte 10-15 min sin protección en este horario para sintetizar vitamina D3. Brazos y piernas al sol.
               </Text>
               {/* B-5 (MB-12): la contraindicación vive en la MISMA card que la
                   sugerencia de exposición, no en otra pantalla. */}
-              <Text style={{ color: '#999', fontSize: 11, marginTop: 8, lineHeight: 16 }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
                 No aplica si tienes piel sensible o fotosensible, antecedente de
                 melanoma o tomas medicamentos fotosensibilizantes. En ese caso
                 manda tu dermatólogo.
@@ -263,7 +276,7 @@ export default function Solar() {
             <View style={{ backgroundColor: 'rgba(96,165,250,0.06)', borderRadius: 16, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(96,165,250,0.12)' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Ionicons name="moon-outline" size={18} color="#60a5fa" />
-                <Text style={{ color: '#60a5fa', fontSize: 13, fontWeight: '600' }}>
+                <Text style={{ color: dark ? '#60a5fa' : t.info, fontSize: 13, fontWeight: '600' }}>
                   {uvData.currentUV === 0 ? 'Sin UV ahora: revisa mañana para tu ventana de vitamina D' : 'UV insuficiente para sintetizar vitamina D hoy'}
                 </Text>
               </View>
@@ -271,56 +284,61 @@ export default function Solar() {
           )}
 
           {/* TIEMPO DE QUEMADURA */}
-          <View style={{ backgroundColor: '#0a0a0a', borderRadius: 16, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: '#1a1a1a' }}>
-            <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 12 }}>TU TIEMPO SIN PROTECCIÓN</Text>
+          <View style={{ backgroundColor: t.hundido, borderRadius: 16, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: t.borde }}>
+            <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 12 }}>TU TIEMPO SIN PROTECCIÓN</Text>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+              {/* En claro el ámbar/verde no se leen como letra: solo el peligro
+                  conserva color (t.error), el resto va en texto. */}
               <Text style={{
-                color: burnTime && burnTime < 30 ? '#ef4444' : burnTime && burnTime < 60 ? '#fbbf24' : '#22c55e',
+                color: dark
+                  ? (burnTime && burnTime < 30 ? '#ef4444' : burnTime && burnTime < 60 ? '#fbbf24' : '#22c55e')
+                  : (burnTime && burnTime < 30 ? t.error : t.texto),
                 fontSize: 48, fontWeight: '900',
               }}>
                 {burnTime && burnTime < 999 ? burnTime : '∞'}
               </Text>
-              <Text style={{ color: '#999', fontSize: 16 }}>minutos</Text>
+              <Text style={{ color: t.textoSecundario, fontSize: 16 }}>minutos</Text>
             </View>
-            <Text style={{ color: '#666', fontSize: 12, marginTop: 4 }}>Basado en {fitz.label} · UV actual: {uvData.currentUV}</Text>
+            <Text style={{ color: t.textoTenue, fontSize: 12, marginTop: 4 }}>Basado en {fitz.label} · UV actual: {uvData.currentUV}</Text>
             {burnTime && burnTime < 60 && (
-              <Text style={{ color: '#fb7185', fontSize: 12, marginTop: 8 }}>Después de {burnTime} min, busca sombra o cubre tu piel</Text>
+              <Text style={{ color: dark ? '#fb7185' : t.error, fontSize: 12, marginTop: 8 }}>Después de {burnTime} min, busca sombra o cubre tu piel</Text>
             )}
           </View>
 
           {/* PROTECCIÓN INTELIGENTE (colapsable) */}
           <Pressable onPress={() => { setShowProtection(!showProtection); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
-            <View style={{ backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginBottom: showProtection ? 0 : 12, borderWidth: 1, borderColor: '#1a1a1a', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ backgroundColor: t.hundido, borderRadius: 16, padding: 16, marginBottom: showProtection ? 0 : 12, borderWidth: 1, borderColor: t.borde, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <Ionicons name="shield-checkmark-outline" size={20} color="#22c55e" />
-                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>Protección inteligente</Text>
+                <Text style={{ color: t.texto, fontSize: 14, fontWeight: '700' }}>Protección inteligente</Text>
               </View>
               {/* MB-29 P5 (#18): lo expandible SE DICE, no se adivina. */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={{ color: '#666', fontSize: 11, fontWeight: '600' }}>{showProtection ? 'Cerrar' : 'Ver'}</Text>
-                <Ionicons name={showProtection ? 'chevron-up' : 'chevron-down'} size={18} color="#666" />
+                <Text style={{ color: t.textoTenue, fontSize: 11, fontWeight: '600' }}>{showProtection ? 'Cerrar' : 'Ver'}</Text>
+                <Ionicons name={showProtection ? 'chevron-up' : 'chevron-down'} size={18} color={t.textoTenue} />
               </View>
             </View>
           </Pressable>
           {showProtection && (
-            <View style={{ backgroundColor: '#0a0a0a', borderRadius: 16, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: '#1a1a1a' }}>
-              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 12 }}>PRIORIDAD (MÁS A MENOS)</Text>
+            <View style={{ backgroundColor: t.hundido, borderRadius: 16, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: t.borde }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 12 }}>PRIORIDAD (MÁS A MENOS)</Text>
               {protection.map((item, i) => (
                 <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                  <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(34,197,94,0.1)', justifyContent: 'center', alignItems: 'center' }}>
-                    <Text style={{ color: '#22c55e', fontSize: 11, fontWeight: '700' }}>{item.priority}</Text>
+                  {/* Manual 3.9: en claro el número va sobre relleno pleno. */}
+                  <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: dark ? 'rgba(34,197,94,0.1)' : '#22c55e', justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ color: dark ? '#22c55e' : TEXT_COLORS.onAccent, fontSize: 11, fontWeight: '700' }}>{item.priority}</Text>
                   </View>
                   <Ionicons name={item.icon as any} size={20} color="#22c55e" />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>{item.text}</Text>
-                    <Text style={{ color: '#666', fontSize: 11 }}>{item.sub}</Text>
+                    <Text style={{ color: t.texto, fontSize: 13, fontWeight: '600' }}>{item.text}</Text>
+                    <Text style={{ color: t.textoTenue, fontSize: 11 }}>{item.sub}</Text>
                   </View>
                 </View>
               ))}
               {uvData.currentUV > 7 && (
                 <View style={{ backgroundColor: 'rgba(251,191,36,0.06)', borderRadius: 12, padding: 14, marginTop: 8, borderWidth: 1, borderColor: 'rgba(251,191,36,0.1)' }}>
-                  <Text style={{ color: '#fbbf24', fontSize: 12, fontWeight: '700', marginBottom: 4 }}>Si optas por protector solar</Text>
-                  <Text style={{ color: '#999', fontSize: 11, lineHeight: 18 }}>
+                  <Text style={{ color: dark ? '#fbbf24' : t.texto, fontSize: 12, fontWeight: '700', marginBottom: 4 }}>Si optas por protector solar</Text>
+                  <Text style={{ color: t.textoSecundario, fontSize: 11, lineHeight: 18 }}>
                     Si decides usar protector, ATP sugiere ingredientes minerales (óxido de zinc, dióxido de titanio).{'\n'}
                     Algunos estudios cuestionan ciertos ingredientes químicos comunes; consulta con tu dermatólogo lo que mejor te convenga.
                   </Text>
@@ -332,27 +350,27 @@ export default function Solar() {
           {/* VENTANA PELIGROSA */}
           {uvData.dangerousFrom && (
             <View style={{ backgroundColor: 'rgba(239,68,68,0.06)', borderRadius: 16, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(239,68,68,0.12)' }}>
-              <Text style={{ color: '#ef4444', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 6 }}>PROTECCIÓN NECESARIA</Text>
-              <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800' }}>{uvData.dangerousFrom} – {uvData.dangerousUntil || uvData.sunset}</Text>
-              <Text style={{ color: '#999', fontSize: 12, marginTop: 4 }}>UV ≥ 3: protégete con métodos físicos</Text>
+              <Text style={{ color: dark ? '#ef4444' : t.error, fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 6 }}>PROTECCIÓN NECESARIA</Text>
+              <Text style={{ color: t.texto, fontSize: 20, fontWeight: '800' }}>{uvData.dangerousFrom} – {uvData.dangerousUntil || uvData.sunset}</Text>
+              <Text style={{ color: t.textoSecundario, fontSize: 12, marginTop: 4 }}>UV ≥ 3: protégete con métodos físicos</Text>
             </View>
           )}
 
           {/* UV HORARIO (colapsable) */}
           <Pressable onPress={() => { setShowHourly(!showHourly); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
-            <View style={{ backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginBottom: showHourly ? 0 : 12, borderWidth: 1, borderColor: '#1a1a1a', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ backgroundColor: t.hundido, borderRadius: 16, padding: 16, marginBottom: showHourly ? 0 : 12, borderWidth: 1, borderColor: t.borde, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <Ionicons name="bar-chart-outline" size={18} color="#fbbf24" />
-                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>UV por hora</Text>
+                <Text style={{ color: t.texto, fontSize: 14, fontWeight: '700' }}>UV por hora</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={{ color: '#666', fontSize: 11, fontWeight: '600' }}>{showHourly ? 'Cerrar' : 'Ver'}</Text>
-                <Ionicons name={showHourly ? 'chevron-up' : 'chevron-down'} size={18} color="#666" />
+                <Text style={{ color: t.textoTenue, fontSize: 11, fontWeight: '600' }}>{showHourly ? 'Cerrar' : 'Ver'}</Text>
+                <Ionicons name={showHourly ? 'chevron-up' : 'chevron-down'} size={18} color={t.textoTenue} />
               </View>
             </View>
           </Pressable>
           {showHourly && (
-            <View style={{ backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#1a1a1a' }}>
+            <View style={{ backgroundColor: t.hundido, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: t.borde }}>
               {uvData.hourlyUV
                 .filter(h => { const hr = parseInt(h.time.split(':')[0]); return hr >= 6 && hr <= 20; })
                 .map((h, i) => {
@@ -368,12 +386,13 @@ export default function Solar() {
                         borderRadius: 8, padding: isNow ? 4 : 0, paddingHorizontal: isNow ? 6 : 0,
                       }}
                     >
-                      <Text style={{ color: isNow ? '#fbbf24' : '#666', fontSize: 11, width: 38, textAlign: 'right', fontWeight: isNow ? '700' : '400' }}>{h.time}</Text>
-                      <View style={{ flex: 1, height: 14, backgroundColor: '#111', borderRadius: 7, overflow: 'hidden' }}>
+                      <Text style={{ color: isNow ? (dark ? '#fbbf24' : t.texto) : t.textoTenue, fontSize: 11, width: 38, textAlign: 'right', fontWeight: isNow ? '700' : '400' }}>{h.time}</Text>
+                      <View style={{ flex: 1, height: 14, backgroundColor: t.hundido, borderRadius: 7, overflow: 'hidden' }}>
                         <View style={{ width: `${Math.max(width, 2)}%`, height: '100%', backgroundColor: lvl.color, borderRadius: 7 }} />
                       </View>
-                      <Text style={{ color: lvl.color, fontSize: 11, width: 26, textAlign: 'right', fontWeight: '600' }}>{h.uv}</Text>
-                      {isNow && <Text style={{ color: '#fbbf24', fontSize: 9, fontWeight: '700' }}>AHORA</Text>}
+                      {/* La barra ya trae el color del nivel: la cifra sigue el tema. */}
+                      <Text style={{ color: dark ? lvl.color : t.textoSecundario, fontSize: 11, width: 26, textAlign: 'right', fontWeight: '600' }}>{h.uv}</Text>
+                      {isNow && <Text style={{ color: dark ? '#fbbf24' : t.texto, fontSize: 9, fontWeight: '700' }}>AHORA</Text>}
                     </View>
                   );
                 })}
@@ -385,38 +404,40 @@ export default function Solar() {
             <View style={{ backgroundColor: 'rgba(168,224,42,0.06)', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(168,224,42,0.12)', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <ArgosMark size={20} />
               <View style={{ flex: 1 }}>
-                <Text style={{ color: '#a8e02a', fontSize: 13, fontWeight: '600' }}>Pregunta a ARGOS sobre tu sol</Text>
-                <Text style={{ color: '#666', fontSize: 11 }}>{'"¿A qué hora debo tomar sol hoy para vitamina D?"'}</Text>
+                {/* Regla 1 del claro: el lima jamás es letra — teal calibrado. */}
+                <Text style={{ color: dark ? '#a8e02a' : t.tealTexto, fontSize: 13, fontWeight: '600' }}>Pregunta a ARGOS sobre tu sol</Text>
+                <Text style={{ color: t.textoTenue, fontSize: 11 }}>{'"¿A qué hora debo tomar sol hoy para vitamina D?"'}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="#666" />
+              <Ionicons name="chevron-forward" size={16} color={t.textoTenue} />
             </View>
           </Pressable>
 
           <Pressable onPress={() => { loadUV(); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }} style={{ alignItems: 'center', paddingVertical: 12 }}>
-            <Text style={{ color: '#444', fontSize: 11 }}>Toca para actualizar UV</Text>
+            <Text style={{ color: t.sinDatos, fontSize: 11 }}>Toca para actualizar UV</Text>
           </Pressable>
         </View>
       ) : errorState === 'fetch' ? (
         // #v13d 2.3: fallo de red / timeout 10s → reintentar (no quedar en loading forever).
         <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 }}>
           <Ionicons name="cloud-offline-outline" size={48} color="#fb923c" />
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginTop: 16, textAlign: 'center' }}>No pudimos obtener datos UV</Text>
-          <Text style={{ color: '#999', fontSize: 13, textAlign: 'center', marginTop: 8 }}>Revisa tu conexión e inténtalo de nuevo</Text>
+          <Text style={{ color: t.texto, fontSize: 16, fontWeight: '700', marginTop: 16, textAlign: 'center' }}>No pudimos obtener datos UV</Text>
+          <Text style={{ color: t.textoSecundario, fontSize: 13, textAlign: 'center', marginTop: 8 }}>Revisa tu conexión e inténtalo de nuevo</Text>
           <Pressable onPress={loadUV} style={{ backgroundColor: '#fbbf24', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 24, marginTop: 20 }}>
-            <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>REINTENTAR</Text>
+            <Text style={{ color: TEXT_COLORS.onAccent, fontSize: 14, fontWeight: '800' }}>REINTENTAR</Text>
           </Pressable>
         </View>
       ) : (
         <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 }}>
           <Ionicons name="location-outline" size={48} color="#fbbf24" />
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginTop: 16, textAlign: 'center' }}>Necesitamos tu ubicación</Text>
-          <Text style={{ color: '#999', fontSize: 13, textAlign: 'center', marginTop: 8 }}>Para mostrar el índice UV de tu zona</Text>
+          <Text style={{ color: t.texto, fontSize: 16, fontWeight: '700', marginTop: 16, textAlign: 'center' }}>Necesitamos tu ubicación</Text>
+          <Text style={{ color: t.textoSecundario, fontSize: 13, textAlign: 'center', marginTop: 8 }}>Para mostrar el índice UV de tu zona</Text>
           <Pressable onPress={loadUV} style={{ backgroundColor: '#fbbf24', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 24, marginTop: 20 }}>
-            <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>PERMITIR UBICACIÓN</Text>
+            <Text style={{ color: TEXT_COLORS.onAccent, fontSize: 14, fontWeight: '800' }}>PERMITIR UBICACIÓN</Text>
           </Pressable>
         </View>
       )}
       <MedicalDisclaimer feature="solar" />
     </ScrollView>
+    </ThemeReady>
   );
 }

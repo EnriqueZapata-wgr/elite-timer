@@ -1,7 +1,7 @@
 /**
  * Cycle Settings — Configuración del tracking de ciclo.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert, Switch, Text, Pressable } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,8 @@ import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
+import { TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { InfoButton } from '@/src/components/InfoButton';
 import { CYCLE_INFO } from '@/src/constants/cycle-info';
 import { cycleModalityOptions, defaultCycleModality, type CycleModality } from '@/src/services/onboarding-v2-core';
@@ -40,6 +42,9 @@ export default function CycleSettingsScreen() {
   // del cuerpo del usuario, no del calendario que lleva de otra persona.
   const gate = useCycleGate();
   const acompanante = gate.mode === 'acompanante';
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [avgCycle, setAvgCycle] = useState('28');
   const [avgPeriod, setAvgPeriod] = useState('5');
   const [mode, setMode] = useState<'full' | 'companion'>('full');
@@ -121,14 +126,14 @@ export default function CycleSettingsScreen() {
   // E-5 (MB-12): mismo patrón que cycle-charts/cycle-history.
   if (gate.state !== 'allowed') {
     return (
-      <Screen>
+      <Screen themed>
         <PillarHeader pillar="cycle" title="Configuración" />
       </Screen>
     );
   }
 
   return (
-    <Screen keyboard>
+    <Screen keyboard themed>
       <PillarHeader pillar="cycle" title="Configuración" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
@@ -175,9 +180,10 @@ export default function CycleSettingsScreen() {
                   onPress={() => handleModality(opt.value)}
                   style={[s.modePill, selected && s.modePillActive]}
                 >
-                  <Ionicons name={opt.icon as any} size={18} color={selected ? '#fff' : ROSE} />
+                  {/* Relleno rosa activo: blanco en oscuro (como siempre), negro en claro. */}
+                  <Ionicons name={opt.icon as any} size={18} color={selected ? (t.kind === 'dark' ? TEXT_COLORS.primary : TEXT_COLORS.onAccent) : ROSE} />
                   <View style={{ flex: 1 }}>
-                    <EliteText style={[s.modeLabel, selected && { color: '#fff' }]}>{opt.label}</EliteText>
+                    <EliteText style={[s.modeLabel, selected && { color: t.kind === 'dark' ? TEXT_COLORS.primary : TEXT_COLORS.onAccent }]}>{opt.label}</EliteText>
                     <EliteText style={s.modeSub}>{opt.description}</EliteText>
                   </View>
                 </AnimatedPressable>
@@ -206,7 +212,7 @@ export default function CycleSettingsScreen() {
                   onChangeText={setDueDate}
                   onBlur={() => saveDueDate(dueDate)}
                   placeholder="2026-12-01"
-                  placeholderTextColor="#444"
+                  placeholderTextColor={t.sinDatos}
                   maxLength={10}
                 />
               </View>
@@ -221,17 +227,17 @@ export default function CycleSettingsScreen() {
             <SectionTitle>MODO DE TRACKING</SectionTitle>
 
             <AnimatedPressable onPress={() => { haptic.light(); setMode('full'); }} style={[s.modePill, mode === 'full' && s.modePillActive]}>
-              <Ionicons name="person-outline" size={18} color={mode === 'full' ? '#fff' : ROSE} />
+              <Ionicons name="person-outline" size={18} color={mode === 'full' ? (t.kind === 'dark' ? TEXT_COLORS.primary : TEXT_COLORS.onAccent) : ROSE} />
               <View style={{ flex: 1 }}>
-                <EliteText style={[s.modeLabel, mode === 'full' && { color: '#fff' }]}>Para mí</EliteText>
+                <EliteText style={[s.modeLabel, mode === 'full' && { color: t.kind === 'dark' ? TEXT_COLORS.primary : TEXT_COLORS.onAccent }]}>Para mí</EliteText>
                 <EliteText style={s.modeSub}>Tracking completo de mi ciclo</EliteText>
               </View>
             </AnimatedPressable>
 
             <AnimatedPressable onPress={() => { haptic.light(); setMode('companion'); }} style={[s.modePill, mode === 'companion' && s.modePillActive]}>
-              <Ionicons name="people-outline" size={18} color={mode === 'companion' ? '#fff' : ROSE} />
+              <Ionicons name="people-outline" size={18} color={mode === 'companion' ? (t.kind === 'dark' ? TEXT_COLORS.primary : TEXT_COLORS.onAccent) : ROSE} />
               <View style={{ flex: 1 }}>
-                <EliteText style={[s.modeLabel, mode === 'companion' && { color: '#fff' }]}>Modo compañero</EliteText>
+                <EliteText style={[s.modeLabel, mode === 'companion' && { color: t.kind === 'dark' ? TEXT_COLORS.primary : TEXT_COLORS.onAccent }]}>Modo compañero</EliteText>
                 <EliteText style={s.modeSub}>Trackeo el ciclo de mi pareja</EliteText>
               </View>
             </AnimatedPressable>
@@ -273,10 +279,10 @@ export default function CycleSettingsScreen() {
                 </AnimatedPressable>
 
                 {activeCompanion && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, backgroundColor: '#0a0a0a', borderRadius: 12, padding: 14 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, backgroundColor: t.hundido, borderRadius: 12, padding: 14 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Ionicons name="checkmark-circle" size={18} color="#a8e02a" />
-                      <EliteText style={{ color: '#fff', fontSize: 13 }}>Compañero/a vinculado/a</EliteText>
+                      <EliteText style={{ color: t.texto, fontSize: 13 }}>Compañero/a vinculado/a</EliteText>
                     </View>
                     <Pressable onPress={async () => {
                       if (!user?.id) return;
@@ -285,7 +291,7 @@ export default function CycleSettingsScreen() {
                       haptic.medium();
                       Alert.alert('Desvinculado', 'Compañero/a desvinculado/a.');
                     }}>
-                      <Text style={{ color: '#ef4444', fontSize: 12, fontFamily: Fonts.semiBold }}>Desvincular</Text>
+                      <Text style={{ color: t.error, fontSize: 12, fontFamily: Fonts.semiBold }}>Desvincular</Text>
                     </Pressable>
                   </View>
                 )}
@@ -294,19 +300,19 @@ export default function CycleSettingsScreen() {
 
             {mode === 'companion' && (
               <View>
-                <EliteText style={{ color: '#999', fontSize: 13, marginBottom: 12 }}>¿Tu pareja te compartió un código?</EliteText>
+                <EliteText style={{ color: t.textoSecundario, fontSize: 13, marginBottom: 12 }}>¿Tu pareja te compartió un código?</EliteText>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <TextInput
                     value={inviteCode}
                     onChangeText={setInviteCode}
                     placeholder="Código"
-                    placeholderTextColor="#444"
+                    placeholderTextColor={t.sinDatos}
                     autoCapitalize="characters"
                     maxLength={6}
                     style={{
-                      flex: 1, backgroundColor: '#000', color: '#fff', padding: 14,
+                      flex: 1, backgroundColor: t.hundido, color: t.texto, padding: 14,
                       borderRadius: 12, fontSize: 18, fontFamily: Fonts.bold,
-                      letterSpacing: 4, textAlign: 'center', borderWidth: 0.5, borderColor: '#333',
+                      letterSpacing: 4, textAlign: 'center', borderWidth: 0.5, borderColor: t.bordeMarcado,
                     }}
                   />
                   <Pressable onPress={async () => {
@@ -325,7 +331,7 @@ export default function CycleSettingsScreen() {
                   }} style={{
                     backgroundColor: '#c084fc', borderRadius: 12, paddingHorizontal: 20, justifyContent: 'center',
                   }}>
-                    <Text style={{ color: '#000', fontFamily: Fonts.bold }}>Vincular</Text>
+                    <Text style={{ color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold }}>Vincular</Text>
                   </Pressable>
                 </View>
               </View>
@@ -344,7 +350,9 @@ export default function CycleSettingsScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema. El rosa como LETRA solo vale
+// en oscuro; sobre acero la cifra y la etiqueta pasan a texto del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
 
   fieldRow: {
@@ -356,15 +364,15 @@ const s = StyleSheet.create({
   fieldLabel: {
     fontSize: FontSizes.md,
     fontFamily: Fonts.semiBold,
-    color: '#fff',
+    color: t.texto,
   },
   fieldInput: {
     width: 60,
-    backgroundColor: '#000',
+    backgroundColor: t.hundido,
     borderRadius: Radius.sm,
     borderWidth: 0.5,
-    borderColor: '#1a1a1a',
-    color: ROSE,
+    borderColor: t.borde,
+    color: t.kind === 'dark' ? ROSE : t.texto,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.xl,
     textAlign: 'center',
@@ -388,12 +396,12 @@ const s = StyleSheet.create({
   modeLabel: {
     fontSize: FontSizes.md,
     fontFamily: Fonts.bold,
-    color: ROSE,
+    color: t.kind === 'dark' ? ROSE : t.texto,
   },
   modeSub: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,
-    color: 'rgba(255,255,255,0.4)',
+    color: t.textoTenue,
     marginTop: 2,
   },
 
@@ -407,7 +415,7 @@ const s = StyleSheet.create({
   saveBtnText: {
     fontSize: FontSizes.md,
     fontFamily: Fonts.bold,
-    color: '#fff',
+    color: t.kind === 'dark' ? TEXT_COLORS.primary : TEXT_COLORS.onAccent,
     letterSpacing: 2,
   },
 });

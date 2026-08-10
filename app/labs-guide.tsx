@@ -6,7 +6,7 @@
  * "somos amigables, no burocracia médica" — elimina el abandono en
  * "¿qué labs me hago?".
  */
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,13 +27,17 @@ import {
   LABS_PREPARACION,
   LABS_DESPUES,
 } from '@/src/constants/labs-guide-content';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
 
 export default function LabsGuideScreen() {
   const { user } = useAuth();
   const [sharing, setSharing] = useState(false);
+  // MB-31B2: tokens del tema (oscuro idéntico al de siempre; claro = acero).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
 
   const firstName = ((user?.user_metadata?.full_name as string) || '').trim().split(' ')[0] || '';
 
@@ -56,7 +60,7 @@ export default function LabsGuideScreen() {
   }
 
   return (
-    <Screen edges={[]}>
+    <Screen edges={[]} themed>
       <ScreenHeader title="Guía de laboratorios" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         {/* Portada */}
@@ -151,7 +155,7 @@ export default function LabsGuideScreen() {
       {/* CTA flotante: generar + compartir el PDF */}
       <View style={s.bottomBar}>
         <AnimatedPressable style={s.shareBtn} onPress={handleShare} disabled={sharing}>
-          <Ionicons name="share-outline" size={18} color="#000" />
+          <Ionicons name="share-outline" size={18} color={t.textoSobreLima} />
           <EliteText style={s.shareBtnText}>
             {sharing ? 'Generando PDF…' : 'DESCARGAR / COMPARTIR PDF'}
           </EliteText>
@@ -161,65 +165,73 @@ export default function LabsGuideScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema. Regla 1 del claro: los roles
+// que en oscuro son lima como letra (kicker, precio, número de paso) pasan al
+// teal calibrado o a relleno — el lima sobre acero da 1.34.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.xs },
-  kicker: { fontSize: 10, fontFamily: Fonts.semiBold, color: ATP_BRAND.lime, letterSpacing: 2 },
-  title: { fontSize: 24, fontFamily: Fonts.bold, color: '#fff', marginTop: 6, lineHeight: 31 },
-  version: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.muted, marginTop: 4 },
+  kicker: { fontSize: 10, fontFamily: Fonts.semiBold, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, letterSpacing: 2 },
+  title: { fontSize: 24, fontFamily: Fonts.bold, color: t.texto, marginTop: 6, lineHeight: 31 },
+  version: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.textoTenue, marginTop: 4 },
   sectionTitle: {
-    fontSize: 11, fontFamily: Fonts.bold, color: '#fff', letterSpacing: 2,
+    fontSize: 11, fontFamily: Fonts.bold, color: t.texto, letterSpacing: 2,
     marginTop: Spacing.xl, marginBottom: Spacing.sm,
-    borderBottomWidth: 1, borderBottomColor: '#222', paddingBottom: 6,
+    borderBottomWidth: 1, borderBottomColor: t.borde, paddingBottom: 6,
   },
-  body: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#bbb', lineHeight: 21, marginBottom: 8 },
+  body: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: t.textoSecundario, lineHeight: 21, marginBottom: 8 },
   costBox: {
     flexDirection: 'row', gap: 10, alignItems: 'flex-start',
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.06), borderLeftWidth: 3, borderLeftColor: ATP_BRAND.lime,
     borderRadius: Radius.sm, padding: Spacing.sm, marginTop: 4,
   },
-  costText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#ddd', lineHeight: 20 },
+  costText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: t.texto, lineHeight: 20 },
   pkgCard: {
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card, borderWidth: 1, borderColor: t.borde,
     borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.sm,
   },
   pkgHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
-  pkgName: { flex: 1, fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#fff' },
-  pkgPrice: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, color: ATP_BRAND.lime },
-  pkgWho: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.secondary, marginTop: 3, marginBottom: 8, lineHeight: 17 },
+  pkgName: { flex: 1, fontSize: FontSizes.md, fontFamily: Fonts.bold, color: t.texto },
+  pkgPrice: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
+  pkgWho: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.textoSecundario, marginTop: 3, marginBottom: 8, lineHeight: 17 },
   labRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginBottom: 6 },
-  labDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#555', marginTop: 7 },
-  labText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#ccc', lineHeight: 20 },
+  labDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: t.textoTenue, marginTop: 7 },
+  labText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: t.texto, lineHeight: 20 },
   stepNum: {
-    width: 20, height: 20, borderRadius: 10, backgroundColor: withOpacity(ATP_BRAND.lime, 0.12),
-    color: ATP_BRAND.lime, fontSize: 11, fontFamily: Fonts.bold, textAlign: 'center', lineHeight: 20,
+    width: 20, height: 20, borderRadius: 10,
+    // Claro: relleno lima pleno con negro encima (13.36); oscuro: el tinte de siempre.
+    backgroundColor: t.kind === 'dark' ? withOpacity(ATP_BRAND.lime, 0.12) : ATP_BRAND.lime,
+    color: t.kind === 'dark' ? ATP_BRAND.lime : t.textoSobreLima,
+    fontSize: 11, fontFamily: Fonts.bold, textAlign: 'center', lineHeight: 20,
   },
   noteBox: {
     flexDirection: 'row', gap: 8, backgroundColor: 'rgba(251,191,36,0.07)',
     borderRadius: Radius.sm, padding: Spacing.sm, marginTop: 6,
   },
-  noteText: { flex: 1, fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#d8b24a', lineHeight: 17 },
+  // El ámbar rebajado como letra no se lee sobre acero: en claro la nota va en
+  // texto secundario y el color lo pone el icono.
+  noteText: { flex: 1, fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.kind === 'dark' ? '#d8b24a' : t.textoSecundario, lineHeight: 17 },
   commercialRow: { marginBottom: Spacing.sm },
-  commercialName: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#fff' },
-  commercialNote: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.secondary, marginTop: 1, lineHeight: 17 },
+  commercialName: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: t.texto },
+  commercialNote: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.textoSecundario, marginTop: 1, lineHeight: 17 },
   tipBox: {
-    flexDirection: 'row', gap: 8, backgroundColor: ELEVATION[1].bg,
-    borderWidth: 1, borderColor: ELEVATION[1].border, borderRadius: Radius.sm,
+    flexDirection: 'row', gap: 8, backgroundColor: t.card,
+    borderWidth: 1, borderColor: t.borde, borderRadius: Radius.sm,
     padding: Spacing.sm, marginTop: 4,
   },
-  tipText: { flex: 1, fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#bbb', lineHeight: 17 },
-  closing: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#ddd', marginTop: Spacing.sm, lineHeight: 20 },
+  tipText: { flex: 1, fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.textoSecundario, lineHeight: 17 },
+  closing: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: t.texto, marginTop: Spacing.sm, lineHeight: 20 },
   disclaimer: {
-    fontSize: 10, fontFamily: Fonts.regular, color: TEXT.muted, lineHeight: 15,
-    marginTop: Spacing.xl, borderTopWidth: 1, borderTopColor: '#1a1a1a', paddingTop: Spacing.sm,
+    fontSize: 10, fontFamily: Fonts.regular, color: t.textoTenue, lineHeight: 15,
+    marginTop: Spacing.xl, borderTopWidth: 1, borderTopColor: t.borde, paddingTop: Spacing.sm,
   },
   bottomBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     paddingHorizontal: Spacing.md, paddingBottom: 28, paddingTop: 10,
-    backgroundColor: 'rgba(0,0,0,0.92)',
+    backgroundColor: withOpacity(t.fondo, 0.92),
   },
   shareBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 15,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  shareBtnText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  shareBtnText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, color: t.textoSobreLima, letterSpacing: 1 },
 });

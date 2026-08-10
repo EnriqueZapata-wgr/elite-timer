@@ -4,7 +4,7 @@
  * de medicina funcional), acciones Activar/Pausar/Descartar y ajustes del user
  * (hora custom, notas). assignRule NO se muestra: es criterio clínico interno.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator, Alert, DeviceEventEmitter, ScrollView, StyleSheet, TextInput, View,
 } from 'react-native';
@@ -39,7 +39,8 @@ import { INTERVENTION_BY_KEY } from '@/src/constants/interventions-catalog';
 import { personalizeInterventionHow } from '@/src/services/dx/fitzpatrick-core';
 import { fetchSkinType } from '@/src/services/dx/fitzpatrick-service';
 import { CATEGORY_LABELS } from '@/src/constants/intervention-vocab';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { AttestationGateModal } from '@/src/components/safety/AttestationGateModal';
 import {
@@ -56,6 +57,9 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function IntervencionDetailScreen() {
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const { key } = useLocalSearchParams<{ key: string }>();
   const [item, setItem] = useState<ResolvedUserIntervention | null>(null);
@@ -175,7 +179,7 @@ export default function IntervencionDetailScreen() {
 
   return (
     <MedicalDisclaimerGate>
-      <Screen edges={[]}>
+      <Screen edges={[]} themed>
         <ScreenHeader title="Intervención" onBack={() => router.back()} />
 
         {loading ? (
@@ -280,7 +284,7 @@ export default function IntervencionDetailScreen() {
                   value={timeInput}
                   onChangeText={setTimeInput}
                   placeholder={item.row.computed_time ? `Calculada: ${item.row.computed_time}` : 'ej. 21:30'}
-                  placeholderTextColor={TEXT.muted}
+                  placeholderTextColor={t.sinDatos}
                   style={styles.input}
                   keyboardType="numbers-and-punctuation"
                   maxLength={5}
@@ -290,7 +294,7 @@ export default function IntervencionDetailScreen() {
                   value={notesInput}
                   onChangeText={setNotesInput}
                   placeholder="Tus notas personales sobre esta intervención"
-                  placeholderTextColor={TEXT.muted}
+                  placeholderTextColor={t.sinDatos}
                   style={[styles.input, styles.inputMultiline]}
                   multiline
                 />
@@ -337,21 +341,22 @@ export default function IntervencionDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.lg },
   notFound: {
-    fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.tertiary,
+    fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoTenue,
     textAlign: 'center', lineHeight: 20,
   },
   content: { padding: Spacing.md, paddingBottom: 60 },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   statusBadge: {
-    backgroundColor: ELEVATION[2].bg, borderRadius: Radius.xs,
+    backgroundColor: t.flotante, borderRadius: Radius.xs,
     paddingHorizontal: 8, paddingVertical: 3,
   },
-  statusText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: TEXT.secondary },
+  statusText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.textoSecundario },
   name: {
-    fontFamily: Fonts.bold, fontSize: FontSizes.xl, color: TEXT.primary,
+    fontFamily: Fonts.bold, fontSize: FontSizes.xl, color: t.texto,
     marginTop: Spacing.sm, lineHeight: 26,
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing.sm },
@@ -359,47 +364,47 @@ const styles = StyleSheet.create({
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderRadius: Radius.xs,
     paddingHorizontal: 6, paddingVertical: 2,
   },
-  baseBadgeText: { fontFamily: Fonts.bold, fontSize: 9, color: ATP_BRAND.lime, letterSpacing: 1 },
-  timeText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: TEXT.secondary },
-  body: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary, lineHeight: 20 },
+  baseBadgeText: { fontFamily: Fonts.bold, fontSize: 9, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, letterSpacing: 1 },
+  timeText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.textoSecundario },
+  body: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoSecundario, lineHeight: 20 },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: Spacing.md },
   chip: {
-    backgroundColor: ELEVATION[2].bg, borderRadius: Radius.xs,
+    backgroundColor: t.flotante, borderRadius: Radius.xs,
     paddingHorizontal: 8, paddingVertical: 4,
   },
-  chipText: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.secondary },
+  chipText: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoSecundario },
   evidenceBadge: {
     alignSelf: 'flex-start', backgroundColor: withOpacity('#60A5FA', 0.12),
     borderRadius: Radius.xs, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 8,
   },
-  evidenceText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: '#60A5FA' },
+  evidenceText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.kind === 'dark' ? '#60A5FA' : t.info },
   consultNote: {
-    fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: '#fbbf24',
+    fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.kind === 'dark' ? '#fbbf24' : t.textoSecundario,
     marginTop: Spacing.sm, lineHeight: 17,
   },
-  fieldLabel: { fontFamily: Fonts.bold, fontSize: 9, color: TEXT.tertiary, letterSpacing: 1.5, marginBottom: 6 },
+  fieldLabel: { fontFamily: Fonts.bold, fontSize: 9, color: t.textoTenue, letterSpacing: 1.5, marginBottom: 6 },
   input: {
-    backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: '#222', borderRadius: Radius.sm,
-    paddingHorizontal: 12, paddingVertical: 10, color: TEXT.primary,
+    backgroundColor: t.hundido, borderWidth: 1, borderColor: t.bordeMarcado, borderRadius: Radius.sm,
+    paddingHorizontal: 12, paddingVertical: 10, color: t.texto,
     fontSize: FontSizes.sm, fontFamily: Fonts.regular,
   },
   inputMultiline: { minHeight: 72, textAlignVertical: 'top' },
   saveBtn: {
-    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
+    backgroundColor: t.flotante, borderWidth: 1, borderColor: t.bordeMarcado,
     borderRadius: Radius.sm, paddingVertical: 10, alignItems: 'center', marginTop: Spacing.md,
   },
-  saveBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.primary },
+  saveBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.texto },
   actions: { marginTop: Spacing.lg, gap: 8 },
   primaryBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md,
     paddingVertical: 14, alignItems: 'center',
   },
-  primaryBtnText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: '#000' },
+  primaryBtnText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: t.textoSobreLima },
   secondaryBtn: {
-    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
+    backgroundColor: t.flotante, borderWidth: 1, borderColor: t.bordeMarcado,
     borderRadius: Radius.md, paddingVertical: 14, alignItems: 'center',
   },
-  secondaryBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md, color: TEXT.primary },
+  secondaryBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md, color: t.texto },
   dangerBtn: { paddingVertical: 10, alignItems: 'center' },
-  dangerBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: '#ef4444' },
+  dangerBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.error },
 });

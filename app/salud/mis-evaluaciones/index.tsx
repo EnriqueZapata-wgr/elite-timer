@@ -8,6 +8,7 @@
  * task #107) se implementa en su propio mega-sprint — aquí solo un slot
  * "próximamente". NO se rediseña el contenido de los cuestionarios todavía.
  */
+import { useMemo } from 'react';
 import { useRouter , type Href } from 'expo-router';
 import { ScrollView, StyleSheet, View, ImageBackground } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,7 +21,8 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
-import { TEXT_COLORS, TEXT, withOpacity } from '@/src/constants/brand';
+import { TEXT_COLORS, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 // Batch 3 (#11): imagen editorial del hero (require estático · Metro).
 const HERO_EVALUACIONES = require('@/assets/images/health-hub/tests-evaluaciones.webp');
@@ -38,10 +40,13 @@ const EVALUACIONES: Eval[] = [
 ];
 
 export default function MisEvaluacionesScreen() {
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const router = useRouter();
 
   return (
-    <Screen>
+    <Screen themed>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         <PillarHeader pillar="health" title="Mis Evaluaciones" />
 
@@ -91,7 +96,7 @@ export default function MisEvaluacionesScreen() {
                     <EliteText style={s.cardTitle}>{e.title}</EliteText>
                     <EliteText variant="caption" style={s.cardBlurb}>{e.blurb}</EliteText>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={TEXT.tertiary} />
+                  <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
                 </View>
               </GradientCard>
             </AnimatedPressable>
@@ -104,7 +109,8 @@ export default function MisEvaluacionesScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md },
   // Batch 3 (#11): hero editorial
   hero: { height: 120, justifyContent: 'flex-end', borderRadius: Radius.lg, overflow: 'hidden', marginBottom: Spacing.md },
@@ -115,12 +121,12 @@ const s = StyleSheet.create({
   card: { padding: Spacing.md, marginBottom: Spacing.sm },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   iconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.primary, marginBottom: 2 },
+  cardTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: t.texto, marginBottom: 2 },
   cardBlurb: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, lineHeight: 16 },
   // Mega-Sprint D: Cuestionario Maestro destacado (lime-acentuado).
   masterCard: {
     backgroundColor: withOpacity('#A8E02A', 0.06), borderWidth: 1, borderColor: withOpacity('#A8E02A', 0.35),
     borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.md,
   },
-  masterTitle: { fontSize: FontSizes.md, fontFamily: Fonts.extraBold, color: '#A8E02A', marginBottom: 2 },
+  masterTitle: { fontSize: FontSizes.md, fontFamily: Fonts.extraBold, color: t.kind === 'dark' ? '#A8E02A' : t.tealTexto, marginBottom: 2 },
 });

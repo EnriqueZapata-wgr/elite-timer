@@ -9,7 +9,7 @@
  * Tabla: clinical_symptoms_aislados (migración 174) — el harvest del DX
  * (dx-engine.ts) ya lee tag/severity/logged_at de aquí.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator, Alert, DeviceEventEmitter, ScrollView, StyleSheet,
   TextInput, View,
@@ -40,7 +40,8 @@ import {
   loadSintomas,
   SINTOMAS_CHANGED_EVENT,
 } from '@/src/services/salud/sintomas-service';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 function localYesterday(): string {
@@ -54,6 +55,9 @@ function timeOf(loggedAt: string): string {
 }
 
 export default function SintomasScreen() {
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const [rows, setRows] = useState<SintomaAisladoRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +135,7 @@ export default function SintomasScreen() {
 
   return (
     <MedicalDisclaimerGate>
-      <Screen keyboard edges={[]}>
+      <Screen keyboard edges={[]} themed>
         <ScreenHeader title="Síntomas" onBack={() => router.back()} />
 
         {loading ? (
@@ -163,7 +167,7 @@ export default function SintomasScreen() {
                   value={tag}
                   onChangeText={setTag}
                   placeholder="Otro síntoma (texto libre)…"
-                  placeholderTextColor={TEXT.muted}
+                  placeholderTextColor={t.sinDatos}
                   style={styles.input}
                   maxLength={60}
                 />
@@ -180,7 +184,7 @@ export default function SintomasScreen() {
                         onPress={() => { haptic.light(); setSeverity(on ? null : lvl); }}
                         style={[styles.severityOption, on && styles.severityOptionOn]}
                       >
-                        <EliteText style={[styles.severityOptionText, on && { color: ATP_BRAND.lime }]}>
+                        <EliteText style={[styles.severityOptionText, on && { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto }]}>
                           {lvl}
                         </EliteText>
                       </AnimatedPressable>
@@ -192,13 +196,13 @@ export default function SintomasScreen() {
                   value={note}
                   onChangeText={setNote}
                   placeholder="Nota opcional (ej. después de comer)…"
-                  placeholderTextColor={TEXT.muted}
+                  placeholderTextColor={t.sinDatos}
                   style={styles.input}
                   maxLength={280}
                 />
 
                 <AnimatedPressable onPress={onSave} disabled={!canSave} style={[styles.cta, !canSave && { opacity: 0.5 }]}>
-                  {saving && <ActivityIndicator size="small" color="#000" style={{ marginRight: 8 }} />}
+                  {saving && <ActivityIndicator size="small" color={t.textoSobreLima} style={{ marginRight: 8 }} />}
                   <EliteText style={styles.ctaText}>{saving ? 'Guardando…' : 'Registrar síntoma'}</EliteText>
                 </AnimatedPressable>
 
@@ -237,7 +241,7 @@ export default function SintomasScreen() {
                             {row.note ? <EliteText style={styles.itemNote}>{row.note}</EliteText> : null}
                           </View>
                           <AnimatedPressable onPress={() => onDelete(row)} hitSlop={8} style={styles.deleteBtn}>
-                            <Ionicons name="close" size={14} color={TEXT.muted} />
+                            <Ionicons name="close" size={14} color={t.sinDatos} />
                           </AnimatedPressable>
                         </View>
                       ))}
@@ -255,55 +259,56 @@ export default function SintomasScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: Spacing.md, paddingBottom: 60 },
 
   // Formulario
-  formLabel: { fontFamily: Fonts.bold, fontSize: 10, color: TEXT.tertiary, letterSpacing: 2, marginBottom: Spacing.sm },
+  formLabel: { fontFamily: Fonts.bold, fontSize: 10, color: t.textoTenue, letterSpacing: 2, marginBottom: Spacing.sm },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
-    backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: '#222',
+    backgroundColor: t.hundido, borderWidth: 1, borderColor: t.bordeMarcado,
     borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6,
   },
   chipOn: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderColor: ATP_BRAND.lime },
-  chipText: { fontFamily: Fonts.regular, fontSize: 11, color: TEXT.secondary },
-  chipTextOn: { fontFamily: Fonts.semiBold, color: ATP_BRAND.lime },
+  chipText: { fontFamily: Fonts.regular, fontSize: 11, color: t.textoSecundario },
+  chipTextOn: { fontFamily: Fonts.semiBold, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   input: {
-    backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: '#222', borderRadius: Radius.md,
-    paddingHorizontal: 14, paddingVertical: 11, color: TEXT.primary,
+    backgroundColor: t.hundido, borderWidth: 1, borderColor: t.bordeMarcado, borderRadius: Radius.md,
+    paddingHorizontal: 14, paddingVertical: 11, color: t.texto,
     fontSize: 14, fontFamily: Fonts.regular, marginTop: Spacing.sm,
   },
   fieldLabel: {
-    fontFamily: Fonts.bold, fontSize: 10, color: TEXT.tertiary, letterSpacing: 2,
+    fontFamily: Fonts.bold, fontSize: 10, color: t.textoTenue, letterSpacing: 2,
     marginTop: Spacing.md, marginBottom: 8,
   },
   severityRow: { flexDirection: 'row', gap: 8 },
   severityOption: {
-    flex: 1, height: 40, borderRadius: Radius.md, borderWidth: 1, borderColor: '#222',
-    backgroundColor: '#0a0a0a', justifyContent: 'center', alignItems: 'center',
+    flex: 1, height: 40, borderRadius: Radius.md, borderWidth: 1, borderColor: t.bordeMarcado,
+    backgroundColor: t.hundido, justifyContent: 'center', alignItems: 'center',
   },
   severityOptionOn: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderColor: ATP_BRAND.lime },
-  severityOptionText: { fontFamily: Fonts.bold, fontSize: 15, color: TEXT.secondary },
+  severityOptionText: { fontFamily: Fonts.bold, fontSize: 15, color: t.textoSecundario },
   cta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md,
     paddingVertical: 13, marginTop: Spacing.md,
   },
-  ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: '#000' },
+  ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: t.textoSobreLima },
   dxNote: {
-    fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary,
+    fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue,
     lineHeight: 16, marginTop: Spacing.sm, textAlign: 'center',
   },
 
   // Timeline
-  emptyText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.tertiary, lineHeight: 20 },
-  dayBlock: { borderTopWidth: 1, borderTopColor: ELEVATION[1].border, marginTop: Spacing.sm, paddingTop: Spacing.sm },
-  dayHeader: { fontFamily: Fonts.bold, fontSize: 10, color: TEXT.tertiary, letterSpacing: 2, marginBottom: 6 },
+  emptyText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoTenue, lineHeight: 20 },
+  dayBlock: { borderTopWidth: 1, borderTopColor: t.borde, marginTop: Spacing.sm, paddingTop: Spacing.sm },
+  dayHeader: { fontFamily: Fonts.bold, fontSize: 10, color: t.textoTenue, letterSpacing: 2, marginBottom: 6 },
   itemRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 7 },
   itemDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: withOpacity(ATP_BRAND.lime, 0.5), marginTop: 5 },
-  itemTag: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.primary },
-  itemMeta: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary, marginTop: 1 },
-  itemNote: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.secondary, marginTop: 3, lineHeight: 16 },
+  itemTag: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.texto },
+  itemMeta: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue, marginTop: 1 },
+  itemNote: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoSecundario, marginTop: 3, lineHeight: 16 },
   deleteBtn: { padding: 4, marginTop: 2 },
 });

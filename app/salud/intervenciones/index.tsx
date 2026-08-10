@@ -6,7 +6,7 @@
  * Pull-to-refresh corre syncSuggestedInterventions. Patrón visual de
  * app/salud/diagnostico/index.tsx (header, safe area, tokens).
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator, DeviceEventEmitter, RefreshControl, ScrollView, StyleSheet, View,
 } from 'react-native';
@@ -48,10 +48,14 @@ import { PrescriptionCard } from '@/src/components/interventions/PrescriptionCar
 import { getCurrentPrescription, generatePrescription } from '@/src/services/interventions/prescription-service';
 import type { PrescribedIntervention } from '@/src/services/interventions/personalize-types';
 import { ROOT_LABELS, type InterventionRoot } from '@/src/constants/intervention-vocab';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 export default function IntervencionesScreen() {
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const [protocol, setProtocol] = useState<ResolvedUserIntervention[]>([]);
   const [suggested, setSuggested] = useState<ResolvedUserIntervention[]>([]);
@@ -169,7 +173,7 @@ export default function IntervencionesScreen() {
 
   return (
     <MedicalDisclaimerGate>
-      <Screen edges={[]}>
+      <Screen edges={[]} themed>
         <ScreenHeader title="Mi Protocolo" onBack={() => router.back()} />
 
         {loading ? (
@@ -258,7 +262,7 @@ export default function IntervencionesScreen() {
                         style={styles.iconBtn}
                         hitSlop={6}
                       >
-                        <Ionicons name="pause" size={16} color={TEXT.tertiary} />
+                        <Ionicons name="pause" size={16} color={t.textoTenue} />
                       </AnimatedPressable>
                       <AnimatedPressable
                         onPress={() => onComplete(item)}
@@ -266,7 +270,7 @@ export default function IntervencionesScreen() {
                         style={[styles.checkBtn, done && styles.checkBtnDone]}
                         hitSlop={6}
                       >
-                        <Ionicons name="checkmark" size={18} color={done ? '#000' : TEXT.secondary} />
+                        <Ionicons name="checkmark" size={18} color={done ? t.textoSobreLima : t.textoSecundario} />
                       </AnimatedPressable>
                     </AnimatedPressable>
                   </Animated.View>
@@ -380,11 +384,11 @@ export default function IntervencionesScreen() {
                 onPress={() => { haptic.light(); setShowCatalog((v) => !v); }}
                 style={styles.catalogToggle}
               >
-                <Ionicons name="library-outline" size={15} color={TEXT.secondary} />
+                <Ionicons name="library-outline" size={15} color={t.textoSecundario} />
                 <EliteText style={styles.catalogToggleText}>
                   Explorar catálogo completo{suggested.length ? ` (${suggested.length} sugeridas)` : ''}
                 </EliteText>
-                <Ionicons name={showCatalog ? 'chevron-up' : 'chevron-down'} size={15} color={TEXT.secondary} />
+                <Ionicons name={showCatalog ? 'chevron-up' : 'chevron-down'} size={15} color={t.textoSecundario} />
               </AnimatedPressable>
               {showCatalog && suggested.length === 0 && (
                 <View style={styles.emptyBox}>
@@ -436,7 +440,7 @@ export default function IntervencionesScreen() {
                         <Ionicons
                           name={showAllSuggested ? 'chevron-up' : 'chevron-down'}
                           size={14}
-                          color={TEXT.secondary}
+                          color={t.textoSecundario}
                         />
                       </AnimatedPressable>
                     )}
@@ -455,43 +459,44 @@ export default function IntervencionesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: Spacing.md, paddingBottom: 60 },
   emptyBox: {
-    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card, borderWidth: 0.5, borderColor: t.borde,
     borderRadius: Radius.md, padding: Spacing.md,
   },
-  emptyText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.tertiary, lineHeight: 19 },
+  emptyText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoTenue, lineHeight: 19 },
   rowCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card, borderWidth: 0.5, borderColor: t.borde,
     borderRadius: Radius.md, padding: Spacing.md, marginBottom: 6,
   },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rowName: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.primary, flexShrink: 1 },
-  rowMeta: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary, marginTop: 2, lineHeight: 16 },
+  rowName: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.texto, flexShrink: 1 },
+  rowMeta: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue, marginTop: 2, lineHeight: 16 },
   iconBtn: {
     width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: ELEVATION[2].bg, borderWidth: 0.5, borderColor: ELEVATION[2].border,
+    backgroundColor: t.flotante, borderWidth: 0.5, borderColor: t.bordeMarcado,
   },
   checkBtn: {
     width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: ELEVATION[2].bg, borderWidth: 0.5, borderColor: ELEVATION[2].border,
+    backgroundColor: t.flotante, borderWidth: 0.5, borderColor: t.bordeMarcado,
   },
   checkBtnDone: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
   baseBadge: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderRadius: Radius.xs,
     paddingHorizontal: 6, paddingVertical: 2,
   },
-  baseBadgeText: { fontFamily: Fonts.bold, fontSize: 9, color: ATP_BRAND.lime, letterSpacing: 1 },
+  baseBadgeText: { fontFamily: Fonts.bold, fontSize: 9, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, letterSpacing: 1 },
   activateBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.sm,
     paddingHorizontal: 12, paddingVertical: 8,
   },
-  activateText: { fontFamily: Fonts.bold, fontSize: FontSizes.xs, color: '#000' },
+  activateText: { fontFamily: Fonts.bold, fontSize: FontSizes.xs, color: t.textoSobreLima },
   footHint: {
-    fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.muted,
+    fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.sinDatos,
     textAlign: 'center', marginTop: Spacing.lg,
   },
   rationaleBtn: {
@@ -500,19 +505,19 @@ const styles = StyleSheet.create({
     borderWidth: 0.5, borderColor: withOpacity(ATP_BRAND.lime, 0.3),
     borderRadius: Radius.md, paddingVertical: 10, marginBottom: 8,
   },
-  rationaleBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
+  rationaleBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   dxBreadcrumb: {
-    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card, borderWidth: 0.5, borderColor: t.borde,
     borderRadius: Radius.md, padding: Spacing.sm, marginBottom: Spacing.sm,
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
   },
-  dxBreadcrumbText: { flex: 1, fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary, lineHeight: 16 },
-  dxBreadcrumbLink: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
+  dxBreadcrumbText: { flex: 1, fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue, lineHeight: 16 },
+  dxBreadcrumbLink: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   humbyHint: {
-    fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary,
+    fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue,
     lineHeight: 17, marginTop: Spacing.sm, paddingHorizontal: 2,
   },
-  humbyWarn: { color: '#F59E0B', fontFamily: Fonts.semiBold },
+  humbyWarn: { color: t.kind === 'dark' ? '#F59E0B' : t.textoSecundario, fontFamily: Fonts.semiBold },
   // Motor Fase B
   rxHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm },
   recalcBtn: {
@@ -521,13 +526,13 @@ const styles = StyleSheet.create({
     borderWidth: 0.5, borderColor: withOpacity(ATP_BRAND.lime, 0.35),
     borderRadius: Radius.pill, paddingHorizontal: 12, paddingVertical: 6,
   },
-  recalcText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
+  recalcText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   rxClosing: {
-    fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary,
+    fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue,
     lineHeight: 17, marginTop: Spacing.sm, marginBottom: Spacing.xs, fontStyle: 'italic',
   },
   rxActiveNote: {
-    fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime,
+    fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto,
     marginBottom: Spacing.xs,
   },
   contextNote: {
@@ -535,17 +540,17 @@ const styles = StyleSheet.create({
     backgroundColor: withOpacity('#F59E0B', 0.08), borderWidth: 0.5, borderColor: withOpacity('#F59E0B', 0.3),
     borderRadius: Radius.md, padding: Spacing.sm, marginTop: 4,
   },
-  contextNoteText: { flex: 1, fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: '#F5C77E', lineHeight: 16 },
+  contextNoteText: { flex: 1, fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.kind === 'dark' ? '#F5C77E' : t.textoSecundario, lineHeight: 16 },
   catalogToggle: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing.xl, marginBottom: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card, borderWidth: 0.5, borderColor: t.borde,
     borderRadius: Radius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
   },
-  catalogToggleText: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.secondary },
+  catalogToggleText: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.textoSecundario },
   showAllBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card, borderWidth: 0.5, borderColor: t.borde,
     borderRadius: Radius.md, paddingVertical: 10, marginTop: 4,
   },
-  showAllText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: TEXT.secondary },
+  showAllText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.textoSecundario },
 });

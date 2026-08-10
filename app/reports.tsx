@@ -7,7 +7,7 @@
  * métrica, barras meta-cumplida, stats de identidad y secciones
  * personalizables (reordenar + prender/apagar, @atp/reports_sections).
  */
-import { useState, useCallback, useEffect, type ReactNode } from 'react';
+import { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,7 +24,8 @@ import { SimpleBarChart } from '@/src/components/charts/SimpleCharts';
 import { AdherenceCalendar } from '@/src/components/reports/AdherenceCalendar';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { PILLAR_GRADIENTS, TEXT, ATP_BRAND } from '@/src/constants/brand';
+import { PILLAR_GRADIENTS, ATP_BRAND, TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getMonthAdherence } from '@/src/services/reports/adherence-calendar-service';
 import { shiftMonth, type FlagsByDate } from '@/src/services/reports/adherence-calendar-core';
@@ -84,6 +85,9 @@ const PREFS_KEY = '@atp/reports_sections';
 export default function ReportsScreen() {
   const params = useLocalSearchParams<{ period?: string }>();
   const { user } = useAuth();
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [periodLabel, setPeriodLabel] = useState<PeriodLabel>(
     KEY_TO_LABEL[params.period ?? ''] ?? 'Semana',
   );
@@ -292,7 +296,7 @@ export default function ReportsScreen() {
   };
 
   return (
-    <Screen>
+    <Screen themed>
       <PillarHeader pillar="metrics" title="Reportes" />
       <View style={s.pillsRow}>
         <View style={{ flex: 1 }}>
@@ -303,7 +307,7 @@ export default function ReportsScreen() {
           onPress={() => { haptic.light(); setEditMode(e => !e); }}
           style={[s.gearBtn, editMode && s.gearBtnActive]}
         >
-          <Ionicons name="options-outline" size={18} color={editMode ? '#000' : TEXT.secondary} />
+          <Ionicons name="options-outline" size={18} color={editMode ? TEXT_COLORS.onAccent : t.textoSecundario} />
         </AnimatedPressable>
       </View>
 
@@ -356,7 +360,7 @@ export default function ReportsScreen() {
               disabled={consultaSharing}
               style={[s.consultaCta, consultaSharing && s.consultaCtaDisabled]}
             >
-              <Ionicons name="share-outline" size={16} color="#000" />
+              <Ionicons name="share-outline" size={16} color={t.textoSobreLima} />
               <EliteText style={s.consultaCtaText}>
                 {consultaSharing ? 'Generando…' : 'Generar y compartir PDF'}
               </EliteText>
@@ -377,13 +381,14 @@ export default function ReportsScreen() {
                   <EliteText style={s.editName}>{SECTION_NAMES[k]}</EliteText>
                   <View style={s.editControls}>
                     <AnimatedPressable onPress={() => { haptic.light(); savePrefs({ ...prefs, order: moveSection(order, k, -1) }); }} style={s.editBtn}>
-                      <Ionicons name="chevron-up" size={16} color={TEXT.secondary} />
+                      <Ionicons name="chevron-up" size={16} color={t.textoSecundario} />
                     </AnimatedPressable>
                     <AnimatedPressable onPress={() => { haptic.light(); savePrefs({ ...prefs, order: moveSection(order, k, 1) }); }} style={s.editBtn}>
-                      <Ionicons name="chevron-down" size={16} color={TEXT.secondary} />
+                      <Ionicons name="chevron-down" size={16} color={t.textoSecundario} />
                     </AnimatedPressable>
                     <AnimatedPressable onPress={() => { haptic.light(); savePrefs(toggleSection({ ...prefs, order }, k)); }} style={s.editBtn}>
-                      <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={16} color={hidden ? TEXT.tertiary : LIME} />
+                      {/* El lima sobre acero casi no se ve: en claro el ojo activo va en teal calibrado. */}
+                      <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={16} color={hidden ? t.textoTenue : (t.kind === 'dark' ? LIME : t.tealTexto)} />
                     </AnimatedPressable>
                   </View>
                 </View>
@@ -403,6 +408,9 @@ export default function ReportsScreen() {
 }
 
 function SectionHeader({ icon, color, title }: { icon: string; color: string; title: string }) {
+  // El icono conserva su color de sección (identidad); el título sigue el tema.
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   return (
     <View style={s.sectionHeader}>
       <Ionicons name={icon as any} size={20} color={color} />
@@ -412,6 +420,8 @@ function SectionHeader({ icon, color, title }: { icon: string; color: string; ti
 }
 
 function Stat({ value, label }: { value: number | string; label: string }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   return (
     <View style={s.stat}>
       <EliteText style={s.statValue}>{value}</EliteText>
@@ -420,38 +430,39 @@ function Stat({ value, label }: { value: number | string; label: string }) {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
-  loadingText: { color: '#888', fontSize: FontSizes.sm, textAlign: 'center', paddingVertical: Spacing.lg },
+  loadingText: { color: t.textoSecundario, fontSize: FontSizes.sm, textAlign: 'center', paddingVertical: Spacing.lg },
 
   // MB-11 C: pills + botón personalizar
   pillsRow: { flexDirection: 'row', alignItems: 'center', paddingTop: Spacing.sm, paddingBottom: 4, paddingRight: Spacing.md },
-  gearBtn: { padding: 8, borderRadius: 999, borderWidth: 1, borderColor: '#2A2A2A' },
+  gearBtn: { padding: 8, borderRadius: 999, borderWidth: 1, borderColor: t.bordeMarcado },
   gearBtnActive: { backgroundColor: LIME, borderColor: LIME },
   // MB-11 C: fila de edición por sección (reordenar / ocultar)
   editRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 6 },
-  editName: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#fff', letterSpacing: 1 },
+  editName: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: t.texto, letterSpacing: 1 },
   editControls: { flexDirection: 'row', gap: 4 },
-  editBtn: { padding: 6, borderRadius: 8, borderWidth: 1, borderColor: '#2A2A2A' },
-  emptyHint: { fontSize: FontSizes.sm, color: '#888', fontFamily: Fonts.regular, lineHeight: 18, marginTop: 4 },
+  editBtn: { padding: 6, borderRadius: 8, borderWidth: 1, borderColor: t.bordeMarcado },
+  emptyHint: { fontSize: FontSizes.sm, color: t.textoSecundario, fontFamily: Fonts.regular, lineHeight: 18, marginTop: 4 },
 
   // MB-29 P1: card del reporte para la consulta
-  consultaBody: { fontSize: FontSizes.sm, color: TEXT.secondary, fontFamily: Fonts.regular, lineHeight: 19, marginBottom: Spacing.sm },
+  consultaBody: { fontSize: FontSizes.sm, color: t.textoSecundario, fontFamily: Fonts.regular, lineHeight: 19, marginBottom: Spacing.sm },
   consultaRangeRow: { flexDirection: 'row', gap: 8, marginBottom: Spacing.sm },
-  consultaRangePill: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: '#2A2A2A' },
+  consultaRangePill: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: t.bordeMarcado },
   consultaRangePillActive: { backgroundColor: 'rgba(29,158,117,0.18)', borderColor: ATP_BRAND.teal },
-  consultaRangeText: { fontSize: FontSizes.sm, color: TEXT.secondary, fontFamily: Fonts.semiBold },
-  consultaRangeTextActive: { color: '#fff' },
+  consultaRangeText: { fontSize: FontSizes.sm, color: t.textoSecundario, fontFamily: Fonts.semiBold },
+  consultaRangeTextActive: { color: t.texto },
   consultaCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: ATP_BRAND.lime, borderRadius: 12, paddingVertical: 12 },
   consultaCtaDisabled: { opacity: 0.7 },
-  consultaCtaText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, color: '#000' },
+  consultaCtaText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, color: t.textoSobreLima },
 
   cardWrap: { marginBottom: Spacing.md },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.sm },
-  sectionTitle: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#fff', letterSpacing: 1 },
+  sectionTitle: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: t.texto, letterSpacing: 1 },
 
   statsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm, flexWrap: 'wrap' },
   stat: { flex: 1, minWidth: 65 },
-  statValue: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, color: '#fff' },
-  statLabel: { fontSize: 9, fontFamily: Fonts.semiBold, color: '#888', letterSpacing: 1, marginTop: 2 },
+  statValue: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, color: t.texto },
+  statLabel: { fontSize: 9, fontFamily: Fonts.semiBold, color: t.textoSecundario, letterSpacing: 1, marginTop: 2 },
 });
