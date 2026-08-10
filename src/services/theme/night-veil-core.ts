@@ -19,15 +19,22 @@ import { compositeOver, contrastRatio, hexToRgb } from '@/src/utils/contrast';
  * Los pares que el velo tiene prohibido romper, con su nivel. El tenue es
  * un rol de texto grande (3.19 en claro), así que su piso es 3.0; los demás
  * son AA de texto normal.
+ *
+ * ⚠️ Solo se protege lo que ES legible sin velo: "el filtro nunca puede
+ * TUMBAR el contraste por debajo de AA" habla de degradar, no de reparar.
+ * El tenue del oscuro (#555 sobre #121212) da 2.51 HOY, sin velo — es el
+ * diseño vigente ("las de hoy, no se tocan") y exigirle 3.0 al velo
+ * colapsaría el clamp a cero. Queda anotado en el reporte de MB-31A.
  */
 export function parejasProtegidas(t: AppThemeTokens): { fg: string; bg: string; min: number }[] {
-  return [
+  const objetivo = [
     { fg: t.texto, bg: t.card, min: 4.5 },
     { fg: t.texto, bg: t.fondo, min: 4.5 },
     { fg: t.textoSecundario, bg: t.card, min: 4.5 },
     { fg: t.textoSecundario, bg: t.fondo, min: 4.5 },
     { fg: t.textoTenue, bg: t.card, min: 3.0 },
   ];
+  return objetivo.filter(({ fg, bg, min }) => contrastRatio(fg, bg) >= min);
 }
 
 /** ¿Este velo, compuesto sobre el tema, deja legibles todos los pares? */

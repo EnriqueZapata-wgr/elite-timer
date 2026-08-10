@@ -1,6 +1,14 @@
 # 📋 FIFO · todo lo que quedó pendiente
 
-**Actualizado:** 9-ago-2026, merge conjunto a `main` de MB-30A
+**Actualizado:** 9-ago-2026 (noche), MB-31A (`feat/mb31a-temas`, el motor de
+temas) ENTREGADO y SIN mergear: espera audit de Cowork. Tokens de los dos
+temas en brand.ts (acero del manual 3.6 + oscuro intacto), cuatro modos
+(default oscuro; adaptativo con el horario del usuario), velo nocturno
+in-app con clamp AA, curva nocturna unificada en night-curve.ts (los tres
+usos del manual 3.7 jalan de UNA fuente), núcleo compartido migrado con
+scope <ThemeReady> y 10/10 mutaciones atrapadas. **MB-31B migra las
+pantallas: quedan 193 (120 con hex a mano, 1103 ocurrencias).**
+Actualización previa: merge conjunto a `main` de MB-30A
 (`feat/mb30a-sueno`, el sueño cobra vida: Sleep Cycle + import + pantalla
 llena) y MB-30B (`feat/mb30b-nativo`) con audit VERDE de Cowork (corrieron
 EN PARALELO; orden de merge: MB-30A → MB-30B; conflicto esperado en
@@ -155,8 +163,11 @@ build de MB-30 para verse en device** (el módulo nativo no viaja por OTA).
   (`sleep-core.ts`, testeado) sin tocar pantalla.
 - **Sin economía a propósito**: dormir no otorga electrón en este run
   (agregarlo es decisión de producto, no default silencioso).
-- **La paleta nocturna (`night-palette.ts`) la absorbe MB-31** en su sistema
-  de temas; los valores están en el reporte de entrega.
+- ~~**La paleta nocturna (`night-palette.ts`) la absorbe MB-31** en su sistema
+  de temas; los valores están en el reporte de entrega.~~ ✅ ABSORBIDA en
+  MB-31A: vive en `src/constants/night-curve.ts` (la curva única) y
+  night-palette solo re-exporta; hay test que exige identidad de las tres
+  fuentes.
 - **`user_chronotype` como default de la ventana**: si el usuario no tiene
   cronotipo, el default es 06:30 — honesto pero genérico.
 
