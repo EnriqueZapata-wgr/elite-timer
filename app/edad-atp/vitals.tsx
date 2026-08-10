@@ -4,9 +4,10 @@
  * `key` = columna real de health_measurements.
  * Nota: recovery_hr quedó de-scopeado (no tiene columna canónica — ver REPORT).
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, Pressable, Alert, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
@@ -19,8 +20,9 @@ import { saveHealthMeasurement, getLatestHealthMeasurement, type HealthMeasureme
 import { useFormDraft } from '@/src/hooks/useFormDraft';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
-import { TEXT } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const FIELDS: { key: string; label: string; unit: string; helper?: string; integer?: boolean }[] = [
   { key: 'systolic_bp', label: 'Presión sistólica', unit: 'mmHg', helper: 'En reposo, sentado, tras 5 min de calma', integer: true },
@@ -36,6 +38,9 @@ function daysAgo(dateStr: string): number {
 }
 
 export default function VitalsCapture() {
+  // MB-31B remate: tokens del tema (ruta = useAppTheme, nunca el scoped).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const analytics = useAnalytics();
   // ?focus=<columna> desde "Datos por capturar": abre el form y resalta el campo (#16).
@@ -106,7 +111,8 @@ export default function VitalsCapture() {
   }
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="health" title="Mediciones" />
       <ScrollView contentContainerStyle={styles.content}>
         {badge ? (
@@ -154,14 +160,15 @@ export default function VitalsCapture() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  intro: { color: Colors.textSecondary, fontSize: FontSizes.xs },
-  card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  intro: { color: t.textoSecundario, fontSize: FontSizes.xs },
+  card: { backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: t.borde },
   sumRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.xs },
-  sumLabel: { color: Colors.textSecondary },
-  sumValue: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
+  sumLabel: { color: t.textoSecundario },
+  sumValue: { color: t.texto, fontFamily: Fonts.semiBold },
   updateBtn: { marginTop: Spacing.sm, borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)', borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center' },
-  updateBtnText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
+  updateBtnText: { color: t.textoSecundario, fontFamily: Fonts.semiBold },
   saveBtn: { marginTop: Spacing.sm },
 });

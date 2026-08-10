@@ -3,14 +3,16 @@
  * en formación circular (72° entre sí), siguiendo ARQUITECTURA_v2 §6.1.
  * Animación stagger se añade en un commit posterior. Tap en una sub-edad → drill-down.
  */
+import { useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { EliteText } from '@/components/elite-text';
 import { haptic } from '@/src/utils/haptics';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
-import { ATP_BRAND } from '@/src/constants/brand';
-import { Colors, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, THEME_DARK, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { Fonts, FontSizes } from '@/constants/theme';
 import { EDAD_DIMS as DIMS, statusColor, statusGlyph, EDAD_TIMING, SUB_EDAD_CE_PENDING_THRESHOLD, EDAD_PENDING_COLOR } from './tokens';
 
 const SIZE = 300;
@@ -18,6 +20,11 @@ const RADIUS = 118;
 const MINI = 62;
 
 export function SubEdadConstellation({ result, onPressCenter }: { result: EdadAtpV2Result; onPressCenter?: () => void }) {
+  // MB-31B remate: subcomponente dentro del Screen themed → tokens del scope.
+  // El medallón central (fondo verde-negro + lima) es identidad y queda
+  // constante; los mini-rings usan superficie del tema y su semáforo se queda.
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const chrono = result.chronological_age;
   const subs = result.sub_edades;
 
@@ -66,19 +73,21 @@ export function SubEdadConstellation({ result, onPressCenter }: { result: EdadAt
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema; el medallón central es
+// identidad (fill oscuro + lima) y sus grises se anclan a THEME_DARK.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   wrap: { width: SIZE, height: SIZE, alignSelf: 'center' },
   center: {
     position: 'absolute', left: SIZE / 2 - 72, top: SIZE / 2 - 72, width: 144, height: 144,
     borderRadius: 72, backgroundColor: '#0d1a0a', borderWidth: 2, borderColor: ATP_BRAND.lime,
   },
   centerInner: { flex: 1, borderRadius: 72, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  centerLabel: { color: Colors.textSecondary, fontSize: 10, letterSpacing: 2, fontFamily: Fonts.bold },
+  centerLabel: { color: THEME_DARK.textoSecundario, fontSize: 10, letterSpacing: 2, fontFamily: Fonts.bold },
   centerValue: { color: ATP_BRAND.lime, fontSize: 44, fontFamily: Fonts.extraBold, lineHeight: 48 },
-  centerSub: { color: Colors.textSecondary, fontSize: FontSizes.xs },
+  centerSub: { color: THEME_DARK.textoSecundario, fontSize: FontSizes.xs },
   mini: {
     position: 'absolute', width: MINI, height: MINI, borderRadius: MINI / 2,
-    backgroundColor: Colors.surface, borderWidth: 1.5,
+    backgroundColor: t.card, borderWidth: 1.5,
   },
   miniInner: { flex: 1, borderRadius: MINI / 2, alignItems: 'center', justifyContent: 'center' },
   miniIcon: { fontSize: 15 },

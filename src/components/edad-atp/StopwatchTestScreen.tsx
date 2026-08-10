@@ -3,8 +3,9 @@
  * (plank, BOLT). Empezar/Detener/Reiniciar + un modal "¿Cómo se hace?". Guarda los
  * segundos vía kinematic-tests-service (que alimenta el motor v2).
  */
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Alert, Modal } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
@@ -17,8 +18,9 @@ import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { useStopwatch } from '@/src/hooks/useStopwatch';
 import { saveKinematicTest, type KinematicTestKey } from '@/src/services/edad-atp/kinematic-tests-service';
-import { ATP_BRAND, BG, BORDER, TEXT, TEXT_COLORS, ELEVATION } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 interface Props {
   testKey: Extract<KinematicTestKey, 'plank' | 'bolt'>;
@@ -30,6 +32,11 @@ interface Props {
 }
 
 export function StopwatchTestScreen({ testKey, title, intro, helperTitle, helperBody, maxSeconds }: Props) {
+  // MB-31B remate: este componente ES el cuerpo de la ruta y renderiza su
+  // propio <Screen themed>, así que lee el tema GLOBAL (useAppTheme) — con
+  // useSurfaceTokens aquí arriba del Screen sería oscuro perpetuo.
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const analytics = useAnalytics();
   const { elapsed, running, start, stop, reset } = useStopwatch();
@@ -53,14 +60,15 @@ export function StopwatchTestScreen({ testKey, title, intro, helperTitle, helper
   }
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="fitness" title={title} />
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.intro}>{intro}</EliteText>
 
         {/* ACCENT_ROLES: link de ayuda no es CTA/héroe/estado → neutro. */}
         <AnimatedPressable onPress={() => { haptic.light(); setHelpOpen(true); }} style={styles.helpLink}>
-          <Ionicons name="help-circle-outline" size={16} color={TEXT.secondary} />
+          <Ionicons name="help-circle-outline" size={16} color={t.textoSecundario} />
           <EliteText variant="caption" style={styles.helpLinkText}>¿Cómo se hace?</EliteText>
         </AnimatedPressable>
 
@@ -69,18 +77,18 @@ export function StopwatchTestScreen({ testKey, title, intro, helperTitle, helper
           <View style={styles.controls}>
             {!running ? (
               <AnimatedPressable onPress={() => { haptic.medium(); start(); }} style={[styles.ctrl, styles.ctrlStart]}>
-                <Ionicons name="play" size={20} color={TEXT_COLORS.onAccent} />
+                <Ionicons name="play" size={20} color={t.textoSobreLima} />
                 <EliteText variant="body" style={styles.ctrlStartText}>{elapsed > 0 ? 'Reanudar' : 'Empezar'}</EliteText>
               </AnimatedPressable>
             ) : (
               <AnimatedPressable onPress={() => { haptic.medium(); stop(); }} style={[styles.ctrl, styles.ctrlStop]}>
-                <Ionicons name="stop" size={20} color="#fff" />
+                <Ionicons name="stop" size={20} color={TEXT_COLORS.primary} />
                 <EliteText variant="body" style={styles.ctrlStopText}>Detener</EliteText>
               </AnimatedPressable>
             )}
             <AnimatedPressable onPress={() => { haptic.light(); reset(); }} style={[styles.ctrl, styles.ctrlReset]} disabled={running}>
-              <Ionicons name="refresh" size={18} color={running ? Colors.textMuted : Colors.textSecondary} />
-              <EliteText variant="caption" style={[styles.ctrlResetText, running && { color: Colors.textMuted }]}>Reiniciar</EliteText>
+              <Ionicons name="refresh" size={18} color={running ? t.textoTenue : t.textoSecundario} />
+              <EliteText variant="caption" style={[styles.ctrlResetText, running && { color: t.textoTenue }]}>Reiniciar</EliteText>
             </AnimatedPressable>
           </View>
         </View>
@@ -108,28 +116,32 @@ export function StopwatchTestScreen({ testKey, title, intro, helperTitle, helper
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema. El lima como LETRA del
+// cronómetro (dato heroico) solo vive en oscuro; en claro cae al teal
+// (manual regla 1 — hallazgo reportado).
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  intro: { color: TEXT.secondary, fontSize: FontSizes.sm, lineHeight: 20 },
+  intro: { color: t.textoSecundario, fontSize: FontSizes.sm, lineHeight: 20 },
   helpLink: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
-  helpLinkText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
-  timerCard: { backgroundColor: BG.card, borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1, borderColor: BORDER.card, alignItems: 'center', gap: Spacing.md, marginTop: Spacing.sm },
+  helpLinkText: { color: t.textoSecundario, fontFamily: Fonts.semiBold },
+  timerCard: { backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1, borderColor: t.borde, alignItems: 'center', gap: Spacing.md, marginTop: Spacing.sm },
   // Lima solo en el dato heroico (el cronómetro ES el protagonista de la pantalla).
-  timer: { fontFamily: Fonts.extraBold, fontSize: FontSizes.timer, color: ATP_BRAND.lime },
-  timerUnit: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg, color: TEXT.secondary },
+  timer: { fontFamily: Fonts.extraBold, fontSize: FontSizes.timer, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
+  timerUnit: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg, color: t.textoSecundario },
   controls: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   ctrl: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 20, borderRadius: Radius.pill },
   // CTA compacto inline — lime sólido permitido bajo ACCENT_ROLES (§1).
   ctrlStart: { backgroundColor: ATP_BRAND.lime },
-  ctrlStartText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold },
-  ctrlStop: { backgroundColor: Colors.error },
-  ctrlStopText: { color: '#fff', fontFamily: Fonts.bold },
-  ctrlReset: { borderWidth: 1, borderColor: BORDER.input },
-  ctrlResetText: { color: TEXT.secondary },
+  ctrlStartText: { color: t.textoSobreLima, fontFamily: Fonts.bold },
+  // Blanco constante sobre el relleno de error (calibrado por tema en t.error).
+  ctrlStop: { backgroundColor: t.error },
+  ctrlStopText: { color: TEXT_COLORS.primary, fontFamily: Fonts.bold },
+  ctrlReset: { borderWidth: 1, borderColor: t.borde },
+  ctrlResetText: { color: t.textoSecundario },
   saveBtn: { marginTop: Spacing.md },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: Spacing.lg },
-  modalCard: { backgroundColor: ELEVATION[2].bg, borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1, borderColor: ELEVATION[2].border, gap: Spacing.sm },
-  modalTitle: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
-  modalBody: { color: TEXT.secondary, fontSize: FontSizes.sm, lineHeight: 20 },
+  modalCard: { backgroundColor: t.flotante, borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1, borderColor: t.bordeMarcado, gap: Spacing.sm },
+  modalTitle: { color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
+  modalBody: { color: t.textoSecundario, fontSize: FontSizes.sm, lineHeight: 20 },
   modalClose: { marginTop: Spacing.xs },
 });

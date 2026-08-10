@@ -3,10 +3,12 @@
  * de UPLOAD_TYPES. Solo Labs y Composición alimentan el motor; el resto se adjunta como
  * contexto (#11). Controlado: visible/onSelect/onCancel.
  */
+import { useMemo } from 'react';
 import { Modal, View, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
-import { TEXT } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { UPLOAD_TYPES, type UploadType } from '@/src/constants/upload-types';
 
 interface Props {
@@ -16,6 +18,9 @@ interface Props {
 }
 
 export function UploadTypePicker({ visible, onSelect, onCancel }: Props) {
+  // MB-31B remate: componente compartido dentro del Screen themed → scope.
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
       <Pressable style={styles.backdrop} onPress={onCancel}>
@@ -49,22 +54,23 @@ export function UploadTypePicker({ visible, onSelect, onCancel }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: Colors.surfaceBase, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, padding: Spacing.lg, maxHeight: '85%' },
-  title: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
-  subtitle: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 2, marginBottom: Spacing.sm, lineHeight: 16 },
+  sheet: { backgroundColor: t.hundido, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, padding: Spacing.lg, maxHeight: '85%' },
+  title: { color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
+  subtitle: { color: t.textoSecundario, fontSize: FontSizes.xs, marginTop: 2, marginBottom: Spacing.sm, lineHeight: 16 },
   list: { flexGrow: 0 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#1c1c1c' },
+  option: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.borde },
   icon: { fontSize: 24 },
   optText: { flex: 1 },
   optHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexWrap: 'wrap' },
-  optLabel: { color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
-  optHint: { color: Colors.textMuted, fontSize: FontSizes.xs, marginTop: 1 },
+  optLabel: { color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  optHint: { color: t.textoTenue, fontSize: FontSizes.xs, marginTop: 1 },
   motorPill: { backgroundColor: 'rgba(168,224,42,0.14)', borderRadius: Radius.sm, paddingHorizontal: 6, paddingVertical: 1 },
-  motorPillText: { color: TEXT.secondary, fontSize: 9, fontFamily: Fonts.semiBold },
+  motorPillText: { color: t.textoSecundario, fontSize: 9, fontFamily: Fonts.semiBold },
   ctxPill: { backgroundColor: 'rgba(142,142,147,0.16)', borderRadius: Radius.sm, paddingHorizontal: 6, paddingVertical: 1 },
-  ctxPillText: { color: Colors.textMuted, fontSize: 9, fontFamily: Fonts.semiBold },
+  ctxPillText: { color: t.textoTenue, fontSize: 9, fontFamily: Fonts.semiBold },
   cancel: { marginTop: Spacing.md, paddingVertical: 12, alignItems: 'center' },
-  cancelText: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  cancelText: { color: t.textoSecundario, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 });

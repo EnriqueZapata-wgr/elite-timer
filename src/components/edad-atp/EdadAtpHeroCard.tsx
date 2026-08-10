@@ -4,12 +4,13 @@
  * detalle. Reemplaza los datos legacy como protagonista. Se alimenta SOLO del motor v2 y la
  * fuente canónica — nada hardcodeado. Carga sus propios datos (autónomo, bajo riesgo).
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View, Pressable, StyleSheet, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { EliteText } from '@/components/elite-text';
-import { ATP_BRAND } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
 import type { EdadAtpV2Result, SubEdadKey } from '@/src/types/edad-atp-v2';
@@ -18,6 +19,10 @@ import { CeStars } from './CeStars';
 import { CE_STARS_LEGEND } from './ce-stars';
 
 export function EdadAtpHeroCard({ userId }: { userId: string }) {
+  // MB-31B remate: componente compartido (Mi Salud + SaludHub) → tokens del
+  // scope. El semáforo de estado (statusColor / pendiente) se queda.
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const [result, setResult] = useState<EdadAtpV2Result | null>(null);
   const [ce, setCe] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -110,23 +115,25 @@ export function EdadAtpHeroCard({ userId }: { userId: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.lg, gap: Spacing.sm, borderWidth: 1, borderColor: 'rgba(168,224,42,0.25)' },
-  muted: { color: Colors.textMuted },
-  title: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
+// MB-31B remate: los estilos leen los tokens del tema. El lima como LETRA de
+// los CTAs solo vive en oscuro; en claro cae al teal (manual regla 1).
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
+  card: { backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.lg, gap: Spacing.sm, borderWidth: 1, borderColor: 'rgba(168,224,42,0.25)' },
+  muted: { color: t.textoTenue },
+  title: { color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
   heroRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   ceCol: { alignItems: 'flex-end', gap: 1 },
-  ceHint: { color: Colors.textMuted, fontSize: FontSizes.xs },
-  kicker: { color: Colors.textSecondary, letterSpacing: 2, fontFamily: Fonts.bold },
+  ceHint: { color: t.textoTenue, fontSize: FontSizes.xs },
+  kicker: { color: t.textoSecundario, letterSpacing: 2, fontFamily: Fonts.bold },
   hero: { fontSize: 46, fontFamily: Fonts.extraBold, lineHeight: 50 },
-  sub: { color: Colors.textSecondary },
+  sub: { color: t.textoSecundario },
   bars: { gap: 6, marginTop: Spacing.xs },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   barIcon: { fontSize: 16, width: 22, textAlign: 'center' },
-  barTrack: { flex: 1, height: 8, backgroundColor: '#1a1a1a', borderRadius: 4, overflow: 'hidden' },
+  barTrack: { flex: 1, height: 8, backgroundColor: t.borde, borderRadius: 4, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 4 },
   barVal: { width: 28, textAlign: 'right', fontFamily: Fonts.semiBold },
   ctaRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
   cta: { flex: 1, backgroundColor: 'rgba(168,224,42,0.10)', borderRadius: Radius.md, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(168,224,42,0.3)' },
-  ctaText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
+  ctaText: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
 });

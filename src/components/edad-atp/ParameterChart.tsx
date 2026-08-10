@@ -4,10 +4,13 @@
  * (rango óptimo de la matriz V8) de fondo. Puntos fechados, color por estado, marca los stale.
  * Toda la matemática vive en `parameter-chart-model.ts` (testeada); aquí solo se dibuja.
  */
+import { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Path, Circle, Rect, Line, Text as SvgText } from 'react-native-svg';
 import { EliteText } from '@/components/elite-text';
-import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { Spacing, FontSizes } from '@/constants/theme';
 import { EDAD_STATUS, EDAD_PENDING_COLOR } from './tokens';
 import { buildChartModel, type SeriePoint } from './parameter-chart-model';
 
@@ -35,6 +38,10 @@ function shortDate(iso: string): string {
 }
 
 export function ParameterChart({ series, bandLimits, todayISO, unit = '', width, height = 160, showAllRanges = false }: Props) {
+  // MB-31B remate: subcomponente dentro del Screen themed → tokens del scope.
+  // Los colores de estado (EDAD_STATUS / pendiente) son semáforo: se quedan.
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const model = buildChartModel(series, bandLimits, todayISO, showAllRanges);
   if (model.empty) {
     return (
@@ -71,13 +78,13 @@ export function ParameterChart({ series, bandLimits, todayISO, unit = '', width,
               y={py(outer.hiNorm)}
               width={plotW}
               height={Math.max(0, py(outer.loNorm) - py(outer.hiNorm))}
-              fill={Colors.textSecondary}
+              fill={t.textoSecundario}
               opacity={0.07}
             />
-            <Line x1={pad.left} y1={py(outer.hiNorm)} x2={pad.left + plotW} y2={py(outer.hiNorm)} stroke={Colors.textSecondary} strokeWidth={0.5} strokeDasharray="2 4" opacity={0.35} />
-            <Line x1={pad.left} y1={py(outer.loNorm)} x2={pad.left + plotW} y2={py(outer.loNorm)} stroke={Colors.textSecondary} strokeWidth={0.5} strokeDasharray="2 4" opacity={0.35} />
-            <SvgText x={width - pad.right + 3} y={py(outer.hiNorm) + 3} fill={Colors.textSecondary} fontSize={8} opacity={0.55}>{outer.hi}</SvgText>
-            <SvgText x={width - pad.right + 3} y={py(outer.loNorm) + 3} fill={Colors.textSecondary} fontSize={8} opacity={0.55}>{outer.lo}</SvgText>
+            <Line x1={pad.left} y1={py(outer.hiNorm)} x2={pad.left + plotW} y2={py(outer.hiNorm)} stroke={t.textoSecundario} strokeWidth={0.5} strokeDasharray="2 4" opacity={0.35} />
+            <Line x1={pad.left} y1={py(outer.loNorm)} x2={pad.left + plotW} y2={py(outer.loNorm)} stroke={t.textoSecundario} strokeWidth={0.5} strokeDasharray="2 4" opacity={0.35} />
+            <SvgText x={width - pad.right + 3} y={py(outer.hiNorm) + 3} fill={t.textoSecundario} fontSize={8} opacity={0.55}>{outer.hi}</SvgText>
+            <SvgText x={width - pad.right + 3} y={py(outer.loNorm) + 3} fill={t.textoSecundario} fontSize={8} opacity={0.55}>{outer.lo}</SvgText>
           </>
         ) : null}
 
@@ -101,7 +108,7 @@ export function ParameterChart({ series, bandLimits, todayISO, unit = '', width,
 
         {/* Línea de la serie. */}
         {model.points.length > 1 ? (
-          <Path d={linePath} stroke={Colors.textSecondary} strokeWidth={1.5} fill="none" opacity={0.7} />
+          <Path d={linePath} stroke={t.textoSecundario} strokeWidth={1.5} fill="none" opacity={0.7} />
         ) : null}
 
         {/* Puntos fechados. Stale = anillo gris hueco. Carried (forward-fill) = anillo del color de estado. */}
@@ -132,12 +139,12 @@ export function ParameterChart({ series, bandLimits, todayISO, unit = '', width,
 
         {/* Etiquetas de fecha (primera, última). */}
         {model.points.length > 0 ? (
-          <SvgText x={px(model.points[0].x)} y={height - 6} fill={Colors.textMuted} fontSize={8} textAnchor="start">
+          <SvgText x={px(model.points[0].x)} y={height - 6} fill={t.textoTenue} fontSize={8} textAnchor="start">
             {shortDate(model.points[0].measured_at)}
           </SvgText>
         ) : null}
         {model.points.length > 1 ? (
-          <SvgText x={px(model.points[model.points.length - 1].x)} y={height - 6} fill={Colors.textMuted} fontSize={8} textAnchor="end">
+          <SvgText x={px(model.points[model.points.length - 1].x)} y={height - 6} fill={t.textoTenue} fontSize={8} textAnchor="end">
             {shortDate(model.points[model.points.length - 1].measured_at)}
           </SvgText>
         ) : null}
@@ -146,7 +153,7 @@ export function ParameterChart({ series, bandLimits, todayISO, unit = '', width,
       <View style={styles.legendRow}>
         <EliteText variant="caption" style={styles.legendItem}>
           <EliteText style={{ color: EDAD_STATUS.good }}>▬</EliteText> Rango funcional
-          {outer ? <EliteText style={{ color: Colors.textSecondary }}>  ▭ Rango amplio</EliteText> : null}
+          {outer ? <EliteText style={{ color: t.textoSecundario }}>  ▭ Rango amplio</EliteText> : null}
         </EliteText>
         <EliteText variant="caption" style={styles.legendItem}>
           <EliteText style={{ color: EDAD_PENDING_COLOR }}>○</EliteText> &gt; 1 año {unit ? `· ${unit}` : ''}
@@ -156,9 +163,10 @@ export function ParameterChart({ series, bandLimits, todayISO, unit = '', width,
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   empty: { alignItems: 'center', justifyContent: 'center' },
-  emptyText: { color: Colors.textMuted, fontSize: FontSizes.xs },
+  emptyText: { color: t.textoTenue, fontSize: FontSizes.xs },
   legendRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.xs, paddingHorizontal: Spacing.xs },
-  legendItem: { color: Colors.textMuted, fontSize: FontSizes.xs },
+  legendItem: { color: t.textoTenue, fontSize: FontSizes.xs },
 });

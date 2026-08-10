@@ -11,8 +11,9 @@
  *  - CTA: con params pendientes → "Completar datos" (lleva al primero); sin pendientes
  *    → Acción ATP de mejora.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ScrollView, StyleSheet, Pressable, View, Modal, Alert } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect, useLocalSearchParams , type Href } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -24,8 +25,9 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { saveHealthMeasurement, saveQuestionnaireResponses } from '@/src/services/edad-atp/capture-service';
 import type { EdadAtpV2Result, SubEdadComponent, SubEdadKey, SubEdadResult } from '@/src/types/edad-atp-v2';
-import { ATP_BRAND, TEXT, TEXT_COLORS } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
   BAND_DISPLAY, type ComponentBand, statusColor,
   SUB_EDAD_CE_PENDING_THRESHOLD, EDAD_PENDING_COLOR,
@@ -71,6 +73,9 @@ type EditorState =
   | null;
 
 export default function SubEdadDrillDown() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { key } = useLocalSearchParams<{ key: string }>();
   const { user } = useAuth();
   const analytics = useAnalytics();
@@ -160,7 +165,8 @@ export default function SubEdadDrillDown() {
   }
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="metrics" title={meta.label} />
       <ScrollView contentContainerStyle={styles.content}>
         {!sub ? (
@@ -278,36 +284,38 @@ export default function SubEdadDrillDown() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema. Los colores de estado
+// (BAND_DISPLAY / statusColor) son semáforo, no tema: se quedan.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  calc: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.xl },
+  calc: { color: t.textoSecundario, textAlign: 'center', marginTop: Spacing.xl },
   ring: { alignSelf: 'center', width: 150, height: 150, borderRadius: 75, borderWidth: 3, alignItems: 'center', justifyContent: 'center', gap: 2, marginTop: Spacing.md },
   ringIcon: { fontSize: 26 },
   ringAge: { fontSize: 40, fontFamily: Fonts.extraBold, lineHeight: 44 },
   ringPending: { fontSize: FontSizes.md, fontFamily: Fonts.bold, lineHeight: 24 },
   delta: { textAlign: 'center', marginBottom: 2 },
   ceRow: { alignItems: 'center', marginBottom: Spacing.sm },
-  pendingMsg: { color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.sm, paddingHorizontal: Spacing.md, lineHeight: 18 },
-  sectionTitle: { color: TEXT.primary, fontFamily: Fonts.bold, marginTop: Spacing.sm },
-  sectionHint: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: -4 },
-  compRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface, borderRadius: Radius.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderWidth: 1, borderColor: Colors.border },
-  compLabel: { color: Colors.textPrimary, flex: 1 },
+  pendingMsg: { color: t.textoSecundario, textAlign: 'center', marginBottom: Spacing.sm, paddingHorizontal: Spacing.md, lineHeight: 18 },
+  sectionTitle: { color: t.texto, fontFamily: Fonts.bold, marginTop: Spacing.sm },
+  sectionHint: { color: t.textoSecundario, fontSize: FontSizes.xs, marginTop: -4 },
+  compRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: t.card, borderRadius: Radius.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderWidth: 1, borderColor: t.borde },
+  compLabel: { color: t.texto, flex: 1 },
   compRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  compVal: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
+  compVal: { color: t.texto, fontFamily: Fonts.semiBold },
   compStatus: { fontSize: FontSizes.xs },
-  chevron: { color: Colors.textSecondary, fontSize: FontSizes.md, marginLeft: 2 },
+  chevron: { color: t.textoSecundario, fontSize: FontSizes.md, marginLeft: 2 },
   actionCard: { backgroundColor: 'rgba(168,224,42,0.08)', borderRadius: Radius.card, padding: Spacing.md, gap: 8, marginTop: Spacing.md },
-  actionTitle: { color: TEXT.primary, fontFamily: Fonts.bold },
-  actionText: { color: Colors.textSecondary, fontSize: FontSizes.xs, lineHeight: 18 },
+  actionTitle: { color: t.texto, fontFamily: Fonts.bold },
+  actionText: { color: t.textoSecundario, fontSize: FontSizes.xs, lineHeight: 18 },
   // CTA compacto inline — lime sólido permitido bajo ACCENT_ROLES (§1).
   actionBtn: { backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center', marginTop: 4 },
-  actionBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold },
-  backBtn: { backgroundColor: Colors.surface, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: Colors.border },
-  backText: { color: Colors.textPrimary },
+  actionBtnText: { color: t.textoSobreLima, fontFamily: Fonts.bold },
+  backBtn: { backgroundColor: t.card, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: t.borde },
+  backText: { color: t.texto },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: Spacing.lg },
-  modalCard: { width: '100%', backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, gap: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
-  modalTitle: { color: Colors.textPrimary, fontFamily: Fonts.bold },
-  modalHint: { color: Colors.textSecondary, fontSize: FontSizes.xs },
+  modalCard: { width: '100%', backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, gap: Spacing.sm, borderWidth: 1, borderColor: t.borde },
+  modalTitle: { color: t.texto, fontFamily: Fonts.bold },
+  modalHint: { color: t.textoSecundario, fontSize: FontSizes.xs },
   modalCancel: { alignItems: 'center', paddingVertical: Spacing.xs },
-  modalCancelText: { color: Colors.textSecondary },
+  modalCancelText: { color: t.textoSecundario },
 });

@@ -3,8 +3,9 @@
  * Captura FC al pico de esfuerzo y FC tras 1 min de descanso → guarda el DELTA (caída).
  * Motor (scoreRecoveryHR): delta ≥40 = 100. Mayor caída = mejor recuperación.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Alert, Modal } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
@@ -17,10 +18,14 @@ import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveKinematicTest, getLatestKinematicTests } from '@/src/services/edad-atp/kinematic-tests-service';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
-import { ATP_BRAND, TEXT } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 export default function TestRecoveryHrScreen() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [peak, setPeak] = useState('');
@@ -53,14 +58,15 @@ export default function TestRecoveryHrScreen() {
   }
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="fitness" title="Recovery HR" />
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.intro}>
           Mide cuánto baja tu pulso en 1 minuto tras un esfuerzo intenso. Mayor caída = mejor recuperación cardiaca (marcador de salud cardiovascular).
         </EliteText>
         <Pressable onPress={() => { haptic.light(); setHelpOpen(true); }} style={styles.helpLink}>
-          <Ionicons name="help-circle-outline" size={16} color={TEXT.secondary} />
+          <Ionicons name="help-circle-outline" size={16} color={t.textoSecundario} />
           <EliteText variant="caption" style={styles.helpLinkText}>¿Cómo medir?</EliteText>
         </Pressable>
         <View style={styles.card}>
@@ -91,19 +97,21 @@ export default function TestRecoveryHrScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema. El lima como LETRA del
+// delta solo vive en oscuro; en claro cae al teal de texto (manual regla 1).
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  intro: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20 },
+  intro: { color: t.textoSecundario, fontSize: FontSizes.sm, lineHeight: 20 },
   helpLink: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
-  helpLinkText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
-  card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, marginTop: Spacing.sm },
-  delta: { color: ATP_BRAND.lime, fontSize: FontSizes.sm, textAlign: 'right', marginTop: Spacing.xs, fontFamily: Fonts.semiBold },
+  helpLinkText: { color: t.textoSecundario, fontFamily: Fonts.semiBold },
+  card: { backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: t.borde, marginTop: Spacing.sm },
+  delta: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, fontSize: FontSizes.sm, textAlign: 'right', marginTop: Spacing.xs, fontFamily: Fonts.semiBold },
   saveBtn: { marginTop: Spacing.md },
   backBtn: { paddingVertical: Spacing.sm, alignItems: 'center' },
-  backText: { color: Colors.textSecondary },
+  backText: { color: t.textoSecundario },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: Spacing.lg },
-  modalCard: { backgroundColor: '#0d0d0d', borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1, borderColor: '#222', gap: Spacing.sm },
-  modalTitle: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
-  modalBody: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20 },
+  modalCard: { backgroundColor: t.flotante, borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1, borderColor: t.borde, gap: Spacing.sm },
+  modalTitle: { color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
+  modalBody: { color: t.textoSecundario, fontSize: FontSizes.sm, lineHeight: 20 },
   modalClose: { marginTop: Spacing.xs },
 });

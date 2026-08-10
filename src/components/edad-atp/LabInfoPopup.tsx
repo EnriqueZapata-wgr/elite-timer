@@ -3,10 +3,12 @@
  * apretado (long-press) un parámetro. Lee nombre + descripción de LAB_PARAM_META (fuente
  * única). Incluye disclaimer médico (no diagnostica). Controlado por el padre (visible/onClose).
  */
+import { useMemo } from 'react';
 import { Modal, View, Pressable, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
-import { ATP_BRAND, TEXT } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { getLabParamMeta } from './component-meta';
 
 interface Props {
@@ -18,6 +20,9 @@ interface Props {
 }
 
 export function LabInfoPopup({ parameterKey, onClose, value }: Props) {
+  // MB-31B remate: subcomponente dentro del Screen themed → tokens del scope.
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const meta = parameterKey ? getLabParamMeta(parameterKey) : null;
   return (
     <Modal visible={parameterKey != null} transparent animationType="fade" onRequestClose={onClose}>
@@ -53,16 +58,18 @@ export function LabInfoPopup({ parameterKey, onClose, value }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema. El lima como LETRA
+// (valor y "Entendido") solo vive en oscuro; en claro cae al teal (manual regla 1).
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: Spacing.lg },
-  card: { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.lg, gap: Spacing.sm, borderWidth: 1, borderColor: '#222' },
+  card: { backgroundColor: t.card, borderRadius: Radius.lg, padding: Spacing.lg, gap: Spacing.sm, borderWidth: 1, borderColor: t.borde },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexWrap: 'wrap' },
-  title: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
+  title: { color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
   abbrPill: { backgroundColor: 'rgba(168,224,42,0.12)', borderRadius: Radius.sm, paddingHorizontal: 8, paddingVertical: 2 },
-  abbr: { color: TEXT.secondary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
-  value: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
-  desc: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20 },
-  disclaimer: { color: Colors.textMuted, fontSize: FontSizes.xs, lineHeight: 15, marginTop: 2 },
+  abbr: { color: t.textoSecundario, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  value: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  desc: { color: t.textoSecundario, fontSize: FontSizes.sm, lineHeight: 20 },
+  disclaimer: { color: t.textoTenue, fontSize: FontSizes.xs, lineHeight: 15, marginTop: 2 },
   closeBtn: { marginTop: Spacing.sm, backgroundColor: 'rgba(168,224,42,0.12)', borderRadius: Radius.md, paddingVertical: 10, alignItems: 'center' },
-  closeText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  closeText: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 });

@@ -7,8 +7,9 @@
  * (El task lo describía en segundos; capturar segundos alimentaría basura al scorer 0–10.
  *  Ver flag en COWORK_REPORT.md.)
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Alert, Modal } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
@@ -21,10 +22,14 @@ import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveKinematicTest, getLatestKinematicTests } from '@/src/services/edad-atp/kinematic-tests-service';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
-import { TEXT } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 export default function TestOldManScreen() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [points, setPoints] = useState('');
@@ -52,14 +57,15 @@ export default function TestOldManScreen() {
   }
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="fitness" title="Old Man Test" />
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.intro}>
           Sin usar manos, siéntate en el piso y vuelve a ponerte de pie. Empiezas con 10 puntos y restas 1 por cada apoyo (mano, rodilla, antebrazo) o pérdida de equilibrio.
         </EliteText>
         <Pressable onPress={() => { haptic.light(); setHelpOpen(true); }} style={styles.helpLink}>
-          <Ionicons name="help-circle-outline" size={16} color={TEXT.secondary} />
+          <Ionicons name="help-circle-outline" size={16} color={t.textoSecundario} />
           <EliteText variant="caption" style={styles.helpLinkText}>¿Cómo se puntúa?</EliteText>
         </Pressable>
         <View style={styles.card}>
@@ -90,18 +96,19 @@ export default function TestOldManScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  intro: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20 },
+  intro: { color: t.textoSecundario, fontSize: FontSizes.sm, lineHeight: 20 },
   helpLink: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
-  helpLinkText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
-  card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, marginTop: Spacing.sm },
+  helpLinkText: { color: t.textoSecundario, fontFamily: Fonts.semiBold },
+  card: { backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: t.borde, marginTop: Spacing.sm },
   saveBtn: { marginTop: Spacing.md },
   backBtn: { paddingVertical: Spacing.sm, alignItems: 'center' },
-  backText: { color: Colors.textSecondary },
+  backText: { color: t.textoSecundario },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: Spacing.lg },
-  modalCard: { backgroundColor: '#0d0d0d', borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1, borderColor: '#222', gap: Spacing.sm },
-  modalTitle: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
-  modalBody: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20 },
+  modalCard: { backgroundColor: t.flotante, borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1, borderColor: t.borde, gap: Spacing.sm },
+  modalTitle: { color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
+  modalBody: { color: t.textoSecundario, fontSize: FontSizes.sm, lineHeight: 20 },
   modalClose: { marginTop: Spacing.xs },
 });

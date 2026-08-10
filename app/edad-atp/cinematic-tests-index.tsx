@@ -2,8 +2,9 @@
  * Índice de Pruebas Cinemáticas — las 4 pruebas de fitness (plank, BOLT, old man,
  * recovery HR) con su último valor capturado. Tap → pantalla individual.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect , type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -14,8 +15,9 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { getLatestKinematicTests, type KinematicTestKey } from '@/src/services/edad-atp/kinematic-tests-service';
-import { ATP_BRAND, CATEGORY_COLORS } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, CATEGORY_COLORS, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 type Row = { key: KinematicTestKey; label: string; subtitle: string; unit: string; icon: any; route: Href };
 
@@ -34,6 +36,9 @@ function daysAgoLabel(iso: string): string {
 }
 
 export default function CinematicTestsIndex() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const [latest, setLatest] = useState<Record<string, { value: number; measured_at: string }>>({});
 
@@ -45,36 +50,38 @@ export default function CinematicTestsIndex() {
   const done = TESTS.filter((t) => latest[t.key] != null).length;
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="fitness" title="Pruebas Cinemáticas" />
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.intro}>
           4 pruebas que completan tu Edad Fitness. {done}/4 capturadas. Hazlas cuando quieras y captura tu resultado.
         </EliteText>
 
-        {TESTS.map((t, i) => {
-          const v = latest[t.key];
+        {/* MB-31B remate: `row` (antes `t`) para no sombrear los tokens del tema. */}
+        {TESTS.map((row, i) => {
+          const v = latest[row.key];
           return (
-            <Animated.View key={t.key} entering={FadeInUp.delay(60 + i * 50).springify()}>
-              <AnimatedPressable onPress={() => { haptic.light(); router.push(t.route); }} style={styles.row}>
+            <Animated.View key={row.key} entering={FadeInUp.delay(60 + i * 50).springify()}>
+              <AnimatedPressable onPress={() => { haptic.light(); router.push(row.route); }} style={styles.row}>
                 <View style={[styles.iconWrap, { backgroundColor: 'rgba(168,224,42,0.12)' }]}>
-                  <Ionicons name={t.icon} size={22} color={CATEGORY_COLORS.fitness} />
+                  <Ionicons name={row.icon} size={22} color={CATEGORY_COLORS.fitness} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <EliteText variant="body" style={styles.label}>{t.label}</EliteText>
-                  <EliteText variant="caption" style={styles.subtitle}>{t.subtitle}</EliteText>
+                  <EliteText variant="body" style={styles.label}>{row.label}</EliteText>
+                  <EliteText variant="caption" style={styles.subtitle}>{row.subtitle}</EliteText>
                 </View>
                 <View style={styles.valueCol}>
                   {v != null ? (
                     <>
-                      <EliteText variant="body" style={styles.value}>{v.value} {t.unit}</EliteText>
+                      <EliteText variant="body" style={styles.value}>{v.value} {row.unit}</EliteText>
                       <EliteText variant="caption" style={styles.date}>{daysAgoLabel(v.measured_at)}</EliteText>
                     </>
                   ) : (
                     <EliteText variant="caption" style={styles.pending}>Sin capturar</EliteText>
                   )}
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+                <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />
               </AnimatedPressable>
             </Animated.View>
           );
@@ -86,15 +93,17 @@ export default function CinematicTestsIndex() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema. El lima como LETRA del
+// valor solo vive en oscuro; en claro cae al teal de texto (manual regla 1).
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm },
-  intro: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20, marginBottom: Spacing.xs },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  intro: { color: t.textoSecundario, fontSize: FontSizes.sm, lineHeight: 20, marginBottom: Spacing.xs },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: t.borde },
   iconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  label: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
-  subtitle: { color: Colors.textSecondary, fontSize: FontSizes.xs },
+  label: { color: t.texto, fontFamily: Fonts.semiBold },
+  subtitle: { color: t.textoSecundario, fontSize: FontSizes.xs },
   valueCol: { alignItems: 'flex-end' },
-  value: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold },
-  date: { color: Colors.textMuted, fontSize: FontSizes.xs },
-  pending: { color: Colors.textMuted, fontSize: FontSizes.xs },
+  value: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, fontFamily: Fonts.semiBold },
+  date: { color: t.textoTenue, fontSize: FontSizes.xs },
+  pending: { color: t.textoTenue, fontSize: FontSizes.xs },
 });

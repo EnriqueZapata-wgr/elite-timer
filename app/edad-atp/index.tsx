@@ -4,9 +4,10 @@
  * (edad-atp el/ella) + overlay + número protagonista, como Mente/Sueño.
  * Muestra la CE actual + cards navegables a las pantallas de captura.
  */
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { View, ScrollView, StyleSheet, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { router, useFocusEffect , type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +27,8 @@ import { loadDatasetEntries } from '@/src/services/edad-atp/dataset-snapshot';
 import { computeDatasetHash } from '@/src/services/edad-atp/dataset-hash';
 import { getLastCalc, recalcStatus } from '@/src/services/edad-atp/recalc-gate';
 import { pickEdadAtpImage } from '@/src/utils/yo-image-picker';
-import { ATP_BRAND, BG, BORDER, TEXT, CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
+import { ATP_BRAND, CATEGORY_COLORS, SEMANTIC, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const CALC_THRESHOLD = 30; // % CE mínimo para habilitar "Calcular mi Edad"
@@ -49,6 +51,9 @@ const CARDS: Card[] = [
 ];
 
 export default function EdadAtpHub() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [ce, setCe] = useState<CEResult | null>(null);
@@ -123,7 +128,8 @@ export default function EdadAtpHub() {
   };
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="metrics" title="Edad ATP" />
       <ScrollView contentContainerStyle={styles.content}>
         {/* MB-11 D.4: HERO editorial — imagen + overlay + número protagonista.
@@ -162,7 +168,8 @@ export default function EdadAtpHub() {
                 </EliteText>
               )}
               <View style={styles.heroStars}>
-                <CeStars ce={ceValue} label="Calidad de tu evaluación" size={18} showLegend />
+                {/* editorial: dentro del velo oscuro del hero, en ambos modos. */}
+                <CeStars ce={ceValue} label="Calidad de tu evaluación" size={18} showLegend editorial />
               </View>
             </View>
           </ImageBackground>
@@ -177,7 +184,7 @@ export default function EdadAtpHub() {
             <EliteText variant="body" style={styles.cardTitle}>ATP Labs</EliteText>
             <EliteText variant="caption" style={styles.cardDesc}>Tus laboratorios con historial y gráficas de continuum</EliteText>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={TEXT.secondary} />
+          <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />
         </AnimatedPressable>
 
         {CARDS.map((c) => {
@@ -197,9 +204,10 @@ export default function EdadAtpHub() {
               </View>
               {status != null && (
                 // Lima solo como estado "hecho" (feedback semántico, ACCENT_ROLES c).
-                <EliteText variant="caption" style={[styles.cardPct, status.done && { color: SEMANTIC.success }]}>{status.text}</EliteText>
+                // MB-31B remate: en claro el lima no es letra (manual regla 1) → teal de texto.
+                <EliteText variant="caption" style={[styles.cardPct, status.done && { color: kind === 'dark' ? SEMANTIC.success : t.tealTexto }]}>{status.text}</EliteText>
               )}
-              <Ionicons name="chevron-forward" size={18} color={TEXT.secondary} />
+              <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />
             </AnimatedPressable>
           );
         })}
@@ -220,11 +228,11 @@ export default function EdadAtpHub() {
               onPress={() => { haptic.medium(); router.push('/labs-guide'); }}
               style={styles.guideBtn}
             >
-              <Ionicons name="document-text-outline" size={16} color={TEXT.secondary} />
+              <Ionicons name="document-text-outline" size={16} color={t.textoSecundario} />
               <EliteText variant="caption" style={styles.guideBtnText}>
                 ¿No sabes qué labs hacerte? Descarga la guía
               </EliteText>
-              <Ionicons name="chevron-forward" size={14} color={TEXT.secondary} />
+              <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} />
             </AnimatedPressable>
           </>
         )}
@@ -233,10 +241,16 @@ export default function EdadAtpHub() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
   // MB-11 D.4: hero editorial (imagen + overlay + número protagonista)
-  heroWrap: { borderRadius: Radius.card, overflow: 'hidden', marginBottom: Spacing.xs },
+  // La card editorial queda OSCURA por dentro en los dos modos; solo el borde
+  // se despega en claro.
+  heroWrap: {
+    borderRadius: Radius.card, overflow: 'hidden', marginBottom: Spacing.xs,
+    ...(t.kind === 'light' ? { borderWidth: 1, borderColor: t.bordeEditorial } : null),
+  },
   heroBg: { minHeight: 190 },
   heroBgImage: { opacity: 0.9 },
   heroInner: { flex: 1, justifyContent: 'flex-end', padding: Spacing.lg, gap: 2 },
@@ -247,21 +261,21 @@ const styles = StyleSheet.create({
   heroStars: { marginTop: Spacing.sm },
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: BG.card, borderRadius: Radius.card, padding: Spacing.md,
-    borderWidth: 1, borderColor: BORDER.card,
+    backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md,
+    borderWidth: 1, borderColor: t.borde,
   },
   cardIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(29,158,117,0.12)', justifyContent: 'center', alignItems: 'center' },
-  cardTitle: { color: TEXT.primary, fontFamily: Fonts.semiBold },
-  cardDesc: { color: TEXT.secondary, fontSize: FontSizes.xs, marginTop: 2 },
-  cardPct: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, maxWidth: 96, textAlign: 'right' },
+  cardTitle: { color: t.texto, fontFamily: Fonts.semiBold },
+  cardDesc: { color: t.textoSecundario, fontSize: FontSizes.xs, marginTop: 2 },
+  cardPct: { color: t.textoSecundario, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, maxWidth: 96, textAlign: 'right' },
   calcBtn: { marginTop: Spacing.md },
-  needMore: { color: TEXT.secondary, textAlign: 'center', marginTop: Spacing.md, paddingHorizontal: Spacing.md },
+  needMore: { color: t.textoSecundario, textAlign: 'center', marginTop: Spacing.md, paddingHorizontal: Spacing.md },
   // Sprint LABS GUÍA: acceso secundario a la guía cuando falta data (neutro,
   // no compite con el CTA primario — ACCENT_ROLES).
   guideBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: BG.card, borderRadius: Radius.md, borderWidth: 1, borderColor: BORDER.input,
+    backgroundColor: t.card, borderRadius: Radius.md, borderWidth: 1, borderColor: t.borde,
     paddingVertical: Spacing.md, marginTop: Spacing.sm,
   },
-  guideBtnText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
+  guideBtnText: { color: t.textoSecundario, fontFamily: Fonts.semiBold },
 });

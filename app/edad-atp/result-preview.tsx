@@ -7,8 +7,9 @@
  * romper los links existentes (hub, tab YO, constellation). Ver COWORK_REPORT.
  * domain_scores siguen placeholder neutral hasta Sprint 5.
  */
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { router, useFocusEffect , type Href } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -33,8 +34,9 @@ import { computeDatasetHash } from '@/src/services/edad-atp/dataset-hash';
 import { getLastCalc, saveLastCalc, recalcStatus } from '@/src/services/edad-atp/recalc-gate';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
-import { ATP_BRAND, SEMANTIC } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, SEMANTIC, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
 
@@ -63,6 +65,9 @@ function buildSources(d: UnifiedUserData): SourceRow[] {
 }
 
 function ResultScreen() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [result, setResult] = useState<EdadAtpV2Result | null>(null);
@@ -141,7 +146,8 @@ function ResultScreen() {
   useFocusEffect(useCallback(() => { run(); }, [run]));
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="metrics" title="Tu Edad ATP" />
       <ScrollView contentContainerStyle={styles.content}>
         {error ? (
@@ -175,7 +181,8 @@ function ResultScreen() {
             {sources.map((s) => (
               <AnimatedPressable key={s.label} onPress={() => router.push(s.route)} style={styles.sourceRow}>
                 <EliteText variant="body" style={styles.sourceLabel}>{s.label}</EliteText>
-                <EliteText variant="caption" style={[styles.sourceDetail, s.done && { color: SEMANTIC.success }]}>
+                {/* MB-31B remate: en claro el lima no es letra (manual regla 1) → teal de texto. */}
+                <EliteText variant="caption" style={[styles.sourceDetail, s.done && { color: kind === 'dark' ? SEMANTIC.success : t.tealTexto }]}>
                   {s.detail} {s.done ? '✓' : '⚠'}
                 </EliteText>
               </AnimatedPressable>
@@ -214,22 +221,24 @@ function ResultScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema. El lima como LETRA del
+// botón de recálculo solo vive en oscuro; en claro cae al teal (manual regla 1).
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  calc: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.xl },
+  calc: { color: t.textoSecundario, textAlign: 'center', marginTop: Spacing.xl },
   ceWrap: { alignItems: 'center', marginTop: Spacing.sm },
   recalcBtn: { backgroundColor: 'rgba(168,224,42,0.12)', borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)' },
   recalcBtnBusy: { opacity: 0.6 },
-  recalcText: { color: ATP_BRAND.lime, fontFamily: Fonts.bold },
-  unchanged: { color: Colors.textMuted, fontSize: FontSizes.xs, textAlign: 'center', marginTop: 4 },
-  sourcesTitle: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: Spacing.md, marginBottom: 2 },
-  sourceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface, borderRadius: Radius.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderWidth: 1, borderColor: Colors.border },
-  sourceLabel: { color: Colors.textPrimary },
-  sourceDetail: { color: Colors.textSecondary },
-  note: { color: Colors.textSecondary, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.sm },
+  recalcText: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, fontFamily: Fonts.bold },
+  unchanged: { color: t.textoTenue, fontSize: FontSizes.xs, textAlign: 'center', marginTop: 4 },
+  sourcesTitle: { color: t.textoSecundario, fontSize: FontSizes.xs, marginTop: Spacing.md, marginBottom: 2 },
+  sourceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: t.card, borderRadius: Radius.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderWidth: 1, borderColor: t.borde },
+  sourceLabel: { color: t.texto },
+  sourceDetail: { color: t.textoSecundario },
+  note: { color: t.textoSecundario, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.sm },
   shareBtn: { marginTop: Spacing.md },
-  backBtn: { backgroundColor: Colors.surface, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: Colors.border },
-  backText: { color: Colors.textPrimary },
+  backBtn: { backgroundColor: t.card, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: t.borde },
+  backText: { color: t.texto },
   offscreen: { position: 'absolute', left: -10000, top: 0 },
 });
 

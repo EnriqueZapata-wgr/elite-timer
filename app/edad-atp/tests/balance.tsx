@@ -12,8 +12,9 @@
  * Old Man Test: el motor espera SCORE 0-10 (sit-rising), NO segundos. La versión
  * anterior guardaba segundos — esas filas legacy quedan sin alias a propósito.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ScrollView, StyleSheet, Pressable, Alert, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -23,8 +24,9 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveFunctionalTests, getLatestFunctionalTests, type FunctionalTestEntry } from '@/src/services/edad-atp/capture-service';
-import { ATP_BRAND, TEXT_COLORS } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 type FieldDef = {
   key: string; label: string; unit: string; helper: string;
@@ -67,6 +69,9 @@ const FIELDS: FieldDef[] = [
 ];
 
 export default function FunctionalTestsForm() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [v, setV] = useState<Record<string, string>>({});
@@ -116,7 +121,8 @@ export default function FunctionalTestsForm() {
   }
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="fitness" title="Tests funcionales" />
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.desc}>
@@ -143,12 +149,13 @@ export default function FunctionalTestsForm() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  desc: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20 },
-  card:{ backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  desc: { color: t.textoSecundario, fontSize: FontSizes.sm, lineHeight: 20 },
+  card:{ backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: t.borde },
   cta: { backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.sm },
-  ctaText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold },
-  backBtn: { backgroundColor: Colors.surface, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
-  backText: { color: Colors.textPrimary },
+  ctaText: { color: t.textoSobreLima, fontFamily: Fonts.bold },
+  backBtn: { backgroundColor: t.card, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', borderWidth: 1, borderColor: t.borde },
+  backText: { color: t.texto },
 });

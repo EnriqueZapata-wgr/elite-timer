@@ -15,8 +15,9 @@
  *
  * ÚNICO test que se vive en la app (doctrina 2): el teléfono ES el instrumento.
  */
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
@@ -30,8 +31,9 @@ import {
   mulberry32, avgNoOutliers, buildGngSchedule, gngErrorRatePct,
   GNG_WITHHOLD_MS, type GngStimulus,
 } from '@/src/services/edad-atp/gng-trial-flow';
-import { ATP_BRAND, TEXT_COLORS, SEMANTIC } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, TEXT_COLORS, SEMANTIC, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const TRIALS = 20;
 const DEMO_TRIALS = 2;
@@ -49,6 +51,9 @@ const MODE_COPY: Record<Mode, { title: string; instr: string }> = {
 };
 
 export default function ReactionTimeTest() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [modeIdx, setModeIdx] = useState(0);
@@ -228,7 +233,8 @@ export default function ReactionTimeTest() {
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="mind" title="Cognición · tiempo de reacción" />
       <View style={styles.content}>
         {phase === 'instruction' && (
@@ -304,29 +310,33 @@ export default function ReactionTimeTest() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema. Los estímulos GO (lima)
+// y NO-GO (rojo #E24B4A) son SEÑAL del test, no tema — se quedan en ambos modos.
+// El lima como LETRA del título solo vive en oscuro (manual regla 1).
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { flex: 1, padding: Spacing.md },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.lg },
-  title: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
-  desc: { color: Colors.textSecondary, fontSize: FontSizes.sm, textAlign: 'center', lineHeight: 20 },
+  title: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
+  desc: { color: t.textoSecundario, fontSize: FontSizes.sm, textAlign: 'center', lineHeight: 20 },
   cta: { backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xl },
-  ctaText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold },
+  ctaText: { color: t.textoSobreLima, fontFamily: Fonts.bold },
   target: { flex: 1, borderRadius: Radius.card, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   targetOn: { backgroundColor: ATP_BRAND.lime },
-  targetOff: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
+  targetOff: { backgroundColor: t.card, borderWidth: 1, borderColor: t.borde },
   targetNoGo: { backgroundColor: '#E24B4A' },
   targetText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.xl },
-  counter: { color: Colors.textSecondary, fontSize: FontSizes.sm },
-  errCounter: { color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: 4, fontFamily: Fonts.semiBold },
-  errCounterOn: { color: '#fff', backgroundColor: 'rgba(226,75,74,0.85)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: Radius.sm, overflow: 'hidden' },
+  counter: { color: t.textoSecundario, fontSize: FontSizes.sm },
+  errCounter: { color: t.textoSecundario, fontSize: FontSizes.sm, marginTop: 4, fontFamily: Fonts.semiBold },
+  // Blanco constante sobre el rojo-señal (no es superficie de tema).
+  errCounterOn: { color: TEXT_COLORS.primary, backgroundColor: 'rgba(226,75,74,0.85)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: Radius.sm, overflow: 'hidden' },
   choiceRow: { flexDirection: 'row', gap: Spacing.sm },
   choiceBox: { width: 70, height: 120, borderRadius: Radius.md },
   flash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#E24B4A' },
-  resultCard: { width: '100%', backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, gap: Spacing.xs },
+  resultCard: { width: '100%', backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: t.borde, gap: Spacing.xs },
   resultRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.xs },
-  resultLabel: { color: Colors.textSecondary },
-  resultVal: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
-  resultGood: { color: SEMANTIC.success },
+  resultLabel: { color: t.textoSecundario },
+  resultVal: { color: t.texto, fontFamily: Fonts.semiBold },
+  resultGood: { color: t.kind === 'dark' ? SEMANTIC.success : t.tealTexto },
   resultBad: { color: '#E24B4A' },
-  resultDivider: { height: 1, backgroundColor: Colors.border, marginVertical: Spacing.xs },
+  resultDivider: { height: 1, backgroundColor: t.borde, marginVertical: Spacing.xs },
 });

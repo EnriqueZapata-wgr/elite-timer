@@ -2,11 +2,13 @@
  * QuestionnaireQuestion — pregunta con opciones tipo card (radio) para los
  * cuestionarios de dominio de Edad ATP. Reutilizable.
  */
+import { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND, BG, BORDER, TEXT } from '@/src/constants/brand';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 export type QuestionOption = { label: string; value: string };
@@ -19,6 +21,9 @@ interface Props {
 }
 
 export function QuestionnaireQuestion({ text, options, selected, onSelect }: Props) {
+  // MB-31B remate: subcomponente dentro del Screen themed → tokens del scope.
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
   return (
     <View style={styles.block}>
       <EliteText variant="body" style={styles.question}>{text}</EliteText>
@@ -40,16 +45,17 @@ export function QuestionnaireQuestion({ text, options, selected, onSelect }: Pro
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   block: { marginBottom: Spacing.md },
-  question: { color: TEXT.primary, fontFamily: Fonts.semiBold, marginBottom: Spacing.sm },
+  question: { color: t.texto, fontFamily: Fonts.semiBold, marginBottom: Spacing.sm },
   options: { gap: 8 },
   option: {
     paddingVertical: 12, paddingHorizontal: Spacing.md, borderRadius: Radius.md,
-    backgroundColor: BG.card, borderWidth: 1, borderColor: BORDER.card,
+    backgroundColor: t.card, borderWidth: 1, borderColor: t.borde,
   },
   // Lima solo como estado seleccionado (feedback semántico, ACCENT_ROLES c).
   optionActive: { backgroundColor: 'rgba(168,224,42,0.12)', borderColor: ATP_BRAND.lime },
-  optionText: { color: TEXT.secondary, fontSize: FontSizes.sm },
-  optionTextActive: { color: TEXT.primary, fontFamily: Fonts.semiBold },
+  optionText: { color: t.textoSecundario, fontSize: FontSizes.sm },
+  optionTextActive: { color: t.texto, fontFamily: Fonts.semiBold },
 });

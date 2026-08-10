@@ -6,8 +6,9 @@
  * inline cualquiera, ve los auto-calculados, y solo al confirmar se guarda. Doctrina del
  * sprint: cero sorpresas — nada se guarda sin que el usuario lo apruebe.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, TextInput, Alert } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
@@ -21,8 +22,9 @@ import type { ProcessedItem } from '@/src/services/edad-atp/lab-parser-process';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { haptic } from '@/src/utils/haptics';
 import { getLocalToday } from '@/src/utils/date-helpers';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SEMANTIC, ATP_BRAND, TEXT_COLORS, TEXT } from '@/src/constants/brand';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { SEMANTIC, ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 // YYYY-MM-DD válido (entre 1900 y 2099).
 const ISO_DATE_RE = /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
@@ -54,13 +56,22 @@ function statusOf(it: ProcessedItem): Status {
   return 'ok';
 }
 
-const STATUS_META: Record<Status, { icon: any; color: string }> = {
-  ok: { icon: 'checkmark-circle', color: SEMANTIC.success },
-  review: { icon: 'alert-circle', color: SEMANTIC.warning },
-  flag: { icon: 'help-circle', color: SEMANTIC.error },
+const STATUS_META: Record<Status, { icon: any }> = {
+  ok: { icon: 'checkmark-circle' },
+  review: { icon: 'alert-circle' },
+  flag: { icon: 'help-circle' },
 };
 
 export default function LabConfirmationScreen() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+  // Color del estado ✓/⚠/❓: en oscuro los valores de siempre; en claro el
+  // lima no es letra (manual regla 1 — cae al teal) y el error usa su token.
+  const statusColor = (st: Status): string =>
+    st === 'ok' ? (kind === 'dark' ? SEMANTIC.success : t.tealTexto)
+      : st === 'review' ? SEMANTIC.warning
+        : t.error;
   const { uploadId } = useLocalSearchParams<{ uploadId?: string }>();
   const analytics = useAnalytics();
   // Capa 9: el review puede venir en memoria (flujo síncrono) o cargarse desde DB (worker async,
@@ -100,20 +111,22 @@ export default function LabConfirmationScreen() {
   if (!review) {
     if (loadingReview) {
       return (
-        <Screen keyboard>
+        <Screen keyboard themed>
+          <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
           <PillarHeader pillar="metrics" title="Confirmar laboratorio" />
           <View style={styles.emptyWrap}>
-            <Ionicons name="hourglass-outline" size={40} color={Colors.textMuted} />
+            <Ionicons name="hourglass-outline" size={40} color={t.textoTenue} />
             <EliteText variant="caption" style={styles.emptyText}>Cargando tu laboratorio…</EliteText>
           </View>
         </Screen>
       );
     }
     return (
-      <Screen keyboard>
+      <Screen keyboard themed>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <PillarHeader pillar="metrics" title="Confirmar laboratorio" />
         <View style={styles.emptyWrap}>
-          <Ionicons name="document-outline" size={40} color={Colors.textMuted} />
+          <Ionicons name="document-outline" size={40} color={t.textoTenue} />
           <EliteText variant="caption" style={styles.emptyText}>
             La lectura ya no está disponible. Vuelve a subir el estudio.
           </EliteText>
@@ -204,7 +217,8 @@ export default function LabConfirmationScreen() {
   };
 
   return (
-    <Screen keyboard>
+    <Screen keyboard themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="metrics" title="Confirmar laboratorio" />
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.intro}>
@@ -212,9 +226,9 @@ export default function LabConfirmationScreen() {
         </EliteText>
 
         {/* Fecha del estudio editable — clave para que estudios viejos vayan al histórico. */}
-        <View style={[styles.dateCard, !labDateValid && { borderColor: SEMANTIC.error + '60' }]}>
+        <View style={[styles.dateCard, !labDateValid && { borderColor: t.error + '60' }]}>
           <View style={styles.dateRow}>
-            <Ionicons name="calendar-outline" size={18} color={Colors.textSecondary} />
+            <Ionicons name="calendar-outline" size={18} color={t.textoSecundario} />
             <View style={{ flex: 1 }}>
               <EliteText variant="caption" style={styles.dateLabel}>Fecha del estudio</EliteText>
               <TextInput
@@ -222,7 +236,7 @@ export default function LabConfirmationScreen() {
                 value={labDate}
                 onChangeText={setLabDate}
                 placeholder="AAAA-MM-DD"
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={t.textoTenue}
                 autoCorrect={false}
                 autoCapitalize="none"
                 maxLength={10}
@@ -239,12 +253,13 @@ export default function LabConfirmationScreen() {
         {review.items.map((it) => {
           const st = statusOf(it);
           const meta = STATUS_META[st];
+          const stColor = statusColor(st);
           const isEditing = editingKey === it.key;
           const display = edited[it.key] ?? (it.passedValidation ? String(it.valueCanonical) : '—');
           return (
-            <View key={it.key} style={[styles.itemCard, { borderColor: meta.color + '30' }]}>
+            <View key={it.key} style={[styles.itemCard, { borderColor: stColor + '30' }]}>
               <View style={styles.itemRow}>
-                <Ionicons name={meta.icon} size={20} color={meta.color} />
+                <Ionicons name={meta.icon} size={20} color={stColor} />
                 <View style={{ flex: 1 }}>
                   <EliteText variant="body" style={styles.itemLabel}>{labelFor(it.key)}</EliteText>
                   {isEditing ? (
@@ -255,7 +270,7 @@ export default function LabConfirmationScreen() {
                         onChangeText={(v) => setEdited((p) => ({ ...p, [it.key]: v }))}
                         keyboardType="decimal-pad"
                         placeholder="valor"
-                        placeholderTextColor={Colors.textMuted}
+                        placeholderTextColor={t.textoTenue}
                         autoFocus
                       />
                       <EliteText variant="caption" style={styles.unit}>{it.unitCanonical}</EliteText>
@@ -264,7 +279,7 @@ export default function LabConfirmationScreen() {
                       </Pressable>
                     </View>
                   ) : (
-                    <EliteText variant="body" style={[styles.itemValue, { color: meta.color }]}>
+                    <EliteText variant="body" style={[styles.itemValue, { color: stColor }]}>
                       {st === 'flag' && edited[it.key] == null ? 'valor poco claro' : `${display} ${it.unitCanonical}`}
                     </EliteText>
                   )}
@@ -339,52 +354,54 @@ export default function LabConfirmationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema. El lima como LETRA del
+// chip activo solo vive en oscuro; en claro cae al teal de texto (manual regla 1).
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  intro: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
-  dateCard: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  intro: { color: t.textoSecundario, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
+  dateCard: { backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: t.borde },
   dateRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  dateLabel: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, marginBottom: 4 },
+  dateLabel: { color: t.textoSecundario, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, marginBottom: 4 },
   dateInput: {
-    backgroundColor: '#000', borderRadius: Radius.sm, paddingHorizontal: Spacing.sm,
-    paddingVertical: 8, color: Colors.textPrimary, fontFamily: Fonts.semiBold,
-    borderWidth: 1, borderColor: '#222', fontSize: FontSizes.md,
+    backgroundColor: t.hundido, borderRadius: Radius.sm, paddingHorizontal: Spacing.sm,
+    paddingVertical: 8, color: t.texto, fontFamily: Fonts.semiBold,
+    borderWidth: 1, borderColor: t.borde, fontSize: FontSizes.md,
   },
-  dateHint: { color: Colors.textMuted, fontSize: FontSizes.xs, marginTop: 4 },
-  itemCard: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1 },
+  dateHint: { color: t.textoTenue, fontSize: FontSizes.xs, marginTop: 4 },
+  itemCard: { backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1 },
   itemRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  itemLabel: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
+  itemLabel: { color: t.texto, fontFamily: Fonts.semiBold },
   itemValue: { fontFamily: Fonts.bold, marginTop: 2 },
-  note: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 3 },
-  snippet: { color: Colors.textMuted, fontSize: FontSizes.xs, marginTop: 2, fontStyle: 'italic' },
+  note: { color: t.textoSecundario, fontSize: FontSizes.xs, marginTop: 3 },
+  snippet: { color: t.textoTenue, fontSize: FontSizes.xs, marginTop: 2, fontStyle: 'italic' },
   dupWrap: { marginTop: 6 },
   dupHint: { color: SEMANTIC.warning, fontSize: FontSizes.xs, marginBottom: 4 },
   dupChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  dupChip: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: Radius.pill, borderWidth: 1, borderColor: '#333', backgroundColor: '#0a0a0a' },
+  dupChip: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: Radius.pill, borderWidth: 1, borderColor: t.bordeMarcado, backgroundColor: t.hundido },
   dupChipActive: { borderColor: ATP_BRAND.lime, backgroundColor: 'rgba(168,224,42,0.12)' },
-  dupChipText: { color: Colors.textSecondary, fontSize: FontSizes.xs },
-  dupChipTextActive: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold },
+  dupChipText: { color: t.textoSecundario, fontSize: FontSizes.xs },
+  dupChipTextActive: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, fontFamily: Fonts.semiBold },
   editRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 4 },
   editInput: {
-    width: 90, textAlign: 'right', backgroundColor: '#000', borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.sm, paddingVertical: 8, color: Colors.textPrimary,
-    fontFamily: Fonts.semiBold, borderWidth: 1, borderColor: '#222',
+    width: 90, textAlign: 'right', backgroundColor: t.hundido, borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.sm, paddingVertical: 8, color: t.texto,
+    fontFamily: Fonts.semiBold, borderWidth: 1, borderColor: t.borde,
   },
-  unit: { color: Colors.textSecondary },
+  unit: { color: t.textoSecundario },
   doneBtn: { backgroundColor: ATP_BRAND.lime, borderRadius: Radius.sm, paddingVertical: 6, paddingHorizontal: 12 },
-  doneBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold },
+  doneBtnText: { color: t.textoSobreLima, fontFamily: Fonts.bold },
   editBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: Radius.pill, borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)' },
-  editBtnText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
-  derivedCard: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, marginTop: Spacing.xs },
-  derivedTitle: { color: Colors.textSecondary, fontFamily: Fonts.bold, fontSize: FontSizes.sm, marginBottom: Spacing.xs },
+  editBtnText: { color: t.textoSecundario, fontFamily: Fonts.semiBold },
+  derivedCard: { backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: t.borde, marginTop: Spacing.xs },
+  derivedTitle: { color: t.textoSecundario, fontFamily: Fonts.bold, fontSize: FontSizes.sm, marginBottom: Spacing.xs },
   derivedRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
-  derivedLabel: { color: Colors.textSecondary },
-  derivedValue: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
+  derivedLabel: { color: t.textoSecundario },
+  derivedValue: { color: t.texto, fontFamily: Fonts.semiBold },
   confirmBtn: { marginTop: Spacing.md },
   cancelBtn: { paddingVertical: Spacing.sm, alignItems: 'center', marginTop: 4 },
-  cancelBtnText: { color: Colors.textSecondary },
+  cancelBtnText: { color: t.textoSecundario },
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md, padding: Spacing.lg },
-  emptyText: { color: Colors.textSecondary, textAlign: 'center' },
+  emptyText: { color: t.textoSecundario, textAlign: 'center' },
   primaryBtn: { backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg },
-  primaryBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold },
+  primaryBtnText: { color: t.textoSobreLima, fontFamily: Fonts.bold },
 });

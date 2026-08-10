@@ -5,6 +5,7 @@
  */
 import { useState, useEffect } from 'react';
 import { View, ActivityIndicator, Alert, DeviceEventEmitter } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, router } from 'expo-router';
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
@@ -12,6 +13,7 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { TestQuestionScreen, type TestAnswers } from '@/src/components/tests/TestQuestionScreen';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing } from '@/constants/theme';
 import { HC_BY_ID } from '@/src/constants/historia-clinica-questionnaires';
 import { loadHistoriaClinica, saveHistoriaClinicaCategory } from '@/src/services/historia-clinica-service';
@@ -26,6 +28,10 @@ import { saveSkinType } from '@/src/services/dx/fitzpatrick-service';
 import { userErrorMessage } from '@/src/utils/user-error';
 
 export default function HistoriaClinicaCategory() {
+  // MB-31B remate: solo los estados previos (no encontrado / cargando) se
+  // tematizan; el cuestionario delega en TestQuestionScreen (frontera
+  // compartida con quiz/*, fuera de este cierre) y queda sin scope.
+  const { kind } = useAppTheme();
   const { category } = useLocalSearchParams<{ category?: string }>();
   const { user } = useAuth();
   const questionnaire = category ? HC_BY_ID[category] : undefined;
@@ -41,7 +47,8 @@ export default function HistoriaClinicaCategory() {
 
   if (!questionnaire) {
     return (
-      <Screen>
+      <Screen themed>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <PillarHeader pillar="health" title="Historia Clínica" />
         <View style={{ padding: Spacing.lg }}>
           <EliteText variant="caption">Cuestionario no encontrado.</EliteText>
@@ -52,7 +59,8 @@ export default function HistoriaClinicaCategory() {
 
   if (initial === null) {
     return (
-      <Screen>
+      <Screen themed>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={questionnaire.color} />
         </View>

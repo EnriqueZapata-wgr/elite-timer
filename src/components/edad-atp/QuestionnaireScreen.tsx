@@ -4,6 +4,7 @@
  */
 import { useState, useCallback } from 'react';
 import { ScrollView, StyleSheet, Alert } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -15,6 +16,7 @@ import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveQuestionnaireResponses, type QuestionnaireResponse } from '@/src/services/edad-atp/capture-service';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing } from '@/constants/theme';
 
 export type DomainQuestion = { parameter_key: string; text: string; options: QuestionOption[] };
@@ -27,6 +29,9 @@ interface Props {
 }
 
 export function QuestionnaireScreen({ domain, title, questions, pillar = 'metrics' }: Props) {
+  // MB-31B remate: este componente ES el cuerpo de la ruta y renderiza su
+  // propio <Screen themed> → lee el tema GLOBAL (useAppTheme), no el scope.
+  const { kind } = useAppTheme();
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -67,7 +72,8 @@ export function QuestionnaireScreen({ domain, title, questions, pillar = 'metric
   }
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar={pillar} title={title} />
       <ScrollView contentContainerStyle={styles.content}>
         {questions.map((q) => (

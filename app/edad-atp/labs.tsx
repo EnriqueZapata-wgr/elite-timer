@@ -6,8 +6,9 @@
  *
  * ATP Labs = espejo del último valor (igual fuente que ATP Edad): un solo valor real.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
@@ -15,8 +16,9 @@ import { GlobalTopBar } from '@/src/components/ui/GlobalTopBar';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { loadCanonicalLabValues, collapseLanguageDuplicates, loadAllSeries, type CanonicalValue, type LabValueSource } from '@/src/services/edad-atp/lab-values-service';
 import { trendFromSeries, interpretValue, type Trend, type SeriePoint } from '@/src/components/edad-atp/parameter-chart-model';
 import { loadUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
@@ -81,6 +83,9 @@ function statusColor(sex: Sex, key: string, value: number): string {
 }
 
 function AtpLabsScreen() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const { width } = useWindowDimensions();
   const [rows, setRows] = useState<Row[]>([]);
@@ -149,7 +154,8 @@ function AtpLabsScreen() {
   const grouped = groupForRender(sorted, sort);
 
   return (
-    <Screen edges={[]}>
+    <Screen edges={[]} themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <GlobalTopBar title="ATP Labs" />
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.subtitle}>
@@ -158,7 +164,7 @@ function AtpLabsScreen() {
 
         {/* MB-29 P2 (H5): la vista decía "sube un PDF" sin dar el botón. */}
         <Pressable onPress={() => { haptic.medium(); router.push('/my-health'); }} style={styles.uploadBtn}>
-          <Ionicons name="camera-outline" size={16} color="#000" />
+          <Ionicons name="camera-outline" size={16} color={t.textoSobreLima} />
           <EliteText variant="caption" style={styles.uploadBtnText}>Subir estudio</EliteText>
         </Pressable>
 
@@ -168,7 +174,7 @@ function AtpLabsScreen() {
           <EliteText variant="caption" style={styles.guideText}>
             ¿No sabes qué estudios pedir? Ve la guía
           </EliteText>
-          <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
+          <Ionicons name="chevron-forward" size={14} color={t.textoTenue} />
         </Pressable>
 
         {/* Filtros de orden (#13) */}
@@ -212,16 +218,16 @@ function AtpLabsScreen() {
                       ) : null}
                     </View>
                     {r.trend ? (
-                      <Ionicons name={TREND_ICON[r.trend].icon} size={13} color={Colors.textSecondary} />
+                      <Ionicons name={TREND_ICON[r.trend].icon} size={13} color={t.textoSecundario} />
                     ) : null}
                     <EliteText style={[styles.rowValue, { color: r.is_stale ? EDAD_PENDING_COLOR : r.color }]}>
                       {r.displayValue}{r.unit ? ` ${r.unit}` : ''}
                     </EliteText>
-                    <Ionicons name={expanded === r.key ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.textSecondary} />
+                    <Ionicons name={expanded === r.key ? 'chevron-up' : 'chevron-down'} size={16} color={t.textoSecundario} />
                   </Pressable>
                   {expanded === r.key ? (
                     <View style={styles.chartBox}>
-                      {renderRangeSummary(sex, r)}
+                      {renderRangeSummary(sex, r, styles)}
                       <ParameterChart
                         series={series[r.key] ?? []}
                         bandLimits={pctAdjustedBandLimits(sex, r.key)}
@@ -279,8 +285,9 @@ function pctAdjustedBandLimits(sex: Sex, key: string): (number | null)[] | null 
 /**
  * F4.1: resumen de rangos + interpretación 1-línea sobre la gráfica.
  * Verde = rango funcional ATP ([3]-[4]); gris = rango amplio aceptable ([1]-[6]).
+ * MB-31B remate: recibe los estilos ya tematizados del componente.
  */
-function renderRangeSummary(sex: Sex, r: Row) {
+function renderRangeSummary(sex: Sex, r: Row, styles: ReturnType<typeof makeStyles>) {
   const limits = pctAdjustedBandLimits(sex, r.key);
   if (!limits) {
     return (
@@ -345,47 +352,49 @@ function groupForRender(rows: Row[], sort: SortMode): { title: string; rows: Row
   return [{ title: sort === 'fecha' ? 'Más recientes primero' : 'Por estado', rows }];
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema. El lima como LETRA de
+// chips activos solo vive en oscuro; en claro cae al teal de texto (manual regla 1).
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  subtitle: { color: Colors.textSecondary, marginBottom: Spacing.xs, lineHeight: 16 },
+  subtitle: { color: t.textoSecundario, marginBottom: Spacing.xs, lineHeight: 16 },
   // MB-29 P2: CTA de subir — la acción primaria de la vista (lima, único)
   uploadBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md, paddingVertical: 10,
     marginBottom: Spacing.xs,
   },
-  uploadBtnText: { color: '#000', fontFamily: Fonts.bold },
+  uploadBtnText: { color: t.textoSobreLima, fontFamily: Fonts.bold },
   guideRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: 8, paddingHorizontal: 2, marginBottom: Spacing.xs,
   },
-  guideText: { color: Colors.textSecondary },
+  guideText: { color: t.textoSecundario },
   filterRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.xs },
-  chip: { paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
+  chip: { paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: t.card, borderWidth: 1, borderColor: t.borde },
   chipActive: { backgroundColor: 'rgba(168,224,42,0.14)', borderColor: 'rgba(168,224,42,0.4)' },
-  chipText: { color: Colors.textSecondary, fontSize: FontSizes.xs },
-  chipTextActive: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold },
-  empty: { color: Colors.textMuted, textAlign: 'center', marginTop: Spacing.xl, paddingHorizontal: Spacing.md, lineHeight: 18 },
+  chipText: { color: t.textoSecundario, fontSize: FontSizes.xs },
+  chipTextActive: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, fontFamily: Fonts.semiBold },
+  empty: { color: t.textoTenue, textAlign: 'center', marginTop: Spacing.xl, paddingHorizontal: Spacing.md, lineHeight: 18 },
   group: { gap: 2, marginBottom: Spacing.sm },
-  groupTitle: { color: Colors.textMuted, letterSpacing: 1, marginBottom: 2, textTransform: 'uppercase' },
-  rowWrap: { backgroundColor: Colors.surface, borderRadius: Radius.card, borderWidth: 1, borderColor: Colors.border, marginBottom: 4 },
+  groupTitle: { color: t.textoTenue, letterSpacing: 1, marginBottom: 2, textTransform: 'uppercase' },
+  rowWrap: { backgroundColor: t.card, borderRadius: Radius.card, borderWidth: 1, borderColor: t.borde, marginBottom: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.md },
-  rowName: { color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
-  rowMeta: { color: Colors.textMuted, fontSize: FontSizes.xs, marginTop: 1 },
-  clinicalNote: { color: Colors.textMuted, fontSize: FontSizes.xs, marginTop: 1, fontStyle: 'italic' },
+  rowName: { color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  rowMeta: { color: t.textoTenue, fontSize: FontSizes.xs, marginTop: 1 },
+  clinicalNote: { color: t.textoTenue, fontSize: FontSizes.xs, marginTop: 1, fontStyle: 'italic' },
   rowValue: { fontFamily: Fonts.bold, fontSize: FontSizes.md },
   chartBox: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
   rangeInfoBox: { marginBottom: Spacing.xs },
   rangeInfoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   rangeInfoFunctional: { color: '#4ade80', fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
-  rangeInfoOuter: { color: Colors.textSecondary, fontSize: FontSizes.xs },
-  rangeInfoMuted: { color: Colors.textMuted, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
+  rangeInfoOuter: { color: t.textoSecundario, fontSize: FontSizes.xs },
+  rangeInfoMuted: { color: t.textoTenue, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
   rangeInterp: { fontSize: FontSizes.xs, marginTop: 3, lineHeight: 15 },
   rangeToggleRow: { flexDirection: 'row', gap: Spacing.xs, marginTop: Spacing.xs },
-  rangeToggle: { paddingHorizontal: Spacing.sm, paddingVertical: 5, borderRadius: Radius.md, backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: Colors.border },
+  rangeToggle: { paddingHorizontal: Spacing.sm, paddingVertical: 5, borderRadius: Radius.md, backgroundColor: t.hundido, borderWidth: 1, borderColor: t.borde },
   rangeToggleActive: { backgroundColor: 'rgba(168,224,42,0.14)', borderColor: 'rgba(168,224,42,0.4)' },
-  rangeToggleText: { color: Colors.textMuted, fontSize: FontSizes.xs },
-  rangeToggleTextActive: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold },
+  rangeToggleText: { color: t.textoTenue, fontSize: FontSizes.xs },
+  rangeToggleTextActive: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, fontFamily: Fonts.semiBold },
 });
 
 // #42: gate de disclaimers médicos — modal en primera visita (o bump de versión).

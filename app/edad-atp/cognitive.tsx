@@ -2,8 +2,9 @@
  * Edad ATP — test cognitivo (placeholder Sprint 2). El test interactivo de
  * Reaction Time viene en Sprint 4; por ahora permite ingresar RT manual.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ScrollView, StyleSheet, Alert, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -14,8 +15,9 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { saveFunctionalTests, getLatestFunctionalTests, type FunctionalTestEntry } from '@/src/services/edad-atp/capture-service';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
-import { TEXT } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 function daysAgo(dateStr: string): number {
   const then = parseLocalDate(dateStr.includes('T') ? dateStr.slice(0, 10) : dateStr).getTime();
@@ -24,6 +26,9 @@ function daysAgo(dateStr: string): number {
 }
 
 export default function CognitiveCapture() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const [simple, setSimple] = useState('');
   const [choice, setChoice] = useState('');
@@ -59,7 +64,8 @@ export default function CognitiveCapture() {
   }
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="mind" title="Test cognitivo" />
       <ScrollView contentContainerStyle={styles.content}>
         {last ? (
@@ -93,14 +99,15 @@ export default function CognitiveCapture() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  lastCard: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: 'rgba(168,224,42,0.35)' },
-  lastTitle: { color: TEXT.primary, fontFamily: Fonts.semiBold },
-  lastVals: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 2 },
+  lastCard: { backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: 'rgba(168,224,42,0.35)' },
+  lastTitle: { color: t.texto, fontFamily: Fonts.semiBold },
+  lastVals: { color: t.textoSecundario, fontSize: FontSizes.xs, marginTop: 2 },
   infoCard: { backgroundColor: 'rgba(168,224,42,0.08)', borderRadius: Radius.card, padding: Spacing.md, gap: 6 },
-  infoTitle: { color: TEXT.primary, fontFamily: Fonts.bold },
-  infoText: { color: Colors.textSecondary, fontSize: FontSizes.xs, lineHeight: 18 },
-  card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  infoTitle: { color: t.texto, fontFamily: Fonts.bold },
+  infoText: { color: t.textoSecundario, fontSize: FontSizes.xs, lineHeight: 18 },
+  card: { backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: t.borde },
   saveBtn: { marginTop: Spacing.sm },
 });

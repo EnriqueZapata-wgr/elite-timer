@@ -1,8 +1,9 @@
 /**
  * Edad ATP — hub de cuestionarios por dominio. Sprint 2.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ScrollView, StyleSheet, Pressable, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect , type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
@@ -11,8 +12,9 @@ import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
-import { SEMANTIC } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { SEMANTIC, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const DOMAINS: { domain: string; icon: string; title: string; route: Href }[] = [
   { domain: 'metabolismo', icon: '🥗', title: 'Metabolismo', route: '/edad-atp/questionnaires/metabolismo' },
@@ -28,6 +30,9 @@ const DOMAINS: { domain: string; icon: string; title: string; route: Href }[] = 
 ];
 
 export default function QuestionnairesHub() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const [done, setDone] = useState<Set<string>>(new Set());
 
@@ -39,7 +44,8 @@ export default function QuestionnairesHub() {
   }, [user?.id]));
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="metrics" title="Cuestionarios" />
       <ScrollView contentContainerStyle={styles.content}>
         {DOMAINS.map((d) => {
@@ -53,12 +59,13 @@ export default function QuestionnairesHub() {
               <EliteText style={styles.emoji}>{d.icon}</EliteText>
               <View style={{ flex: 1 }}>
                 <EliteText variant="body" style={styles.title}>{d.title}</EliteText>
-                <EliteText variant="caption" style={[styles.status, isDone && { color: SEMANTIC.success }]}>
+                {/* MB-31B remate: en claro el lima no es letra (manual regla 1) → teal. */}
+                <EliteText variant="caption" style={[styles.status, isDone && { color: kind === 'dark' ? SEMANTIC.success : t.tealTexto }]}>
                   {isDone ? '✓ Completado · Toca para revisar' : 'Toca para contestar'}
                 </EliteText>
               </View>
               {isDone && <Ionicons name="checkmark-circle" size={18} color={SEMANTIC.success} />}
-              <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+              <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />
             </Pressable>
           );
         })}
@@ -70,16 +77,17 @@ export default function QuestionnairesHub() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md,
-    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md,
+    borderWidth: 1, borderColor: t.borde,
   },
   rowDone: { borderColor: 'rgba(168,224,42,0.35)' },
   emoji: { fontSize: 22 },
-  title: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
-  status: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 1 },
-  note: { color: Colors.textSecondary, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.xs },
+  title: { color: t.texto, fontFamily: Fonts.semiBold },
+  status: { color: t.textoSecundario, fontSize: FontSizes.xs, marginTop: 1 },
+  note: { color: t.textoSecundario, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.xs },
 });

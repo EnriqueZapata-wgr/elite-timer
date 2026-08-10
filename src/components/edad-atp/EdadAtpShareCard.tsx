@@ -6,8 +6,8 @@ import { View, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
 import { edadDeltaYears, classifyEdadDelta } from '@/src/services/edad-atp/edad-delta-core';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
-import { ATP_BRAND } from '@/src/constants/brand';
-import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, THEME_DARK } from '@/src/constants/brand';
+import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 
 const DIMS = [
   { key: 'metabolica', icon: '🩸' },
@@ -55,19 +55,22 @@ export function EdadAtpShareCard({ result, format = 'story' }: { result: EdadAtp
   );
 }
 
+// MB-31B remate: la share card es un ASSET de marca que se captura como imagen
+// (view-shot): queda oscura y constante en los dos modos, como la card
+// editorial. Sus valores se anclan a THEME_DARK para no dejar hex neutros.
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#050505', padding: Spacing.xl, justifyContent: 'space-between', alignItems: 'center' },
+  card: { backgroundColor: THEME_DARK.fondo, padding: Spacing.xl, justifyContent: 'space-between', alignItems: 'center' },
   story: { width: 360, aspectRatio: 9 / 16 },
   square: { width: 360, aspectRatio: 1 },
   brandTop: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, letterSpacing: 3, fontSize: FontSizes.sm },
   center: { alignItems: 'center', gap: 4 },
-  label: { color: Colors.textSecondary, fontSize: FontSizes.xs, letterSpacing: 2, fontFamily: Fonts.bold },
+  label: { color: THEME_DARK.textoSecundario, fontSize: FontSizes.xs, letterSpacing: 2, fontFamily: Fonts.bold },
   value: { color: ATP_BRAND.lime, fontSize: 96, fontFamily: Fonts.extraBold, lineHeight: 104 },
-  chrono: { color: Colors.textSecondary, fontSize: FontSizes.sm },
-  highlight: { color: '#fff', fontSize: FontSizes.md, fontFamily: Fonts.semiBold, textAlign: 'center', marginTop: Spacing.sm },
+  chrono: { color: THEME_DARK.textoSecundario, fontSize: FontSizes.sm },
+  highlight: { color: THEME_DARK.texto, fontSize: FontSizes.md, fontFamily: Fonts.semiBold, textAlign: 'center', marginTop: Spacing.sm },
   subsRow: { flexDirection: 'row', gap: Spacing.md, justifyContent: 'center' },
   subItem: { alignItems: 'center', gap: 2 },
   subIcon: { fontSize: 20 },
-  subAge: { color: '#fff', fontFamily: Fonts.bold, fontSize: FontSizes.md },
-  footer: { color: Colors.textSecondary, fontSize: FontSizes.xs, textAlign: 'center' },
+  subAge: { color: THEME_DARK.texto, fontFamily: Fonts.bold, fontSize: FontSizes.md },
+  footer: { color: THEME_DARK.textoSecundario, fontSize: FontSizes.xs, textAlign: 'center' },
 });

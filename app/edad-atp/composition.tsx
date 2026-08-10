@@ -3,8 +3,9 @@
  * Pre-puebla desde health_measurements (tabla canónica) y guarda ahí mismo —
  * no duplica en edad_atp_body_composition. FFMI se calcula en vivo (no se persiste).
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { ScrollView, StyleSheet, Pressable, Alert, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -18,8 +19,9 @@ import { saveHealthMeasurement, getLatestHealthMeasurement } from '@/src/service
 import { useFormDraft } from '@/src/hooks/useFormDraft';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
-import { SEMANTIC, TEXT } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { SEMANTIC, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 // Acepta coma O punto decimal (Mariana flag #10).
 const num = (s: string): number | undefined => parseDecimalInput(s) ?? undefined;
@@ -55,6 +57,9 @@ const RANGOS: Record<(typeof FIELD_KEYS)[number], { min: number; max: number; la
 };
 
 export default function CompositionCapture() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const analytics = useAnalytics();
   // ?focus=<columna> desde "Datos por capturar": abre el form y resalta el campo (#16).
@@ -176,7 +181,8 @@ export default function CompositionCapture() {
   }
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="fitness" title="Composición" />
       <ScrollView contentContainerStyle={styles.content}>
         {badge ? (
@@ -245,16 +251,18 @@ export default function CompositionCapture() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema. El lima como LETRA del
+// diff de peso solo vive en oscuro; en claro cae al teal de texto (manual regla 1).
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  intro: { color: Colors.textSecondary, fontSize: FontSizes.xs },
-  diff: { color: SEMANTIC.success, fontSize: FontSizes.xs, textAlign: 'right', marginTop: -4, marginBottom: 2 },
-  card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  intro: { color: t.textoSecundario, fontSize: FontSizes.xs },
+  diff: { color: t.kind === 'dark' ? SEMANTIC.success : t.tealTexto, fontSize: FontSizes.xs, textAlign: 'right', marginTop: -4, marginBottom: 2 },
+  card: { backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: t.borde },
   sumRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.xs },
-  sumLabel: { color: Colors.textSecondary },
-  sumValue: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
+  sumLabel: { color: t.textoSecundario },
+  sumValue: { color: t.texto, fontFamily: Fonts.semiBold },
   updateBtn: { marginTop: Spacing.sm, borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)', borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center' },
-  updateBtnText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
-  note: { color: Colors.textSecondary, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.xs },
+  updateBtnText: { color: t.textoSecundario, fontFamily: Fonts.semiBold },
+  note: { color: t.textoSecundario, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.xs },
   saveBtn: { marginTop: Spacing.sm },
 });

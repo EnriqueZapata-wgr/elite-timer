@@ -9,8 +9,8 @@ import Animated, { FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { playPhaseTick, playReveal } from './edad-sound';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
-import { ATP_BRAND } from '@/src/constants/brand';
-import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, THEME_DARK } from '@/src/constants/brand';
+import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 
 type Phase = { label: string; emoji: string; ms: number };
 
@@ -97,16 +97,19 @@ export function CalculationCinematic({
   );
 }
 
+// MB-31B remate: la cinemática es un velo negro constante (como la card
+// editorial): NO cambia entre temas. Sus colores se anclan a THEME_DARK para
+// que el ratchet no vea hex sueltos y el reveal se lea igual en ambos modos.
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.96)', alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
   phaseWrap: { alignItems: 'center', gap: Spacing.md },
   phaseEmoji: { fontSize: 56 },
-  phaseLabel: { color: '#fff', fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, textAlign: 'center' },
+  phaseLabel: { color: THEME_DARK.texto, fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, textAlign: 'center' },
   dots: { flexDirection: 'row', gap: 8, marginTop: Spacing.md },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#333' },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: THEME_DARK.bordeMarcado },
   dotOn: { backgroundColor: ATP_BRAND.lime },
   revealWrap: { alignItems: 'center', gap: 6 },
-  revealLabel: { color: Colors.textSecondary, fontSize: FontSizes.xs, letterSpacing: 2, fontFamily: Fonts.bold },
+  revealLabel: { color: THEME_DARK.textoSecundario, fontSize: FontSizes.xs, letterSpacing: 2, fontFamily: Fonts.bold },
   revealValue: { color: ATP_BRAND.lime, fontSize: 80, fontFamily: Fonts.extraBold, lineHeight: 88 },
-  revealSub: { color: Colors.textSecondary, fontSize: FontSizes.sm },
+  revealSub: { color: THEME_DARK.textoSecundario, fontSize: FontSizes.sm },
 });

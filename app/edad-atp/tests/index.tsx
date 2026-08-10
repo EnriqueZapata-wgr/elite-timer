@@ -1,8 +1,9 @@
 /**
  * Edad ATP — hub de tests funcionales. Lista los tests con su última ejecución + CTA.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ScrollView, StyleSheet, Pressable, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
@@ -12,7 +13,9 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { getLatestFunctionalTests, getLatestHealthMeasurement } from '@/src/services/edad-atp/capture-service';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 function daysAgo(dateStr: string): number {
   const then = parseLocalDate(dateStr.includes('T') ? dateStr.slice(0, 10) : dateStr).getTime();
@@ -21,6 +24,9 @@ function daysAgo(dateStr: string): number {
 }
 
 export default function TestsHub() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const [ft, setFt] = useState<Record<string, { value: number; measured_at: string }>>({});
   const [vo2, setVo2] = useState<number | null>(null);
@@ -52,7 +58,8 @@ export default function TestsHub() {
   ];
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="fitness" title="Tests funcionales" />
       <ScrollView contentContainerStyle={styles.content}>
         {ROWS.map((r) => (
@@ -62,7 +69,7 @@ export default function TestsHub() {
               <EliteText variant="body" style={styles.title}>{r.title}</EliteText>
               <EliteText variant="caption" style={styles.sub}>{r.sub}</EliteText>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+            <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />
           </Pressable>
         ))}
       </ScrollView>
@@ -70,10 +77,11 @@ export default function TestsHub() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: t.borde },
   emoji: { fontSize: 22 },
-  title: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
-  sub: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 2 },
+  title: { color: t.texto, fontFamily: Fonts.semiBold },
+  sub: { color: t.textoSecundario, fontSize: FontSizes.xs, marginTop: 2 },
 });

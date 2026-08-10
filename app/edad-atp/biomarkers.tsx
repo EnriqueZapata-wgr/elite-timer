@@ -5,8 +5,9 @@
  * Toda edición/captura manual escribe a edad_atp_biomarkers (override: el
  * orchestrator prioriza edad_atp_biomarkers > extracted_data > lab_results).
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Alert, Linking } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/src/lib/supabase';
 import { getFreshSignedUrl } from '@/src/services/storage-signed-url';
@@ -27,8 +28,9 @@ import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { getCycleInfo } from '@/src/services/cycle-service';
 import { deriveLabCycleContext, type CyclePhase } from '@/src/services/salud/lab-cycle-context-core';
-import { ATP_BRAND, TEXT_COLORS, SEMANTIC, TEXT } from '@/src/constants/brand';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, SEMANTIC, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 // key = biomarker_key (edad_atp_biomarkers). labCol = columna en lab_results si difiere.
 type Bio = { key: string; label: string; unit: string; labCol?: string };
@@ -78,6 +80,9 @@ function daysAgo(dateStr: string): number {
 type Current = { value: number; source: string };
 
 export default function BiomarkersCapture() {
+  // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const analytics = useAnalytics();
   // MB-29 P2 (H5): modo actualizar — llega de "Sube tus labs" con ?update=1.
@@ -215,12 +220,13 @@ export default function BiomarkersCapture() {
   }
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="metrics" title="Biomarcadores" />
       <ScrollView contentContainerStyle={styles.content}>
         {sourceUploadId ? (
           <View style={styles.sourceBanner}>
-            <Ionicons name="document-text-outline" size={16} color={TEXT.secondary} />
+            <Ionicons name="document-text-outline" size={16} color={t.textoSecundario} />
             <EliteText variant="caption" style={styles.sourceText} numberOfLines={1}>
               Capturando desde: {sourceFileName ?? 'tu archivo'}
             </EliteText>
@@ -240,7 +246,7 @@ export default function BiomarkersCapture() {
           <View style={styles.section}>
             <Pressable onPress={() => { haptic.light(); setShowAvailable((s) => !s); }} style={styles.sectionHeader}>
               <EliteText variant="body" style={styles.okTitle}>✓ Disponibles ({available.length})</EliteText>
-              <Ionicons name={showAvailable ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textSecondary} />
+              <Ionicons name={showAvailable ? 'chevron-up' : 'chevron-down'} size={18} color={t.textoSecundario} />
             </Pressable>
             {showAvailable && (
               <EliteText variant="caption" style={styles.tapHint}>Toca un valor para corregirlo.</EliteText>
@@ -271,7 +277,7 @@ export default function BiomarkersCapture() {
                     />
                     <View style={styles.inlineBtns}>
                       <Pressable onPress={() => { haptic.light(); setEditingKey(null); }} style={styles.inlineCancel}>
-                        <EliteText variant="caption" style={{ color: Colors.textSecondary }}>Cancelar</EliteText>
+                        <EliteText variant="caption" style={{ color: t.textoSecundario }}>Cancelar</EliteText>
                       </Pressable>
                       <Pressable onPress={() => handleInlineSave(f)} disabled={savingKey === f.key} style={[styles.inlineSave, savingKey === f.key && { opacity: 0.6 }]}>
                         <EliteText variant="caption" style={styles.inlineSaveText}>{savingKey === f.key ? 'Guardando…' : 'Guardar'}</EliteText>
@@ -294,7 +300,7 @@ export default function BiomarkersCapture() {
                       <EliteText variant="body" style={styles.availValue}>{current[f.key]!.value} {f.unit}</EliteText>
                       <EliteText variant="caption" style={styles.availSrc}>{current[f.key]!.source}</EliteText>
                     </View>
-                    <Ionicons name="create-outline" size={14} color={Colors.textSecondary} style={{ marginLeft: 6 }} />
+                    <Ionicons name="create-outline" size={14} color={t.textoSecundario} style={{ marginLeft: 6 }} />
                   </Pressable>
                   {cycleCtx.show && (
                     <EliteText
@@ -308,7 +314,7 @@ export default function BiomarkersCapture() {
               );
             })}
             <Pressable onPress={() => { haptic.light(); setEditMode((e) => !e); }} style={styles.editBtn}>
-              <Ionicons name={editMode ? 'close' : 'create-outline'} size={15} color={TEXT.secondary} />
+              <Ionicons name={editMode ? 'close' : 'create-outline'} size={15} color={t.textoSecundario} />
               <EliteText variant="caption" style={styles.editBtnText}>{editMode ? 'Cancelar edición' : 'Editar manualmente'}</EliteText>
             </Pressable>
           </View>
@@ -342,37 +348,40 @@ export default function BiomarkersCapture() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema. El lima como LETRA
+// (✓ disponibles / fuentes) solo vive en oscuro; en claro cae al teal de texto
+// (manual regla 1 — hallazgo reportado).
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  intro: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
+  intro: { color: t.textoSecundario, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
   sourceBanner: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: 'rgba(168,224,42,0.08)', borderWidth: 1, borderColor: 'rgba(168,224,42,0.25)',
     borderRadius: Radius.card, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, marginBottom: Spacing.sm,
   },
-  sourceText: { color: Colors.textPrimary, flex: 1, fontSize: FontSizes.xs },
-  sourceLink: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
-  section: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  sourceText: { color: t.texto, flex: 1, fontSize: FontSizes.xs },
+  sourceLink: { color: t.textoSecundario, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
+  section: { backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: t.borde },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: Spacing.xs },
-  okTitle: { color: SEMANTIC.success, fontFamily: Fonts.bold, fontSize: FontSizes.md },
+  okTitle: { color: t.kind === 'dark' ? SEMANTIC.success : t.tealTexto, fontFamily: Fonts.bold, fontSize: FontSizes.md },
   pendTitle: { color: '#e0a020', fontFamily: Fonts.bold, fontSize: FontSizes.md, marginBottom: Spacing.xs },
-  tapHint: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
+  tapHint: { color: t.textoSecundario, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
   availRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.xs },
-  inlineEdit: { borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: Spacing.xs, marginTop: Spacing.xs },
+  inlineEdit: { borderTopWidth: 1, borderTopColor: t.borde, paddingTop: Spacing.xs, marginTop: Spacing.xs },
   inlineBtns: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.xs },
   inlineCancel: { paddingVertical: 6, paddingHorizontal: 12 },
   inlineSave: { backgroundColor: ATP_BRAND.lime, borderRadius: Radius.sm, paddingVertical: 6, paddingHorizontal: 16 },
-  inlineSaveText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold },
-  availLabel: { color: Colors.textPrimary, flex: 1 },
+  inlineSaveText: { color: t.textoSobreLima, fontFamily: Fonts.bold },
+  availLabel: { color: t.texto, flex: 1 },
   availRight: { alignItems: 'flex-end' },
-  availValue: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
-  availSrc: { color: SEMANTIC.success, fontSize: FontSizes.xs },
+  availValue: { color: t.texto, fontFamily: Fonts.semiBold },
+  availSrc: { color: t.kind === 'dark' ? SEMANTIC.success : t.tealTexto, fontSize: FontSizes.xs },
   // MB-7: nota de fase del ciclo bajo labs hormonales de mujer.
   cyclePhaseNote: { color: '#D4537E', fontSize: FontSizes.xs, marginTop: -2, marginBottom: Spacing.xs, paddingHorizontal: 2 },
   cyclePhaseNoteWarn: { color: '#EF9F27' },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.sm, alignSelf: 'flex-start' },
-  editBtnText: { color: TEXT.secondary },
-  allDone: { color: SEMANTIC.success, textAlign: 'center', marginVertical: Spacing.sm },
-  note: { color: Colors.textSecondary, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.xs },
+  editBtnText: { color: t.textoSecundario },
+  allDone: { color: t.kind === 'dark' ? SEMANTIC.success : t.tealTexto, textAlign: 'center', marginVertical: Spacing.sm },
+  note: { color: t.textoSecundario, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.xs },
   saveBtn: { marginTop: Spacing.sm },
 });
