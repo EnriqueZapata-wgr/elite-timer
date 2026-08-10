@@ -28,6 +28,51 @@ o leyendo el código a fondo.
 
 ---
 
+# 🖌️ MB-31B1 (ámbito B1 · el marco y el día) — hallazgos que NO eran de este run
+
+**Rama `feat/mb31b1-marco`, 10-ago-2026.** Migradas las pantallas de la lista B1;
+esto es lo que se DESTAPÓ y se anota sin arreglar (regla de la Pieza 2):
+
+- **Pantallas sin dueño en el reparto B1/B2/B3** (no están en ninguna de las tres
+  listas y siguen con colores fijos): `hoy-habitos` (puerta "Elegir mis hábitos"
+  del HOY), `ordenar-dia`, `atp-orden` (editar orden de la sala), `night-filter`
+  (puerta de Ajustes › Experiencia), `notifications` (inbox de la campana),
+  `profile` (puerta de YO y de Cuenta), `argos-chat` (cuerpo del tab ARGOS),
+  `paywall`, `redeem-code`, `login`/`register`, `legal/*`. Cowork reparte.
+- **Frontera B2:** el tab SALUD (`(tabs)/salud.tsx`) quedó con chrome a tokens
+  pero SIN `themed`: su cuerpo es `src/screens/salud/SaludHub.tsx` (colores
+  fijos, territorio B2). Quien migre SaludHub debe poner `themed` y la barra
+  por tema en el tab (nota en el archivo).
+- **Componentes compartidos con otros ámbitos que quedan oscuros dentro de un
+  HOY claro** (tránsito esperado, scope los protege): economy
+  (`EconomyHeaderPill`, `ProBoostCard`, `HPlusExplainerCard`,
+  `ArgosReactionToast`), `TopBanner` (global), `CommunityPresence`. El kit
+  `ui/` aún con hex a mano y consumidores mixtos: `ExplanationModal` (13),
+  `ElectronBadge` (4), `SwipeToDeleteRow` (3), `AppCard`, `ExpandableSheet`,
+  `HomeFloatingButton`, `InfoTipModal`, `PillarHeader`, `GradientCard`,
+  `AppIcon`, `MedicalDisclaimer`, `UserAvatar`. El cierre de MB-31B los reparte.
+- **El marco global de tránsito:** los flotantes del root (`ArgosFloatingButton`,
+  `HomeFloatingButton`, `LabProcessingSheet`, `ProcessingMiniBanner`) y el
+  `OrbTour` viven FUERA de todo `<ThemeReady>` → siempre oscuros, sobre
+  cualquier tema. Decisión de cierre: ¿marco (tema global) o overlay oscuro a
+  propósito? El contenedor de navegación sigue en oscuro canónico a propósito
+  (transiciones de pantallas sin migrar).
+- **Deuda de contraste PREVIA en oscuro, no tocada** (cero cambios de
+  comportamiento): blanco sobre teal de coach `#1D9E75` en CONECTAR
+  (~3.4:1, `settings/conexiones`). En claro ya va negro sobre teal (regla 3);
+  el oscuro que decida Enrique (mismo caso que el tenue 2.51 del manual 3.5).
+- **Código muerto hallado:** `src/components/hoy/HeroAgendaCard.tsx`,
+  `WearableMetricCard.tsx`, `ActionContentRenderer.tsx` (24 hex) y
+  `src/components/agenda/AgendaPreviewCard.tsx` — cero consumidores. Borrarlos
+  es de un run de limpieza, no de este.
+- **Colores fuera de paleta, dejados y reportados:** `#ff8b66` (WARN de
+  `RestrictionsBanner`), `#fb7185` (destructivo en agenda y deltas del HOY),
+  `#ef4444` (Desinstalar/admin/AgeGate). En claro caen al token de error para
+  leerse; en oscuro quedan tal cual. Si el manual les quiere dar nombre, es
+  decisión de marca.
+
+---
+
 # 🔴 A · ABIERTO Y VERIFICADO
 
 ## ~~A1 · Los iconos siguen mezclados~~ ✅ CERRADO (MB-28A · pieza 0.1)
