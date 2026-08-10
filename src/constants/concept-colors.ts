@@ -11,6 +11,7 @@
  * electrons.ts (color del electrón). Al agregar una pantalla con estos
  * conceptos, leer de AQUÍ — nunca hardcodear el hex en la pantalla.
  */
+import { CATEGORY_COLORS } from '@/src/constants/brand';
 
 export interface ConceptColor {
   /** Color sólido: iconos, acentos, electrones, badges. */
@@ -38,3 +39,37 @@ export const CONCEPT_COLORS = {
 } satisfies Record<string, ConceptColor>;
 
 export type ConceptKey = keyof typeof CONCEPT_COLORS;
+
+// ═══════════════════════════════════════════════════════════════════
+// MB-31A · Pieza 2 — las secciones en modo claro (manual 3.3 y 3.6)
+// ═══════════════════════════════════════════════════════════════════
+// Los colores de sección NO se tematizan: son identidad, el lima de fitness
+// es el mismo en claro y en oscuro. Lo que SÍ está decidido es el texto
+// encima cuando son relleno: ayuno lleva blanco (6.42), las otras nueve
+// llevan negro (5.3 a 13.4). Y ninguno se usa como color de LETRA sobre
+// fondo claro salvo ayuno (5.49) — en claro son relleno, icono grande,
+// barra o punto; nunca letra.
+
+/** Las DIEZ secciones del manual: las nueve de concepto + ciclo. */
+export const SECCION_COLORS = {
+  fitness: CONCEPT_COLORS.fitness.color,
+  nutricion: CONCEPT_COLORS.nutricion.color,
+  agua: CONCEPT_COLORS.agua.color,
+  ayuno: CONCEPT_COLORS.ayuno.color,
+  sol: CONCEPT_COLORS.sol.color,
+  mente: CONCEPT_COLORS.mente.color,
+  sueno: CONCEPT_COLORS.sueno.color,
+  cardio: CONCEPT_COLORS.cardio.color,
+  suplementos: CONCEPT_COLORS.suplementos.color,
+  ciclo: CATEGORY_COLORS.cycle,
+} as const satisfies Record<string, string>;
+
+export type SeccionKey = keyof typeof SECCION_COLORS;
+
+/**
+ * El texto encima de un relleno de sección. Una sola excepción, fácil de
+ * recordar: ayuno (#6B46C1) lleva blanco; todas las demás, negro.
+ */
+export function textoSobreSeccion(seccion: SeccionKey): '#FFFFFF' | '#000000' {
+  return seccion === 'ayuno' ? '#FFFFFF' : '#000000';
+}
