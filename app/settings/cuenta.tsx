@@ -15,8 +15,9 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import { SectionLabel, Divider, SettingRow, ui } from '@/src/components/settings/settings-ui';
 import { haptic } from '@/src/utils/haptics';
-import { Colors, Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
+import { Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import type { Tier } from '@/src/services/subscription/tier-logic';
 
 const TIER_LABELS: Record<Tier, string> = {
@@ -30,6 +31,10 @@ export default function SettingsCuentaScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const { effectiveTier, isLoading } = useSubscription();
+  // MB-31B: pantalla migrada — superficies del tema; el error de sesión usa
+  // el token (coral en oscuro, #B03A2E en claro: el coral no se lee).
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
 
@@ -47,18 +52,20 @@ export default function SettingsCuentaScreen() {
   }
 
   return (
-    <View style={ui.screenRoot}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[ui.screenRoot, { backgroundColor: tokens.fondo }]}>
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <ScreenHeader title="Perfil y cuenta" onBack={() => router.back()} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Identidad: foto + nombre + email + tier */}
-        <Animated.View entering={FadeInUp.delay(80).springify()} style={styles.identityCard}>
+        <Animated.View entering={FadeInUp.delay(80).springify()} style={[styles.identityCard, { backgroundColor: tokens.card }]}>
           <UserAvatar uri={user?.user_metadata?.avatar_url} name={displayName} size={64} />
           <EliteText variant="body" style={styles.identityName}>{displayName}</EliteText>
-          <EliteText variant="caption" style={styles.identityEmail}>{user?.email}</EliteText>
-          <View style={styles.tierBadge}>
-            <EliteText style={styles.tierBadgeText}>
+          <EliteText variant="caption">{user?.email}</EliteText>
+          {/* En claro el lima no es texto: el badge pasa a relleno sólido. */}
+          <View style={[styles.tierBadge, !dark && { backgroundColor: ATP_BRAND.lime }]}>
+            <EliteText style={[styles.tierBadgeText, !dark && { color: tokens.textoSobreLima }]}>
               {isLoading ? '…' : TIER_LABELS[effectiveTier]}
             </EliteText>
           </View>
@@ -87,16 +94,16 @@ export default function SettingsCuentaScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(220).springify()}>
-          <SectionLabel color={Colors.error}>SESIÓN</SectionLabel>
+          <SectionLabel color={tokens.error}>SESIÓN</SectionLabel>
           <SettingRow
             icon="log-out-outline"
-            iconColor={Colors.error}
+            iconColor={tokens.error}
             label="Cerrar sesión"
             onPress={handleLogout}
           />
           <SettingRow
             icon="trash-outline"
-            iconColor={Colors.error}
+            iconColor={tokens.error}
             label="Eliminar cuenta"
             sub="Se gestiona en Privacidad y datos"
             onPress={() => { haptic.medium(); router.push('/settings/privacy'); }}
@@ -106,6 +113,7 @@ export default function SettingsCuentaScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
@@ -113,7 +121,6 @@ const styles = StyleSheet.create({
   identityCard: {
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     padding: Spacing.lg,
     marginTop: Spacing.sm,
@@ -122,9 +129,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.lg,
     marginTop: Spacing.xs,
-  },
-  identityEmail: {
-    color: Colors.textSecondary,
   },
   tierBadge: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.12),

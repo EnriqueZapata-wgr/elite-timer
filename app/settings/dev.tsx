@@ -11,11 +11,14 @@ import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { useAuth } from '@/src/contexts/auth-context';
 import { isAdmin } from '@/src/constants/admin-config';
 import { SectionLabel, SettingRow, ui } from '@/src/components/settings/settings-ui';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
 
 export default function SettingsDevScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B: pantalla migrada (todo su chrome viene del kit de settings-ui).
+  const { kind, tokens } = useAppTheme();
 
   // Gate: dev build o admin — nadie más aterriza aquí ni por deep link
   if (!__DEV__ && !isAdmin(user?.id)) {
@@ -23,8 +26,9 @@ export default function SettingsDevScreen() {
   }
 
   return (
-    <View style={ui.screenRoot}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[ui.screenRoot, { backgroundColor: tokens.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Developer" onBack={() => router.back()} />
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInUp.delay(80).springify()}>
@@ -79,5 +83,6 @@ export default function SettingsDevScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }

@@ -28,7 +28,9 @@ import {
 import { logConsent, getConsentStatus, type ConsentStatus } from '@/src/services/consent-log-service';
 import { CONSENT_SHORT_TITLES, REVOKE_CORE_WARNING, type ConsentCheckboxId } from '@/src/constants/consent-copy';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, TEXT, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, PILL, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { StatusBar } from 'expo-status-bar';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 interface ExportRow {
@@ -69,6 +71,13 @@ export default function SettingsPrivacyScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const posthog = usePostHog();
+  // MB-31B: pantalla migrada — superficies/texto del tema; el error usa su
+  // token por modo (coral no se lee en claro) y el lima nunca es texto ahí.
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
+  const thCard = { backgroundColor: tokens.card, borderColor: tokens.borde };
+  const thDesc = { color: dark ? tokens.textoTenue : tokens.textoSecundario };
+  const acento = dark ? ATP_BRAND.lime : tokens.tealTexto;
 
   const [consent, setConsent] = useState<UserConsent | null>(null);
   // Sprint Compliance 2: último estado por checkbox CB-1..CB-7 (user_consent_log)
@@ -208,17 +217,19 @@ export default function SettingsPrivacyScreen() {
   const clinicianDisabled = !hasClinician;
 
   return (
+    <ThemeReady>
     <ScrollView
-      style={s.screen}
+      style={[s.screen, { backgroundColor: tokens.fondo }]}
       contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: 60 }}
     >
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <View style={{ paddingTop: insets.top + 8 }}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
+          <Ionicons name="arrow-back" size={24} color={tokens.texto} />
         </Pressable>
         <Animated.View entering={FadeInUp.delay(40).springify()}>
-          <EliteText style={s.title}>Privacidad</EliteText>
-          <EliteText style={s.subtitle}>Tus datos son tuyos. Aquí decides qué compartes y qué no.</EliteText>
+          <EliteText style={[s.title, { color: tokens.texto }]}>Privacidad</EliteText>
+          <EliteText style={[s.subtitle, { color: tokens.textoSecundario }]}>Tus datos son tuyos. Aquí decides qué compartes y qué no.</EliteText>
         </Animated.View>
       </View>
 
@@ -228,10 +239,10 @@ export default function SettingsPrivacyScreen() {
         {CONSENT_META.map(meta => {
           const disabled = meta.key === 'share_with_clinician' && clinicianDisabled;
           return (
-            <View key={meta.key} style={[s.toggleRow, disabled && { opacity: 0.7 }]}>
+            <View key={meta.key} style={[s.toggleRow, thCard, disabled && { opacity: 0.7 }]}>
               <View style={{ flex: 1 }}>
-                <EliteText style={s.toggleTitle}>{meta.title}</EliteText>
-                <EliteText style={s.toggleDesc}>
+                <EliteText style={[s.toggleTitle, { color: tokens.texto }]}>{meta.title}</EliteText>
+                <EliteText style={[s.toggleDesc, thDesc]}>
                   {disabled ? 'Sin clínico vinculado' : meta.description}
                 </EliteText>
               </View>
@@ -239,8 +250,8 @@ export default function SettingsPrivacyScreen() {
                 value={consent?.[meta.key] ?? false}
                 onValueChange={(v) => toggle(meta.key, v)}
                 disabled={!consent || disabled}
-                trackColor={{ false: '#333', true: withOpacity(ATP_BRAND.lime, 0.5) }}
-                thumbColor={consent?.[meta.key] ? ATP_BRAND.lime : '#666'}
+                trackColor={{ false: tokens.bordeMarcado, true: withOpacity(ATP_BRAND.lime, 0.5) }}
+                thumbColor={consent?.[meta.key] ? ATP_BRAND.lime : (dark ? PILL.textColor : tokens.flotante)}
               />
             </View>
           );
@@ -254,24 +265,24 @@ export default function SettingsPrivacyScreen() {
           const st = cbStatus[id];
           const accepted = st?.action === 'accepted';
           return (
-            <View key={id} style={s.toggleRow}>
+            <View key={id} style={[s.toggleRow, thCard]}>
               <View style={{ flex: 1 }}>
-                <EliteText style={s.toggleTitle}>{CONSENT_SHORT_TITLES[id]}</EliteText>
-                <EliteText style={s.toggleDesc}>
+                <EliteText style={[s.toggleTitle, { color: tokens.texto }]}>{CONSENT_SHORT_TITLES[id]}</EliteText>
+                <EliteText style={[s.toggleDesc, thDesc]}>
                   {accepted
                     ? `Otorgado el ${fmtDate(st!.accepted_at)}`
                     : st?.action === 'revoked' ? 'Revocado' : 'Sin otorgar'}
                 </EliteText>
               </View>
-              <Pressable onPress={() => toggleCb(id)} style={s.consentChip} hitSlop={6} disabled={busy}>
-                <EliteText style={[s.consentChipText, accepted && { color: SEMANTIC.error }]}>
+              <Pressable onPress={() => toggleCb(id)} style={[s.consentChip, !dark && { backgroundColor: tokens.hundido, borderColor: tokens.borde }]} hitSlop={6} disabled={busy}>
+                <EliteText style={[s.consentChipText, { color: accepted ? tokens.error : acento }]}>
                   {accepted ? 'Revocar' : 'Otorgar'}
                 </EliteText>
               </Pressable>
             </View>
           );
         })}
-        <EliteText style={s.exportHint}>
+        <EliteText style={[s.exportHint, thDesc]}>
           Cada cambio queda registrado con fecha y versión del Aviso. Revocar los consentimientos
           de datos sensibles o transferencia internacional detiene el núcleo de ATP.
         </EliteText>
@@ -282,14 +293,14 @@ export default function SettingsPrivacyScreen() {
         <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Documentos legales</SectionTitle>
         <Pressable
           onPress={() => { haptic.light(); router.push('/settings/legal'); }}
-          style={s.legalRow}
+          style={[s.legalRow, thCard]}
         >
-          <Ionicons name="document-text-outline" size={20} color={TEXT.secondary} />
+          <Ionicons name="document-text-outline" size={20} color={tokens.textoSecundario} />
           <View style={{ flex: 1 }}>
-            <EliteText style={s.toggleTitle}>Términos, privacidad y disclaimers</EliteText>
-            <EliteText style={s.toggleDesc}>Versiones aceptadas y fechas</EliteText>
+            <EliteText style={[s.toggleTitle, { color: tokens.texto }]}>Términos, privacidad y disclaimers</EliteText>
+            <EliteText style={[s.toggleDesc, thDesc]}>Versiones aceptadas y fechas</EliteText>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={TEXT.tertiary} />
+          <Ionicons name="chevron-forward" size={16} color={tokens.textoTenue} />
         </Pressable>
       </Animated.View>
 
@@ -297,34 +308,34 @@ export default function SettingsPrivacyScreen() {
       <Animated.View entering={FadeInUp.delay(190).springify()}>
         <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Tus datos</SectionTitle>
         <AnimatedPressable style={s.exportBtn} onPress={requestExport} disabled={busy}>
-          <Ionicons name="download-outline" size={20} color="#000" />
+          <Ionicons name="download-outline" size={20} color={TEXT_COLORS.onAccent} />
           <EliteText style={s.exportBtnText}>DESCARGAR MIS DATOS</EliteText>
         </AnimatedPressable>
-        <EliteText style={s.exportHint}>
+        <EliteText style={[s.exportHint, thDesc]}>
           Recibes un archivo JSON con todo tu expediente (GDPR/LFPDPP). Tarda hasta 24h.
         </EliteText>
 
         {/* ARCO · Rectificar: editar los datos del perfil */}
         <Pressable
           onPress={() => { haptic.light(); router.push('/profile'); }}
-          style={[s.legalRow, { marginBottom: 8 }]}
+          style={[s.legalRow, thCard, { marginBottom: 8 }]}
         >
-          <Ionicons name="create-outline" size={20} color={TEXT.secondary} />
+          <Ionicons name="create-outline" size={20} color={tokens.textoSecundario} />
           <View style={{ flex: 1 }}>
-            <EliteText style={s.toggleTitle}>Rectificar mis datos</EliteText>
-            <EliteText style={s.toggleDesc}>Corrige tu información de perfil y salud</EliteText>
+            <EliteText style={[s.toggleTitle, { color: tokens.texto }]}>Rectificar mis datos</EliteText>
+            <EliteText style={[s.toggleDesc, thDesc]}>Corrige tu información de perfil y salud</EliteText>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={TEXT.tertiary} />
+          <Ionicons name="chevron-forward" size={16} color={tokens.textoTenue} />
         </Pressable>
 
         {exports.map(e => {
           const downloadable = e.status === 'completed' && e.download_url
             && (!e.expires_at || Date.parse(e.expires_at) > Date.now());
           return (
-            <View key={e.id} style={s.exportRow}>
+            <View key={e.id} style={[s.exportRow, thCard]}>
               <View style={{ flex: 1 }}>
-                <EliteText style={s.toggleTitle}>{fmtDate(e.requested_at)}</EliteText>
-                <EliteText style={s.toggleDesc}>
+                <EliteText style={[s.toggleTitle, { color: tokens.texto }]}>{fmtDate(e.requested_at)}</EliteText>
+                <EliteText style={[s.toggleDesc, thDesc]}>
                   {EXPORT_STATUS_LABEL[e.status] ?? e.status}
                   {e.file_size_bytes ? ` · ${fmtSize(e.file_size_bytes)}` : ''}
                   {downloadable && e.expires_at ? ` · expira ${fmtDate(e.expires_at)}` : ''}
@@ -333,10 +344,10 @@ export default function SettingsPrivacyScreen() {
               {downloadable && (
                 <Pressable
                   onPress={() => { haptic.medium(); Linking.openURL(e.download_url!); }}
-                  style={s.downloadChip}
+                  style={[s.downloadChip, !dark && { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime }]}
                   hitSlop={6}
                 >
-                  <EliteText style={s.downloadChipText}>Descargar</EliteText>
+                  <EliteText style={[s.downloadChipText, !dark && { color: tokens.textoSobreLima }]}>Descargar</EliteText>
                 </Pressable>
               )}
             </View>
@@ -351,22 +362,22 @@ export default function SettingsPrivacyScreen() {
           <View style={s.deletionPendingCard}>
             <Ionicons name="time-outline" size={20} color="#fbbf24" />
             <View style={{ flex: 1 }}>
-              <EliteText style={s.toggleTitle}>Eliminación programada</EliteText>
-              <EliteText style={s.toggleDesc}>
+              <EliteText style={[s.toggleTitle, { color: tokens.texto }]}>Eliminación programada</EliteText>
+              <EliteText style={[s.toggleDesc, thDesc]}>
                 Tu cuenta y todos tus datos se eliminarán el {fmtDate(deletion.scheduled_delete_at)}.
               </EliteText>
             </View>
-            <Pressable onPress={cancelDeletion} style={s.cancelChip} hitSlop={6} disabled={busy}>
-              <EliteText style={s.cancelChipText}>Cancelar</EliteText>
+            <Pressable onPress={cancelDeletion} style={[s.cancelChip, !dark && { backgroundColor: tokens.hundido, borderColor: tokens.borde }]} hitSlop={6} disabled={busy}>
+              <EliteText style={[s.cancelChipText, { color: tokens.texto }]}>Cancelar</EliteText>
             </Pressable>
           </View>
         ) : (
           <AnimatedPressable
-            style={s.deleteBtn}
+            style={[s.deleteBtn, !dark && { borderColor: withOpacity(tokens.error, 0.5) }]}
             onPress={() => { haptic.warning(); setDeleteModal(true); }}
           >
-            <Ionicons name="trash-outline" size={18} color={SEMANTIC.error} />
-            <EliteText style={s.deleteBtnText}>Eliminar mi cuenta</EliteText>
+            <Ionicons name="trash-outline" size={18} color={tokens.error} />
+            <EliteText style={[s.deleteBtnText, { color: tokens.error }]}>Eliminar mi cuenta</EliteText>
           </AnimatedPressable>
         )}
       </Animated.View>
@@ -374,10 +385,10 @@ export default function SettingsPrivacyScreen() {
       {/* Modal export solicitado */}
       <Modal visible={exportModal} transparent animationType="fade" onRequestClose={() => setExportModal(false)}>
         <View style={s.modalOverlay}>
-          <View style={s.modalCard}>
+          <View style={[s.modalCard, { backgroundColor: tokens.flotante, borderColor: tokens.bordeMarcado }]}>
             <Ionicons name="checkmark-circle-outline" size={40} color={ATP_BRAND.lime} />
-            <EliteText style={s.modalTitle}>Estamos preparando tu archivo</EliteText>
-            <EliteText style={s.modalBody}>
+            <EliteText style={[s.modalTitle, { color: tokens.texto }]}>Estamos preparando tu archivo</EliteText>
+            <EliteText style={[s.modalBody, !dark && { color: tokens.textoSecundario }]}>
               Te avisaremos en un máximo de 24 horas. El link de descarga estará disponible aquí
               durante 7 días.
             </EliteText>
@@ -391,10 +402,10 @@ export default function SettingsPrivacyScreen() {
       {/* Modal eliminar cuenta */}
       <Modal visible={deleteModal} transparent animationType="fade" onRequestClose={() => setDeleteModal(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
-          <View style={s.modalCard}>
-            <Ionicons name="warning-outline" size={40} color={SEMANTIC.error} />
-            <EliteText style={s.modalTitle}>¿Eliminar tu cuenta?</EliteText>
-            <EliteText style={[s.modalBody, { textAlign: 'left' }]}>
+          <View style={[s.modalCard, { backgroundColor: tokens.flotante, borderColor: tokens.bordeMarcado }]}>
+            <Ionicons name="warning-outline" size={40} color={tokens.error} />
+            <EliteText style={[s.modalTitle, { color: tokens.texto }]}>¿Eliminar tu cuenta?</EliteText>
+            <EliteText style={[s.modalBody, !dark && { color: tokens.textoSecundario }, { textAlign: 'left' }]}>
               Perderás para siempre:{'\n'}
               • Tu expediente e historia clínica{'\n'}
               • Labs, tests y Edad ATP{'\n'}
@@ -404,25 +415,27 @@ export default function SettingsPrivacyScreen() {
               Tienes 30 días para cancelar antes del borrado definitivo.
             </EliteText>
             <TextInput
-              style={s.modalInput}
+              style={[s.modalInput, { backgroundColor: tokens.hundido, borderColor: tokens.borde, color: tokens.texto }]}
               placeholder="Confirma tu contraseña"
-              placeholderTextColor="#444"
+              placeholderTextColor={tokens.sinDatos}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               autoCapitalize="none"
             />
+            {/* El botón destructivo mantiene su doctrina: en claro el fondo es
+                el token de error y el texto pasa a blanco (negro no se lee). */}
             <AnimatedPressable
-              style={[s.modalDeleteBtn, (!password || busy) && { opacity: 0.4 }]}
+              style={[s.modalDeleteBtn, !dark && { backgroundColor: tokens.error }, (!password || busy) && { opacity: 0.4 }]}
               onPress={confirmDeletion}
               disabled={!password || busy}
             >
-              <EliteText style={s.modalDeleteText}>
+              <EliteText style={[s.modalDeleteText, !dark && { color: ATP_BRAND.white }]}>
                 {busy ? 'Verificando…' : 'ELIMINAR MI CUENTA'}
               </EliteText>
             </AnimatedPressable>
             <AnimatedPressable style={{ paddingVertical: 10 }} onPress={() => { setDeleteModal(false); setPassword(''); }}>
-              <EliteText style={{ color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold }}>
+              <EliteText style={{ color: tokens.textoSecundario, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold }}>
                 Conservar mi cuenta
               </EliteText>
             </AnimatedPressable>
@@ -430,34 +443,36 @@ export default function SettingsPrivacyScreen() {
         </KeyboardAvoidingView>
       </Modal>
     </ScrollView>
+    </ThemeReady>
   );
 }
 
+// MB-31B: solo layout + acentos de marca; el color vivo entra inline.
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: ELEVATION[0].bg },
-  title: { fontSize: 28, fontFamily: Fonts.bold, color: TEXT.primary, marginTop: Spacing.md },
-  subtitle: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: TEXT.secondary, marginTop: 4 },
+  screen: { flex: 1 },
+  title: { fontSize: 28, fontFamily: Fonts.bold, marginTop: Spacing.md },
+  subtitle: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 4 },
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.md, padding: Spacing.md, marginBottom: 8,
   },
-  toggleTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.primary },
-  toggleDesc: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.tertiary, marginTop: 2, lineHeight: 16 },
+  toggleTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+  toggleDesc: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2, lineHeight: 16 },
   legalRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.md, padding: Spacing.md,
   },
   exportBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 15,
   },
-  exportBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
-  exportHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.muted, marginTop: 8, marginBottom: 8, lineHeight: 16 },
+  exportBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.onAccent, letterSpacing: 1 },
+  exportHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 8, marginBottom: 8, lineHeight: 16 },
   exportRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.md, padding: Spacing.md, marginBottom: 6,
   },
   downloadChip: {
@@ -470,13 +485,13 @@ const s = StyleSheet.create({
     backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
   },
-  consentChipText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, color: ATP_BRAND.lime },
+  consentChipText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold },
   deleteBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     borderWidth: 1, borderColor: withOpacity(SEMANTIC.error, 0.5),
     borderRadius: Radius.lg, paddingVertical: 14,
   },
-  deleteBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: SEMANTIC.error },
+  deleteBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
   deletionPendingCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: 'rgba(251,191,36,0.06)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.25)',
@@ -486,37 +501,37 @@ const s = StyleSheet.create({
     backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
   },
-  cancelChipText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, color: TEXT.primary },
+  cancelChipText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold },
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center', paddingHorizontal: Spacing.md,
   },
   modalCard: {
-    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
+    borderWidth: 1,
     borderRadius: 24, padding: Spacing.lg, alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 20, fontFamily: Fonts.bold, color: TEXT.primary,
+    fontSize: 20, fontFamily: Fonts.bold,
     textAlign: 'center', marginTop: Spacing.md,
   },
   modalBody: {
-    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#aaa',
+    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.67)',
     textAlign: 'center', marginTop: 10, lineHeight: 21, alignSelf: 'stretch',
   },
   modalBtn: {
     alignSelf: 'stretch', backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg,
     paddingVertical: 14, alignItems: 'center', marginTop: Spacing.lg,
   },
-  modalBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  modalBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.onAccent, letterSpacing: 1 },
   modalInput: {
-    alignSelf: 'stretch', backgroundColor: '#0a0a0a', borderRadius: Radius.lg,
+    alignSelf: 'stretch', borderRadius: Radius.lg,
     paddingHorizontal: 16, paddingVertical: 13, fontSize: FontSizes.md,
-    fontFamily: Fonts.regular, color: '#fff', borderWidth: 0.5, borderColor: '#222',
+    fontFamily: Fonts.regular, borderWidth: 0.5,
     marginTop: Spacing.md,
   },
   modalDeleteBtn: {
     alignSelf: 'stretch', backgroundColor: SEMANTIC.error, borderRadius: Radius.lg,
     paddingVertical: 14, alignItems: 'center', marginTop: Spacing.md,
   },
-  modalDeleteText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  modalDeleteText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.onAccent, letterSpacing: 1 },
 });

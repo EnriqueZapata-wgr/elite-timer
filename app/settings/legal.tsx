@@ -17,7 +17,8 @@ import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { MEDICAL_DISCLAIMER_VERSION } from '@/src/constants/medical-disclaimers';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ELEVATION, TEXT } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { StatusBar } from 'expo-status-bar';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 // Sprint Compliance 2: los documentos viven in-app (/legal/*) en staging con
@@ -43,6 +44,9 @@ export default function SettingsLegalScreen() {
   // casita flotante global se retira sola (ver useOwnNavPresence).
   useRegisterOwnNav();
 
+  // MB-31B: pantalla migrada — superficies y texto del tema.
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [consent, setConsent] = useState<ConsentRow | null>(null);
@@ -95,17 +99,19 @@ export default function SettingsLegalScreen() {
   ];
 
   return (
+    <ThemeReady>
     <ScrollView
-      style={{ flex: 1, backgroundColor: ELEVATION[0].bg }}
+      style={{ flex: 1, backgroundColor: tokens.fondo }}
       contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: 40 }}
     >
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <View style={{ paddingTop: insets.top + 8, marginBottom: Spacing.md }}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
+          <Ionicons name="arrow-back" size={24} color={tokens.texto} />
         </Pressable>
         <Animated.View entering={FadeInUp.delay(40).springify()}>
-          <EliteText style={s.title}>Legal</EliteText>
-          <EliteText style={s.subtitle}>Documentos, versiones y avisos médicos de ATP.</EliteText>
+          <EliteText style={[s.title, { color: tokens.texto }]}>Legal</EliteText>
+          <EliteText style={[s.subtitle, { color: tokens.textoSecundario }]}>Documentos, versiones y avisos médicos de ATP.</EliteText>
         </Animated.View>
       </View>
 
@@ -115,14 +121,14 @@ export default function SettingsLegalScreen() {
           <Pressable
             key={row.title}
             onPress={() => { haptic.light(); row.onPress(); }}
-            style={s.row}
+            style={[s.row, { backgroundColor: tokens.card, borderColor: tokens.borde }]}
           >
-            <Ionicons name={row.icon} size={20} color={TEXT.secondary} />
+            <Ionicons name={row.icon} size={20} color={tokens.textoSecundario} />
             <View style={{ flex: 1 }}>
-              <EliteText style={s.rowTitle}>{row.title}</EliteText>
-              <EliteText style={s.rowStatus}>{row.status}</EliteText>
+              <EliteText style={[s.rowTitle, { color: tokens.texto }]}>{row.title}</EliteText>
+              <EliteText style={[s.rowStatus, { color: dark ? tokens.textoTenue : tokens.textoSecundario }]}>{row.status}</EliteText>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={TEXT.tertiary} />
+            <Ionicons name="chevron-forward" size={16} color={tokens.textoTenue} />
           </Pressable>
         ))}
       </Animated.View>
@@ -133,17 +139,18 @@ export default function SettingsLegalScreen() {
         onClose={() => setShowDisclaimers(false)}
       />
     </ScrollView>
+    </ThemeReady>
   );
 }
 
 const s = StyleSheet.create({
-  title: { fontSize: 28, fontFamily: Fonts.bold, color: TEXT.primary, marginTop: Spacing.md },
-  subtitle: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: TEXT.secondary, marginTop: 4 },
+  title: { fontSize: 28, fontFamily: Fonts.bold, marginTop: Spacing.md },
+  subtitle: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 4 },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.md, padding: Spacing.md, marginBottom: 8,
   },
-  rowTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.primary },
-  rowStatus: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.tertiary, marginTop: 2 },
+  rowTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+  rowStatus: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
 });

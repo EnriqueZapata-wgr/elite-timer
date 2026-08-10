@@ -23,7 +23,10 @@ import {
 } from '@/src/services/subscription/subscription-service';
 import { formatBoostRemaining, type Tier } from '@/src/services/subscription/tier-logic';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND, ELEVATION, SEMANTIC, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { StatusBar } from 'expo-status-bar';
+import type { AppThemeTokens } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 const TIER_LABELS: Record<Tier, string> = {
@@ -33,11 +36,13 @@ const TIER_LABELS: Record<Tier, string> = {
   clinician: 'ATP Clínico',
 };
 
-const TIER_COLORS: Record<Tier, string> = {
-  free: TEXT.secondary,
-  base: TEXT.primary,
-  pro: ATP_BRAND.lime,
-  clinician: ATP_BRAND.teal1,
+// MB-31B: el color del tier es TEXTO — en claro ni el lima (1.34) ni el teal
+// de marca llegan como letra; ahí usan el teal calibrado (regla 1/2).
+const tierColor = (tier: Tier, t: AppThemeTokens): string => {
+  if (t.kind === 'dark') {
+    return { free: t.textoSecundario, base: t.texto, pro: ATP_BRAND.lime, clinician: ATP_BRAND.teal1 }[tier];
+  }
+  return { free: t.textoSecundario, base: t.texto, pro: t.tealTexto, clinician: t.tealTexto }[tier];
 };
 
 const EVENT_LABELS: Record<string, string> = {
@@ -71,6 +76,10 @@ function formatDate(iso: string | null | undefined): string {
 
 export default function SubscriptionSettingsScreen() {
   const { user } = useAuth();
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
+  const thCard = { backgroundColor: tokens.card, borderColor: tokens.borde };
+  const thTenue = { color: dark ? tokens.textoTenue : tokens.textoSecundario };
   const {
     tier, effectiveTier, boost, customerInfo, offerings, restore, isLoading,
   } = useSubscription();
@@ -141,27 +150,28 @@ export default function SubscriptionSettingsScreen() {
   const hasPaidPlan = tier !== 'free';
 
   return (
-    <Screen edges={[]}>
+    <Screen edges={[]} themed>
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <ScreenHeader title="Suscripción" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* ── Tier actual ── */}
-        <Animated.View entering={FadeInUp.delay(40).springify()} style={styles.tierCard}>
-          <EliteText style={styles.tierLabel}>TU PLAN</EliteText>
-          <EliteText style={[styles.tierName, { color: TIER_COLORS[effectiveTier] }]}>
+        <Animated.View entering={FadeInUp.delay(40).springify()} style={[styles.tierCard, thCard]}>
+          <EliteText style={[styles.tierLabel, thTenue]}>TU PLAN</EliteText>
+          <EliteText style={[styles.tierName, { color: tierColor(effectiveTier, tokens) }]}>
             {isLoading ? '…' : TIER_LABELS[effectiveTier]}
           </EliteText>
           {inTrial && trialDaysLeft !== null && (
-            <View style={styles.trialBadge}>
-              <EliteText style={styles.trialText}>
+            <View style={[styles.trialBadge, !dark && { backgroundColor: ATP_BRAND.lime }]}>
+              <EliteText style={[styles.trialText, !dark && { color: tokens.textoSobreLima }]}>
                 Trial · {trialDaysLeft === 1 ? 'queda 1 día' : `quedan ${trialDaysLeft} días`}
               </EliteText>
             </View>
           )}
           {boost.active && boost.expiresAt && (
             <View style={styles.boostRow}>
-              <Ionicons name="flash" size={14} color={ATP_BRAND.lime} />
-              <EliteText style={styles.boostText}>
+              <Ionicons name="flash" size={14} color={dark ? ATP_BRAND.lime : tokens.tealTexto} />
+              <EliteText style={[styles.boostText, !dark && { color: tokens.tealTexto }]}>
                 Boost Pro activo · {formatBoostRemaining(boost.expiresAt)} restantes
               </EliteText>
             </View>
@@ -179,32 +189,32 @@ export default function SubscriptionSettingsScreen() {
         {/* ── Renovación y gestión (solo con plan de pago) ── */}
         {hasPaidPlan && (
           <Animated.View entering={FadeInUp.delay(90).springify()}>
-            <EliteText style={styles.sectionTitle}>GESTIÓN</EliteText>
-            <View style={styles.card}>
+            <EliteText style={[styles.sectionTitle, thTenue]}>GESTIÓN</EliteText>
+            <View style={[styles.card, thCard]}>
               <View style={styles.row}>
-                <EliteText style={styles.rowLabel}>Próxima renovación</EliteText>
-                <EliteText style={styles.rowValue}>
+                <EliteText style={[styles.rowLabel, { color: tokens.texto }]}>Próxima renovación</EliteText>
+                <EliteText style={[styles.rowValue, { color: tokens.textoSecundario }]}>
                   {activeEntitlement?.willRenew === false
                     ? `Termina el ${formatDate(activeEntitlement?.expirationDate)}`
                     : `${formatDate(activeEntitlement?.expirationDate)}${renewalPrice ? ` · ${renewalPrice}` : ''}`}
                 </EliteText>
               </View>
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: tokens.borde }]} />
               <AnimatedPressable onPress={onManagePayment} style={styles.row}>
-                <EliteText style={styles.rowLabel}>Método de pago</EliteText>
+                <EliteText style={[styles.rowLabel, { color: tokens.texto }]}>Método de pago</EliteText>
                 <View style={styles.rowRight}>
-                  <EliteText style={styles.rowValue}>
+                  <EliteText style={[styles.rowValue, { color: tokens.textoSecundario }]}>
                     Gestionar en {Platform.OS === 'ios' ? 'Apple' : 'Google'}
                   </EliteText>
-                  <Ionicons name="open-outline" size={14} color={TEXT.secondary} />
+                  <Ionicons name="open-outline" size={14} color={tokens.textoSecundario} />
                 </View>
               </AnimatedPressable>
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: tokens.borde }]} />
               <AnimatedPressable onPress={onCancel} style={styles.row}>
-                <EliteText style={[styles.rowLabel, { color: SEMANTIC.error }]}>
+                <EliteText style={[styles.rowLabel, { color: tokens.error }]}>
                   Cancelar suscripción
                 </EliteText>
-                <Ionicons name="chevron-forward" size={16} color={SEMANTIC.error} />
+                <Ionicons name="chevron-forward" size={16} color={tokens.error} />
               </AnimatedPressable>
             </View>
           </Animated.View>
@@ -214,16 +224,16 @@ export default function SubscriptionSettingsScreen() {
         <Animated.View entering={FadeInUp.delay(110).springify()}>
           <AnimatedPressable
             onPress={() => { haptic.medium(); router.push('/redeem-code'); }}
-            style={styles.card}
+            style={[styles.card, thCard]}
           >
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
-                <EliteText style={styles.rowLabel}>Tengo un código</EliteText>
-                <EliteText style={styles.eventDate}>
+                <EliteText style={[styles.rowLabel, { color: tokens.texto }]}>Tengo un código</EliteText>
+                <EliteText style={[styles.eventDate, thTenue]}>
                   Si compraste en la web o te invitaron, aquí lo activas.
                 </EliteText>
               </View>
-              <Ionicons name="chevron-forward" size={16} color={TEXT.secondary} />
+              <Ionicons name="chevron-forward" size={16} color={tokens.textoSecundario} />
             </View>
           </AnimatedPressable>
         </Animated.View>
@@ -231,7 +241,7 @@ export default function SubscriptionSettingsScreen() {
         {/* ── Restaurar ── */}
         <Animated.View entering={FadeInUp.delay(130).springify()}>
           <AnimatedPressable onPress={onRestore} disabled={restoring} style={styles.restoreBtn}>
-            <EliteText style={styles.restoreText}>
+            <EliteText style={[styles.restoreText, { color: tokens.textoSecundario }]}>
               {restoring ? 'Restaurando…' : 'Restaurar compras'}
             </EliteText>
           </AnimatedPressable>
@@ -239,27 +249,27 @@ export default function SubscriptionSettingsScreen() {
 
         {/* ── Historial ── */}
         <Animated.View entering={FadeInUp.delay(170).springify()}>
-          <EliteText style={styles.sectionTitle}>HISTORIAL DE PAGOS</EliteText>
+          <EliteText style={[styles.sectionTitle, thTenue]}>HISTORIAL DE PAGOS</EliteText>
           {events.length === 0 ? (
-            <View style={styles.card}>
-              <EliteText style={styles.emptyText}>
+            <View style={[styles.card, thCard]}>
+              <EliteText style={[styles.emptyText, thTenue]}>
                 Sin movimientos todavía. Aquí verás tus compras y renovaciones.
               </EliteText>
             </View>
           ) : (
-            <View style={styles.card}>
+            <View style={[styles.card, thCard]}>
               {events.map((ev, i) => (
                 <View key={ev.id}>
-                  {i > 0 && <View style={styles.divider} />}
+                  {i > 0 && <View style={[styles.divider, { backgroundColor: tokens.borde }]} />}
                   <View style={styles.row}>
                     <View style={{ flex: 1 }}>
-                      <EliteText style={styles.rowLabel}>
+                      <EliteText style={[styles.rowLabel, { color: tokens.texto }]}>
                         {EVENT_LABELS[ev.event_type] ?? ev.event_type}
                       </EliteText>
-                      <EliteText style={styles.eventDate}>{formatDate(ev.processed_at)}</EliteText>
+                      <EliteText style={[styles.eventDate, thTenue]}>{formatDate(ev.processed_at)}</EliteText>
                     </View>
                     {ev.price_usd !== null && (
-                      <EliteText style={styles.rowValue}>
+                      <EliteText style={[styles.rowValue, { color: tokens.textoSecundario }]}>
                         ${ev.price_usd.toFixed(2)} {ev.currency ?? 'USD'}
                       </EliteText>
                     )}
@@ -289,7 +299,6 @@ const styles = StyleSheet.create({
   tierLabel: {
     fontFamily: Fonts.semiBold,
     fontSize: 11,
-    color: TEXT.tertiary,
     letterSpacing: 2,
   },
   tierName: { fontFamily: Fonts.extraBold, fontSize: FontSizes.display },
@@ -309,11 +318,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: Spacing.xl,
   },
-  upgradeCtaText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: '#000' },
+  upgradeCtaText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: TEXT_COLORS.onAccent },
   sectionTitle: {
     fontFamily: Fonts.semiBold,
     fontSize: 11,
-    color: TEXT.tertiary,
     letterSpacing: 2,
     marginBottom: Spacing.sm,
   },
@@ -332,16 +340,15 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   rowRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rowLabel: { fontFamily: Fonts.regular, fontSize: FontSizes.md, color: TEXT.primary },
-  rowValue: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.secondary },
-  eventDate: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary, marginTop: 2 },
+  rowLabel: { fontFamily: Fonts.regular, fontSize: FontSizes.md },
+  rowValue: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  eventDate: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: 2 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: ELEVATION[1].border },
   restoreBtn: { alignItems: 'center', paddingVertical: Spacing.xs },
-  restoreText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.secondary },
+  restoreText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   emptyText: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
-    color: TEXT.tertiary,
     paddingVertical: Spacing.md,
     textAlign: 'center',
   },

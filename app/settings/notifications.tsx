@@ -21,7 +21,9 @@ import {
 } from '@/src/services/notification-prefs-service';
 import { syncAppAvisos } from '@/src/services/app-avisos-service';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, PILL, withOpacity } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { StatusBar } from 'expo-status-bar';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 /** 'HH:MM[:SS]' → hora entera (fallback def). */
@@ -39,6 +41,17 @@ export default function SettingsNotificationsScreen() {
 
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  // MB-31B: pantalla migrada — superficies/texto del tema; el lima de radios
+  // y switches es indicador (no texto) y se queda en los dos modos.
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
+  const thCard = { backgroundColor: tokens.card, borderColor: tokens.borde };
+  const thDesc = { color: dark ? tokens.textoTenue : tokens.textoSecundario };
+  const switchTheme = {
+    trackColor: { false: tokens.bordeMarcado, true: withOpacity(ATP_BRAND.lime, 0.5) },
+  } as const;
+  // El gris del thumb apagado de siempre = el #666 canónico del DS (PILL).
+  const thumbOff = dark ? PILL.textColor : tokens.flotante;
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
 
   useEffect(() => {
@@ -69,17 +82,19 @@ export default function SettingsNotificationsScreen() {
   };
 
   return (
+    <ThemeReady>
     <ScrollView
-      style={s.screen}
+      style={[s.screen, { backgroundColor: tokens.fondo }]}
       contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: 60 }}
     >
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <View style={{ paddingTop: insets.top + 8 }}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
+          <Ionicons name="arrow-back" size={24} color={tokens.texto} />
         </Pressable>
         <Animated.View entering={FadeInUp.delay(40).springify()}>
-          <EliteText style={s.title}>Notificaciones</EliteText>
-          <EliteText style={s.subtitle}>Decide qué te interrumpe y cuándo.</EliteText>
+          <EliteText style={[s.title, { color: tokens.texto }]}>Notificaciones</EliteText>
+          <EliteText style={[s.subtitle, { color: tokens.textoSecundario }]}>Decide qué te interrumpe y cuándo.</EliteText>
         </Animated.View>
       </View>
 
@@ -92,21 +107,21 @@ export default function SettingsNotificationsScreen() {
             <Pressable
               key={m.value}
               onPress={() => patch({ mode: m.value as NotificationMode })}
-              style={[s.modeRow, selected && s.modeRowActive]}
+              style={[s.modeRow, thCard, selected && s.modeRowActive]}
             >
-              <View style={[s.radio, selected && s.radioOn]}>
+              <View style={[s.radio, { borderColor: tokens.bordeMarcado }, selected && s.radioOn]}>
                 {selected && <View style={s.radioDot} />}
               </View>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <EliteText style={s.rowTitle}>{m.title}</EliteText>
+                  <EliteText style={[s.rowTitle, { color: tokens.texto }]}>{m.title}</EliteText>
                   {m.pro && (
-                    <View style={s.proBadge}>
-                      <EliteText style={s.proBadgeText}>PRO</EliteText>
+                    <View style={[s.proBadge, !dark && { backgroundColor: ATP_BRAND.lime }]}>
+                      <EliteText style={[s.proBadgeText, !dark && { color: tokens.textoSobreLima }]}>PRO</EliteText>
                     </View>
                   )}
                 </View>
-                <EliteText style={s.rowDesc}>{m.description}</EliteText>
+                <EliteText style={[s.rowDesc, thDesc]}>{m.description}</EliteText>
               </View>
             </Pressable>
           );
@@ -119,17 +134,17 @@ export default function SettingsNotificationsScreen() {
         {CHANNEL_META.map(c => {
           const disabled = prefs?.mode === 'silent' && c.key !== 'system';
           return (
-            <View key={c.key} style={[s.toggleRow, disabled && { opacity: 0.5 }]}>
+            <View key={c.key} style={[s.toggleRow, thCard, disabled && { opacity: 0.5 }]}>
               <View style={{ flex: 1 }}>
-                <EliteText style={s.rowTitle}>{c.title}</EliteText>
-                <EliteText style={s.rowDesc}>{disabled ? 'Silenciado por el modo Silent' : c.description}</EliteText>
+                <EliteText style={[s.rowTitle, { color: tokens.texto }]}>{c.title}</EliteText>
+                <EliteText style={[s.rowDesc, thDesc]}>{disabled ? 'Silenciado por el modo Silent' : c.description}</EliteText>
               </View>
               <Switch
                 value={(prefs?.[c.column] as boolean) ?? true}
                 onValueChange={(v) => patch({ [c.column]: v } as Partial<NotificationPrefs>)}
                 disabled={!prefs || disabled}
-                trackColor={{ false: '#333', true: withOpacity(ATP_BRAND.lime, 0.5) }}
-                thumbColor={(prefs?.[c.column] as boolean) ? ATP_BRAND.lime : '#666'}
+                {...switchTheme}
+                thumbColor={(prefs?.[c.column] as boolean) ? ATP_BRAND.lime : thumbOff}
               />
             </View>
           );
@@ -139,10 +154,10 @@ export default function SettingsNotificationsScreen() {
       {/* ── Quiet hours ── */}
       <Animated.View entering={FadeInUp.delay(190).springify()}>
         <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Horas de silencio</SectionTitle>
-        <View style={s.toggleRow}>
+        <View style={[s.toggleRow, thCard]}>
           <View style={{ flex: 1 }}>
-            <EliteText style={s.rowTitle}>Quiet hours</EliteText>
-            <EliteText style={s.rowDesc}>
+            <EliteText style={[s.rowTitle, { color: tokens.texto }]}>Quiet hours</EliteText>
+            <EliteText style={[s.rowDesc, thDesc]}>
               {quietEnabled
                 ? `Sin notificaciones de ${fmtHour(quietStart)} a ${fmtHour(quietEnd)} (solo sistema).`
                 : 'Silencia todo en una ventana horaria (solo sistema pasa).'}
@@ -154,23 +169,23 @@ export default function SettingsNotificationsScreen() {
               ? { quiet_hours_start: fmtHour(22), quiet_hours_end: fmtHour(7) }
               : { quiet_hours_start: null, quiet_hours_end: null })}
             disabled={!prefs}
-            trackColor={{ false: '#333', true: withOpacity(ATP_BRAND.lime, 0.5) }}
-            thumbColor={quietEnabled ? ATP_BRAND.lime : '#666'}
+            {...switchTheme}
+            thumbColor={quietEnabled ? ATP_BRAND.lime : thumbOff}
           />
         </View>
 
         {quietEnabled && (
-          <View style={s.hoursCard}>
+          <View style={[s.hoursCard, thCard]}>
             {([['start', 'DESDE', quietStart], ['end', 'HASTA', quietEnd]] as const).map(([which, label, value]) => (
               <View key={which} style={s.hourRow}>
-                <EliteText style={s.hourLabel}>{label}</EliteText>
+                <EliteText style={[s.hourLabel, thDesc]}>{label}</EliteText>
                 <View style={s.stepper}>
-                  <Pressable onPress={() => stepHour(which, -1)} hitSlop={8} style={s.stepBtn}>
-                    <Ionicons name="remove" size={16} color={TEXT.primary} />
+                  <Pressable onPress={() => stepHour(which, -1)} hitSlop={8} style={[s.stepBtn, { backgroundColor: tokens.hundido, borderColor: tokens.borde }]}>
+                    <Ionicons name="remove" size={16} color={tokens.texto} />
                   </Pressable>
-                  <EliteText style={s.hourValue}>{fmtHour(value)}</EliteText>
-                  <Pressable onPress={() => stepHour(which, 1)} hitSlop={8} style={s.stepBtn}>
-                    <Ionicons name="add" size={16} color={TEXT.primary} />
+                  <EliteText style={[s.hourValue, { color: tokens.texto }]}>{fmtHour(value)}</EliteText>
+                  <Pressable onPress={() => stepHour(which, 1)} hitSlop={8} style={[s.stepBtn, { backgroundColor: tokens.hundido, borderColor: tokens.borde }]}>
+                    <Ionicons name="add" size={16} color={tokens.texto} />
                   </Pressable>
                 </View>
               </View>
@@ -182,10 +197,10 @@ export default function SettingsNotificationsScreen() {
       {/* ── DND consulta ── */}
       <Animated.View entering={FadeInUp.delay(240).springify()}>
         <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Consulta clínica</SectionTitle>
-        <View style={s.toggleRow}>
+        <View style={[s.toggleRow, thCard]}>
           <View style={{ flex: 1 }}>
-            <EliteText style={s.rowTitle}>DND durante consulta</EliteText>
-            <EliteText style={s.rowDesc}>
+            <EliteText style={[s.rowTitle, { color: tokens.texto }]}>DND durante consulta</EliteText>
+            <EliteText style={[s.rowDesc, thDesc]}>
               Silencio automático mientras estás en consulta con tu clínico (llega con V1.5).
             </EliteText>
           </View>
@@ -193,33 +208,35 @@ export default function SettingsNotificationsScreen() {
             value={prefs?.dnd_during_consultation ?? true}
             onValueChange={(v) => patch({ dnd_during_consultation: v })}
             disabled={!prefs}
-            trackColor={{ false: '#333', true: withOpacity(ATP_BRAND.lime, 0.5) }}
-            thumbColor={prefs?.dnd_during_consultation ? ATP_BRAND.lime : '#666'}
+            {...switchTheme}
+            thumbColor={prefs?.dnd_during_consultation ? ATP_BRAND.lime : thumbOff}
           />
         </View>
       </Animated.View>
     </ScrollView>
+    </ThemeReady>
   );
 }
 
+// MB-31B: solo layout + acentos de marca; el color vivo entra inline.
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: ELEVATION[0].bg },
-  title: { fontSize: 28, fontFamily: Fonts.bold, color: TEXT.primary, marginTop: Spacing.md },
-  subtitle: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: TEXT.secondary, marginTop: 4 },
+  screen: { flex: 1 },
+  title: { fontSize: 28, fontFamily: Fonts.bold, marginTop: Spacing.md },
+  subtitle: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 4 },
   modeRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.md, padding: Spacing.md, marginBottom: 8,
   },
   modeRowActive: { borderColor: withOpacity(ATP_BRAND.lime, 0.5) },
   radio: {
-    width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#333',
+    width: 22, height: 22, borderRadius: 11, borderWidth: 2,
     alignItems: 'center', justifyContent: 'center',
   },
   radioOn: { borderColor: ATP_BRAND.lime },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: ATP_BRAND.lime },
-  rowTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.primary },
-  rowDesc: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.tertiary, marginTop: 2, lineHeight: 16 },
+  rowTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+  rowDesc: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2, lineHeight: 16 },
   proBadge: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.14), borderRadius: 6,
     paddingHorizontal: 6, paddingVertical: 1,
@@ -227,19 +244,19 @@ const s = StyleSheet.create({
   proBadgeText: { fontSize: 9, fontFamily: Fonts.bold, color: ATP_BRAND.lime, letterSpacing: 1 },
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.md, padding: Spacing.md, marginBottom: 8,
   },
   hoursCard: {
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.md, padding: Spacing.md, gap: 12,
   },
   hourRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  hourLabel: { fontSize: 10, fontFamily: Fonts.semiBold, color: TEXT.tertiary, letterSpacing: 2 },
+  hourLabel: { fontSize: 10, fontFamily: Fonts.semiBold, letterSpacing: 2 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   stepBtn: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: '#0a0a0a',
-    borderWidth: 1, borderColor: '#222', alignItems: 'center', justifyContent: 'center',
+    width: 30, height: 30, borderRadius: 15,
+    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
   },
-  hourValue: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, color: TEXT.primary, minWidth: 56, textAlign: 'center' },
+  hourValue: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, minWidth: 56, textAlign: 'center' },
 });

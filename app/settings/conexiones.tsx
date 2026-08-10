@@ -24,12 +24,19 @@ import {
 import { SectionLabel, Divider, ConnectionCard, SettingRow, ui } from '@/src/components/settings/settings-ui';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, TEXT_COLORS } from '@/src/constants/brand';
+import { ATP_BRAND, CATEGORY_COLORS, TEXT_COLORS } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 const COACH_TEAL = CATEGORY_COLORS.metrics;
 
 export default function SettingsConexionesScreen() {
   const router = useRouter();
+  // MB-31B: pantalla migrada. El teal de coach es color de sección: como
+  // TEXTO no llega en claro (regla 3 del manual 3.6) — ahí sube al teal
+  // calibrado; como relleno lleva negro encima.
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
+  const tealTexto = dark ? COACH_TEAL : tokens.tealTexto;
   const [coachCode, setCoachCode] = useState<string | null>(null);
   const [coaches, setCoaches] = useState<CoachConnection[]>([]);
   const [clients, setClients] = useState<CoachConnection[]>([]);
@@ -121,25 +128,26 @@ export default function SettingsConexionesScreen() {
   };
 
   return (
-    <View style={ui.screenRoot}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[ui.screenRoot, { backgroundColor: tokens.fondo }]}>
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <ScreenHeader title="Conexiones" onBack={() => router.back()} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* ══════ CONECTAR CON COACH ══════ */}
         <Animated.View entering={FadeInUp.delay(80).springify()}>
-          <SectionLabel color={COACH_TEAL}>CONECTAR CON COACH</SectionLabel>
+          <SectionLabel color={tealTexto}>CONECTAR CON COACH</SectionLabel>
           <View style={styles.coachSection}>
             <EliteText variant="caption" style={styles.coachHint}>
               Ingresa el código de 6 dígitos de tu coach
             </EliteText>
             <View style={styles.connectRow}>
               <TextInput
-                style={styles.codeInput}
+                style={[styles.codeInput, { backgroundColor: tokens.hundido, borderColor: tokens.borde, color: tokens.texto }]}
                 value={connectCode}
                 onChangeText={t => setConnectCode(t.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
                 placeholder="ABC123"
-                placeholderTextColor={Colors.textSecondary + '40'}
+                placeholderTextColor={tokens.sinDatos}
                 maxLength={6}
                 autoCapitalize="characters"
               />
@@ -148,7 +156,8 @@ export default function SettingsConexionesScreen() {
                 disabled={connecting || connectCode.length < 6}
                 style={[styles.connectBtn, (connecting || connectCode.length < 6) && { opacity: 0.4 }]}
               >
-                <EliteText variant="caption" style={styles.connectBtnText}>
+                {/* Relleno de sección: en claro el texto encima va negro. */}
+                <EliteText variant="caption" style={[styles.connectBtnText, !dark && { color: ATP_BRAND.black }]}>
                   {connecting ? 'CONECTANDO...' : 'CONECTAR'}
                 </EliteText>
               </Pressable>
@@ -173,18 +182,18 @@ export default function SettingsConexionesScreen() {
 
         {/* ══════ SOY COACH ══════ */}
         <Animated.View entering={FadeInUp.delay(150).springify()}>
-          <SectionLabel color={COACH_TEAL}>SOY COACH</SectionLabel>
+          <SectionLabel color={tealTexto}>SOY COACH</SectionLabel>
           <View style={styles.coachSection}>
             {coachCode ? (
               <>
                 <EliteText variant="caption" style={styles.coachHint}>
                   Comparte este código con tus atletas
                 </EliteText>
-                <View style={styles.codeDisplay}>
-                  <EliteText style={styles.codeDisplayText}>{coachCode}</EliteText>
+                <View style={[styles.codeDisplay, { backgroundColor: tokens.card }]}>
+                  <EliteText style={[styles.codeDisplayText, { color: tealTexto }]}>{coachCode}</EliteText>
                   <Pressable onPress={handleCopyCode} style={styles.copyBtn}>
-                    <Ionicons name="share-outline" size={18} color={COACH_TEAL} />
-                    <EliteText variant="caption" style={styles.copyBtnText}>Compartir</EliteText>
+                    <Ionicons name="share-outline" size={18} color={tealTexto} />
+                    <EliteText variant="caption" style={[styles.copyBtnText, { color: tealTexto }]}>Compartir</EliteText>
                   </Pressable>
                 </View>
                 {clients.length > 0 && (
@@ -217,8 +226,8 @@ export default function SettingsConexionesScreen() {
                   disabled={generatingCode}
                   style={[styles.generateBtn, generatingCode && { opacity: 0.5 }]}
                 >
-                  <Ionicons name="key-outline" size={18} color={COACH_TEAL} />
-                  <EliteText variant="body" style={styles.generateBtnText}>
+                  <Ionicons name="key-outline" size={18} color={tealTexto} />
+                  <EliteText variant="body" style={[styles.generateBtnText, { color: tealTexto }]}>
                     {generatingCode ? 'Generando...' : 'Generar mi código de coach'}
                   </EliteText>
                 </Pressable>
@@ -231,7 +240,7 @@ export default function SettingsConexionesScreen() {
         {/* ══════ DISPOSITIVOS ══════ */}
         <Animated.View entering={FadeInUp.delay(220).springify()}>
           <SectionLabel>DISPOSITIVOS</SectionLabel>
-          <View style={styles.wearableCard}>
+          <View style={[styles.wearableCard, { backgroundColor: tokens.card, borderColor: tokens.borde }]}>
             <View style={styles.wearableHeader}>
               <Ionicons name="watch-outline" size={22} color={CATEGORY_COLORS.metrics} />
               <View style={{ flex: 1 }}>
@@ -249,12 +258,12 @@ export default function SettingsConexionesScreen() {
             </View>
             {/* Wearables desactivados temporalmente */}
             <View style={[styles.wearableConnectBtn, { opacity: 0.5 }]}>
-              <Ionicons name="bluetooth-outline" size={18} color={Colors.textSecondary} />
-              <EliteText variant="body" style={[styles.wearableConnectBtnText, { color: Colors.textSecondary }]}>
+              <Ionicons name="bluetooth-outline" size={18} color={tokens.textoSecundario} />
+              <EliteText variant="body" style={[styles.wearableConnectBtnText, { color: tokens.textoSecundario }]}>
                 Próximamente
               </EliteText>
             </View>
-            <EliteText variant="caption" style={styles.wearableCompatible}>
+            <EliteText variant="caption" style={[styles.wearableCompatible, { color: dark ? tokens.sinDatos : tokens.textoSecundario }]}>
               Apple Health · Google Health · Oura · Garmin · Samsung · Whoop
             </EliteText>
           </View>
@@ -275,6 +284,7 @@ export default function SettingsConexionesScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
@@ -283,7 +293,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   coachHint: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.sm,
   },
   connectRow: {
@@ -293,13 +302,10 @@ const styles = StyleSheet.create({
   },
   codeInput: {
     flex: 1,
-    backgroundColor: Colors.surface,
     borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
-    color: Colors.textPrimary,
     fontFamily: 'monospace',
     fontSize: FontSizes.xxl,
     letterSpacing: 8,
@@ -321,7 +327,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: COACH_TEAL + '30',
@@ -331,7 +336,6 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     fontSize: FontSizes.display,
     letterSpacing: 10,
-    color: COACH_TEAL,
     fontWeight: '800',
   },
   copyBtn: {
@@ -345,7 +349,6 @@ const styles = StyleSheet.create({
     borderColor: COACH_TEAL + '30',
   },
   copyBtnText: {
-    color: COACH_TEAL,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.sm,
   },
@@ -360,12 +363,10 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
   },
   generateBtnText: {
-    color: COACH_TEAL,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.md,
   },
   webHint: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.sm,
     fontStyle: 'italic',
     textAlign: 'center',
@@ -375,17 +376,14 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   connectionListLabel: {
-    color: Colors.textSecondary,
     letterSpacing: 2,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
     marginBottom: 2,
   },
   wearableCard: {
-    backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     borderWidth: 0.5,
-    borderColor: Colors.border,
     padding: Spacing.md,
     gap: Spacing.md,
   },
@@ -397,10 +395,8 @@ const styles = StyleSheet.create({
   wearableTitle: {
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.md,
-    color: Colors.textPrimary,
   },
   wearableDesc: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.sm,
     marginTop: 2,
     lineHeight: 16,
@@ -422,7 +418,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
   },
   wearableCompatible: {
-    color: Colors.textMuted,
     fontSize: FontSizes.xs,
     textAlign: 'center',
     letterSpacing: 0.5,

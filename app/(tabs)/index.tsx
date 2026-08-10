@@ -50,7 +50,7 @@ import { TopBanner } from '@/src/components/global/TopBanner';
 // hotfix-ux FIX 4: toast de reacción ARGOS + atribución al ganar electrones.
 import { ArgosReactionToast } from '@/src/components/economy/ArgosReactionToast';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, PILL } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 // LayoutAnimation lo usan cards hijas (HoyEditorialSection) — el enable global vive aquí.
@@ -369,7 +369,7 @@ export default function TodayScreen() {
                   hitSlop={10}
                   style={({ pressed }) => pressed && { opacity: 0.5, transform: [{ scale: 0.9 }] }}
                 >
-                  <Ionicons name="close" size={16} color={dark ? '#666' : tokens.textoSecundario} />
+                  <Ionicons name="close" size={16} color={dark ? PILL.textColor : tokens.textoSecundario} />
                 </Pressable>
               </View>
 
@@ -383,7 +383,7 @@ export default function TodayScreen() {
                     ? (dark ? ATP_BRAND.lime : tokens.tealTexto)
                     : p.delta < -4
                       ? (dark ? '#fb7185' : tokens.error)
-                      : (dark ? '#666' : tokens.textoSecundario);
+                      : (dark ? PILL.textColor : tokens.textoSecundario);
                   return (
                     <View key={p.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Text style={[s.weeklyPillarLabel, { color: tokens.textoSecundario }]}>{p.label}</Text>

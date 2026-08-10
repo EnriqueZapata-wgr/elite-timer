@@ -20,7 +20,8 @@ import { getFitnessLevel, setFitnessLevel } from '@/src/services/fitness/fitness
 import { NIVELES_USUARIO, type NivelUsuario } from '@/src/constants/exercise-matrix';
 import { SectionLabel, Divider, SettingRow, ui } from '@/src/components/settings/settings-ui';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND, TEXT, ELEVATION, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, Spacing, Radius } from '@/constants/theme';
 
 const NIVEL_LABELS: Record<NivelUsuario, string> = {
@@ -33,6 +34,9 @@ const CYCLE_PINK = '#D4537E';
 export default function SettingsSaludScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B: pantalla migrada — chips de nivel y superficies del tema.
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
   // MB-3.6 §1.3: nivel de fitness editable desde Ajustes (vive en profiles.fitness_level).
   const [nivel, setNivel] = useState<NivelUsuario | null>(null);
   useEffect(() => {
@@ -73,8 +77,9 @@ export default function SettingsSaludScreen() {
   }
 
   return (
-    <View style={ui.screenRoot}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[ui.screenRoot, { backgroundColor: tokens.fondo }]}>
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <ScreenHeader title="Salud y protocolo" onBack={() => router.back()} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
@@ -113,9 +118,19 @@ export default function SettingsSaludScreen() {
                     setNivel(n);
                     setFitnessLevel(user.id, n);
                   }}
-                  style={[fitnessStyles.nivelChip, nivel === n && fitnessStyles.nivelChipActivo]}
+                  style={[
+                    fitnessStyles.nivelChip,
+                    !dark && { backgroundColor: tokens.hundido, borderColor: tokens.borde },
+                    nivel === n && (dark ? fitnessStyles.nivelChipActivo : { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime }),
+                  ]}
                 >
-                  <EliteText style={[fitnessStyles.nivelChipText, nivel === n && fitnessStyles.nivelChipTextActivo]}>
+                  <EliteText
+                    style={[
+                      fitnessStyles.nivelChipText,
+                      { color: tokens.textoSecundario },
+                      nivel === n && { color: dark ? ATP_BRAND.lime : tokens.textoSobreLima },
+                    ]}
+                  >
                     {NIVEL_LABELS[n]}
                   </EliteText>
                 </AnimatedPressable>
@@ -185,12 +200,13 @@ export default function SettingsSaludScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
 const fitnessStyles = StyleSheet.create({
   nivelBox: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
-  nivelHint: { color: TEXT.secondary, marginBottom: Spacing.sm, lineHeight: 17 },
+  nivelHint: { marginBottom: Spacing.sm, lineHeight: 17 },
   nivelRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   nivelChip: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.pill,
@@ -200,6 +216,5 @@ const fitnessStyles = StyleSheet.create({
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.15),
     borderColor: ATP_BRAND.lime,
   },
-  nivelChipText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 12 },
-  nivelChipTextActivo: { color: ATP_BRAND.lime },
+  nivelChipText: { fontFamily: Fonts.semiBold, fontSize: 12 },
 });

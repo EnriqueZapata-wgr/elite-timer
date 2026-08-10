@@ -25,6 +25,7 @@ import { ui } from '@/src/components/settings/settings-ui';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 interface SettingsGroup {
   icon: string;
@@ -97,12 +98,17 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const showDev = __DEV__ || isAdmin(user?.id);
+  // MB-31B: hub migrado — superficies del tema; los colores de los iconos de
+  // grupo son identidad de sección y quedan igual en los dos modos.
+  const { kind, tokens } = useAppTheme();
+  const thCard = { backgroundColor: tokens.card, borderColor: tokens.borde };
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
 
   return (
-    <View style={ui.screenRoot}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[ui.screenRoot, { backgroundColor: tokens.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Ajustes" />
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -111,14 +117,14 @@ export default function SettingsScreen() {
           {/* MB-1.5 §1: spring en pointer-down (antes Pressable sin feedback) */}
           <AnimatedPressable
             onPress={() => { haptic.medium(); router.push('/settings/cuenta'); }}
-            style={styles.accountBox}
+            style={[styles.accountBox, { backgroundColor: tokens.card }]}
           >
             <UserAvatar uri={user?.user_metadata?.avatar_url} name={displayName} size={44} />
             <View style={styles.accountInfo}>
               <EliteText variant="body" style={styles.accountName}>{displayName}</EliteText>
               <EliteText variant="caption" style={styles.accountEmail}>{user?.email}</EliteText>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+            <Ionicons name="chevron-forward" size={18} color={tokens.textoSecundario} />
           </AnimatedPressable>
         </Animated.View>
 
@@ -128,7 +134,7 @@ export default function SettingsScreen() {
             <Animated.View key={String(group.route)} entering={FadeInUp.delay(150 + i * 40).springify()}>
               <AnimatedPressable
                 onPress={() => { haptic.medium(); router.push(group.route); }}
-                style={styles.groupCard}
+                style={[styles.groupCard, thCard]}
               >
                 <View style={[styles.groupIcon, { backgroundColor: group.iconColor + '15' }]}>
                   <Ionicons name={group.icon as any} size={20} color={group.iconColor} />
@@ -137,7 +143,7 @@ export default function SettingsScreen() {
                   <EliteText variant="body" style={styles.groupTitle}>{group.title}</EliteText>
                   <EliteText variant="caption" style={styles.groupSubtitle}>{group.subtitle}</EliteText>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+                <Ionicons name="chevron-forward" size={18} color={tokens.textoSecundario} />
               </AnimatedPressable>
             </Animated.View>
           ))}
@@ -146,16 +152,16 @@ export default function SettingsScreen() {
             <Animated.View entering={FadeInUp.delay(150 + GROUPS.length * 40).springify()}>
               <AnimatedPressable
                 onPress={() => { haptic.medium(); router.push('/settings/dev'); }}
-                style={[styles.groupCard, { opacity: 0.75 }]}
+                style={[styles.groupCard, thCard, { opacity: 0.75 }]}
               >
-                <View style={[styles.groupIcon, { backgroundColor: Colors.textSecondary + '15' }]}>
-                  <Ionicons name="construct-outline" size={20} color={Colors.textSecondary} />
+                <View style={[styles.groupIcon, { backgroundColor: tokens.textoSecundario + '15' }]}>
+                  <Ionicons name="construct-outline" size={20} color={tokens.textoSecundario} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <EliteText variant="body" style={styles.groupTitle}>Developer</EliteText>
                   <EliteText variant="caption" style={styles.groupSubtitle}>Herramientas internas</EliteText>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+                <Ionicons name="chevron-forward" size={18} color={tokens.textoSecundario} />
               </AnimatedPressable>
             </Animated.View>
           )}
@@ -163,7 +169,7 @@ export default function SettingsScreen() {
 
         {/* Versión */}
         <View style={styles.versionContainer}>
-          <EliteText variant="caption" style={styles.versionText}>
+          <EliteText variant="caption" style={[styles.versionText, { color: kind === 'dark' ? tokens.textoTenue : tokens.textoSecundario }]}>
             ATP v{Constants.expoConfig?.version ?? '?'}
             {Platform.OS !== 'web' && Updates.updateId ? ` · OTA ${Updates.updateId.slice(0, 8)}` : ''}
           </EliteText>
@@ -172,6 +178,7 @@ export default function SettingsScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
@@ -193,7 +200,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
   },
   accountEmail: {
-    color: Colors.textSecondary,
     marginTop: 2,
   },
   groupList: {
@@ -221,7 +227,6 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
   },
   groupSubtitle: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.sm,
     marginTop: 1,
   },
@@ -230,7 +235,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
   },
   versionText: {
-    color: Colors.textMuted,
     fontSize: FontSizes.sm,
   },
 });
