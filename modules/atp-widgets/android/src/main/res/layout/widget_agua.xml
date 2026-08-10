@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MB-32 · Widget de agua (2x2). El +250 es el ÚNICO lima del widget (el
+  acento funciona por escasez); la gota y la barra van en el color de
+  concepto agua #60A5FA, el mismo en claro y oscuro (manual 3.3).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/agua_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:orientation="vertical"
+  android:background="@drawable/widget_bg_dark"
+  android:paddingStart="14dp"
+  android:paddingEnd="14dp"
+  android:paddingTop="12dp"
+  android:paddingBottom="12dp">
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical">
+
+    <ImageView
+      android:layout_width="14dp"
+      android:layout_height="14dp"
+      android:layout_marginEnd="6dp"
+      android:src="@drawable/ic_atp_gota"
+      android:contentDescription="@string/widget_agua_label" />
+
+    <TextView
+      android:id="@+id/agua_header"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:fontFamily="@font/poppins_semibold"
+      android:letterSpacing="0.12"
+      android:textSize="10sp"
+      android:maxLines="1"
+      android:text="@string/widget_agua_header" />
+  </LinearLayout>
+
+  <TextView
+    android:id="@+id/agua_vacio"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:fontFamily="@font/poppins_regular"
+    android:textSize="13sp"
+    android:visibility="gone" />
+
+  <LinearLayout
+    android:id="@+id/agua_cuerpo"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:orientation="vertical"
+    android:gravity="center_vertical">
+
+    <TextView
+      android:id="@+id/agua_actual"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:fontFamily="@font/poppins_semibold"
+      android:textSize="26sp"
+      android:maxLines="1" />
+
+    <TextView
+      android:id="@+id/agua_meta"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:fontFamily="@font/poppins_regular"
+      android:textSize="11sp"
+      android:maxLines="1" />
+
+    <ProgressBar
+      android:id="@+id/agua_progreso"
+      style="?android:attr/progressBarStyleHorizontal"
+      android:layout_width="match_parent"
+      android:layout_height="6dp"
+      android:layout_marginTop="6dp"
+      android:max="100"
+      android:progressTint="#60A5FA"
+      android:progressBackgroundTint="#44888888" />
+  </LinearLayout>
+
+  <TextView
+    android:id="@+id/agua_boton"
+    android:layout_width="match_parent"
+    android:layout_height="34dp"
+    android:gravity="center"
+    android:background="@drawable/widget_pill_lime"
+    android:fontFamily="@font/poppins_semibold"
+    android:textSize="13sp"
+    android:textColor="#000000"
+    android:text="@string/widget_agua_mas250" />
+</LinearLayout>

@@ -27,7 +27,12 @@ import { persistBooleanToggle } from '@/src/services/hoy/tarea-actions';
 import { addWater } from '@/src/services/hydration-service';
 import { parseWidgetActions, planDrain } from '@/src/services/widgets/widget-actions-core';
 import { getWidgetsNative, type NativeAtpWidgets } from '@/src/services/widgets/widget-bridge';
-import { patchHabitCompleted, snapshotSignedOut } from '@/src/services/widgets/widget-snapshot-core';
+import {
+  patchHabitCompleted,
+  patchWaterDelta,
+  patchWaterTotal,
+  snapshotSignedOut,
+} from '@/src/services/widgets/widget-snapshot-core';
 
 let drenando: Promise<{ ejecutadas: number }> | null = null;
 
@@ -89,6 +94,11 @@ async function drain(): Promise<{ ejecutadas: number }> {
       } else {
         const total = await addWater(userId, a.ml);
         if (total == null) throw new Error('addWater devolvió null');
+        // El total REAL del día manda sobre el optimista del widget.
+        try {
+          const parchado = patchWaterTotal(native.getSnapshot('agua'), total);
+          if (parchado) native.setSnapshot('agua', parchado);
+        } catch { /* el snapshot completo llega con el próximo compile */ }
       }
       ejecutadas += 1;
     } catch (e) {
@@ -96,7 +106,14 @@ async function drain(): Promise<{ ejecutadas: number }> {
         kind: a.kind,
         error: e,
       });
-      if (a.kind === 'toggle_habit') patchSnapshot(native, a.source, !a.next);
+      if (a.kind === 'toggle_habit') {
+        patchSnapshot(native, a.source, !a.next);
+      } else {
+        try {
+          const revertido = patchWaterDelta(native.getSnapshot('agua'), -a.ml);
+          if (revertido) native.setSnapshot('agua', revertido);
+        } catch { /* fail-soft */ }
+      }
     } finally {
       native.markActionsHandled([a.id]);
     }

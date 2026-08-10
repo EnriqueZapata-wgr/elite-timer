@@ -40,6 +40,8 @@ class WidgetTapReceiver : BroadcastReceiver() {
       ACTION_ADD_WATER -> {
         val ml = intent.getIntExtra(EXTRA_ML, 0)
         if (ml <= 0) return
+        WidgetStore.applyWaterOptimistic(context, ml)
+        AguaWidgetProvider.pushUpdate(context)
         enqueue(context, JSONObject().apply {
           put("id", UUID.randomUUID().toString())
           put("kind", "add_water")

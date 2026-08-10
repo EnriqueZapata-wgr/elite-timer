@@ -20,6 +20,7 @@ import { getUserSchedule, getHabitTime } from '@/src/services/hoy/habit-times-se
 import { timeToMinutes } from '@/src/services/notification-prefs-core';
 import { getWidgetsNative } from '@/src/services/widgets/widget-bridge';
 import {
+  buildAguaSnapshot,
   buildHabitosSnapshot,
   snapshotSignedOut,
   type WidgetThemePayload,
@@ -70,6 +71,20 @@ export async function syncWidgetsFromCompiled(userId: string, day: CompiledDay):
       theme,
     });
     native.setSnapshot('habitos', JSON.stringify(habitos));
+
+    // Pieza 2: el agua sale del MISMO compile (quant 'water', en ml). Si el
+    // usuario la quitó de sus hábitos, no se empuja y el widget invita a
+    // abrir la app.
+    const water = day.quantitativeElectrons.find((q) => q.source === 'water');
+    if (water) {
+      const agua = buildAguaSnapshot({
+        date: getLocalToday(),
+        theme,
+        currentMl: water.current,
+        targetMl: water.target,
+      });
+      native.setSnapshot('agua', JSON.stringify(agua));
+    }
   } catch (e) {
     logWarn('[widget-sync] push snapshot failed', e);
   }

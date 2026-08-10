@@ -125,4 +125,16 @@ object WidgetStore {
     snap.put("done", done)
     setSnapshot(context, "habitos", snap.toString())
   }
+
+  /**
+   * Suma optimista de agua (pieza 2). Igual que el hábito: solo pinta; el
+   * total REAL llega del drenador (addWater devuelve el total del día).
+   */
+  @Synchronized
+  fun applyWaterOptimistic(context: Context, ml: Int) {
+    val snap = getSnapshot(context, "agua") ?: return
+    val water = snap.optJSONObject("water") ?: return
+    water.put("current", (water.optInt("current", 0) + ml).coerceAtLeast(0))
+    setSnapshot(context, "agua", snap.toString())
+  }
 }

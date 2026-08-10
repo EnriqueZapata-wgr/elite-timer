@@ -11,4 +11,11 @@
     <item quantity="one">%d pendiente más en ATP</item>
     <item quantity="other">%d pendientes más en ATP</item>
   </plurals>
+
+  <string name="widget_agua_label">ATP · Agua</string>
+  <string name="widget_agua_desc">Tu agua del día y el botón de +250 ml.</string>
+  <string name="widget_agua_header">AGUA</string>
+  <string name="widget_agua_mas250">+250 ml</string>
+  <string name="widget_agua_meta">Meta %1$s · faltan %2$s</string>
+  <string name="widget_agua_meta_lograda">Meta %1$s lograda</string>
 </resources>

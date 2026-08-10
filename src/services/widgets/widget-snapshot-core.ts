@@ -102,6 +102,69 @@ export function buildHabitosSnapshot(params: BuildHabitosParams): HabitosWidgetS
   };
 }
 
+// ── Agua (pieza 2) ──
+
+export interface AguaWidgetSnapshot {
+  v: typeof WIDGET_SNAPSHOT_V;
+  date: string;
+  signedIn: true;
+  theme: WidgetThemePayload;
+  water: { current: number; target: number };
+}
+
+export function buildAguaSnapshot(params: {
+  date: string;
+  theme: WidgetThemePayload;
+  currentMl: number;
+  targetMl: number;
+}): AguaWidgetSnapshot {
+  return {
+    v: WIDGET_SNAPSHOT_V,
+    date: params.date,
+    signedIn: true,
+    theme: params.theme,
+    water: {
+      current: Math.max(0, Math.round(params.currentMl)),
+      target: Math.max(1, Math.round(params.targetMl)),
+    },
+  };
+}
+
+/**
+ * Corrige el agua del snapshot con el TOTAL REAL que devolvió addWater (el
+ * resultado de la mutación, no la intención). JSON ilegible → null.
+ */
+export function patchWaterTotal(snapshotJson: string | null, totalMl: number): string | null {
+  if (!snapshotJson) return null;
+  let snap: unknown;
+  try {
+    snap = JSON.parse(snapshotJson);
+  } catch {
+    return null;
+  }
+  if (typeof snap !== 'object' || snap === null) return null;
+  const water = (snap as { water?: { current?: number } }).water;
+  if (typeof water !== 'object' || water === null) return null;
+  water.current = Math.max(0, Math.round(totalMl));
+  return JSON.stringify(snap);
+}
+
+/** Revierte el optimista de un +ml que FALLÓ (resta el delta pintado). */
+export function patchWaterDelta(snapshotJson: string | null, deltaMl: number): string | null {
+  if (!snapshotJson) return null;
+  let snap: unknown;
+  try {
+    snap = JSON.parse(snapshotJson);
+  } catch {
+    return null;
+  }
+  if (typeof snap !== 'object' || snap === null) return null;
+  const water = (snap as { water?: { current?: number } }).water;
+  if (typeof water !== 'object' || water === null) return null;
+  water.current = Math.max(0, Math.round((water.current ?? 0) + deltaMl));
+  return JSON.stringify(snap);
+}
+
 /**
  * Parche puntual tras ejecutar un toggle (el drenador corrige el snapshot
  * con el resultado REAL de la mutación, no con la intención). JSON ilegible

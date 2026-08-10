@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- CTA compacto lima con texto negro encima (13.36 AAA): la regla del
+     manual 3.2 — el lima sólido es para botones compactos, jamás fondo
+     grande. Píldora, esquina del cap. 6. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <solid android:color="#A8E02A" />
+  <corners android:radius="999dp" />
+</shape>
