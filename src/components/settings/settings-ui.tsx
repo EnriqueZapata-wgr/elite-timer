@@ -1,11 +1,19 @@
 /**
  * settings-ui — kit compartido de las pantallas de Ajustes (#137).
  * Extraído del app/settings.tsx monolítico al partirlo en hub + sub-pantallas.
+ *
+ * MB-31A: los colores salen del scope (useSurfaceTokens): oscuro de siempre
+ * fuera de <ThemeReady>, tema activo dentro. Regla 1 del claro aplicada al
+ * chip seleccionado: en oscuro es lima translúcido con TEXTO lima (legible
+ * ahí); en claro el lima jamás es texto → relleno lima SÓLIDO con negro
+ * encima (13.36), el patrón del manual.
  */
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Colors, Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
 
 export function SectionLabel({ children, color }: { children: string; color?: string }) {
@@ -17,13 +25,28 @@ export function SectionLabel({ children, color }: { children: string; color?: st
 }
 
 export function Divider() {
-  return <View style={ui.divider} />;
+  const t = useSurfaceTokens();
+  // En oscuro el separador de siempre (#232323 = flotante); en claro, borde.
+  const bg = t.kind === 'dark' ? t.flotante : t.borde;
+  return <View style={[ui.divider, { backgroundColor: bg }]} />;
 }
 
 export function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
+  const base = { backgroundColor: t.card, borderColor: dark ? t.flotante : t.borde };
+  const sel = dark
+    ? { backgroundColor: ATP_BRAND.lime + '15', borderColor: ATP_BRAND.lime }
+    : { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime };
+  const textColor = selected
+    ? (dark ? ATP_BRAND.lime : t.textoSobreLima)
+    : t.textoSecundario;
   return (
-    <Pressable onPress={onPress} style={[ui.chip, selected && ui.chipSelected]}>
-      <EliteText variant="caption" style={[ui.chipText, selected && ui.chipTextSelected]}>
+    <Pressable onPress={onPress} style={[ui.chip, base, selected && sel]}>
+      <EliteText
+        variant="caption"
+        style={[{ color: textColor, fontSize: FontSizes.sm }, selected && { fontFamily: Fonts.semiBold }]}
+      >
         {label}
       </EliteText>
     </Pressable>
@@ -31,13 +54,15 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
 }
 
 export function TestButton({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
+  const t = useSurfaceTokens();
+  const acento = t.kind === 'dark' ? Colors.neonGreen : t.tealTexto;
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [ui.testButton, pressed && ui.testButtonPressed]}
+      style={({ pressed }) => [ui.testButton, pressed && { backgroundColor: t.flotante }]}
     >
-      <Ionicons name={icon as any} size={22} color={Colors.neonGreen} />
-      <EliteText variant="caption" style={ui.testButtonLabel}>{label}</EliteText>
+      <Ionicons name={icon as any} size={22} color={acento} />
+      <EliteText variant="caption" style={{ color: acento }}>{label}</EliteText>
     </Pressable>
   );
 }
@@ -45,18 +70,19 @@ export function TestButton({ icon, label, onPress }: { icon: string; label: stri
 export function ConnectionCard({ name, date, color, onDisconnect }: {
   name: string; date: string; color: string; onDisconnect: () => void;
 }) {
+  const t = useSurfaceTokens();
   const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
   return (
-    <View style={ui.connectionCard}>
+    <View style={[ui.connectionCard, { backgroundColor: t.card, borderColor: t.borde }]}>
       <View style={[ui.avatar, { backgroundColor: color + '20' }]}>
         <EliteText style={[ui.avatarText, { color }]}>{initials}</EliteText>
       </View>
       <View style={ui.connectionInfo}>
         <EliteText variant="body" style={ui.connectionName}>{name}</EliteText>
-        <EliteText variant="caption" style={ui.connectionDate}>Desde {date}</EliteText>
+        <EliteText variant="caption" style={[ui.connectionDate, { color: t.textoSecundario }]}>Desde {date}</EliteText>
       </View>
       <Pressable onPress={onDisconnect} hitSlop={8} style={ui.disconnectBtn}>
-        <Ionicons name="close-circle-outline" size={20} color={Colors.textSecondary} />
+        <Ionicons name="close-circle-outline" size={20} color={t.textoSecundario} />
       </Pressable>
     </View>
   );
@@ -71,17 +97,18 @@ export function SettingRow({ icon, iconColor, label, sub, right, onPress }: {
   right?: React.ReactNode;
   onPress?: () => void;
 }) {
+  const t = useSurfaceTokens();
   const content = (
     <>
       <View style={ui.settingRowLeft}>
-        <Ionicons name={icon as any} size={20} color={iconColor ?? Colors.textSecondary} />
+        <Ionicons name={icon as any} size={20} color={iconColor ?? t.textoSecundario} />
         <View style={{ flex: 1 }}>
           <EliteText variant="body" style={ui.settingRowLabel}>{label}</EliteText>
-          {sub ? <EliteText variant="caption" style={ui.settingRowSub}>{sub}</EliteText> : null}
+          {sub ? <EliteText variant="caption" style={[ui.settingRowSub, { color: t.textoSecundario }]}>{sub}</EliteText> : null}
         </View>
       </View>
       {right ?? (onPress
-        ? <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+        ? <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />
         : null)}
     </>
   );
@@ -91,7 +118,10 @@ export function SettingRow({ icon, iconColor, label, sub, right, onPress }: {
   return <View style={ui.settingRow}>{content}</View>;
 }
 
-/** Estilos compartidos entre hub y sub-pantallas de Ajustes. */
+/** Estilos compartidos entre hub y sub-pantallas de Ajustes.
+ *  MB-31A: aquí queda SOLO layout + los defaults oscuros que las pantallas
+ *  sin migrar siguen usando tal cual; el color vivo lo ponen los
+ *  componentes de arriba desde el scope. */
 export const ui = StyleSheet.create({
   screenRoot: {
     flex: 1,
@@ -100,7 +130,6 @@ export const ui = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.surfaceLight,
     marginTop: Spacing.md,
   },
   settingRow: {
@@ -121,7 +150,6 @@ export const ui = StyleSheet.create({
     fontSize: FontSizes.md,
   },
   settingRowSub: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.sm,
     marginTop: 1,
   },
@@ -142,12 +170,6 @@ export const ui = StyleSheet.create({
     paddingVertical: Spacing.xs + 1,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.surfaceLight,
-    backgroundColor: Colors.surface,
-  },
-  chipSelected: {
-    borderColor: Colors.neonGreen,
-    backgroundColor: Colors.neonGreen + '15',
   },
   chipText: {
     color: Colors.textSecondary,
@@ -174,11 +196,9 @@ export const ui = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    backgroundColor: Colors.surface,
     borderRadius: Radius.sm,
     padding: Spacing.sm,
     borderWidth: 0.5,
-    borderColor: Colors.border,
   },
   avatar: {
     width: 36,
@@ -199,7 +219,6 @@ export const ui = StyleSheet.create({
     fontSize: FontSizes.md,
   },
   connectionDate: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.sm,
     marginTop: 1,
   },

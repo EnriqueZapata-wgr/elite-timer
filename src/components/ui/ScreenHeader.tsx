@@ -11,7 +11,7 @@ import { EliteText } from '@/components/elite-text';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { HomeChip } from '@/src/components/ui/HomeChip';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
-import { TEXT_COLORS } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 
 interface ScreenHeaderProps {
@@ -22,6 +22,7 @@ interface ScreenHeaderProps {
 
 export function ScreenHeader({ title, rightAction, onBack }: ScreenHeaderProps) {
   const insets = useSafeAreaInsets();
+  const t = useSurfaceTokens(); // MB-31A: el encabezado sigue el scope
   useRegisterOwnNav();
 
   return (
@@ -32,7 +33,7 @@ export function ScreenHeader({ title, rightAction, onBack }: ScreenHeaderProps) 
       </View>
       {/* MB-5 Bloque 4.2: títulos largos ("REGISTRAR CARDIO") se encogen en
           vez de truncarse ("REGISTRAR CARD…") — aplica a todo el pilar. */}
-      <EliteText style={s.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+      <EliteText style={[s.title, { color: t.texto }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
         {title.toUpperCase()}
       </EliteText>
       <View style={[s.side, s.sideRight]}>{rightAction ?? null}</View>
@@ -56,7 +57,6 @@ const s = StyleSheet.create({
     textAlign: 'center',
     fontSize: FontSizes.lg,
     fontFamily: Fonts.bold,
-    color: TEXT_COLORS.primary,
     letterSpacing: 2,
   },
 });

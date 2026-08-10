@@ -1,10 +1,14 @@
 /**
  * Card — Componente card reutilizable con variantes premium.
+ *
+ * MB-31A: superficies desde el scope (oscuro de siempre fuera de
+ * <ThemeReady>). El acento lima del borde izquierdo se queda en los dos
+ * temas: es barra indicadora, no texto.
  */
 import { type ReactNode } from 'react';
 import { View, StyleSheet, type ViewStyle, type StyleProp } from 'react-native';
-import { Colors } from '@/constants/theme';
-import { ELEVATION } from '@/src/constants/brand';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 type CardVariant = 'elevated' | 'glass' | 'accent';
 
@@ -16,13 +20,20 @@ interface Props {
 }
 
 export function Card({ variant = 'elevated', accentColor, style, children }: Props) {
+  const t = useSurfaceTokens();
+  const surface: ViewStyle =
+    variant === 'glass'
+      ? t.kind === 'dark'
+        ? { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }
+        : { backgroundColor: 'rgba(255,255,255,0.55)', borderColor: 'rgba(15,21,24,0.08)' }
+      : { backgroundColor: t.card, borderColor: t.borde };
+
   return (
     <View style={[
       styles.base,
-      variant === 'elevated' && styles.elevated,
-      variant === 'glass' && styles.glass,
+      surface,
       variant === 'accent' && styles.accent,
-      variant === 'accent' && accentColor ? { borderLeftColor: accentColor } : null,
+      variant === 'accent' ? { borderLeftColor: accentColor ?? ATP_BRAND.lime } : null,
       style,
     ]}>
       {children}
@@ -34,22 +45,9 @@ const styles = StyleSheet.create({
   base: {
     borderRadius: 16,
     padding: 16,
-  },
-  elevated: {
-    backgroundColor: ELEVATION[1].bg,
     borderWidth: 0.5,
-    borderColor: ELEVATION[1].border,
-  },
-  glass: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.1)',
   },
   accent: {
-    backgroundColor: ELEVATION[1].bg,
-    borderWidth: 0.5,
-    borderColor: ELEVATION[1].border,
     borderLeftWidth: 3,
-    borderLeftColor: Colors.neonGreen,
   },
 });

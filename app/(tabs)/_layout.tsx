@@ -31,8 +31,9 @@ import { useCoachStatus } from '@/src/hooks/useCoachStatus';
 import { useAuth } from '@/src/contexts/auth-context';
 import { isAdmin } from '@/src/constants/admin-config';
 import { CoachPanelLayout } from '@/src/screens/coach/CoachPanelLayout';
-import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { ATP_BRAND, SURFACES, CATEGORY_COLORS } from '@/src/constants/brand';
+import { Fonts, Spacing } from '@/constants/theme';
+import { ATP_BRAND, CATEGORY_COLORS } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { FeedbackButton } from '@/src/components/FeedbackButton';
 import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
 import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
@@ -76,6 +77,11 @@ export default function TabLayout() {
   const { isCoach } = useCoachStatus();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  // MB-31A: la barra de pestañas ES el marco — posee su superficie completa
+  // y sigue el tema global aunque las pantallas de arriba sigan sin migrar.
+  // En claro el tinte activo es el teal calibrado: el lima sobre acero da
+  // 1.34 (regla 1 del manual 3.6) y la etiqueta del tab es texto.
+  const { kind, tokens } = useAppTheme();
   const [forceAthleteView, setForceAthleteView] = useState(false);
   // N3: la burbuja de feedback solo en DEV (no en build de producción ni para admins).
   const showFeedback = __DEV__;
@@ -136,14 +142,16 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: ATP_BRAND.lime,
-          tabBarInactiveTintColor: Colors.textMuted,
+          tabBarActiveTintColor: kind === 'dark' ? ATP_BRAND.lime : tokens.tealTexto,
+          tabBarInactiveTintColor: tokens.textoTenue,
           // N4: respetar el safe-area inferior. En Android con botones de navegación del SO
           // (o iPhone con home bar) insets.bottom > 0 → el tab bar queda por encima. En gesture
           // nav (insets.bottom = 0) no agrega padding de más.
           tabBarStyle: {
-            backgroundColor: '#000',
-            borderTopWidth: 0,
+            backgroundColor: tokens.fondo,
+            // En claro, un borde sutil despega la barra; en oscuro, como hoy.
+            borderTopWidth: kind === 'light' ? 0.5 : 0,
+            borderTopColor: tokens.borde,
             elevation: 0,
             height: 60 + insets.bottom,
             paddingBottom: insets.bottom + 8,

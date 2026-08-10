@@ -11,6 +11,7 @@
 import type { ReactNode } from 'react';
 import { Text, View, StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { SECTION_TITLE } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface SectionTitleProps {
   children: string;
@@ -25,20 +26,22 @@ interface SectionTitleProps {
 }
 
 export function SectionTitle({ children, rightAction, rightText, rightColor, style, containerStyle }: SectionTitleProps) {
+  const t = useSurfaceTokens(); // MB-31A: #888 de siempre en oscuro; secundario en claro
+  const color = { color: t.textoSecundario };
   // Si se pasa rightText (string), lo renderiza como Text del mismo estilo
   const right = rightAction ?? (rightText
-    ? <Text style={[styles.text, { marginBottom: 0 }, rightColor ? { color: rightColor } : null]}>{rightText}</Text>
+    ? <Text style={[styles.text, color, { marginBottom: 0 }, rightColor ? { color: rightColor } : null]}>{rightText}</Text>
     : null);
 
   if (right) {
     return (
       <View style={[styles.row, containerStyle]}>
-        <Text style={[styles.text, { marginBottom: 0 }, style]}>{children}</Text>
+        <Text style={[styles.text, color, { marginBottom: 0 }, style]}>{children}</Text>
         {right}
       </View>
     );
   }
-  return <Text style={[styles.text, style]}>{children}</Text>;
+  return <Text style={[styles.text, color, style]}>{children}</Text>;
 }
 
 const styles = StyleSheet.create({

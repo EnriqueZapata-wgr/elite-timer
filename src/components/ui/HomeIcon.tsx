@@ -9,10 +9,12 @@
  * regresión (lo vigila home-icon-census.test.ts).
  */
 import { Ionicons } from '@expo/vector-icons';
-import { TEXT } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 export function HomeIcon({ size = 20 }: { size?: number }) {
-  return <Ionicons name="home-outline" size={size} color={TEXT.primary} />;
+  // MB-31A: hereda el color del texto del scope (monocromo, cap. 5 del manual).
+  const t = useSurfaceTokens();
+  return <Ionicons name="home-outline" size={size} color={t.texto} />;
 }
 
 export default HomeIcon;

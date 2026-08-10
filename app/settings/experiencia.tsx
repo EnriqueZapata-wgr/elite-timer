@@ -22,9 +22,10 @@ import { playBeep, initAudio, setSoundStyle } from '@/src/utils/sounds';
 import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { SectionLabel, Divider, Chip, TestButton, SettingRow, ui } from '@/src/components/settings/settings-ui';
 import { Colors, Spacing, Radius } from '@/constants/theme';
-import { useAppTheme } from '@/src/contexts/theme-context';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import type { ThemeModeSetting } from '@/src/services/theme/theme-mode-core';
 import { minutesToHHMM } from '@/src/services/night-filter-core';
+import { ATP_BRAND } from '@/src/constants/brand';
 
 const LANGUAGES: { value: VoiceLanguage; label: string }[] = [
   { value: 'es-MX', label: 'Español (MX)' },
@@ -59,13 +60,20 @@ const SOUND_STYLES: { value: SoundStyle; label: string }[] = [
 export default function SettingsExperienciaScreen() {
   const router = useRouter();
   const { settings, updateSetting } = useSettings();
-  const { mode, setMode, veilEnabled, setVeilEnabled, corteMinutes } = useAppTheme();
+  const { mode, setMode, veilEnabled, setVeilEnabled, corteMinutes, kind, tokens } = useAppTheme();
   const [edadSound, setEdadSound] = useState(true);
   useEffect(() => { loadSoundPref().then(setEdadSound); }, []);
 
+  // MB-31A: pantalla PILOTO del modo claro (la primera <ThemeReady>): quien
+  // elige un tema lo ve actuar aquí mismo. El acento de texto en claro es el
+  // teal calibrado, nunca lima (regla 1).
+  const acento = kind === 'dark' ? Colors.neonGreen : tokens.tealTexto;
+  const labelChips = [ui.chipLabel, { color: tokens.textoSecundario }];
+
   return (
-    <View style={ui.screenRoot}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[ui.screenRoot, { backgroundColor: tokens.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Experiencia" onBack={() => router.back()} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
@@ -73,7 +81,7 @@ export default function SettingsExperienciaScreen() {
         <Animated.View entering={FadeInUp.delay(80).springify()}>
           <SectionLabel>APP</SectionLabel>
           {/* MB-31A: el selector de tema, ya de verdad. */}
-          <EliteText variant="caption" style={ui.chipLabel}>TEMA</EliteText>
+          <EliteText variant="caption" style={labelChips}>TEMA</EliteText>
           <View style={ui.chipRow}>
             {THEME_MODES.map((m) => (
               <Chip
@@ -85,21 +93,21 @@ export default function SettingsExperienciaScreen() {
             ))}
           </View>
           {mode === 'adaptativo' ? (
-            <EliteText variant="caption" style={styles.themeNote}>
+            <EliteText variant="caption" style={[styles.themeNote, { color: tokens.textoSecundario }]}>
               Con tu horario: claro al despertar y oscuro desde tu corte de pantallas
               ({minutesToHHMM(corteMinutes)}), no con el atardecer genérico del sistema.
             </EliteText>
           ) : null}
           {/* Regla de tránsito MB-31A: la nota honesta mientras queden
               pantallas sin migrar. Se retira cuando MB-31B termine. */}
-          <EliteText variant="caption" style={styles.themeNote}>
+          <EliteText variant="caption" style={[styles.themeNote, { color: tokens.textoSecundario }]}>
             El modo claro va llegando por partes: el marco ya cambia, pero varias
             pantallas siguen en oscuro mientras terminamos la migración.
           </EliteText>
           <SettingRow icon="language-outline" label="Idioma"
-            right={<EliteText variant="caption" style={{ color: Colors.neonGreen }}>Español</EliteText>} />
+            right={<EliteText variant="caption" style={{ color: acento }}>Español</EliteText>} />
           <SettingRow icon="resize-outline" label="Unidades"
-            right={<EliteText variant="caption" style={{ color: Colors.neonGreen }}>Métrico</EliteText>} />
+            right={<EliteText variant="caption" style={{ color: acento }}>Métrico</EliteText>} />
           {/* MB-20 Pieza 4: retomar el tour de la orbe cuando quieras. */}
           <SettingRow
             icon="play-circle-outline"
@@ -125,7 +133,7 @@ export default function SettingsExperienciaScreen() {
           />
           {settings.voiceEnabled && (
             <>
-              <EliteText variant="caption" style={ui.chipLabel}>IDIOMA DE VOZ</EliteText>
+              <EliteText variant="caption" style={labelChips}>IDIOMA DE VOZ</EliteText>
               <View style={ui.chipRow}>
                 {LANGUAGES.map(lang => (
                   <Chip
@@ -146,7 +154,7 @@ export default function SettingsExperienciaScreen() {
           />
           {settings.voiceEnabled && (
             <>
-              <EliteText variant="caption" style={ui.chipLabel}>VOZ EN FITNESS (MÉTODOS Y SESIÓN)</EliteText>
+              <EliteText variant="caption" style={labelChips}>VOZ EN FITNESS (MÉTODOS Y SESIÓN)</EliteText>
               <View style={ui.chipRow}>
                 {FITNESS_VOICE_MODES.map(mode => (
                   <Chip
@@ -173,7 +181,7 @@ export default function SettingsExperienciaScreen() {
           />
           {settings.soundsEnabled && (
             <>
-              <EliteText variant="caption" style={ui.chipLabel}>ESTILO DE SONIDO</EliteText>
+              <EliteText variant="caption" style={labelChips}>ESTILO DE SONIDO</EliteText>
               <View style={ui.chipRow}>
                 {SOUND_STYLES.map(style => (
                   <Chip
@@ -188,13 +196,13 @@ export default function SettingsExperienciaScreen() {
                 <EliteText variant="body">Volumen</EliteText>
                 <View style={styles.volumeControl}>
                   <Pressable onPress={() => updateSetting('soundVolume', Math.max(0, settings.soundVolume - 10))}>
-                    <Ionicons name="remove-circle-outline" size={24} color={Colors.neonGreen} />
+                    <Ionicons name="remove-circle-outline" size={24} color={acento} />
                   </Pressable>
-                  <EliteText variant="subtitle" style={styles.volumeValue}>
+                  <EliteText variant="subtitle" style={[styles.volumeValue, { color: acento }]}>
                     {settings.soundVolume}%
                   </EliteText>
                   <Pressable onPress={() => updateSetting('soundVolume', Math.min(100, settings.soundVolume + 10))}>
-                    <Ionicons name="add-circle-outline" size={24} color={Colors.neonGreen} />
+                    <Ionicons name="add-circle-outline" size={24} color={acento} />
                   </Pressable>
                 </View>
               </View>
@@ -209,7 +217,8 @@ export default function SettingsExperienciaScreen() {
               <Switch
                 value={edadSound}
                 onValueChange={(v) => { haptic.light(); setEdadSound(v); persistSoundPref(v); }}
-                trackColor={{ true: Colors.neonGreen, false: '#333' }}
+                // El lima del track es relleno de control (indicador), no texto.
+                trackColor={{ true: ATP_BRAND.lime, false: tokens.bordeMarcado }}
               />
             }
           />
@@ -255,23 +264,23 @@ export default function SettingsExperienciaScreen() {
             style={ui.settingRow}
           >
             <View style={ui.settingRowLeft}>
-              <AppIcon name="off-pantallas" size={20} color={Colors.textSecondary} />
+              <AppIcon name="off-pantallas" size={20} color={tokens.textoSecundario} />
               <View style={{ flex: 1 }}>
                 <EliteText variant="body" style={ui.settingRowLabel}>Filtro nocturno</EliteText>
-                <EliteText variant="caption" style={ui.settingRowSub}>
+                <EliteText variant="caption" style={[ui.settingRowSub, { color: tokens.textoSecundario }]}>
                   Luz cálida sobre todo el teléfono hacia tu corte de pantallas
                 </EliteText>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+            <Ionicons name="chevron-forward" size={18} color={tokens.textoSecundario} />
           </Pressable>
           <Divider />
         </Animated.View>
 
         {/* ── Zona de prueba ── */}
         <Animated.View entering={FadeInUp.delay(330).springify()}>
-          <View style={styles.testBox}>
-            <EliteText variant="caption" style={styles.testLabel}>PROBAR</EliteText>
+          <View style={[styles.testBox, { backgroundColor: tokens.card }]}>
+            <EliteText variant="caption" style={[styles.testLabel, { color: tokens.textoSecundario }]}>PROBAR</EliteText>
             <View style={styles.testRow}>
               <TestButton
                 icon="mic-outline"
@@ -295,12 +304,12 @@ export default function SettingsExperienciaScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
 const styles = StyleSheet.create({
   themeNote: {
-    color: Colors.textSecondary,
     lineHeight: 16,
     marginBottom: Spacing.sm,
   },
@@ -316,20 +325,17 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   volumeValue: {
-    color: Colors.neonGreen,
     fontSize: 18,
     minWidth: 45,
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
   },
   testBox: {
-    backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginTop: Spacing.lg,
   },
   testLabel: {
-    color: Colors.textSecondary,
     letterSpacing: 2,
     marginBottom: Spacing.sm,
   },

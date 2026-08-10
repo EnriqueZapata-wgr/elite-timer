@@ -6,10 +6,16 @@
  * Reporta a Sentry vía `src/lib/logger.error` (que internamente llama a
  * Sentry.captureException). El botón "Reintentar" resetea el estado
  * interno → React vuelve a montar los hijos.
+ *
+ * MB-31A: esta pantalla se queda OSCURA en los dos temas a propósito —
+ * monta ENCIMA de todos los providers (el del tema incluido, que pudo ser
+ * justo lo que tronó), posee su superficie completa y blanco-sobre-negro
+ * es legible siempre. Solo se tokenizaron sus hex.
  */
 import { Component, type ReactNode } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { error as logError } from '@/src/lib/logger';
+import { ATP_BRAND, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
 
 interface Props {
   children: ReactNode;
@@ -78,7 +84,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   title: {
-    color: '#fff',
+    color: TEXT_COLORS.primary,
     fontSize: 24,
     fontWeight: '800',
     textAlign: 'center',
@@ -90,10 +96,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   devError: {
-    color: '#fb7185',
+    color: SEMANTIC.error,
     fontSize: 12,
     fontFamily: 'Courier',
-    backgroundColor: 'rgba(251,113,133,0.08)',
+    backgroundColor: withOpacity(SEMANTIC.error, 0.08),
     borderRadius: 8,
     padding: 12,
     marginTop: 8,
@@ -101,13 +107,13 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 16,
-    backgroundColor: '#a8e02a',
+    backgroundColor: ATP_BRAND.lime,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
   },
   buttonText: {
-    color: '#000',
+    color: TEXT_COLORS.onAccent,
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 2,

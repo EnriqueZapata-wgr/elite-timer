@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { haptic } from '@/src/utils/haptics';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
-import { TEXT_COLORS } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface Props {
   onPress?: () => void;
@@ -18,8 +18,9 @@ interface Props {
   icon?: 'chevron-back' | 'close' | 'arrow-back';
 }
 
-export function BackButton({ onPress, color = TEXT_COLORS.secondary, icon = 'chevron-back' }: Props) {
+export function BackButton({ onPress, color, icon = 'chevron-back' }: Props) {
   const router = useRouter();
+  const t = useSurfaceTokens(); // MB-31A: default del scope (antes TEXT_COLORS.secondary)
   useRegisterOwnNav();
 
   return (
@@ -28,7 +29,7 @@ export function BackButton({ onPress, color = TEXT_COLORS.secondary, icon = 'che
       style={styles.btn}
       hitSlop={8}
     >
-      <Ionicons name={icon} size={24} color={color} />
+      <Ionicons name={icon} size={24} color={color ?? t.textoSecundario} />
     </Pressable>
   );
 }

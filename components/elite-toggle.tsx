@@ -1,6 +1,8 @@
 import { View, Switch, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
-import { Colors, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface EliteToggleProps {
   /** Título del toggle */
@@ -15,14 +17,18 @@ interface EliteToggleProps {
 
 /**
  * EliteToggle — Fila con label + descripción + switch verde.
+ *
+ * MB-31A: colores del scope. El lima del switch encendido se queda en los
+ * dos temas: es RELLENO de control (indicador), no texto — regla 1 intacta.
  */
 export function EliteToggle({ label, description, value, onValueChange }: EliteToggleProps) {
+  const t = useSurfaceTokens();
   return (
     <View style={styles.row}>
       <View style={styles.textArea}>
         <EliteText variant="body">{label}</EliteText>
         {description && (
-          <EliteText variant="caption" style={styles.description}>
+          <EliteText variant="caption" style={[styles.description, { color: t.textoSecundario }]}>
             {description}
           </EliteText>
         )}
@@ -30,8 +36,8 @@ export function EliteToggle({ label, description, value, onValueChange }: EliteT
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: Colors.surfaceLight, true: Colors.neonGreen + '88' }}
-        thumbColor={value ? Colors.neonGreen : Colors.textSecondary}
+        trackColor={{ false: t.flotante, true: ATP_BRAND.lime + '88' }}
+        thumbColor={value ? ATP_BRAND.lime : t.textoSecundario}
       />
     </View>
   );
@@ -49,7 +55,6 @@ const styles = StyleSheet.create({
     marginRight: Spacing.md,
   },
   description: {
-    color: Colors.textSecondary,
     marginTop: 2,
   },
 });

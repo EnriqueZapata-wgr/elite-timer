@@ -18,6 +18,7 @@ import { AppIcon, hasAppIcon, type AppIconName } from '@/src/components/ui/AppIc
 import { ATP_BRAND, TEXT } from '@/src/constants/brand';
 import { Spacing, FontSizes, Fonts, Radius } from '@/constants/theme';
 import { haptic } from '@/src/utils/haptics';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 export type EditorialCardState = 'pending' | 'in_window' | 'done' | 'out_of_hour';
 
@@ -89,11 +90,18 @@ export function EditorialCard({
   const progressPct = progress && progress.target > 0
     ? Math.min(100, Math.max(0, (progress.current / progress.target) * 100))
     : 0;
+  // MB-31A (manual 3.8): la card editorial se queda OSCURA en los dos modos —
+  // foto, degradado negro y texto blanco son la ventana, no el marco. Lo
+  // ÚNICO que cambia con el tema es su borde, para despegarse del acero.
+  const t = useSurfaceTokens();
+  const bordeTema = t.kind === 'light'
+    ? { borderWidth: 1, borderColor: t.bordeEditorial }
+    : null;
 
   return (
     <AnimatedPressable
       onPress={onTap ? () => { haptic.light(); onTap(); } : undefined}
-      style={[styles.card, { aspectRatio }, inWindow && styles.glow]}
+      style={[styles.card, { aspectRatio }, bordeTema, inWindow && styles.glow]}
     >
       {/* Fondo: imagen B/N si existe, sino placeholder de gradient sólido con icono grande.
           IMPORTANTE: width/height EXPLÍCITOS además de absoluteFill. RN tiene un bug conocido
