@@ -15,9 +15,10 @@ import { View, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { AppIcon, type AppIconName } from '@/src/components/ui/AppIcon';
-import { APP_SECTION_COLORS, TEXT, withOpacity } from '@/src/constants/brand';
+import { APP_SECTION_COLORS, withOpacity } from '@/src/constants/brand';
 import type { AppSection } from '@/src/constants/app-registry';
 import { Fonts } from '@/constants/theme';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
 
 /** El ancho lo pone la celda del contenedor (25% = 4 columnas). */
@@ -36,6 +37,9 @@ interface Props {
 // lo instalado, marcar cuáles lo están es señal sin información.
 export function AppTile({ icon, label, section, onPress, onLongPress }: Props) {
   const color = APP_SECTION_COLORS[section];
+  // MB-31B: la etiqueta sale del scope (gris del tema); el color de sección
+  // en las tres capas del mosaico es identidad y no se tematiza.
+  const t = useSurfaceTokens();
   return (
     <AnimatedPressable
       style={s.wrap}
@@ -51,7 +55,7 @@ export function AppTile({ icon, label, section, onPress, onLongPress }: Props) {
       >
         <AppIcon name={icon} size={26} color={color} />
       </View>
-      <EliteText style={s.label} numberOfLines={1}>{label}</EliteText>
+      <EliteText style={[s.label, { color: t.textoSecundario }]} numberOfLines={1}>{label}</EliteText>
     </AnimatedPressable>
   );
 }
@@ -70,7 +74,6 @@ const s = StyleSheet.create({
     marginTop: 7,
     fontSize: 11,
     fontFamily: Fonts.semiBold,
-    color: TEXT.secondary,
     textAlign: 'center',
     maxWidth: 74,
   },

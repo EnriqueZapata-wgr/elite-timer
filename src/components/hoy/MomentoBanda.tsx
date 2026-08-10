@@ -9,6 +9,8 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { MOMENTO_BAND_IMAGES } from '@/src/components/hoy/tarea-images';
 import type { Momento } from '@/src/services/hoy/tareas-core';
 
@@ -20,8 +22,11 @@ interface Props {
 }
 
 export function MomentoBanda({ momento, label, done, total }: Props) {
+  // MB-31B: banda EDITORIAL (foto + velo negro + texto blanco) — oscura en
+  // los dos modos; en claro solo gana borde para despegarse del acero.
+  const t = useSurfaceTokens();
   return (
-    <View style={s.banda}>
+    <View style={[s.banda, t.kind === 'light' && { borderWidth: 1, borderColor: t.bordeEditorial }]}>
       <Image
         source={MOMENTO_BAND_IMAGES[momento]}
         style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]}
@@ -50,7 +55,7 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     marginTop: Spacing.sm,
     marginBottom: 8,
-    backgroundColor: '#000',
+    backgroundColor: ATP_BRAND.black,
   },
   contenido: {
     flex: 1,
@@ -60,7 +65,7 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
   label: {
-    color: '#fff',
+    color: ATP_BRAND.white,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
     letterSpacing: 2,

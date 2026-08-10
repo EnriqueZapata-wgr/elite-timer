@@ -50,6 +50,8 @@ import { TopBanner } from '@/src/components/global/TopBanner';
 // hotfix-ux FIX 4: toast de reacción ARGOS + atribución al ganar electrones.
 import { ArgosReactionToast } from '@/src/components/economy/ArgosReactionToast';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 // LayoutAnimation lo usan cards hijas (HoyEditorialSection) — el enable global vive aquí.
 if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
@@ -62,6 +64,12 @@ export default function TodayScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  // MB-31B: pantalla migrada (raíz manual, sin TabScreen) — envuelta en
+  // <ThemeReady> al final. En oscuro TODO queda con los valores de siempre;
+  // el lima como texto solo existe en oscuro (regla 1 del manual 3.6).
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
+  const acento = dark ? ATP_BRAND.lime : tokens.tealTexto;
 
   // --- Estado único ---
   const [day, setDay] = useState<CompiledDay | null>(null);
@@ -264,6 +272,8 @@ export default function TodayScreen() {
   // Carga unificada: misma identidad visual que el splash nativo + barra de progreso REAL
   // (0-100% alimentada por compileDay). Reemplaza el spinner indeterminado "Compilando tu día…".
   if (loading && !day) {
+    // El SplashLoader es el momento de marca (oscuro en los dos temas, como
+    // el splash nativo): su barra de estado se queda clara.
     return (
       <>
         <StatusBar style="light" />
@@ -287,8 +297,9 @@ export default function TodayScreen() {
   }
 
   return (
-    <View style={s.root}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[s.root, { backgroundColor: tokens.fondo }]}>
+      <StatusBar style={dark ? 'light' : 'dark'} />
       {/* #23: banner contextual flotante (racha / protones / notifs / insight) */}
       <TopBanner offset={44} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
@@ -300,7 +311,7 @@ export default function TodayScreen() {
           <Animated.View entering={FadeInUp.delay(50).springify()}>
             <View style={s.topBar}>
               <View style={s.topBarLeft}>
-                <Text style={s.brandLabel}>ATP DAILY</Text>
+                <Text style={[s.brandLabel, !dark && { color: tokens.textoSecundario }]}>ATP DAILY</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 {/* F3 (AGENDA-COMPLETE): campana con badge real (user_notifications) → /notifications. */}
@@ -313,9 +324,10 @@ export default function TodayScreen() {
 
           {/* Saludo */}
           <Animated.View entering={FadeInUp.delay(80).springify()} style={s.heroGreetingWrap}>
-            <Text style={s.heroGreeting}>{day.greeting}</Text>
-            <Text style={s.heroName}>{day.userName}</Text>
-            <Text style={s.heroDate}>{day.date}</Text>
+            {/* En claro no hay foto detrás: texto del tema y sin sombra. */}
+            <Text style={[s.heroGreeting, !dark && { color: tokens.texto, textShadowColor: 'transparent' }]}>{day.greeting}</Text>
+            <Text style={[s.heroName, !dark && { color: tokens.texto, textShadowColor: 'transparent' }]}>{day.userName}</Text>
+            <Text style={[s.heroDate, !dark && { color: tokens.textoSecundario }]}>{day.date}</Text>
             <View style={{ marginTop: 10 }}>
               <CommunityPresence pillar="hoy" />
             </View>
@@ -349,7 +361,7 @@ export default function TodayScreen() {
               <View style={s.weeklyHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <ArgosMark size={14} />
-                  <Text style={s.weeklyLabel}>LECTURA DE LA SEMANA</Text>
+                  <Text style={[s.weeklyLabel, { color: acento }]}>LECTURA DE LA SEMANA</Text>
                 </View>
                 {/* MB-1.5 §1: pressed visible (antes Pressable sin feedback) */}
                 <Pressable
@@ -357,22 +369,28 @@ export default function TodayScreen() {
                   hitSlop={10}
                   style={({ pressed }) => pressed && { opacity: 0.5, transform: [{ scale: 0.9 }] }}
                 >
-                  <Ionicons name="close" size={16} color="#666" />
+                  <Ionicons name="close" size={16} color={dark ? '#666' : tokens.textoSecundario} />
                 </Pressable>
               </View>
 
-              {/* Adherencia por pilar */}
+              {/* Adherencia por pilar. Flechas: en claro ni el lima ni el rosa
+                  #fb7185 (fuera de paleta, va al reporte) se leen como glifo —
+                  suben a teal calibrado / token de error. */}
               <View style={{ marginTop: 10, gap: 6 }}>
                 {(weeklyInsight.adherence ?? []).map(p => {
                   const arrow = p.delta > 4 ? '↑' : p.delta < -4 ? '↓' : '·';
-                  const arrowColor = p.delta > 4 ? '#a8e02a' : p.delta < -4 ? '#fb7185' : '#666';
+                  const arrowColor = p.delta > 4
+                    ? (dark ? ATP_BRAND.lime : tokens.tealTexto)
+                    : p.delta < -4
+                      ? (dark ? '#fb7185' : tokens.error)
+                      : (dark ? '#666' : tokens.textoSecundario);
                   return (
                     <View key={p.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={s.weeklyPillarLabel}>{p.label}</Text>
-                      <View style={s.weeklyPillarTrack}>
+                      <Text style={[s.weeklyPillarLabel, { color: tokens.textoSecundario }]}>{p.label}</Text>
+                      <View style={[s.weeklyPillarTrack, { backgroundColor: dark ? tokens.flotante : tokens.hundido }]}>
                         <View style={[s.weeklyPillarFill, { width: `${p.pct}%` }]} />
                       </View>
-                      <Text style={s.weeklyPillarPct}>{p.pct}%</Text>
+                      <Text style={[s.weeklyPillarPct, { color: tokens.texto }]}>{p.pct}%</Text>
                       <Text style={[s.weeklyPillarDelta, { color: arrowColor }]}>{arrow}</Text>
                     </View>
                   );
@@ -381,16 +399,16 @@ export default function TodayScreen() {
 
               {/* Texto ARGOS o degradación */}
               {weeklyInsight.argosFailed ? (
-                <Text style={s.weeklyFallback}>
+                <Text style={[s.weeklyFallback, { color: tokens.textoSecundario }]}>
                   No pudimos generar el insight reflexivo esta semana: los números arriba ya cuentan tu historia.
                 </Text>
               ) : (
                 <>
                   {weeklyInsight.argosText ? (
-                    <Text style={s.weeklyText}>{weeklyInsight.argosText}</Text>
+                    <Text style={[s.weeklyText, { color: tokens.texto }]}>{weeklyInsight.argosText}</Text>
                   ) : null}
                   {weeklyInsight.question ? (
-                    <Text style={s.weeklyQuestion}>{weeklyInsight.question}</Text>
+                    <Text style={[s.weeklyQuestion, { color: acento }]}>{weeklyInsight.question}</Text>
                   ) : null}
                 </>
               )}
@@ -482,6 +500,7 @@ export default function TodayScreen() {
           tras cada award de electrón. Escucha 'electron_awarded' (electron-service). */}
       <ArgosReactionToast />
     </View>
+    </ThemeReady>
   );
 }
 
@@ -489,10 +508,11 @@ export default function TodayScreen() {
 // ESTILOS
 // ═══════════════════════════════════════
 
+// MB-31B: layout + defaults oscuros (rgba sobre negro); el claro entra
+// inline desde los tokens. Los tintes lima de la weekly card son marca.
 const s = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#000',
   },
   scrollContent: {
     paddingBottom: 120,
@@ -539,7 +559,7 @@ const s = StyleSheet.create({
   heroName: {
     fontSize: 36,
     fontFamily: Fonts.extraBold,
-    color: '#fff',
+    color: Colors.textPrimary,
     letterSpacing: 1,
     marginTop: 2,
     textShadowColor: 'rgba(0,0,0,0.8)',
@@ -574,33 +594,29 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
   },
   weeklyLabel: {
-    color: '#a8e02a',
     fontSize: 10,
     fontFamily: Fonts.bold,
     letterSpacing: 2,
   },
   weeklyPillarLabel: {
     width: 80,
-    color: Colors.textSecondary,
     fontSize: 11,
     fontFamily: Fonts.semiBold,
   },
   weeklyPillarTrack: {
     flex: 1,
     height: 5,
-    backgroundColor: '#1a1a1a',
     borderRadius: 3,
     overflow: 'hidden',
   },
   weeklyPillarFill: {
     height: '100%',
-    backgroundColor: '#a8e02a',
+    backgroundColor: Colors.neonGreen,
     borderRadius: 3,
   },
   weeklyPillarPct: {
     width: 40,
     textAlign: 'right',
-    color: '#fff',
     fontSize: 11,
     fontFamily: Fonts.bold,
     fontVariant: ['tabular-nums'],
@@ -613,14 +629,12 @@ const s = StyleSheet.create({
   },
   weeklyText: {
     marginTop: 12,
-    color: Colors.textPrimary,
     fontSize: 13,
     fontFamily: Fonts.regular,
     lineHeight: 19,
   },
   weeklyQuestion: {
     marginTop: 8,
-    color: '#a8e02a',
     fontSize: 12,
     fontFamily: Fonts.semiBold,
     fontStyle: 'italic',
@@ -628,7 +642,6 @@ const s = StyleSheet.create({
   },
   weeklyFallback: {
     marginTop: 12,
-    color: Colors.textSecondary,
     fontSize: 12,
     fontFamily: Fonts.regular,
     lineHeight: 17,

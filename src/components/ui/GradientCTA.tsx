@@ -16,7 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from './AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
-import { brandGradient, TEXT, TEXT_COLORS, ATP_BRAND, CATEGORY_COLORS } from '@/src/constants/brand';
+import { brandGradient, TEXT_COLORS, ATP_BRAND, CATEGORY_COLORS } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 /** Glow del CTA por pilar (el fill NO cambia — ver nota MB-5 abajo). */
@@ -46,6 +47,9 @@ interface Props {
 }
 
 export function GradientCTA({ label, onPress, variant = 'primary', pillar, icon, disabled, style }: Props) {
+  // MB-31B: el quiet lee el scope (oscuro de siempre fuera de <ThemeReady>);
+  // el primary no cambia — degradado de marca + negro encima en los dos temas.
+  const t = useSurfaceTokens();
   const handlePress = () => {
     haptic.medium();
     onPress();
@@ -55,8 +59,8 @@ export function GradientCTA({ label, onPress, variant = 'primary', pillar, icon,
     return (
       <AnimatedPressable onPress={handlePress} disabled={disabled} style={style}>
         <View style={styles.quiet}>
-          {icon && <Ionicons name={icon} size={16} color={TEXT.secondary} />}
-          <EliteText style={styles.quietText}>{label}</EliteText>
+          {icon && <Ionicons name={icon} size={16} color={t.textoSecundario} />}
+          <EliteText style={[styles.quietText, { color: t.textoSecundario }]}>{label}</EliteText>
         </View>
       </AnimatedPressable>
     );
@@ -108,7 +112,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   quietText: {
-    color: TEXT.secondary,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.md,
     letterSpacing: 2,

@@ -19,7 +19,8 @@ import { haptic } from '@/src/utils/haptics';
 import { loadOrbCardCollapsed, saveOrbCardCollapsed } from '@/src/services/hoy/orb-card-store';
 import { ARGOS_INSIGHT_CHANGED_EVENT } from '@/src/services/argos-insight-cache';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { ATP_BRAND, TEXT } from '@/src/constants/brand';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface Props {
   userId?: string;
@@ -27,6 +28,10 @@ interface Props {
 
 export function OrbCard({ userId }: Props) {
   const router = useRouter();
+  // MB-31B: el tinte lima de la card es marca (queda); el lima como TEXTO
+  // solo vive en oscuro — en claro el acento de texto es el teal calibrado.
+  const t = useSurfaceTokens();
+  const acento = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const [insight, setInsight] = useState<string | null>(null);
   // null = memoria del día sin leer aún: no se pinta nada hasta saberlo, para
   // no parpadear colapsada antes de abrirse (el store responde async).
@@ -76,19 +81,19 @@ export function OrbCard({ userId }: Props) {
       <Pressable onPress={toggle} style={s.header} accessibilityRole="button">
         <View style={s.headerLeft}>
           <ArgosOrb size={20} reducedMotion />
-          <EliteText style={s.label}>ARGOS</EliteText>
+          <EliteText style={[s.label, { color: acento }]}>ARGOS</EliteText>
         </View>
-        <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color={TEXT.muted} />
+        <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={16} color={t.sinDatos} />
       </Pressable>
       {!collapsed && (
         <>
-          <EliteText style={s.insight} numberOfLines={6}>{insight}</EliteText>
+          <EliteText style={[s.insight, { color: t.texto }]} numberOfLines={6}>{insight}</EliteText>
           <Pressable
             onPress={() => { haptic.light(); router.push('/notifications'); }}
             style={({ pressed }) => [s.verMas, pressed && { opacity: 0.6 }]}
           >
-            <EliteText style={s.verMasText}>Ver explicación</EliteText>
-            <Ionicons name="chevron-forward" size={12} color={ATP_BRAND.lime} />
+            <EliteText style={[s.verMasText, { color: acento }]}>Ver explicación</EliteText>
+            <Ionicons name="chevron-forward" size={12} color={acento} />
           </Pressable>
         </>
       )}
@@ -112,13 +117,11 @@ const s = StyleSheet.create({
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: {
-    color: ATP_BRAND.lime,
     fontSize: 10,
     fontFamily: Fonts.bold,
     letterSpacing: 2,
   },
   insight: {
-    color: '#fff',
     fontSize: FontSizes.sm,
     fontFamily: Fonts.regular,
     lineHeight: 20,
@@ -131,7 +134,6 @@ const s = StyleSheet.create({
     marginTop: 10,
   },
   verMasText: {
-    color: ATP_BRAND.lime,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.semiBold,
   },

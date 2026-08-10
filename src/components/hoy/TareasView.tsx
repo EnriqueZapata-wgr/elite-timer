@@ -40,7 +40,8 @@ import {
 } from '@/src/services/hoy/nudge-store';
 import type { CompiledDay } from '@/src/services/day-compiler';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { APP_SECTION_COLORS, ATP_BRAND, TEXT, withOpacity } from '@/src/constants/brand';
+import { APP_SECTION_COLORS, ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 type Lens = 'tareas' | 'agenda';
 
@@ -58,6 +59,11 @@ interface Props {
 export function TareasView({ day, userId, uvMini }: Props) {
   const router = useRouter();
   const reducedMotion = useSystemReducedMotion();
+  // MB-31B: superficies y texto del scope. El lima como texto (lente activa,
+  // enlaces) solo vive en oscuro; en claro pasa a relleno sólido o teal.
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
+  const acento = dark ? ATP_BRAND.lime : t.tealTexto;
   const [lens, setLens] = useState<Lens>('tareas');
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
   const [nudgeVisible, setNudgeVisible] = useState(false);
@@ -203,8 +209,8 @@ export function TareasView({ day, userId, uvMini }: Props) {
     if (hechas.length > 0) {
       tareasChildren.push(
         <Animated.View key="header-hechas" layout={rowLayout} style={s.blockHeader}>
-          <EliteText style={s.blockLabel}>HECHAS</EliteText>
-          <EliteText style={s.blockCount}>{hechas.length}</EliteText>
+          <EliteText style={[s.blockLabel, { color: t.textoSecundario }]}>HECHAS</EliteText>
+          <EliteText style={[s.blockCount, { color: t.sinDatos }]}>{hechas.length}</EliteText>
         </Animated.View>,
       );
       for (const t of hechas) {
@@ -228,8 +234,8 @@ export function TareasView({ day, userId, uvMini }: Props) {
           layout={rowLayout}
           style={s.blockHeader}
         >
-          <EliteText style={s.blockLabel}>{b.label}</EliteText>
-          <EliteText style={s.blockCount}>{b.done} de {b.total}</EliteText>
+          <EliteText style={[s.blockLabel, { color: t.textoSecundario }]}>{b.label}</EliteText>
+          <EliteText style={[s.blockCount, { color: t.sinDatos }]}>{b.done} de {b.total}</EliteText>
         </Animated.View>,
       );
       for (const t of b.pending) {
@@ -258,11 +264,21 @@ export function TareasView({ day, userId, uvMini }: Props) {
           <Pressable
             key={l}
             onPress={() => { haptic.light(); setLens(l); }}
-            style={[s.lensPill, lens === l && s.lensPillOn]}
+            style={[
+              s.lensPill,
+              !dark && { backgroundColor: t.card, borderColor: t.borde },
+              lens === l && (dark ? s.lensPillOn : { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime }),
+            ]}
             accessibilityRole="button"
             accessibilityState={{ selected: lens === l }}
           >
-            <EliteText style={[s.lensText, lens === l && s.lensTextOn]}>
+            <EliteText
+              style={[
+                s.lensText,
+                { color: t.textoSecundario },
+                lens === l && { color: dark ? ATP_BRAND.lime : t.textoSobreLima },
+              ]}
+            >
               {l === 'tareas' ? 'Tareas' : 'Agenda'}
             </EliteText>
           </Pressable>
@@ -271,10 +287,10 @@ export function TareasView({ day, userId, uvMini }: Props) {
 
       {/* Progreso global */}
       <View style={s.globalRow}>
-        <View style={s.globalTrack}>
+        <View style={[s.globalTrack, !dark && { backgroundColor: t.hundido }]}>
           <View style={[s.globalFill, { width: `${Math.round(pctGlobal * 100)}%` }]} />
         </View>
-        <EliteText style={s.globalText}>
+        <EliteText style={[s.globalText, { color: t.texto }]}>
           {result.global.done} de {result.global.total}
         </EliteText>
       </View>
@@ -284,7 +300,7 @@ export function TareasView({ day, userId, uvMini }: Props) {
       {nudgeVisible && (
         <View style={s.nudge}>
           <ArgosOrb size={18} reducedMotion />
-          <EliteText style={s.nudgeText}>{NUDGE_COPY}</EliteText>
+          <EliteText style={[s.nudgeText, { color: t.texto }]}>{NUDGE_COPY}</EliteText>
         </View>
       )}
 
@@ -325,9 +341,9 @@ export function TareasView({ day, userId, uvMini }: Props) {
             onPress={() => { haptic.light(); router.push('/agenda'); }}
             style={({ pressed }) => [s.agendaLink, pressed && { opacity: 0.6 }]}
           >
-            <Ionicons name="notifications-outline" size={13} color={ATP_BRAND.lime} />
-            <EliteText style={s.agendaLinkText}>Horarios y notificaciones</EliteText>
-            <Ionicons name="chevron-forward" size={12} color={ATP_BRAND.lime} />
+            <Ionicons name="notifications-outline" size={13} color={acento} />
+            <EliteText style={[s.agendaLinkText, { color: acento }]}>Horarios y notificaciones</EliteText>
+            <Ionicons name="chevron-forward" size={12} color={acento} />
           </Pressable>
         </>
       )}
@@ -339,7 +355,7 @@ export function TareasView({ day, userId, uvMini }: Props) {
             onPress={() => { haptic.light(); router.push('/solar'); }}
             style={({ pressed }) => [s.uvChip, pressed && { opacity: 0.6 }]}
           >
-            <EliteText style={s.uvText}>
+            <EliteText style={[s.uvText, { color: t.textoSecundario }]}>
               UV {uvMini.current} ahora{uvMini.vitaminD ? ` · ${uvMini.vitaminD}` : ''}
             </EliteText>
           </Pressable>
@@ -349,8 +365,8 @@ export function TareasView({ day, userId, uvMini }: Props) {
           style={({ pressed }) => [s.addBtn, pressed && { opacity: 0.6 }]}
           accessibilityLabel="Agregar hábito"
         >
-          <Ionicons name="add" size={14} color={ATP_BRAND.lime} />
-          <EliteText style={s.addText}>agregar</EliteText>
+          <Ionicons name="add" size={14} color={acento} />
+          <EliteText style={[s.addText, { color: acento }]}>agregar</EliteText>
         </Pressable>
       </View>
     </View>
@@ -375,8 +391,7 @@ const s = StyleSheet.create({
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.15),
     borderColor: ATP_BRAND.lime,
   },
-  lensText: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
-  lensTextOn: { color: ATP_BRAND.lime },
+  lensText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
   globalRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -392,7 +407,6 @@ const s = StyleSheet.create({
   },
   globalFill: { height: '100%', borderRadius: 3, backgroundColor: ATP_BRAND.lime },
   globalText: {
-    color: '#fff',
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
     fontVariant: ['tabular-nums'],
@@ -410,7 +424,6 @@ const s = StyleSheet.create({
   },
   nudgeText: {
     flex: 1,
-    color: '#fff',
     fontSize: FontSizes.sm,
     fontFamily: Fonts.semiBold,
   },
@@ -422,13 +435,11 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   blockLabel: {
-    color: TEXT.secondary,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
     letterSpacing: 2,
   },
   blockCount: {
-    color: TEXT.muted,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.semiBold,
     fontVariant: ['tabular-nums'],
@@ -441,7 +452,6 @@ const s = StyleSheet.create({
     paddingVertical: 12,
   },
   agendaLinkText: {
-    color: ATP_BRAND.lime,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.semiBold,
   },
@@ -457,7 +467,6 @@ const s = StyleSheet.create({
     gap: 5,
   },
   uvText: {
-    color: TEXT.secondary,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,
   },
@@ -472,7 +481,6 @@ const s = StyleSheet.create({
     borderColor: withOpacity(ATP_BRAND.lime, 0.4),
   },
   addText: {
-    color: ATP_BRAND.lime,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.semiBold,
   },

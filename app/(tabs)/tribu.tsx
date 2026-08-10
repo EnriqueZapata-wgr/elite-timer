@@ -15,7 +15,8 @@ import { EliteText } from '@/components/elite-text';
 import { TabScreen } from '@/src/components/ui/TabScreen';
 import { EditorialCard } from '@/src/components/hoy/EditorialCard';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT } from '@/src/constants/brand';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
 
 const PUERTAS = [
@@ -41,14 +42,19 @@ const PUERTAS = [
 
 export default function TribuTab() {
   const router = useRouter();
+  // MB-31B: migrada — el marco al tema; las cards editoriales quedan oscuras
+  // en los dos modos (son la ventana, no el marco) y sus degradados son
+  // identidad de sección. En claro el acento de texto es el teal calibrado.
+  const { kind, tokens } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tokens.tealTexto;
 
   return (
-    <TabScreen>
-      <StatusBar style="light" />
+    <TabScreen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         <Animated.View entering={FadeInUp.delay(40).springify()} style={s.header}>
-          <EliteText style={s.eyebrow}>NO ESTÁS SOLO</EliteText>
-          <EliteText style={s.title}>TRIBU</EliteText>
+          <EliteText style={[s.eyebrow, { color: acento }]}>NO ESTÁS SOLO</EliteText>
+          <EliteText style={[s.title, { color: tokens.texto }]}>TRIBU</EliteText>
         </Animated.View>
 
         {PUERTAS.map((p, i) => (
@@ -74,6 +80,6 @@ export default function TribuTab() {
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md },
   header: { paddingTop: Spacing.lg, paddingBottom: Spacing.md },
-  eyebrow: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, color: ATP_BRAND.lime, letterSpacing: 3 },
-  title: { fontSize: 28, fontFamily: Fonts.extraBold, color: TEXT.primary, letterSpacing: 2, marginTop: 2 },
+  eyebrow: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 3 },
+  title: { fontSize: 28, fontFamily: Fonts.extraBold, letterSpacing: 2, marginTop: 2 },
 });

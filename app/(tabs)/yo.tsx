@@ -26,8 +26,9 @@ import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { calculateDailyHealthScore, type DailyHealthScore } from '@/src/services/daily-health-score';
 import { type WearableData } from '@/src/services/wearable-service';
 import { fetchWearableToday } from '@/src/hooks/useWearableToday';
-import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CARD, PILLAR_GRADIENTS } from '@/src/constants/brand';
+import { Spacing, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, TEXT_COLORS, SEMANTIC } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { isAdmin } from '@/src/constants/admin-config';
@@ -63,6 +64,11 @@ const CHRONO_META: Record<string, { icon: string; color: string; name: string; d
 export default function YoScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B: pantalla migrada — superficies/texto del tema. El tenue del
+  // oscuro (#555) se queda; en claro el texto informativo sube a secundario.
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
+  const tenueInformativo = dark ? tokens.textoTenue : tokens.textoSecundario;
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -154,8 +160,8 @@ export default function YoScreen() {
 
   if (loading) {
     return (
-      <TabScreen>
-        <StatusBar style="light" />
+      <TabScreen themed>
+        <StatusBar style={dark ? 'light' : 'dark'} />
         <View style={{ padding: 16, gap: 14 }}>
           {/* Top bar skeleton */}
           <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
@@ -180,8 +186,8 @@ export default function YoScreen() {
   }
 
   return (
-    <TabScreen>
-      <StatusBar style="light" />
+    <TabScreen themed>
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={s.scroll}
@@ -201,7 +207,7 @@ export default function YoScreen() {
                 uri={user?.user_metadata?.avatar_url}
                 name={user?.user_metadata?.full_name || user?.email || initials}
               />
-              <EliteText style={s.topTitle}>YO</EliteText>
+              <EliteText style={[s.topTitle, { color: tokens.texto }]}>YO</EliteText>
             </AnimatedPressable>
             {/* 2.6: ElectronBadge eliminado — el banner persistente (TabScreen) ya muestra E-/H+/Rank. */}
 
@@ -210,7 +216,7 @@ export default function YoScreen() {
             {/* 2.4: pill cronotipo eliminado (redundante con la card CRONOTIPO del feed editorial).
                 Queda el acceso a settings. */}
             <AnimatedPressable onPress={() => { haptic.light(); router.push('/settings'); }} style={s.settingsBtn}>
-              <AppIcon name="ajustes" size={20} color={TEXT_COLORS.muted} />
+              <AppIcon name="ajustes" size={20} color={tenueInformativo} />
             </AnimatedPressable>
           </View>
         </Animated.View>
@@ -237,12 +243,12 @@ export default function YoScreen() {
             ═══════════════════════════════════════════ */}
         {wearableData && (
           <Animated.View entering={FadeInUp.delay(350).springify()}>
-            <View style={s.syncCard}>
+            <View style={[s.syncCard, { backgroundColor: tokens.card }]}>
               <Ionicons name="watch-outline" size={16} color={SEMANTIC.success} />
-              <EliteText style={s.syncSource}>{wearableData.source ?? 'Wearable'}</EliteText>
+              <EliteText style={[s.syncSource, { color: tokens.texto }]}>{wearableData.source ?? 'Wearable'}</EliteText>
               <View style={{ flex: 1 }} />
               <Ionicons name="checkmark-circle" size={14} color={SEMANTIC.success} />
-              <EliteText style={s.syncTime}>
+              <EliteText style={[s.syncTime, { color: tenueInformativo }]}>
                 {wearableData.lastSync
                   ? new Date(wearableData.lastSync).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
                   : 'Sincronizado'}
@@ -262,11 +268,11 @@ export default function YoScreen() {
             wearables aún no se conectan; sin CTA a un hub genérico. */}
         {!wearableData && (
           <Animated.View entering={FadeInUp.delay(550).springify()}>
-            <View style={s.connectBanner}>
-              <Ionicons name="watch-outline" size={20} color="#888" />
+            <View style={[s.connectBanner, !dark && { backgroundColor: tokens.card }]}>
+              <Ionicons name="watch-outline" size={20} color={tokens.textoSecundario} />
               <View style={{ flex: 1 }}>
-                <EliteText style={s.connectBannerTitle}>Wearables en desarrollo</EliteText>
-                <EliteText style={s.connectBannerDesc}>Cuando llegue la conexión, tus scores se alimentarán solos</EliteText>
+                <EliteText style={[s.connectBannerTitle, { color: tokens.texto }]}>Wearables en desarrollo</EliteText>
+                <EliteText style={[s.connectBannerDesc, !dark && { color: tokens.textoSecundario }]}>Cuando llegue la conexión, tus scores se alimentarán solos</EliteText>
               </View>
             </View>
           </Animated.View>
@@ -278,15 +284,15 @@ export default function YoScreen() {
             <AnimatedPressable onPress={() => { haptic.light(); router.push('/feedback-dashboard'); }}>
               <View style={{
                 flexDirection: 'row', alignItems: 'center', gap: 10,
-                padding: 14, backgroundColor: '#0a0a0a', borderRadius: 14, marginTop: Spacing.md,
+                padding: 14, backgroundColor: tokens.hundido, borderRadius: 14, marginTop: Spacing.md,
                 borderWidth: 1, borderColor: 'rgba(239,68,68,0.15)',
               }}>
-                <Ionicons name="bug-outline" size={20} color="#ef4444" />
-                <EliteText style={{ color: '#ef4444', fontSize: 14, fontFamily: Fonts.semiBold }}>
+                <Ionicons name="bug-outline" size={20} color={dark ? '#ef4444' : tokens.error} />
+                <EliteText style={{ color: dark ? '#ef4444' : tokens.error, fontSize: 14, fontFamily: Fonts.semiBold }}>
                   Feedback Dashboard (Admin)
                 </EliteText>
                 <View style={{ flex: 1 }} />
-                <Ionicons name="chevron-forward" size={16} color="#666" />
+                <Ionicons name="chevron-forward" size={16} color={tenueInformativo} />
               </View>
             </AnimatedPressable>
           </Animated.View>
@@ -299,6 +305,9 @@ export default function YoScreen() {
 }
 
 // === ESTILOS ===
+// MB-31B: solo layout — el color entra inline desde los tokens. Se retiraron
+// los estilos huérfanos de secciones que ya no se renderizan (chronoPill,
+// edadCta, disciplina*, reportsBtn, comp*): eran hex neutros sin consumidor.
 
 const s = StyleSheet.create({
   scroll: {
@@ -321,82 +330,10 @@ const s = StyleSheet.create({
   topTitle: {
     fontFamily: Fonts.extraBold,
     fontSize: FontSizes.xxl,
-    color: '#fff',
     letterSpacing: 2,
-  },
-  chronoPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: Radius.pill,
-    borderWidth: 1.5,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  chronoPillText: {
-    fontSize: 11,
-    fontFamily: Fonts.bold,
-    letterSpacing: 1.5,
   },
   settingsBtn: {
     padding: Spacing.xs,
-  },
-
-  // ── 2. Overall Score Card ──
-  scoreCardWrap: {
-    alignItems: 'center',
-    marginTop: Spacing.md,
-  },
-  edadCta: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl,
-    gap: 6,
-  },
-  edadCtaTitle: {
-    fontFamily: Fonts.extraBold,
-    fontSize: FontSizes.xl,
-    color: '#fff',
-  },
-  edadCtaSub: {
-    fontFamily: Fonts.semiBold,
-    fontSize: FontSizes.sm,
-    color: ATP_BRAND.lime,
-  },
-  // ── 2b. Disciplina ATP (momentum, no punitivo) ──
-  disciplinaCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: CARD.bg,
-    borderRadius: CARD.borderRadius,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginTop: 12,
-  },
-  disciplinaLabel: {
-    fontSize: 10, fontFamily: Fonts.bold, color: '#555', letterSpacing: 1.5, textTransform: 'uppercase',
-  },
-  disciplinaState: { fontSize: FontSizes.md, fontFamily: Fonts.extraBold, marginTop: 1 },
-  disciplinaSub: { fontSize: FontSizes.xs, color: '#555', marginTop: 1 },
-
-  // ── Reportes button ──
-  reportsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(168,224,42,0.06)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(168,224,42,0.25)',
-    borderRadius: 12,
-    paddingVertical: 12,
-    marginTop: 12,
-  },
-  reportsBtnText: {
-    fontSize: 11,
-    fontFamily: Fonts.bold,
-    color: ATP_BRAND.lime,
-    letterSpacing: 2,
   },
 
   // ── 5. Sync Status ──
@@ -404,7 +341,6 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: CARD.bg,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -413,51 +349,10 @@ const s = StyleSheet.create({
   syncSource: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.semiBold,
-    color: '#fff',
   },
   syncTime: {
     fontSize: FontSizes.xs,
-    color: '#555',
     fontFamily: Fonts.semiBold,
-  },
-
-  // ── 7. Body Composition ──
-  sectionTitleSpacing: {
-    marginTop: Spacing.lg,
-  },
-  compGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  compCard: {
-    width: '47%',
-    flexGrow: 1,
-    backgroundColor: CARD.bg,
-    borderRadius: CARD.borderRadius,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-    gap: 2,
-  },
-  compLabel: {
-    fontSize: 10,
-    fontFamily: Fonts.bold,
-    color: '#555',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  compValue: {
-    fontSize: 28,
-    fontFamily: Fonts.extraBold,
-    lineHeight: 34,
-  },
-  compUnit: {
-    fontSize: 10,
-    fontFamily: Fonts.semiBold,
-    color: '#555',
-    letterSpacing: 1,
   },
 
   // ── 8. Connect Wearable Banner ──
@@ -465,8 +360,9 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    // Verde-negro de marca (tinte lima sobre oscuro); en claro pasa a card.
     backgroundColor: '#0d1a0a',
-    borderRadius: CARD.borderRadius,
+    borderRadius: 16,
     padding: Spacing.md,
     marginTop: 12,
     borderWidth: 0.5,
@@ -475,12 +371,11 @@ const s = StyleSheet.create({
   connectBannerTitle: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.semiBold,
-    color: '#fff',
   },
   connectBannerDesc: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,
-    color: '#666',
+    color: 'rgba(255,255,255,0.4)',
     marginTop: 2,
   },
 });

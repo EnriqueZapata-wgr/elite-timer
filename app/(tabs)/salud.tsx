@@ -12,16 +12,24 @@ import { TabScreen } from '@/src/components/ui/TabScreen';
 import { SaludHub } from '@/src/screens/salud/SaludHub';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT } from '@/src/constants/brand';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 export default function SaludTab() {
+  // MB-31B (tránsito): el chrome ya lee tokens, pero la pantalla NO se marca
+  // `themed` porque su cuerpo (SaludHub, src/screens/salud) sigue con colores
+  // fijos y es frontera del ámbito B2. Fuera de <ThemeReady> estos tokens
+  // entregan el oscuro de siempre: nada cambia hoy. Al migrar SaludHub basta
+  // con poner `themed` aquí y la barra de estado por tema.
+  const t = useSurfaceTokens();
+  const acento = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   return (
     <MedicalDisclaimerGate>
       <TabScreen>
         <StatusBar style="light" />
         <View style={s.header}>
-          <EliteText style={s.eyebrow}>TU SALUD FUNCIONAL</EliteText>
-          <EliteText style={s.title}>SALUD</EliteText>
+          <EliteText style={[s.eyebrow, { color: acento }]}>TU SALUD FUNCIONAL</EliteText>
+          <EliteText style={[s.title, { color: t.texto }]}>SALUD</EliteText>
         </View>
         <SaludHub />
       </TabScreen>
@@ -31,6 +39,6 @@ export default function SaludTab() {
 
 const s = StyleSheet.create({
   header: { paddingHorizontal: Spacing.md, paddingTop: Spacing.lg, paddingBottom: Spacing.xs },
-  eyebrow: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, color: ATP_BRAND.lime, letterSpacing: 3 },
-  title: { fontSize: 28, fontFamily: Fonts.extraBold, color: TEXT.primary, letterSpacing: 2, marginTop: 2 },
+  eyebrow: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 3 },
+  title: { fontSize: 28, fontFamily: Fonts.extraBold, letterSpacing: 2, marginTop: 2 },
 });

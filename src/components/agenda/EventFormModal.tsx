@@ -7,7 +7,8 @@ import { useState, useEffect } from 'react';
 import { Modal, View, Pressable, StyleSheet, TextInput, ScrollView } from 'react-native';
 import { EliteText } from '@/components/elite-text';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Spacing, FontSizes, Fonts, Radius } from '@/constants/theme';
 
 export interface EventFormValue {
@@ -81,6 +82,14 @@ export function EventFormModal({ visible, title, initial, onSave, onClose }: Pro
 
   const canSave = name.trim().length > 0 && normalizeTime(time) !== '';
 
+  // MB-31B: superficies del tema (flotante/hundido); el lima del título solo
+  // es texto en oscuro — en claro el acento de texto es el teal calibrado.
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
+  const labelColor = dark ? 'rgba(255,255,255,0.5)' : t.textoSecundario;
+  const chipTextColor = dark ? 'rgba(255,255,255,0.7)' : t.textoSecundario;
+  const inputTheme = { backgroundColor: t.hundido, borderColor: t.borde, color: t.texto };
+
   const handleSave = () => {
     if (!canSave) return;
     haptic.medium();
@@ -90,52 +99,55 @@ export function EventFormModal({ visible, title, initial, onSave, onClose }: Pro
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => { /* eat tap */ }}>
-          <EliteText style={styles.title}>{title}</EliteText>
+        <Pressable
+          style={[styles.card, { backgroundColor: t.flotante, borderColor: dark ? 'rgba(255,255,255,0.1)' : t.bordeMarcado }]}
+          onPress={() => { /* eat tap */ }}
+        >
+          <EliteText style={[styles.title, { color: dark ? ATP_BRAND.lime : t.tealTexto }]}>{title}</EliteText>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Nombre */}
-            <EliteText style={styles.label}>NOMBRE</EliteText>
+            <EliteText style={[styles.label, { color: labelColor }]}>NOMBRE</EliteText>
             <TextInput
               value={name} onChangeText={setName}
               placeholder="Ej. Meditación matutina"
-              placeholderTextColor="rgba(255,255,255,0.3)"
-              style={styles.input}
+              placeholderTextColor={dark ? 'rgba(255,255,255,0.3)' : t.sinDatos}
+              style={[styles.input, inputTheme]}
             />
 
             {/* Hora */}
-            <EliteText style={styles.label}>HORA (HH:MM)</EliteText>
+            <EliteText style={[styles.label, { color: labelColor }]}>HORA (HH:MM)</EliteText>
             <TextInput
               value={time} onChangeText={setTime}
-              onBlur={() => setTime((t) => normalizeTime(t) || t)}
-              placeholder="07:00" placeholderTextColor="rgba(255,255,255,0.3)"
+              onBlur={() => setTime((prev) => normalizeTime(prev) || prev)}
+              placeholder="07:00" placeholderTextColor={dark ? 'rgba(255,255,255,0.3)' : t.sinDatos}
               keyboardType="numbers-and-punctuation" maxLength={5}
-              style={styles.input}
+              style={[styles.input, inputTheme]}
             />
 
             {/* Categoría */}
-            <EliteText style={styles.label}>CATEGORÍA</EliteText>
+            <EliteText style={[styles.label, { color: labelColor }]}>CATEGORÍA</EliteText>
             <View style={styles.chipRow}>
               {CATEGORIES.map((c) => (
                 <Pressable
                   key={c.key}
                   onPress={() => { haptic.light(); setCategory(c.key); }}
-                  style={[styles.chip, category === c.key && styles.chipActive]}
+                  style={[styles.chip, { backgroundColor: t.hundido, borderColor: t.borde }, category === c.key && styles.chipActive]}
                 >
-                  <EliteText style={[styles.chipText, category === c.key && styles.chipTextActive]}>{c.label}</EliteText>
+                  <EliteText style={[styles.chipText, { color: chipTextColor }, category === c.key && styles.chipTextActive]}>{c.label}</EliteText>
                 </Pressable>
               ))}
             </View>
 
             {/* Notificar */}
-            <EliteText style={styles.label}>NOTIFICAR ANTES</EliteText>
+            <EliteText style={[styles.label, { color: labelColor }]}>NOTIFICAR ANTES</EliteText>
             <View style={styles.chipRow}>
               {NOTIFY_OPTIONS.map((n) => (
                 <Pressable
                   key={n}
                   onPress={() => { haptic.light(); setNotify(n); }}
-                  style={[styles.chip, notify === n && styles.chipActive]}
+                  style={[styles.chip, { backgroundColor: t.hundido, borderColor: t.borde }, notify === n && styles.chipActive]}
                 >
-                  <EliteText style={[styles.chipText, notify === n && styles.chipTextActive]}>
+                  <EliteText style={[styles.chipText, { color: chipTextColor }, notify === n && styles.chipTextActive]}>
                     {n === 0 ? 'No' : `${n} min`}
                   </EliteText>
                 </Pressable>
@@ -145,8 +157,11 @@ export function EventFormModal({ visible, title, initial, onSave, onClose }: Pro
 
           {/* Acciones */}
           <View style={styles.actions}>
-            <Pressable style={styles.cancelBtn} onPress={onClose}>
-              <EliteText style={styles.cancelText}>Cancelar</EliteText>
+            <Pressable
+              style={[styles.cancelBtn, { backgroundColor: dark ? 'rgba(255,255,255,0.08)' : t.hundido }]}
+              onPress={onClose}
+            >
+              <EliteText style={[styles.cancelText, { color: chipTextColor }]}>Cancelar</EliteText>
             </Pressable>
             <Pressable style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]} onPress={handleSave} disabled={!canSave}>
               <EliteText style={styles.saveText}>Guardar</EliteText>
@@ -158,21 +173,23 @@ export function EventFormModal({ visible, title, initial, onSave, onClose }: Pro
   );
 }
 
+// MB-31B: solo layout + acentos de marca; superficies y texto entran inline
+// desde los tokens. El negro sobre lima es el mismo en los dos temas.
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
-  card: { width: '100%', maxWidth: 360, maxHeight: '85%', backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: Radius.card, padding: Spacing.xl },
-  title: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginBottom: Spacing.md, letterSpacing: 1 },
-  label: { color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 1.5, marginTop: Spacing.md, marginBottom: Spacing.sm },
-  input: { backgroundColor: '#000', borderRadius: Radius.sm, borderWidth: 0.5, borderColor: '#2a2a2a', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, color: '#fff', fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  card: { width: '100%', maxWidth: 360, maxHeight: '85%', borderWidth: 1, borderRadius: Radius.card, padding: Spacing.xl },
+  title: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginBottom: Spacing.md, letterSpacing: 1 },
+  label: { fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 1.5, marginTop: Spacing.md, marginBottom: Spacing.sm },
+  input: { borderRadius: Radius.sm, borderWidth: 0.5, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.pill, backgroundColor: '#000', borderWidth: 0.5, borderColor: '#2a2a2a' },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.pill, borderWidth: 0.5 },
   chipActive: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
-  chipText: { color: 'rgba(255,255,255,0.7)', fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
-  chipTextActive: { color: '#000' },
+  chipText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  chipTextActive: { color: TEXT_COLORS.onAccent },
   actions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg },
-  cancelBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: Radius.pill, backgroundColor: 'rgba(255,255,255,0.08)' },
-  cancelText: { color: 'rgba(255,255,255,0.7)', fontFamily: Fonts.bold, fontSize: FontSizes.sm },
+  cancelBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: Radius.pill },
+  cancelText: { fontFamily: Fonts.bold, fontSize: FontSizes.sm },
   saveBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: Radius.pill, backgroundColor: ATP_BRAND.lime },
   saveBtnDisabled: { opacity: 0.4 },
-  saveText: { color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.sm },
+  saveText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: FontSizes.sm },
 });

@@ -21,7 +21,8 @@ import { EliteText } from '@/components/elite-text';
 import { AppIcon, hasAppIcon } from '@/src/components/ui/AppIcon';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { ATP_BRAND, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { useTareaGesto, LONG_PRESS_MS } from '@/src/components/hoy/useTareaGesto';
 import type { Tarea } from '@/src/services/hoy/tareas-core';
 
@@ -52,6 +53,9 @@ export function TareaCard({
 }: Props) {
   const { handlePress, handlePressIn, handleLongPress } =
     useTareaGesto(tarea, { onNavigate, onPalomear });
+  // MB-31B: card EDITORIAL — foto, velo negro y texto blanco quedan igual en
+  // los dos modos; en claro solo gana el borde para despegarse del acero.
+  const t = useSurfaceTokens();
 
   return (
     <Pressable
@@ -61,7 +65,11 @@ export function TareaCard({
       delayLongPress={LONG_PRESS_MS}
       accessibilityRole="button"
       accessibilityLabel={tarea.name}
-      style={({ pressed }) => [s.card, pressed && s.cardPressed]}
+      style={({ pressed }) => [
+        s.card,
+        t.kind === 'light' && { borderWidth: 1, borderColor: t.bordeEditorial },
+        pressed && s.cardPressed,
+      ]}
     >
       {/* Fondo: tinte de sección SIEMPRE debajo (la card nunca es un hueco
           negro mientras decodifica) + glifo grande si no hay foto. */}
@@ -164,7 +172,8 @@ const s = StyleSheet.create({
     borderRadius: Radius.card,
     overflow: 'hidden',
     marginBottom: Spacing.md,
-    backgroundColor: '#000',
+    // Base editorial: negro de marca en los dos temas (la foto decodifica encima).
+    backgroundColor: ATP_BRAND.black,
   },
   cardPressed: { transform: [{ scale: 0.985 }] },
   placeholderGlyph: { position: 'absolute', alignSelf: 'center', top: '30%', opacity: 0.35 },
@@ -190,7 +199,7 @@ const s = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 999,
   },
-  badgeText: { color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 1 },
+  badgeText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 1 },
   pill: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.18),
     paddingHorizontal: 10,

@@ -11,7 +11,9 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { Screen } from '@/src/components/ui/Screen';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { EliteText } from '@/components/elite-text';
 import { AgendaMiniCard } from '@/src/components/agenda/AgendaMiniCard';
@@ -64,6 +66,11 @@ function insertDayPartDividers(events: AgendaEventInstance[]): AgendaListItem[] 
 export default function AgendaScreen() {
   const { user } = useAuth();
   const userId = user?.id;
+  // MB-31B: pantalla migrada. El lima como texto (fecha, chip) solo existe en
+  // oscuro; en claro el chip pasa a relleno lima sólido con negro encima y el
+  // acento de texto es el teal calibrado (regla 1 del manual 3.6).
+  const { kind, tokens } = useAppTheme();
+  const dark = kind === 'dark';
   const [events, setEvents] = useState<AgendaEventInstance[]>([]);
   const [restrictions, setRestrictions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -204,20 +211,24 @@ export default function AgendaScreen() {
   };
 
   return (
-    <Screen>
-      {/* Fondo gradient vertical sutil (top negro · medio ligeramente más claro · bottom negro). */}
-      <LinearGradient colors={['#000000', '#0A0A0A', '#000000']} style={StyleSheet.absoluteFill} />
+    <Screen themed>
+      <StatusBar style={dark ? 'light' : 'dark'} />
+      {/* Fondo gradient vertical sutil: en oscuro negro·casi-negro·negro (los
+          valores de siempre vía tokens); en claro fondo·hundido·fondo. */}
+      <LinearGradient colors={[tokens.fondo, tokens.hundido, tokens.fondo]} style={StyleSheet.absoluteFill} />
 
-      {/* Header editorial: back + chip a la derecha, luego título grande + fecha lima. */}
+      {/* Header editorial: back + chip a la derecha, luego título grande + fecha. */}
       <View style={styles.headerRow}>
         <BackButton onPress={() => router.back()} />
-        <View style={styles.chip}>
-          <EliteText style={styles.chipText}>{events.length} eventos · {upcoming} próximos</EliteText>
+        <View style={[styles.chip, !dark && { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime }]}>
+          <EliteText style={[styles.chipText, !dark && { color: tokens.textoSobreLima }]}>
+            {events.length} eventos · {upcoming} próximos
+          </EliteText>
         </View>
       </View>
       <View style={styles.titleBlock}>
-        <EliteText style={styles.title}>AGENDA DE HOY</EliteText>
-        <EliteText style={styles.date}>{formatToday()}</EliteText>
+        <EliteText style={[styles.title, { color: tokens.texto }]}>AGENDA DE HOY</EliteText>
+        <EliteText style={[styles.date, !dark && { color: tokens.tealTexto }]}>{formatToday()}</EliteText>
       </View>
 
       {/* #v13i D — prohibiciones del día (arriba de la lista, no en el timeline). */}
@@ -232,29 +243,31 @@ export default function AgendaScreen() {
         <View key={`dup-${g[0].time}-${g[0].eventId}`} style={styles.bannerWrap}>
           <AnimatedPressable onPress={() => askMerge(g)} style={styles.dupBanner}>
             <Ionicons name="git-merge-outline" size={15} color={ATP_BRAND.amber} />
-            <EliteText style={styles.dupBannerText} numberOfLines={1}>
+            <EliteText style={[styles.dupBannerText, !dark && { color: tokens.texto }]} numberOfLines={1}>
               {g.length} eventos a las {g[0].time} parecen el mismo momento
             </EliteText>
-            <EliteText style={styles.dupBannerCta}>Unificar</EliteText>
+            {/* El ámbar como texto no llega en claro (terciario, apoyo): ahí
+                el CTA usa el texto del tema. */}
+            <EliteText style={[styles.dupBannerCta, !dark && { color: tokens.texto }]}>Unificar</EliteText>
           </AnimatedPressable>
         </View>
       ))}
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={ATP_BRAND.lime} /></View>
+        <View style={styles.center}><ActivityIndicator color={dark ? ATP_BRAND.lime : tokens.tealTexto} /></View>
       ) : events.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="calendar-outline" size={48} color="rgba(255,255,255,0.2)" />
-          <EliteText style={styles.emptyTitle}>Sin eventos hoy</EliteText>
-          <EliteText style={styles.emptyText}>Crea tu primer evento con el botón +, o configura tu protocolo y cronotipo para auto-generarlos.</EliteText>
+          <Ionicons name="calendar-outline" size={48} color={dark ? 'rgba(255,255,255,0.2)' : tokens.sinDatos} />
+          <EliteText style={[styles.emptyTitle, { color: tokens.texto }]}>Sin eventos hoy</EliteText>
+          <EliteText style={[styles.emptyText, !dark && { color: tokens.textoSecundario }]}>Crea tu primer evento con el botón +, o configura tu protocolo y cronotipo para auto-generarlos.</EliteText>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {insertDayPartDividers(events).map((item, i) =>
             'divider' in item ? (
               <View key={`div-${i}`} style={styles.divider}>
-                <EliteText style={styles.dividerLabel}>{item.divider}</EliteText>
-                <View style={styles.dividerLine} />
+                <EliteText style={[styles.dividerLabel, !dark && { color: tokens.textoSecundario }]}>{item.divider}</EliteText>
+                <View style={[styles.dividerLine, !dark && { backgroundColor: tokens.borde }]} />
               </View>
             ) : (
               <AgendaMiniCard key={item.id} event={item} seedKey={userId} onTap={() => setSelected(item)} />
@@ -264,9 +277,10 @@ export default function AgendaScreen() {
         </ScrollView>
       )}
 
-      {/* FAB crear — glow lima real. */}
+      {/* FAB crear — glow lima real. Relleno lima con negro encima: el mismo
+          patrón en los dos temas (el lima como relleno sí vive en claro). */}
       <AnimatedPressable style={styles.fab} onPress={() => { haptic.medium(); setSelected(null); setFormMode('create'); }}>
-        <Ionicons name="add" size={28} color="#000" />
+        <Ionicons name="add" size={28} color={tokens.textoSobreLima} />
       </AnimatedPressable>
 
       {/* Modal de acciones al tocar una card */}
@@ -313,7 +327,7 @@ const styles = StyleSheet.create({
   },
   dupBannerText: { flex: 1, color: 'rgba(255,255,255,0.85)', fontSize: FontSizes.sm },
   dupBannerCta: { color: ATP_BRAND.amber, fontFamily: Fonts.bold, fontSize: FontSizes.sm, letterSpacing: 1 },
-  title: { color: '#fff', fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, letterSpacing: 2 },
+  title: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, letterSpacing: 2 },
   date: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 3, marginTop: 3 },
   list: { paddingHorizontal: Spacing.md, paddingTop: Spacing.xs },
   // Divisor de franja horaria: label a la izq + línea que llena el resto.
@@ -321,7 +335,7 @@ const styles = StyleSheet.create({
   dividerLabel: { color: 'rgba(255,255,255,0.4)', fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, letterSpacing: 2 },
   dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.sm },
-  emptyTitle: { color: '#fff', fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginTop: Spacing.sm },
+  emptyTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginTop: Spacing.sm },
   emptyText: { color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.regular, fontSize: FontSizes.sm, textAlign: 'center', lineHeight: 20 },
   fab: {
     position: 'absolute', right: Spacing.lg, bottom: Spacing.xl,

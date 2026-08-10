@@ -15,7 +15,8 @@ import { Pressable, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Fonts, FontSizes, Radius } from '@/constants/theme';
-import { TEXT } from '@/src/constants/brand';
+import { TEXT_COLORS } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { useTareaGesto, LONG_PRESS_MS } from '@/src/components/hoy/useTareaGesto';
 import type { Tarea } from '@/src/services/hoy/tareas-core';
 
@@ -37,6 +38,9 @@ export function TareaHechaRow({
 }: Props) {
   const { handlePress, handlePressIn, handleLongPress } =
     useTareaGesto(tarea, { onNavigate, onPalomear });
+  // MB-31B: texto del scope; el color de sección de la paloma es identidad
+  // (la cinta del día) y el negro encima es doctrina de relleno de sección.
+  const t = useSurfaceTokens();
 
   return (
     <Pressable
@@ -46,14 +50,14 @@ export function TareaHechaRow({
       delayLongPress={LONG_PRESS_MS}
       accessibilityRole="button"
       accessibilityLabel={`${tarea.name}, hecha`}
-      style={({ pressed }) => [s.row, pressed && s.rowPressed]}
+      style={({ pressed }) => [s.row, pressed && { backgroundColor: t.kind === 'dark' ? 'rgba(255,255,255,0.06)' : t.hundido }]}
     >
       {/* La paloma en el color de su sección: la cinta del día. */}
       <View style={[s.check, { backgroundColor: sectionColor }]}>
-        <Ionicons name="checkmark" size={12} color="#000" />
+        <Ionicons name="checkmark" size={12} color={TEXT_COLORS.onAccent} />
       </View>
-      <EliteText style={s.name} numberOfLines={1}>{tarea.name}</EliteText>
-      {dato ? <EliteText style={s.dato}>{dato}</EliteText> : null}
+      <EliteText style={[s.name, { color: t.textoSecundario }]} numberOfLines={1}>{tarea.name}</EliteText>
+      {dato ? <EliteText style={[s.dato, { color: t.textoSecundario }]}>{dato}</EliteText> : null}
     </Pressable>
   );
 }
@@ -68,7 +72,6 @@ const s = StyleSheet.create({
     borderRadius: Radius.sm,
     marginBottom: 2,
   },
-  rowPressed: { backgroundColor: 'rgba(255,255,255,0.06)' },
   check: {
     width: 20,
     height: 20,
@@ -78,13 +81,11 @@ const s = StyleSheet.create({
   },
   name: {
     flex: 1,
-    color: TEXT.secondary,
     fontSize: FontSizes.sm,
     fontFamily: Fonts.semiBold,
     textDecorationLine: 'line-through',
   },
   dato: {
-    color: TEXT.secondary,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.semiBold,
     fontVariant: ['tabular-nums'],

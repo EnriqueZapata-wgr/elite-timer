@@ -16,10 +16,14 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { countUnreadInbox } from '@/src/services/user-notifications-service';
 import { bellBadgeLabel } from './notification-bell-core';
-import { Colors, Fonts } from '@/constants/theme';
+import { Fonts } from '@/constants/theme';
+import { ATP_BRAND, TEXT_COLORS } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 export function NotificationBellIcon() {
   const { user } = useAuth();
+  // MB-31B: la campana lee el scope; el badge lima con negro es marca.
+  const t = useSurfaceTokens();
   const [unread, setUnread] = useState(0);
 
   const load = useCallback(() => {
@@ -41,7 +45,7 @@ export function NotificationBellIcon() {
       onPress={() => { haptic.light(); router.push('/notifications'); }}
       style={styles.icon}
     >
-      <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} />
+      <Ionicons name="notifications-outline" size={20} color={t.textoSecundario} />
       {bellBadgeLabel(unread) ? (
         <View style={styles.badge}>
           <EliteText style={styles.badgeText}>{bellBadgeLabel(unread)}</EliteText>
@@ -55,7 +59,7 @@ const styles = StyleSheet.create({
   icon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
   badge: {
     position: 'absolute', top: 2, right: 2, minWidth: 15, height: 15, borderRadius: 8,
-    backgroundColor: '#a8e02a', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
+    backgroundColor: ATP_BRAND.lime, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3,
   },
-  badgeText: { color: '#000', fontSize: 9, fontFamily: Fonts.bold, lineHeight: 12 },
+  badgeText: { color: TEXT_COLORS.onAccent, fontSize: 9, fontFamily: Fonts.bold, lineHeight: 12 },
 });

@@ -18,6 +18,7 @@ import { pickInterventionImage } from '@/src/utils/intervention-image-picker';
 import { agendaCategoryToFolder } from '@/src/utils/image-pick-core';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, TEXT } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Spacing, FontSizes, Fonts, Radius } from '@/constants/theme';
 import type { AgendaEventInstance } from '@/src/services/agenda-service';
 
@@ -82,11 +83,21 @@ export function AgendaMiniCard({ event, onTap, compact, seedKey }: Props) {
     new Date(event.scheduledAt).getTime() < Date.now();
   const tint = getCategoryTint(folder);
   const icon: AppIconName | undefined = CATEGORY_ICON[folder];
+  // MB-31B: mini card EDITORIAL (foto + gradiente oscuro + texto blanco) —
+  // queda oscura en los dos modos; lo único que se tematiza es el borde,
+  // que en claro necesita despegarse del acero (manual 3.8).
+  const t = useSurfaceTokens();
 
   return (
     <AnimatedPressable
       onPress={onTap ? () => { haptic.light(); onTap(); } : undefined}
-      style={[styles.card, compact && styles.cardCompact, skipped && styles.cardSkipped, past && styles.cardPast]}
+      style={[
+        styles.card,
+        t.kind === 'light' && { borderColor: t.bordeEditorial },
+        compact && styles.cardCompact,
+        skipped && styles.cardSkipped,
+        past && styles.cardPast,
+      ]}
     >
       {/* Fondo de la card: gradient sutil de profundidad (#151515 → #0E0E0E). */}
       <LinearGradient colors={['#151515', '#0E0E0E']} style={StyleSheet.absoluteFill} />

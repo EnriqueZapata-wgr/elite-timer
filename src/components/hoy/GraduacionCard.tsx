@@ -19,7 +19,8 @@ import { graduarHabito } from '@/src/services/hoy/graduacion-service';
 import { GRADUACION } from '@/src/services/hoy/graduacion-core';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Spacing } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 const SNOOZE_PREFIX = '@atp/graduacion_snooze:';
 const SNOOZE_DIAS = 7;
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export function GraduacionCard({ userId, propuestas }: Props) {
+  const t = useSurfaceTokens();
   const [visible, setVisible] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -70,25 +72,32 @@ export function GraduacionCard({ userId, propuestas }: Props) {
     setVisible(null);
   };
 
+  // MB-31B: superficies/texto del scope; en claro el lima no es texto — el
+  // botón Graduar pasa a relleno lima sólido con negro (patrón Chip MB-31A).
+  const dark = t.kind === 'dark';
   return (
-    <Animated.View entering={FadeInUp.springify()} style={s.card}>
+    <Animated.View entering={FadeInUp.springify()} style={[s.card, { backgroundColor: t.card }]}>
       <View style={s.headerRow}>
         <View style={s.iconWrap}>
-          <AppIcon name={cfg.icon as never} size={18} color={ATP_BRAND.lime} />
+          <AppIcon name={cfg.icon as never} size={18} color={dark ? ATP_BRAND.lime : t.tealTexto} />
         </View>
-        <EliteText style={s.label}>YA ES PARTE DE TI</EliteText>
+        <EliteText style={[s.label, { color: dark ? ATP_BRAND.lime : t.tealTexto }]}>YA ES PARTE DE TI</EliteText>
       </View>
-      <EliteText style={s.body}>
+      <EliteText style={[s.body, { color: t.texto }]}>
         Llevas {GRADUACION.minimo} de los últimos {GRADUACION.dias} días con{' '}
         {cfg.name}. ¿Lo graduamos? Sale de tu lista, nada se borra y lo puedes
         traer de vuelta cuando quieras.
       </EliteText>
       <View style={s.btnRow}>
-        <AnimatedPressable style={s.btnPrimario} onPress={graduar} disabled={busy}>
-          <EliteText style={s.btnPrimarioText}>Graduar</EliteText>
+        <AnimatedPressable
+          style={[s.btnPrimario, !dark && { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime }]}
+          onPress={graduar}
+          disabled={busy}
+        >
+          <EliteText style={[s.btnPrimarioText, !dark && { color: t.textoSobreLima }]}>Graduar</EliteText>
         </AnimatedPressable>
-        <AnimatedPressable style={s.btnQuiet} onPress={ahoraNo} disabled={busy}>
-          <EliteText style={s.btnQuietText}>Ahora no</EliteText>
+        <AnimatedPressable style={[s.btnQuiet, !dark && { borderColor: t.bordeMarcado }]} onPress={ahoraNo} disabled={busy}>
+          <EliteText style={[s.btnQuietText, { color: t.textoSecundario }]}>Ahora no</EliteText>
         </AnimatedPressable>
       </View>
     </Animated.View>
@@ -97,7 +106,6 @@ export function GraduacionCard({ userId, propuestas }: Props) {
 
 const s = StyleSheet.create({
   card: {
-    backgroundColor: ELEVATION[1].bg,
     borderWidth: 0.5,
     borderColor: withOpacity(ATP_BRAND.lime, 0.35),
     borderRadius: 14,
@@ -115,13 +123,11 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    color: ATP_BRAND.lime,
     fontFamily: Fonts.bold,
     fontSize: 10,
     letterSpacing: 2,
   },
   body: {
-    color: TEXT.primary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     lineHeight: 20,
@@ -146,5 +152,5 @@ const s = StyleSheet.create({
     paddingVertical: 11,
     alignItems: 'center',
   },
-  btnQuietText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  btnQuietText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 });

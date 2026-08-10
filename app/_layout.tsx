@@ -39,6 +39,7 @@ import { parseResetPasswordUrl, isResetPasswordLink } from '@/src/utils/reset-pa
 import { RevenueCatSync } from '@/src/components/RevenueCatSync';
 import { NightFilterBridge } from '@/src/components/NightFilterBridge';
 import { AtpThemeProvider } from '@/src/contexts/theme-context';
+import { THEME_DARK } from '@/src/constants/brand';
 import { NightVeil } from '@/src/components/theme/NightVeil';
 import { NotificationActionsBridge } from '@/src/components/NotificationActionsBridge';
 import { ArgosPresenceProvider } from '@/src/components/argos/ArgosPresenceContext';
@@ -63,12 +64,15 @@ Sentry.init({
 // Mantenemos la splash screen visible mientras cargan las fuentes.
 SplashScreen.preventAutoHideAsync();
 
-// Tema oscuro personalizado: fondo negro puro (#000) en vez del gris oscuro default
+// Tema oscuro personalizado: fondo negro puro en vez del gris oscuro default.
+// Tránsito MB-31B: el contenedor de navegación se queda en el oscuro canónico
+// (las pantallas sin migrar lo necesitan); cada pantalla migrada pinta su
+// propio fondo desde el tema, así que aquí solo se ve en las transiciones.
 const EliteTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    background: '#000000',
+    background: THEME_DARK.fondo,
   },
 };
 

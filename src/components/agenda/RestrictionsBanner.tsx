@@ -6,8 +6,11 @@
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Spacing, FontSizes, Fonts, Radius } from '@/constants/theme';
 
+// MB-31B: #ff8b66 NO mapea a ningún token del manual (warning es #EF9F27 y
+// el coral de error #E8877F) — se deja y va al reporte, no se inventa token.
 const WARN = '#ff8b66';
 
 interface Props {
@@ -18,13 +21,23 @@ interface Props {
 }
 
 export function RestrictionsBanner({ restrictions, compact }: Props) {
+  // MB-31B: el texto neutro sale del scope (en claro el blanco translúcido
+  // no se lee sobre acero); el tinte WARN es señal y se queda.
+  const t = useSurfaceTokens();
   if (!restrictions.length) return null;
   return (
     <View style={[styles.banner, compact && styles.bannerCompact]}>
       <Ionicons name="shield-outline" size={compact ? 14 : 16} color={WARN} />
       <View style={styles.body}>
         <EliteText style={styles.label}>HOY EVITA</EliteText>
-        <EliteText style={[styles.list, compact && styles.listCompact]} numberOfLines={compact ? 1 : 2}>
+        <EliteText
+          style={[
+            styles.list,
+            t.kind === 'light' && { color: t.texto },
+            compact && styles.listCompact,
+          ]}
+          numberOfLines={compact ? 1 : 2}
+        >
           {restrictions.join(' · ')}
         </EliteText>
       </View>

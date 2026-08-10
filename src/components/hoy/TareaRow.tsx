@@ -18,7 +18,8 @@ import { AppIcon } from '@/src/components/ui/AppIcon';
 import type { AppIconName } from '@/src/components/ui/app-icon-names';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius } from '@/constants/theme';
-import { ATP_BRAND, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { useTareaGesto, LONG_PRESS_MS } from '@/src/components/hoy/useTareaGesto';
 import type { Tarea } from '@/src/services/hoy/tareas-core';
 
@@ -45,6 +46,10 @@ export function TareaRow({
     useTareaGesto(tarea, { onNavigate, onPalomear });
 
   const accent = accentColor || tarea.color || ATP_BRAND.lime;
+  // MB-31B: fila normal (no editorial) — superficies y texto del scope; el
+  // color de sección del mosaico es identidad y queda igual en los dos temas.
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
 
   return (
     <Pressable
@@ -54,10 +59,15 @@ export function TareaRow({
       delayLongPress={LONG_PRESS_MS}
       accessibilityRole="button"
       accessibilityLabel={`${tarea.name}${tarea.completed ? ', hecha' : ''}`}
-      style={({ pressed }) => [s.row, tarea.completed && s.rowDone, pressed && s.rowPressed]}
+      style={({ pressed }) => [
+        s.row,
+        !dark && { backgroundColor: t.card, borderColor: t.borde },
+        tarea.completed && s.rowDone,
+        pressed && (dark ? s.rowPressed : { backgroundColor: t.hundido }),
+      ]}
     >
       {lens === 'agenda' && (
-        <EliteText style={s.time}>{tarea.time}</EliteText>
+        <EliteText style={[s.time, { color: t.textoSecundario }]}>{tarea.time}</EliteText>
       )}
 
       {/* Hecha: paloma pintada (estado, para todos los gestos). Pendiente,
@@ -67,13 +77,13 @@ export function TareaRow({
           la forma, y la columna conserva su alineación. */}
       {tarea.completed ? (
         <View style={s.checkDone}>
-          <Ionicons name="checkmark" size={13} color="#000" />
+          <Ionicons name="checkmark" size={13} color={TEXT_COLORS.onAccent} />
         </View>
       ) : tarea.gesto === 'palomear' ? (
-        <View style={[s.check, { borderColor: withOpacity('#FFFFFF', 0.25) }]} />
+        <View style={[s.check, { borderColor: dark ? withOpacity('#FFFFFF', 0.25) : t.bordeMarcado }]} />
       ) : (
         <View style={s.checkSlot}>
-          <Ionicons name="chevron-forward" size={15} color={withOpacity('#FFFFFF', 0.3)} />
+          <Ionicons name="chevron-forward" size={15} color={dark ? withOpacity('#FFFFFF', 0.3) : t.textoTenue} />
         </View>
       )}
 
@@ -88,10 +98,10 @@ export function TareaRow({
       </LinearGradient>
 
       <View style={{ flex: 1 }}>
-        <EliteText style={[s.name, tarea.completed && s.nameDone]}>{tarea.name}</EliteText>
-        {tarea.meta ? <EliteText style={s.meta}>{tarea.meta}</EliteText> : null}
+        <EliteText style={[s.name, { color: t.texto }, tarea.completed && [s.nameDone, { color: t.textoSecundario }]]}>{tarea.name}</EliteText>
+        {tarea.meta ? <EliteText style={[s.meta, { color: t.sinDatos }]}>{tarea.meta}</EliteText> : null}
         {tarea.kind === 'quant' && tarea.progress != null && (
-          <View style={s.track}>
+          <View style={[s.track, !dark && { backgroundColor: t.hundido }]}>
             <View style={[s.trackFill, { width: `${Math.round(tarea.progress * 100)}%`, backgroundColor: accent }]} />
           </View>
         )}
@@ -108,7 +118,7 @@ export function TareaRow({
           style={({ pressed }) => [s.inlineBtn, pressed && { opacity: 0.6 }]}
           accessibilityLabel="Agregar 250 mililitros"
         >
-          <EliteText style={s.inlineBtnText}>+250 ml</EliteText>
+          <EliteText style={[s.inlineBtnText, !dark && { color: t.tealTexto }]}>+250 ml</EliteText>
         </Pressable>
       ) : null}
     </Pressable>
@@ -132,7 +142,6 @@ const s = StyleSheet.create({
   rowPressed: { backgroundColor: 'rgba(255,255,255,0.06)' },
   time: {
     width: 42,
-    color: TEXT.secondary,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
     fontVariant: ['tabular-nums'],
@@ -164,13 +173,11 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   name: {
-    color: '#fff',
     fontSize: FontSizes.md,
     fontFamily: Fonts.semiBold,
   },
-  nameDone: { textDecorationLine: 'line-through', color: TEXT.secondary },
+  nameDone: { textDecorationLine: 'line-through' },
   meta: {
-    color: TEXT.muted,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,
     marginTop: 1,
