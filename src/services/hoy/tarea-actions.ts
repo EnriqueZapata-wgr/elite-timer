@@ -5,6 +5,10 @@
  *    persistToggle de HoyEditorialSection (v13d 2.1): dual write blob
  *    daily_electrons + electron_logs idempotente + espejo HOY→Agenda + emit.
  *    Saltarse cualquier pata rompe `completed` en el siguiente compile.
+ *    MB-32 P0: la escritura del blob va con el candado del día — serializada
+ *    (conCandadoDelDia) y sobre LECTURA FRESCA, no sobre el mapa del caller.
+ *    Con eso este writer es el "atómico por-fuente" que B6b esperaba: seguro
+ *    desde la UI, desde el widget y desde un handler en frío.
  * 2. registrarExperiencia: el registro manual de los módulos (MB-20.5: el
  *    botón "Ya medité"/"Ya respiré" de meditación y respiración). Una
  *    sesión hecha POR FUERA se registra como sesión REAL (mind_sessions /
@@ -22,10 +26,15 @@ import {
 } from '@/src/services/electron-service';
 import { syncCompletionFromElectron } from '@/src/services/agenda-service';
 import { logCardioSession } from '@/src/services/fitness-service';
+import { conCandadoDelDia } from '@/src/services/hoy/day-write-lock';
 
 /**
- * Palomeo de un booleano NO verificado. `currentStates` es el estado completo
- * de booleanos del día (el blob se escribe entero con el source pisado).
+ * Palomeo de un booleano NO verificado.
+ *
+ * `currentStates` era la base de la mezcla; desde MB-32 P0 solo SIEMBRA el
+ * primer write del día (blob inexistente, nada que pisar). Con blob en la
+ * base, la mezcla parte de la lectura fresca: un mapa viejo (compile de hace
+ * rato, widget que escribió en medio) ya no puede borrar estados ajenos.
  */
 export async function persistBooleanToggle(
   userId: string,
@@ -33,26 +42,36 @@ export async function persistBooleanToggle(
   next: boolean,
   currentStates: Record<string, boolean>,
 ): Promise<void> {
-  const today = getLocalToday();
-  const newStates = { ...currentStates, [source]: next };
-  const { error } = await supabase
-    .from('daily_electrons')
-    .upsert({ user_id: userId, date: today, electrons: newStates }, { onConflict: 'user_id,date' });
-  if (error) throw error;
-  if (next) {
-    await awardBooleanElectron(userId, source as never, {
-      idempotencyKey: `${userId}:${source}:${today}`,
+  return conCandadoDelDia(async () => {
+    const today = getLocalToday();
+    const { data: fila, error: readError } = await supabase
+      .from('daily_electrons')
+      .select('electrons')
+      .eq('user_id', userId)
+      .eq('date', today)
+      .maybeSingle();
+    if (readError) throw readError;
+    const base = (fila?.electrons as Record<string, boolean> | null) ?? currentStates;
+    const newStates = { ...base, [source]: next };
+    const { error } = await supabase
+      .from('daily_electrons')
+      .upsert({ user_id: userId, date: today, electrons: newStates }, { onConflict: 'user_id,date' });
+    if (error) throw error;
+    if (next) {
+      await awardBooleanElectron(userId, source as never, {
+        idempotencyKey: `${userId}:${source}:${today}`,
+      });
+    } else {
+      // MB-20.4 (nota del audit): toda revocación deja rastro — si un electrón
+      // vuelve a desaparecer, las tres puertas al borrado deben verse en el log.
+      logWarn('[tareas] revoca electrón', { source, motivo: 'despalomeo del usuario en HOY' });
+      await revokeBooleanElectron(userId, source as never);
+    }
+    await syncCompletionFromElectron(userId, source, next).catch((e) => {
+      logWarn('[tareas] sync HOY→Agenda failed', e);
     });
-  } else {
-    // MB-20.4 (nota del audit): toda revocación deja rastro — si un electrón
-    // vuelve a desaparecer, las tres puertas al borrado deben verse en el log.
-    logWarn('[tareas] revoca electrón', { source, motivo: 'despalomeo del usuario en HOY' });
-    await revokeBooleanElectron(userId, source as never);
-  }
-  await syncCompletionFromElectron(userId, source, next).catch((e) => {
-    logWarn('[tareas] sync HOY→Agenda failed', e);
+    DeviceEventEmitter.emit('electrons_changed');
   });
-  DeviceEventEmitter.emit('electrons_changed');
 }
 
 export type ExperienciaExterna = 'meditation' | 'breathwork' | 'cardio';

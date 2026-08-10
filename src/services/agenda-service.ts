@@ -15,6 +15,7 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { generateUUID } from '@/src/services/routine-service';
 import { generateDailyPlan } from '@/src/services/protocol-builder-service';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
+import { conCandadoDelDia } from '@/src/services/hoy/day-write-lock';
 import type { ElectronSource } from '@/src/constants/electrons';
 import { warn as logWarn } from '@/src/lib/logger';
 // ── DX F4 (swap HOY/AGENDA) — doble-lectura gateada por flag ──
@@ -658,26 +659,31 @@ export async function syncElectronFromEvent(
   try {
     const matcher = ELECTRON_EVENT_MATCHERS.find((m) => m.pattern.test(eventName ?? ''));
     if (!matcher) return false;
-    const source = matcher.source;
-    const today = getLocalToday();
-    // Blob daily_electrons: el compiler lee `completed` de los no-verificados de aquí.
-    const { data: row } = await supabase
-      .from('daily_electrons').select('electrons')
-      .eq('user_id', userId).eq('date', today).maybeSingle();
-    const states = { ...((row?.electrons as Record<string, boolean>) ?? {}), [source]: completed };
-    await supabase
-      .from('daily_electrons')
-      .upsert({ user_id: userId, date: today, electrons: states }, { onConflict: 'user_id,date' });
-    if (completed) {
-      await awardBooleanElectron(userId, source, { idempotencyKey: `${userId}:${source}:${today}` });
-    } else {
-      // MB-20.4 (nota del audit): toda revocación deja rastro — si un electrón
-      // vuelve a desaparecer, las tres puertas al borrado deben verse en el log.
-      logWarn('[agenda] revoca electrón', { source, motivo: 'evento des-completado en Agenda' });
-      await revokeBooleanElectron(userId, source);
-    }
-    DeviceEventEmitter.emit('electrons_changed');
-    return true;
+    // MB-32 P0: este writer ya mezclaba sobre lectura fresca; el candado del
+    // día le suma la serialización — no corre encima de otro
+    // leer-mezclar-escribir del blob (persistBooleanToggle, widget).
+    return await conCandadoDelDia(async () => {
+      const source = matcher.source;
+      const today = getLocalToday();
+      // Blob daily_electrons: el compiler lee `completed` de los no-verificados de aquí.
+      const { data: row } = await supabase
+        .from('daily_electrons').select('electrons')
+        .eq('user_id', userId).eq('date', today).maybeSingle();
+      const states = { ...((row?.electrons as Record<string, boolean>) ?? {}), [source]: completed };
+      await supabase
+        .from('daily_electrons')
+        .upsert({ user_id: userId, date: today, electrons: states }, { onConflict: 'user_id,date' });
+      if (completed) {
+        await awardBooleanElectron(userId, source, { idempotencyKey: `${userId}:${source}:${today}` });
+      } else {
+        // MB-20.4 (nota del audit): toda revocación deja rastro — si un electrón
+        // vuelve a desaparecer, las tres puertas al borrado deben verse en el log.
+        logWarn('[agenda] revoca electrón', { source, motivo: 'evento des-completado en Agenda' });
+        await revokeBooleanElectron(userId, source);
+      }
+      DeviceEventEmitter.emit('electrons_changed');
+      return true;
+    });
   } catch (e) {
     logWarn('[agenda] syncElectronFromEvent failed', e);
     return false;

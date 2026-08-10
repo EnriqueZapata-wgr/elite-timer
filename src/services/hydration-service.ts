@@ -6,6 +6,7 @@ import { DeviceEventEmitter } from 'react-native';
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
+import { conCandadoDelDia } from '@/src/services/hoy/day-write-lock';
 
 const DEFAULT_WATER_GOAL_ML = 2500;
 
@@ -66,10 +67,16 @@ export async function setUserWaterGoal(userId: string, waterMl: number): Promise
 
 /**
  * Registra una entrada de agua (delta en ml) en hydration_logs del día actual.
- * INSERT-or-UPDATE atómico. Emite 'day_changed' al final. Devuelve el nuevo total_ml
- * en caso de éxito o null si falló.
+ * Leer-mezclar-escribir sobre total_ml + entries, así que va con el candado
+ * del día (MB-32 P0): dos taps concurrentes (widget + app, dos superficies)
+ * se serializan y ninguno pisa la entrada del otro. Emite 'day_changed' al
+ * final. Devuelve el nuevo total_ml en caso de éxito o null si falló.
  */
 export async function addWater(userId: string, deltaMl: number): Promise<number | null> {
+  return conCandadoDelDia(() => addWaterInner(userId, deltaMl));
+}
+
+async function addWaterInner(userId: string, deltaMl: number): Promise<number | null> {
   try {
     const date = getLocalToday();
     const nowTime = new Date().toLocaleTimeString('en-US', {
