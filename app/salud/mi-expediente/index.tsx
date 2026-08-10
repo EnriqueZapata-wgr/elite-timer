@@ -25,14 +25,14 @@ import {
 } from '@/src/services/salud/mi-expediente-core';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
 import { ELEVATION, TEXT, TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
 const EMPTY: TimelineSources = { symptoms: [], interventionsActivated: [], labs: [], measurements: [], glucose: [], ketones: [] };
 
 function MiExpedienteScreen() {
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const s = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const router = useRouter();

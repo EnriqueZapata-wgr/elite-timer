@@ -25,7 +25,7 @@ import { AdherenceCalendar } from '@/src/components/reports/AdherenceCalendar';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { PILLAR_GRADIENTS, ATP_BRAND, TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme, useSurfaceTokens } from '@/src/contexts/theme-context';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getMonthAdherence } from '@/src/services/reports/adherence-calendar-service';
 import { shiftMonth, type FlagsByDate } from '@/src/services/reports/adherence-calendar-core';
@@ -86,7 +86,7 @@ export default function ReportsScreen() {
   const params = useLocalSearchParams<{ period?: string }>();
   const { user } = useAuth();
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const s = useMemo(() => makeStyles(t), [t]);
   const [periodLabel, setPeriodLabel] = useState<PeriodLabel>(
     KEY_TO_LABEL[params.period ?? ''] ?? 'Semana',

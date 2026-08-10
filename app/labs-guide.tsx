@@ -28,7 +28,7 @@ import {
   LABS_DESPUES,
 } from '@/src/constants/labs-guide-content';
 import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
 
@@ -36,7 +36,7 @@ export default function LabsGuideScreen() {
   const { user } = useAuth();
   const [sharing, setSharing] = useState(false);
   // MB-31B2: tokens del tema (oscuro idéntico al de siempre; claro = acero).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const s = useMemo(() => makeStyles(t), [t]);
 
   const firstName = ((user?.user_metadata?.full_name as string) || '').trim().split(' ')[0] || '';

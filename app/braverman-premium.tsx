@@ -26,7 +26,7 @@ import {
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 const LOADING_PHRASES = [
@@ -41,7 +41,7 @@ export default function BravermanPremiumScreen() {
   const { user } = useAuth();
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero). Regla 1: el
   // lima como letra (precio, links, headings del reporte) pasa a teal calibrado.
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const styles = useMemo(() => makeStyles(t), [t]);
   const acento = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const analytics = useAnalytics();

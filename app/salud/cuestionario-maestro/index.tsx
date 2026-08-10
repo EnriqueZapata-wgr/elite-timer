@@ -29,7 +29,7 @@ import { personalizeInterventions } from '@/src/services/interventions/personali
 import { ROOT_LABELS } from '@/src/constants/intervention-vocab';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
 import { ELEVATION, TEXT, ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme, useSurfaceTokens } from '@/src/contexts/theme-context';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
 const SYSTEM_LABELS: Record<string, string> = {
@@ -40,7 +40,7 @@ const SYSTEM_LABELS: Record<string, string> = {
 
 function MasterQuizScreen() {
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const s = useMemo(() => makeStyles(t), [t]);
   const router = useRouter();
   const { user } = useAuth();

@@ -49,7 +49,7 @@ import {
 import type { AppAvisoPref } from '@/src/services/notification-prefs-core';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { APP_SECTION_COLORS, ATP_BRAND, ELEVATION, withOpacity } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme, useSurfaceTokens } from '@/src/contexts/theme-context';
 import type { AppThemeTokens } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 
@@ -76,7 +76,7 @@ export default function FichaAppScreen() {
   const app = typeof appKey === 'string' ? APP_BY_KEY[appKey] : undefined;
   // MB-31B: pantalla migrada — el scope se abre con <Screen themed> y estos
   // tokens (t) alimentan el chrome propio de la ficha.
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const dark = t.kind === 'dark';
 
   const [installPrefs, setInstallPrefs] = useState<InstallPrefs | null>(null);

@@ -22,7 +22,7 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
 import { TEXT_COLORS, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 // Batch 3 (#11): imagen editorial del hero (require estático · Metro).
 const HERO_EVALUACIONES = require('@/assets/images/health-hub/tests-evaluaciones.webp');
@@ -41,7 +41,7 @@ const EVALUACIONES: Eval[] = [
 
 export default function MisEvaluacionesScreen() {
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const s = useMemo(() => makeStyles(t), [t]);
   const router = useRouter();
 

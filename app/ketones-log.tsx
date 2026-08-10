@@ -27,7 +27,7 @@ import {
 } from '@/src/services/salud/ketones-source-core';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { userErrorMessage } from '@/src/utils/user-error';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { warn as logWarn } from '@/src/lib/logger';
@@ -46,7 +46,7 @@ const CONTEXTS = [
 export default function KetonesLogScreen() {
   const { user } = useAuth();
   // MB-31B2: tokens del tema (oscuro idéntico al de siempre; claro = acero).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const s = useMemo(() => makeStyles(t), [t]);
 
   const [source, setSource] = useState<KetoneSource>('blood');

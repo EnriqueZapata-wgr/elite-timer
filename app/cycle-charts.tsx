@@ -23,7 +23,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { useCycleGate } from '@/src/hooks/use-cycle-gate';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
 import { TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 const ROSE = '#fb7185';
 const SCREEN_W = Dimensions.get('window').width;
@@ -53,7 +53,7 @@ const PERIOD_LABELS: readonly PeriodLabel[] = ['Último ciclo', '3 meses', '6 me
 export default function CycleChartsScreen() {
   const { user } = useAuth();
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const s = useMemo(() => makeStyles(t), [t]);
   // MB-7: gate biological_sex — cierra el deep-link a /cycle-charts.
   const gate = useCycleGate();

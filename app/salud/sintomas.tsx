@@ -41,7 +41,7 @@ import {
   SINTOMAS_CHANGED_EVENT,
 } from '@/src/services/salud/sintomas-service';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 function localYesterday(): string {
@@ -56,7 +56,7 @@ function timeOf(loggedAt: string): string {
 
 export default function SintomasScreen() {
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const [rows, setRows] = useState<SintomaAisladoRow[]>([]);

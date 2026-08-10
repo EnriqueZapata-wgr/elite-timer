@@ -38,7 +38,7 @@ import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
 import { formatEdadDeltaValue } from '@/src/services/edad-atp/edad-delta-core';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme, useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 const LEVEL_LABELS: Record<number, string> = DX_LEVEL_LABELS;
@@ -84,7 +84,7 @@ function LevelBadge({ level }: { level: number }) {
 
 export default function DiagnosticoScreen() {
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const { isPro } = useSubscription();

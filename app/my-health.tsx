@@ -38,7 +38,7 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { useLabProcessing } from '@/src/hooks/useLabProcessing';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, withOpacity, TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Screen } from '@/src/components/ui/Screen';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
@@ -53,7 +53,7 @@ function MyHealthScreen() {
   const userId = user?.id ?? '';
   // MB-31B2: tokens del tema. El teal de sección como LETRA solo vale en
   // oscuro; sobre acero usa el teal calibrado (manual 3.6, regla 2).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const s = useMemo(() => makeStyles(t), [t]);
   const tealTxt = t.kind === 'dark' ? TEAL : t.tealTexto;
 

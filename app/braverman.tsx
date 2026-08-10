@@ -21,7 +21,7 @@ import { supabase } from '../src/lib/supabase';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
 import { TEXT, ATP_BRAND, withOpacity } from '@/src/constants/brand';
-import { ThemeReady, useSurfaceTokens } from '@/src/contexts/theme-context';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, Spacing } from '@/constants/theme';
 import {
   BRAVERMAN_QUESTIONS,
@@ -57,7 +57,7 @@ function BravermanTest() {
   const insets = useSafeAreaInsets();
   // MB-31B2: tokens del tema (el gate envuelve en <ThemeReady>). El hero del
   // intro es editorial (foto + velo negro) y queda anclado con TEXT estático.
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const dark = t.kind === 'dark';
   /** Color de acento como LETRA: solo en oscuro; sobre acero pasa a texto. */
   const colTxt = (c: string) => (dark ? c : t.texto);

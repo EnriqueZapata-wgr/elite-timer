@@ -8,7 +8,7 @@
  *
  * Se guarda en cuanto tocas: no hay botón de guardar que se pueda olvidar.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,10 +31,14 @@ import { getInstallPrefs } from '@/src/services/hoy/install-service';
 import { gridApps } from '@/src/services/hoy/install-core';
 import { getCycleAppMode } from '@/src/services/app-mode-service';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT, ELEVATION } from '@/src/constants/brand';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
 
 export default function AtpOrdenScreen() {
+  // MB-31B remate: pantalla sin dueño en el reparto — tokens del tema.
+  const { kind, tokens: t } = useAppTheme();
+  const s = useMemo(() => makeStyles(t), [t]);
   const router = useRouter();
   const { user } = useAuth();
   const [apps, setApps] = useState(() => visibleApps(false));
@@ -87,8 +91,8 @@ export default function AtpOrdenScreen() {
   const rowLayout = reducedMotion ? LinearTransition : LinearTransition.springify().damping(18);
 
   return (
-    <Screen>
-      <StatusBar style="light" />
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Mi orden" onBack={() => router.back()} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
@@ -105,7 +109,7 @@ export default function AtpOrdenScreen() {
           >
             <EliteText style={s.position}>{i + 1}</EliteText>
             <View style={s.rowIcon}>
-              <AppIcon name={app.icon} size={20} color={TEXT.primary} />
+              <AppIcon name={app.icon} size={20} color={t.texto} />
             </View>
             <EliteText style={s.rowLabel} numberOfLines={1}>{app.label}</EliteText>
 
@@ -114,21 +118,21 @@ export default function AtpOrdenScreen() {
               disabled={i === 0}
               onPress={() => pin(app.key)}
             >
-              <Ionicons name="arrow-up-circle-outline" size={22} color={i === 0 ? TEXT.muted : ATP_BRAND.lime} />
+              <Ionicons name="arrow-up-circle-outline" size={22} color={i === 0 ? t.textoTenue : ATP_BRAND.lime} />
             </AnimatedPressable>
             <AnimatedPressable
               style={s.action}
               disabled={i === 0}
               onPress={() => move(app.key, -1)}
             >
-              <Ionicons name="chevron-up" size={20} color={i === 0 ? TEXT.muted : TEXT.secondary} />
+              <Ionicons name="chevron-up" size={20} color={i === 0 ? t.textoTenue : t.textoSecundario} />
             </AnimatedPressable>
             <AnimatedPressable
               style={s.action}
               disabled={i === rows.length - 1}
               onPress={() => move(app.key, 1)}
             >
-              <Ionicons name="chevron-down" size={20} color={i === rows.length - 1 ? TEXT.muted : TEXT.secondary} />
+              <Ionicons name="chevron-down" size={20} color={i === rows.length - 1 ? t.textoTenue : t.textoSecundario} />
             </AnimatedPressable>
           </Animated.View>
         ))}
@@ -150,17 +154,18 @@ export default function AtpOrdenScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
   hint: {
-    color: TEXT.secondary,
+    color: t.textoSecundario,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     marginBottom: Spacing.md,
     lineHeight: 20,
   },
   footnote: {
-    color: TEXT.tertiary,
+    color: t.textoTenue,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     marginTop: Spacing.md,
@@ -169,9 +174,9 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: ELEVATION[1].bg,
+    backgroundColor: t.card,
     borderWidth: 0.5,
-    borderColor: ELEVATION[1].border,
+    borderColor: t.borde,
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -181,10 +186,10 @@ const s = StyleSheet.create({
     width: 20,
     fontSize: 11,
     fontFamily: Fonts.bold,
-    color: TEXT.muted,
+    color: t.textoTenue,
     textAlign: 'center',
   },
-  rowIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: ELEVATION[2].bg, alignItems: 'center', justifyContent: 'center' },
-  rowLabel: { flex: 1, color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  rowIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: t.flotante, alignItems: 'center', justifyContent: 'center' },
+  rowLabel: { flex: 1, color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   action: { padding: 4 },
 });

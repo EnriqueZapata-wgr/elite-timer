@@ -49,12 +49,12 @@ import { getCurrentPrescription, generatePrescription } from '@/src/services/int
 import type { PrescribedIntervention } from '@/src/services/interventions/personalize-types';
 import { ROOT_LABELS, type InterventionRoot } from '@/src/constants/intervention-vocab';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 export default function IntervencionesScreen() {
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const [protocol, setProtocol] = useState<ResolvedUserIntervention[]>([]);

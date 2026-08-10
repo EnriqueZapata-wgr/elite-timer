@@ -31,7 +31,7 @@ import { InfoButton } from '@/src/components/InfoButton';
 import { CYCLE_INFO } from '@/src/constants/cycle-info';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { PILLAR_GRADIENTS, TEXT_COLORS, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { useCycleGate } from '@/src/hooks/use-cycle-gate';
 import { derivePregnancyProgress, type PregnancyStatus } from '@/src/utils/pregnancy';
@@ -183,7 +183,7 @@ export default function CycleScreen() {
   // MB-31B2: tokens del tema. Las GradientCard de fase van con gradiente de
   // pilar (fondo oscuro anclado en el kit): su interior conserva texto claro
   // estático; todo lo demás (calendario, sheet, navegación) sigue el tema.
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const st = useMemo(() => makeStyles(t), [t]);
   // MB-7: gate biological_sex — cierra el deep-link a /cycle para no-female.
   // MB-22 P4: el gate trae el MODO; en acompañante el calendario es de OTRA

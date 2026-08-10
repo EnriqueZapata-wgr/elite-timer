@@ -17,7 +17,7 @@ import { haptic } from '@/src/utils/haptics';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { withOpacity, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { HC_QUESTIONNAIRES } from '@/src/constants/historia-clinica-questionnaires';
 import { loadHistoriaClinica, completedCategories } from '@/src/services/historia-clinica-service';
 
@@ -25,7 +25,7 @@ export default function HistoriaClinicaIndex() {
   const router = useRouter();
   const { user } = useAuth();
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const s = useMemo(() => makeStyles(t), [t]);
   const [done, setDone] = useState<Set<string>>(new Set());
   // D-2 (MB-12): fallo de red ≠ "0 de M completados".

@@ -33,7 +33,7 @@ import {
 } from '@/src/services/salud/mis-datos-core';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
 import { ELEVATION, TEXT, TEXT_COLORS, ATP_BRAND, SEMANTIC, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme, useSurfaceTokens } from '@/src/contexts/theme-context';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
 // Batch 3 (#10): imagen editorial del hero (require estático · Metro).
@@ -45,7 +45,7 @@ const LEVEL_COLOR: Record<'ok' | 'warn' | 'high', string> = {
 
 function MisDatosScreen() {
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const s = useMemo(() => makeStyles(t), [t]);
   const router = useRouter();
   const { user } = useAuth();

@@ -47,7 +47,7 @@ import {
   PADECIMIENTOS_CHANGED_EVENT,
 } from '@/src/services/salud/padecimientos-service';
 import { ATP_BRAND, ELEVATION, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 const DX_NOTE = 'Esto alimenta tu Mapa Funcional. No sustituye la valoración de tu profesional de salud.';
@@ -55,7 +55,7 @@ const DX_NOTE = 'Esto alimenta tu Mapa Funcional. No sustituye la valoración de
 export default function PadecimientosScreen() {
   const { user } = useAuth();
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const styles = useMemo(() => makeStyles(t), [t]);
   const [views, setViews] = useState<PadecimientoView[]>([]);
   const [loading, setLoading] = useState(true);

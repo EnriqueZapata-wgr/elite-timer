@@ -24,7 +24,7 @@ import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { userErrorMessage } from '@/src/utils/user-error';
 import { resumenVentana, gki, inicioVentana, type ResumenVentana } from '@/src/services/salud/metabolic-stats-core';
@@ -55,7 +55,7 @@ export default function GlucoseLogScreen() {
   const router = useRouter();
   const { user } = useAuth();
   // MB-31B2: tokens del tema (oscuro idéntico al de siempre; claro = acero).
-  const t = useSurfaceTokens();
+  const t = useAppTheme().tokens;
   const s = useMemo(() => makeStyles(t), [t]);
 
   const [value, setValue] = useState('');
