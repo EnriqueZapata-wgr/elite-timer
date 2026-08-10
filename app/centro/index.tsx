@@ -271,7 +271,7 @@ const s = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 0.5,
     borderColor: ELEVATION[1].border,
-    backgroundColor: withOpacity('#ffffff', 0.05),
+    backgroundColor: withOpacity(ATP_BRAND.white, 0.05),
     alignItems: 'center',
     justifyContent: 'center',
   },

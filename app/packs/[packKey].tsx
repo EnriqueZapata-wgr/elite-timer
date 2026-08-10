@@ -289,7 +289,7 @@ const s = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: withOpacity('#ffffff', 0.05),
+    backgroundColor: withOpacity(ATP_BRAND.white, 0.05),
     borderWidth: 0.5,
     borderColor: ELEVATION[1].border,
     alignItems: 'center',

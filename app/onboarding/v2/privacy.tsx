@@ -142,7 +142,7 @@ const s = StyleSheet.create({
   linksRow: { flexDirection: 'row', gap: 16, marginTop: 14, flexWrap: 'wrap' },
   linkBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   linkText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: ATP_BRAND.teal },
-  requiredHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: withOpacity('#ffffff', 0.4), lineHeight: 17 },
+  requiredHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: withOpacity(ATP_BRAND.white, 0.4), lineHeight: 17 },
   bottomBar: { paddingHorizontal: Spacing.md, paddingBottom: 40 },
   continueBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 16,
