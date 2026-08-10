@@ -1,7 +1,7 @@
 /**
  * Cycle History — Lista de ciclos pasados con promedios.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,8 @@ import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { useCycleGate } from '@/src/hooks/use-cycle-gate';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
+import { type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 const ROSE = '#fb7185';
 const GRADIENT = { start: 'rgba(251,113,133,0.08)', end: 'rgba(251,113,133,0.03)' };
@@ -30,6 +32,9 @@ interface CyclePeriod {
 
 export default function CycleHistoryScreen() {
   const { user } = useAuth();
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   // MB-7: gate biological_sex — cierra el deep-link a /cycle-history.
   const gate = useCycleGate();
   const [cycles, setCycles] = useState<CyclePeriod[]>([]);
@@ -67,7 +72,7 @@ export default function CycleHistoryScreen() {
   // D-2 (MB-12): durante 'checking' la pantalla mostraba vacío indefinido.
   if (gate.state !== 'allowed') {
     return (
-      <Screen>
+      <Screen themed>
         <PillarHeader pillar="cycle" title="Historial" />
         {gate.state === 'checking' && (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -79,7 +84,7 @@ export default function CycleHistoryScreen() {
   }
 
   return (
-    <Screen>
+    <Screen themed>
       <PillarHeader pillar="cycle" title="Historial" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
@@ -118,7 +123,7 @@ export default function CycleHistoryScreen() {
 
           {cycles.length === 0 && (
             <View style={s.empty}>
-              <Ionicons name={loadFailed ? 'cloud-offline-outline' : 'calendar-outline'} size={36} color="#666" />
+              <Ionicons name={loadFailed ? 'cloud-offline-outline' : 'calendar-outline'} size={36} color={t.textoTenue} />
               <EliteText style={s.emptyText}>
                 {loadFailed
                   ? 'Tus ciclos no se pudieron leer. Revisa tu conexión.'
@@ -156,24 +161,26 @@ export default function CycleHistoryScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema. El rosa como LETRA (cifras)
+// solo vale en oscuro: sobre acero no alcanza AA y la cifra pasa a texto.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
 
-  avgTitle: { fontSize: 11, fontFamily: Fonts.bold, color: 'rgba(255,255,255,0.5)', letterSpacing: 2, marginBottom: Spacing.md },
+  avgTitle: { fontSize: 11, fontFamily: Fonts.bold, color: t.textoSecundario, letterSpacing: 2, marginBottom: Spacing.md },
   avgRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
   avgItem: { alignItems: 'center' },
-  avgValue: { fontSize: FontSizes.xxl, fontFamily: Fonts.bold, color: ROSE },
-  avgLabel: { fontSize: 9, fontFamily: Fonts.semiBold, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, marginTop: 4 },
-  avgDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.08)' },
+  avgValue: { fontSize: FontSizes.xxl, fontFamily: Fonts.bold, color: t.kind === 'dark' ? ROSE : t.texto },
+  avgLabel: { fontSize: 9, fontFamily: Fonts.semiBold, color: t.textoTenue, letterSpacing: 1, marginTop: 4 },
+  avgDivider: { width: 1, height: 32, backgroundColor: t.borde },
 
   cycleCard: { marginBottom: Spacing.sm },
   cycleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cycleTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, color: '#fff' },
-  cycleDates: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
-  cycleLengthNum: { fontSize: FontSizes.xxl, fontFamily: Fonts.bold, color: ROSE },
-  cycleLengthLabel: { fontSize: 9, fontFamily: Fonts.semiBold, color: 'rgba(255,255,255,0.4)', letterSpacing: 1 },
-  cyclePeriodSub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.4)', marginTop: 6 },
+  cycleTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, color: t.texto },
+  cycleDates: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.textoSecundario, marginTop: 2 },
+  cycleLengthNum: { fontSize: FontSizes.xxl, fontFamily: Fonts.bold, color: t.kind === 'dark' ? ROSE : t.texto },
+  cycleLengthLabel: { fontSize: 9, fontFamily: Fonts.semiBold, color: t.textoTenue, letterSpacing: 1 },
+  cyclePeriodSub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.textoTenue, marginTop: 6 },
 
   empty: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm },
-  emptyText: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#666' },
+  emptyText: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: t.textoTenue },
 });

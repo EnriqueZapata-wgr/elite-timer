@@ -4,7 +4,7 @@
  * Muestra líneas de síntomas (energía, ánimo, líbido, cólicos, etc.)
  * sobre bandas de color de las 4 fases del ciclo.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, Dimensions, Text, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +22,8 @@ import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { useCycleGate } from '@/src/hooks/use-cycle-gate';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
+import { TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 const ROSE = '#fb7185';
 const SCREEN_W = Dimensions.get('window').width;
@@ -50,6 +52,9 @@ const PERIOD_LABELS: readonly PeriodLabel[] = ['Último ciclo', '3 meses', '6 me
 
 export default function CycleChartsScreen() {
   const { user } = useAuth();
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   // MB-7: gate biological_sex — cierra el deep-link a /cycle-charts.
   const gate = useCycleGate();
   const [params, setParams] = useState(DEFAULT_PARAMS);
@@ -112,7 +117,7 @@ export default function CycleChartsScreen() {
   // D-2 (MB-12): durante 'checking' la pantalla mostraba vacío indefinido.
   if (gate.state !== 'allowed') {
     return (
-      <Screen>
+      <Screen themed>
         <PillarHeader pillar="cycle" title="Gráficas" />
         {gate.state === 'checking' && (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -124,7 +129,7 @@ export default function CycleChartsScreen() {
   }
 
   return (
-    <Screen>
+    <Screen themed>
       <PillarHeader pillar="cycle" title="Gráficas" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
@@ -135,12 +140,12 @@ export default function CycleChartsScreen() {
         <GradientCard gradient={{ start: 'rgba(251,113,133,0.08)', end: 'rgba(251,113,133,0.02)' }} style={s.chartCard}>
           {loadFailed && data.length === 0 ? (
             <View style={s.emptyChart}>
-              <Ionicons name="cloud-offline-outline" size={32} color="#666" />
+              <Ionicons name="cloud-offline-outline" size={32} color={t.textoTenue} />
               <EliteText style={s.emptyText}>Tus registros no se pudieron leer. Revisa tu conexión.</EliteText>
             </View>
           ) : data.length < 3 ? (
             <View style={s.emptyChart}>
-              <Ionicons name="analytics-outline" size={32} color="#666" />
+              <Ionicons name="analytics-outline" size={32} color={t.textoTenue} />
               <EliteText style={s.emptyText}>Registra al menos 3 días para ver gráficas</EliteText>
             </View>
           ) : (
@@ -165,8 +170,12 @@ export default function CycleChartsScreen() {
         <View style={s.toggleRow}>
           {params.map(p => (
             <AnimatedPressable key={p.key} onPress={() => toggleParam(p.key)}>
-              <View style={[s.togglePill, p.enabled && { backgroundColor: `${p.color}20`, borderColor: p.color }]}>
-                <EliteText style={[s.toggleText, p.enabled && { color: p.color }]}>{p.label}</EliteText>
+              {/* Manual 3.9: en claro el toggle activo es RELLENO con negro
+                  encima (el color del parámetro como letra no se lee). */}
+              <View style={[s.togglePill, p.enabled && (t.kind === 'dark'
+                ? { backgroundColor: `${p.color}20`, borderColor: p.color }
+                : { backgroundColor: p.color, borderColor: p.color })]}>
+                <EliteText style={[s.toggleText, p.enabled && { color: t.kind === 'dark' ? p.color : TEXT_COLORS.onAccent }]}>{p.label}</EliteText>
               </View>
             </AnimatedPressable>
           ))}
@@ -192,7 +201,8 @@ export default function CycleChartsScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
 
   chartCard: { marginTop: Spacing.md },
@@ -203,7 +213,7 @@ const s = StyleSheet.create({
     gap: 8,
   },
   emptyText: {
-    color: '#666',
+    color: t.textoTenue,
     fontSize: FontSizes.sm,
     fontFamily: Fonts.regular,
     textAlign: 'center',
@@ -219,14 +229,15 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    // Vidrio del kit (Card glass): translúcido claro sobre acero.
+    backgroundColor: t.kind === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.55)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: t.kind === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(15,21,24,0.08)',
   },
   toggleText: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
-    color: '#666',
+    color: t.textoTenue,
   },
 
   legend: {
@@ -248,6 +259,6 @@ const s = StyleSheet.create({
   legendText: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,
-    color: '#888',
+    color: t.textoSecundario,
   },
 });
