@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Palomeado: relleno lima #A8E02A con la paloma en negro encima
+     (13.36 AAA, manual 3.6 regla 1 — el lima jamás es texto en claro,
+     es relleno). Colores fijos en ambos temas: es el acento contado. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+  android:width="24dp"
+  android:height="24dp"
+  android:viewportWidth="24"
+  android:viewportHeight="24">
+  <path
+    android:pathData="M12,2.5 a9.5,9.5 0 1,0 0,19 a9.5,9.5 0 1,0 0,-19"
+    android:fillColor="#A8E02A" />
+  <path
+    android:pathData="M7.5,12.2 L10.6,15.3 L16.5,9.2"
+    android:strokeColor="#000000"
+    android:strokeWidth="1.8"
+    android:strokeLineCap="round"
+    android:strokeLineJoin="round"
+    android:fillColor="#00000000" />
+</vector>

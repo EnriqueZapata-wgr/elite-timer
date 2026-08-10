@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copy es-MX, cap. 8 del manual: sin em dash, sin promesas, honesto. -->
+<resources>
+  <string name="widget_habitos_label">ATP · Hábitos</string>
+  <string name="widget_habitos_desc">Tus hábitos del momento, palomeables sin abrir la app.</string>
+  <string name="widget_habitos_header_hoy">HOY</string>
+  <string name="widget_habitos_header">HOY · %1$s</string>
+  <string name="widget_abre_atp">Abre ATP para conectar tu día</string>
+  <string name="widget_check_desc">Palomear hábito</string>
+  <plurals name="widget_habitos_mas">
+    <item quantity="one">%d pendiente más en ATP</item>
+    <item quantity="other">%d pendientes más en ATP</item>
+  </plurals>
+</resources>

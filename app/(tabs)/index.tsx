@@ -45,6 +45,7 @@ import { haptic } from '@/src/utils/haptics';
 import { generateDailyInsight, invalidateDailyInsight, ARGOS_INSIGHT_CHANGED_EVENT } from '@/src/services/argos-service';
 import { getWeeklyInsight, isWeeklyInsightTime, type WeeklyInsightData } from '@/src/services/weekly-insight-service';
 import { syncAppAvisos } from '@/src/services/app-avisos-service';
+import { syncWidgetsFromCompiled } from '@/src/services/widgets/widget-sync-service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TopBanner } from '@/src/components/global/TopBanner';
 // hotfix-ux FIX 4: toast de reacción ARGOS + atribución al ganar electrones.
@@ -99,6 +100,9 @@ export default function TodayScreen() {
         const done: Record<string, boolean> = {};
         for (const e of compiled.booleanElectrons) done[e.source] = e.completed;
         syncAppAvisos(user.id, done).catch(() => {});
+        // MB-32: el widget pinta este MISMO compile (fuente única, cero
+        // queries extra). Fire-and-forget: un fallo jamás rompe HOY.
+        syncWidgetsFromCompiled(user.id, compiled).catch(() => {});
       }
     } catch (e) {
       console.warn('Error compiling day:', e);

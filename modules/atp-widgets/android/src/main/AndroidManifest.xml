@@ -1,0 +1,39 @@
+<!--
+  MB-32 — Widgets de pantalla de inicio (Android).
+
+  EL CANDADO (pieza 0): este módulo NO conoce Supabase. Un tap en el widget
+  encola una acción en SharedPreferences y despierta al runtime de JS
+  (AtpWidgetActionService, un HeadlessJsTaskService); el único que escribe
+  es src/services/widgets/widget-actions.ts, por los writers canónicos.
+
+  Permiso que este módulo introduce:
+  - WAKE_LOCK (permiso normal, se concede solo): mantiene el proceso
+    despierto los ~2 segundos que tarda el registro tras un tap en el
+    widget con la pantalla por apagarse. Es el patrón documentado de
+    HeadlessJsTaskService.acquireWakeLockNow.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+  <application>
+    <receiver
+      android:name="expo.modules.atpwidgets.HabitosWidgetProvider"
+      android:exported="true"
+      android:label="@string/widget_habitos_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/widget_habitos_info" />
+    </receiver>
+
+    <receiver
+      android:name="expo.modules.atpwidgets.WidgetTapReceiver"
+      android:exported="false" />
+
+    <service
+      android:name="expo.modules.atpwidgets.AtpWidgetActionService"
+      android:exported="false" />
+  </application>
+</manifest>

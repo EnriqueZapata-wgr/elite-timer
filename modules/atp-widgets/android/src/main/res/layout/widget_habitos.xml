@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MB-32 · Widget de hábitos. Solo views compatibles con RemoteViews.
+  Fondo sólido (nunca transparente: el widget vive sobre el fondo del
+  usuario); colores de texto y fondo se resuelven por tema en Kotlin.
+  Tipografía Poppins vía res/font (API 26+, minSdk 26).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/hab_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:orientation="vertical"
+  android:background="@drawable/widget_bg_dark"
+  android:paddingStart="14dp"
+  android:paddingEnd="14dp"
+  android:paddingTop="12dp"
+  android:paddingBottom="10dp">
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal">
+
+    <TextView
+      android:id="@+id/hab_header"
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_weight="1"
+      android:fontFamily="@font/poppins_semibold"
+      android:letterSpacing="0.12"
+      android:textSize="10sp"
+      android:maxLines="1"
+      android:text="@string/widget_habitos_header_hoy" />
+
+    <TextView
+      android:id="@+id/hab_resumen"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:fontFamily="@font/poppins_semibold"
+      android:textSize="10sp"
+      android:maxLines="1" />
+  </LinearLayout>
+
+  <TextView
+    android:id="@+id/hab_vacio"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:gravity="center"
+    android:fontFamily="@font/poppins_regular"
+    android:textSize="13sp"
+    android:visibility="gone" />
+
+  <LinearLayout
+    android:id="@+id/hab_row1"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:orientation="horizontal"
+    android:gravity="center_vertical">
+
+    <ImageView
+      android:id="@+id/hab_check1"
+      android:layout_width="22dp"
+      android:layout_height="22dp"
+      android:layout_marginEnd="10dp"
+      android:src="@drawable/ic_atp_check_off"
+      android:contentDescription="@string/widget_check_desc" />
+
+    <TextView
+      android:id="@+id/hab_name1"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:fontFamily="@font/poppins_regular"
+      android:textSize="13sp"
+      android:maxLines="1"
+      android:ellipsize="end" />
+  </LinearLayout>
+
+  <LinearLayout
+    android:id="@+id/hab_row2"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:orientation="horizontal"
+    android:gravity="center_vertical">
+
+    <ImageView
+      android:id="@+id/hab_check2"
+      android:layout_width="22dp"
+      android:layout_height="22dp"
+      android:layout_marginEnd="10dp"
+      android:src="@drawable/ic_atp_check_off"
+      android:contentDescription="@string/widget_check_desc" />
+
+    <TextView
+      android:id="@+id/hab_name2"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:fontFamily="@font/poppins_regular"
+      android:textSize="13sp"
+      android:maxLines="1"
+      android:ellipsize="end" />
+  </LinearLayout>
+
+  <LinearLayout
+    android:id="@+id/hab_row3"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:orientation="horizontal"
+    android:gravity="center_vertical">
+
+    <ImageView
+      android:id="@+id/hab_check3"
+      android:layout_width="22dp"
+      android:layout_height="22dp"
+      android:layout_marginEnd="10dp"
+      android:src="@drawable/ic_atp_check_off"
+      android:contentDescription="@string/widget_check_desc" />
+
+    <TextView
+      android:id="@+id/hab_name3"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:fontFamily="@font/poppins_regular"
+      android:textSize="13sp"
+      android:maxLines="1"
+      android:ellipsize="end" />
+  </LinearLayout>
+
+  <LinearLayout
+    android:id="@+id/hab_row4"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:orientation="horizontal"
+    android:gravity="center_vertical">
+
+    <ImageView
+      android:id="@+id/hab_check4"
+      android:layout_width="22dp"
+      android:layout_height="22dp"
+      android:layout_marginEnd="10dp"
+      android:src="@drawable/ic_atp_check_off"
+      android:contentDescription="@string/widget_check_desc" />
+
+    <TextView
+      android:id="@+id/hab_name4"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:fontFamily="@font/poppins_regular"
+      android:textSize="13sp"
+      android:maxLines="1"
+      android:ellipsize="end" />
+  </LinearLayout>
+
+  <TextView
+    android:id="@+id/hab_footer"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="2dp"
+    android:fontFamily="@font/poppins_regular"
+    android:textSize="10sp"
+    android:maxLines="1"
+    android:visibility="gone" />
+</LinearLayout>

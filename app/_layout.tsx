@@ -42,6 +42,7 @@ import { AtpThemeProvider } from '@/src/contexts/theme-context';
 import { THEME_DARK } from '@/src/constants/brand';
 import { NightVeil } from '@/src/components/theme/NightVeil';
 import { NotificationActionsBridge } from '@/src/components/NotificationActionsBridge';
+import { WidgetSyncBridge } from '@/src/components/WidgetSyncBridge';
 import { ArgosPresenceProvider } from '@/src/components/argos/ArgosPresenceContext';
 import { ArgosFloatingButton } from '@/src/components/argos/ArgosFloatingButton';
 import { HomeFloatingButton } from '@/src/components/ui/HomeFloatingButton';
@@ -158,6 +159,9 @@ function RootLayout() {
           <NightFilterBridge />
           {/* MB-30B: categorías con botones + despacho de respuestas de aviso */}
           <NotificationActionsBridge />
+          {/* MB-32: replay de taps del widget (cola → writers canónicos) +
+              limpieza al cerrar sesión */}
+          <WidgetSyncBridge />
           {/* MB-31A: el motor de temas (4 modos) + velo nocturno in-app.
               Vive DENTRO de AuthProvider: adaptativo necesita el horario
               real del usuario (despertar + corte de pantallas). */}

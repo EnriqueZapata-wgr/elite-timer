@@ -22,6 +22,8 @@
  * idempotente; el agua NUNCA colapsa: cada +250 cuenta).
  */
 
+import { VERIFIED_ELECTRON_KEYS } from '@/src/services/hoy/day-booleans';
+
 export type WidgetAction =
   | { id: string; kind: 'toggle_habit'; source: string; next: boolean }
   | { id: string; kind: 'add_water'; ml: number };
@@ -40,7 +42,11 @@ function esAccionValida(x: unknown): x is WidgetAction {
   if (a.kind === 'toggle_habit') {
     return (
       typeof a.source === 'string' && a.source.length > 0 && a.source.length <= 60 &&
-      typeof a.next === 'boolean'
+      typeof a.next === 'boolean' &&
+      // Los VERIFICADOS jamás se palomean por declaración: su check nace de
+      // actividad real y el widget solo abre la app. Una acción así en la
+      // cola es malformada (o un snapshot corrupto) y se tira.
+      !(VERIFIED_ELECTRON_KEYS as readonly string[]).includes(a.source)
     );
   }
   if (a.kind === 'add_water') {

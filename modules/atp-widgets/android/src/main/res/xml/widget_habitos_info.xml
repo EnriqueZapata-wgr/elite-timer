@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MB-32 · Info del widget de hábitos: 4x2 por defecto, redimensionable.
+  updatePeriodMillis = 30 min (el mínimo del sistema): recalcula momento y
+  tema aunque la app no corra; los cambios reales llegan al instante por
+  push del snapshot o por el tap optimista.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+  android:minWidth="250dp"
+  android:minHeight="110dp"
+  android:minResizeWidth="180dp"
+  android:minResizeHeight="70dp"
+  android:targetCellWidth="4"
+  android:targetCellHeight="2"
+  android:resizeMode="horizontal|vertical"
+  android:updatePeriodMillis="1800000"
+  android:initialLayout="@layout/widget_habitos"
+  android:previewLayout="@layout/widget_habitos"
+  android:description="@string/widget_habitos_desc"
+  android:widgetCategory="home_screen" />
