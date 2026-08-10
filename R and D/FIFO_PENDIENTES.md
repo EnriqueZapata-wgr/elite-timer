@@ -1,6 +1,13 @@
 # 📋 FIFO · todo lo que quedó pendiente
 
-**Actualizado:** 9-ago-2026 (noche), MB-31A (`feat/mb31a-temas`, el motor de
+**Actualizado:** 10-ago-2026, MB-32 (`feat/mb32-widgets`, los widgets Android)
+ENTREGADO y SIN mergear: espera audit de Cowork. **TRAE CÓDIGO NATIVO: exige
+BUILD (sin OTA), el bump de versión va con el build después del merge.**
+Candado pieza 0: el widget no escribe (cola + drenador por writers canónicos)
+y `persistBooleanToggle` ya es el writer atómico por-fuente que B6b esperaba
+(serializado + lectura fresca, `day-write-lock.ts`). Ver
+`DELIVERY_MB32_WIDGETS.md`.
+Actualización previa: MB-31A (`feat/mb31a-temas`, el motor de
 temas) ENTREGADO y SIN mergear: espera audit de Cowork. Tokens de los dos
 temas en brand.ts (acero del manual 3.6 + oscuro intacto), cuatro modos
 (default oscuro; adaptativo con el horario del usuario), velo nocturno
@@ -108,6 +115,34 @@ queda sin arreglar (regla de la Pieza 2):
 
 ---
 
+# 📲 MB-32 (widgets Android) — lo que se destapó y NO era de este run
+
+**Rama `feat/mb32-widgets`, 10-ago-2026.** Ver `DELIVERY_MB32_WIDGETS.md`.
+
+- **Atomicidad cross-DISPOSITIVO del blob `daily_electrons`:** el candado de
+  MB-32 es por-proceso (un teléfono). Dos dispositivos escribiendo el mismo
+  día siguen en leer-mezclar-escribir; el cierre total es mezclar en el
+  servidor (RPC con `electrons || jsonb_build_object(...)`, SECURITY INVOKER,
+  revoke anon). Hardening opcional, no regresión: ese caso ya existía.
+- **Widgets iOS:** especificados en el delivery (apple-targets + App Group,
+  SIN subir versión mínima: mostrar desde 15.1, interactivo 17+). El hueco
+  del candado en iOS (sin HeadlessJS: sync tardío o abrir la app) es
+  **decisión de producto de Enrique** antes de su run.
+- **`WAKE_LOCK` vive en el manifest del módulo** (mergea solo). Si se quiere
+  visible en `app.json` para la revisión de tiendas (patrón MB-30B), es una
+  línea al hacer el build.
+- **HeadlessJsTaskService + new architecture**: soportado desde RN 0.77,
+  pero el punto 8 del checklist de device (tap con app MUERTA) es la
+  verificación real. El plan B (abrir la app + replay) ya queda cableado.
+- **El momento del widget** (mañana/tarde/noche) se recalcula como máximo
+  cada 30 min sin app (mínimo del sistema): al cruzar las 12:00/18:00 puede
+  tardar hasta media hora en cambiar de bloque. El contenido real siempre
+  llega al instante (push + optimista).
+- **El botón de sol de B6b** quedó desbloqueado (ver B6b): una línea en el
+  catálogo de notificaciones, para un run de notificaciones.
+
+---
+
 # 🔴 A · ABIERTO Y VERIFICADO
 
 ## ~~A1 · Los iconos siguen mezclados~~ ✅ CERRADO (MB-28A · pieza 0.1)
@@ -206,9 +241,13 @@ build de MB-30 para verse en device** (el módulo nativo no viaja por OTA).
 - **"Ya lo hice" del SOL como acción de notificación:** su writer
   (`persistBooleanToggle`) exige el mapa de estados del día; un
   leer-mezclar-escribir del blob desde un handler en frío puede pisar
-  estados — la misma corrupción que el run vino a evitar. Cuando exista un
+  estados — la misma corrupción que el run vino a evitar. ~~Cuando exista un
   writer atómico por-fuente, el botón se agrega en una línea al catálogo
-  (`notification-actions-core.ts`).
+  (`notification-actions-core.ts`).~~ ✅ **El writer atómico YA existe
+  (MB-32 P0):** `persistBooleanToggle` serializa por `day-write-lock.ts` y
+  mezcla sobre lectura fresca — es seguro desde un handler en frío. El botón
+  de sol ahora sí es una línea al catálogo; MB-32 no lo agregó (fuera de su
+  alcance). Queda como quick win de un run de notificaciones.
 - **El filtro nocturno no sobrevive un reboot** hasta que la app se vuelve
   a abrir (el bridge re-arma). Es a conciencia: `RECEIVE_BOOT_COMPLETED` es
   otro permiso cuestionado en revisión y no lo vale para V1.

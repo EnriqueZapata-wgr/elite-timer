@@ -25,7 +25,7 @@ import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { persistBooleanToggle } from '@/src/services/hoy/tarea-actions';
 import { addWater } from '@/src/services/hydration-service';
-import { parseWidgetActions, planDrain } from '@/src/services/widgets/widget-actions-core';
+import { idsInQueue, parseWidgetActions, planDrain } from '@/src/services/widgets/widget-actions-core';
 import { getWidgetsNative, type NativeAtpWidgets } from '@/src/services/widgets/widget-bridge';
 import {
   patchHabitCompleted,
@@ -58,19 +58,22 @@ async function drain(): Promise<{ ejecutadas: number }> {
   if (!native) return { ejecutadas: 0 };
 
   let acciones;
+  let todosLosIds: string[];
   try {
-    acciones = parseWidgetActions(native.getPendingActions());
+    const crudo = native.getPendingActions();
+    acciones = parseWidgetActions(crudo);
+    todosLosIds = idsInQueue(crudo);
   } catch {
     return { ejecutadas: 0 };
   }
-  if (acciones.length === 0) return { ejecutadas: 0 };
+  if (todosLosIds.length === 0) return { ejecutadas: 0 };
 
   const { data } = await supabase.auth.getSession();
   const userId = data.session?.user?.id ?? null;
   if (!userId) {
     // Sin sesión el widget NO escribe (test 6): la cola muere (esas acciones
     // ya no son de nadie) y el widget invita a abrir la app.
-    native.markActionsHandled(acciones.map((a) => a.id));
+    native.markActionsHandled(todosLosIds);
     try {
       native.setSnapshot('habitos', JSON.stringify(snapshotSignedOut()));
     } catch { /* fail-soft */ }
@@ -79,8 +82,9 @@ async function drain(): Promise<{ ejecutadas: number }> {
 
   const plan = planDrain(acciones, new Set<string>());
   const planIds = new Set(plan.map((p) => p.id));
-  // Lo colapsado/duplicado se marca atendido sin ejecutarse.
-  const obsoletas = acciones.filter((a) => !planIds.has(a.id)).map((a) => a.id);
+  // Lo que no va a ejecutarse (malformado, colapsado, duplicado) se marca
+  // atendido YA: si se quedara en la cola, se re-parsearía por siempre.
+  const obsoletas = todosLosIds.filter((id) => !planIds.has(id));
   if (obsoletas.length > 0) native.markActionsHandled(obsoletas);
 
   let ejecutadas = 0;

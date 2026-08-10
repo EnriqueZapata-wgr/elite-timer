@@ -76,6 +76,31 @@ export function parseWidgetActions(json: string | null | undefined): WidgetActio
 }
 
 /**
+ * TODOS los ids presentes en la cola cruda, válidos o no. El drenador marca
+ * atendido lo que no va a ejecutar (malformado, colapsado, duplicado): una
+ * acción que se tira del plan pero se queda en la cola viviría ahí para
+ * siempre, re-parseada en cada drenado.
+ */
+export function idsInQueue(json: string | null | undefined): string[] {
+  if (!json) return [];
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(raw)) return [];
+  const ids: string[] = [];
+  for (const item of raw) {
+    if (typeof item === 'object' && item !== null) {
+      const id = (item as { id?: unknown }).id;
+      if (typeof id === 'string' && id.length > 0 && id.length <= 80) ids.push(id);
+    }
+  }
+  return ids;
+}
+
+/**
  * El plan de drenado de una cola:
  *   1. fuera lo ya atendido (dedup por id — el replay del arranque en frío
  *      no puede duplicar, misma doctrina que markResponseHandled de MB-30B);

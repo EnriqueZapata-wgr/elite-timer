@@ -167,9 +167,30 @@ completo; iOS queda especificado para su propio run.
 
 ---
 
-# PIEZA 5 · Tests (resultados reales)
+# PIEZA 5 · Tests (resultados reales, no intención)
 
-*Se llena en el commit de la pieza 5 con los números de la corrida real.*
+**30 tests nuevos en 2 archivos** (`src/services/widgets/__tests__/`), suite
+completa **3530/3530 en verde**, `tsc` limpio, censo sin huérfanas nuevas.
+
+- `mb32-candado.test.ts` (8): supabase fake-eado STATEFUL (el blob evoluciona
+  con cada upsert) — el pisado, la serialización, el drenado por writers
+  canónicos, el doble conteo y el sin-sesión se ejercitan de verdad, no de
+  palabra.
+- `mb32-widget-snapshot.test.ts` (22): tri-estado, palomeable de verificados,
+  momento, tema (payload + espejo Kotlin + fondos sólidos + llave compartida
+  con theme-context), cola (parse/plan/ids), parches con resultado real, y
+  los contratos estáticos sobre el fuente (TS, Kotlin, manifest, entry).
+
+**Las 4 mutaciones se EJECUTARON y truenan** (aplicada → corrida → revertida):
+
+| Mutación | Qué rompe | Resultado |
+|---|---|---|
+| El writer mezcla sobre el mapa del caller (sin lectura fresca) | el candado de B6b | **3 tests fallan** |
+| `conCandadoDelDia` deja de serializar (`return op()`) | la carrera widget+app | **1 test falla** (orden read-write-read-write) |
+| El filtro graduado/reposo se apaga en el snapshot | tri-estado MB-26 | **1 test falla** |
+| El Kotlin del widget conoce una URL de Supabase | una escritura, un camino | **1 test falla** ("no debe hablar con la red") |
+
+Suite final tras revertir: 3530/3530 en verde.
 
 ---
 
