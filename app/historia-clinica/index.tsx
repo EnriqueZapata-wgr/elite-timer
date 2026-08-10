@@ -2,7 +2,7 @@
  * Historia Clínica — índice de cuestionarios funcionales (T3/HC5).
  * Una card por cuestionario; muestra ✓ cuando ya fue respondido. Tap → /historia-clinica/[category].
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,13 +16,17 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { HC_QUESTIONNAIRES } from '@/src/constants/historia-clinica-questionnaires';
 import { loadHistoriaClinica, completedCategories } from '@/src/services/historia-clinica-service';
 
 export default function HistoriaClinicaIndex() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [done, setDone] = useState<Set<string>>(new Set());
   // D-2 (MB-12): fallo de red ≠ "0 de M completados".
   const [loadFailed, setLoadFailed] = useState(false);
@@ -38,7 +42,7 @@ export default function HistoriaClinicaIndex() {
   const completed = done.size;
 
   return (
-    <Screen>
+    <Screen themed>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         <PillarHeader pillar="health" title="Historia Clínica" />
 
@@ -66,7 +70,7 @@ export default function HistoriaClinicaIndex() {
                     </View>
                     {isDone
                       ? <Ionicons name="checkmark-circle" size={22} color={q.color} />
-                      : <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.secondary} />}
+                      : <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />}
                   </View>
                 </GradientCard>
               </AnimatedPressable>
@@ -80,13 +84,14 @@ export default function HistoriaClinicaIndex() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md },
-  subtitle: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginBottom: Spacing.lg, marginTop: Spacing.xs },
+  subtitle: { color: t.textoSecundario, fontSize: FontSizes.sm, marginBottom: Spacing.lg, marginTop: Spacing.xs },
   card: { padding: Spacing.md, marginBottom: Spacing.sm },
   cardContent: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   iconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   cardInfo: { flex: 1 },
-  cardName: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT_COLORS.primary, marginBottom: 2 },
-  cardSub: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs },
+  cardName: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: t.texto, marginBottom: 2 },
+  cardSub: { color: t.textoSecundario, fontSize: FontSizes.xs },
 });

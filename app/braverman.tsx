@@ -20,7 +20,8 @@ import Animated, {
 import { supabase } from '../src/lib/supabase';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
-import { ELEVATION, TEXT, ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { TEXT, ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ThemeReady, useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, Spacing } from '@/constants/theme';
 import {
   BRAVERMAN_QUESTIONS,
@@ -54,6 +55,12 @@ type Screen = 'intro' | 'quiz' | 'transition' | 'results';
 
 function BravermanTest() {
   const insets = useSafeAreaInsets();
+  // MB-31B2: tokens del tema (el gate envuelve en <ThemeReady>). El hero del
+  // intro es editorial (foto + velo negro) y queda anclado con TEXT estático.
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
+  /** Color de acento como LETRA: solo en oscuro; sobre acero pasa a texto. */
+  const colTxt = (c: string) => (dark ? c : t.texto);
   const [screen, setScreen] = useState<Screen>('intro');
   const [currentPart, setCurrentPart] = useState(1);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -284,7 +291,7 @@ function BravermanTest() {
   if (screen === 'intro') {
     const neuros: Neurotransmitter[] = ['dopamine', 'acetylcholine', 'gaba', 'serotonin'];
     return (
-      <ScrollView style={{ flex: 1, backgroundColor: ELEVATION[0].bg }} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Hero cinematic: imagen ambient (ADN) bajo overlay fuerte → lee B/N */}
         <ImageBackground source={AMBIENT_IMG} style={{ width: '100%' }} imageStyle={{ opacity: 0.55 }}>
           <LinearGradient
@@ -308,8 +315,9 @@ function BravermanTest() {
               }}>
                 Test de Braverman
               </Text>
+              {/* Interior editorial (foto + velo negro): anclado, no se tematiza. */}
               <Text style={{
-                color: '#bbb', fontSize: 14, fontFamily: Fonts.regular,
+                color: 'rgba(255,255,255,0.73)', fontSize: 14, fontFamily: Fonts.regular,
                 textAlign: 'center', marginTop: 8, lineHeight: 22, maxWidth: 320,
               }}>
                 Tu perfil de neurotransmisores. Descubre tu naturaleza bioquímica dominante y observa posibles deficiencias.
@@ -328,15 +336,15 @@ function BravermanTest() {
                   entering={FadeInDown.delay(i * 60).springify()}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: 12,
-                    backgroundColor: ELEVATION[1].bg, borderRadius: 14, padding: 14,
-                    borderWidth: 1, borderColor: ELEVATION[1].border,
+                    backgroundColor: t.card, borderRadius: 14, padding: 14,
+                    borderWidth: 1, borderColor: t.borde,
                     borderLeftWidth: 3, borderLeftColor: meta.color,
                   }}
                 >
                   <Text style={{ fontSize: 24 }}>{meta.emoji}</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: TEXT.primary, fontSize: 14, fontFamily: Fonts.semiBold }}>{meta.name}</Text>
-                    <Text style={{ color: TEXT.tertiary, fontSize: 11, fontFamily: Fonts.regular }}>{meta.controls}</Text>
+                    <Text style={{ color: t.texto, fontSize: 14, fontFamily: Fonts.semiBold }}>{meta.name}</Text>
+                    <Text style={{ color: t.textoTenue, fontSize: 11, fontFamily: Fonts.regular }}>{meta.controls}</Text>
                   </View>
                 </Animated.View>
               );
@@ -344,17 +352,17 @@ function BravermanTest() {
           </View>
 
           <View style={{
-            backgroundColor: ELEVATION[1].bg, borderRadius: 16, padding: Spacing.md,
+            backgroundColor: t.card, borderRadius: 16, padding: Spacing.md,
             marginTop: Spacing.lg, width: '100%',
-            borderWidth: 1, borderColor: ELEVATION[1].border,
+            borderWidth: 1, borderColor: t.borde,
           }}>
             <Text style={{
-              color: BRAVERMAN, fontSize: 11, fontFamily: Fonts.semiBold,
+              color: dark ? BRAVERMAN : t.textoSecundario, fontSize: 11, fontFamily: Fonts.semiBold,
               letterSpacing: 2, marginBottom: 8,
             }}>
               CÓMO FUNCIONA
             </Text>
-            <Text style={{ color: '#ccc', fontSize: 13, fontFamily: Fonts.regular, lineHeight: 21 }}>
+            <Text style={{ color: t.texto, fontSize: 13, fontFamily: Fonts.regular, lineHeight: 21 }}>
               313 preguntas de Cierto/Falso divididas en 2 partes:{'\n'}
               {'\n'}• Parte 1: Tu naturaleza dominante (199 preguntas){'\n'}
               • Parte 2: Tus deficiencias actuales (114 preguntas){'\n'}
@@ -364,7 +372,7 @@ function BravermanTest() {
           </View>
 
           <Text style={{
-            color: TEXT.tertiary, fontSize: 10, fontFamily: Fonts.regular,
+            color: t.textoTenue, fontSize: 10, fontFamily: Fonts.regular,
             textAlign: 'center', marginTop: Spacing.md,
           }}>
             ~15-20 minutos · Basado en el modelo de perfiles de neurotransmisores
@@ -377,7 +385,7 @@ function BravermanTest() {
               width: '100%', alignItems: 'center', marginTop: Spacing.lg,
             }}
           >
-            <Text style={{ color: '#000', fontSize: 17, fontFamily: Fonts.extraBold }}>
+            <Text style={{ color: t.textoSobreLima, fontSize: 17, fontFamily: Fonts.extraBold }}>
               {answeredTotal > 0 ? 'CONTINUAR TEST' : 'INICIAR TEST'}
             </Text>
           </AnimatedPressable>
@@ -389,26 +397,26 @@ function BravermanTest() {
   // ═══ TRANSITION ═══
   if (screen === 'transition') {
     return (
-      <View style={{ flex: 1, backgroundColor: ELEVATION[0].bg, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+      <View style={{ flex: 1, backgroundColor: t.fondo, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
         <Animated.View entering={FadeInDown.duration(400).springify()} style={{ alignItems: 'center' }}>
           <Text style={{ fontSize: 48, marginBottom: Spacing.lg }}>🧬</Text>
-          <Text style={{ color: BRAVERMAN, fontSize: 11, fontFamily: Fonts.semiBold, letterSpacing: 2 }}>
+          <Text style={{ color: dark ? BRAVERMAN : t.textoSecundario, fontSize: 11, fontFamily: Fonts.semiBold, letterSpacing: 2 }}>
             PARTE 1 COMPLETADA
           </Text>
           <Text style={{
-            color: TEXT.primary, fontSize: 24, fontFamily: Fonts.extraBold,
+            color: t.texto, fontSize: 24, fontFamily: Fonts.extraBold,
             textAlign: 'center', marginTop: 8,
           }}>
             Tu naturaleza dominante está mapeada
           </Text>
           <Text style={{
-            color: TEXT.secondary, fontSize: 14, fontFamily: Fonts.regular,
+            color: t.textoSecundario, fontSize: 14, fontFamily: Fonts.regular,
             textAlign: 'center', marginTop: 12, lineHeight: 22,
           }}>
             Ahora viene la Parte 2: identificar tus deficiencias actuales.{'\n'}
             Responde según cómo te sientes AHORA MISMO, no cómo eres normalmente.
           </Text>
-          <Text style={{ color: TEXT.tertiary, fontSize: 12, fontFamily: Fonts.regular, marginTop: Spacing.md }}>
+          <Text style={{ color: t.textoTenue, fontSize: 12, fontFamily: Fonts.regular, marginTop: Spacing.md }}>
             114 preguntas restantes · ~5-8 minutos
           </Text>
         </Animated.View>
@@ -419,7 +427,7 @@ function BravermanTest() {
             width: '100%', alignItems: 'center', marginTop: 30,
           }}
         >
-          <Text style={{ color: '#000', fontSize: 16, fontFamily: Fonts.extraBold }}>CONTINUAR CON PARTE 2</Text>
+          <Text style={{ color: t.textoSobreLima, fontSize: 16, fontFamily: Fonts.extraBold }}>CONTINUAR CON PARTE 2</Text>
         </AnimatedPressable>
       </View>
     );
@@ -443,14 +451,14 @@ function BravermanTest() {
           onPress={() => answer(value)}
           style={{
             flex: 1,
-            backgroundColor: selected ? withOpacity(color, 0.12) : ELEVATION[1].bg,
+            backgroundColor: selected ? withOpacity(color, 0.12) : t.card,
             borderRadius: 20, paddingVertical: 20, alignItems: 'center',
             borderWidth: 1.5,
-            borderColor: selected ? withOpacity(color, 0.6) : ELEVATION[1].border,
+            borderColor: selected ? withOpacity(color, 0.6) : t.borde,
           }}
         >
           <Ionicons name={icon} size={32} color={color} />
-          <Text style={{ color: selected ? color : TEXT.primary, fontSize: 16, fontFamily: Fonts.bold, marginTop: 6 }}>
+          <Text style={{ color: selected ? (dark ? color : t.texto) : t.texto, fontSize: 16, fontFamily: Fonts.bold, marginTop: 6 }}>
             {label}
           </Text>
         </AnimatedPressable>
@@ -458,7 +466,7 @@ function BravermanTest() {
     };
 
     return (
-      <View style={{ flex: 1, backgroundColor: ELEVATION[0].bg }}>
+      <View style={{ flex: 1, backgroundColor: t.fondo }}>
         {/* Header */}
         <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 8, paddingBottom: 12 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -468,49 +476,49 @@ function BravermanTest() {
                 { text: 'OK', onPress: () => router.back() },
               ]);
             }} hitSlop={12}>
-              <Ionicons name="close" size={24} color={TEXT.secondary} />
+              <Ionicons name="close" size={24} color={t.textoSecundario} />
             </Pressable>
-            <Text style={{ color: TEXT.secondary, fontSize: 11, fontFamily: Fonts.semiBold, letterSpacing: 1 }}>
+            <Text style={{ color: t.textoSecundario, fontSize: 11, fontFamily: Fonts.semiBold, letterSpacing: 1 }}>
               {partLabel}
             </Text>
-            <Text style={{ color: BRAVERMAN, fontSize: 12, fontFamily: Fonts.bold }}>
+            <Text style={{ color: dark ? BRAVERMAN : t.textoSecundario, fontSize: 12, fontFamily: Fonts.bold }}>
               {currentIndex + 1}/{partQuestions}
             </Text>
           </View>
 
           {/* Progress minimal: parte (color del neurotransmisor) + total (lima) */}
           <View style={{ marginTop: 12, gap: 4 }}>
-            <View style={{ height: 3, backgroundColor: '#1a1a1a', borderRadius: 2 }}>
+            <View style={{ height: 3, backgroundColor: t.borde, borderRadius: 2 }}>
               <View style={{ height: 3, backgroundColor: neuroMeta.color, borderRadius: 2, width: `${progressPart}%` }} />
             </View>
-            <View style={{ height: 2, backgroundColor: '#0a0a0a', borderRadius: 1 }}>
+            <View style={{ height: 2, backgroundColor: t.hundido, borderRadius: 1 }}>
               <View style={{ height: 2, backgroundColor: ATP_BRAND.lime, borderRadius: 1, width: `${progressTotal}%` }} />
             </View>
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
             <Text style={{ fontSize: 16 }}>{neuroMeta.emoji}</Text>
-            <Text style={{ color: neuroMeta.color, fontSize: 11, fontFamily: Fonts.semiBold }}>{neuroMeta.name}</Text>
-            <Text style={{ color: TEXT.muted, fontSize: 11 }}>·</Text>
-            <Text style={{ color: TEXT.tertiary, fontSize: 11, fontFamily: Fonts.regular }}>{categoryLabel}</Text>
+            <Text style={{ color: colTxt(neuroMeta.color), fontSize: 11, fontFamily: Fonts.semiBold }}>{neuroMeta.name}</Text>
+            <Text style={{ color: t.sinDatos, fontSize: 11 }}>·</Text>
+            <Text style={{ color: t.textoTenue, fontSize: 11, fontFamily: Fonts.regular }}>{categoryLabel}</Text>
           </View>
         </View>
 
         {/* Question card — pieza aislada con aire, cross-fade entre preguntas */}
         <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 20 }}>
           <Animated.View style={[cardAnimStyle, {
-            backgroundColor: ELEVATION[1].bg, borderRadius: 24, padding: 32,
+            backgroundColor: t.card, borderRadius: 24, padding: 32,
             minHeight: 220, justifyContent: 'center',
-            borderWidth: 1, borderColor: ELEVATION[1].border,
+            borderWidth: 1, borderColor: t.borde,
           }]}>
             <Text style={{
-              color: TEXT.tertiary, fontSize: 10, fontFamily: Fonts.semiBold,
+              color: t.textoTenue, fontSize: 10, fontFamily: Fonts.semiBold,
               letterSpacing: 2, textAlign: 'center', marginBottom: Spacing.md,
             }}>
               PREGUNTA {currentIndex + 1}
             </Text>
             <Text style={{
-              color: TEXT.primary, fontSize: 21, fontFamily: Fonts.semiBold,
+              color: t.texto, fontSize: 21, fontFamily: Fonts.semiBold,
               textAlign: 'center', lineHeight: 32,
             }}>
               {currentQ.text}
@@ -527,8 +535,8 @@ function BravermanTest() {
                 gap: 6, marginTop: Spacing.md, paddingVertical: 8, paddingHorizontal: 16,
               }}
             >
-              <Ionicons name="chevron-back" size={16} color={TEXT.secondary} />
-              <Text style={{ color: TEXT.secondary, fontSize: 13, fontFamily: Fonts.semiBold }}>
+              <Ionicons name="chevron-back" size={16} color={t.textoSecundario} />
+              <Text style={{ color: t.textoSecundario, fontSize: 13, fontFamily: Fonts.semiBold }}>
                 Pregunta anterior
               </Text>
             </AnimatedPressable>
@@ -567,18 +575,18 @@ function BravermanTest() {
     const defMeta = NEUROTRANSMITTER_META[primaryDef];
 
     return (
-      <ScrollView style={{ flex: 1, backgroundColor: ELEVATION[0].bg }} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 }}>
         <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 16 }}>
           {/* Reveal editorial: cada sección entra en fade + desplazamiento sutil */}
           <Animated.View entering={FadeIn.duration(400)}>
             <Text style={{
-              color: BRAVERMAN, fontSize: 11, fontFamily: Fonts.semiBold,
+              color: dark ? BRAVERMAN : t.textoSecundario, fontSize: 11, fontFamily: Fonts.semiBold,
               letterSpacing: 2, textAlign: 'center',
             }}>
               TU PERFIL DE NEUROTRANSMISORES
             </Text>
             <Text style={{
-              color: TEXT.primary, fontSize: 28, fontFamily: Fonts.extraBold,
+              color: t.texto, fontSize: 28, fontFamily: Fonts.extraBold,
               textAlign: 'center', marginTop: 8,
             }}>
               Test de Braverman
@@ -592,16 +600,16 @@ function BravermanTest() {
           }}>
             <Text style={{ fontSize: 48 }}>{domMeta.emoji}</Text>
             <Text style={{
-              color: TEXT.secondary, fontSize: 10, fontFamily: Fonts.semiBold,
+              color: t.textoSecundario, fontSize: 10, fontFamily: Fonts.semiBold,
               letterSpacing: 2, marginTop: 12,
             }}>
               TU NATURALEZA DOMINANTE
             </Text>
-            <Text style={{ color: domMeta.color, fontSize: 28, fontFamily: Fonts.extraBold, marginTop: 4 }}>
+            <Text style={{ color: colTxt(domMeta.color), fontSize: 28, fontFamily: Fonts.extraBold, marginTop: 4 }}>
               {domMeta.name}
             </Text>
             <Text style={{
-              color: '#ccc', fontSize: 13, fontFamily: Fonts.regular,
+              color: t.texto, fontSize: 13, fontFamily: Fonts.regular,
               textAlign: 'center', marginTop: 8, lineHeight: 20,
             }}>
               {domMeta.dominantTraits}
@@ -621,21 +629,21 @@ function BravermanTest() {
             >
               <Text style={{ fontSize: 24 }}>🧠</Text>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: '#A8E02A', fontSize: 14, fontFamily: Fonts.bold }}>
+                <Text style={{ color: dark ? '#A8E02A' : t.tealTexto, fontSize: 14, fontFamily: Fonts.bold }}>
                   Reporte PREMIUM ARGOS
                 </Text>
-                <Text style={{ color: '#999', fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 }}>
+                <Text style={{ color: t.textoSecundario, fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 }}>
                   Análisis profundo de tus 4 naturalezas + plan específico
                 </Text>
               </View>
-              <Text style={{ color: '#A8E02A', fontSize: 16 }}>→</Text>
+              <Text style={{ color: dark ? '#A8E02A' : t.tealTexto, fontSize: 16 }}>→</Text>
             </AnimatedPressable>
           </Animated.View>
 
           {/* Dominance bars */}
           <Animated.View entering={FadeInDown.delay(200).springify()}>
           <Text style={{
-            color: TEXT.secondary, fontSize: 10, fontFamily: Fonts.semiBold,
+            color: t.textoSecundario, fontSize: 10, fontFamily: Fonts.semiBold,
             letterSpacing: 2, marginTop: Spacing.lg, marginBottom: 12,
           }}>
             DOMINANCIAS
@@ -648,14 +656,14 @@ function BravermanTest() {
             return (
               <View key={nt} style={{ marginBottom: 10 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Text style={{ color: '#ccc', fontSize: 13, fontFamily: Fonts.semiBold }}>
+                  <Text style={{ color: t.texto, fontSize: 13, fontFamily: Fonts.semiBold }}>
                     {meta.emoji} {meta.name}
                   </Text>
-                  <Text style={{ color: meta.color, fontSize: 13, fontFamily: Fonts.bold }}>
+                  <Text style={{ color: colTxt(meta.color), fontSize: 13, fontFamily: Fonts.bold }}>
                     {score}/{maxPossible}
                   </Text>
                 </View>
-                <View style={{ height: 8, backgroundColor: '#1a1a1a', borderRadius: 4 }}>
+                <View style={{ height: 8, backgroundColor: t.borde, borderRadius: 4 }}>
                   <View style={{ height: 8, backgroundColor: meta.color, borderRadius: 4, width: `${pct}%` }} />
                 </View>
               </View>
@@ -668,14 +676,14 @@ function BravermanTest() {
             backgroundColor: withOpacity(DEFICIENCY_COLORS[defLevel], 0.06), borderRadius: 20, padding: 24, marginTop: Spacing.lg,
             borderWidth: 1, borderColor: withOpacity(DEFICIENCY_COLORS[defLevel], 0.2), alignItems: 'center',
           }}>
-            <Text style={{ color: TEXT.secondary, fontSize: 10, fontFamily: Fonts.semiBold, letterSpacing: 2 }}>
+            <Text style={{ color: t.textoSecundario, fontSize: 10, fontFamily: Fonts.semiBold, letterSpacing: 2 }}>
               DEFICIENCIA PRINCIPAL
             </Text>
-            <Text style={{ color: DEFICIENCY_COLORS[defLevel], fontSize: 22, fontFamily: Fonts.extraBold, marginTop: 4 }}>
+            <Text style={{ color: colTxt(DEFICIENCY_COLORS[defLevel]), fontSize: 22, fontFamily: Fonts.extraBold, marginTop: 4 }}>
               {defMeta.name} · {DEFICIENCY_LABELS[defLevel]}
             </Text>
             <Text style={{
-              color: '#ccc', fontSize: 13, fontFamily: Fonts.regular,
+              color: t.texto, fontSize: 13, fontFamily: Fonts.regular,
               textAlign: 'center', marginTop: 8, lineHeight: 20,
             }}>
               {defMeta.deficientSymptoms}
@@ -685,7 +693,7 @@ function BravermanTest() {
           {/* Deficiency bars */}
           <Animated.View entering={FadeInDown.delay(360).springify()}>
           <Text style={{
-            color: TEXT.secondary, fontSize: 10, fontFamily: Fonts.semiBold,
+            color: t.textoSecundario, fontSize: 10, fontFamily: Fonts.semiBold,
             letterSpacing: 2, marginTop: Spacing.lg, marginBottom: 12,
           }}>
             DEFICIENCIAS
@@ -697,17 +705,17 @@ function BravermanTest() {
             return (
               <View key={nt} style={{ marginBottom: 10 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Text style={{ color: '#ccc', fontSize: 13, fontFamily: Fonts.semiBold }}>
+                  <Text style={{ color: t.texto, fontSize: 13, fontFamily: Fonts.semiBold }}>
                     {meta.emoji} {meta.name}
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={{ color: DEFICIENCY_COLORS[level], fontSize: 11, fontFamily: Fonts.semiBold }}>
+                    <Text style={{ color: colTxt(DEFICIENCY_COLORS[level]), fontSize: 11, fontFamily: Fonts.semiBold }}>
                       {DEFICIENCY_LABELS[level]}
                     </Text>
-                    <Text style={{ color: TEXT.secondary, fontSize: 13, fontFamily: Fonts.regular }}>{score}</Text>
+                    <Text style={{ color: t.textoSecundario, fontSize: 13, fontFamily: Fonts.regular }}>{score}</Text>
                   </View>
                 </View>
-                <View style={{ height: 6, backgroundColor: '#1a1a1a', borderRadius: 3 }}>
+                <View style={{ height: 6, backgroundColor: t.borde, borderRadius: 3 }}>
                   <View style={{
                     height: 6, borderRadius: 3,
                     backgroundColor: DEFICIENCY_COLORS[level],
@@ -722,7 +730,7 @@ function BravermanTest() {
           {/* PERFIL DETALLADO */}
           <Animated.View entering={FadeInDown.delay(440).springify()} style={{ marginTop: Spacing.lg }}>
             <Text style={{
-              color: TEXT.secondary, fontSize: 10, fontFamily: Fonts.semiBold,
+              color: t.textoSecundario, fontSize: 10, fontFamily: Fonts.semiBold,
               letterSpacing: 2, marginBottom: 12,
             }}>
               TU PERFIL DETALLADO
@@ -730,14 +738,14 @@ function BravermanTest() {
 
             {/* Naturaleza dominante — descripción completa */}
             <View style={{
-              backgroundColor: ELEVATION[1].bg, borderRadius: 16, padding: 20, marginBottom: 12,
-              borderWidth: 1, borderColor: ELEVATION[1].border,
+              backgroundColor: t.card, borderRadius: 16, padding: 20, marginBottom: 12,
+              borderWidth: 1, borderColor: t.borde,
               borderLeftWidth: 3, borderLeftColor: domMeta.color,
             }}>
-              <Text style={{ color: domMeta.color, fontSize: 14, fontFamily: Fonts.bold, marginBottom: 8 }}>
+              <Text style={{ color: colTxt(domMeta.color), fontSize: 14, fontFamily: Fonts.bold, marginBottom: 8 }}>
                 {domMeta.emoji} Naturaleza {domMeta.name}
               </Text>
-              <Text style={{ color: '#ccc', fontSize: 13, fontFamily: Fonts.regular, lineHeight: 21 }}>
+              <Text style={{ color: t.texto, fontSize: 13, fontFamily: Fonts.regular, lineHeight: 21 }}>
                 {NEUROTRANSMITTER_PROFILES[dominantType].fullDescription}
               </Text>
             </View>
@@ -745,20 +753,20 @@ function BravermanTest() {
             {/* Deficiencia principal — síntomas + por qué importa */}
             {defLevel !== 'none' && (
               <View style={{
-                backgroundColor: ELEVATION[1].bg, borderRadius: 16, padding: 20, marginBottom: 12,
-                borderWidth: 1, borderColor: ELEVATION[1].border,
+                backgroundColor: t.card, borderRadius: 16, padding: 20, marginBottom: 12,
+                borderWidth: 1, borderColor: t.borde,
                 borderLeftWidth: 3, borderLeftColor: DEFICIENCY_COLORS[defLevel],
               }}>
-                <Text style={{ color: DEFICIENCY_COLORS[defLevel], fontSize: 14, fontFamily: Fonts.bold, marginBottom: 8 }}>
+                <Text style={{ color: colTxt(DEFICIENCY_COLORS[defLevel]), fontSize: 14, fontFamily: Fonts.bold, marginBottom: 8 }}>
                   Deficiencia de {defMeta.name}
                 </Text>
-                <Text style={{ color: '#ccc', fontSize: 13, fontFamily: Fonts.regular, lineHeight: 21, marginBottom: 12 }}>
+                <Text style={{ color: t.texto, fontSize: 13, fontFamily: Fonts.regular, lineHeight: 21, marginBottom: 12 }}>
                   {NEUROTRANSMITTER_PROFILES[primaryDef].deficiencyDetail}
                 </Text>
-                <Text style={{ color: TEXT.secondary, fontSize: 11, fontFamily: Fonts.semiBold, marginBottom: 8 }}>
+                <Text style={{ color: t.textoSecundario, fontSize: 11, fontFamily: Fonts.semiBold, marginBottom: 8 }}>
                   PROBLEMAS ASOCIADOS:
                 </Text>
-                <Text style={{ color: TEXT.secondary, fontSize: 12, fontFamily: Fonts.regular, lineHeight: 20 }}>
+                <Text style={{ color: t.textoSecundario, fontSize: 12, fontFamily: Fonts.regular, lineHeight: 20 }}>
                   {NEUROTRANSMITTER_PROFILES[primaryDef].associatedProblems}
                 </Text>
               </View>
@@ -769,10 +777,10 @@ function BravermanTest() {
               backgroundColor: withOpacity(ATP_BRAND.lime, 0.06), borderRadius: 16, padding: 20,
               borderWidth: 1, borderColor: withOpacity(ATP_BRAND.lime, 0.1),
             }}>
-              <Text style={{ color: ATP_BRAND.lime, fontSize: 14, fontFamily: Fonts.bold, marginBottom: 8 }}>
+              <Text style={{ color: dark ? ATP_BRAND.lime : t.tealTexto, fontSize: 14, fontFamily: Fonts.bold, marginBottom: 8 }}>
                 ¿Qué significa para tu salud?
               </Text>
-              <Text style={{ color: '#ccc', fontSize: 13, fontFamily: Fonts.regular, lineHeight: 21 }}>
+              <Text style={{ color: t.texto, fontSize: 13, fontFamily: Fonts.regular, lineHeight: 21 }}>
                 Tu cerebro tiene naturaleza {domMeta.name.toLowerCase()} ({domMeta.controls.toLowerCase()}).
                 {defLevel !== 'none' ? ` Este perfil, con tu deficiencia principal en ${defMeta.name.toLowerCase()}, suele venir acompañado de: ${defMeta.deficientSymptoms.toLowerCase()}.` : ''}
                 {'\n\n'}ARGOS usará este perfil como contexto para orientar tu nutrición, tu ejercicio y tus protocolos. Lo que registres de suplementos sigue siendo tuyo: qué tomar y cuánto se define con quien te lleva.
@@ -784,12 +792,12 @@ function BravermanTest() {
               dosificación — nombres sí, cantidades nunca. */}
           <Animated.View entering={FadeInDown.delay(520).springify()} style={{ marginTop: Spacing.lg }}>
             <Text style={{
-              color: TEXT.secondary, fontSize: 10, fontFamily: Fonts.semiBold,
+              color: t.textoSecundario, fontSize: 10, fontFamily: Fonts.semiBold,
               letterSpacing: 2, marginBottom: 12,
             }}>
               QUÉ SE ASOCIA A TU PERFIL
             </Text>
-            <Text style={{ color: TEXT.tertiary, fontSize: 11, fontFamily: Fonts.regular, marginBottom: 16 }}>
+            <Text style={{ color: t.textoTenue, fontSize: 11, fontFamily: Fonts.regular, marginBottom: 16 }}>
               Basado en TODAS tus deficiencias, no solo la principal
             </Text>
 
@@ -805,17 +813,17 @@ function BravermanTest() {
                 <View key={nt} style={{ marginBottom: 16 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <Text style={{ fontSize: 16 }}>{meta.emoji}</Text>
-                    <Text style={{ color: meta.color, fontSize: 13, fontFamily: Fonts.bold }}>
+                    <Text style={{ color: colTxt(meta.color), fontSize: 13, fontFamily: Fonts.bold }}>
                       {meta.name} · {DEFICIENCY_LABELS[level]}
                     </Text>
                   </View>
                   {supps.supplements.slice(0, 4).map((supp, i) => (
                     <View key={i} style={{
                       flexDirection: 'row', justifyContent: 'space-between',
-                      backgroundColor: ELEVATION[1].bg, borderRadius: 8, padding: 10, marginBottom: 3,
-                      borderWidth: 1, borderColor: ELEVATION[1].border,
+                      backgroundColor: t.card, borderRadius: 8, padding: 10, marginBottom: 3,
+                      borderWidth: 1, borderColor: t.borde,
                     }}>
-                      <Text style={{ color: '#ccc', fontSize: 12, fontFamily: Fonts.regular, flex: 1 }}>{supp.name}</Text>
+                      <Text style={{ color: t.texto, fontSize: 12, fontFamily: Fonts.regular, flex: 1 }}>{supp.name}</Text>
                     </View>
                   ))}
                 </View>
@@ -825,7 +833,7 @@ function BravermanTest() {
             <View style={{
               backgroundColor: 'rgba(251,191,36,0.08)', borderRadius: 12, padding: 14, marginTop: 8,
             }}>
-              <Text style={{ color: '#fbbf24', fontSize: 11, fontFamily: Fonts.regular }}>
+              <Text style={{ color: dark ? '#fbbf24' : t.textoSecundario, fontSize: 11, fontFamily: Fonts.regular }}>
                 Esto es orientación educativa. Qué tomar y cuánto se define con quien te lleva.
               </Text>
             </View>
@@ -836,16 +844,16 @@ function BravermanTest() {
             <AnimatedPressable onPress={() => router.back()} style={{
               backgroundColor: ATP_BRAND.lime, borderRadius: 16, padding: 16, alignItems: 'center',
             }}>
-              <Text style={{ color: '#000', fontSize: 16, fontFamily: Fonts.extraBold }}>VOLVER A ATP</Text>
+              <Text style={{ color: t.textoSobreLima, fontSize: 16, fontFamily: Fonts.extraBold }}>VOLVER A ATP</Text>
             </AnimatedPressable>
             <AnimatedPressable onPress={() => {
               setResponses({}); setCurrentPart(1); setCurrentIndex(0);
               setResultId(null); setScreen('intro');
             }} style={{
-              backgroundColor: ELEVATION[1].bg, borderRadius: 16, padding: 14, alignItems: 'center',
-              borderWidth: 1, borderColor: ELEVATION[1].border,
+              backgroundColor: t.card, borderRadius: 16, padding: 14, alignItems: 'center',
+              borderWidth: 1, borderColor: t.borde,
             }}>
-              <Text style={{ color: TEXT.secondary, fontSize: 14, fontFamily: Fonts.semiBold }}>Repetir test</Text>
+              <Text style={{ color: t.textoSecundario, fontSize: 14, fontFamily: Fonts.semiBold }}>Repetir test</Text>
             </AnimatedPressable>
           </Animated.View>
         </View>
@@ -865,7 +873,10 @@ export default function BravermanTestGated() {
 
   return (
     <MedicalDisclaimerGate>
-      <BravermanTest />
+      {/* MB-31B2: la pantalla ya migró sus colores — scope del tema. */}
+      <ThemeReady>
+        <BravermanTest />
+      </ThemeReady>
     </MedicalDisclaimerGate>
   );
 }
