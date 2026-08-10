@@ -10,10 +10,11 @@
  * La edad cronológica NO se captura: se DERIVA de date_of_birth (Mariana #2: la app
  * mostraba una edad que no correspondía → aquí el usuario la ve y corrige su fecha).
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, TextInput, Alert, ScrollView, KeyboardAvoidingView, Platform, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 // Módulo nativo — require con try/catch para compat OTA (igual que my-health).
 let ImagePicker: any = null;
@@ -33,7 +34,8 @@ import { base64ToUint8Array } from '@/src/utils/base64';
 import { parseLocalDate, getLocalToday } from '@/src/utils/date-helpers';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { userErrorMessage } from '@/src/utils/user-error';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
@@ -55,6 +57,10 @@ export default function ProfileScreen() {
 
   const router = useRouter();
   const { user } = useAuth();
+
+  // MB-31B remate: pantalla sin dueño en el reparto — tokens del tema.
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
 
   const [name, setName] = useState('');
   const [day, setDay] = useState('');
@@ -266,12 +272,14 @@ export default function ProfileScreen() {
   }
 
   return (
+    <ThemeReady>
     <SafeAreaView style={styles.container}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         {/* Header con back */}
         <View style={styles.header}>
           <AnimatedPressable onPress={() => { haptic.light(); router.back(); }} hitSlop={12} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={24} color="#888" />
+            <Ionicons name="chevron-back" size={24} color={t.textoSecundario} />
           </AnimatedPressable>
           <EliteText style={styles.headerTitle}>PERFIL</EliteText>
           <View style={{ width: 24 }} />
@@ -283,7 +291,7 @@ export default function ProfileScreen() {
             <Pressable onPress={chooseAvatar} disabled={avatarUploading} style={styles.avatarTap}>
               <UserAvatar uri={avatarUrl} name={name || user?.email || 'A'} size={88} />
               <View style={styles.cameraBadge}>
-                <Ionicons name="camera" size={14} color="#000" />
+                <Ionicons name="camera" size={14} color={t.textoSobreLima} />
               </View>
               {avatarUploading && (
                 <View style={styles.avatarSpinner}>
@@ -304,7 +312,7 @@ export default function ProfileScreen() {
             <TextInput
               style={styles.input}
               placeholder="Tu nombre"
-              placeholderTextColor="#444"
+              placeholderTextColor={t.sinDatos}
               value={name}
               onChangeText={setName}
               autoCapitalize="words"
@@ -318,21 +326,21 @@ export default function ProfileScreen() {
             <View style={styles.dateRow}>
               <TextInput
                 style={[styles.input, styles.dateInput]}
-                placeholder="DD" placeholderTextColor="#444"
+                placeholder="DD" placeholderTextColor={t.sinDatos}
                 value={day} onChangeText={(t) => setDay(t.replace(/\D/g, '').slice(0, 2))}
                 keyboardType="number-pad" maxLength={2}
               />
               <EliteText style={styles.dateSep}>/</EliteText>
               <TextInput
                 style={[styles.input, styles.dateInput]}
-                placeholder="MM" placeholderTextColor="#444"
+                placeholder="MM" placeholderTextColor={t.sinDatos}
                 value={month} onChangeText={(t) => setMonth(t.replace(/\D/g, '').slice(0, 2))}
                 keyboardType="number-pad" maxLength={2}
               />
               <EliteText style={styles.dateSep}>/</EliteText>
               <TextInput
                 style={[styles.input, styles.dateInputYear]}
-                placeholder="AAAA" placeholderTextColor="#444"
+                placeholder="AAAA" placeholderTextColor={t.sinDatos}
                 value={year} onChangeText={(t) => setYear(t.replace(/\D/g, '').slice(0, 4))}
                 keyboardType="number-pad" maxLength={4}
               />
@@ -348,14 +356,14 @@ export default function ProfileScreen() {
                 style={[styles.sexBtn, sex === 'male' && styles.sexBtnActive]}
                 onPress={() => { haptic.light(); setSex('male'); }}
               >
-                <Ionicons name="man-outline" size={24} color={sex === 'male' ? '#000' : '#666'} />
+                <Ionicons name="man-outline" size={24} color={sex === 'male' ? t.textoSobreLima : t.textoTenue} />
                 <EliteText style={[styles.sexBtnText, sex === 'male' && styles.sexBtnTextActive]}>Hombre</EliteText>
               </AnimatedPressable>
               <AnimatedPressable
                 style={[styles.sexBtn, sex === 'female' && styles.sexBtnActive]}
                 onPress={() => { haptic.light(); setSex('female'); }}
               >
-                <Ionicons name="woman-outline" size={24} color={sex === 'female' ? '#000' : '#666'} />
+                <Ionicons name="woman-outline" size={24} color={sex === 'female' ? t.textoSobreLima : t.textoTenue} />
                 <EliteText style={[styles.sexBtnText, sex === 'female' && styles.sexBtnTextActive]}>Mujer</EliteText>
               </AnimatedPressable>
             </View>
@@ -375,51 +383,57 @@ export default function ProfileScreen() {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </ThemeReady>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.fondo },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingTop: 8, paddingBottom: 8 },
   backBtn: { padding: 2 },
-  headerTitle: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#fff', letterSpacing: 2 },
+  headerTitle: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: t.texto, letterSpacing: 2 },
   scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
   avatarWrap: { alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 8 },
   avatarTap: { position: 'relative' },
   cameraBadge: {
     position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14,
     backgroundColor: ATP_BRAND.lime, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: '#000',
+    // El aro que recorta el badge sobre el avatar es el color del lienzo.
+    borderWidth: 2, borderColor: t.fondo,
   },
   avatarSpinner: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 44,
+    // Velo oscuro sobre la foto: constante en los dos temas.
     backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
   },
-  ageText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: ATP_BRAND.lime },
-  ageHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#555', textAlign: 'center' },
-  inputLabel: { fontSize: 10, fontFamily: Fonts.semiBold, color: '#888', letterSpacing: 2, marginTop: 24, marginBottom: 8 },
-  inputHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#444', marginTop: -4, marginBottom: 8 },
+  // Regla 1 del manual: el lima nunca es letra en claro — teal calibrado.
+  ageText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
+  ageHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.textoTenue, textAlign: 'center' },
+  inputLabel: { fontSize: 10, fontFamily: Fonts.semiBold, color: t.textoSecundario, letterSpacing: 2, marginTop: 24, marginBottom: 8 },
+  inputHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.sinDatos, marginTop: -4, marginBottom: 8 },
   input: {
-    backgroundColor: '#0a0a0a', borderRadius: Radius.lg, paddingHorizontal: 16, paddingVertical: 14,
-    fontSize: FontSizes.md, fontFamily: Fonts.regular, color: '#fff', borderWidth: 0.5, borderColor: '#222',
+    backgroundColor: t.hundido, borderRadius: Radius.lg, paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: FontSizes.md, fontFamily: Fonts.regular, color: t.texto, borderWidth: 0.5, borderColor: t.borde,
   },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dateInput: { flex: 1, textAlign: 'center' },
   dateInputYear: { flex: 1.5, textAlign: 'center' },
-  dateSep: { fontSize: FontSizes.lg, fontFamily: Fonts.regular, color: '#444' },
+  dateSep: { fontSize: FontSizes.lg, fontFamily: Fonts.regular, color: t.sinDatos },
   sexRow: { flexDirection: 'row', gap: 12 },
   sexBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#0a0a0a', borderRadius: Radius.lg, paddingVertical: 16, borderWidth: 1, borderColor: '#222',
+    backgroundColor: t.hundido, borderRadius: Radius.lg, paddingVertical: 16, borderWidth: 1, borderColor: t.borde,
   },
   sexBtnActive: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
-  sexBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#666' },
-  sexBtnTextActive: { color: '#000' },
+  sexBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: t.textoTenue },
+  sexBtnTextActive: { color: t.textoSobreLima },
   bottomBar: { paddingHorizontal: Spacing.md, paddingBottom: 40, paddingTop: 8 },
   saveBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  saveBtnDisabled: { backgroundColor: '#1a1a1a' },
-  saveBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  // Era #1a1a1a a mano; rol = relleno recedido de botón deshabilitado.
+  saveBtnDisabled: { backgroundColor: t.hundido },
+  saveBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: t.textoSobreLima, letterSpacing: 1 },
 });

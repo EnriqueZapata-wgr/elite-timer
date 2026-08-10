@@ -7,11 +7,12 @@
  * clavado en los 6 defaults de la migración 043). Los MANDATORY son core y
  * no se apagan — se muestran como fijos.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { StatusBar } from 'expo-status-bar';
 
 import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
@@ -30,7 +31,8 @@ import {
 } from '@/src/services/hoy/electron-prefs-service';
 import { getHabitStates, reactivarHabitos } from '@/src/services/hoy/habit-states-service';
 import { estadosPorKey, estadoDe, type HabitEstado } from '@/src/services/hoy/habit-states-core';
-import { ELEVATION, TEXT, ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 // Sin fuente hasta wearables (mismo filtro que day-compiler).
@@ -45,6 +47,9 @@ const MANDATORY_LABELS: Record<string, string> = {
 };
 
 export default function HoyHabitosScreen() {
+  // MB-31B remate: pantalla sin dueño en el reparto — tokens del tema.
+  const { kind: themeKind, tokens: t } = useAppTheme();
+  const s = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const [prefs, setPrefs] = useState<ElectronPrefs | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -155,7 +160,7 @@ export default function HoyHabitosScreen() {
           <Ionicons
             name={active ? 'checkmark-circle' : estadoLabel === 'En reposo' ? 'moon-outline' : estadoLabel === 'Graduado' ? 'ribbon-outline' : 'ellipse-outline'}
             size={22}
-            color={active ? ATP_BRAND.lime : TEXT.tertiary}
+            color={active ? ATP_BRAND.lime : t.textoTenue}
           />
         </AnimatedPressable>
       </Animated.View>
@@ -163,7 +168,8 @@ export default function HoyHabitosScreen() {
   };
 
   return (
-    <Screen edges={[]}>
+    <Screen themed edges={[]}>
+      <StatusBar style={themeKind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Mis hábitos" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <EliteText variant="caption" style={s.intro}>
@@ -173,8 +179,8 @@ export default function HoyHabitosScreen() {
 
         {loadFailed && (
           <View style={s.row}>
-            <Ionicons name="cloud-offline-outline" size={18} color={TEXT.secondary} />
-            <EliteText variant="caption" style={{ color: TEXT.secondary, flex: 1 }}>
+            <Ionicons name="cloud-offline-outline" size={18} color={t.textoSecundario} />
+            <EliteText variant="caption" style={{ color: t.textoSecundario, flex: 1 }}>
               Tu configuración no se pudo leer. Revisa tu conexión y vuelve a entrar.
             </EliteText>
           </View>
@@ -209,24 +215,27 @@ export default function HoyHabitosScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingBottom: 80 },
-  intro: { color: TEXT.secondary, lineHeight: 19, marginBottom: Spacing.sm },
+  intro: { color: t.textoSecundario, lineHeight: 19, marginBottom: Spacing.sm },
   sectionTitle: {
-    color: ATP_BRAND.lime, fontSize: FontSizes.xs, fontFamily: Fonts.bold,
+    // Regla 1 del manual: el lima nunca es texto en claro → teal calibrado.
+    color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto,
+    fontSize: FontSizes.xs, fontFamily: Fonts.bold,
     letterSpacing: 3, marginTop: Spacing.lg, marginBottom: Spacing.sm,
   },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg, borderRadius: Radius.card,
-    borderWidth: 1, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card, borderRadius: Radius.card,
+    borderWidth: 1, borderColor: t.borde,
     padding: Spacing.md, marginBottom: Spacing.sm,
   },
   iconWrap: {
     width: 34, height: 34, borderRadius: 17,
     alignItems: 'center', justifyContent: 'center',
   },
-  rowName: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
-  rowWeight: { color: TEXT.tertiary, marginTop: 1 },
-  mandatoryNote: { color: TEXT.secondary, lineHeight: 19 },
+  rowName: { color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  rowWeight: { color: t.textoTenue, marginTop: 1 },
+  mandatoryNote: { color: t.textoSecundario, lineHeight: 19 },
 });

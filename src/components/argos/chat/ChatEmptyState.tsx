@@ -3,12 +3,14 @@
  * Las sugerencias ya no son seis chips fijos: proponen algo de HOY
  * (argos-suggestions-core decide; la pantalla carga las señales).
  */
+import { useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
 import type { ChatSuggestion } from '@/src/services/argos-suggestions-core';
-import { ATP_BRAND, BG, BORDER, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { Fonts, FontSizes } from '@/constants/theme';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface Props {
   suggestions: ChatSuggestion[];
@@ -16,6 +18,10 @@ interface Props {
 }
 
 export function ChatEmptyState({ suggestions, onPick }: Props) {
+  // MB-31B remate: componente compartido — lee el scope, no el tema global
+  // (regla de tránsito: fuera de <ThemeReady> sigue oscuro).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   return (
     <View style={s.wrap}>
       <ArgosOrb state="idle" size={80} style={{ marginBottom: 16 }} />
@@ -36,13 +42,13 @@ export function ChatEmptyState({ suggestions, onPick }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   wrap: { alignItems: 'center', paddingVertical: 40 },
   title: {
-    color: TEXT.primary, fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, marginBottom: 4,
+    color: t.texto, fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, marginBottom: 4,
   },
   subtitle: {
-    color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.regular,
+    color: t.textoSecundario, fontSize: FontSizes.sm, fontFamily: Fonts.regular,
     textAlign: 'center', marginBottom: 24, paddingHorizontal: 20, lineHeight: 19,
   },
   chips: {
@@ -50,12 +56,12 @@ const s = StyleSheet.create({
   },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: BG.input, borderRadius: 20,
+    backgroundColor: t.hundido, borderRadius: 20,
     paddingVertical: 10, paddingHorizontal: 14,
-    borderWidth: 1, borderColor: BORDER.card,
+    borderWidth: 1, borderColor: t.borde,
   },
   chipText: {
-    color: withOpacity(ATP_BRAND.white, 0.8), fontSize: FontSizes.sm, fontFamily: Fonts.regular,
+    color: withOpacity(t.texto, 0.8), fontSize: FontSizes.sm, fontFamily: Fonts.regular,
     flexShrink: 1,
   },
 });

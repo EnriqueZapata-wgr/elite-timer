@@ -2,6 +2,15 @@
  * Pantalla de Login — Entry point de la app.
  *
  * Branding ELITE + campos de email/password + links a registro y recuperación.
+ *
+ * MB-31B remate: esta pantalla NO se envuelve en <ThemeReady> a propósito.
+ * Toda su superficie la pone AuthScreen (componente compartido de auth con
+ * gradiente oscuro fijo #0A0E14→#000 y logo dark), y EliteInput/EliteButton
+ * son kit oscuro hardcodeado. El flujo de auth completo (login/register/
+ * forgot/reset) queda OSCURO en los dos modos —como la card editorial— hasta
+ * que se tematice AuthScreen + kit en su propio run. Aquí no hay ningún hex
+ * neutro a mano: los grises salen de Colors.* y el scope sin ThemeReady
+ * entrega el oscuro canónico, que es exactamente lo que este fondo necesita.
  */
 import { useState } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image, Dimensions } from 'react-native';

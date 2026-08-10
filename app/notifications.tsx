@@ -5,11 +5,12 @@
  * INSIGHT ARGOS del día (antes vivía en el modal de la campana del HOY — se preserva aquí).
  * Estilo editorial: mismo patrón que /agenda (gradient + título grande + fecha lima).
  */
-import { useState, useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { Screen } from '@/src/components/ui/Screen';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { EliteText } from '@/components/elite-text';
@@ -20,7 +21,8 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import {
   listNotifications, markNotificationRead, markAllNotificationsRead, type UserNotification,
 } from '@/src/services/user-notifications-service';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { ArgosMark } from '@/src/components/argos/ArgosMark';
 import { openArgosChat } from '@/src/services/argos-nav';
 import { Spacing, FontSizes, Fonts, Radius } from '@/constants/theme';
@@ -41,6 +43,9 @@ function relativeTime(iso: string): string {
 }
 
 export default function NotificationsScreen() {
+  // MB-31B remate: pantalla sin dueño en el reparto — tokens del tema.
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const userId = user?.id;
   const [items, setItems] = useState<UserNotification[]>([]);
@@ -115,8 +120,11 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <Screen>
-      <LinearGradient colors={['#000000', '#0A0A0A', '#000000']} style={StyleSheet.absoluteFill} />
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
+      {/* Mismo patrón editorial que /agenda: el gradiente sutil sale de los
+          tokens (en oscuro son los valores de siempre). */}
+      <LinearGradient colors={[t.fondo, t.hundido, t.fondo]} style={StyleSheet.absoluteFill} />
 
       <View style={styles.headerRow}>
         <BackButton onPress={() => router.back()} />
@@ -152,7 +160,7 @@ export default function NotificationsScreen() {
 
           {items.length === 0 ? (
             <View style={styles.empty}>
-              <Ionicons name="notifications-off-outline" size={48} color="rgba(255,255,255,0.2)" />
+              <Ionicons name="notifications-off-outline" size={48} color={t.sinDatos} />
               <EliteText style={styles.emptyTitle}>No tienes notificaciones</EliteText>
               <EliteText style={styles.emptyText}>
                 Configura recordatorios en tu agenda para no perderte nada.
@@ -180,7 +188,10 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema. Los rellenos y bordes
+// lima translúcidos (chip, insight) son identidad y se quedan; el lima como
+// LETRA cae al teal calibrado en claro (regla 1 del manual).
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   headerRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing.md, paddingTop: Spacing.sm,
@@ -189,10 +200,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(168,224,42,0.12)', borderWidth: 0.5, borderColor: 'rgba(168,224,42,0.4)',
     paddingHorizontal: Spacing.md, paddingVertical: 5, borderRadius: Radius.pill,
   },
-  chipText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
+  chipText: {
+    color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto,
+    fontFamily: Fonts.semiBold, fontSize: FontSizes.xs,
+  },
   titleBlock: { paddingHorizontal: Spacing.md, paddingTop: Spacing.xs, paddingBottom: Spacing.md },
-  title: { color: '#fff', fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, letterSpacing: 2 },
-  subtitle: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 3, marginTop: 3 },
+  title: { color: t.texto, fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, letterSpacing: 2 },
+  subtitle: {
+    color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto,
+    fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 3, marginTop: 3,
+  },
   list: { paddingHorizontal: Spacing.md, paddingTop: Spacing.xs },
   insightCard: {
     flexDirection: 'row', gap: 12, padding: Spacing.md, borderRadius: Radius.card,
@@ -203,22 +220,25 @@ const styles = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(168,224,42,0.15)',
     alignItems: 'center', justifyContent: 'center',
   },
-  insightLabel: { color: ATP_BRAND.lime, fontSize: 9, fontFamily: Fonts.bold, letterSpacing: 1.5 },
-  insightText: { color: '#ccc', fontSize: FontSizes.sm, lineHeight: 20, marginTop: 4, fontFamily: Fonts.regular },
+  insightLabel: {
+    color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto,
+    fontSize: 9, fontFamily: Fonts.bold, letterSpacing: 1.5,
+  },
+  insightText: { color: t.texto, fontSize: FontSizes.sm, lineHeight: 20, marginTop: 4, fontFamily: Fonts.regular },
   item: {
     flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm,
     paddingVertical: Spacing.md, paddingHorizontal: Spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.borde,
   },
-  itemUnread: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: Radius.sm },
+  itemUnread: { backgroundColor: t.hundido, borderRadius: Radius.sm },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: ATP_BRAND.lime, marginTop: 6 },
   dotPlaceholder: { width: 7, height: 7, marginTop: 6 },
-  itemTitle: { color: 'rgba(255,255,255,0.75)', fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
-  itemTitleUnread: { color: '#fff' },
-  itemBody: { color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.regular, fontSize: FontSizes.sm, marginTop: 2, lineHeight: 19 },
-  itemTime: { color: 'rgba(255,255,255,0.35)', fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: 2 },
+  itemTitle: { color: t.textoSecundario, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  itemTitleUnread: { color: t.texto },
+  itemBody: { color: t.textoSecundario, fontFamily: Fonts.regular, fontSize: FontSizes.sm, marginTop: 2, lineHeight: 19 },
+  itemTime: { color: t.textoTenue, fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: 2 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', paddingVertical: Spacing.xl * 2, gap: Spacing.sm, paddingHorizontal: Spacing.lg },
-  emptyTitle: { color: '#fff', fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginTop: Spacing.sm },
-  emptyText: { color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.regular, fontSize: FontSizes.sm, textAlign: 'center', lineHeight: 20 },
+  emptyTitle: { color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginTop: Spacing.sm },
+  emptyText: { color: t.textoSecundario, fontFamily: Fonts.regular, fontSize: FontSizes.sm, textAlign: 'center', lineHeight: 20 },
 });

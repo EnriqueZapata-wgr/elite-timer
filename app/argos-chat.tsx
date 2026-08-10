@@ -13,6 +13,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { View, FlatList, KeyboardAvoidingView, Platform, AppState } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import { supabase } from '../src/lib/supabase';
@@ -55,9 +56,13 @@ import { ChatEmptyState } from '@/src/components/argos/chat/ChatEmptyState';
 import { MessageBubble } from '@/src/components/argos/chat/MessageBubble';
 import { TypingIndicator } from '@/src/components/argos/chat/TypingIndicator';
 import { MessageActionsMenu } from '@/src/components/argos/chat/MessageActionsMenu';
-import { BG } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 function ArgosChat() {
+  // MB-31B remate: pantalla sin dueño en el reparto — tokens del tema.
+  // Solo el lienzo vive aquí: las piezas del chat (header, burbujas, input)
+  // son compartidas de src/components/argos/chat/ y quedan fuera de este run.
+  const { kind, tokens: t } = useAppTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   // N1: solo mostrar back-arrow si hay a dónde volver (deep link / push).
@@ -407,7 +412,9 @@ function ArgosChat() {
   const listItems = useMemo(() => buildChatListItems(messages), [messages]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG.screen }}>
+    <ThemeReady>
+    <View style={{ flex: 1, backgroundColor: t.fondo }}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       {/* #23: banner contextual flotante (debajo del header de ARGOS) */}
       <TopBanner offset={60} />
       <ChatHeader
@@ -559,6 +566,7 @@ function ArgosChat() {
         onDecline={() => setVoiceConsentModal(false)}
       />
     </View>
+    </ThemeReady>
   );
 }
 

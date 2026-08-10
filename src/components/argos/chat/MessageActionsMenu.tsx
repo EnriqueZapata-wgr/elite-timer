@@ -1,12 +1,14 @@
 /**
  * MessageActionsMenu — menú propio del long-press en burbuja (MB-21 P4.4).
  * Antes era un Alert nativo; ahora un sheet en el lenguaje de la app
- * (ELEVATION[3] = popover flotante).
+ * (t.flotante = hoja modal / menú emergente del tema).
  */
+import { useMemo } from 'react';
 import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ATP_BRAND, ELEVATION, TEXT } from '@/src/constants/brand';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface Props {
   visible: boolean;
@@ -18,6 +20,10 @@ interface Props {
 }
 
 export function MessageActionsMenu({ visible, canEdit, onCopy, onEdit, onClose }: Props) {
+  // MB-31B remate: componente compartido — lee el scope, no el tema global
+  // (regla de tránsito: fuera de <ThemeReady> sigue oscuro).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.backdrop} onPress={onClose}>
@@ -41,23 +47,27 @@ export function MessageActionsMenu({ visible, canEdit, onCopy, onEdit, onClose }
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   backdrop: {
+    // Scrim del modal: negro atenuado a propósito en los dos modos (estándar
+    // de overlay; no hay token de scrim y no se inventa).
     flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end', paddingHorizontal: Spacing.md, paddingBottom: 32,
   },
   sheet: {
-    backgroundColor: ELEVATION[3].bg, borderWidth: 1, borderColor: ELEVATION[3].border,
+    backgroundColor: t.flotante, borderWidth: 1, borderColor: t.bordeMarcado,
     borderRadius: Radius.md, overflow: 'hidden',
   },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: Spacing.md, paddingVertical: 15,
   },
-  rowPressed: { backgroundColor: ELEVATION[2].bg },
-  rowText: { color: TEXT.primary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+  // Feedback de presión: superficie recedida (más oscura que la hoja en los
+  // dos modos; t.flotante aquí la haría invisible porque ES el fondo).
+  rowPressed: { backgroundColor: t.hundido },
+  rowText: { color: t.texto, fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
   cancelRow: {
-    justifyContent: 'center', borderTopWidth: 0.5, borderTopColor: ELEVATION[3].border,
+    justifyContent: 'center', borderTopWidth: 0.5, borderTopColor: t.bordeMarcado,
   },
-  cancelText: { color: TEXT.secondary, fontSize: FontSizes.md, fontFamily: Fonts.regular },
+  cancelText: { color: t.textoSecundario, fontSize: FontSizes.md, fontFamily: Fonts.regular },
 });

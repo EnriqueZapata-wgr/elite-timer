@@ -11,7 +11,7 @@
  * honesta para dejar configurados los Atajos del sistema + Night Shift. El
  * copy vive en ios-guide-copy.ts y tiene barrido de honestidad en tests.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, ScrollView, Platform, Alert, AppState, StyleSheet, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -37,10 +37,14 @@ import {
 } from '@/src/services/night-filter-core';
 import { timeToMinutes } from '@/src/services/notification-prefs-core';
 import { IOS_GUIDE_INTRO, IOS_GUIDE_STEPS, IOS_GUIDE_FOOTER } from '@/src/components/night-filter/ios-guide-copy';
-import { Colors, Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { Fonts, Spacing, Radius } from '@/constants/theme';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 export default function NightFilterScreen() {
+  // MB-31B remate: pantalla sin dueño en el reparto — tokens del tema.
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const router = useRouter();
   const { user } = useAuth();
   const [cutoff, setCutoff] = useState<string>('21:45');
@@ -120,8 +124,9 @@ export default function NightFilterScreen() {
   // ── Rama iOS: la guía honesta ──
   if (Platform.OS === 'ios') {
     return (
-      <View style={ui.screenRoot}>
-        <StatusBar style="light" />
+      <ThemeReady>
+      <View style={[ui.screenRoot, { backgroundColor: t.fondo }]}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <ScreenHeader title="Filtro nocturno" onBack={() => router.back()} />
         <ScrollView showsVerticalScrollIndicator={false}>
           <Animated.View entering={FadeInUp.delay(80).springify()} style={styles.hero}>
@@ -131,7 +136,7 @@ export default function NightFilterScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(140).springify()} style={styles.cutoffCard}>
-            <Ionicons name="time-outline" size={18} color={Colors.textSecondary} />
+            <Ionicons name="time-outline" size={18} color={t.textoSecundario} />
             <EliteText variant="caption" style={styles.cutoffText}>
               Tu corte de pantallas en ATP: {cutoff}. Úsalo como hora de la automatización.
             </EliteText>
@@ -163,7 +168,7 @@ export default function NightFilterScreen() {
                 });
               }}
             >
-              <Ionicons name="open-outline" size={18} color="#000" />
+              <Ionicons name="open-outline" size={18} color={t.textoSobreLima} />
               <EliteText variant="body" style={styles.shortcutsBtnText}>Abrir Atajos</EliteText>
             </AnimatedPressable>
             <EliteText variant="caption" style={styles.footer}>{IOS_GUIDE_FOOTER}</EliteText>
@@ -172,6 +177,7 @@ export default function NightFilterScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       </View>
+      </ThemeReady>
     );
   }
 
@@ -182,8 +188,9 @@ export default function NightFilterScreen() {
   }));
 
   return (
-    <View style={ui.screenRoot}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[ui.screenRoot, { backgroundColor: t.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Filtro nocturno" onBack={() => router.back()} />
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInUp.delay(80).springify()} style={styles.hero}>
@@ -255,7 +262,7 @@ export default function NightFilterScreen() {
             </Animated.View>
 
             <Animated.View entering={FadeInUp.delay(250).springify()} style={styles.noteCard}>
-              <Ionicons name="notifications-outline" size={16} color={Colors.textSecondary} />
+              <Ionicons name="notifications-outline" size={16} color={t.textoSecundario} />
               <EliteText variant="caption" style={styles.noteText}>
                 Mientras el filtro está encendido, Android muestra un aviso fijo con el
                 botón "Apagar filtro". Ese aviso no se puede ocultar — es tu salida de
@@ -268,10 +275,13 @@ export default function NightFilterScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema. El ámbar es marca
+// (acento del filtro) y se queda tal cual en los dos modos.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   hero: {
     alignItems: 'center',
     gap: Spacing.sm,
@@ -283,7 +293,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   heroBody: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     textAlign: 'center',
     lineHeight: 18,
   },
@@ -291,19 +301,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.surface,
+    backgroundColor: t.card,
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginBottom: Spacing.md,
   },
   cutoffText: {
     flex: 1,
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
   },
   stepCard: {
     flexDirection: 'row',
     gap: Spacing.md,
-    backgroundColor: Colors.surface,
+    backgroundColor: t.card,
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
@@ -325,7 +335,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   stepBody: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     lineHeight: 18,
   },
   shortcutsBtn: {
@@ -339,11 +349,12 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   shortcutsBtnText: {
-    color: '#000',
+    // Negro sobre relleno ámbar: mismo rol que texto sobre lima.
+    color: t.textoSobreLima,
     fontFamily: Fonts.semiBold,
   },
   footer: {
-    color: Colors.textMuted,
+    color: t.textoTenue,
     textAlign: 'center',
     marginTop: Spacing.md,
     lineHeight: 18,
@@ -360,7 +371,7 @@ const styles = StyleSheet.create({
   },
   warnText: {
     flex: 1,
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     lineHeight: 18,
   },
   permBtn: {
@@ -372,17 +383,17 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   permBtnText: {
-    color: '#000',
+    color: t.textoSobreLima,
     fontFamily: Fonts.semiBold,
   },
   rampCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: t.card,
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginTop: Spacing.md,
   },
   rampTitle: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     letterSpacing: 2,
     marginBottom: Spacing.sm,
   },
@@ -399,28 +410,29 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 0.5,
+    // Velo blanco decorativo sobre el swatch de color: se queda (no es texto).
     borderColor: 'rgba(255,255,255,0.15)',
   },
   rampTime: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     fontVariant: ['tabular-nums'],
   },
   rampHint: {
-    color: Colors.textMuted,
+    color: t.textoTenue,
     marginTop: Spacing.sm,
     lineHeight: 18,
   },
   noteCard: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    backgroundColor: Colors.surface,
+    backgroundColor: t.card,
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginTop: Spacing.md,
   },
   noteText: {
     flex: 1,
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     lineHeight: 18,
   },
 });

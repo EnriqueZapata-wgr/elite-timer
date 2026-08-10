@@ -5,9 +5,10 @@
  * El servidor decide todo (RPC redeem_activation_code); aquí solo se
  * teclea el código y se muestra el resultado con copy propio por caso.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DeviceEventEmitter, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -22,7 +23,8 @@ import {
 } from '@/src/services/subscription/subscription-service';
 import type { Tier } from '@/src/services/subscription/tier-logic';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND, ELEVATION, SEMANTIC, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 const TIER_LABELS: Record<Tier, string> = {
@@ -51,6 +53,9 @@ function formatDate(iso: string): string {
 }
 
 export default function RedeemCodeScreen() {
+  // MB-31B remate: pantalla sin dueño en el reparto — tokens del tema.
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { refresh } = useSubscription();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -82,7 +87,8 @@ export default function RedeemCodeScreen() {
   const errorCopy = result && !success ? ERROR_COPY[result.status] ?? ERROR_COPY.network_error : null;
 
   return (
-    <Screen edges={[]}>
+    <Screen themed edges={[]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Tengo un código" onBack={() => router.back()} />
       <View style={styles.content}>
 
@@ -99,7 +105,7 @@ export default function RedeemCodeScreen() {
             value={code}
             onChangeText={(t) => { setCode(t.toUpperCase()); if (result) setResult(null); }}
             placeholder="ATP-XXXX-XXXX"
-            placeholderTextColor={TEXT.muted}
+            placeholderTextColor={t.sinDatos}
             autoCapitalize="characters"
             autoCorrect={false}
             autoComplete="off"
@@ -123,7 +129,7 @@ export default function RedeemCodeScreen() {
 
         {errorCopy && (
           <Animated.View entering={FadeInUp.springify()} style={styles.errorCard}>
-            <Ionicons name="alert-circle" size={18} color={SEMANTIC.error} style={{ marginTop: 1 }} />
+            <Ionicons name="alert-circle" size={18} color={t.error} style={{ marginTop: 1 }} />
             <EliteText style={styles.errorText}>{errorCopy}</EliteText>
           </Animated.View>
         )}
@@ -153,17 +159,18 @@ export default function RedeemCodeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.md },
   subtitle: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.md,
-    color: TEXT.secondary,
+    color: t.textoSecundario,
     lineHeight: 20,
   },
   card: {
-    backgroundColor: ELEVATION[1].bg,
-    borderColor: ELEVATION[1].border,
+    backgroundColor: t.card,
+    borderColor: t.borde,
     borderWidth: 0.5,
     borderRadius: Radius.md,
     padding: Spacing.lg,
@@ -172,12 +179,12 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontFamily: Fonts.semiBold,
     fontSize: 11,
-    color: TEXT.tertiary,
+    color: t.textoTenue,
     letterSpacing: 2,
   },
   input: {
-    backgroundColor: '#0a0a0a',
-    borderColor: ELEVATION[1].border,
+    backgroundColor: t.hundido,
+    borderColor: t.borde,
     borderWidth: 0.5,
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.md,
@@ -185,7 +192,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.lg,
     letterSpacing: 2,
-    color: TEXT.primary,
+    color: t.texto,
   },
   cta: {
     marginTop: Spacing.xs,
@@ -196,12 +203,12 @@ const styles = StyleSheet.create({
   },
   ctaDisabled: { opacity: 0.4 },
   ctaStretch: { alignSelf: 'stretch', marginTop: Spacing.sm },
-  ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: '#000', letterSpacing: 0.5 },
+  ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: t.textoSobreLima, letterSpacing: 0.5 },
   errorCard: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    backgroundColor: withOpacity(SEMANTIC.error, 0.08),
-    borderColor: withOpacity(SEMANTIC.error, 0.3),
+    backgroundColor: withOpacity(t.error, 0.08),
+    borderColor: withOpacity(t.error, 0.3),
     borderWidth: 0.5,
     borderRadius: Radius.sm,
     padding: Spacing.md,
@@ -210,11 +217,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
-    color: TEXT.primary,
+    color: t.texto,
     lineHeight: 19,
   },
   successCard: {
-    backgroundColor: ELEVATION[1].bg,
+    backgroundColor: t.card,
     borderColor: withOpacity(ATP_BRAND.lime, 0.5),
     borderWidth: 1,
     borderRadius: Radius.md,
@@ -225,14 +232,14 @@ const styles = StyleSheet.create({
   successTitle: {
     fontFamily: Fonts.bold,
     fontSize: FontSizes.lg,
-    color: TEXT.primary,
+    color: t.texto,
     textAlign: 'center',
     marginTop: Spacing.xs,
   },
   successDetail: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
-    color: TEXT.secondary,
+    color: t.textoSecundario,
     textAlign: 'center',
   },
 });

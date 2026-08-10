@@ -12,7 +12,7 @@
  * salen de la lista y conservan historial y racha. La decisión vive en
  * ordenar-core (puro); aquí solo se lee, se muestra y se ejecuta.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -46,7 +46,8 @@ import {
 } from '@/src/services/hoy/ordenar-core';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 type Paso = 'menu' | 'cero' | 'esencial' | 'argos' | 'listo';
 
@@ -65,6 +66,9 @@ const SIGUIENTE_ESTADO: Record<HabitEstado, HabitEstado> = {
 };
 
 export default function OrdenarDiaScreen() {
+  // MB-31B remate: pantalla sin dueño en el reparto — tokens del tema.
+  const { kind, tokens: t } = useAppTheme();
+  const s = useMemo(() => makeStyles(t), [t]);
   const router = useRouter();
   const { user } = useAuth();
 
@@ -138,7 +142,7 @@ export default function OrdenarDiaScreen() {
       <Animated.View entering={FadeInUp.delay(80).springify()}>
         <AnimatedPressable style={s.camino} onPress={() => { haptic.light(); setPaso('cero'); }}>
           <View style={s.caminoIcon}>
-            <Ionicons name="refresh-outline" size={20} color={TEXT.secondary} />
+            <Ionicons name="refresh-outline" size={20} color={t.textoSecundario} />
           </View>
           <View style={{ flex: 1 }}>
             <EliteText style={s.caminoTitulo}>Empezar de cero</EliteText>
@@ -146,7 +150,7 @@ export default function OrdenarDiaScreen() {
               Todo a reposo y reconstruyes tu día desde ahí.
             </EliteText>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={TEXT.muted} />
+          <Ionicons name="chevron-forward" size={16} color={t.sinDatos} />
         </AnimatedPressable>
 
         <AnimatedPressable
@@ -159,7 +163,7 @@ export default function OrdenarDiaScreen() {
           disabled={!packRow}
         >
           <View style={s.caminoIcon}>
-            <Ionicons name="cube-outline" size={20} color={TEXT.secondary} />
+            <Ionicons name="cube-outline" size={20} color={t.textoSecundario} />
           </View>
           <View style={{ flex: 1 }}>
             <EliteText style={s.caminoTitulo}>Quedarme con lo esencial</EliteText>
@@ -169,7 +173,7 @@ export default function OrdenarDiaScreen() {
                 : 'Necesita un pack aplicado. Aún no has aplicado ninguno.'}
             </EliteText>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={TEXT.muted} />
+          <Ionicons name="chevron-forward" size={16} color={t.sinDatos} />
         </AnimatedPressable>
 
         <AnimatedPressable
@@ -192,7 +196,7 @@ export default function OrdenarDiaScreen() {
               descansar. Tú aceptas o editas.
             </EliteText>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={TEXT.muted} />
+          <Ionicons name="chevron-forward" size={16} color={t.sinDatos} />
         </AnimatedPressable>
       </Animated.View>
 
@@ -223,7 +227,7 @@ export default function OrdenarDiaScreen() {
           <View style={s.grupo}>
             {enReposo.map((k, i) => (
               <View key={k} style={[s.fila, i < enReposo.length - 1 && s.filaDivider]}>
-                <AppIcon name={iconDe(k)} size={16} color={TEXT.tertiary} />
+                <AppIcon name={iconDe(k)} size={16} color={t.textoTenue} />
                 <EliteText style={s.filaNombre}>{nombreDe(k)}</EliteText>
                 <AnimatedPressable onPress={() => traerDeVuelta(k)}>
                   <EliteText style={s.filaAccion}>Volver a activar</EliteText>
@@ -299,7 +303,7 @@ export default function OrdenarDiaScreen() {
               <View style={s.grupo}>
                 {descansan.map((k, i) => (
                   <View key={k} style={[s.fila, i < descansan.length - 1 && s.filaDivider]}>
-                    <AppIcon name={iconDe(k)} size={16} color={TEXT.tertiary} />
+                    <AppIcon name={iconDe(k)} size={16} color={t.textoTenue} />
                     <EliteText style={s.filaNombre}>{nombreDe(k)}</EliteText>
                   </View>
                 ))}
@@ -335,7 +339,7 @@ export default function OrdenarDiaScreen() {
       <Animated.View entering={FadeInUp.delay(80).springify()} style={s.grupo}>
         {propuesta.map((c, i) => (
           <View key={c.key} style={[s.fila, i < propuesta.length - 1 && s.filaDivider]}>
-            <AppIcon name={iconDe(c.key)} size={16} color={TEXT.secondary} />
+            <AppIcon name={iconDe(c.key)} size={16} color={t.textoSecundario} />
             <EliteText style={s.filaNombre}>{nombreDe(c.key)}</EliteText>
             <AnimatedPressable
               style={[s.estadoPill, c.state === 'activo' && s.estadoPillActivo,
@@ -395,8 +399,8 @@ export default function OrdenarDiaScreen() {
   );
 
   return (
-    <Screen>
-      <StatusBar style="light" />
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader
         title="Ordenar mi día"
         onBack={paso === 'menu' || paso === 'listo'
@@ -412,18 +416,19 @@ export default function OrdenarDiaScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
 
   intro: {
-    color: TEXT.secondary,
+    color: t.textoSecundario,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     lineHeight: 20,
     marginBottom: Spacing.lg,
   },
   pregunta: {
-    color: TEXT.primary,
+    color: t.texto,
     fontFamily: Fonts.bold,
     fontSize: 24,
     lineHeight: 30,
@@ -435,9 +440,9 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: ELEVATION[1].bg,
+    backgroundColor: t.card,
     borderWidth: 0.5,
-    borderColor: ELEVATION[1].border,
+    borderColor: t.borde,
     borderRadius: 14,
     padding: Spacing.md,
     marginBottom: 10,
@@ -447,15 +452,16 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: withOpacity('#ffffff', 0.05),
+    // Era un velo blanco al 5% sobre la card: rol = card sobre card.
+    backgroundColor: t.flotante,
     borderWidth: 0.5,
-    borderColor: ELEVATION[1].border,
+    borderColor: t.borde,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  caminoTitulo: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  caminoTitulo: { color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
   caminoDesc: {
-    color: TEXT.secondary,
+    color: t.textoSecundario,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     lineHeight: 17,
@@ -463,7 +469,7 @@ const s = StyleSheet.create({
   },
 
   seccion: {
-    color: TEXT.tertiary,
+    color: t.textoTenue,
     fontFamily: Fonts.bold,
     fontSize: 11,
     letterSpacing: 2,
@@ -471,9 +477,9 @@ const s = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   grupo: {
-    backgroundColor: ELEVATION[1].bg,
+    backgroundColor: t.card,
     borderWidth: 0.5,
-    borderColor: ELEVATION[1].border,
+    borderColor: t.borde,
     borderRadius: 14,
     overflow: 'hidden',
   },
@@ -484,11 +490,15 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 11,
   },
-  filaDivider: { borderBottomWidth: 0.5, borderBottomColor: ELEVATION[1].border },
-  filaNombre: { flex: 1, color: TEXT.primary, fontFamily: Fonts.regular, fontSize: FontSizes.sm },
-  filaAccion: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
+  filaDivider: { borderBottomWidth: 0.5, borderBottomColor: t.borde },
+  filaNombre: { flex: 1, color: t.texto, fontFamily: Fonts.regular, fontSize: FontSizes.sm },
+  // Regla 1 del manual: el lima nunca es texto en claro → teal calibrado.
+  filaAccion: {
+    color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto,
+    fontFamily: Fonts.semiBold, fontSize: FontSizes.xs,
+  },
   nota: {
-    color: TEXT.tertiary,
+    color: t.textoTenue,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     lineHeight: 17,
@@ -497,7 +507,7 @@ const s = StyleSheet.create({
 
   estadoPill: {
     borderWidth: 0.5,
-    borderColor: ELEVATION[2].border,
+    borderColor: t.bordeMarcado,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 5,
@@ -512,7 +522,7 @@ const s = StyleSheet.create({
     borderColor: withOpacity(ATP_BRAND.teal, 0.6),
     backgroundColor: withOpacity(ATP_BRAND.teal, 0.10),
   },
-  estadoPillText: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
+  estadoPillText: { color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
 
   cta: {
     backgroundColor: ATP_BRAND.lime,
@@ -521,5 +531,5 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.md,
   },
-  ctaText: { color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.md, letterSpacing: 0.5 },
+  ctaText: { color: t.textoSobreLima, fontFamily: Fonts.bold, fontSize: FontSizes.md, letterSpacing: 0.5 },
 });

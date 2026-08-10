@@ -11,6 +11,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import type { PurchasesPackage } from 'react-native-purchases';
@@ -22,7 +23,8 @@ import { EliteText } from '@/components/elite-text';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
-import { ATP_BRAND, ELEVATION, GLOW, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, GLOW, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 type Period = 'monthly' | 'yearly';
@@ -51,6 +53,9 @@ const LEGAL_LINKS = [
 ];
 
 export default function PaywallScreen() {
+  // MB-31B remate: pantalla sin dueño en el reparto — tokens del tema.
+  const { kind, tokens: t } = useAppTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const { offerings, offeringsError, isLoading, refresh, purchase, restore, sdkReady, tier } = useSubscription();
   const analytics = useAnalytics();
   const [period, setPeriod] = useState<Period>('yearly');
@@ -159,7 +164,8 @@ export default function PaywallScreen() {
           </View>
         )}
         <EliteText style={styles.planName}>{isPro ? 'ATP Pro' : 'ATP Base'}</EliteText>
-        <EliteText style={[styles.planPrice, isPro && { color: ATP_BRAND.lime }]}>
+        {/* Regla 1 del manual: el lima nunca es letra en claro — teal calibrado. */}
+        <EliteText style={[styles.planPrice, isPro && { color: kind === 'dark' ? ATP_BRAND.lime : t.tealTexto }]}>
           {priceLabel}
         </EliteText>
         <EliteText style={styles.trialNote}>
@@ -172,7 +178,7 @@ export default function PaywallScreen() {
               <Ionicons
                 name="checkmark-circle"
                 size={16}
-                color={isPro ? ATP_BRAND.lime : TEXT.secondary}
+                color={isPro ? ATP_BRAND.lime : t.textoSecundario}
                 style={{ marginTop: 2 }}
               />
               <EliteText style={styles.featureText}>{feature}</EliteText>
@@ -194,7 +200,8 @@ export default function PaywallScreen() {
   }
 
   return (
-    <Screen edges={[]}>
+    <Screen themed edges={[]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Suscripción" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(40).springify()}>
@@ -290,25 +297,26 @@ export default function PaywallScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// MB-31B remate: los estilos leen los tokens del tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, paddingBottom: 80, gap: Spacing.md },
   heroTitle: {
     fontFamily: Fonts.extraBold,
     fontSize: FontSizes.hero,
-    color: TEXT.primary,
+    color: t.texto,
     letterSpacing: 0.5,
   },
   heroSubtitle: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.md,
-    color: TEXT.secondary,
+    color: t.textoSecundario,
     marginTop: Spacing.xs,
     lineHeight: 20,
   },
   toggleRow: {
     flexDirection: 'row',
-    backgroundColor: ELEVATION[1].bg,
-    borderColor: ELEVATION[1].border,
+    backgroundColor: t.card,
+    borderColor: t.borde,
     borderWidth: 0.5,
     borderRadius: Radius.pill,
     padding: 4,
@@ -323,19 +331,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: Radius.pill,
   },
-  toggleOptionActive: { backgroundColor: ELEVATION[3].bg },
-  toggleText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.secondary },
-  toggleTextActive: { color: TEXT.primary },
+  // Era ELEVATION[3].bg (popover); el rol aquí es superficie elevada sobre la card.
+  toggleOptionActive: { backgroundColor: t.flotante },
+  toggleText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.textoSecundario },
+  toggleTextActive: { color: t.texto },
   savingsBadge: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.15),
     borderRadius: Radius.xs,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  savingsText: { fontFamily: Fonts.bold, fontSize: 9, color: ATP_BRAND.lime, letterSpacing: 0.5 },
+  // Regla 1 del manual: el lima nunca es letra en claro — teal calibrado.
+  savingsText: { fontFamily: Fonts.bold, fontSize: 9, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, letterSpacing: 0.5 },
   planCard: {
-    backgroundColor: ELEVATION[1].bg,
-    borderColor: ELEVATION[1].border,
+    backgroundColor: t.card,
+    borderColor: t.borde,
     borderWidth: 0.5,
     borderRadius: Radius.md,
     padding: Spacing.lg,
@@ -356,20 +366,20 @@ const styles = StyleSheet.create({
   recommendedText: {
     fontFamily: Fonts.bold,
     fontSize: 10,
-    color: '#000',
+    color: t.textoSobreLima,
     letterSpacing: 1,
   },
-  planName: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, color: TEXT.primary },
+  planName: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, color: t.texto },
   planPrice: {
     fontFamily: Fonts.bold,
     fontSize: FontSizes.xl,
-    color: TEXT.primary,
+    color: t.texto,
     marginTop: Spacing.xs,
   },
   trialNote: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
-    color: TEXT.secondary,
+    color: t.textoSecundario,
     marginTop: 2,
   },
   featureList: { marginTop: Spacing.md, gap: Spacing.sm },
@@ -378,7 +388,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
-    color: TEXT.secondary,
+    color: t.textoSecundario,
     lineHeight: 18,
   },
   cta: {
@@ -390,16 +400,17 @@ const styles = StyleSheet.create({
   ctaPro: { backgroundColor: ATP_BRAND.lime },
   ctaBase: { borderWidth: 1, borderColor: ATP_BRAND.lime },
   ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, letterSpacing: 0.5 },
-  ctaTextPro: { color: '#000' },
-  ctaTextBase: { color: ATP_BRAND.lime },
+  ctaTextPro: { color: t.textoSobreLima },
+  // Regla 1 del manual: el lima nunca es letra en claro — teal calibrado.
+  ctaTextBase: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   sdkNote: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
-    color: TEXT.tertiary,
+    color: t.textoTenue,
     textAlign: 'center',
   },
   restoreBtn: { alignItems: 'center', paddingVertical: Spacing.sm },
-  restoreText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.secondary },
+  restoreText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.textoSecundario },
   legalRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -407,6 +418,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   legalItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  legalDot: { color: TEXT.muted },
-  legalText: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary },
+  legalDot: { color: t.sinDatos },
+  legalText: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue },
 });

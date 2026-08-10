@@ -22,7 +22,11 @@ import { supabase } from '@/src/lib/supabase';
 import { logConsent } from '@/src/services/consent-log-service';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
-import { ATP_BRAND } from '@/src/constants/brand';
+// MB-31B remate: esta pantalla vive DENTRO de <AuthScreen> (compartido, gradiente
+// oscuro #0A0E14→#000 constante + StatusBar light fija) — frontera del tema: el
+// interior queda oscuro en los dos modos (como la card editorial), por eso los
+// neutros van anclados a THEME_DARK y no al tema efectivo.
+import { ATP_BRAND, THEME_DARK } from '@/src/constants/brand';
 import { Colors, Spacing, Fonts } from '@/constants/theme';
 import { BackButton } from '@/src/components/ui/BackButton';
 
@@ -171,7 +175,7 @@ export default function RegisterScreen() {
               accessibilityState={{ checked: termsAccepted }}
             >
               <View style={[styles.checkbox, termsAccepted && styles.checkboxOn]}>
-                {termsAccepted && <Ionicons name="checkmark" size={14} color="#000" />}
+                {termsAccepted && <Ionicons name="checkmark" size={14} color={THEME_DARK.textoSobreLima} />}
               </View>
               <EliteText variant="caption" style={styles.consentText}>
                 He leído y acepto los{' '}
@@ -269,7 +273,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#333',
+    borderColor: THEME_DARK.bordeMarcado,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 1,
