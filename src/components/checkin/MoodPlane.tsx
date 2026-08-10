@@ -27,6 +27,9 @@
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+// MB-32 P6: el plano se oculta de la grabación de sesión de PostHog (la
+// posición en el plano ES el check-in emocional).
+import { PostHogMaskView } from 'posthog-react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, useAnimatedReaction, withTiming, withDecay,
   cancelAnimation, interpolate, Extrapolation, Easing, runOnJS, FadeIn,
@@ -250,6 +253,11 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
   const restTop = (viewport.h - restSize) / 2;
 
   return (
+    // MB-32 P6: el plano ENTERO fuera de la grabación de sesión. Las palabras
+    // ya las enmascara el replay (son Text), pero la posición de la cámara y
+    // la celda seleccionada SON el estado emocional — y eso es dato clínico.
+    // flex:1 espeja el canvas para no alterar el layout del gesto.
+    <PostHogMaskView style={styles.maskFill}>
     <GestureDetector gesture={gesture}>
       <View
         style={styles.canvas}
@@ -303,6 +311,7 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
         )}
       </View>
     </GestureDetector>
+    </PostHogMaskView>
   );
 });
 
@@ -347,6 +356,7 @@ const PlaneCell = memo(function PlaneCell({ emotion, selected, highlighted, dimm
 const styles = StyleSheet.create({
   canvas: { flex: 1, overflow: 'hidden' },
   canvasFill: { flex: 1 },
+  maskFill: { flex: 1 },
 
   plane: {
     position: 'absolute',

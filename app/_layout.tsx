@@ -149,7 +149,28 @@ function RootLayout() {
         options={{
           host: 'https://us.i.posthog.com',
           captureAppLifecycleEvents: true,
-          enableSessionReplay: false,
+          // MB-32 P6: grabación de sesión ENCENDIDA con el enmascaramiento
+          // más estricto que ofrece el SDK. ATP maneja datos de salud: lo
+          // que PostHog puede ver es la ESTRUCTURA de la pantalla, nunca el
+          // contenido. Exige posthog-react-native-session-replay (nativo →
+          // build) y el toggle de grabación del proyecto en us.posthog.com.
+          enableSessionReplay: true,
+          sessionReplayConfig: {
+            // TODO texto enmascarado — inputs Y <Text> estático (labs,
+            // síntomas, journal, chat de ARGOS). Es el default y aquí queda
+            // explícito con test de mutación que truena si se apaga.
+            maskAllTextInputs: true,
+            // Toda imagen a placeholder (fotos de comida, avatares, covers).
+            maskAllImages: true,
+            // iOS: pickers del sistema (fotos, contactos) enmascarados.
+            maskAllSandboxedViews: true,
+            // Sin logs en el replay: logWarn lleva contexto del ledger y un
+            // console.log de dev puede traer payloads clínicos.
+            captureLog: false,
+            // Sin telemetría de red: las URLs de supabase llevan nombres de
+            // tabla y filtros (user_id, fechas) en el query string.
+            captureNetworkTelemetry: false,
+          },
         }}
       >
         <AuthProvider>

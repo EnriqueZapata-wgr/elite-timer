@@ -7,6 +7,10 @@
 import { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Path, Circle, Rect, Line, Text as SvgText } from 'react-native-svg';
+// MB-32 P6: la serie de labs se dibuja en SVG (curva, banda y SvgText de
+// valores) — el enmascaramiento global del replay no ve SVG como texto, así
+// que el chart entero se oculta de la grabación aquí, en el componente.
+import { PostHogMaskView } from 'posthog-react-native';
 import { EliteText } from '@/components/elite-text';
 import { type AppThemeTokens } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
@@ -68,6 +72,7 @@ export function ParameterChart({ series, bandLimits, todayISO, unit = '', width,
   const outer = showAllRanges ? model.outerBand : null;
 
   return (
+    <PostHogMaskView>
     <View style={{ width }}>
       <Svg width={width} height={height}>
         {/* Banda amplia (aceptable de la matriz) — solo con "todos los rangos". */}
@@ -160,6 +165,7 @@ export function ParameterChart({ series, bandLimits, todayISO, unit = '', width,
         </EliteText>
       </View>
     </View>
+    </PostHogMaskView>
   );
 }
 

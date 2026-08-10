@@ -1,9 +1,17 @@
 /**
  * SimpleCharts — Componentes de grafica minimalistas con react-native-svg.
  * Diseñados para los reportes (estilo Oura): barras y lineas.
+ *
+ * MB-32 P6 (privacidad del replay): TODO el chart va dentro de
+ * <PostHogMaskView>. El enmascaramiento global de la grabación de sesión
+ * cubre <Text> y <TextInput>, pero lo dibujado por SVG (barras, curvas y
+ * los SvgText de valores/labels) NO es texto para el sistema — y estos
+ * charts pintan datos clínicos (labs, medidas, reportes). Enmascarar AQUÍ,
+ * en el kit, deja a todo consumidor presente y futuro cubierto por default.
  */
 import { Dimensions } from 'react-native';
 import Svg, { Path, Circle, Rect, Line, G, Text as SvgText } from 'react-native-svg';
+import { PostHogMaskView } from 'posthog-react-native';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -41,6 +49,7 @@ export function SimpleBarChart({
   const barW = Math.min(20, slotW - 4);
 
   return (
+    <PostHogMaskView>
     <Svg width={width} height={height}>
       {target != null && target > 0 && (
         <G>
@@ -97,6 +106,7 @@ export function SimpleBarChart({
         );
       })}
     </Svg>
+    </PostHogMaskView>
   );
 }
 
@@ -137,6 +147,7 @@ export function SimpleLineChart({
   const labelStep = Math.max(1, Math.ceil(data.length / 6));
 
   return (
+    <PostHogMaskView>
     <Svg width={width} height={height}>
       {target != null && target > 0 && (
         <Line
@@ -180,5 +191,6 @@ export function SimpleLineChart({
         );
       })}
     </Svg>
+    </PostHogMaskView>
   );
 }

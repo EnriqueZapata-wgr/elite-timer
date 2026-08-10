@@ -140,6 +140,16 @@ queda sin arreglar (regla de la Pieza 2):
   llega al instante (push + optimista).
 - **El botón de sol de B6b** quedó desbloqueado (ver B6b): una línea en el
   catálogo de notificaciones, para un run de notificaciones.
+- **Grabación de sesión PostHog (P6, agregada al run):** encendida con el
+  enmascaramiento más estricto (todo texto + toda imagen + charts SVG y
+  MoodPlane fuera vía PostHogMaskView, logs y red apagados). **Gates de
+  Enrique:** encender mobile replay en el proyecto de us.posthog.com y
+  REVISAR la primera grabación real (labs/journal/chat) antes de darla por
+  garantizada — si algo se lee, `enableSessionReplay` vuelve a false en una
+  línea. La navegación entre pantallas SÍ es visible (inherente al replay).
+- **Ratchet nuevo:** todo archivo de `src/` que dibuje texto con `SvgText`
+  debe envolverse en `PostHogMaskView` — test de barrido automático en
+  `mb32-replay-privacidad.test.ts`.
 
 ---
 

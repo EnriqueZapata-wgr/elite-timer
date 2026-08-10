@@ -194,6 +194,77 @@ Suite final tras revertir: 3530/3530 en verde.
 
 ---
 
+# PIEZA 6 · Grabación de sesión PostHog, con el enmascaramiento más estricto
+
+**Pedida por Enrique después del run original.** Encendida en `app/_layout.tsx`.
+
+## Qué necesitó (verificado contra el paquete instalado y la doc)
+
+- **posthog-react-native 4.44 SÍ exige un paquete nativo aparte:** sin
+  `posthog-react-native-session-replay` el SDK solo avisa *"Session replay
+  enabled but not installed"* y no graba (verificado en el fuente del SDK).
+  Se instaló `^1.6.0` → **entra al mismo build nativo de este run.** Cero
+  config plugins; autolinking normal.
+- Además del flag y el paquete, **grabar exige encender "mobile session
+  replay" en el proyecto de PostHog** (us.posthog.com → proyecto ATP). Ese
+  toggle es de Enrique; el sample rate también se controla ahí (no se fijó
+  en cliente).
+
+## Qué queda ENMASCARADO (no viaja a PostHog)
+
+- **Todo el texto: inputs Y `<Text>` estático.** En React Native el replay
+  corre en screenshot mode y `maskAllTextInputs: true` enmascara TODO el
+  texto (el propio tipo del SDK lo dice: *"masking of all text and text
+  input fields"*, y el issue PostHog #40006 lo confirma empíricamente).
+  Cubre: valores de labs y biomarcadores, síntomas, journal, check-in
+  (las palabras), chat de ARGOS (las burbujas son Text/Markdown), cifras
+  del HOY. Contraseñas: siempre, independiente del flag.
+- **Toda imagen a placeholder** (`maskAllImages`): fotos de comida,
+  etiquetas escaneadas, avatares, covers.
+- **Pickers del sistema en iOS** (`maskAllSandboxedViews`).
+- **Los charts que dibujan valores con SVG**, que el enmascaramiento global
+  NO ve como texto: `SimpleCharts` (labs, medidas, reports) y
+  `ParameterChart` (biomarcadores Edad ATP) van dentro de
+  `PostHogMaskView`, enmascarados EN el kit — todo consumidor presente y
+  futuro queda cubierto. **Barrido automático con test:** cualquier archivo
+  de `src/` que use `SvgText` sin `PostHogMaskView` truena la suite.
+- **El plano emocional ENTERO** (`MoodPlane`): las palabras ya iban
+  enmascaradas, pero la posición de la cámara y la celda seleccionada SON
+  el check-in — el plano completo sale de la grabación.
+- **Ni logs ni telemetría de red en el replay** (`captureLog: false`,
+  `captureNetworkTelemetry: false`): los logs llevan contexto del ledger y
+  las URLs de supabase llevan tablas y filtros en el query string.
+
+## Qué queda VISIBLE (honesto)
+
+- **La estructura**: cards, botones y contenedores como formas y colores
+  (sus etiquetas de texto, enmascaradas), barras de progreso y anillos SIN
+  cifras (el número del score es Text → enmascarado), el tema, los taps.
+- **La navegación**: QUÉ pantallas visita el usuario y en qué orden. Una
+  grabación revela "estuvo en glucosa" aunque jamás el valor. **Eso es
+  inherente a grabar sesiones**: si ese metadato también es inaceptable, la
+  única opción es apagar la grabación (el flag vuelve a false en una línea).
+- Formas SVG sin valor clínico: iconos del set, la orbe de ARGOS.
+
+## El candado (tests + mutaciones ejecutadas)
+
+`src/__tests__/mb32-replay-privacidad.test.ts` (7 tests): config estricta
+explícita + barrido SvgText→PostHogMaskView + MoodPlane oculto. Mutaciones
+reales: `maskAllTextInputs: false` → **1 test falla**; quitar
+`PostHogMaskView` de SimpleCharts → **1 test falla** (el barrido lo nombra).
+Ambas revertidas; suite completa en verde.
+
+## Verificación que solo puede hacer Enrique
+
+1. Encender mobile session replay en el proyecto ATP de us.posthog.com.
+2. Tras el build: grabar una sesión pasando por labs, journal, check-in y
+   chat de ARGOS, y **revisar esa grabación en PostHog**: todo texto en
+   bloques grises, charts y plano ocultos. **El enmascaramiento no se da
+   por garantizado hasta ver esa grabación** — si algo se lee, el flag se
+   apaga (una línea) y se reporta.
+
+---
+
 # 📋 Verificación en device (Enrique, S24, DESPUÉS del build)
 
 1. Agregar el widget de hábitos → palomear SIN abrir la app.
@@ -205,3 +276,6 @@ Suite final tras revertir: 3530/3530 en verde.
 7. Cerrar sesión → los widgets quedan en "Abre ATP".
 8. Tap del widget con la app MUERTA (forzar cierre) → abrir después: el
    registro llegó (este es el que valida HeadlessJS en new arch).
+9. **Replay (P6):** encender mobile session replay en PostHog, grabar una
+   sesión por labs + journal + check-in + chat, y revisar la grabación:
+   nada de texto legible, charts y plano ocultos.
