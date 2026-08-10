@@ -131,16 +131,37 @@ y un valor de salud fuera de rango no pueden verse igual de graves.
 
 Es lo que ATP es hoy y su default.
 
-| Rol | Valor |
-|---|---|
-| Fondo base | `#0A0A0A` |
-| Superficie de card | `#121212` |
-| Superficie elevada | `#232323` |
-| Borde | `#1F1F1F` |
-| Texto principal | `#FFFFFF` |
-| Texto secundario | `#888888` |
-| Texto tenue | `#555555` |
-| Texto sobre lima | `#000000` |
+| Rol | Valor | Sobre card | Nivel |
+|---|---|---|---|
+| **Lienzo de pantalla** | `#000000` | | negro puro |
+| Superficie de tab bar y campos | `#0A0A0A` | | |
+| Superficie de card | `#121212` | | |
+| Superficie elevada | `#232323` | | |
+| Borde | `#1F1F1F` | | |
+| Texto principal | `#FFFFFF` | 18.73 | AAA |
+| Texto secundario | `#888888` | 5.28 | AA |
+| Texto tenue | `#555555` | **2.51** | ⚠️ **FALLA** |
+| Texto sobre lima | `#000000` | 13.36 | AAA |
+
+⚠️ **Corrección (9-ago-2026):** este manual decía que el fondo era `#0A0A0A`. **El lienzo
+real es negro puro `#000000`**; el `#0A0A0A` es la barra de pestañas y los campos. Se
+documenta lo que la app es.
+
+🚨 **El texto tenue del modo oscuro no pasa accesibilidad: 2.51 contra card, cuando el
+mínimo para texto grande es 3.0.** Es una deuda que ya existía, no algo que trajo el modo
+claro.
+
+**No se corrigió en MB-31A a propósito**, porque tocar el oscuro habría cambiado la app de
+todos los usuarios en un run que prometía no hacerlo. Las opciones, para cuando se decida:
+
+| Valor | Sobre card | Veredicto |
+|---|---|---|
+| `#555555` (hoy) | 2.51 | falla |
+| `#6A6A6A` | 3.46 | pasa para texto grande |
+| `#707070` | 3.78 | pasa con margen |
+
+**Decisión pendiente de Enrique.** Mientras tanto, el tenue solo debe usarse en texto grande
+y nunca para información que importe.
 
 ## 3.6 · Modo claro · ACERO — aprobado por Enrique el 9-ago-2026
 
@@ -198,9 +219,12 @@ Teal claro ATP   #086A5E
 ⚠️ **No es un cuarto color de marca:** es el mismo teal calibrado para otro fondo, igual que
 una tinta se ajusta según el papel.
 
-**3 · Siete de los diez colores de sección fallan como texto sobre claro.** Solo ayuno
+**3 · NUEVE de los diez colores de sección fallan como texto sobre claro.** Solo ayuno
 (`#6B46C1`, 5.49) pasa. **En modo claro los colores de sección son relleno, icono grande,
 barra o punto — no letra.**
+
+⚠️ *Corregido el 9-ago-2026: este punto decía "siete de diez" por un conteo viejo de ocho
+colores. La medición completa sobre los diez da nueve fallando.*
 
 Y cuando son relleno, el texto encima ya está decidido:
 
