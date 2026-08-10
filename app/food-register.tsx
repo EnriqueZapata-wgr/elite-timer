@@ -11,6 +11,7 @@ import { View, ScrollView, StyleSheet, Alert, Text, Pressable, Modal, TextInput 
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { StatusBar } from 'expo-status-bar';
 
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
@@ -27,7 +28,8 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { useAuth } from '@/src/contexts/auth-context';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { PILLAR_GRADIENTS } from '@/src/constants/brand';
+import { PILLAR_GRADIENTS, ATP_BRAND } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { DEFAULT_MEAL_TIMES, getMealTimes, setMealTimes, getCurrentMeal, formatMealWindow, MEAL_IDS, type MealId, type MealTimes } from '@/src/services/meal-times-service';
 import { defaultMealTypeByHour } from '@/src/services/meal-times-core';
 import { useNutritionMode } from '@/src/hooks/useNutritionMode';
@@ -47,6 +49,10 @@ export default function FoodRegisterScreen() {
   const params = useLocalSearchParams<{ mealType?: string }>();
   const { user } = useAuth();
   const analytics = useAnalytics();
+  // MB-31B3: la pantalla migró a tokens (Screen themed) y sigue el tema global.
+  // El lima como TEXTO no pasa el contraste en claro (regla 1 de la guía).
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   // MB-28A P1: el modo llega también aquí. SIMPLE registra y ya (proteína como
   // único número); COMPLETO ve calorías y macros en badges, frecuentes y logs.
   const { mode: nutritionMode } = useNutritionMode();
@@ -145,9 +151,9 @@ export default function FoodRegisterScreen() {
   // → saveFoodLog → food_logs; ninguna ruta paralela).
   const renderFrequent = (food: any, idx: number, baseDelay: number) => (
     <Animated.View key={food.id} entering={FadeInUp.delay(baseDelay + idx * 40).springify()}>
-      <AnimatedPressable onPress={() => addFrequentQuick(food)} style={s.frequentCard}>
+      <AnimatedPressable onPress={() => addFrequentQuick(food)} style={[s.frequentCard, { backgroundColor: t.hundido }]}>
         <View style={{ flex: 1 }}>
-          <EliteText style={s.frequentName} numberOfLines={1}>{food.food_name}</EliteText>
+          <EliteText style={[s.frequentName, { color: t.texto }]} numberOfLines={1}>{food.food_name}</EliteText>
           <Text style={s.frequentMeta}>
             {/* P1: en SIMPLE la proteína es el único número. */}
             {nutritionMode === 'complete' && food.calories ? `${Math.round(food.calories)} kcal · ` : ''}
@@ -228,7 +234,8 @@ export default function FoodRegisterScreen() {
     const logsForType = todayLogs.filter(l => l.meal_type === directMealType.id);
 
     return (
-      <Screen keyboard>
+      <Screen keyboard themed>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <PillarHeader pillar="nutrition" title={directMealType.name} />
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
           {/* Opciones de registro — E.1 (MB-8): CTA heroico = degradado, no lime plano */}
@@ -243,7 +250,7 @@ export default function FoodRegisterScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(100).springify()}>
-            <AnimatedPressable onPress={() => goToManual(directMealType.id)} style={s.actionBtnGhost}>
+            <AnimatedPressable onPress={() => goToManual(directMealType.id)} style={[s.actionBtnGhost, { backgroundColor: t.hundido }]}>
               <Ionicons name="create-outline" size={20} color="#38bdf8" />
               <EliteText style={s.actionBtnGhostText}>Registrar manual</EliteText>
             </AnimatedPressable>
@@ -272,7 +279,7 @@ export default function FoodRegisterScreen() {
                     <View style={s.logRow}>
                       <Ionicons name="checkmark-circle" size={16} color="#a8e02a" />
                       <View style={{ flex: 1 }}>
-                        <EliteText style={s.logDesc} numberOfLines={1}>{log.description}</EliteText>
+                        <EliteText style={[s.logDesc, { color: t.texto }]} numberOfLines={1}>{log.description}</EliteText>
                       </View>
                       <EliteText style={s.logKcal}>
                         {/* P1: en SIMPLE la proteína es el único número. */}
@@ -283,7 +290,7 @@ export default function FoodRegisterScreen() {
                   </Pressable>
                 </SwipeToDeleteRow>
               ))}
-              <Text style={{ color: '#444', fontSize: 9, textAlign: 'center', marginTop: 6 }}>
+              <Text style={{ color: t.sinDatos, fontSize: 9, textAlign: 'center', marginTop: 6 }}>
                 Desliza ← para eliminar
               </Text>
             </View>
@@ -297,15 +304,16 @@ export default function FoodRegisterScreen() {
 
   // Vista principal: selección de tipo de comida
   return (
-    <Screen keyboard>
+    <Screen keyboard themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="nutrition" title="Registrar" />
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInUp.delay(50).springify()} style={s.questionRow}>
-          <EliteText style={s.question}>¿Qué comida registras?</EliteText>
+          <EliteText style={[s.question, { color: t.texto }]}>¿Qué comida registras?</EliteText>
           <Pressable onPress={openEditor} hitSlop={8} style={s.editTimesBtn}>
             <Ionicons name="time-outline" size={14} color="#a8e02a" />
-            <EliteText style={s.editTimesText}>Horarios</EliteText>
+            <EliteText style={[s.editTimesText, { color: acento }]}>Horarios</EliteText>
           </Pressable>
         </Animated.View>
 
@@ -348,7 +356,7 @@ export default function FoodRegisterScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={s.mealNameRow}>
-                        <EliteText style={s.mealName}>{meal.name}</EliteText>
+                        <EliteText style={[s.mealName, { color: t.texto }]}>{meal.name}</EliteText>
                         {meal.id === currentMeal && (
                           <View style={s.nowPill}><EliteText style={s.nowPillText}>AHORA</EliteText></View>
                         )}
@@ -358,7 +366,7 @@ export default function FoodRegisterScreen() {
                     {hasLogs ? (
                       <View style={s.mealBadge}>
                         {/* P1: SIMPLE muestra proteína, COMPLETO calorías. */}
-                        <EliteText style={s.mealBadgeText}>
+                        <EliteText style={[s.mealBadgeText, { color: acento }]}>
                           {nutritionMode === 'complete' ? `${totalKcal} kcal` : `${totalProt}g prot`}
                         </EliteText>
                       </View>
@@ -438,7 +446,6 @@ const s = StyleSheet.create({
   question: {
     fontSize: 22,
     fontFamily: Fonts.bold,
-    color: '#fff',
   },
   editTimesBtn: {
     flexDirection: 'row',
@@ -450,7 +457,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(168,224,42,0.3)',
   },
-  editTimesText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, color: '#a8e02a' },
+  editTimesText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
 
   // Editor de horarios (modal)
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: Spacing.lg },
@@ -490,7 +497,6 @@ const s = StyleSheet.create({
   mealName: {
     fontSize: FontSizes.lg,
     fontFamily: Fonts.bold,
-    color: '#fff',
   },
   nowPill: { backgroundColor: '#a8e02a', borderRadius: Radius.pill, paddingHorizontal: 7, paddingVertical: 1 },
   nowPillText: { fontSize: 9, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
@@ -509,7 +515,6 @@ const s = StyleSheet.create({
   mealBadgeText: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
-    color: '#a8e02a',
   },
 
   // Action buttons (direct meal type view) — el primario es GradientCTA (E.1)
@@ -518,7 +523,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: '#0a0a0a',
     paddingVertical: 14,
     borderRadius: Radius.md,
     borderWidth: 1,
@@ -542,7 +546,6 @@ const s = StyleSheet.create({
   logDesc: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.regular,
-    color: '#fff',
   },
   logKcal: {
     fontSize: FontSizes.xs,
@@ -554,7 +557,6 @@ const s = StyleSheet.create({
   frequentCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
     borderRadius: Radius.card,
     padding: Spacing.md,
     marginBottom: Spacing.xs,
@@ -563,7 +565,6 @@ const s = StyleSheet.create({
   frequentName: {
     fontSize: FontSizes.md,
     fontFamily: Fonts.semiBold,
-    color: '#fff',
   },
   frequentMeta: {
     fontSize: FontSizes.xs,

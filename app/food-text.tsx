@@ -13,6 +13,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -31,8 +32,9 @@ import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
-  CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity,
+  CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, ATP_BRAND,
 } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { argosRateLimitMessage } from '@/src/services/argos-stream-core';
 
@@ -135,6 +137,10 @@ export default function FoodTextScreen() {
   const { user } = useAuth();
   const analytics = useAnalytics();
   const params = useLocalSearchParams<{ mealType?: string }>();
+  // MB-31B3: la pantalla migró a tokens (<ThemeReady>) y sigue el tema global.
+  // El lima como TEXTO no pasa el contraste en claro (regla 1 de la guía).
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   // MB-28A P1: el modo llega también al registro manual. SIMPLE registra y ya
   // (guardar directo, proteína como único número); COMPLETO ve y ajusta los
   // números (macros en vivo + editor de revisión al guardar).
@@ -330,10 +336,12 @@ export default function FoodTextScreen() {
     }
   }, [user, ingredients, query, mealType, timeHH, timeMM, totals, router]);
 
-  // Si está en modo revisión, mostrar el editor
+  // Si está en modo revisión, mostrar el editor.
+  // MB-31B3: FoodReviewEditor NO está tematizado (pinta su propio #000) — la
+  // rama de revisión se queda oscura, fuera de <ThemeReady>.
   if (showReview && ingredients.length > 0) {
     return (
-      <SafeAreaView style={s.container} edges={['top']}>
+      <SafeAreaView style={[s.container, { backgroundColor: '#000' }]} edges={['top']}>
         <FoodReviewEditor
           initialState={buildReviewState()}
           onSave={persistSave}
@@ -344,12 +352,14 @@ export default function FoodTextScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container} edges={['top']}>
+    <ThemeReady>
+    <SafeAreaView style={[s.container, { backgroundColor: t.fondo }]} edges={['top']}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       {/* Header */}
       <View style={s.headerRow}>
         <PillarHeader pillar="nutrition" title="REGISTRO MANUAL" />
-        <Pressable onPress={() => router.back()} style={s.closeBtn} hitSlop={12}>
-          <Ionicons name="close" size={24} color={TEXT_COLORS.secondary} />
+        <Pressable onPress={() => router.back()} style={[s.closeBtn, { backgroundColor: t.card }]} hitSlop={12}>
+          <Ionicons name="close" size={24} color={t.textoSecundario} />
         </Pressable>
       </View>
 
@@ -366,12 +376,12 @@ export default function FoodTextScreen() {
         >
           {/* ═══ Barra de búsqueda ═══ */}
           <Animated.View entering={FadeInUp.delay(100).duration(400)}>
-            <View style={s.searchContainer}>
-              <Ionicons name="search-outline" size={20} color={TEXT_COLORS.secondary} style={s.searchIcon} />
+            <View style={[s.searchContainer, { backgroundColor: t.card, borderColor: t.bordeMarcado }]}>
+              <Ionicons name="search-outline" size={20} color={t.textoSecundario} style={s.searchIcon} />
               <TextInput
-                style={s.searchInput}
+                style={[s.searchInput, { color: t.texto }]}
                 placeholder="Buscar alimento..."
-                placeholderTextColor={TEXT_COLORS.muted}
+                placeholderTextColor={t.textoTenue}
                 value={query}
                 onChangeText={setQuery}
                 autoFocus
@@ -379,7 +389,7 @@ export default function FoodTextScreen() {
               />
               {query.length > 0 && (
                 <Pressable onPress={() => setQuery('')} hitSlop={8}>
-                  <Ionicons name="close-circle" size={20} color={TEXT_COLORS.secondary} />
+                  <Ionicons name="close-circle" size={20} color={t.textoSecundario} />
                 </Pressable>
               )}
             </View>
@@ -387,12 +397,12 @@ export default function FoodTextScreen() {
 
           {/* ═══ Resultados de autocompletado ═══ */}
           {searchResults.length > 0 && (
-            <Animated.View entering={FadeInUp.duration(300)} style={s.resultsContainer}>
+            <Animated.View entering={FadeInUp.duration(300)} style={[s.resultsContainer, { backgroundColor: t.card, borderColor: t.borde }]}>
               {searchResults.map((food, idx) => (
                 <AnimatedPressable
                   key={`${food.name}-${idx}`}
                   onPress={() => addIngredient(food)}
-                  style={s.resultItem}
+                  style={[s.resultItem, { borderBottomColor: t.borde }]}
                 >
                   <View style={[s.categoryDot, { backgroundColor: withOpacity(BLUE, 0.2) }]}>
                     <Ionicons
@@ -402,8 +412,8 @@ export default function FoodTextScreen() {
                     />
                   </View>
                   <View style={s.resultInfo}>
-                    <EliteText style={s.resultName}>{food.name}</EliteText>
-                    <EliteText style={s.resultMeta}>
+                    <EliteText style={[s.resultName, { color: t.texto }]}>{food.name}</EliteText>
+                    <EliteText style={[s.resultMeta, { color: t.textoSecundario }]}>
                       {food.per100g.calories} kcal · {food.per100g.protein}g prot / 100g
                     </EliteText>
                   </View>
@@ -467,7 +477,7 @@ export default function FoodTextScreen() {
                   <Ionicons name="sparkles-outline" size={20} color="#a8e02a" />
                 )}
                 <View style={{ flex: 1 }}>
-                  <EliteText style={s.aiSearchTitle}>Estimar con IA</EliteText>
+                  <EliteText style={[s.aiSearchTitle, { color: acento }]}>Estimar con IA</EliteText>
                   <EliteText style={s.aiSearchSub}>{`"${query.trim()}" · calcular macros`}</EliteText>
                 </View>
               </AnimatedPressable>
@@ -477,14 +487,14 @@ export default function FoodTextScreen() {
           {/* ═══ Ingredientes seleccionados ═══ */}
           {ingredients.length > 0 && (
             <Animated.View entering={FadeInUp.duration(300)}>
-              <EliteText style={s.sectionTitle}>Ingredientes</EliteText>
+              <EliteText style={[s.sectionTitle, { color: t.texto }]}>Ingredientes</EliteText>
               {ingredients.map((ing) => {
                 const nutrients = calculateNutrients(ing.food, ing.grams);
                 return (
                   <Animated.View
                     key={ing.id}
                     entering={FadeInUp.duration(250)}
-                    style={s.ingredientCard}
+                    style={[s.ingredientCard, { backgroundColor: t.hundido, borderColor: t.borde }]}
                   >
                     <View style={s.ingredientHeader}>
                       <View style={s.ingredientNameRow}>
@@ -493,10 +503,10 @@ export default function FoodTextScreen() {
                           size={16}
                           color={BLUE}
                         />
-                        <EliteText style={s.ingredientName}>{ing.food.name}</EliteText>
+                        <EliteText style={[s.ingredientName, { color: t.texto }]}>{ing.food.name}</EliteText>
                       </View>
                       <Pressable onPress={() => removeIngredient(ing.id)} hitSlop={10}>
-                        <Ionicons name="close-circle" size={22} color={SEMANTIC.error} />
+                        <Ionicons name="close-circle" size={22} color={t.error} />
                       </Pressable>
                     </View>
 
@@ -511,7 +521,7 @@ export default function FoodTextScreen() {
                           selectTextOnFocus
                         />
                         <View style={s.gramsUnitBadge}>
-                          <EliteText style={s.gramsLabel}>g</EliteText>
+                          <EliteText style={[s.gramsLabel, { color: acento }]}>g</EliteText>
                         </View>
                       </View>
 
@@ -520,9 +530,9 @@ export default function FoodTextScreen() {
                           el desglose completo es del modo completo. */}
                       <View style={s.ingredientMacros}>
                         {nutritionMode === 'complete' && (
-                          <EliteText style={s.macroMini}>{nutrients.calories} kcal</EliteText>
+                          <EliteText style={[s.macroMini, { color: t.textoSecundario }]}>{nutrients.calories} kcal</EliteText>
                         )}
-                        <EliteText style={[s.macroMini, { color: SEMANTIC.info }]}>
+                        <EliteText style={[s.macroMini, { color: t.info }]}>
                           P {nutrients.protein}
                         </EliteText>
                         {nutritionMode === 'complete' && (
@@ -530,7 +540,7 @@ export default function FoodTextScreen() {
                             <EliteText style={[s.macroMini, { color: SEMANTIC.warning }]}>
                               C {nutrients.carbs}
                             </EliteText>
-                            <EliteText style={[s.macroMini, { color: SEMANTIC.error }]}>
+                            <EliteText style={[s.macroMini, { color: t.error }]}>
                               G {nutrients.fat}
                             </EliteText>
                           </>
@@ -546,17 +556,17 @@ export default function FoodTextScreen() {
           {/* ═══ Resumen de macros totales. P1 MB-28A: SIMPLE ve solo la
               proteína; el desglose de 5 números es del modo completo. ═══ */}
           {ingredients.length > 0 && (
-            <Animated.View entering={FadeInUp.delay(100).duration(400)} style={s.totalsCard}>
-              <EliteText style={s.totalsTitle}>Total</EliteText>
+            <Animated.View entering={FadeInUp.delay(100).duration(400)} style={[s.totalsCard, { backgroundColor: t.card, borderColor: t.borde }]}>
+              <EliteText style={[s.totalsTitle, { color: t.texto }]}>Total</EliteText>
               <View style={s.totalsRow}>
                 {nutritionMode === 'complete' && (
                   <MacroBox label="Calorías" value={`${totals.calories}`} unit="kcal" color={BLUE} />
                 )}
-                <MacroBox label="Proteína" value={`${totals.protein}`} unit="g" color={SEMANTIC.info} />
+                <MacroBox label="Proteína" value={`${totals.protein}`} unit="g" color={t.info} />
                 {nutritionMode === 'complete' && (
                   <>
                     <MacroBox label="Carbs" value={`${totals.carbs}`} unit="g" color={SEMANTIC.warning} />
-                    <MacroBox label="Grasa" value={`${totals.fat}`} unit="g" color={SEMANTIC.error} />
+                    <MacroBox label="Grasa" value={`${totals.fat}`} unit="g" color={t.error} />
                     <MacroBox label="Fibra" value={`${totals.fiber}`} unit="g" color={SEMANTIC.success} />
                   </>
                 )}
@@ -566,7 +576,7 @@ export default function FoodTextScreen() {
 
           {/* ═══ Tipo de comida ═══ */}
           <Animated.View entering={FadeInUp.delay(150).duration(400)}>
-            <EliteText style={s.sectionTitle}>Tipo de comida</EliteText>
+            <EliteText style={[s.sectionTitle, { color: t.texto }]}>Tipo de comida</EliteText>
             <View style={s.pillsRow}>
               {MEAL_TYPES.map(mt => {
                 const active = mealType === mt.key;
@@ -576,10 +586,11 @@ export default function FoodTextScreen() {
                     onPress={() => setMealType(mt.key)}
                     style={[
                       s.pill,
+                      { backgroundColor: t.card, borderColor: t.borde },
                       active && { backgroundColor: withOpacity(BLUE, 0.2), borderColor: BLUE },
                     ]}
                   >
-                    <EliteText style={[s.pillText, active && { color: BLUE }]}>
+                    <EliteText style={[s.pillText, { color: t.textoSecundario }, active && { color: BLUE }]}>
                       {mt.label}
                     </EliteText>
                   </AnimatedPressable>
@@ -590,10 +601,10 @@ export default function FoodTextScreen() {
 
           {/* ═══ Selector de hora ═══ */}
           <Animated.View entering={FadeInUp.delay(200).duration(400)}>
-            <EliteText style={s.sectionTitle}>Hora</EliteText>
+            <EliteText style={[s.sectionTitle, { color: t.texto }]}>Hora</EliteText>
             <View style={s.timeRow}>
               <TextInput
-                style={s.timeInput}
+                style={[s.timeInput, { backgroundColor: t.card, borderColor: t.bordeMarcado, color: t.texto }]}
                 value={timeHH}
                 onChangeText={(t) => {
                   const clean = t.replace(/[^0-9]/g, '').slice(0, 2);
@@ -604,9 +615,9 @@ export default function FoodTextScreen() {
                 maxLength={2}
                 selectTextOnFocus
               />
-              <EliteText style={s.timeSeparator}>:</EliteText>
+              <EliteText style={[s.timeSeparator, { color: t.textoSecundario }]}>:</EliteText>
               <TextInput
-                style={s.timeInput}
+                style={[s.timeInput, { backgroundColor: t.card, borderColor: t.bordeMarcado, color: t.texto }]}
                 value={timeMM}
                 onChangeText={(t) => {
                   const clean = t.replace(/[^0-9]/g, '').slice(0, 2);
@@ -629,14 +640,14 @@ export default function FoodTextScreen() {
                 <AnimatedPressable
                   onPress={handleSave}
                   disabled={!canSave}
-                  style={[s.saveBtn, !canSave && s.saveBtnDisabled]}
+                  style={[s.saveBtn, !canSave && { backgroundColor: t.flotante }]}
                 >
                   {saving ? (
                     <EliteText style={s.saveBtnText}>Guardando...</EliteText>
                   ) : (
                     <>
-                      <Ionicons name="checkmark-circle" size={22} color={canSave ? TEXT_COLORS.onAccent : TEXT_COLORS.muted} />
-                      <EliteText style={[s.saveBtnText, !canSave && { color: TEXT_COLORS.muted }]}>
+                      <Ionicons name="checkmark-circle" size={22} color={canSave ? TEXT_COLORS.onAccent : t.textoTenue} />
+                      <EliteText style={[s.saveBtnText, !canSave && { color: t.textoTenue }]}>
                         {ingredients.length > 0 ? 'Guardar comida' : 'Guardar como texto'}
                       </EliteText>
                     </>
@@ -650,7 +661,7 @@ export default function FoodTextScreen() {
             {nutritionMode === 'simple' && ingredients.length > 0 && (
               <Pressable onPress={() => setShowReview(true)} disabled={saving}
                 style={{ alignSelf: 'center', paddingVertical: Spacing.sm, marginTop: Spacing.xs }}>
-                <EliteText style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.md }}>
+                <EliteText style={{ color: t.textoTenue, fontSize: FontSizes.md }}>
                   Revisar y ajustar antes de guardar
                 </EliteText>
               </Pressable>
@@ -661,6 +672,7 @@ export default function FoodTextScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </ThemeReady>
   );
 }
 
@@ -669,11 +681,12 @@ export default function FoodTextScreen() {
 function MacroBox({ label, value, unit, color }: {
   label: string; value: string; unit: string; color: string;
 }) {
+  const { tokens: t } = useAppTheme();
   return (
     <View style={s.macroBox}>
       <EliteText style={[s.macroValue, { color }]}>{value}</EliteText>
-      <EliteText style={s.macroUnit}>{unit}</EliteText>
-      <EliteText style={s.macroLabel}>{label}</EliteText>
+      <EliteText style={[s.macroUnit, { color: t.textoSecundario }]}>{unit}</EliteText>
+      <EliteText style={[s.macroLabel, { color: t.textoTenue }]}>{label}</EliteText>
     </View>
   );
 }
@@ -683,7 +696,6 @@ function MacroBox({ label, value, unit, color }: {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   flex1: {
     flex: 1,
@@ -698,7 +710,6 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: SURFACES.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -711,10 +722,8 @@ const s = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: SURFACES.card,
     borderRadius: Radius.card,
     borderWidth: 1,
-    borderColor: SURFACES.disabled,
     paddingHorizontal: Spacing.sm + 4,
     marginBottom: Spacing.sm,
     marginTop: Spacing.sm,
@@ -725,17 +734,14 @@ const s = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 48,
-    color: TEXT_COLORS.primary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.md,
   },
 
   // --- Resultados de autocompletado ---
   resultsContainer: {
-    backgroundColor: SURFACES.card,
     borderRadius: Radius.card,
     borderWidth: 0.5,
-    borderColor: SURFACES.border,
     marginBottom: Spacing.md,
     overflow: 'hidden',
   },
@@ -745,7 +751,6 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.sm + 4,
     borderBottomWidth: 0.5,
-    borderBottomColor: SURFACES.border,
   },
   categoryDot: {
     width: 32,
@@ -759,12 +764,10 @@ const s = StyleSheet.create({
     flex: 1,
   },
   resultName: {
-    color: TEXT_COLORS.primary,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.md,
   },
   resultMeta: {
-    color: TEXT_COLORS.secondary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     marginTop: 2,
@@ -781,7 +784,6 @@ const s = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   aiSearchTitle: {
-    color: '#a8e02a',
     fontFamily: Fonts.bold,
     fontSize: FontSizes.md,
   },
@@ -794,17 +796,15 @@ const s = StyleSheet.create({
 
   // --- Ingredientes seleccionados ---
   sectionTitle: {
-    color: TEXT_COLORS.primary,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.lg,
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,
   },
+  // MB-31B3: el borde #1a1a1a pasó a t.borde (#1F1F1F en oscuro, imperceptible).
   ingredientCard: {
-    backgroundColor: '#0a0a0a',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
     padding: 14,
     marginBottom: 10,
   },
@@ -820,7 +820,6 @@ const s = StyleSheet.create({
     flex: 1,
   },
   ingredientName: {
-    color: '#fff',
     fontFamily: Fonts.bold,
     fontSize: 15,
   },
@@ -855,7 +854,6 @@ const s = StyleSheet.create({
     borderColor: 'rgba(168,224,42,0.25)',
   },
   gramsLabel: {
-    color: '#a8e02a',
     fontFamily: Fonts.bold,
     fontSize: 14,
   },
@@ -865,22 +863,18 @@ const s = StyleSheet.create({
     gap: Spacing.sm,
   },
   macroMini: {
-    color: TEXT_COLORS.secondary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
   },
 
   // --- Totales ---
   totalsCard: {
-    backgroundColor: SURFACES.card,
     borderRadius: Radius.card,
     borderWidth: 0.5,
-    borderColor: SURFACES.border,
     padding: Spacing.md,
     marginTop: Spacing.sm,
   },
   totalsTitle: {
-    color: TEXT_COLORS.primary,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.lg,
     marginBottom: Spacing.sm,
@@ -898,13 +892,11 @@ const s = StyleSheet.create({
     fontSize: FontSizes.xl,
   },
   macroUnit: {
-    color: TEXT_COLORS.secondary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     marginTop: -2,
   },
   macroLabel: {
-    color: TEXT_COLORS.muted,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     marginTop: 2,
@@ -921,11 +913,8 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: SURFACES.border,
-    backgroundColor: SURFACES.card,
   },
   pillText: {
-    color: TEXT_COLORS.secondary,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.sm,
   },
@@ -939,17 +928,13 @@ const s = StyleSheet.create({
   timeInput: {
     width: 56,
     height: 44,
-    backgroundColor: SURFACES.card,
     borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: SURFACES.disabled,
-    color: TEXT_COLORS.primary,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.xl,
     textAlign: 'center',
   },
   timeSeparator: {
-    color: TEXT_COLORS.secondary,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.xl,
   },
@@ -968,9 +953,8 @@ const s = StyleSheet.create({
     gap: Spacing.sm,
   },
   // E.1 (MB-8): estado disabled explícito (fill recedido), no opacity apilada.
-  saveBtnDisabled: {
-    backgroundColor: SURFACES.cardLight,
-  },
+  // MB-31B3: el fill recedido pasó a token (t.flotante) inline.
+  saveBtnDisabled: {},
   saveBtnText: {
     color: TEXT_COLORS.onAccent,
     fontFamily: Fonts.bold,

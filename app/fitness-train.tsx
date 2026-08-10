@@ -13,6 +13,7 @@
 import { useCallback, useState } from 'react';
 import { View, ScrollView, StyleSheet, ImageBackground } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,7 +31,8 @@ import {
 import { getAsignacionHoy, type EstadoAsignacionHoy } from '@/src/services/fitness/plan-semanal-service';
 import { getCycleInfo, PHASES } from '@/src/services/cycle-service';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 // MB-3.6 §4.2: colores de brand.ts (antes hex crudos); "y timers" fuera del
 // copy — /timer murió (Bloque 1), HIIT es la casa de los intervalos.
@@ -44,6 +46,8 @@ const SECUNDARIOS = [
 export default function FitnessTrainScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
   // MB-27 P2: la asignación del día. null = sin leer o lectura fallida —
   // la pantalla se comporta EXACTAMENTE como antes (degrada callada).
   const [asignacion, setAsignacion] = useState<EstadoAsignacionHoy | null>(null);
@@ -113,7 +117,8 @@ export default function FitnessTrainScreen() {
       : 'Generar mi rutina';
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="fitness" title="Entrenar" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
@@ -147,11 +152,11 @@ export default function FitnessTrainScreen() {
             style={s.planLink}
             onPress={() => { haptic.light(); router.push('/plan-entrenamiento'); }}
           >
-            <Ionicons name="calendar-outline" size={16} color={TEXT_COLORS.secondary} />
-            <EliteText style={s.planLinkText}>
+            <Ionicons name="calendar-outline" size={16} color={t.textoSecundario} />
+            <EliteText style={[s.planLinkText, { color: t.textoSecundario }]}>
               {asignacion?.tienePlan ? 'Cambiar mi plan de días' : 'Dí qué días entrenas y Entrenar te contesta'}
             </EliteText>
-            <Ionicons name="chevron-forward" size={14} color={TEXT_COLORS.muted} />
+            <Ionicons name="chevron-forward" size={14} color={t.textoTenue} />
           </AnimatedPressable>
         </Animated.View>
 
@@ -162,7 +167,7 @@ export default function FitnessTrainScreen() {
         {fase && PHASES[fase.phase] && (
           <Animated.View entering={FadeInUp.delay(110).springify()}>
             <AnimatedPressable
-              style={[s.faseCard, { borderColor: withOpacity(PHASES[fase.phase].color, 0.35) }]}
+              style={[s.faseCard, { backgroundColor: t.card, borderColor: withOpacity(PHASES[fase.phase].color, 0.35) }]}
               onPress={() => { haptic.light(); router.push('/cycle'); }}
             >
               <Ionicons
@@ -174,10 +179,10 @@ export default function FitnessTrainScreen() {
                 <EliteText style={[s.faseTitulo, { color: PHASES[fase.phase].color }]}>
                   Fase {PHASES[fase.phase].label.toLowerCase()} · día {fase.day}
                 </EliteText>
-                <EliteText style={s.faseCopy}>{PHASES[fase.phase].exercise}</EliteText>
+                <EliteText style={[s.faseCopy, { color: t.textoSecundario }]}>{PHASES[fase.phase].exercise}</EliteText>
                 {/* Audit V2 B1: el número SIEMPRE dice de dónde sale — regla
                     de la casa desde M3.b, ahora también fuera de /cycle. */}
-                <EliteText style={s.faseFuente}>
+                <EliteText style={[s.faseFuente, { color: t.textoTenue }]}>
                   {fase.largoFuente === 'observado'
                     ? `Ciclo de ${fase.cycleLen} días: promedio de tus últimos ${fase.cyclesUsed} ciclos registrados.`
                     : `Ciclo de ${fase.cycleLen} días: tu ajuste manual.`}
@@ -188,7 +193,7 @@ export default function FitnessTrainScreen() {
         )}
 
         {/* Grupo secundario chico */}
-        <EliteText style={s.sectionLabel}>MÁS FORMAS DE ENTRENAR</EliteText>
+        <EliteText style={[s.sectionLabel, { color: t.textoSecundario }]}>MÁS FORMAS DE ENTRENAR</EliteText>
         {SECUNDARIOS.map((item, idx) => (
           <Animated.View key={item.name} entering={FadeInUp.delay(120 + idx * 50).springify()}>
             <AnimatedPressable onPress={() => nav(item)}>
@@ -198,10 +203,10 @@ export default function FitnessTrainScreen() {
                     <Ionicons name={item.icon} size={20} color={item.color} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <EliteText style={s.name}>{item.name}</EliteText>
-                    <EliteText style={s.sub}>{item.subtitle}</EliteText>
+                    <EliteText style={[s.name, { color: t.texto }]}>{item.name}</EliteText>
+                    <EliteText style={[s.sub, { color: t.textoSecundario }]}>{item.subtitle}</EliteText>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.muted} />
+                  <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
                 </View>
               </GradientCard>
             </AnimatedPressable>
@@ -237,21 +242,21 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.sm, paddingHorizontal: 4,
     marginTop: -Spacing.sm, marginBottom: Spacing.md,
   },
-  planLinkText: { flex: 1, fontSize: FontSizes.sm, color: TEXT_COLORS.secondary },
+  planLinkText: { flex: 1, fontSize: FontSizes.sm },
 
   // MB-27 P3: la tira de fase — informativa, con el color de la fase
   // desaturado en el borde (nunca a tope: no compite con el hero).
   faseCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderRadius: 14,
+    borderWidth: 1, borderRadius: 14,
     padding: Spacing.md, marginBottom: Spacing.lg,
   },
   faseTitulo: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 0.5, marginBottom: 2 },
-  faseCopy: { fontSize: FontSizes.sm, color: TEXT_COLORS.secondary, lineHeight: 18 },
-  faseFuente: { fontSize: FontSizes.xs, color: TEXT_COLORS.muted, marginTop: 4 },
+  faseCopy: { fontSize: FontSizes.sm, lineHeight: 18 },
+  faseFuente: { fontSize: FontSizes.xs, marginTop: 4 },
 
   sectionLabel: {
-    fontSize: 11, fontFamily: Fonts.bold, color: TEXT_COLORS.secondary,
+    fontSize: 11, fontFamily: Fonts.bold,
     letterSpacing: 2, marginBottom: Spacing.sm,
   },
 
@@ -259,6 +264,6 @@ const s = StyleSheet.create({
   card: { padding: Spacing.md, marginBottom: Spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   icon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  name: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.primary, marginBottom: 2 },
-  sub: { fontSize: FontSizes.xs, color: TEXT_COLORS.secondary },
+  name: { fontSize: FontSizes.md, fontFamily: Fonts.bold, marginBottom: 2 },
+  sub: { fontSize: FontSizes.xs },
 });

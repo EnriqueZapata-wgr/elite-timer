@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, Alert, DeviceEventEmitter, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -22,7 +23,8 @@ import { DOSE_PATTERNS, DOSE_TIME_LABELS, doseCountFor, isCustomDoseTime, normal
 import { normalizeSupplementName } from '@/src/services/supplements-plan-core';
 import { isPregnancyActive } from '@/src/services/supplements-service';
 import { BhaScanSheet } from '@/src/components/supplements/BhaScanSheet';
-import { getScoreColor, getScoreLabel } from '@/src/constants/brand';
+import { ATP_BRAND, getScoreColor, getScoreLabel } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const TIMING_OPTIONS = [
@@ -48,6 +50,13 @@ export default function SupplementsScreen() {
   useRegisterOwnNav();
 
   const insets = useSafeAreaInsets();
+  // MB-31B3: la pantalla migro a tokens y sigue el tema global.
+  // Reglas 1-3 del manual en claro: lima y teal no son texto; los colores de
+  // concepto son icono/relleno, no letra. En oscuro nada cambia.
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
+  const tealTx = kind === 'dark' ? '#1D9E75' : t.tealTexto;
+  const conceptTx = (c: string) => (kind === 'dark' ? c : t.texto);
   const [userId, setUserId] = useState('');
   const [supplements, setSupplements] = useState<any[]>([]);
   // Multi-dosis (188): por suplemento, los dose_index tomados hoy.
@@ -352,24 +361,26 @@ export default function SupplementsScreen() {
   }, [supplements, todayLogs]);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#000' }} contentContainerStyle={{ paddingBottom: 40 }}>
+    <ThemeReady>
+    <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 }}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 8, paddingBottom: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color={t.texto} />
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={{ color: '#1D9E75', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ATP</Text>
-            <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>SUPLEMENTOS</Text>
+            <Text style={{ color: t.texto, fontSize: 22, fontWeight: '800' }}>SUPLEMENTOS</Text>
           </View>
           {/* Punto de entrada del scanner BHA en la sección (scan standalone:
               suplemento o comida empaquetada, sin persistir en ficha) */}
           <Pressable onPress={() => openBhaScan(null)} hitSlop={12} style={{ marginRight: 14 }}>
-            <Ionicons name="scan-outline" size={24} color="#4ade80" />
+            <Ionicons name="scan-outline" size={24} color={kind === 'dark' ? '#4ade80' : t.tealTexto} />
           </Pressable>
           <Pressable onPress={() => setShowAdd(true)} hitSlop={12}>
-            <Ionicons name="add-circle-outline" size={26} color="#a8e02a" />
+            <Ionicons name="add-circle-outline" size={26} color={acento} />
           </Pressable>
         </View>
       </View>
@@ -382,7 +393,7 @@ export default function SupplementsScreen() {
             borderWidth: 1.5, borderColor: '#EF9F27', flexDirection: 'row', gap: 12, alignItems: 'center',
           }}>
             <Ionicons name="warning-outline" size={28} color="#EF9F27" />
-            <Text style={{ color: '#EF9F27', fontSize: 14, fontWeight: '700', lineHeight: 20, flex: 1 }}>
+            <Text style={{ color: kind === 'dark' ? '#EF9F27' : t.texto, fontSize: 14, fontWeight: '700', lineHeight: 20, flex: 1 }}>
               Estás en embarazo: revisa TODO con tu nutriólogo clínico antes de tomar cualquier suplemento.
             </Text>
           </View>
@@ -392,10 +403,10 @@ export default function SupplementsScreen() {
       {/* Doctrina: registro, no recomendación (copy obligatorio del sprint) */}
       <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
         <View style={{
-          backgroundColor: '#121212', borderRadius: 12, padding: 12,
-          borderWidth: 1, borderColor: '#1F1F1F',
+          backgroundColor: t.card, borderRadius: 12, padding: 12,
+          borderWidth: 1, borderColor: t.borde,
         }}>
-          <Text style={{ color: '#888', fontSize: 11, lineHeight: 16 }}>
+          <Text style={{ color: t.textoSecundario, fontSize: 11, lineHeight: 16 }}>
             Esto es tu registro. No es recomendación. Es responsabilidad de quien te lo indicó.
           </Text>
         </View>
@@ -408,12 +419,12 @@ export default function SupplementsScreen() {
           borderWidth: 1, borderColor: 'rgba(29,158,117,0.15)',
         }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 1 }}>HOY</Text>
-            <Text style={{ color: '#1D9E75', fontSize: 14, fontWeight: '800' }}>
+            <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 1 }}>HOY</Text>
+            <Text style={{ color: tealTx, fontSize: 14, fontWeight: '800' }}>
               {takenCount}/{totalCount}
             </Text>
           </View>
-          <View style={{ height: 6, backgroundColor: '#1a1a1a', borderRadius: 3 }}>
+          <View style={{ height: 6, backgroundColor: t.borde, borderRadius: 3 }}>
             <View style={{
               height: 6, backgroundColor: '#1D9E75', borderRadius: 3,
               width: `${completionPct}%`,
@@ -421,12 +432,12 @@ export default function SupplementsScreen() {
           </View>
           {/* T4: adherencia semanal contra dose_pattern */}
           {weeklyAdherence !== null && (
-            <Text style={{ color: '#999', fontSize: 11, marginTop: 8 }}>
-              Adherencia esta semana: <Text style={{ color: weeklyAdherence >= 80 ? '#a8e02a' : '#fbbf24', fontWeight: '700' }}>{weeklyAdherence}%</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 11, marginTop: 8 }}>
+              Adherencia esta semana: <Text style={{ color: weeklyAdherence >= 80 ? acento : (kind === 'dark' ? '#fbbf24' : t.texto), fontWeight: '700' }}>{weeklyAdherence}%</Text>
             </Text>
           )}
           {totalCount > 0 && takenCount === totalCount && (
-            <Text style={{ color: '#1D9E75', fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 8 }}>
+            <Text style={{ color: tealTx, fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 8 }}>
               ✓ Todas las tomas de hoy registradas
             </Text>
           )}
@@ -436,22 +447,22 @@ export default function SupplementsScreen() {
       {/* Estado vacío — biblioteca vacía por default (doctrina: el user crea sus fichas) */}
       {supplements.length === 0 && (
         <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 40 }}>
-          <Ionicons name="flask-outline" size={48} color="#333" />
-          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 16 }}>Tu registro de suplementos</Text>
-          <Text style={{ color: '#666', fontSize: 13, textAlign: 'center', marginTop: 8 }}>
+          <Ionicons name="flask-outline" size={48} color={t.bordeMarcado} />
+          <Text style={{ color: t.texto, fontSize: 18, fontWeight: '700', marginTop: 16 }}>Tu registro de suplementos</Text>
+          <Text style={{ color: t.textoSecundario, fontSize: 13, textAlign: 'center', marginTop: 8 }}>
             Crea las fichas de los suplementos que ya tomas (indicados por tu profesional) para registrar tus tomas del día.
           </Text>
           <Pressable onPress={() => setShowAdd(true)} style={{
-            backgroundColor: '#a8e02a', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 24, marginTop: 20,
+            backgroundColor: ATP_BRAND.lime, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 24, marginTop: 20,
           }}>
-            <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>CREAR MI PRIMERA FICHA</Text>
+            <Text style={{ color: ATP_BRAND.black, fontSize: 14, fontWeight: '800' }}>CREAR MI PRIMERA FICHA</Text>
           </Pressable>
         </View>
       )}
 
       {/* Suplementos agrupados por timing */}
       {grouped.length > 0 && (
-        <Text style={{ color: '#666', fontSize: 11, paddingHorizontal: 20, marginBottom: 8 }}>
+        <Text style={{ color: t.textoSecundario, fontSize: 11, paddingHorizontal: 20, marginBottom: 8 }}>
           Toca ✏️ para editar tomas y cantidades · desliza ← para eliminar
         </Text>
       )}
@@ -459,7 +470,7 @@ export default function SupplementsScreen() {
         <View key={group.id} style={{ paddingHorizontal: 20, marginBottom: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <Ionicons name={group.icon} size={16} color={group.color} />
-            <Text style={{ color: group.color, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>
+            <Text style={{ color: kind === 'dark' ? group.color : t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>
               {group.label.toUpperCase()}
             </Text>
           </View>
@@ -485,25 +496,25 @@ export default function SupplementsScreen() {
                   onLongPress={() => removeSupplement(supp.id, supp.name)}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: 12,
-                    backgroundColor: taken ? 'rgba(29,158,117,0.08)' : '#0a0a0a',
+                    backgroundColor: taken ? 'rgba(29,158,117,0.08)' : t.hundido,
                     borderRadius: 14, padding: 14, marginBottom: 6,
                     borderWidth: 1,
-                    borderColor: taken ? 'rgba(29,158,117,0.2)' : '#1a1a1a',
+                    borderColor: taken ? 'rgba(29,158,117,0.2)' : t.borde,
                   }}
                 >
                   {taken ? (
                     <Ionicons name="checkmark-circle" size={26} color="#1D9E75" />
                   ) : (
-                    <View style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: '#333', alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: t.bordeMarcado, alignItems: 'center', justifyContent: 'center' }}>
                       {doseCount > 1 && takenIdxs.length > 0 && (
-                        <Text style={{ color: '#1D9E75', fontSize: 9, fontWeight: '800' }}>{takenIdxs.length}</Text>
+                        <Text style={{ color: tealTx, fontSize: 9, fontWeight: '800' }}>{takenIdxs.length}</Text>
                       )}
                     </View>
                   )}
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <Text style={{
-                        color: taken ? '#1D9E75' : '#fff', fontSize: 14, fontWeight: '600',
+                        color: taken ? tealTx : t.texto, fontSize: 14, fontWeight: '600',
                         textDecorationLine: taken ? 'line-through' : 'none',
                       }}>
                         {supp.name}
@@ -519,23 +530,23 @@ export default function SupplementsScreen() {
                           </Text>
                         </View>
                       ) : supp.bha_status ? (
-                        <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                          <Text style={{ color: '#999', fontSize: 8, fontWeight: '800' }}>EVALUADO · RE-ESCANEA</Text>
+                        <View style={{ backgroundColor: kind === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,21,24,0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ color: t.textoSecundario, fontSize: 8, fontWeight: '800' }}>EVALUADO · RE-ESCANEA</Text>
                         </View>
                       ) : null}
                     </View>
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
-                      <Text style={{ color: '#666', fontSize: 11 }}>{supp.dosage}</Text>
-                      {supp.brand && <Text style={{ color: '#666', fontSize: 11 }}>· {supp.brand}</Text>}
-                      {supp.form && <Text style={{ color: '#666', fontSize: 11 }}>· {FORM_OPTIONS.find(f => f.id === supp.form)?.label ?? supp.form}</Text>}
+                      <Text style={{ color: t.textoSecundario, fontSize: 11 }}>{supp.dosage}</Text>
+                      {supp.brand && <Text style={{ color: t.textoSecundario, fontSize: 11 }}>· {supp.brand}</Text>}
+                      {supp.form && <Text style={{ color: t.textoSecundario, fontSize: 11 }}>· {FORM_OPTIONS.find(f => f.id === supp.form)?.label ?? supp.form}</Text>}
                       {/* T4: patrón de toma visible (dosis flexible, 167) */}
-                      {supp.dose_pattern && <Text style={{ color: '#1D9E75', fontSize: 11 }}>· {supp.dose_pattern}</Text>}
+                      {supp.dose_pattern && <Text style={{ color: tealTx, fontSize: 11 }}>· {supp.dose_pattern}</Text>}
                       {/* MB-2 §4: toma única con hora custom — visible en la fila
                           (con 2+ tomas ya salen los chips por dosis) */}
                       {doseCount === 1 && doseLabels[0] && isCustomDoseTime(doseLabels[0]) && (
-                        <Text style={{ color: '#1D9E75', fontSize: 11 }}>· {doseLabels[0]}</Text>
+                        <Text style={{ color: tealTx, fontSize: 11 }}>· {doseLabels[0]}</Text>
                       )}
-                      {supp.reason && <Text style={{ color: '#444', fontSize: 11 }}>· {supp.reason}</Text>}
+                      {supp.reason && <Text style={{ color: t.sinDatos, fontSize: 11 }}>· {supp.reason}</Text>}
                     </View>
                     {/* Multi-dosis (188): N tomas = N checks individuales */}
                     {doseCount > 1 && (
@@ -550,16 +561,16 @@ export default function SupplementsScreen() {
                               style={{
                                 flexDirection: 'row', alignItems: 'center', gap: 4,
                                 paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10,
-                                backgroundColor: doseTaken ? 'rgba(29,158,117,0.15)' : '#111',
-                                borderWidth: 1, borderColor: doseTaken ? '#1D9E75' : '#222',
+                                backgroundColor: doseTaken ? 'rgba(29,158,117,0.15)' : t.card,
+                                borderWidth: 1, borderColor: doseTaken ? '#1D9E75' : t.borde,
                               }}
                             >
                               <Ionicons
                                 name={doseTaken ? 'checkmark-circle' : 'ellipse-outline'}
                                 size={12}
-                                color={doseTaken ? '#1D9E75' : '#555'}
+                                color={doseTaken ? '#1D9E75' : t.textoTenue}
                               />
-                              <Text style={{ color: doseTaken ? '#1D9E75' : '#777', fontSize: 10, fontWeight: '600' }}>
+                              <Text style={{ color: doseTaken ? tealTx : t.textoSecundario, fontSize: 10, fontWeight: '600' }}>
                                 {doseLabels[i] ?? `Toma ${i + 1}`}
                               </Text>
                             </Pressable>
@@ -569,7 +580,7 @@ export default function SupplementsScreen() {
                     )}
                     {/* Resumen del ATP Functional Score en la ficha */}
                     {(supp.functional_score != null || supp.bha_status) && supp.bha_scan_summary && (
-                      <Text style={{ color: '#555', fontSize: 10, marginTop: 6, lineHeight: 14 }} numberOfLines={2}>
+                      <Text style={{ color: t.textoTenue, fontSize: 10, marginTop: 6, lineHeight: 14 }} numberOfLines={2}>
                         {String(supp.bha_scan_summary).split('\n')[0]}
                       </Text>
                     )}
@@ -578,7 +589,7 @@ export default function SupplementsScreen() {
                       hitSlop corto — los hitSlop 10 se traslapaban entre sí y con
                       el tap de la fila (marcar toma) → mis-taps en device. */}
                   <Pressable onPress={() => openEdit(supp)} hitSlop={4} style={{ padding: 8 }}>
-                    <Ionicons name="pencil-outline" size={18} color="#666" />
+                    <Ionicons name="pencil-outline" size={18} color={t.textoSecundario} />
                   </Pressable>
                   {/* CTA de escaneo ATP Functional Score (re-escanear si ya tiene score) */}
                   <Pressable
@@ -586,7 +597,7 @@ export default function SupplementsScreen() {
                     hitSlop={4}
                     style={{ padding: 8 }}
                   >
-                    <Ionicons name="scan-outline" size={20} color={supp.functional_score != null || supp.bha_status ? '#444' : '#4ade80'} />
+                    <Ionicons name="scan-outline" size={20} color={supp.functional_score != null || supp.bha_status ? t.sinDatos : (kind === 'dark' ? '#4ade80' : t.tealTexto)} />
                   </Pressable>
                 </Pressable>
               </SwipeToDeleteRow>
@@ -596,7 +607,7 @@ export default function SupplementsScreen() {
       ))}
 
       {supplements.length > 0 && (
-        <Text style={{ color: '#444', fontSize: 9, textAlign: 'center', marginTop: 4 }}>
+        <Text style={{ color: t.sinDatos, fontSize: 9, textAlign: 'center', marginTop: 4 }}>
           Toca para marcar · Desliza ← (o mantén presionado) para eliminar · Escanea la etiqueta para tu ATP Functional Score
         </Text>
       )}
@@ -620,24 +631,24 @@ export default function SupplementsScreen() {
               fijo excedía el viewport en pantallas chicas con teclado abierto). */}
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={{
-              backgroundColor: '#0a0a0a', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+              backgroundColor: t.flotante, borderTopLeftRadius: 24, borderTopRightRadius: 24,
               paddingHorizontal: 24, paddingTop: 24, paddingBottom: insets.bottom + 24,
               maxHeight: '88%',
             }}>
-              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#333', alignSelf: 'center', marginBottom: 20 }} />
-              <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', marginBottom: 20 }}>
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: t.bordeMarcado, alignSelf: 'center', marginBottom: 20 }} />
+              <Text style={{ color: t.texto, fontSize: 18, fontWeight: '800', marginBottom: 20 }}>
                 {editingId ? 'Editar suplemento' : 'Agregar suplemento'}
               </Text>
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Nombre</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Nombre</Text>
             <TextInput
               value={newName} onChangeText={setNewName}
-              placeholder="Ej: Magnesio glicinato" placeholderTextColor="#444"
+              placeholder="Ej: Magnesio glicinato" placeholderTextColor={t.sinDatos}
               style={{
-                backgroundColor: '#111', color: '#fff', fontSize: 15, borderRadius: 12,
+                backgroundColor: t.card, color: t.texto, fontSize: 15, borderRadius: 12,
                 padding: 14, marginBottom: nameSuggestions.length > 0 ? 8 : 14,
-                borderWidth: 1, borderColor: '#1a1a1a',
+                borderWidth: 1, borderColor: t.borde,
               }}
             />
             {/* MB-2 §3: autocomplete del historial PROPIO (sin catálogo) —
@@ -656,27 +667,27 @@ export default function SupplementsScreen() {
                     }}
                   >
                     <Ionicons name="time-outline" size={12} color="#1D9E75" />
-                    <Text style={{ color: '#1D9E75', fontSize: 12, fontWeight: '600' }}>{h.name}</Text>
+                    <Text style={{ color: tealTx, fontSize: 12, fontWeight: '600' }}>{h.name}</Text>
                   </Pressable>
                 ))}
               </View>
             )}
 
             {/* Sweep §4: "Dosis" → "Cantidad" (registro del usuario, no pauta de ATP) */}
-            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Cantidad</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Cantidad</Text>
             <TextInput
               value={newDosage} onChangeText={setNewDosage}
-              placeholder="Ej: 400 mg" placeholderTextColor="#444"
+              placeholder="Ej: 400 mg" placeholderTextColor={t.sinDatos}
               style={{
-                backgroundColor: '#111', color: '#fff', fontSize: 15, borderRadius: 12,
-                padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#1a1a1a',
+                backgroundColor: t.card, color: t.texto, fontSize: 15, borderRadius: 12,
+                padding: 14, marginBottom: 14, borderWidth: 1, borderColor: t.borde,
               }}
             />
 
             {/* Multi-dosis (188): 2+ etiquetas = N tomas/día con N checks.
                 MB-2 §3: wrap (los chips horizontales se salían de pantalla).
                 MB-2 §4: horas custom HH:MM además de las 4 etiquetas. */}
-            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>
+            <Text style={{ color: t.textoSecundario, fontSize: 11, fontWeight: '600', marginBottom: 6 }}>
               Tomas al día {newDoseTimes.length >= 2 ? `(${newDoseTimes.length} tomas)` : '(1 toma)'}
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: showCustomTime ? 8 : 14 }}>
@@ -688,19 +699,19 @@ export default function SupplementsScreen() {
                     onPress={() => toggleDoseTimeLabel(label)}
                     style={{
                       paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
-                      backgroundColor: sel ? 'rgba(29,158,117,0.15)' : '#111',
-                      borderWidth: 1.5, borderColor: sel ? '#1D9E75' : '#1a1a1a',
+                      backgroundColor: sel ? 'rgba(29,158,117,0.15)' : t.card,
+                      borderWidth: 1.5, borderColor: sel ? '#1D9E75' : t.borde,
                     }}
                   >
-                    <Text style={{ color: sel ? '#1D9E75' : '#999', fontSize: 12, fontWeight: '600' }}>{label}</Text>
+                    <Text style={{ color: sel ? tealTx : t.textoSecundario, fontSize: 12, fontWeight: '600' }}>{label}</Text>
                   </Pressable>
                 );
               })}
               {/* Horas custom ya agregadas — tocar quita la toma */}
-              {newDoseTimes.filter(isCustomDoseTime).map(t => (
+              {newDoseTimes.filter(isCustomDoseTime).map(tLabel => (
                 <Pressable
-                  key={t}
-                  onPress={() => toggleDoseTimeLabel(t)}
+                  key={tLabel}
+                  onPress={() => toggleDoseTimeLabel(tLabel)}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: 5,
                     paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
@@ -708,7 +719,7 @@ export default function SupplementsScreen() {
                     borderWidth: 1.5, borderColor: '#1D9E75',
                   }}
                 >
-                  <Text style={{ color: '#1D9E75', fontSize: 12, fontWeight: '600' }}>{t}</Text>
+                  <Text style={{ color: tealTx, fontSize: 12, fontWeight: '600' }}>{tLabel}</Text>
                   <Ionicons name="close-circle" size={14} color="#1D9E75" />
                 </Pressable>
               ))}
@@ -717,12 +728,12 @@ export default function SupplementsScreen() {
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: 4,
                   paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
-                  backgroundColor: '#111', borderWidth: 1.5, borderStyle: 'dashed',
-                  borderColor: showCustomTime ? '#a8e02a' : '#333',
+                  backgroundColor: t.card, borderWidth: 1.5, borderStyle: 'dashed',
+                  borderColor: showCustomTime ? ATP_BRAND.lime : t.bordeMarcado,
                 }}
               >
-                <Ionicons name="alarm-outline" size={14} color={showCustomTime ? '#a8e02a' : '#999'} />
-                <Text style={{ color: showCustomTime ? '#a8e02a' : '#999', fontSize: 12, fontWeight: '600' }}>+ hora</Text>
+                <Ionicons name="alarm-outline" size={14} color={showCustomTime ? acento : t.textoSecundario} />
+                <Text style={{ color: showCustomTime ? acento : t.textoSecundario, fontSize: 12, fontWeight: '600' }}>+ hora</Text>
               </Pressable>
             </View>
             {showCustomTime && (
@@ -730,30 +741,30 @@ export default function SupplementsScreen() {
                 <TextInput
                   value={customTimeInput}
                   onChangeText={setCustomTimeInput}
-                  placeholder="08:30" placeholderTextColor="#444"
+                  placeholder="08:30" placeholderTextColor={t.sinDatos}
                   keyboardType="numbers-and-punctuation"
                   maxLength={5}
                   autoFocus
                   onSubmitEditing={addCustomDoseTime}
                   style={{
-                    flex: 1, backgroundColor: '#111', color: '#fff', fontSize: 15, borderRadius: 12,
-                    padding: 12, borderWidth: 1, borderColor: '#1a1a1a',
+                    flex: 1, backgroundColor: t.card, color: t.texto, fontSize: 15, borderRadius: 12,
+                    padding: 12, borderWidth: 1, borderColor: t.borde,
                   }}
                 />
                 <Pressable
                   onPress={addCustomDoseTime}
                   style={{
-                    backgroundColor: '#a8e02a', borderRadius: 12, paddingHorizontal: 18,
+                    backgroundColor: ATP_BRAND.lime, borderRadius: 12, paddingHorizontal: 18,
                     alignItems: 'center', justifyContent: 'center',
                   }}
                 >
-                  <Text style={{ color: '#000', fontSize: 13, fontWeight: '800' }}>AGREGAR</Text>
+                  <Text style={{ color: ATP_BRAND.black, fontSize: 13, fontWeight: '800' }}>AGREGAR</Text>
                 </Pressable>
               </View>
             )}
 
             {/* T4 (#54): patrón de toma — la adherencia se mide contra esto */}
-            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Frecuencia</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Frecuencia</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
               {DOSE_PATTERNS.map(p => (
                 <Pressable
@@ -761,39 +772,39 @@ export default function SupplementsScreen() {
                   onPress={() => setNewPattern(p)}
                   style={{
                     paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
-                    backgroundColor: newPattern === p ? 'rgba(168,224,42,0.15)' : '#111',
-                    borderWidth: 1.5, borderColor: newPattern === p ? '#a8e02a' : '#1a1a1a',
+                    backgroundColor: newPattern === p ? 'rgba(168,224,42,0.15)' : t.card,
+                    borderWidth: 1.5, borderColor: newPattern === p ? ATP_BRAND.lime : t.borde,
                   }}
                 >
-                  <Text style={{ color: newPattern === p ? '#a8e02a' : '#999', fontSize: 12, fontWeight: '600' }}>{p}</Text>
+                  <Text style={{ color: newPattern === p ? acento : t.textoSecundario, fontSize: 12, fontWeight: '600' }}>{p}</Text>
                 </Pressable>
               ))}
             </View>
 
-            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>¿Cuándo tomarlo?</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 11, fontWeight: '600', marginBottom: 6 }}>¿Cuándo tomarlo?</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-              {TIMING_OPTIONS.map(t => (
+              {TIMING_OPTIONS.map(opt => (
                 <Pressable
-                  key={t.id}
-                  onPress={() => setNewTiming(t.id)}
+                  key={opt.id}
+                  onPress={() => setNewTiming(opt.id)}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: 6,
                     paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
-                    backgroundColor: newTiming === t.id ? `${t.color}20` : '#111',
+                    backgroundColor: newTiming === opt.id ? `${opt.color}20` : t.card,
                     borderWidth: 1.5,
-                    borderColor: newTiming === t.id ? t.color : '#1a1a1a',
+                    borderColor: newTiming === opt.id ? opt.color : t.borde,
                   }}
                 >
-                  <Ionicons name={t.icon} size={14} color={newTiming === t.id ? t.color : '#666'} />
-                  <Text style={{ color: newTiming === t.id ? t.color : '#999', fontSize: 12, fontWeight: '600' }}>
-                    {t.label}
+                  <Ionicons name={opt.icon} size={14} color={newTiming === opt.id ? opt.color : t.textoSecundario} />
+                  <Text style={{ color: newTiming === opt.id ? conceptTx(opt.color) : t.textoSecundario, fontSize: 12, fontWeight: '600' }}>
+                    {opt.label}
                   </Text>
                 </Pressable>
               ))}
             </View>
 
             {/* Ficha ampliada (187): presentación */}
-            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Forma</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Forma</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
               {FORM_OPTIONS.map(f => (
                 <Pressable
@@ -801,32 +812,32 @@ export default function SupplementsScreen() {
                   onPress={() => setNewForm(newForm === f.id ? null : f.id)}
                   style={{
                     paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
-                    backgroundColor: newForm === f.id ? 'rgba(168,224,42,0.15)' : '#111',
-                    borderWidth: 1.5, borderColor: newForm === f.id ? '#a8e02a' : '#1a1a1a',
+                    backgroundColor: newForm === f.id ? 'rgba(168,224,42,0.15)' : t.card,
+                    borderWidth: 1.5, borderColor: newForm === f.id ? ATP_BRAND.lime : t.borde,
                   }}
                 >
-                  <Text style={{ color: newForm === f.id ? '#a8e02a' : '#999', fontSize: 12, fontWeight: '600' }}>{f.label}</Text>
+                  <Text style={{ color: newForm === f.id ? acento : t.textoSecundario, fontSize: 12, fontWeight: '600' }}>{f.label}</Text>
                 </Pressable>
               ))}
             </View>
 
-            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Marca (opcional)</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Marca (opcional)</Text>
             <TextInput
               value={newBrand} onChangeText={setNewBrand}
-              placeholder="Ej: Thorne, NOW Foods" placeholderTextColor="#444"
+              placeholder="Ej: Thorne, NOW Foods" placeholderTextColor={t.sinDatos}
               style={{
-                backgroundColor: '#111', color: '#fff', fontSize: 15, borderRadius: 12,
-                padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#1a1a1a',
+                backgroundColor: t.card, color: t.texto, fontSize: 15, borderRadius: 12,
+                padding: 14, marginBottom: 14, borderWidth: 1, borderColor: t.borde,
               }}
             />
 
-            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Razón (opcional)</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Razón (opcional)</Text>
             <TextInput
               value={newReason} onChangeText={setNewReason}
-              placeholder="Ej: Déficit de GABA" placeholderTextColor="#444"
+              placeholder="Ej: Déficit de GABA" placeholderTextColor={t.sinDatos}
               style={{
-                backgroundColor: '#111', color: '#fff', fontSize: 15, borderRadius: 12,
-                padding: 14, marginBottom: 20, borderWidth: 1, borderColor: '#1a1a1a',
+                backgroundColor: t.card, color: t.texto, fontSize: 15, borderRadius: 12,
+                padding: 14, marginBottom: 20, borderWidth: 1, borderColor: t.borde,
               }}
             />
 
@@ -834,12 +845,12 @@ export default function SupplementsScreen() {
               onPress={saveSupplement}
               disabled={!newName.trim() || !newDosage.trim()}
               style={{
-                backgroundColor: newName.trim() && newDosage.trim() ? '#a8e02a' : '#333',
+                backgroundColor: newName.trim() && newDosage.trim() ? ATP_BRAND.lime : t.bordeMarcado,
                 borderRadius: 16, padding: 16, alignItems: 'center',
               }}
             >
               <Text style={{
-                color: newName.trim() && newDosage.trim() ? '#000' : '#666',
+                color: newName.trim() && newDosage.trim() ? ATP_BRAND.black : t.textoSecundario,
                 fontSize: 16, fontWeight: '800',
               }}>
                 {editingId ? 'GUARDAR CAMBIOS' : 'AGREGAR'}
@@ -860,5 +871,6 @@ export default function SupplementsScreen() {
       />
       <MedicalDisclaimer feature="supplements" />
     </ScrollView>
+    </ThemeReady>
   );
 }

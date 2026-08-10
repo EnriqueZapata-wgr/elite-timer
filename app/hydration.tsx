@@ -7,6 +7,7 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { StatusBar } from 'expo-status-bar';
 
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
@@ -22,6 +23,7 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { getUserWaterGoal, addWater as addWaterEntry } from '@/src/services/hydration-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 const WATER_COLOR = '#38bdf8';
 // P2-3 (MB-8): hero editorial — la pantalla estaba pelona (una card sola sobre negro).
@@ -29,6 +31,8 @@ const HERO_HIDRATACION = require('@/assets/images/agenda/hidratacion/hidratacion
 
 export default function HydrationScreen() {
   const { user } = useAuth();
+  // MB-31B3: la pantalla migró a tokens (Screen themed) y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
   const [waterMl, setWaterMl] = useState(0);
   const [waterGoal, setWaterGoal] = useState(2500);
   const [showEditor, setShowEditor] = useState(false);
@@ -78,7 +82,8 @@ export default function HydrationScreen() {
       : 'El agua regula temperatura, presión y detox hepática. Empezar temprano evita el pico de cortisol por deshidratación.';
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="nutrition" title="Hidratación" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
@@ -102,8 +107,8 @@ export default function HydrationScreen() {
             <View style={s.center}>
               <EliteText style={s.bigValue}>{(waterMl / 1000).toFixed(1)}L</EliteText>
               <Pressable onPress={() => { haptic.light(); setShowEditor(true); }} style={s.goalRow}>
-                <EliteText style={s.goalText}>de {(waterGoal / 1000).toFixed(1)}L</EliteText>
-                <Ionicons name="pencil" size={12} color={TEXT_COLORS.secondary} style={{ marginLeft: 4 }} />
+                <EliteText style={[s.goalText, { color: t.textoSecundario }]}>de {(waterGoal / 1000).toFixed(1)}L</EliteText>
+                <Ionicons name="pencil" size={12} color={t.textoSecundario} style={{ marginLeft: 4 }} />
               </Pressable>
             </View>
 
@@ -111,7 +116,7 @@ export default function HydrationScreen() {
             <View style={s.bar}>
               <View style={[s.barFill, { width: `${pct}%` }]} />
             </View>
-            <EliteText style={s.pctText}>{pct}%</EliteText>
+            <EliteText style={[s.pctText, { color: t.textoSecundario }]}>{pct}%</EliteText>
 
             {/* Botones rápidos */}
             <View style={s.btns}>
@@ -154,11 +159,11 @@ const s = StyleSheet.create({
   heroSub: { color: '#ddd', fontSize: FontSizes.sm, lineHeight: 18 },
   center: { alignItems: 'center', marginBottom: Spacing.lg },
   bigValue: { fontSize: 48, fontFamily: Fonts.extraBold, color: WATER_COLOR },
-  goalText: { fontSize: FontSizes.sm, color: TEXT_COLORS.secondary },
+  goalText: { fontSize: FontSizes.sm },
   goalRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   bar: { height: 8, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 4, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 4, backgroundColor: WATER_COLOR },
-  pctText: { fontSize: FontSizes.xs, color: TEXT_COLORS.secondary, textAlign: 'center', marginTop: Spacing.xs },
+  pctText: { fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.xs },
   btns: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg },
   btnMinus: {
     flex: 1, backgroundColor: 'rgba(239,68,68,0.08)', borderWidth: 1,

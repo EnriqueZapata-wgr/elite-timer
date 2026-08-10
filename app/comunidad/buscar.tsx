@@ -8,6 +8,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, TextInput } from 'react-native';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -27,7 +28,8 @@ import {
 } from '@/src/services/community/friends-core';
 import { type UserSearchResult } from '@/src/services/community/public-profile-service';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const DEBOUNCE_MS = 400;
@@ -44,23 +46,25 @@ function ResultRow({ row, state, onAdd }: {
   state: FriendState;
   onAdd: (userId: string) => void;
 }) {
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const name = publicDisplayName(row);
   return (
-    <View style={s.row}>
+    <View style={[s.row, { backgroundColor: t.card, borderColor: t.borde }]}>
       <Pressable style={s.rowMain} onPress={() => router.push(`/comunidad/perfil/${row.user_id}`)}>
         <UserAvatar uri={row.avatar_url} name={name} size={38} />
         <View style={{ flex: 1 }}>
-          <EliteText style={s.name} numberOfLines={1}>{name}</EliteText>
-          {row.username && <EliteText style={s.sub}>@{row.username}</EliteText>}
+          <EliteText style={[s.name, { color: t.texto }]} numberOfLines={1}>{name}</EliteText>
+          {row.username && <EliteText style={[s.sub, { color: t.textoTenue }]}>@{row.username}</EliteText>}
         </View>
       </Pressable>
       {state === 'none' || state === 'blocked' ? (
         <Pressable style={s.addBtn} onPress={() => onAdd(row.user_id)} hitSlop={6}>
-          <Ionicons name="person-add-outline" size={14} color={ATP_BRAND.lime} />
-          <EliteText style={s.addText}>Agregar</EliteText>
+          <Ionicons name="person-add-outline" size={14} color={acento} />
+          <EliteText style={[s.addText, { color: acento }]}>Agregar</EliteText>
         </Pressable>
       ) : (
-        <EliteText style={s.stateBadge}>{STATE_LABEL[state]}</EliteText>
+        <EliteText style={[s.stateBadge, { color: t.textoTenue }]}>{STATE_LABEL[state]}</EliteText>
       )}
     </View>
   );
@@ -72,6 +76,8 @@ export default function CommunitySearchScreen() {
   useRegisterOwnNav();
 
   const insets = useSafeAreaInsets();
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -126,37 +132,39 @@ export default function CommunitySearchScreen() {
   const showMinHint = query.trim().length > 0 && query.trim().length < MIN_CHARS;
 
   return (
+    <ThemeReady>
     <ScrollView
-      style={s.screen}
+      style={[s.screen, { backgroundColor: t.fondo }]}
       contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: 60 }}
       keyboardShouldPersistTaps="handled"
     >
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <View style={{ paddingTop: insets.top + 8 }}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
+          <Ionicons name="arrow-back" size={24} color={t.texto} />
         </Pressable>
         <Animated.View entering={FadeInUp.delay(40).springify()}>
-          <EliteText style={s.title}>Buscar personas</EliteText>
-          <EliteText style={s.subtitle}>Encuentra a tu gente por nombre o usuario.</EliteText>
+          <EliteText style={[s.title, { color: t.texto }]}>Buscar personas</EliteText>
+          <EliteText style={[s.subtitle, secTxt]}>Encuentra a tu gente por nombre o usuario.</EliteText>
         </Animated.View>
       </View>
 
       <Animated.View entering={FadeInUp.delay(90).springify()}>
-        <View style={s.searchBox}>
-          <Ionicons name="search" size={18} color={TEXT.tertiary} />
+        <View style={[s.searchBox, { backgroundColor: t.hundido, borderColor: t.borde }]}>
+          <Ionicons name="search" size={18} color={t.textoTenue} />
           <TextInput
             value={query}
             onChangeText={onChangeQuery}
             placeholder="Nombre o @usuario"
-            placeholderTextColor={TEXT.tertiary}
+            placeholderTextColor={t.textoTenue}
             autoCapitalize="none"
             autoCorrect={false}
             autoFocus
-            style={s.input}
+            style={[s.input, { color: t.texto }]}
           />
           {query.length > 0 && (
             <Pressable onPress={() => onChangeQuery('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={18} color={TEXT.tertiary} />
+              <Ionicons name="close-circle" size={18} color={t.textoTenue} />
             </Pressable>
           )}
         </View>
@@ -166,20 +174,20 @@ export default function CommunitySearchScreen() {
         <EliteText style={s.rateLimit}>Demasiadas búsquedas, espera un momento.</EliteText>
       )}
       {showMinHint && (
-        <EliteText style={s.hint}>Escribe al menos {MIN_CHARS} caracteres.</EliteText>
+        <EliteText style={[s.hint, { color: t.textoTenue }]}>Escribe al menos {MIN_CHARS} caracteres.</EliteText>
       )}
 
       <View style={{ marginTop: Spacing.md }}>
         {searching ? (
-          <EliteText style={s.empty}>Buscando…</EliteText>
+          <EliteText style={[s.empty, secTxt]}>Buscando…</EliteText>
         ) : searchFailed ? (
           // D-2 (MB-12): un fallo de red es NUESTRO — no se culpa al otro
           // usuario ("no activó aparecer en el buscador").
-          <EliteText style={s.empty}>
+          <EliteText style={[s.empty, secTxt]}>
             La búsqueda no se pudo completar. Revisa tu conexión e intenta de nuevo.
           </EliteText>
         ) : results.length === 0 && query.trim().length >= MIN_CHARS && !rateLimited ? (
-          <EliteText style={s.empty}>
+          <EliteText style={[s.empty, secTxt]}>
             Sin resultados. Solo aparecen perfiles que activaron “Aparecer en el buscador”.
           </EliteText>
         ) : (
@@ -194,41 +202,42 @@ export default function CommunitySearchScreen() {
         )}
       </View>
     </ScrollView>
+    </ThemeReady>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: ELEVATION[0].bg },
-  title: { fontSize: 28, fontFamily: Fonts.bold, color: TEXT.primary, marginTop: Spacing.md },
-  subtitle: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: TEXT.secondary, marginTop: 4 },
+  screen: { flex: 1 },
+  title: { fontSize: 28, fontFamily: Fonts.bold, marginTop: Spacing.md },
+  subtitle: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 4 },
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.md, paddingHorizontal: Spacing.md, marginTop: Spacing.lg,
   },
-  input: { flex: 1, fontSize: FontSizes.md, fontFamily: Fonts.regular, color: TEXT.primary, paddingVertical: 12 },
+  input: { flex: 1, fontSize: FontSizes.md, fontFamily: Fonts.regular, paddingVertical: 12 },
   rateLimit: {
     fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#fbbf24',
     marginTop: 8, marginLeft: 4,
   },
-  hint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.tertiary, marginTop: 8, marginLeft: 4 },
+  hint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 8, marginLeft: 4 },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: Radius.md, paddingVertical: 10, paddingHorizontal: Spacing.md, marginBottom: 8,
   },
   rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  name: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.primary },
-  sub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.tertiary, marginTop: 2 },
+  name: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+  sub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.14), borderRadius: Radius.sm,
     paddingHorizontal: 10, paddingVertical: 6,
   },
-  addText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: ATP_BRAND.lime },
-  stateBadge: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, color: TEXT.tertiary },
+  addText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+  stateBadge: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
   empty: {
-    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: TEXT.secondary,
+    fontSize: FontSizes.sm, fontFamily: Fonts.regular,
     textAlign: 'center', paddingVertical: Spacing.lg, lineHeight: 20,
   },
 });

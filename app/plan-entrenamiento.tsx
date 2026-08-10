@@ -15,6 +15,7 @@
 import { useCallback, useState } from 'react';
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { Screen } from '@/src/components/ui/Screen';
@@ -31,11 +32,16 @@ import {
 import { getAsignacionHoy, savePlanSemanal } from '@/src/services/fitness/plan-semanal-service';
 import { getHabitStates, reactivarHabitos } from '@/src/services/hoy/habit-states-service';
 import { estadosPorKey, estadoDe } from '@/src/services/hoy/habit-states-core';
-import { ELEVATION, TEXT, ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 export default function PlanEntrenamientoScreen() {
   const { user } = useAuth();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
+  // Regla 1 de la guía: lima como TEXTO no sobrevive el claro → teal calibrado.
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const [plan, setPlan] = useState<PlanSemanal>({});
   // Audit B7: las rutinas concretas agendadas (coach o propias) se DICEN —
   // antes este editor pintaba "Descanso" sobre un lunes que sí tenía
@@ -111,11 +117,12 @@ export default function PlanEntrenamientoScreen() {
   };
 
   return (
-    <Screen edges={[]}>
+    <Screen themed edges={[]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Mi plan de entrenar" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInUp.delay(40).springify()}>
-          <EliteText variant="caption" style={s.intro}>
+          <EliteText variant="caption" style={[s.intro, { color: t.textoSecundario }]}>
             Dilo una vez y Entrenar te contesta cada día. Toca un día para
             encenderlo o apagarlo, y elige qué toca. Dos días bien puestos
             valen más que siete en papel.
@@ -127,12 +134,12 @@ export default function PlanEntrenamientoScreen() {
           const rutina = rutinasDia[dow];
           return (
             <Animated.View key={dow} entering={FadeInUp.delay(70 + idx * 30).springify()}>
-              <View style={[s.diaCard, activo && s.diaCardActiva]}>
+              <View style={[s.diaCard, { backgroundColor: t.card, borderColor: t.borde }, activo && s.diaCardActiva]}>
                 <AnimatedPressable style={s.diaHeader} onPress={() => toggleDia(dow)}>
-                  <EliteText style={[s.diaNombre, !activo && { color: TEXT.tertiary }]}>
+                  <EliteText style={[s.diaNombre, { color: activo ? t.texto : t.textoTenue }]}>
                     {DIA_LABELS[dow]}
                   </EliteText>
-                  <EliteText variant="caption" style={activo ? s.diaEstadoOn : s.diaEstadoOff}>
+                  <EliteText variant="caption" style={activo ? [s.diaEstadoOn, { color: acento }] : [s.diaEstadoOff, { color: t.textoTenue }]}>
                     {activo ? ENFOQUE_LABELS[plan[dow]!] : rutina ?? 'Descanso'}
                   </EliteText>
                 </AnimatedPressable>
@@ -141,10 +148,10 @@ export default function PlanEntrenamientoScreen() {
                     {ENFOQUES_PLAN.map((e) => (
                       <AnimatedPressable
                         key={e}
-                        style={[s.chip, plan[dow] === e && s.chipActiva]}
+                        style={[s.chip, { borderColor: t.bordeMarcado }, plan[dow] === e && s.chipActiva]}
                         onPress={() => setEnfoque(dow, e)}
                       >
-                        <EliteText style={[s.chipText, plan[dow] === e && s.chipTextActiva]}>
+                        <EliteText style={[s.chipText, { color: t.textoSecundario }, plan[dow] === e && { color: acento }]}>
                           {ENFOQUE_LABELS[e]}
                         </EliteText>
                       </AnimatedPressable>
@@ -152,7 +159,7 @@ export default function PlanEntrenamientoScreen() {
                   </View>
                 )}
                 {rutina != null && (
-                  <EliteText variant="caption" style={s.rutinaNota}>
+                  <EliteText variant="caption" style={[s.rutinaNota, { color: t.textoTenue }]}>
                     {activo
                       ? `Este día ya tiene la rutina "${rutina}" agendada, y la rutina manda sobre el enfoque.`
                       : `Rutina agendada: ${rutina}. Se maneja desde Mis rutinas, no desde aquí.`}
@@ -163,7 +170,7 @@ export default function PlanEntrenamientoScreen() {
           );
         })}
 
-        <EliteText variant="caption" style={s.nota}>
+        <EliteText variant="caption" style={[s.nota, { color: t.textoTenue }]}>
           Entrenar de verdad se registra al entrenar: agendar un día no
           palomea nada por ti.
         </EliteText>
@@ -182,10 +189,10 @@ export default function PlanEntrenamientoScreen() {
 
 const s = StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
-  intro: { color: TEXT.secondary, lineHeight: 19, marginBottom: Spacing.md },
+  intro: { lineHeight: 19, marginBottom: Spacing.md },
   diaCard: {
-    backgroundColor: ELEVATION[1].bg, borderRadius: Radius.card,
-    borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderRadius: Radius.card,
+    borderWidth: 1,
     marginBottom: Spacing.sm, overflow: 'hidden',
   },
   diaCardActiva: { borderColor: withOpacity(ATP_BRAND.lime, 0.35) },
@@ -193,24 +200,23 @@ const s = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     padding: Spacing.md,
   },
-  diaNombre: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
-  diaEstadoOn: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold },
-  diaEstadoOff: { color: TEXT.tertiary },
+  diaNombre: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  diaEstadoOn: { fontFamily: Fonts.semiBold },
+  diaEstadoOff: {},
   chips: {
     flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs,
     paddingHorizontal: Spacing.md, paddingBottom: Spacing.md,
   },
   chip: {
-    borderWidth: 1, borderColor: ELEVATION[2].border, borderRadius: 999,
+    borderWidth: 1, borderRadius: 999,
     paddingHorizontal: Spacing.sm, paddingVertical: 6,
   },
   chipActiva: { borderColor: ATP_BRAND.lime, backgroundColor: withOpacity(ATP_BRAND.lime, 0.12) },
-  chipText: { color: TEXT.secondary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
-  chipTextActiva: { color: ATP_BRAND.lime },
+  chipText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
   rutinaNota: {
-    color: TEXT.tertiary, lineHeight: 17,
+    lineHeight: 17,
     paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm,
   },
-  nota: { color: TEXT.tertiary, lineHeight: 18, textAlign: 'center', marginTop: Spacing.xs },
+  nota: { lineHeight: 18, textAlign: 'center', marginTop: Spacing.xs },
   cta: { marginTop: Spacing.md },
 });

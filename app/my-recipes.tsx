@@ -21,7 +21,9 @@ import { defaultMealTypeByHour } from '@/src/services/meal-times-core';
 import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { TEXT_COLORS, SURFACES, ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { StatusBar } from 'expo-status-bar';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 
 interface Recipe {
@@ -41,6 +43,14 @@ interface Recipe {
 export default function MyRecipesScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  // MB-31B3: la pantalla migro a tokens (Screen themed) y sigue el tema global.
+  // Hallazgos del run: lima y ambar iban como TEXTO (ilegibles en claro);
+  // en claro caen al teal calibrado / texto segun rol. En oscuro nada cambia.
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
+  const ambarTx = kind === 'dark' ? ATP_BRAND.amber : t.tealTexto;
+  const azulTx = kind === 'dark' ? '#38bdf8' : t.info;
+  const suave = kind === 'dark' ? '#ccc' : t.texto;
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   // T5 (#56): filtro de favoritas
@@ -200,10 +210,11 @@ export default function MyRecipesScreen() {
   }
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="nutrition" title="Mis Recetas" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        <EliteText variant="caption" style={s.subtitle}>
+        <EliteText variant="caption" style={[s.subtitle, { color: t.textoSecundario }]}>
           Guarda tus comidas frecuentes para registrar con un toque
         </EliteText>
 
@@ -213,9 +224,9 @@ export default function MyRecipesScreen() {
             <Pressable
               key={id}
               onPress={() => { haptic.light(); setFilter(id); }}
-              style={[s.filterPill, filter === id && s.filterPillOn]}
+              style={[s.filterPill, { backgroundColor: t.hundido, borderColor: t.borde }, filter === id && s.filterPillOn]}
             >
-              <EliteText style={[s.filterText, filter === id && s.filterTextOn]}>{label}</EliteText>
+              <EliteText style={[s.filterText, { color: t.textoSecundario }, filter === id && s.filterTextOn]}>{label}</EliteText>
             </Pressable>
           ))}
           <View style={{ flex: 1 }} />
@@ -223,13 +234,13 @@ export default function MyRecipesScreen() {
             onPress={() => { haptic.light(); router.push('/lista-compra'); }}
             style={s.shoppingBtn}
           >
-            <Ionicons name="cart-outline" size={14} color="#a8e02a" />
-            <EliteText style={s.shoppingText}>Lista de compra</EliteText>
+            <Ionicons name="cart-outline" size={14} color={acento} />
+            <EliteText style={[s.shoppingText, { color: acento }]}>Lista de compra</EliteText>
           </Pressable>
         </View>
 
         {recipes.length > 0 && (
-          <EliteText variant="caption" style={{ color: '#666', fontSize: 11, marginBottom: 8 }}>
+          <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 11, marginBottom: 8 }}>
             Desliza ← o mantén presionado para eliminar
           </EliteText>
         )}
@@ -239,43 +250,43 @@ export default function MyRecipesScreen() {
           <Animated.View key={recipe.id} entering={FadeInUp.delay(idx * 50).springify()}>
             <SwipeToDeleteRow onConfirmDelete={() => deleteRecipe(recipe)}>
             <AnimatedPressable onPress={() => registerRecipe(recipe)} onLongPress={() => deleteRecipe(recipe)}>
-              <View style={s.recipeCard}>
+              <View style={[s.recipeCard, { backgroundColor: t.card }]}>
                 <View style={s.recipeHeader}>
                   <Ionicons name="bookmark" size={16} color={ATP_BRAND.amber} />
-                  <EliteText style={s.recipeName} numberOfLines={1}>{recipe.name}</EliteText>
+                  <EliteText style={[s.recipeName, { color: t.texto }]} numberOfLines={1}>{recipe.name}</EliteText>
                   {/* T5: corazón de favorito */}
                   <Pressable onPress={() => toggleFavorite(recipe)} hitSlop={10}>
                     <Ionicons
                       name={recipe.is_favorite ? 'heart' : 'heart-outline'}
                       size={20}
-                      color={recipe.is_favorite ? '#fb7185' : '#444'}
+                      color={recipe.is_favorite ? '#fb7185' : t.sinDatos}
                     />
                   </Pressable>
                 </View>
                 <View style={s.macroRow}>
                   <View style={s.macroItem}>
-                    <EliteText style={s.macroValue}>{recipe.total_calories}</EliteText>
-                    <EliteText style={s.macroLabel}>kcal</EliteText>
+                    <EliteText style={[s.macroValue, { color: suave }]}>{recipe.total_calories}</EliteText>
+                    <EliteText style={[s.macroLabel, { color: t.textoSecundario }]}>kcal</EliteText>
                   </View>
-                  <View style={s.macroDivider} />
+                  <View style={[s.macroDivider, { backgroundColor: t.borde }]} />
                   <View style={s.macroItem}>
-                    <EliteText style={[s.macroValue, { color: '#38bdf8' }]}>{recipe.total_protein}g</EliteText>
-                    <EliteText style={s.macroLabel}>prot</EliteText>
+                    <EliteText style={[s.macroValue, { color: azulTx }]}>{recipe.total_protein}g</EliteText>
+                    <EliteText style={[s.macroLabel, { color: t.textoSecundario }]}>prot</EliteText>
                   </View>
-                  <View style={s.macroDivider} />
+                  <View style={[s.macroDivider, { backgroundColor: t.borde }]} />
                   <View style={s.macroItem}>
-                    <EliteText style={s.macroValue}>{recipe.total_carbs}g</EliteText>
-                    <EliteText style={s.macroLabel}>carbs</EliteText>
+                    <EliteText style={[s.macroValue, { color: suave }]}>{recipe.total_carbs}g</EliteText>
+                    <EliteText style={[s.macroLabel, { color: t.textoSecundario }]}>carbs</EliteText>
                   </View>
-                  <View style={s.macroDivider} />
+                  <View style={[s.macroDivider, { backgroundColor: t.borde }]} />
                   <View style={s.macroItem}>
-                    <EliteText style={s.macroValue}>{recipe.total_fat}g</EliteText>
-                    <EliteText style={s.macroLabel}>grasa</EliteText>
+                    <EliteText style={[s.macroValue, { color: suave }]}>{recipe.total_fat}g</EliteText>
+                    <EliteText style={[s.macroLabel, { color: t.textoSecundario }]}>grasa</EliteText>
                   </View>
                 </View>
-                <View style={s.useRow}>
-                  <Ionicons name="add-circle" size={16} color="#a8e02a" />
-                  <EliteText style={s.useText}>Toca para registrar hoy</EliteText>
+                <View style={[s.useRow, { borderTopColor: t.borde }]}>
+                  <Ionicons name="add-circle" size={16} color={acento} />
+                  <EliteText style={[s.useText, { color: acento }]}>Toca para registrar hoy</EliteText>
                 </View>
               </View>
             </AnimatedPressable>
@@ -286,9 +297,9 @@ export default function MyRecipesScreen() {
         {/* Estado vacío */}
         {!loading && recipes.length === 0 && (
           <View style={s.emptyState}>
-            <Ionicons name="bookmark-outline" size={48} color="#333" />
-            <EliteText style={s.emptyTitle}>Sin recetas guardadas</EliteText>
-            <EliteText style={s.emptySubtitle}>
+            <Ionicons name="bookmark-outline" size={48} color={t.bordeMarcado} />
+            <EliteText style={[s.emptyTitle, { color: t.texto }]}>Sin recetas guardadas</EliteText>
+            <EliteText style={[s.emptySubtitle, { color: t.textoSecundario }]}>
               Trae una comida de tus registros, crea una manual o guarda las de ARGOS
             </EliteText>
           </View>
@@ -296,22 +307,22 @@ export default function MyRecipesScreen() {
 
         {/* Hint */}
         {recipes.length > 0 && (
-          <EliteText variant="caption" style={{ color: '#444', fontSize: 9, textAlign: 'center', marginTop: 4 }}>
+          <EliteText variant="caption" style={{ color: t.sinDatos, fontSize: 9, textAlign: 'center', marginTop: 4 }}>
             Desliza ← (o mantén presionado) para eliminar
           </EliteText>
         )}
 
         {/* P2 (MB-28B): el camino natural — comes algo dos veces y a la
             tercera lo traes de tus registros, sin volver a teclear. */}
-        <AnimatedPressable onPress={openFromLogs} style={s.createBtn}>
-          <Ionicons name="time-outline" size={20} color={ATP_BRAND.amber} />
-          <EliteText style={s.createBtnText}>Desde mis registros</EliteText>
+        <AnimatedPressable onPress={openFromLogs} style={[s.createBtn, { borderColor: t.bordeMarcado }]}>
+          <Ionicons name="time-outline" size={20} color={ambarTx} />
+          <EliteText style={[s.createBtnText, { color: ambarTx }]}>Desde mis registros</EliteText>
         </AnimatedPressable>
 
         {/* Botón crear */}
-        <AnimatedPressable onPress={() => { haptic.light(); setShowCreate(true); }} style={s.createBtn}>
-          <Ionicons name="add-circle-outline" size={20} color={ATP_BRAND.amber} />
-          <EliteText style={s.createBtnText}>Crear receta manual</EliteText>
+        <AnimatedPressable onPress={() => { haptic.light(); setShowCreate(true); }} style={[s.createBtn, { borderColor: t.bordeMarcado }]}>
+          <Ionicons name="add-circle-outline" size={20} color={ambarTx} />
+          <EliteText style={[s.createBtnText, { color: ambarTx }]}>Crear receta manual</EliteText>
         </AnimatedPressable>
 
         {/* B-5 (MB-12): las macros de recetas son estimación de IA */}
@@ -322,26 +333,26 @@ export default function MyRecipesScreen() {
       {/* P2 (MB-28B): modal de registros recientes → receta con un toque */}
       <Modal visible={showFromLogs} transparent animationType="slide" onRequestClose={() => setShowFromLogs(false)}>
         <Pressable style={s.modalOverlay} onPress={() => setShowFromLogs(false)}>
-          <Pressable style={s.modalContent} onPress={() => {}}>
-            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#333', alignSelf: 'center', marginBottom: 20 }} />
-            <EliteText style={s.modalTitle}>Desde mis registros</EliteText>
-            <EliteText variant="caption" style={{ color: '#888', fontSize: FontSizes.sm, textAlign: 'center', marginBottom: Spacing.md }}>
+          <Pressable style={[s.modalContent, { backgroundColor: t.card }]} onPress={() => {}}>
+            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: t.bordeMarcado, alignSelf: 'center', marginBottom: 20 }} />
+            <EliteText style={[s.modalTitle, { color: t.texto }]}>Desde mis registros</EliteText>
+            <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: FontSizes.sm, textAlign: 'center', marginBottom: Spacing.md }}>
               Toca una comida registrada y queda como receta, sin volver a capturar.
             </EliteText>
 
             {logsLoading && (
-              <EliteText style={{ color: '#666', textAlign: 'center', paddingVertical: Spacing.lg }}>
+              <EliteText style={{ color: t.textoSecundario, textAlign: 'center', paddingVertical: Spacing.lg }}>
                 Cargando tus registros...
               </EliteText>
             )}
             {/* MB-8 Track B: un fallo de red no es "sin registros". */}
             {!logsLoading && logsFailed && (
-              <EliteText style={{ color: '#666', textAlign: 'center', paddingVertical: Spacing.lg }}>
+              <EliteText style={{ color: t.textoSecundario, textAlign: 'center', paddingVertical: Spacing.lg }}>
                 Tus registros no se pudieron leer. Revisa tu conexión y vuelve a intentar.
               </EliteText>
             )}
             {!logsLoading && !logsFailed && recentLogs.length === 0 && (
-              <EliteText style={{ color: '#666', textAlign: 'center', paddingVertical: Spacing.lg }}>
+              <EliteText style={{ color: t.textoSecundario, textAlign: 'center', paddingVertical: Spacing.lg }}>
                 Todavía no tienes comidas registradas. Registra una y aparece aquí.
               </EliteText>
             )}
@@ -352,17 +363,17 @@ export default function MyRecipesScreen() {
                   key={log.id}
                   onPress={() => createFromLog(log)}
                   disabled={!!savingLogId}
-                  style={s.logRow}
+                  style={[s.logRow, { backgroundColor: t.flotante }]}
                 >
                   <View style={{ flex: 1 }}>
-                    <EliteText style={s.logName} numberOfLines={1}>{log.description}</EliteText>
-                    <EliteText variant="caption" style={s.logMeta}>
+                    <EliteText style={[s.logName, { color: t.texto }]} numberOfLines={1}>{log.description}</EliteText>
+                    <EliteText variant="caption" style={[s.logMeta, { color: t.textoSecundario }]}>
                       {log.calories != null ? `${log.calories} kcal` : 'sin macros'}
                       {log.ingredients.length > 0 ? ` · ${log.ingredients.length} ingredientes` : ''}
                     </EliteText>
                   </View>
                   {savingLogId === log.id ? (
-                    <EliteText variant="caption" style={{ color: '#888' }}>...</EliteText>
+                    <EliteText variant="caption" style={{ color: t.textoSecundario }}>...</EliteText>
                   ) : (
                     <Ionicons name="add-circle" size={22} color={ATP_BRAND.amber} />
                   )}
@@ -376,43 +387,43 @@ export default function MyRecipesScreen() {
       {/* Modal crear receta */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
         <Pressable style={s.modalOverlay} onPress={() => setShowCreate(false)}>
-          <Pressable style={s.modalContent} onPress={() => {}}>
-            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#333', alignSelf: 'center', marginBottom: 20 }} />
-            <EliteText style={s.modalTitle}>Nueva receta</EliteText>
+          <Pressable style={[s.modalContent, { backgroundColor: t.card }]} onPress={() => {}}>
+            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: t.bordeMarcado, alignSelf: 'center', marginBottom: 20 }} />
+            <EliteText style={[s.modalTitle, { color: t.texto }]}>Nueva receta</EliteText>
 
-            <EliteText variant="caption" style={s.inputLabel}>Nombre</EliteText>
-            <TextInput style={s.input} value={newName} onChangeText={setNewName}
-              placeholder="Ej: Omelette de 3 huevos con aguacate" placeholderTextColor="#555" autoFocus />
+            <EliteText variant="caption" style={[s.inputLabel, { color: t.textoSecundario }]}>Nombre</EliteText>
+            <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={newName} onChangeText={setNewName}
+              placeholder="Ej: Omelette de 3 huevos con aguacate" placeholderTextColor={t.textoTenue} autoFocus />
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: Spacing.md }}>
               <View style={{ flex: 1 }}>
-                <EliteText variant="caption" style={s.inputLabel}>Calorías</EliteText>
-                <TextInput style={s.input} value={newCalories} onChangeText={setNewCalories}
-                  placeholder="0" placeholderTextColor="#555" keyboardType="number-pad" />
+                <EliteText variant="caption" style={[s.inputLabel, { color: t.textoSecundario }]}>Calorías</EliteText>
+                <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={newCalories} onChangeText={setNewCalories}
+                  placeholder="0" placeholderTextColor={t.textoTenue} keyboardType="number-pad" />
               </View>
               <View style={{ flex: 1 }}>
-                <EliteText variant="caption" style={s.inputLabel}>Proteína (g)</EliteText>
-                <TextInput style={s.input} value={newProtein} onChangeText={setNewProtein}
-                  placeholder="0" placeholderTextColor="#555" keyboardType="decimal-pad" />
+                <EliteText variant="caption" style={[s.inputLabel, { color: t.textoSecundario }]}>Proteína (g)</EliteText>
+                <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={newProtein} onChangeText={setNewProtein}
+                  placeholder="0" placeholderTextColor={t.textoTenue} keyboardType="decimal-pad" />
               </View>
             </View>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: Spacing.sm }}>
               <View style={{ flex: 1 }}>
-                <EliteText variant="caption" style={s.inputLabel}>Carbs (g)</EliteText>
-                <TextInput style={s.input} value={newCarbs} onChangeText={setNewCarbs}
-                  placeholder="0" placeholderTextColor="#555" keyboardType="decimal-pad" />
+                <EliteText variant="caption" style={[s.inputLabel, { color: t.textoSecundario }]}>Carbs (g)</EliteText>
+                <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={newCarbs} onChangeText={setNewCarbs}
+                  placeholder="0" placeholderTextColor={t.textoTenue} keyboardType="decimal-pad" />
               </View>
               <View style={{ flex: 1 }}>
-                <EliteText variant="caption" style={s.inputLabel}>Grasa (g)</EliteText>
-                <TextInput style={s.input} value={newFat} onChangeText={setNewFat}
-                  placeholder="0" placeholderTextColor="#555" keyboardType="decimal-pad" />
+                <EliteText variant="caption" style={[s.inputLabel, { color: t.textoSecundario }]}>Grasa (g)</EliteText>
+                <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={newFat} onChangeText={setNewFat}
+                  placeholder="0" placeholderTextColor={t.textoTenue} keyboardType="decimal-pad" />
               </View>
             </View>
 
             {/* E.1 (MB-8): disabled explícito, no opacidad apilada */}
             <AnimatedPressable onPress={createRecipe} disabled={!newName.trim()}
-              style={[s.saveBtn, !newName.trim() && { backgroundColor: SURFACES.cardLight }]}>
-              <EliteText style={[s.saveBtnText, !newName.trim() && { color: TEXT_COLORS.muted }]}>GUARDAR RECETA</EliteText>
+              style={[s.saveBtn, !newName.trim() && { backgroundColor: t.bordeMarcado }]}>
+              <EliteText style={[s.saveBtnText, !newName.trim() && { color: t.textoSecundario }]}>GUARDAR RECETA</EliteText>
             </AnimatedPressable>
           </Pressable>
         </Pressable>
@@ -423,70 +434,72 @@ export default function MyRecipesScreen() {
 
 const s = StyleSheet.create({
   content: { paddingHorizontal: Spacing.md },
-  subtitle: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginBottom: Spacing.md },
+  subtitle: { fontSize: FontSizes.sm, marginBottom: Spacing.md },
 
   // T5: filtros + lista de compra
   filterRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.md },
   filterPill: {
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 17,
-    backgroundColor: '#0a0a0a', borderWidth: 0.5, borderColor: '#1a1a1a',
+    borderWidth: 0.5,
   },
-  filterPillOn: { backgroundColor: '#a8e02a', borderColor: '#a8e02a' },
-  filterText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, color: '#666' },
-  filterTextOn: { color: '#000' },
+  // Relleno lima con negro encima: correcto en los dos temas (manual 3.6).
+  filterPillOn: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
+  filterText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  filterTextOn: { color: ATP_BRAND.black },
   shoppingBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 10, paddingVertical: 7, borderRadius: 17,
     borderWidth: 1, borderColor: 'rgba(168,224,42,0.35)',
   },
-  shoppingText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, color: '#a8e02a' },
+  shoppingText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
 
   recipeCard: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    borderRadius: Radius.card,
     padding: Spacing.md, marginBottom: Spacing.sm,
     borderLeftWidth: 3, borderLeftColor: ATP_BRAND.amber,
   },
   recipeHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  recipeName: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, color: '#fff', flex: 1 },
+  recipeName: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, flex: 1 },
   macroRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 10 },
   macroItem: { alignItems: 'center' },
-  macroValue: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#ccc' },
-  macroLabel: { fontSize: 9, color: '#666', marginTop: 1 },
-  macroDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.06)' },
-  useRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: 'rgba(255,255,255,0.06)' },
-  useText: { fontSize: FontSizes.xs, color: '#a8e02a', fontFamily: Fonts.semiBold },
+  macroValue: { fontSize: FontSizes.md, fontFamily: Fonts.bold },
+  macroLabel: { fontSize: 9, marginTop: 1 },
+  macroDivider: { width: 1, height: 28 },
+  useRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingTop: 8, borderTopWidth: 0.5 },
+  useText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
 
   emptyState: { alignItems: 'center', paddingVertical: Spacing.xxl, gap: Spacing.sm },
-  emptyTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, color: '#fff' },
-  emptySubtitle: { fontSize: FontSizes.sm, color: '#666', textAlign: 'center' },
+  emptyTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.semiBold },
+  emptySubtitle: { fontSize: FontSizes.sm, textAlign: 'center' },
 
   createBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
     paddingVertical: Spacing.md, marginTop: Spacing.md,
-    borderWidth: 1, borderColor: '#333', borderRadius: Radius.card, borderStyle: 'dashed',
+    borderWidth: 1, borderRadius: Radius.card, borderStyle: 'dashed',
   },
-  createBtnText: { color: ATP_BRAND.amber, fontFamily: Fonts.semiBold },
+  // Hallazgo MB-31B3: ambar como TEXTO (ilegible en claro) — color inline.
+  createBtnText: { fontFamily: Fonts.semiBold },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#111', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: Spacing.lg, paddingBottom: 40 },
-  modalTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, color: '#fff', textAlign: 'center', marginBottom: Spacing.lg },
-  inputLabel: { color: '#888', fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, marginBottom: 4 },
+  modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: Spacing.lg, paddingBottom: 40 },
+  modalTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, textAlign: 'center', marginBottom: Spacing.lg },
+  inputLabel: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, marginBottom: 4 },
   input: {
-    backgroundColor: '#1a1a1a', borderRadius: Radius.sm, color: '#fff',
+    borderRadius: Radius.sm,
     fontFamily: Fonts.regular, fontSize: FontSizes.md, padding: Spacing.md,
   },
   saveBtn: {
     backgroundColor: ATP_BRAND.amber, borderRadius: Radius.card, paddingVertical: Spacing.md,
     alignItems: 'center', marginTop: Spacing.lg,
   },
-  saveBtnText: { color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.lg },
+  saveBtnText: { color: ATP_BRAND.black, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
 
   // P2 (MB-28B): filas del selector de registros recientes
   logRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: '#1a1a1a', borderRadius: Radius.md,
+    borderRadius: Radius.md,
     padding: Spacing.md, marginBottom: 6,
   },
-  logName: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#eee' },
-  logMeta: { fontSize: FontSizes.xs, color: '#777', marginTop: 2 },
+  logName: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+  logMeta: { fontSize: FontSizes.xs, marginTop: 2 },
 });

@@ -14,6 +14,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Alert, ScrollView, DeviceEventEmitter } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -45,8 +46,9 @@ import { RegistroManualCard } from '@/src/components/mente/RegistroManualCard';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
 import { phaseIndexAt } from '@/src/services/meditation-core';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, ATP_BRAND } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { MenteHero } from '@/src/components/mente/MenteHero';
 
@@ -101,6 +103,9 @@ function LibraryScreen({ onSelect, onBack }: {
   const [loaded, setLoaded] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { isPro } = useSubscription();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
 
   // Catálogo real (Ajuste v2): TODO el catálogo — las secciones agrupan por
   // categoría (Guiadas/Visualización/Mantras/Para dormir) y Favoritas puede
@@ -165,7 +170,9 @@ function LibraryScreen({ onSelect, onBack }: {
   const binaurales = pieces.filter(p => p.categoria === 'binaural');
 
   return (
-    <View style={styles.screen}>
+    <ThemeReady>
+    <View style={[styles.screen, { backgroundColor: t.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <StickyPillarBanner scrolled={scrolled} onBack={onBack} />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -190,7 +197,7 @@ function LibraryScreen({ onSelect, onBack }: {
               Vacía → no se muestra. */}
           {favoritas.length > 0 && (
             <>
-              <EliteText style={styles.libSection}>FAVORITAS</EliteText>
+              <EliteText style={[styles.libSection, secTxt]}>FAVORITAS</EliteText>
               <View style={styles.libGrid}>
                 {favoritas.map(piece => (
                   <AudioPieceCard key={`fav-${piece.slug}`} piece={piece} onPress={openPiece} />
@@ -199,7 +206,7 @@ function LibraryScreen({ onSelect, onBack }: {
             </>
           )}
 
-          <EliteText style={styles.libSection}>GUIADAS</EliteText>
+          <EliteText style={[styles.libSection, secTxt]}>GUIADAS</EliteText>
           {guiadas.length > 0 ? (
             <View style={styles.libGrid}>
               {guiadas.map(piece => (
@@ -207,7 +214,7 @@ function LibraryScreen({ onSelect, onBack }: {
               ))}
             </View>
           ) : (
-            <EliteText variant="caption" style={styles.libEmpty}>
+            <EliteText variant="caption" style={[styles.libEmpty, secTxt]}>
               {loaded
                 ? 'El catálogo no cargó: revisa tu conexión e intenta de nuevo.'
                 : 'Cargando catálogo…'}
@@ -217,7 +224,7 @@ function LibraryScreen({ onSelect, onBack }: {
           {/* Ajuste v2: Visualización y Mantras con sección propia (mig 215). */}
           {visualizacion.length > 0 && (
             <>
-              <EliteText style={styles.libSection}>VISUALIZACIÓN</EliteText>
+              <EliteText style={[styles.libSection, secTxt]}>VISUALIZACIÓN</EliteText>
               <View style={styles.libGrid}>
                 {visualizacion.map(piece => (
                   <AudioPieceCard key={piece.slug} piece={piece} onPress={openPiece} />
@@ -228,7 +235,7 @@ function LibraryScreen({ onSelect, onBack }: {
 
           {mantras.length > 0 && (
             <>
-              <EliteText style={styles.libSection}>MANTRAS</EliteText>
+              <EliteText style={[styles.libSection, secTxt]}>MANTRAS</EliteText>
               <View style={styles.libGrid}>
                 {mantras.map(piece => (
                   <AudioPieceCard key={piece.slug} piece={piece} onPress={openPiece} />
@@ -240,7 +247,7 @@ function LibraryScreen({ onSelect, onBack }: {
           {/* Ajuste 2: Descanso ES meditación — sección interna, no destino. */}
           {descanso.length > 0 && (
             <>
-              <EliteText style={styles.libSection}>PARA DORMIR Y DESCANSAR</EliteText>
+              <EliteText style={[styles.libSection, secTxt]}>PARA DORMIR Y DESCANSAR</EliteText>
               <View style={styles.libGrid}>
                 {descanso.map(piece => (
                   <AudioPieceCard key={piece.slug} piece={piece} onPress={openPiece} />
@@ -253,8 +260,8 @@ function LibraryScreen({ onSelect, onBack }: {
               Copy honesto: ondas + estado, cero claim curativo. */}
           {binaurales.length > 0 && (
             <>
-              <EliteText style={styles.libSection}>BINAURALES</EliteText>
-              <EliteText variant="caption" style={styles.libHint}>
+              <EliteText style={[styles.libSection, secTxt]}>BINAURALES</EliteText>
+              <EliteText variant="caption" style={[styles.libHint, secTxt]}>
                 Mejor con auriculares: el efecto binaural los necesita.
               </EliteText>
               <View style={styles.libGrid}>
@@ -272,6 +279,7 @@ function LibraryScreen({ onSelect, onBack }: {
         </View>
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
@@ -286,6 +294,12 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
   onComplete: () => void;
 }) {
   useKeepAwake();
+
+  // MB-31B3: tokens del tema global (la pantalla entera se declara lista).
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
+  // Regla 1 del manual: el lima no es texto en claro — el dato usa teal calibrado.
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
 
   const totalSeconds = meditation.durationMinutes * 60;
   const { timeLeft, progress, status, start, pause } = useTimer(totalSeconds);
@@ -422,14 +436,16 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
     const m = Math.floor(elapsed / 60);
     const s = elapsed % 60;
     return (
-      <SafeAreaView style={styles.screen}>
+      <ThemeReady>
+      <SafeAreaView style={[styles.screen, { backgroundColor: t.fondo }]}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <View style={styles.completedContainer}>
           <Ionicons name="checkmark-circle" size={64} color={ATP_BRAND.lime} />
           <EliteText style={styles.completedTitle}>Meditación completada</EliteText>
-          <EliteText variant="caption" style={styles.completedSub}>
+          <EliteText variant="caption" style={[styles.completedSub, secTxt]}>
             {meditation.title} · {m > 0 ? `${m}m ${s}s` : `${s}s`}
           </EliteText>
-          <EliteText variant="body" style={styles.completedMessage}>
+          <EliteText variant="body" style={[styles.completedMessage, secTxt]}>
             {meditation.closingMessage}
           </EliteText>
 
@@ -437,22 +453,22 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
               Delta economía: solo si de verdad se otorgó (≥80% + cap/espaciado). */}
           {(electronStatus === 'awarded_first' || electronStatus === 'awarded_extra') && (
             <View style={styles.electronCard}>
-              <EliteText style={styles.electronValue}>
+              <EliteText style={[styles.electronValue, { color: acento }]}>
                 +{ELECTRON_WEIGHTS.meditation.weight.toFixed(1)} electrones
               </EliteText>
-              <EliteText variant="caption" style={styles.electronLabel}>Meditación completada</EliteText>
+              <EliteText variant="caption" style={[styles.electronLabel, secTxt]}>Meditación completada</EliteText>
             </View>
           )}
           {(electronStatus === 'cap_reached' || electronStatus === 'spacing') && (
             <View style={styles.electronCard}>
-              <EliteText variant="caption" style={styles.electronLabel}>
+              <EliteText variant="caption" style={[styles.electronLabel, secTxt]}>
                 Ya registraste tu práctica. Vuelve en un rato para sumar otro electrón.
               </EliteText>
             </View>
           )}
           {electronStatus === 'not_eligible' && (
             <View style={styles.electronCard}>
-              <EliteText variant="caption" style={styles.electronLabel}>
+              <EliteText variant="caption" style={[styles.electronLabel, secTxt]}>
                 Registramos tu tiempo real. Completa al menos el 80% para sumar tu electrón.
               </EliteText>
             </View>
@@ -461,12 +477,15 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
           <GradientCTA label="CONTINUAR" onPress={onComplete} />
         </View>
       </SafeAreaView>
+      </ThemeReady>
     );
   }
 
   // === Timer activo ===
   return (
-    <SafeAreaView style={styles.screen}>
+    <ThemeReady>
+    <SafeAreaView style={[styles.screen, { backgroundColor: t.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <View style={styles.backBtn}>
         <BackButton onPress={handleBack} color={PURPLE} />
       </View>
@@ -474,7 +493,7 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
       <View style={styles.timerContainer}>
         {/* Header */}
         <EliteText style={styles.timerTitle}>{meditation.title}</EliteText>
-        <EliteText variant="caption" style={styles.timerType}>
+        <EliteText variant="caption" style={[styles.timerType, secTxt]}>
           Fase {currentPhaseIdx + 1} de {phases.length}
         </EliteText>
 
@@ -485,16 +504,16 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
 
         {/* Texto de fase */}
         <Animated.View key={currentPhaseIdx} entering={FadeIn.duration(400)} exiting={FadeOut.duration(200)} style={styles.phaseTextContainer}>
-          <EliteText variant="body" style={styles.phaseText}>
+          <EliteText variant="body" style={[styles.phaseText, { color: t.texto }]}>
             {status === 'idle' ? meditation.title : currentPhase.text}
           </EliteText>
           {status !== 'idle' && currentPhase.instruction && (
-            <EliteText variant="caption" style={styles.phaseInstruction}>
+            <EliteText variant="caption" style={[styles.phaseInstruction, secTxt]}>
               {currentPhase.instruction}
             </EliteText>
           )}
           {status === 'idle' && (
-            <EliteText variant="caption" style={styles.phaseInstruction}>
+            <EliteText variant="caption" style={[styles.phaseInstruction, secTxt]}>
               {meditation.description} · {meditation.durationMinutes} min
             </EliteText>
           )}
@@ -508,6 +527,7 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
                 key={i}
                 style={[
                   styles.phaseDot,
+                  { backgroundColor: t.bordeMarcado },
                   i < currentPhaseIdx && styles.phaseDotDone,
                   i === currentPhaseIdx && styles.phaseDotCurrent,
                 ]}
@@ -534,13 +554,16 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
         </View>
       </View>
     </SafeAreaView>
+    </ThemeReady>
   );
 }
 
 // === ESTILOS ===
 
+// MB-31B3: los colores de superficie/texto neutros viven en tokens (inline);
+// aquí solo queda layout + los colores de sección/marca (identidad, no tema).
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.black },
+  screen: { flex: 1 },
   backBtn: {
     position: 'absolute', top: Spacing.xxl, left: Spacing.md, zIndex: 10, padding: Spacing.sm,
   },
@@ -549,22 +572,22 @@ const styles = StyleSheet.create({
   libContent: { paddingBottom: Spacing.xxl },
   libBody: { paddingHorizontal: Spacing.md },
   libSection: {
-    fontSize: 11, letterSpacing: 2, fontFamily: Fonts.semiBold, color: Colors.textSecondary,
+    fontSize: 11, letterSpacing: 2, fontFamily: Fonts.semiBold,
     textTransform: 'uppercase', marginTop: Spacing.lg, marginBottom: Spacing.sm,
   },
   libGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: Spacing.sm },
-  libHint: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: -4, marginBottom: Spacing.sm },
-  libEmpty: { color: Colors.textSecondary, fontSize: FontSizes.sm },
+  libHint: { fontSize: FontSizes.xs, marginTop: -4, marginBottom: Spacing.sm },
+  libEmpty: { fontSize: FontSizes.sm },
   libCard: { marginBottom: Spacing.xs },
   libCardBody: {
     flexDirection: 'row', alignItems: 'center', padding: Spacing.md,
   },
   libCardInfo: { flex: 1 },
   libCardTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg },
-  libCardDesc: { color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: 2 },
+  libCardDesc: { fontSize: FontSizes.sm, marginTop: 2 },
   libCardRight: { alignItems: 'center', marginLeft: Spacing.md },
   libCardDuration: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, color: PURPLE },
-  libCardMin: { color: Colors.textSecondary, fontSize: FontSizes.xs },
+  libCardMin: { fontSize: FontSizes.xs },
 
   // Timer
   timerContainer: {
@@ -573,7 +596,7 @@ const styles = StyleSheet.create({
   timerTitle: {
     fontSize: 22, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 2,
   },
-  timerType: { color: Colors.textSecondary, marginTop: 4, marginBottom: Spacing.md, fontSize: FontSizes.md },
+  timerType: { marginTop: 4, marginBottom: Spacing.md, fontSize: FontSizes.md },
   timerWrapper: { marginBottom: Spacing.md },
 
   // Texto de fase
@@ -581,11 +604,11 @@ const styles = StyleSheet.create({
     alignItems: 'center', paddingHorizontal: Spacing.lg, minHeight: 80, marginBottom: Spacing.md,
   },
   phaseText: {
-    color: Colors.textPrimary, fontSize: FontSizes.xl, fontFamily: Fonts.bold,
+    fontSize: FontSizes.xl, fontFamily: Fonts.bold,
     textAlign: 'center', lineHeight: 26,
   },
   phaseInstruction: {
-    color: Colors.textSecondary, fontSize: FontSizes.md, textAlign: 'center',
+    fontSize: FontSizes.md, textAlign: 'center',
     marginTop: Spacing.xs, lineHeight: 20,
   },
 
@@ -594,7 +617,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', gap: 4, marginBottom: Spacing.lg,
   },
   phaseDot: {
-    width: 6, height: 6, borderRadius: Radius.xs, backgroundColor: Colors.disabled,
+    width: 6, height: 6, borderRadius: Radius.xs,
   },
   phaseDotDone: { backgroundColor: PURPLE },
   phaseDotCurrent: { backgroundColor: PURPLE, width: 16, borderRadius: 3 },
@@ -607,15 +630,18 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.lg, gap: Spacing.sm,
   },
   completedTitle: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, color: PURPLE },
-  completedSub: { color: Colors.textSecondary, fontSize: FontSizes.md },
+  completedSub: { fontSize: FontSizes.md },
   completedMessage: {
-    color: Colors.textSecondary, fontStyle: 'italic', textAlign: 'center',
+    fontStyle: 'italic', textAlign: 'center',
     fontSize: FontSizes.lg, paddingHorizontal: Spacing.xl, marginVertical: Spacing.md,
   },
   electronCard: {
+    // Tinte de marca al 10%: acento, no superficie neutra (se queda en ambos temas).
     backgroundColor: 'rgba(168,224,42,0.1)', borderRadius: Radius.lg,
     padding: Spacing.md, marginVertical: Spacing.md, width: '80%', alignItems: 'center',
   },
-  electronValue: { color: ATP_BRAND.lime, fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
-  electronLabel: { color: Colors.textSecondary, marginTop: 4 },
+  // Hallazgo MB-31B3: era lima como TEXTO — en claro daría 1.34. El color va
+  // inline: lima en oscuro, teal calibrado en claro (regla 1 del manual).
+  electronValue: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
+  electronLabel: { marginTop: 4 },
 });

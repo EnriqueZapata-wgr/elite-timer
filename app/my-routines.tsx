@@ -7,6 +7,7 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Alert, Modal } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -19,7 +20,8 @@ import { haptic } from '@/src/utils/haptics';
 import { getRoutines, deleteRoutine, archiveRoutines, saveRoutine, generateUUID } from '@/src/services/routine-service';
 import { routineUsesClipRunner } from '@/src/services/fitness/routine-bridge-core';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT, ELEVATION, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import type { Routine } from '@/src/engine/types';
 import { userErrorMessage } from '@/src/utils/user-error';
 
@@ -95,6 +97,10 @@ const MOTIVO_COLOR: Record<MotivoLimpieza, string> = {
 
 export default function MyRoutinesScreen() {
   const router = useRouter();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: tk } = useAppTheme();
+  // Regla 1 de la guía: lima como TEXTO no sobrevive el claro → teal calibrado.
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tk.tealTexto;
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
   // MB-5 2.3: limpieza en lote (archivar reversible / eliminar con doble confirmación).
@@ -277,7 +283,9 @@ export default function MyRoutinesScreen() {
   }
 
   return (
-    <View style={s.screen}>
+    <ThemeReady>
+    <View style={[s.screen, { backgroundColor: tk.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Mis rutinas" />
 
       <ScrollView
@@ -293,17 +301,17 @@ export default function MyRoutinesScreen() {
         {/* MB-5 2.3: banner de limpieza — solo marca; decidir es del usuario */}
         {!loading && candidatas.size > 0 && (
           <Animated.View entering={FadeInUp.duration(250)}>
-            <AnimatedPressable onPress={abrirLimpieza} style={s.limpiezaBanner}>
+            <AnimatedPressable onPress={abrirLimpieza} style={[s.limpiezaBanner, { backgroundColor: tk.card }]}>
               <View style={[s.iconCircle, { backgroundColor: withOpacity(ATP_BRAND.amber, 0.15) }]}>
                 <Ionicons name="sparkles-outline" size={20} color={ATP_BRAND.amber} />
               </View>
               <View style={{ flex: 1 }}>
-                <EliteText style={s.limpiezaTitle}>Limpieza de rutinas</EliteText>
-                <EliteText style={s.limpiezaSub}>
+                <EliteText style={[s.limpiezaTitle, { color: tk.texto }]}>Limpieza de rutinas</EliteText>
+                <EliteText style={[s.limpiezaSub, { color: tk.textoSecundario }]}>
                   {candidatas.size} vacía{candidatas.size === 1 ? '' : 's'}, duplicada{candidatas.size === 1 ? '' : 's'} o del patrón viejo: revisar
                 </EliteText>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={TEXT.tertiary} />
+              <Ionicons name="chevron-forward" size={18} color={tk.textoTenue} />
             </AnimatedPressable>
           </Animated.View>
         )}
@@ -311,8 +319,8 @@ export default function MyRoutinesScreen() {
         {/* Empty state */}
         {!loading && routines.length === 0 && (
           <Animated.View entering={FadeInUp.duration(300)} style={s.emptyWrap}>
-            <Ionicons name="folder-open-outline" size={48} color="#333" />
-            <EliteText variant="subtitle" style={s.emptyTitle}>
+            <Ionicons name="folder-open-outline" size={48} color={tk.bordeMarcado} />
+            <EliteText variant="subtitle" style={[s.emptyTitle, { color: tk.texto }]}>
               Aún no tienes rutinas
             </EliteText>
             <EliteText variant="body" style={s.emptyText}>
@@ -346,10 +354,11 @@ export default function MyRoutinesScreen() {
                     </View>
 
                     <View style={s.cardInfo}>
-                      <EliteText style={s.cardName}>{r.name}</EliteText>
+                      <EliteText style={[s.cardName, { color: tk.texto }]}>{r.name}</EliteText>
                       <View style={s.metaRow}>
                         <View style={[s.modeBadge, { backgroundColor: `${meta.color}20` }]}>
-                          <EliteText style={[s.modeBadgeText, { color: meta.color }]}>
+                          {/* Regla 1: el lima de Fuerza como TEXTO → acento; el amber se queda. */}
+                          <EliteText style={[s.modeBadgeText, { color: meta.color === ATP_BRAND.lime ? acento : meta.color }]}>
                             {meta.label}
                           </EliteText>
                         </View>
@@ -386,7 +395,7 @@ export default function MyRoutinesScreen() {
 
         {/* Hint */}
         {!loading && routines.length > 0 && (
-          <EliteText variant="caption" style={{ color: '#333', fontSize: 9, textAlign: 'center', marginBottom: Spacing.sm }}>
+          <EliteText variant="caption" style={{ color: tk.bordeMarcado, fontSize: 9, textAlign: 'center', marginBottom: Spacing.sm }}>
             Mantén presionado para editar o eliminar
           </EliteText>
         )}
@@ -396,12 +405,12 @@ export default function MyRoutinesScreen() {
           <Animated.View entering={FadeInUp.delay(routines.length * 60 + 100).duration(300)}>
             <AnimatedPressable
               onPress={() => { haptic.light(); router.push({ pathname: '/builder', params: { mode: 'routine' } }); }}
-              style={s.createBtn}
+              style={[s.createBtn, { backgroundColor: tk.hundido, borderColor: tk.borde }]}
             >
               <View style={s.createRow}>
                 <Ionicons name="barbell-outline" size={22} color={ATP_BRAND.lime} />
                 <View style={s.createInfo}>
-                  <EliteText style={s.createTitle}>CREAR RUTINA</EliteText>
+                  <EliteText style={[s.createTitle, { color: tk.texto }]}>CREAR RUTINA</EliteText>
                   <EliteText style={s.createSub}>Rutina de fuerza con ejercicios y sets</EliteText>
                 </View>
                 <Ionicons name="add-circle" size={24} color={ATP_BRAND.lime} />
@@ -410,12 +419,12 @@ export default function MyRoutinesScreen() {
 
             <AnimatedPressable
               onPress={() => { haptic.light(); router.push({ pathname: '/builder', params: { mode: 'timer' } }); }}
-              style={s.createBtn}
+              style={[s.createBtn, { backgroundColor: tk.hundido, borderColor: tk.borde }]}
             >
               <View style={s.createRow}>
                 <Ionicons name="timer-outline" size={22} color={ATP_BRAND.amber} />
                 <View style={s.createInfo}>
-                  <EliteText style={s.createTitle}>CREAR TIMER</EliteText>
+                  <EliteText style={[s.createTitle, { color: tk.texto }]}>CREAR TIMER</EliteText>
                   <EliteText style={s.createSub}>Timer personalizado con bloques de tiempo</EliteText>
                 </View>
                 <Ionicons name="add-circle" size={24} color={ATP_BRAND.amber} />
@@ -436,14 +445,14 @@ export default function MyRoutinesScreen() {
         onRequestClose={() => setLimpiezaVisible(false)}
       >
         <View style={s.limpiezaOverlay}>
-          <View style={s.limpiezaSheet}>
+          <View style={[s.limpiezaSheet, { backgroundColor: tk.flotante }]}>
             <View style={s.limpiezaHeader}>
-              <EliteText style={s.limpiezaSheetTitle}>LIMPIEZA DE RUTINAS</EliteText>
+              <EliteText style={[s.limpiezaSheetTitle, { color: tk.texto }]}>LIMPIEZA DE RUTINAS</EliteText>
               <Pressable onPress={() => setLimpiezaVisible(false)} hitSlop={8}>
-                <Ionicons name="close" size={22} color={TEXT.secondary} />
+                <Ionicons name="close" size={22} color={tk.textoSecundario} />
               </Pressable>
             </View>
-            <EliteText style={s.limpiezaNota}>
+            <EliteText style={[s.limpiezaNota, { color: tk.textoSecundario }]}>
               Marcadas: vacías, duplicadas por nombre o con ejercicios del patrón viejo.
               Destoca las que quieras conservar. Archivar las oculta y es reversible.
             </EliteText>
@@ -452,16 +461,20 @@ export default function MyRoutinesScreen() {
               {routines.filter((r) => candidatas.has(r.id)).map((r) => {
                 const motivo = candidatas.get(r.id)!;
                 const marcada = seleccion.has(r.id);
+                // Regla 2 de la guía: el teal como texto pasa por el token calibrado;
+                // el error de UI también (en oscuro son el mismo hex).
+                const motivoTexto = motivo === 'patrón viejo' ? tk.tealTexto
+                  : motivo === 'vacía' ? tk.error : MOTIVO_COLOR[motivo];
                 return (
                   <Pressable key={r.id} onPress={() => toggleSeleccion(r.id)} style={s.limpiezaRow}>
                     <Ionicons
                       name={marcada ? 'checkbox' : 'square-outline'}
                       size={20}
-                      color={marcada ? ATP_BRAND.lime : TEXT.tertiary}
+                      color={marcada ? ATP_BRAND.lime : tk.textoTenue}
                     />
-                    <EliteText style={s.limpiezaRowName} numberOfLines={1}>{r.name}</EliteText>
+                    <EliteText style={[s.limpiezaRowName, { color: tk.texto }]} numberOfLines={1}>{r.name}</EliteText>
                     <View style={[s.motivoChip, { backgroundColor: withOpacity(MOTIVO_COLOR[motivo], 0.15) }]}>
-                      <EliteText style={[s.motivoText, { color: MOTIVO_COLOR[motivo] }]}>{motivo.toUpperCase()}</EliteText>
+                      <EliteText style={[s.motivoText, { color: motivoTexto }]}>{motivo.toUpperCase()}</EliteText>
                     </View>
                   </Pressable>
                 );
@@ -481,14 +494,15 @@ export default function MyRoutinesScreen() {
                 disabled={seleccion.size === 0}
                 style={s.eliminarBtn}
               >
-                <Ionicons name="trash-outline" size={15} color={SEMANTIC.error} />
-                <EliteText style={s.eliminarText}>Eliminar definitivamente ({seleccion.size})</EliteText>
+                <Ionicons name="trash-outline" size={15} color={tk.error} />
+                <EliteText style={[s.eliminarText, { color: tk.error }]}>Eliminar definitivamente ({seleccion.size})</EliteText>
               </AnimatedPressable>
             </View>
           </View>
         </View>
       </Modal>
     </View>
+    </ThemeReady>
   );
 }
 
@@ -497,7 +511,6 @@ export default function MyRoutinesScreen() {
 const s = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#000',
   },
   flex: { flex: 1 },
   scrollContent: {
@@ -505,6 +518,7 @@ const s = StyleSheet.create({
   },
 
   // --- Loading / Empty ---
+  // MB-31B3: '#666' no mapea a ningún token (guía §hallazgo 3) — se queda y se reporta.
   loadingText: {
     color: '#666',
     textAlign: 'center',
@@ -517,7 +531,6 @@ const s = StyleSheet.create({
     gap: Spacing.sm,
   },
   emptyTitle: {
-    color: '#fff',
     fontSize: FontSizes.lg,
     marginTop: Spacing.sm,
   },
@@ -549,7 +562,6 @@ const s = StyleSheet.create({
   cardName: {
     fontSize: FontSizes.md,
     fontFamily: Fonts.bold,
-    color: '#fff',
     marginBottom: 2,
   },
   metaRow: {
@@ -576,42 +588,40 @@ const s = StyleSheet.create({
   // --- Limpieza (MB-5 2.3) ---
   limpiezaBanner: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1,
+    borderWidth: 1,
     borderColor: withOpacity(ATP_BRAND.amber, 0.35),
     borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.sm,
   },
-  limpiezaTitle: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.sm },
-  limpiezaSub: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: 1 },
+  limpiezaTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.sm },
+  limpiezaSub: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: 1 },
 
   limpiezaOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
   limpiezaSheet: {
-    backgroundColor: ELEVATION[2].bg, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg,
+    borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg,
     padding: Spacing.md, paddingBottom: Spacing.xl,
   },
   limpiezaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
-  limpiezaSheetTitle: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: 12, letterSpacing: 2 },
-  limpiezaNota: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 12, lineHeight: 17, marginBottom: Spacing.sm },
+  limpiezaSheetTitle: { fontFamily: Fonts.bold, fontSize: 12, letterSpacing: 2 },
+  limpiezaNota: { fontFamily: Fonts.regular, fontSize: 12, lineHeight: 17, marginBottom: Spacing.sm },
   limpiezaRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: ELEVATION[3].border,
   },
-  limpiezaRowName: { flex: 1, color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: 13 },
+  limpiezaRowName: { flex: 1, fontFamily: Fonts.semiBold, fontSize: 13 },
   motivoChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.pill },
   motivoText: { fontFamily: Fonts.bold, fontSize: 9, letterSpacing: 0.5 },
   eliminarBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     paddingVertical: Spacing.sm,
   },
-  eliminarText: { color: SEMANTIC.error, fontFamily: Fonts.semiBold, fontSize: 13 },
+  eliminarText: { fontFamily: Fonts.semiBold, fontSize: 13 },
 
   // --- Create buttons ---
   createBtn: {
     marginBottom: Spacing.sm,
-    backgroundColor: '#0a0a0a',
     borderRadius: Radius.card,
     padding: Spacing.md,
     borderWidth: 1,
-    borderColor: '#1a1a1a',
     borderStyle: 'dashed',
   },
   createRow: {
@@ -625,7 +635,6 @@ const s = StyleSheet.create({
   createTitle: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
-    color: '#fff',
     letterSpacing: 1,
   },
   createSub: {

@@ -24,8 +24,9 @@ import {
   fetchNBackState, countRoundsOnDate, fetchRoundsByDate,
   type NBackUserState,
 } from '@/src/services/nback-service';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 const DAY_LETTERS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 
@@ -53,6 +54,15 @@ export default function NBackHomeScreen() {
   const [roundsToday, setRoundsToday] = useState(0);
   const [weekMap, setWeekMap] = useState<Record<string, number>>({});
   const [challengeDays, setChallengeDays] = useState(0);
+
+  // MB-31B3: tokens del tema. El hero editorial (foto + gradiente) y los
+  // rellenos lima quedan; el acento de TEXTO en claro es teal (regla 1).
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
+  const priTxt = { color: t.texto };
+  const tenueTxt = { color: t.textoTenue };
+  const cardSurf = { backgroundColor: t.card, borderColor: t.borde };
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
 
   useFocusEffect(useCallback(() => {
     let alive = true;
@@ -97,8 +107,9 @@ export default function NBackHomeScreen() {
   const todayPct = Math.min(100, Math.round((roundsToday / NBACK_CONFIG.ROUNDS_PER_DAY) * 100));
 
   return (
-    <View style={s.screen}>
-      <StatusBar style="light" />
+    <ThemeReady>
+    <View style={[s.screen, { backgroundColor: t.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <StickyPillarBanner scrolled={scrolled} onBack={() => router.back()} />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -133,15 +144,16 @@ export default function NBackHomeScreen() {
               const active = (weekMap[date] ?? 0) > 0;
               return (
                 <View key={date} style={s.weekDay}>
-                  <EliteText style={[s.weekLetter, isToday && { color: ATP_BRAND.lime }]}>
+                  <EliteText style={[s.weekLetter, tenueTxt, isToday && { color: acento }]}>
                     {DAY_LETTERS[d.getDay()]}
                   </EliteText>
                   <View style={[
                     s.weekDot,
+                    cardSurf,
                     active && s.weekDotActive,
                     isToday && s.weekDotToday,
                   ]}>
-                    <EliteText style={[s.weekNum, (active || isToday) && { color: '#000' }]}>
+                    <EliteText style={[s.weekNum, secTxt, (active || isToday) && { color: '#000' }]}>
                       {d.getDate()}
                     </EliteText>
                   </View>
@@ -151,12 +163,12 @@ export default function NBackHomeScreen() {
           </Animated.View>
 
           {/* Reto 20 días */}
-          <Animated.View entering={FadeInUp.delay(80).springify()} style={s.card}>
+          <Animated.View entering={FadeInUp.delay(80).springify()} style={[s.card, cardSurf]}>
             <View style={s.cardTopRow}>
-              <EliteText style={s.cardKicker}>RETO 20 DÍAS</EliteText>
-              <EliteText style={s.cardPct}>{Math.round((dayOfChallenge / NBACK_CONFIG.CHALLENGE_DAYS) * 100)}%</EliteText>
+              <EliteText style={[s.cardKicker, secTxt]}>RETO 20 DÍAS</EliteText>
+              <EliteText style={[s.cardPct, { color: acento }]}>{Math.round((dayOfChallenge / NBACK_CONFIG.CHALLENGE_DAYS) * 100)}%</EliteText>
             </View>
-            <EliteText style={s.cardTitle}>
+            <EliteText style={[s.cardTitle, priTxt]}>
               {dayOfChallenge > 0
                 ? `Día ${dayOfChallenge} de ${NBACK_CONFIG.CHALLENGE_DAYS}`
                 : 'Tu reto arranca con el primer round'}
@@ -167,18 +179,18 @@ export default function NBackHomeScreen() {
                 style={[s.progressFill, { width: `${(dayOfChallenge / NBACK_CONFIG.CHALLENGE_DAYS) * 100}%` }]}
               />
             </View>
-            <EliteText style={s.cardSub}>
+            <EliteText style={[s.cardSub, tenueTxt]}>
               Memoria de trabajo entrenada {NBACK_CONFIG.CHALLENGE_DAYS} días: el entrenamiento, no el milagro.
             </EliteText>
           </Animated.View>
 
           {/* Hoy */}
-          <Animated.View entering={FadeInUp.delay(130).springify()} style={s.card}>
+          <Animated.View entering={FadeInUp.delay(130).springify()} style={[s.card, cardSurf]}>
             <View style={s.cardTopRow}>
-              <EliteText style={s.cardKicker}>HOY</EliteText>
-              <EliteText style={s.cardPct}>{todayPct}%</EliteText>
+              <EliteText style={[s.cardKicker, secTxt]}>HOY</EliteText>
+              <EliteText style={[s.cardPct, { color: acento }]}>{todayPct}%</EliteText>
             </View>
-            <EliteText style={s.cardTitle}>
+            <EliteText style={[s.cardTitle, priTxt]}>
               {roundsToday}/{NBACK_CONFIG.ROUNDS_PER_DAY} rounds · ~20 min
             </EliteText>
             <View style={s.progressTrack}>
@@ -200,8 +212,8 @@ export default function NBackHomeScreen() {
             </AnimatedPressable>
             {/* Decisión #44-3: el canal auditivo es obligatorio. */}
             <View style={s.audioHint}>
-              <Ionicons name="headset-outline" size={13} color={TEXT.tertiary} />
-              <EliteText style={s.audioHintText}>
+              <Ionicons name="headset-outline" size={13} color={t.textoTenue} />
+              <EliteText style={[s.audioHintText, tenueTxt]}>
                 Usa auriculares o pon el altavoz claro: necesitas escuchar las letras con precisión.
               </EliteText>
             </View>
@@ -210,37 +222,37 @@ export default function NBackHomeScreen() {
           {/* Accesos (V1.5 #C7: los ajustes viven en Personalizar) */}
           <Animated.View entering={FadeInUp.delay(180).springify()} style={s.linksRow}>
             <AnimatedPressable
-              style={s.linkBtn}
+              style={[s.linkBtn, cardSurf]}
               onPress={() => { haptic.light(); router.push('/mente/nback/stats'); }}
             >
-              <Ionicons name="stats-chart-outline" size={16} color={TEXT.primary} />
-              <EliteText style={s.linkText}>Estadísticas</EliteText>
+              <Ionicons name="stats-chart-outline" size={16} color={t.texto} />
+              <EliteText style={[s.linkText, priTxt]}>Estadísticas</EliteText>
             </AnimatedPressable>
             <AnimatedPressable
-              style={s.linkBtn}
+              style={[s.linkBtn, cardSurf]}
               onPress={() => { haptic.light(); router.push('/mente/nback/como-jugar'); }}
             >
-              <Ionicons name="help-circle-outline" size={16} color={TEXT.primary} />
-              <EliteText style={s.linkText}>Cómo jugar</EliteText>
+              <Ionicons name="help-circle-outline" size={16} color={t.texto} />
+              <EliteText style={[s.linkText, priTxt]}>Cómo jugar</EliteText>
             </AnimatedPressable>
             <AnimatedPressable
-              style={s.linkBtn}
+              style={[s.linkBtn, cardSurf]}
               onPress={() => { haptic.light(); router.push('/mente/nback/personalizar'); }}
             >
-              <Ionicons name="options-outline" size={16} color={TEXT.primary} />
-              <EliteText style={s.linkText}>Personalizar</EliteText>
+              <Ionicons name="options-outline" size={16} color={t.texto} />
+              <EliteText style={[s.linkText, priTxt]}>Personalizar</EliteText>
             </AnimatedPressable>
           </Animated.View>
 
           {/* Artículo "Saber más" — la ciencia del N-Back sin marketing. */}
           <Animated.View entering={FadeInUp.delay(230).springify()}>
             <AnimatedPressable
-              style={s.learnMoreBtn}
+              style={[s.learnMoreBtn, cardSurf]}
               onPress={() => { haptic.light(); router.push('/mente/nback/saber-mas'); }}
             >
-              <Ionicons name="book-outline" size={16} color={TEXT.secondary} />
-              <EliteText style={s.learnMoreText}>Saber más sobre N-Back</EliteText>
-              <Ionicons name="chevron-forward" size={14} color={TEXT.tertiary} />
+              <Ionicons name="book-outline" size={16} color={t.textoSecundario} />
+              <EliteText style={[s.learnMoreText, secTxt]}>Saber más sobre N-Back</EliteText>
+              <Ionicons name="chevron-forward" size={14} color={t.textoTenue} />
             </AnimatedPressable>
           </Animated.View>
 
@@ -248,11 +260,12 @@ export default function NBackHomeScreen() {
         </View>
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#000' },
+  screen: { flex: 1 },
   scroll: { paddingBottom: Spacing.xxl },
   hero: {
     justifyContent: 'flex-end', minHeight: 216,
@@ -276,25 +289,25 @@ const s = StyleSheet.create({
     marginBottom: Spacing.md, paddingHorizontal: 2,
   },
   weekDay: { alignItems: 'center', gap: 6 },
-  weekLetter: { color: TEXT.tertiary, fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1 },
+  weekLetter: { fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1 },
   weekDot: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    borderWidth: 0.5,
     alignItems: 'center', justifyContent: 'center',
   },
   weekDotActive: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.85), borderColor: 'transparent' },
   weekDotToday: { borderWidth: 1.5, borderColor: ATP_BRAND.lime },
-  weekNum: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+  weekNum: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 
   card: {
-    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 0.5,
+    borderWidth: 0.5,
     borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.sm,
   },
   cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardKicker: { color: TEXT.secondary, fontSize: 11, fontFamily: Fonts.semiBold, letterSpacing: 2 },
-  cardPct: { color: ATP_BRAND.lime, fontSize: FontSizes.sm, fontFamily: Fonts.bold },
-  cardTitle: { color: '#fff', fontSize: FontSizes.xl, fontFamily: Fonts.bold, marginTop: 6 },
-  cardSub: { color: TEXT.tertiary, fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 8 },
+  cardKicker: { fontSize: 11, fontFamily: Fonts.semiBold, letterSpacing: 2 },
+  cardPct: { fontSize: FontSizes.sm, fontFamily: Fonts.bold },
+  cardTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, marginTop: 6 },
+  cardSub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 8 },
   progressTrack: {
     height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)',
     marginTop: 10, overflow: 'hidden',
@@ -309,20 +322,20 @@ const s = StyleSheet.create({
   },
   startText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
   audioHint: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
-  audioHintText: { flex: 1, color: TEXT.tertiary, fontSize: FontSizes.xs, fontFamily: Fonts.regular },
+  audioHintText: { flex: 1, fontSize: FontSizes.xs, fontFamily: Fonts.regular },
 
   linksRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: 2, marginBottom: Spacing.sm },
   linkBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 0.5,
+    borderWidth: 0.5,
     borderRadius: Radius.lg, paddingVertical: 12,
   },
-  linkText: { color: TEXT.primary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+  linkText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 
   learnMoreBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 0.5,
+    borderWidth: 0.5,
     borderRadius: Radius.lg, paddingVertical: 12,
   },
-  learnMoreText: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+  learnMoreText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 });

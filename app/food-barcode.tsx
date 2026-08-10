@@ -25,6 +25,7 @@ import { View, StyleSheet, ScrollView, TextInput, Pressable, Image, ActivityIndi
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { StatusBar } from 'expo-status-bar';
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -42,6 +43,7 @@ import {
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, ATP_BRAND } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 const BLUE = CATEGORY_COLORS.nutrition;
 
@@ -81,6 +83,13 @@ export default function FoodBarcodeScreen() {
   const { user } = useAuth();
   const analytics = useAnalytics();
   const { mode: nutritionMode } = useNutritionMode();
+  // MB-31B3: la pantalla migró a tokens (Screen themed) y sigue el tema global.
+  // El lima como TEXTO no pasa el contraste en claro (regla 1 de la guía).
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
+  // Roles repetidos → const (patrón de la guía).
+  const cardT = { backgroundColor: t.card, borderColor: t.borde };
+  const secLabel = { color: t.textoSecundario };
 
   const [step, setStep] = useState<Step>('entry');
   const [codeInput, setCodeInput] = useState('');
@@ -248,20 +257,20 @@ export default function FoodBarcodeScreen() {
 
   const mealChips = (
     <View style={{ marginTop: Spacing.lg }}>
-      <EliteText variant="caption" style={s.sectionLabel}>Tipo de comida</EliteText>
+      <EliteText variant="caption" style={[s.sectionLabel, secLabel]}>Tipo de comida</EliteText>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-        {MEAL_TYPES.map((t) => {
-          const active = mealType === t.key;
+        {MEAL_TYPES.map((mt) => {
+          const active = mealType === mt.key;
           return (
-            <AnimatedPressable key={t.key} scaleDown={0.94}
-              onPress={() => { haptic.light(); setMealType(t.key); }}
-              style={[s.mealChip, active && { backgroundColor: BLUE + '18', borderColor: BLUE + '50' }]}>
+            <AnimatedPressable key={mt.key} scaleDown={0.94}
+              onPress={() => { haptic.light(); setMealType(mt.key); }}
+              style={[s.mealChip, cardT, active && { backgroundColor: BLUE + '18', borderColor: BLUE + '50' }]}>
               <EliteText style={{
                 fontSize: FontSizes.md,
                 fontFamily: active ? Fonts.bold : Fonts.regular,
-                color: active ? BLUE : TEXT_COLORS.secondary,
+                color: active ? BLUE : t.textoSecundario,
               }}>
-                {t.label}
+                {mt.label}
               </EliteText>
             </AnimatedPressable>
           );
@@ -272,14 +281,14 @@ export default function FoodBarcodeScreen() {
 
   const manualForm = (
     <Animated.View entering={FadeInUp.delay(150).springify().damping(18)}>
-      <View style={[s.card, { marginTop: Spacing.lg }]}>
-        <EliteText variant="caption" style={s.sectionLabel}>Registrar a mano</EliteText>
+      <View style={[s.card, cardT, { marginTop: Spacing.lg }]}>
+        <EliteText variant="caption" style={[s.sectionLabel, secLabel]}>Registrar a mano</EliteText>
         <TextInput
-          style={s.input}
+          style={[s.input, { backgroundColor: t.flotante, color: t.texto }]}
           value={manualDesc}
           onChangeText={setManualDesc}
           placeholder="Qué es este producto (ej: yogurt griego natural)"
-          placeholderTextColor={TEXT_COLORS.muted}
+          placeholderTextColor={t.textoTenue}
           returnKeyType="done"
         />
         {nutritionMode === 'complete' && (
@@ -292,11 +301,11 @@ export default function FoodBarcodeScreen() {
             ] as const).map(([ph, val, set]) => (
               <TextInput
                 key={ph}
-                style={[s.input, { flex: 1, marginTop: 0, textAlign: 'center' }]}
+                style={[s.input, { backgroundColor: t.flotante, color: t.texto, flex: 1, marginTop: 0, textAlign: 'center' }]}
                 value={val}
                 onChangeText={set}
                 placeholder={ph}
-                placeholderTextColor={TEXT_COLORS.muted}
+                placeholderTextColor={t.textoTenue}
                 keyboardType="decimal-pad"
               />
             ))}
@@ -308,11 +317,11 @@ export default function FoodBarcodeScreen() {
         onPress={saveManual}
         disabled={!manualDesc.trim() || saving}
         scaleDown={0.96}
-        style={[s.ctaBtn, { marginTop: Spacing.xl, backgroundColor: manualDesc.trim() ? BLUE : SURFACES.cardLight }]}>
+        style={[s.ctaBtn, { marginTop: Spacing.xl, backgroundColor: manualDesc.trim() ? BLUE : t.flotante }]}>
         <Ionicons name="checkmark-circle" size={20}
-          color={manualDesc.trim() ? TEXT_COLORS.onAccent : TEXT_COLORS.muted} />
+          color={manualDesc.trim() ? TEXT_COLORS.onAccent : t.textoTenue} />
         <EliteText style={{
-          color: manualDesc.trim() ? TEXT_COLORS.onAccent : TEXT_COLORS.muted,
+          color: manualDesc.trim() ? TEXT_COLORS.onAccent : t.textoTenue,
           fontFamily: Fonts.bold, fontSize: FontSizes.xl,
         }}>
           {saving ? 'Guardando...' : 'Registrar'}
@@ -322,7 +331,8 @@ export default function FoodBarcodeScreen() {
   );
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="nutrition" title="Leer etiqueta" />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -337,34 +347,34 @@ export default function FoodBarcodeScreen() {
                 <Ionicons name="barcode-outline" size={40} color={BLUE} />
               </View>
             </View>
-            <EliteText style={s.heroTitle}>El número bajo las barras</EliteText>
-            <EliteText variant="caption" style={s.heroSub}>
+            <EliteText style={[s.heroTitle, { color: t.texto }]}>El número bajo las barras</EliteText>
+            <EliteText variant="caption" style={[s.heroSub, secLabel]}>
               Escríbelo y buscamos el producto: ingredientes y datos entran a tu registro sin teclear.
             </EliteText>
 
             <View style={s.codeRow}>
               <TextInput
-                style={s.codeInput}
+                style={[s.codeInput, { backgroundColor: t.card, borderColor: t.borde, color: t.texto }]}
                 value={codeInput}
-                onChangeText={(t) => { setCodeInput(t); setInputError(null); }}
+                onChangeText={(v) => { setCodeInput(v); setInputError(null); }}
                 placeholder="7501055300075"
-                placeholderTextColor={TEXT_COLORS.muted}
+                placeholderTextColor={t.textoTenue}
                 keyboardType="number-pad"
                 maxLength={14}
                 returnKeyType="search"
                 onSubmitEditing={handleLookup}
               />
               <AnimatedPressable onPress={handleLookup} scaleDown={0.92}
-                style={[s.codeGo, { backgroundColor: codeInput.trim() ? BLUE : SURFACES.cardLight }]}>
+                style={[s.codeGo, { backgroundColor: codeInput.trim() ? BLUE : t.flotante }]}>
                 <Ionicons name="search" size={20}
-                  color={codeInput.trim() ? TEXT_COLORS.onAccent : TEXT_COLORS.muted} />
+                  color={codeInput.trim() ? TEXT_COLORS.onAccent : t.textoTenue} />
               </AnimatedPressable>
             </View>
 
             {inputError && (
               <View style={s.errorCard}>
-                <Ionicons name="alert-circle" size={18} color={SEMANTIC.error} />
-                <EliteText style={{ color: SEMANTIC.error, fontSize: FontSizes.md, flex: 1 }}>{inputError}</EliteText>
+                <Ionicons name="alert-circle" size={18} color={t.error} />
+                <EliteText style={{ color: t.error, fontSize: FontSizes.md, flex: 1 }}>{inputError}</EliteText>
               </View>
             )}
 
@@ -377,7 +387,7 @@ export default function FoodBarcodeScreen() {
               </AnimatedPressable>
             )}
             {cameraModule && cameraOpen && (
-              <Animated.View entering={FadeIn.duration(300)} style={s.cameraWrap}>
+              <Animated.View entering={FadeIn.duration(300)} style={[s.cameraWrap, { backgroundColor: t.flotante, borderColor: t.borde }]}>
                 <cameraModule.CameraView
                   style={s.cameraView}
                   facing="back"
@@ -387,7 +397,7 @@ export default function FoodBarcodeScreen() {
                   onBarcodeScanned={({ data }) => onBarcodeRead(data)}
                 />
                 <View style={s.cameraHintRow}>
-                  <EliteText variant="caption" style={s.cameraHint}>
+                  <EliteText variant="caption" style={[s.cameraHint, secLabel]}>
                     Centra las barras; el número se lee solo.
                   </EliteText>
                   <Pressable onPress={() => setCameraOpen(false)} hitSlop={8}>
@@ -403,7 +413,7 @@ export default function FoodBarcodeScreen() {
         {step === 'loading' && (
           <Animated.View entering={FadeIn.duration(300)} style={s.loadingWrap}>
             <ActivityIndicator size="large" color={BLUE} />
-            <EliteText style={{ color: TEXT_COLORS.secondary, marginTop: Spacing.md, fontSize: FontSizes.lg }}>
+            <EliteText style={{ color: t.textoSecundario, marginTop: Spacing.md, fontSize: FontSizes.lg }}>
               Buscando {barcode}...
             </EliteText>
           </Animated.View>
@@ -412,25 +422,25 @@ export default function FoodBarcodeScreen() {
         {/* ── ENCONTRADO ── */}
         {step === 'found' && product && (
           <Animated.View entering={FadeInDown.springify().damping(18)}>
-            <View style={s.card}>
+            <View style={[s.card, cardT]}>
               <View style={{ flexDirection: 'row', gap: Spacing.md, alignItems: 'center' }}>
                 {product.imageUrl ? (
-                  <Image source={{ uri: product.imageUrl }} style={s.productImg} resizeMode="contain" />
+                  <Image source={{ uri: product.imageUrl }} style={[s.productImg, { backgroundColor: t.flotante }]} resizeMode="contain" />
                 ) : (
-                  <View style={[s.productImg, { alignItems: 'center', justifyContent: 'center' }]}>
-                    <Ionicons name="cube-outline" size={28} color={TEXT_COLORS.muted} />
+                  <View style={[s.productImg, { backgroundColor: t.flotante, alignItems: 'center', justifyContent: 'center' }]}>
+                    <Ionicons name="cube-outline" size={28} color={t.textoTenue} />
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
-                  <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
+                  <EliteText style={{ color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
                     {product.name}
                   </EliteText>
                   {product.brand && (
-                    <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.md, marginTop: 2 }}>
+                    <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: FontSizes.md, marginTop: 2 }}>
                       {product.brand}
                     </EliteText>
                   )}
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.sm, marginTop: 2 }}>
+                  <EliteText variant="caption" style={{ color: t.textoTenue, fontSize: FontSizes.sm, marginTop: 2 }}>
                     {product.barcode}
                   </EliteText>
                 </View>
@@ -439,15 +449,15 @@ export default function FoodBarcodeScreen() {
 
             {/* La lista de ingredientes es el valor: qué trae de verdad. */}
             {product.ingredientsText ? (
-              <View style={[s.card, { marginTop: Spacing.sm }]}>
-                <EliteText variant="caption" style={s.sectionLabel}>Lo que trae</EliteText>
-                <EliteText style={{ color: TEXT_COLORS.primary, fontSize: FontSizes.md, lineHeight: 21 }}>
+              <View style={[s.card, cardT, { marginTop: Spacing.sm }]}>
+                <EliteText variant="caption" style={[s.sectionLabel, secLabel]}>Lo que trae</EliteText>
+                <EliteText style={{ color: t.texto, fontSize: FontSizes.md, lineHeight: 21 }}>
                   {product.ingredientsText}
                 </EliteText>
               </View>
             ) : (
-              <View style={[s.card, { marginTop: Spacing.sm }]}>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.sm }}>
+              <View style={[s.card, cardT, { marginTop: Spacing.sm }]}>
+                <EliteText variant="caption" style={{ color: t.textoTenue, fontSize: FontSizes.sm }}>
                   La base no tiene la lista de ingredientes de este producto.
                 </EliteText>
               </View>
@@ -455,23 +465,23 @@ export default function FoodBarcodeScreen() {
 
             {/* Números por porción. En COMPLETO la porción se ajusta. */}
             {hasMacros && macros ? (
-              <View style={[s.card, { marginTop: Spacing.sm }]}>
+              <View style={[s.card, cardT, { marginTop: Spacing.sm }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <EliteText variant="caption" style={[s.sectionLabel, { marginBottom: 0 }]}>
+                  <EliteText variant="caption" style={[s.sectionLabel, secLabel, { marginBottom: 0 }]}>
                     Por {grams} g
                   </EliteText>
                   {nutritionMode === 'complete' && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <TextInput
-                        style={s.gramsInput}
+                        style={[s.gramsInput, { backgroundColor: t.flotante, color: t.texto }]}
                         value={gramsInput}
                         onChangeText={setGramsInput}
                         placeholder={String(defaultGrams)}
-                        placeholderTextColor={TEXT_COLORS.muted}
+                        placeholderTextColor={t.textoTenue}
                         keyboardType="number-pad"
                         maxLength={4}
                       />
-                      <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.sm }}>g</EliteText>
+                      <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: FontSizes.sm }}>g</EliteText>
                     </View>
                   )}
                 </View>
@@ -483,24 +493,24 @@ export default function FoodBarcodeScreen() {
                     ['grasa', macros.fatG, 'g'],
                   ] as const).map(([label, value, unit]) => (
                     <View key={label} style={s.macroItem}>
-                      <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.lg }}>
+                      <EliteText style={{ color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.lg }}>
                         {value ?? '—'}{value !== null ? unit : ''}
                       </EliteText>
-                      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs, marginTop: 1 }}>
+                      <EliteText variant="caption" style={{ color: t.textoTenue, fontSize: FontSizes.xs, marginTop: 1 }}>
                         {label}
                       </EliteText>
                     </View>
                   ))}
                 </View>
                 {product.servingSize && (
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs, marginTop: 6 }}>
+                  <EliteText variant="caption" style={{ color: t.textoTenue, fontSize: FontSizes.xs, marginTop: 6 }}>
                     Porción del empaque: {product.servingSize}
                   </EliteText>
                 )}
               </View>
             ) : (
-              <View style={[s.card, { marginTop: Spacing.sm }]}>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.sm }}>
+              <View style={[s.card, cardT, { marginTop: Spacing.sm }]}>
+                <EliteText variant="caption" style={{ color: t.textoTenue, fontSize: FontSizes.sm }}>
                   Sin datos de macros en la base. Se registra el producto y puedes completar después.
                 </EliteText>
               </View>
@@ -510,8 +520,8 @@ export default function FoodBarcodeScreen() {
 
             {inputError && (
               <View style={s.errorCard}>
-                <Ionicons name="alert-circle" size={18} color={SEMANTIC.error} />
-                <EliteText style={{ color: SEMANTIC.error, fontSize: FontSizes.md, flex: 1 }}>{inputError}</EliteText>
+                <Ionicons name="alert-circle" size={18} color={t.error} />
+                <EliteText style={{ color: t.error, fontSize: FontSizes.md, flex: 1 }}>{inputError}</EliteText>
               </View>
             )}
 

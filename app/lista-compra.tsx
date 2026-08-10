@@ -17,6 +17,7 @@ import { View, ScrollView, StyleSheet, Share, Pressable, TextInput, Alert } from
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { StatusBar } from 'expo-status-bar';
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -30,6 +31,7 @@ import {
 } from '@/src/services/shopping-list-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SURFACES, TEXT_COLORS, ATP_BRAND } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 interface RecipeRow {
   id: string;
@@ -40,6 +42,8 @@ interface RecipeRow {
 
 export default function ListaCompraScreen() {
   const { user } = useAuth();
+  // MB-31B3: la pantalla migró a tokens (Screen themed) y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [listFailed, setListFailed] = useState(false);
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
@@ -143,8 +147,12 @@ export default function ListaCompraScreen() {
   const withIngredients = recipes.filter((r) => Array.isArray(r.ingredients) && (r.ingredients as unknown[]).length > 0);
   const withoutIngredients = recipes.length - withIngredients.length;
 
+  // MB-31B3: rol repetido → const (patrón de la guía).
+  const tenue = { color: t.textoTenue };
+
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="nutrition" title="Lista de compra" />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -154,24 +162,24 @@ export default function ListaCompraScreen() {
         {/* ── Alta a mano: como empieza toda lista real ── */}
         <View style={s.addRow}>
           <TextInput
-            style={s.addInput}
+            style={[s.addInput, { backgroundColor: t.card, borderColor: t.borde, color: t.texto }]}
             value={manualInput}
             onChangeText={setManualInput}
             placeholder="Agregar a la lista (ej: aguacate)"
-            placeholderTextColor={TEXT_COLORS.muted}
+            placeholderTextColor={t.textoTenue}
             returnKeyType="done"
             onSubmitEditing={handleAddManual}
           />
           <AnimatedPressable onPress={handleAddManual} scaleDown={0.9}
-            style={[s.addBtn, { backgroundColor: manualInput.trim() ? '#a8e02a' : SURFACES.cardLight }]}>
-            <Ionicons name="add" size={22} color={manualInput.trim() ? '#000' : TEXT_COLORS.muted} />
+            style={[s.addBtn, { backgroundColor: manualInput.trim() ? '#a8e02a' : t.flotante }]}>
+            <Ionicons name="add" size={22} color={manualInput.trim() ? '#000' : t.textoTenue} />
           </AnimatedPressable>
         </View>
 
         {listFailed && (
           <View style={s.empty}>
-            <Ionicons name="cloud-offline-outline" size={48} color="#333" />
-            <EliteText style={s.emptyTitle}>Tu lista no se pudo leer</EliteText>
+            <Ionicons name="cloud-offline-outline" size={48} color={t.bordeMarcado} />
+            <EliteText style={[s.emptyTitle, { color: t.texto }]}>Tu lista no se pudo leer</EliteText>
             <EliteText style={s.emptySub}>
               Revisa tu conexión y vuelve a entrar. Tu lista sigue guardada.
             </EliteText>
@@ -182,7 +190,7 @@ export default function ListaCompraScreen() {
         {pending.length > 0 && (
           <>
             <View style={s.listHeader}>
-              <EliteText style={s.listTitle}>TU LISTA ({pending.length})</EliteText>
+              <EliteText style={[s.listTitle, { color: t.textoSecundario }]}>TU LISTA ({pending.length})</EliteText>
               <Pressable onPress={shareList} hitSlop={10} style={s.shareBtn}>
                 <Ionicons name="share-outline" size={16} color="#000" />
                 <EliteText style={s.shareText}>Compartir</EliteText>
@@ -193,20 +201,20 @@ export default function ListaCompraScreen() {
                 <View style={s.itemRow}>
                   <Pressable onPress={() => handleToggleBought(item)} hitSlop={8}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 }}>
-                    <Ionicons name="ellipse-outline" size={20} color="#444" />
+                    <Ionicons name="ellipse-outline" size={20} color={t.sinDatos} />
                     <View style={{ flex: 1 }}>
                       <EliteText style={s.itemName}>
                         {item.name}{item.detail ? ` · ${item.detail}` : ''}
                       </EliteText>
                       {item.fromRecipes.length > 0 && (
-                        <EliteText style={s.itemFrom} numberOfLines={1}>
+                        <EliteText style={[s.itemFrom, tenue]} numberOfLines={1}>
                           {item.fromRecipes.join(' · ')}
                         </EliteText>
                       )}
                     </View>
                   </Pressable>
                   <Pressable onPress={() => handleRemove(item)} hitSlop={8}>
-                    <Ionicons name="close" size={16} color="#444" />
+                    <Ionicons name="close" size={16} color={t.sinDatos} />
                   </Pressable>
                 </View>
               </Animated.View>
@@ -216,8 +224,8 @@ export default function ListaCompraScreen() {
 
         {!listFailed && pending.length === 0 && (
           <View style={s.empty}>
-            <Ionicons name="cart-outline" size={48} color="#333" />
-            <EliteText style={s.emptyTitle}>Tu lista está vacía</EliteText>
+            <Ionicons name="cart-outline" size={48} color={t.bordeMarcado} />
+            <EliteText style={[s.emptyTitle, { color: t.texto }]}>Tu lista está vacía</EliteText>
             <EliteText style={s.emptySub}>
               Escribe arriba lo que necesitas, o manda los ingredientes de una receta con un toque.
             </EliteText>
@@ -228,9 +236,9 @@ export default function ListaCompraScreen() {
         {bought.length > 0 && (
           <>
             <View style={s.listHeader}>
-              <EliteText style={s.listTitle}>EN TU DESPENSA ({bought.length})</EliteText>
+              <EliteText style={[s.listTitle, { color: t.textoSecundario }]}>EN TU DESPENSA ({bought.length})</EliteText>
             </View>
-            <EliteText variant="caption" style={s.pantryHint}>
+            <EliteText variant="caption" style={[s.pantryHint, tenue]}>
               Lo comprado se queda aquí y la lista no te lo vuelve a pedir. Toca para pedirlo otra vez.
             </EliteText>
             {bought.map((item) => (
@@ -238,12 +246,12 @@ export default function ListaCompraScreen() {
                 <Pressable onPress={() => handleToggleBought(item)} hitSlop={8}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 }}>
                   <Ionicons name="checkmark-circle" size={20} color="#a8e02a" />
-                  <EliteText style={[s.itemName, s.itemDone]}>
+                  <EliteText style={[s.itemName, s.itemDone, tenue]}>
                     {item.name}{item.detail ? ` · ${item.detail}` : ''}
                   </EliteText>
                 </Pressable>
                 <Pressable onPress={() => handleRemove(item)} hitSlop={8}>
-                  <Ionicons name="close" size={16} color="#444" />
+                  <Ionicons name="close" size={16} color={t.sinDatos} />
                 </Pressable>
               </View>
             ))}
@@ -253,20 +261,20 @@ export default function ListaCompraScreen() {
         {/* ── DESDE TUS RECETAS: un toque manda los ingredientes ── */}
         {(withIngredients.length > 0 || recipesFailed) && (
           <View style={s.listHeader}>
-            <EliteText style={s.listTitle}>DESDE TUS RECETAS</EliteText>
+            <EliteText style={[s.listTitle, { color: t.textoSecundario }]}>DESDE TUS RECETAS</EliteText>
           </View>
         )}
         {sendSummary && (
           <EliteText variant="caption" style={s.sendSummary}>{sendSummary}</EliteText>
         )}
         {recipesFailed && (
-          <EliteText variant="caption" style={s.note}>
+          <EliteText variant="caption" style={[s.note, tenue]}>
             Tus recetas no se pudieron leer. Revisa tu conexión y vuelve a entrar.
           </EliteText>
         )}
         {withIngredients.map((r, idx) => (
           <Animated.View key={r.id} entering={FadeInUp.delay(idx * 40).springify()}>
-            <AnimatedPressable onPress={() => handleSendRecipe(r)} style={s.recipeRow} disabled={busy}>
+            <AnimatedPressable onPress={() => handleSendRecipe(r)} style={[s.recipeRow, { backgroundColor: t.card }]} disabled={busy}>
               <Ionicons name="arrow-up-circle-outline" size={22} color="#a8e02a" />
               <EliteText style={s.recipeName} numberOfLines={1}>{r.name}</EliteText>
               {r.is_favorite && <Ionicons name="heart" size={14} color="#fb7185" />}
@@ -277,12 +285,12 @@ export default function ListaCompraScreen() {
           </Animated.View>
         ))}
         {!recipesFailed && withIngredients.length === 0 && (
-          <EliteText variant="caption" style={s.note}>
+          <EliteText variant="caption" style={[s.note, tenue]}>
             Guarda recetas con ingredientes (de ARGOS o desde tus registros) y mándalas aquí con un toque.
           </EliteText>
         )}
         {withoutIngredients > 0 && withIngredients.length > 0 && (
-          <EliteText variant="caption" style={s.note}>
+          <EliteText variant="caption" style={[s.note, tenue]}>
             {withoutIngredients} receta{withoutIngredients > 1 ? 's' : ''} sin ingredientes no aparece{withoutIngredients > 1 ? 'n' : ''} aquí.
           </EliteText>
         )}
@@ -298,10 +306,10 @@ const s = StyleSheet.create({
 
   addRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md, alignItems: 'center' },
   addInput: {
-    flex: 1, backgroundColor: SURFACES.card, borderRadius: Radius.md,
-    borderWidth: 1, borderColor: SURFACES.border,
+    flex: 1, borderRadius: Radius.md,
+    borderWidth: 1,
     paddingHorizontal: 14, paddingVertical: 12,
-    color: TEXT_COLORS.primary, fontSize: FontSizes.md, fontFamily: Fonts.regular,
+    fontSize: FontSizes.md, fontFamily: Fonts.regular,
   },
   addBtn: {
     width: 44, height: 44, borderRadius: Radius.md,
@@ -310,23 +318,23 @@ const s = StyleSheet.create({
 
   recipeRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: SURFACES.card, borderRadius: Radius.md,
+    borderRadius: Radius.md,
     padding: Spacing.md, marginBottom: 6, borderWidth: 1, borderColor: 'transparent',
   },
   recipeName: { flex: 1, fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#ccc' },
 
   empty: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm, paddingHorizontal: Spacing.lg },
-  emptyTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, color: '#fff' },
+  emptyTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.semiBold },
   emptySub: { fontSize: FontSizes.sm, color: '#666', textAlign: 'center', lineHeight: 20 },
-  note: { color: '#555', fontSize: FontSizes.xs, marginTop: 4, marginBottom: Spacing.sm },
-  pantryHint: { color: '#555', fontSize: FontSizes.xs, marginBottom: Spacing.sm, lineHeight: 16 },
+  note: { fontSize: FontSizes.xs, marginTop: 4, marginBottom: Spacing.sm },
+  pantryHint: { fontSize: FontSizes.xs, marginBottom: Spacing.sm, lineHeight: 16 },
   sendSummary: { color: ATP_BRAND.amber, fontSize: FontSizes.xs, marginBottom: Spacing.sm, lineHeight: 16 },
 
   listHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginTop: Spacing.lg, marginBottom: Spacing.sm,
   },
-  listTitle: { fontSize: 11, fontFamily: Fonts.bold, color: '#888', letterSpacing: 2 },
+  listTitle: { fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2 },
   shareBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: '#a8e02a', borderRadius: Radius.pill,
@@ -338,6 +346,6 @@ const s = StyleSheet.create({
     paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   itemName: { fontSize: FontSizes.md, color: '#eee' },
-  itemDone: { color: '#555', textDecorationLine: 'line-through' },
-  itemFrom: { fontSize: FontSizes.xs, color: '#555', marginTop: 1 },
+  itemDone: { textDecorationLine: 'line-through' },
+  itemFrom: { fontSize: FontSizes.xs, marginTop: 1 },
 });

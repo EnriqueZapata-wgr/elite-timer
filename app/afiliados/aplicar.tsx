@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -24,7 +25,8 @@ import {
 } from '@/src/services/affiliate-core';
 import { getAffiliate, applyAsAffiliate, type Affiliate } from '@/src/services/affiliate-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -38,6 +40,9 @@ export default function AfiliadosAplicarScreen() {
 
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
+  const secTxt = { color: t.textoSecundario };
 
   const [existing, setExisting] = useState<Affiliate | null | undefined>(undefined);
   const [vertical, setVertical] = useState<AffiliateVertical | null>(null);
@@ -89,27 +94,29 @@ export default function AfiliadosAplicarScreen() {
 
   // ── Ya aplicó: estado ──
   if (existing) {
-    const color = STATUS_COLORS[existing.status] ?? TEXT.secondary;
+    const color = STATUS_COLORS[existing.status] ?? t.textoSecundario;
     return (
-      <ScrollView style={s.screen} contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: 40 }}>
+      <ThemeReady>
+      <ScrollView style={[s.screen, { backgroundColor: t.fondo }]} contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: 40 }}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <View style={{ paddingTop: insets.top + 8 }}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
+            <Ionicons name="arrow-back" size={24} color={t.texto} />
           </Pressable>
         </View>
-        <Animated.View entering={FadeInUp.delay(60).springify()} style={s.statusCard}>
+        <Animated.View entering={FadeInUp.delay(60).springify()} style={[s.statusCard, { backgroundColor: t.card, borderColor: t.borde }]}>
           <View style={[s.statusBadge, { backgroundColor: withOpacity(color, 0.12) }]}>
             <EliteText style={[s.statusBadgeText, { color }]}>
               {AFFILIATE_STATUS_LABELS[existing.status] ?? existing.status}
             </EliteText>
           </View>
-          <EliteText style={s.statusTitle}>
+          <EliteText style={[s.statusTitle, { color: t.texto }]}>
             {existing.status === 'pending' && 'Tu aplicación está en revisión'}
             {existing.status === 'approved' && 'Eres afiliado ATP'}
             {existing.status === 'rejected' && 'Tu aplicación no fue aprobada'}
             {existing.status === 'suspended' && 'Tu cuenta de afiliado está suspendida'}
           </EliteText>
-          <EliteText style={s.statusBody}>
+          <EliteText style={[s.statusBody, secTxt]}>
             {existing.status === 'pending' && 'El equipo ATP revisará tu perfil y te contactará por email. Normalmente toma 2-3 días hábiles.'}
             {existing.status === 'approved' && 'Tu código de referido, wallet y métricas viven en tu dashboard.'}
             {existing.status === 'rejected' && (existing.reject_reason || 'Puedes contactar al equipo ATP para más detalles.')}
@@ -126,23 +133,26 @@ export default function AfiliadosAplicarScreen() {
           )}
         </Animated.View>
       </ScrollView>
+      </ThemeReady>
     );
   }
 
   // ── Formulario ──
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.screen}>
+    <ThemeReady>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.screen, { backgroundColor: t.fondo }]}>
       <ScrollView contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <View style={{ paddingTop: insets.top + 8 }}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
+            <Ionicons name="arrow-back" size={24} color={t.texto} />
           </Pressable>
         </View>
 
         <Animated.View entering={FadeInUp.delay(40).springify()}>
-          <EliteText style={s.kicker}>PROGRAMA DE AFILIADOS</EliteText>
-          <EliteText style={s.title}>Crece con ATP</EliteText>
-          <EliteText style={s.subtitle}>
+          <EliteText style={[s.kicker, { color: acento }]}>PROGRAMA DE AFILIADOS</EliteText>
+          <EliteText style={[s.title, { color: t.texto }]}>Crece con ATP</EliteText>
+          <EliteText style={[s.subtitle, secTxt]}>
             Clínicos, coaches, centros y creadores: gana comisiones recurrentes por cada persona
             que entrenas, atiendes o inspiras dentro de ATP.
           </EliteText>
@@ -157,46 +167,46 @@ export default function AfiliadosAplicarScreen() {
                 <Pressable
                   key={opt.value}
                   onPress={() => { haptic.light(); setVertical(opt.value); }}
-                  style={[s.verticalChip, selected && s.verticalChipActive]}
+                  style={[s.verticalChip, { backgroundColor: t.hundido, borderColor: t.borde }, selected && s.verticalChipActive]}
                 >
-                  <Ionicons name={opt.icon as any} size={16} color={selected ? '#000' : TEXT.secondary} />
-                  <EliteText style={[s.verticalChipText, selected && { color: '#000' }]}>{opt.label}</EliteText>
+                  <Ionicons name={opt.icon as any} size={16} color={selected ? '#000' : t.textoSecundario} />
+                  <EliteText style={[s.verticalChipText, secTxt, selected && { color: '#000' }]}>{opt.label}</EliteText>
                 </Pressable>
               );
             })}
           </View>
 
           <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Tus datos</SectionTitle>
-          <EliteText style={s.label}>NOMBRE COMPLETO</EliteText>
-          <TextInput style={s.input} value={fullName} onChangeText={setFullName} placeholder="Tu nombre" placeholderTextColor="#444" autoCapitalize="words" />
-          <EliteText style={s.label}>EMAIL</EliteText>
-          <TextInput style={s.input} value={email} onChangeText={setEmail} placeholder="tu@email.com" placeholderTextColor="#444" keyboardType="email-address" autoCapitalize="none" />
-          <EliteText style={s.label}>TELÉFONO</EliteText>
-          <TextInput style={s.input} value={phone} onChangeText={setPhone} placeholder="+52 ..." placeholderTextColor="#444" keyboardType="phone-pad" />
-          <EliteText style={s.label}>ESPECIALIDAD</EliteText>
-          <TextInput style={s.input} value={specialty} onChangeText={setSpecialty} placeholder="Ej. medicina funcional, CrossFit, nutrición…" placeholderTextColor="#444" />
+          <EliteText style={[s.label, secTxt]}>NOMBRE COMPLETO</EliteText>
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={fullName} onChangeText={setFullName} placeholder="Tu nombre" placeholderTextColor={t.sinDatos} autoCapitalize="words" />
+          <EliteText style={[s.label, secTxt]}>EMAIL</EliteText>
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={email} onChangeText={setEmail} placeholder="tu@email.com" placeholderTextColor={t.sinDatos} keyboardType="email-address" autoCapitalize="none" />
+          <EliteText style={[s.label, secTxt]}>TELÉFONO</EliteText>
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={phone} onChangeText={setPhone} placeholder="+52 ..." placeholderTextColor={t.sinDatos} keyboardType="phone-pad" />
+          <EliteText style={[s.label, secTxt]}>ESPECIALIDAD</EliteText>
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={specialty} onChangeText={setSpecialty} placeholder="Ej. medicina funcional, CrossFit, nutrición…" placeholderTextColor={t.sinDatos} />
 
           {requiresCedula(vertical) && (
             <>
-              <EliteText style={s.label}>CÉDULA PROFESIONAL (OBLIGATORIA PARA CLÍNICOS)</EliteText>
-              <TextInput style={s.input} value={cedula} onChangeText={setCedula} placeholder="Número de cédula" placeholderTextColor="#444" />
+              <EliteText style={[s.label, secTxt]}>CÉDULA PROFESIONAL (OBLIGATORIA PARA CLÍNICOS)</EliteText>
+              <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={cedula} onChangeText={setCedula} placeholder="Número de cédula" placeholderTextColor={t.sinDatos} />
             </>
           )}
-          <EliteText style={s.label}>RFC (FACTURACIÓN MÉXICO · OPCIONAL)</EliteText>
-          <TextInput style={s.input} value={rfc} onChangeText={(t) => setRfc(t.toUpperCase())} placeholder="XXXX000000XXX" placeholderTextColor="#444" autoCapitalize="characters" />
+          <EliteText style={[s.label, secTxt]}>RFC (FACTURACIÓN MÉXICO · OPCIONAL)</EliteText>
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={rfc} onChangeText={(t) => setRfc(t.toUpperCase())} placeholder="XXXX000000XXX" placeholderTextColor={t.sinDatos} autoCapitalize="characters" />
 
-          <EliteText style={s.label}>CUÉNTANOS DE TI ({bioWords}/150 PALABRAS)</EliteText>
+          <EliteText style={[s.label, secTxt]}>CUÉNTANOS DE TI ({bioWords}/150 PALABRAS)</EliteText>
           <TextInput
-            style={[s.input, s.textArea, bioWords > 150 && { borderColor: '#ef4444' }]}
+            style={[s.input, { backgroundColor: t.hundido, color: t.texto }, s.textArea, bioWords > 150 && { borderColor: '#ef4444' }]}
             value={bio} onChangeText={setBio} multiline
             placeholder="Tu experiencia, a quién atiendes y por qué quieres ser afiliado ATP…"
-            placeholderTextColor="#444"
+            placeholderTextColor={t.sinDatos}
           />
-          <EliteText style={s.label}>REDES / SITIO WEB (OPCIONAL)</EliteText>
-          <TextInput style={s.input} value={social} onChangeText={setSocial} placeholder="instagram.com/tuperfil · tusitio.com" placeholderTextColor="#444" autoCapitalize="none" />
+          <EliteText style={[s.label, secTxt]}>REDES / SITIO WEB (OPCIONAL)</EliteText>
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={social} onChangeText={setSocial} placeholder="instagram.com/tuperfil · tusitio.com" placeholderTextColor={t.sinDatos} autoCapitalize="none" />
 
           <Pressable onPress={() => { haptic.light(); setAcceptTerms(a => !a); }} style={s.checkRow}>
-            <View style={[s.checkbox, acceptTerms && s.checkboxOn]}>
+            <View style={[s.checkbox, { borderColor: t.bordeMarcado }, acceptTerms && s.checkboxOn]}>
               {acceptTerms && <Ionicons name="checkmark" size={14} color="#000" />}
             </View>
             <EliteText style={s.checkText}>
@@ -217,35 +227,36 @@ export default function AfiliadosAplicarScreen() {
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </ThemeReady>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: ELEVATION[0].bg },
-  kicker: { fontSize: 10, fontFamily: Fonts.semiBold, color: ATP_BRAND.lime, letterSpacing: 2, marginTop: Spacing.lg },
-  title: { fontSize: 28, fontFamily: Fonts.bold, color: TEXT.primary, marginTop: 6 },
-  subtitle: { fontSize: FontSizes.md, fontFamily: Fonts.regular, color: TEXT.secondary, marginTop: 8, lineHeight: 22 },
+  screen: { flex: 1 },
+  kicker: { fontSize: 10, fontFamily: Fonts.semiBold, letterSpacing: 2, marginTop: Spacing.lg },
+  title: { fontSize: 28, fontFamily: Fonts.bold, marginTop: 6 },
+  subtitle: { fontSize: FontSizes.md, fontFamily: Fonts.regular, marginTop: 8, lineHeight: 22 },
   verticalGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   verticalChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: '#1a1a1a',
+    borderWidth: 1,
     borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9,
   },
   verticalChipActive: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
-  verticalChipText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: TEXT.secondary },
+  verticalChipText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
   label: {
-    fontSize: 10, fontFamily: Fonts.semiBold, color: '#888',
+    fontSize: 10, fontFamily: Fonts.semiBold,
     letterSpacing: 2, marginTop: Spacing.md, marginBottom: 6,
   },
   input: {
-    backgroundColor: '#0a0a0a', borderRadius: Radius.lg, paddingHorizontal: 16,
+    borderRadius: Radius.lg, paddingHorizontal: 16,
     paddingVertical: 13, fontSize: FontSizes.md, fontFamily: Fonts.regular,
-    color: '#fff', borderWidth: 0.5, borderColor: '#222',
+    borderWidth: 0.5, borderColor: '#222',
   },
   textArea: { minHeight: 110, textAlignVertical: 'top' },
   checkRow: { flexDirection: 'row', gap: 12, marginTop: Spacing.lg, alignItems: 'flex-start' },
   checkbox: {
-    width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#333',
+    width: 22, height: 22, borderRadius: 6, borderWidth: 2,
     alignItems: 'center', justifyContent: 'center', marginTop: 1,
   },
   checkboxOn: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
@@ -257,17 +268,17 @@ const s = StyleSheet.create({
   submitBtnDisabled: { backgroundColor: '#1a1a1a' },
   submitText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
   statusCard: {
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
     borderRadius: 20, padding: Spacing.lg, marginTop: Spacing.xl, alignItems: 'center',
   },
   statusBadge: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 5 },
   statusBadgeText: { fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 1 },
   statusTitle: {
-    fontSize: 20, fontFamily: Fonts.bold, color: TEXT.primary,
+    fontSize: 20, fontFamily: Fonts.bold,
     textAlign: 'center', marginTop: Spacing.md,
   },
   statusBody: {
-    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: TEXT.secondary,
+    fontSize: FontSizes.sm, fontFamily: Fonts.regular,
     textAlign: 'center', marginTop: 8, lineHeight: 20,
   },
 });

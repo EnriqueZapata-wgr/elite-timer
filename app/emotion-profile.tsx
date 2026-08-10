@@ -21,8 +21,10 @@ import { loadHistoryData, type HistoryCheckinRecord } from '@/src/services/emoti
 import { emotionCanonColor, emotionCanonGradient, isLightColor, quadrantCanonColor } from '@/src/services/emotion-plane-core';
 import { haptic } from '@/src/utils/haptics';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SURFACES, TEXT_COLORS, ATP_BRAND, CATEGORY_COLORS, withOpacity, BG } from '@/src/constants/brand';
+import { StatusBar } from 'expo-status-bar';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { TEXT_COLORS, ATP_BRAND, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 const EMOTION_BY_ID = new Map(EMOTIONS.map(e => [e.id, e]));
 
@@ -36,6 +38,12 @@ export default function EmotionProfileScreen() {
   const router = useRouter();
   const [checkins, setCheckins] = useState<HistoryCheckinRecord[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // MB-31B3: tokens del tema — roles repetidos como consts (guía, regla 3).
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
+  const priTxt = { color: t.texto };
+  const cardSurf = { backgroundColor: t.card, borderColor: t.borde };
 
   useEffect(() => {
     loadHistoryData()
@@ -66,7 +74,8 @@ export default function EmotionProfileScreen() {
 
   if (loading) {
     return (
-      <Screen>
+      <Screen themed>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <PillarHeader pillar="mind" title="Tu clima emocional" onBack={() => router.back()} />
       </Screen>
     );
@@ -75,17 +84,18 @@ export default function EmotionProfileScreen() {
   // ═══ FALTA DATA: se explica qué falta, sin inventar perfil ═══
   if (profile.status === 'insufficient') {
     return (
-      <Screen>
+      <Screen themed>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
         <PillarHeader pillar="mind" title="Tu clima emocional" onBack={() => router.back()} />
         <View style={styles.center}>
-          <Animated.View entering={FadeIn.duration(400)} style={styles.insufficientCard}>
-            <Ionicons name="hourglass-outline" size={32} color={TEXT_COLORS.secondary} />
-            <EliteText style={styles.insufficientTitle}>Tu perfil se está armando</EliteText>
-            <EliteText variant="body" style={styles.insufficientText}>
+          <Animated.View entering={FadeIn.duration(400)} style={[styles.insufficientCard, cardSurf]}>
+            <Ionicons name="hourglass-outline" size={32} color={t.textoSecundario} />
+            <EliteText style={[styles.insufficientTitle, priTxt]}>Tu perfil se está armando</EliteText>
+            <EliteText variant="body" style={[styles.insufficientText, secTxt]}>
               Llevas {profile.have} {profile.have === 1 ? 'check-in' : 'check-ins'} en los últimos {profile.periodDays} días.
               Con {profile.needed} o más, el perfil se arma solo: antes de eso sería inventar.
             </EliteText>
-            <View style={styles.progressTrack}>
+            <View style={[styles.progressTrack, { backgroundColor: t.hundido }]}>
               <View style={[styles.progressFill, { width: `${Math.min(100, (profile.have / profile.needed) * 100)}%` }]} />
             </View>
             {/* MB-7 Track D: CTA al molde editorial (degradado de marca, glow
@@ -104,7 +114,8 @@ export default function EmotionProfileScreen() {
   }
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <View style={styles.ambient} pointerEvents="none">
         <LinearGradient colors={[withOpacity(heroColor, 0.25), 'transparent']} style={{ flex: 1 }} />
       </View>
@@ -113,38 +124,38 @@ export default function EmotionProfileScreen() {
 
         {/* ═══ HÉROE: el arquetipo del periodo ═══ */}
         <Animated.View entering={FadeIn.duration(500)} style={styles.heroWrap}>
-          <EliteText variant="caption" style={styles.heroPeriod}>
+          <EliteText variant="caption" style={[styles.heroPeriod, secTxt]}>
             FOTO DE TUS ÚLTIMOS {profile.periodDays} DÍAS
           </EliteText>
           <EliteText style={[styles.heroName, { color: heroColor }]}>
             {profile.archetype!.name}
           </EliteText>
-          <EliteText variant="body" style={styles.heroTagline}>
+          <EliteText variant="body" style={[styles.heroTagline, priTxt]}>
             {profile.archetype!.tagline}
           </EliteText>
           {/* La regla que lo hace honesto, en la cara del usuario: */}
-          <EliteText variant="caption" style={styles.heroHonest}>
+          <EliteText variant="caption" style={[styles.heroHonest, secTxt]}>
             Esto no es quién eres. Es cómo estuviste estos días: se recalcula solo y cambia contigo.
           </EliteText>
         </Animated.View>
 
         {/* ═══ MEZCLA DE ZONAS ═══ */}
         <Animated.View entering={FadeInDown.delay(150).duration(400)}>
-          <EliteText variant="caption" style={styles.sectionTitle}>TU MEZCLA DEL PERIODO</EliteText>
-          <View style={styles.card}>
+          <EliteText variant="caption" style={[styles.sectionTitle, secTxt]}>TU MEZCLA DEL PERIODO</EliteText>
+          <View style={[styles.card, cardSurf]}>
             {profile.quadrantMix.map(q => {
               const info = QUADRANTS[q.quadrant as QuadrantKey];
               return (
                 <View key={q.quadrant} style={styles.mixRow}>
-                  <View style={[styles.mixDot, { backgroundColor: info?.color ?? TEXT_COLORS.secondary }]} />
-                  <EliteText variant="caption" style={styles.mixLabel} numberOfLines={1}>
+                  <View style={[styles.mixDot, { backgroundColor: info?.color ?? t.textoSecundario }]} />
+                  <EliteText variant="caption" style={[styles.mixLabel, secTxt]} numberOfLines={1}>
                     {info?.label ?? q.quadrant}
                   </EliteText>
-                  <View style={styles.mixTrack}>
+                  <View style={[styles.mixTrack, { backgroundColor: t.hundido }]}>
                     {/* Fallback real: withOpacity('') producía un color inválido */}
                     <View style={[styles.mixFill, { width: `${q.pct}%`, backgroundColor: withOpacity(info?.color ?? TEXT_COLORS.secondary, 0.8) }]} />
                   </View>
-                  <EliteText variant="caption" style={styles.mixPct}>{Math.round(q.pct)}%</EliteText>
+                  <EliteText variant="caption" style={[styles.mixPct, priTxt]}>{Math.round(q.pct)}%</EliteText>
                 </View>
               );
             })}
@@ -154,7 +165,7 @@ export default function EmotionProfileScreen() {
         {/* ═══ LO QUE MÁS SENTISTE ═══ */}
         {profile.topEmotions.length > 0 && (
           <Animated.View entering={FadeInDown.delay(250).duration(400)}>
-            <EliteText variant="caption" style={styles.sectionTitle}>LO QUE MÁS SENTISTE</EliteText>
+            <EliteText variant="caption" style={[styles.sectionTitle, secTxt]}>LO QUE MÁS SENTISTE</EliteText>
             <View style={styles.topRow}>
               {profile.topEmotions.map(t => {
                 const e = EMOTION_BY_ID.get(t.emotionId);
@@ -180,11 +191,11 @@ export default function EmotionProfileScreen() {
 
         {/* ═══ PATRONES DEL PERIODO ═══ */}
         <Animated.View entering={FadeInDown.delay(350).duration(400)}>
-          <EliteText variant="caption" style={styles.sectionTitle}>PATRONES</EliteText>
-          <View style={styles.card}>
+          <EliteText variant="caption" style={[styles.sectionTitle, secTxt]}>PATRONES</EliteText>
+          <View style={[styles.card, cardSurf]}>
             <View style={styles.patternRow}>
-              <Ionicons name="pulse-outline" size={15} color={TEXT_COLORS.secondary} />
-              <EliteText variant="body" style={styles.patternText}>
+              <Ionicons name="pulse-outline" size={15} color={t.textoSecundario} />
+              <EliteText variant="body" style={[styles.patternText, priTxt]}>
                 {profile.variability === 'estable' && 'Tu ánimo se movió poco día a día: periodo estable.'}
                 {profile.variability === 'medio' && 'Tu ánimo tuvo movimiento normal día a día.'}
                 {profile.variability === 'oscilante' && 'Tu ánimo osciló bastante entre días. No es un defecto: es un dato.'}
@@ -192,15 +203,15 @@ export default function EmotionProfileScreen() {
             </View>
             {profile.bestMoment && (
               <View style={styles.patternRow}>
-                <Ionicons name="time-outline" size={15} color={TEXT_COLORS.secondary} />
-                <EliteText variant="body" style={styles.patternText}>
+                <Ionicons name="time-outline" size={15} color={t.textoSecundario} />
+                <EliteText variant="body" style={[styles.patternText, priTxt]}>
                   Tus mejores registros del periodo fueron {MOMENT_LABEL[profile.bestMoment]}.
                 </EliteText>
               </View>
             )}
             <View style={styles.patternRow}>
-              <Ionicons name="calendar-outline" size={15} color={TEXT_COLORS.secondary} />
-              <EliteText variant="body" style={styles.patternText}>
+              <Ionicons name="calendar-outline" size={15} color={t.textoSecundario} />
+              <EliteText variant="body" style={[styles.patternText, priTxt]}>
                 Registraste {profile.have} check-ins en {profile.daysCovered} días distintos.
               </EliteText>
             </View>
@@ -220,8 +231,8 @@ export default function EmotionProfileScreen() {
             style={styles.exploreLink}
             hitSlop={8}
           >
-            <Ionicons name="map-outline" size={14} color={TEXT_COLORS.secondary} />
-            <EliteText variant="caption" style={styles.exploreText}>Explorar el territorio de emociones</EliteText>
+            <Ionicons name="map-outline" size={14} color={t.textoSecundario} />
+            <EliteText variant="caption" style={[styles.exploreText, secTxt]}>Explorar el territorio de emociones</EliteText>
           </Pressable>
         </Animated.View>
       </ScrollView>
@@ -235,44 +246,44 @@ const styles = StyleSheet.create({
 
   // Falta data
   insufficientCard: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5,
-    borderColor: SURFACES.border, padding: Spacing.xl, alignItems: 'center', gap: Spacing.sm,
+    borderRadius: Radius.card, borderWidth: 0.5,
+    padding: Spacing.xl, alignItems: 'center', gap: Spacing.sm,
   },
-  insufficientTitle: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.xl },
-  insufficientText: { color: Colors.textSecondary, fontSize: FontSizes.md, lineHeight: 22, textAlign: 'center' },
+  insufficientTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.xl },
+  insufficientText: { fontSize: FontSizes.md, lineHeight: 22, textAlign: 'center' },
   progressTrack: {
-    width: '100%', height: 6, borderRadius: 3, backgroundColor: BG.input, marginTop: Spacing.sm,
+    width: '100%', height: 6, borderRadius: 3, marginTop: Spacing.sm,
     overflow: 'hidden',
   },
   progressFill: { height: 6, borderRadius: 3, backgroundColor: withOpacity(ATP_BRAND.lime, 0.85) },
 
   // Héroe
   heroWrap: { alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.xl, gap: Spacing.sm },
-  heroPeriod: { color: Colors.textSecondary, fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2 },
+  heroPeriod: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2 },
   heroName: { fontSize: 38, lineHeight: 46, fontFamily: Fonts.extraBold, textAlign: 'center' },
-  heroTagline: { color: Colors.textPrimary, fontSize: FontSizes.lg, lineHeight: 26, textAlign: 'center' },
+  heroTagline: { fontSize: FontSizes.lg, lineHeight: 26, textAlign: 'center' },
   heroHonest: {
-    color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 19,
+    fontSize: FontSizes.sm, lineHeight: 19,
     textAlign: 'center', marginTop: Spacing.xs, fontStyle: 'italic',
   },
 
   sectionTitle: {
-    color: Colors.textSecondary, fontSize: FontSizes.xs, fontFamily: Fonts.bold,
+    fontSize: FontSizes.xs, fontFamily: Fonts.bold,
     letterSpacing: 2, marginBottom: Spacing.sm, marginTop: Spacing.md, paddingHorizontal: Spacing.md,
   },
   card: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5,
-    borderColor: SURFACES.border, padding: Spacing.md, marginHorizontal: Spacing.md,
+    borderRadius: Radius.card, borderWidth: 0.5,
+    padding: Spacing.md, marginHorizontal: Spacing.md,
     gap: Spacing.sm,
   },
 
   // Mezcla
   mixRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   mixDot: { width: 10, height: 10, borderRadius: 5 },
-  mixLabel: { color: Colors.textSecondary, fontSize: FontSizes.xs, width: 120 },
-  mixTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: BG.input, overflow: 'hidden' },
+  mixLabel: { fontSize: FontSizes.xs, width: 120 },
+  mixTrack: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
   mixFill: { height: 6, borderRadius: 3 },
-  mixPct: { color: Colors.textPrimary, fontSize: FontSizes.xs, fontFamily: Fonts.bold, width: 36, textAlign: 'right' },
+  mixPct: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, width: 36, textAlign: 'right' },
 
   // Top emociones
   topRow: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.md },
@@ -285,7 +296,7 @@ const styles = StyleSheet.create({
 
   // Patrones
   patternRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  patternText: { color: Colors.textPrimary, fontSize: FontSizes.md, lineHeight: 21, flex: 1 },
+  patternText: { fontSize: FontSizes.md, lineHeight: 21, flex: 1 },
 
   // Compartir
   shareBtn: {
@@ -300,5 +311,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingVertical: Spacing.sm, marginTop: Spacing.md,
   },
-  exploreText: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, textDecorationLine: 'underline' },
+  exploreText: { fontSize: FontSizes.sm, textDecorationLine: 'underline' },
 });

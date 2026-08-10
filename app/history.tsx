@@ -18,6 +18,8 @@ import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { formatTime } from '@/src/engine/helpers';
 import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { StatusBar } from 'expo-status-bar';
 import {
   getSessionHistory,
   type SessionHistoryEntry,
@@ -59,6 +61,9 @@ function formatSessionTime(dateStr: string): string {
 
 export default function HistoryScreen() {
   const router = useRouter();
+  // MB-31B3: la pantalla migro a tokens y sigue el tema global.
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? Colors.neonGreen : t.tealTexto;
   const [sessions, setSessions] = useState<SessionHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -82,21 +87,23 @@ export default function HistoryScreen() {
   const grouped = groupByDate(sessions);
 
   return (
-    <View style={styles.screen}>
+    <ThemeReady>
+    <View style={[styles.screen, { backgroundColor: t.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       {/* Header */}
       <ScreenHeader title="Historial" />
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={Colors.neonGreen} />
+          <ActivityIndicator size="large" color={acento} />
         </View>
       ) : sessions.length === 0 ? (
         <View style={styles.centered}>
-          <Ionicons name="time-outline" size={48} color={Colors.textSecondary} />
-          <EliteText variant="body" style={styles.emptyText}>
+          <Ionicons name="time-outline" size={48} color={t.textoSecundario} />
+          <EliteText variant="body" style={[styles.emptyText, { color: t.textoSecundario }]}>
             Sin sesiones registradas
           </EliteText>
-          <EliteText variant="caption" style={styles.emptySubtext}>
+          <EliteText variant="caption" style={[styles.emptySubtext, { color: t.textoSecundario }]}>
             Completa una rutina para ver tu historial aquí
           </EliteText>
         </View>
@@ -105,23 +112,25 @@ export default function HistoryScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.neonGreen} />
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={acento} />
           }
         >
           {Array.from(grouped.entries()).map(([dateLabel, daySessions]) => (
             <View key={dateLabel} style={styles.dateGroup}>
-              <EliteText variant="caption" style={styles.dateLabel}>{dateLabel}</EliteText>
+              <EliteText variant="caption" style={[styles.dateLabel, { color: t.textoSecundario }]}>{dateLabel}</EliteText>
 
               {daySessions.map((session) => {
                 const isTimer = session.mode === 'timer';
-                const gradColors: readonly [string, string] = isTimer
-                  ? ['#1a2a1a', '#0a1a0a']
-                  : ['#1a1a2a', '#0a0a1a'];
+                // MB-31B3: el degradado tintado es del oscuro; en claro la card
+                // es superficie del tema y el modo lo dice la barra + el badge.
+                const gradColors: readonly [string, string] = kind === 'dark'
+                  ? (isTimer ? ['#1a2a1a', '#0a1a0a'] : ['#1a1a2a', '#0a0a1a'])
+                  : [t.card, t.card];
                 const accentColor = isTimer ? Colors.neonGreen : CATEGORY_COLORS.mind;
                 const modeLabel = isTimer ? 'TIMER' : 'RUTINA';
 
                 return (
-                  <LinearGradient key={session.id} colors={gradColors} style={styles.sessionCard}>
+                  <LinearGradient key={session.id} colors={gradColors} style={[styles.sessionCard, { borderColor: t.borde }]}>
                     <View style={[styles.sessionAccent, { backgroundColor: accentColor }]} />
 
                     <View style={styles.sessionContent}>
@@ -130,24 +139,24 @@ export default function HistoryScreen() {
                           {session.routineName}
                         </EliteText>
                         <View style={[styles.modeBadge, { backgroundColor: accentColor + '20' }]}>
-                          <EliteText variant="caption" style={[styles.modeBadgeText, { color: accentColor }]}>
+                          <EliteText variant="caption" style={[styles.modeBadgeText, { color: kind === 'dark' ? accentColor : t.texto }]}>
                             {modeLabel}
                           </EliteText>
                         </View>
                       </View>
 
                       <View style={styles.sessionMeta}>
-                        <EliteText variant="caption" style={styles.sessionMetaText}>
+                        <EliteText variant="caption" style={[styles.sessionMetaText, { color: t.textoSecundario }]}>
                           {formatSessionTime(session.startedAt)}
                         </EliteText>
-                        <EliteText variant="caption" style={styles.sessionMetaDot}>·</EliteText>
-                        <EliteText variant="caption" style={styles.sessionMetaText}>
+                        <EliteText variant="caption" style={[styles.sessionMetaDot, { color: t.textoSecundario }]}>·</EliteText>
+                        <EliteText variant="caption" style={[styles.sessionMetaText, { color: t.textoSecundario }]}>
                           {formatTime(session.totalDurationSeconds)}
                         </EliteText>
                         {session.status !== 'completed' && (
                           <>
-                            <EliteText variant="caption" style={styles.sessionMetaDot}>·</EliteText>
-                            <EliteText variant="caption" style={[styles.sessionMetaText, { color: SEMANTIC.warning }]}>
+                            <EliteText variant="caption" style={[styles.sessionMetaDot, { color: t.textoSecundario }]}>·</EliteText>
+                            <EliteText variant="caption" style={[styles.sessionMetaText, { color: kind === 'dark' ? SEMANTIC.warning : t.error }]}>
                               Abandonada
                             </EliteText>
                           </>
@@ -165,6 +174,7 @@ export default function HistoryScreen() {
         </Animated.View>
       )}
     </View>
+    </ThemeReady>
   );
 }
 
@@ -173,7 +183,6 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: Colors.black,
   },
   centered: {
     flex: 1,
@@ -195,8 +204,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: FontSizes.lg, letterSpacing: 3 },
 
   // Empty
-  emptyText: { color: Colors.textSecondary },
-  emptySubtext: { color: Colors.textSecondary, fontSize: FontSizes.sm },
+  emptyText: {},
+  emptySubtext: { fontSize: FontSizes.sm },
 
   // Date group
   dateGroup: {
@@ -204,7 +213,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   dateLabel: {
-    color: Colors.textSecondary,
     letterSpacing: 2,
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
@@ -219,7 +227,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     overflow: 'hidden',
     borderWidth: 0.5,
-    borderColor: Colors.border,
   },
   sessionAccent: {
     position: 'absolute',
@@ -260,12 +267,10 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   sessionMetaText: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.sm,
     fontVariant: ['tabular-nums'],
   },
   sessionMetaDot: {
-    color: Colors.textSecondary,
     fontSize: FontSizes.sm,
   },
 });

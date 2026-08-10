@@ -34,8 +34,10 @@ import { emotionCanonColor, emotionCanonGradient, isLightColor } from '@/src/ser
 import { bodyZoneLabel } from '@/src/data/checkin-config';
 import { PHASES } from '@/src/services/cycle-service';
 import { haptic } from '@/src/utils/haptics';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SURFACES, TEXT_COLORS, SEMANTIC, ATP_BRAND, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
+import { StatusBar } from 'expo-status-bar';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { TEXT_COLORS, SEMANTIC, ATP_BRAND, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 const EMOTION_BY_ID = new Map(EMOTIONS.map(e => [e.id, e]));
 
@@ -81,6 +83,15 @@ export default function EmotionHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<HistoryRange>('month');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // MB-31B3: tokens del tema — roles repetidos como consts (guía, regla 3).
+  // El acento de texto en claro es teal, nunca lima (regla 1 del piloto).
+  const { kind, tokens: t } = useAppTheme();
+  const secTxt = { color: t.textoSecundario };
+  const priTxt = { color: t.texto };
+  const cardSurf = { backgroundColor: t.card, borderColor: t.borde };
+  const sec = t.textoSecundario; // color crudo para iconos
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
 
   useEffect(() => {
     loadHistoryData()
@@ -130,7 +141,8 @@ export default function EmotionHistoryScreen() {
   const maxCount = mosaic[0]?.count ?? 1;
 
   return (
-    <Screen>
+    <Screen themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       {/* H.2 (MB-10): barrida editorial — el módulo entero respira el mismo
           ambiente gradiente (violeta Mente), como perfil y navegación. */}
       <View style={styles.ambient} pointerEvents="none">
@@ -146,9 +158,9 @@ export default function EmotionHistoryScreen() {
             <Pressable
               key={r.key}
               onPress={() => { haptic.light(); setRange(r.key); setExpandedId(null); }}
-              style={[styles.pill, active && styles.pillActive]}
+              style={[styles.pill, { backgroundColor: t.hundido, borderColor: t.flotante }, active && styles.pillActive]}
             >
-              <EliteText variant="caption" style={[styles.pillText, active && styles.pillTextActive]}>
+              <EliteText variant="caption" style={[styles.pillText, secTxt, active && styles.pillTextActive]}>
                 {r.label}
               </EliteText>
             </Pressable>
@@ -160,16 +172,16 @@ export default function EmotionHistoryScreen() {
         {/* MB-4 Bloque 5: acceso al perfil emocional del periodo */}
         <Pressable
           onPress={() => { haptic.light(); router.push('/emotion-profile'); }}
-          style={styles.profileLink}
+          style={[styles.profileLink, cardSurf]}
         >
           <Ionicons name="planet-outline" size={16} color={SEMANTIC.info} />
           <View style={{ flex: 1 }}>
-            <EliteText variant="body" style={styles.profileLinkTitle}>Tu clima emocional</EliteText>
-            <EliteText variant="caption" style={styles.profileLinkSub}>
+            <EliteText variant="body" style={[styles.profileLinkTitle, priTxt]}>Tu clima emocional</EliteText>
+            <EliteText variant="caption" style={[styles.profileLinkSub, secTxt]}>
               El perfil de tus últimos 30 días: foto del periodo, no etiqueta
             </EliteText>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={TEXT_COLORS.secondary} />
+          <Ionicons name="chevron-forward" size={16} color={sec} />
         </Pressable>
 
         {!loading && rangeCheckins.length === 0 && (
@@ -183,7 +195,7 @@ export default function EmotionHistoryScreen() {
         {/* ═══ MOSAICO ═══ */}
         {mosaic.length > 0 && (
           <Animated.View entering={FadeIn.duration(300)}>
-            <EliteText variant="caption" style={styles.sectionTitle}>TODO LO QUE HAS SENTIDO</EliteText>
+            <EliteText variant="caption" style={[styles.sectionTitle, secTxt]}>TODO LO QUE HAS SENTIDO</EliteText>
             <View style={styles.mosaicWrap}>
               {mosaic.map((m, i) => {
                 const emotion = EMOTION_BY_ID.get(m.emotionId);
@@ -205,7 +217,7 @@ export default function EmotionHistoryScreen() {
                         {m.count}
                       </EliteText>
                     </LinearGradient>
-                    <EliteText variant="caption" style={styles.mosaicLabel} numberOfLines={2}>
+                    <EliteText variant="caption" style={[styles.mosaicLabel, secTxt]} numberOfLines={2}>
                       {emotion.label}
                     </EliteText>
                   </Animated.View>
@@ -218,27 +230,27 @@ export default function EmotionHistoryScreen() {
         {/* ═══ CORRELACIONES — el foso ═══ */}
         {rangeCheckins.length > 0 && (
           <View style={{ marginTop: Spacing.xl }}>
-            <EliteText variant="caption" style={styles.sectionTitle}>TU ÁNIMO × TU VIDA</EliteText>
-            <EliteText variant="caption" style={styles.sectionSub}>
+            <EliteText variant="caption" style={[styles.sectionTitle, secTxt]}>TU ÁNIMO × TU VIDA</EliteText>
+            <EliteText variant="caption" style={[styles.sectionSub, secTxt]}>
               Observaciones de tus propios datos. No son diagnósticos ni causas.
             </EliteText>
             {correlations.map((c, i) => (
               <Animated.View key={c.key} entering={FadeInDown.delay(i * 50).duration(300)}>
-                <View style={[styles.corrCard, c.status === 'signal' && styles.corrCardSignal]}>
+                <View style={[styles.corrCard, cardSurf, c.status === 'signal' && styles.corrCardSignal]}>
                   <View style={styles.corrHeader}>
                     <Ionicons
                       name={CORRELATION_ICONS[c.key] ?? 'analytics-outline'}
                       size={16}
-                      color={c.status === 'signal' ? SEMANTIC.info : TEXT_COLORS.secondary}
+                      color={c.status === 'signal' ? SEMANTIC.info : sec}
                     />
-                    <EliteText variant="caption" style={styles.corrLabel}>{c.label.toUpperCase()}</EliteText>
+                    <EliteText variant="caption" style={[styles.corrLabel, secTxt]}>{c.label.toUpperCase()}</EliteText>
                     {c.status === 'signal' && (
                       <View style={styles.corrBadge}>
-                        <EliteText variant="caption" style={styles.corrBadgeText}>PATRÓN</EliteText>
+                        <EliteText variant="caption" style={[styles.corrBadgeText, { color: t.info }]}>PATRÓN</EliteText>
                       </View>
                     )}
                   </View>
-                  <EliteText variant="body" style={styles.corrText}>{c.observation}</EliteText>
+                  <EliteText variant="body" style={[styles.corrText, priTxt]}>{c.observation}</EliteText>
                 </View>
               </Animated.View>
             ))}
@@ -248,20 +260,20 @@ export default function EmotionHistoryScreen() {
         {/* ═══ CUÁNDO SE TE CAE EL ÁNIMO (día / hora) ═══ */}
         {rangeCheckins.length > 0 && (
           <View style={{ marginTop: Spacing.xl }}>
-            <EliteText variant="caption" style={styles.sectionTitle}>CUÁNDO CAMBIA TU ÁNIMO</EliteText>
-            <View style={styles.corrCard}>
+            <EliteText variant="caption" style={[styles.sectionTitle, secTxt]}>CUÁNDO CAMBIA TU ÁNIMO</EliteText>
+            <View style={[styles.corrCard, cardSurf]}>
               <View style={styles.corrHeader}>
-                <Ionicons name="calendar-outline" size={16} color={TEXT_COLORS.secondary} />
-                <EliteText variant="caption" style={styles.corrLabel}>POR DÍA DE LA SEMANA</EliteText>
+                <Ionicons name="calendar-outline" size={16} color={sec} />
+                <EliteText variant="caption" style={[styles.corrLabel, secTxt]}>POR DÍA DE LA SEMANA</EliteText>
               </View>
-              <EliteText variant="body" style={styles.corrText}>{patternLine(weekdayPattern)}</EliteText>
+              <EliteText variant="body" style={[styles.corrText, priTxt]}>{patternLine(weekdayPattern)}</EliteText>
             </View>
-            <View style={styles.corrCard}>
+            <View style={[styles.corrCard, cardSurf]}>
               <View style={styles.corrHeader}>
-                <Ionicons name="time-outline" size={16} color={TEXT_COLORS.secondary} />
-                <EliteText variant="caption" style={styles.corrLabel}>POR FRANJA DEL DÍA</EliteText>
+                <Ionicons name="time-outline" size={16} color={sec} />
+                <EliteText variant="caption" style={[styles.corrLabel, secTxt]}>POR FRANJA DEL DÍA</EliteText>
               </View>
-              <EliteText variant="body" style={styles.corrText}>{patternLine(dayPartPattern)}</EliteText>
+              <EliteText variant="body" style={[styles.corrText, priTxt]}>{patternLine(dayPartPattern)}</EliteText>
             </View>
           </View>
         )}
@@ -269,27 +281,27 @@ export default function EmotionHistoryScreen() {
         {/* ═══ DISTRIBUCIÓN POR CUADRANTE + TENDENCIA ═══ */}
         {distribution.status === 'ok' && (
           <View style={{ marginTop: Spacing.xl }}>
-            <EliteText variant="caption" style={styles.sectionTitle}>DÓNDE VIVISTE ESTE PERIODO</EliteText>
-            <View style={styles.corrCard}>
+            <EliteText variant="caption" style={[styles.sectionTitle, secTxt]}>DÓNDE VIVISTE ESTE PERIODO</EliteText>
+            <View style={[styles.corrCard, cardSurf]}>
               {distribution.shares.map((s) => {
                 const info = QUADRANTS[s.quadrant];
                 const up = (s.deltaPct ?? 0) > 0;
                 return (
                   <View key={s.quadrant} style={styles.distRow}>
                     <View style={[styles.distDot, { backgroundColor: info.color }]} />
-                    <EliteText variant="body" style={styles.distLabel} numberOfLines={1}>{info.label}</EliteText>
-                    <EliteText variant="body" style={styles.distPct}>{s.pct}%</EliteText>
+                    <EliteText variant="body" style={[styles.distLabel, priTxt]} numberOfLines={1}>{info.label}</EliteText>
+                    <EliteText variant="body" style={[styles.distPct, priTxt]}>{s.pct}%</EliteText>
                     {s.deltaPct != null && Math.abs(s.deltaPct) >= 1 && (
                       <View style={styles.distTrend}>
-                        <Ionicons name={up ? 'arrow-up' : 'arrow-down'} size={12} color={up ? SEMANTIC.acceptable : TEXT_COLORS.secondary} />
-                        <EliteText variant="caption" style={styles.distTrendText}>{Math.abs(s.deltaPct)}</EliteText>
+                        <Ionicons name={up ? 'arrow-up' : 'arrow-down'} size={12} color={up ? SEMANTIC.acceptable : sec} />
+                        <EliteText variant="caption" style={[styles.distTrendText, secTxt]}>{Math.abs(s.deltaPct)}</EliteText>
                       </View>
                     )}
                   </View>
                 );
               })}
               {distribution.shares.every((s) => s.deltaPct == null) && (
-                <EliteText variant="caption" style={styles.distNote}>
+                <EliteText variant="caption" style={[styles.distNote, secTxt]}>
                   La flecha de tendencia aparece cuando el periodo anterior también tiene registros.
                 </EliteText>
               )}
@@ -300,18 +312,18 @@ export default function EmotionHistoryScreen() {
         {/* ═══ DISPARADORES FRECUENTES (asociación, no causa) ═══ */}
         {triggers.status === 'ok' && (
           <View style={{ marginTop: Spacing.xl }}>
-            <EliteText variant="caption" style={styles.sectionTitle}>QUÉ ACOMPAÑA TUS BAJONES</EliteText>
-            <EliteText variant="caption" style={styles.sectionSub}>
+            <EliteText variant="caption" style={[styles.sectionTitle, secTxt]}>QUÉ ACOMPAÑA TUS BAJONES</EliteText>
+            <EliteText variant="caption" style={[styles.sectionSub, secTxt]}>
               Lo que más estaba presente en tus estados desagradables. Presencia, no causa.
             </EliteText>
-            <View style={styles.corrCard}>
+            <View style={[styles.corrCard, cardSurf]}>
               {triggers.triggers.map((t) => (
                 <View key={`${t.dimension}-${t.value}`} style={styles.distRow}>
-                  <Ionicons name="pricetag-outline" size={14} color={TEXT_COLORS.secondary} />
-                  <EliteText variant="body" style={styles.distLabel} numberOfLines={1}>
+                  <Ionicons name="pricetag-outline" size={14} color={sec} />
+                  <EliteText variant="body" style={[styles.distLabel, priTxt]} numberOfLines={1}>
                     {TRIGGER_WORD[t.dimension]} {t.value}
                   </EliteText>
-                  <EliteText variant="caption" style={styles.distPct}>{t.count}×</EliteText>
+                  <EliteText variant="caption" style={[styles.distPct, priTxt]}>{t.count}×</EliteText>
                 </View>
               ))}
             </View>
@@ -321,17 +333,17 @@ export default function EmotionHistoryScreen() {
         {/* ═══ TU NAVEGACIÓN FUNCIONA (C.1 · el diferenciador) ═══ */}
         {efficacy.moves.length > 0 && (
           <View style={{ marginTop: Spacing.xl }}>
-            <EliteText variant="caption" style={styles.sectionTitle}>MOVERTE FUNCIONA</EliteText>
-            <EliteText variant="caption" style={styles.sectionSub}>
+            <EliteText variant="caption" style={[styles.sectionTitle, secTxt]}>MOVERTE FUNCIONA</EliteText>
+            <EliteText variant="caption" style={[styles.sectionSub, secTxt]}>
               De tus movimientos y tu siguiente check-in. Asociación, no promesa.
             </EliteText>
             {efficacy.moves.map((m) => (
-              <View key={m.move} style={[styles.corrCard, styles.corrCardSignal]}>
+              <View key={m.move} style={[styles.corrCard, cardSurf, styles.corrCardSignal]}>
                 <View style={styles.corrHeader}>
                   <Ionicons name="navigate-outline" size={16} color={SEMANTIC.info} />
-                  <EliteText variant="caption" style={styles.corrLabel}>{(MOVE_LABELS[m.move] ?? m.move).toUpperCase()}</EliteText>
+                  <EliteText variant="caption" style={[styles.corrLabel, secTxt]}>{(MOVE_LABELS[m.move] ?? m.move).toUpperCase()}</EliteText>
                 </View>
-                <EliteText variant="body" style={styles.corrText}>
+                <EliteText variant="body" style={[styles.corrText, priTxt]}>
                   Cuando {MOVE_LABELS[m.move] ?? m.move}, tu siguiente check-in mejora {Math.round((m.rate ?? 0) * 10)} de cada 10 veces ({m.sampled} registros).
                 </EliteText>
               </View>
@@ -342,20 +354,20 @@ export default function EmotionHistoryScreen() {
         {/* ═══ CONSISTENCIA (racha de escucha) ═══ */}
         {rangeCheckins.length > 0 && (
           <View style={{ marginTop: Spacing.xl }}>
-            <EliteText variant="caption" style={styles.sectionTitle}>TU CONSTANCIA</EliteText>
-            <View style={styles.corrCard}>
+            <EliteText variant="caption" style={[styles.sectionTitle, secTxt]}>TU CONSTANCIA</EliteText>
+            <View style={[styles.corrCard, cardSurf]}>
               <View style={styles.consRow}>
                 <View style={styles.consStat}>
-                  <EliteText style={styles.consNum}>{consistency.currentStreak}</EliteText>
-                  <EliteText variant="caption" style={styles.consLbl}>racha actual</EliteText>
+                  <EliteText style={[styles.consNum, { color: acento }]}>{consistency.currentStreak}</EliteText>
+                  <EliteText variant="caption" style={[styles.consLbl, secTxt]}>racha actual</EliteText>
                 </View>
                 <View style={styles.consStat}>
-                  <EliteText style={styles.consNum}>{consistency.longestStreak}</EliteText>
-                  <EliteText variant="caption" style={styles.consLbl}>racha más larga</EliteText>
+                  <EliteText style={[styles.consNum, { color: acento }]}>{consistency.longestStreak}</EliteText>
+                  <EliteText variant="caption" style={[styles.consLbl, secTxt]}>racha más larga</EliteText>
                 </View>
                 <View style={styles.consStat}>
-                  <EliteText style={styles.consNum}>{Math.round(consistency.consistencyPct)}%</EliteText>
-                  <EliteText variant="caption" style={styles.consLbl}>días con check-in</EliteText>
+                  <EliteText style={[styles.consNum, { color: acento }]}>{Math.round(consistency.consistencyPct)}%</EliteText>
+                  <EliteText variant="caption" style={[styles.consLbl, secTxt]}>días con check-in</EliteText>
                 </View>
               </View>
             </View>
@@ -365,30 +377,30 @@ export default function EmotionHistoryScreen() {
         {/* ═══ CONSCIENCIA DE CICLO ═══ */}
         {phaseBreakdown && rangeCheckins.length > 0 && (
           <View style={{ marginTop: Spacing.xl }}>
-            <EliteText variant="caption" style={styles.sectionTitle}>TU ÁNIMO × TU CICLO</EliteText>
+            <EliteText variant="caption" style={[styles.sectionTitle, secTxt]}>TU ÁNIMO × TU CICLO</EliteText>
             {phaseBreakdown.status === 'ok' ? (
-              <View style={styles.corrCard}>
+              <View style={[styles.corrCard, cardSurf]}>
                 {phaseBreakdown.entries.map(e => {
                   const info = PHASES[e.phase];
                   return (
                     <View key={e.phase} style={styles.phaseRow}>
-                      <Ionicons name={(info?.icon as any) ?? 'ellipse-outline'} size={15} color={info?.color ?? TEXT_COLORS.secondary} />
-                      <EliteText variant="body" style={[styles.phaseName, { color: info?.color ?? Colors.textPrimary }]}>
+                      <Ionicons name={(info?.icon as any) ?? 'ellipse-outline'} size={15} color={info?.color ?? sec} />
+                      <EliteText variant="body" style={[styles.phaseName, { color: info?.color ?? t.texto }]}>
                         {info?.label ?? e.phase}
                       </EliteText>
-                      <EliteText variant="caption" style={styles.phaseDays}>{e.days} días</EliteText>
-                      <EliteText variant="body" style={styles.phaseAvg}>{e.avg}/10</EliteText>
+                      <EliteText variant="caption" style={[styles.phaseDays, secTxt]}>{e.days} días</EliteText>
+                      <EliteText variant="body" style={[styles.phaseAvg, priTxt]}>{e.avg}/10</EliteText>
                     </View>
                   );
                 })}
                 {/* Doctrina bidireccional */}
-                <EliteText variant="caption" style={styles.phaseDoctrine}>
+                <EliteText variant="caption" style={[styles.phaseDoctrine, secTxt]}>
                   La fase explica, no excusa. Conocer el patrón es para usarlo a tu favor.
                 </EliteText>
               </View>
             ) : (
-              <View style={styles.corrCard}>
-                <EliteText variant="body" style={styles.corrText}>
+              <View style={[styles.corrCard, cardSurf]}>
+                <EliteText variant="body" style={[styles.corrText, priTxt]}>
                   Aún no hay suficientes check-ins repartidos entre fases para ver un patrón honesto. Sigue registrando.
                 </EliteText>
               </View>
@@ -399,7 +411,7 @@ export default function EmotionHistoryScreen() {
         {/* ═══ REGISTROS (detalle de cada check-in) ═══ */}
         {rangeCheckins.length > 0 && (
           <View style={{ marginTop: Spacing.xl }}>
-            <EliteText variant="caption" style={styles.sectionTitle}>REGISTROS</EliteText>
+            <EliteText variant="caption" style={[styles.sectionTitle, secTxt]}>REGISTROS</EliteText>
             {rangeCheckins.map(ci => (
               <CheckinRow
                 key={ci.id}
@@ -418,6 +430,7 @@ export default function EmotionHistoryScreen() {
 function CheckinRow({ checkin, expanded, onToggle }: {
   checkin: HistoryCheckinRecord; expanded: boolean; onToggle: () => void;
 }) {
+  const { tokens: t } = useAppTheme();
   const qInfo = QUADRANTS[checkin.quadrant];
   const labels = checkin.emotions
     .map(id => EMOTION_BY_ID.get(id)?.label)
@@ -430,31 +443,31 @@ function CheckinRow({ checkin, expanded, onToggle }: {
   // acompaña la fecha en la tarjeta. Sin zona, nada — no se inventa.
   const zoneLabel = bodyZoneLabel(checkin.body_zone);
   return (
-    <Pressable onPress={onToggle} style={[styles.rowCard, { borderLeftColor: qInfo.color }]}>
+    <Pressable onPress={onToggle} style={[styles.rowCard, { backgroundColor: t.card, borderLeftColor: qInfo.color }]}>
       <View style={styles.rowHeader}>
         <View style={{ flex: 1 }}>
           <EliteText variant="caption" style={[styles.rowEmotions, { color: qInfo.color }]}>
             {labels || qInfo.label}
           </EliteText>
-          <EliteText variant="caption" style={styles.rowDate}>
+          <EliteText variant="caption" style={[styles.rowDate, { color: t.textoTenue }]}>
             {new Date(checkin.created_at).toLocaleDateString('es-MX', {
               day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
             })}
             {zoneLabel ? ` · ${zoneLabel}` : ''}
           </EliteText>
         </View>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={TEXT_COLORS.secondary} />
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={t.textoSecundario} />
       </View>
       {expanded && (
         <Animated.View entering={FadeIn.duration(180)} style={styles.rowDetail}>
           {context.length > 0 && (
-            <EliteText variant="caption" style={styles.rowContext}>{context}</EliteText>
+            <EliteText variant="caption" style={[styles.rowContext, { color: t.textoSecundario }]}>{context}</EliteText>
           )}
           {checkin.note && (
-            <EliteText variant="body" style={styles.rowNote}>“{checkin.note}”</EliteText>
+            <EliteText variant="body" style={[styles.rowNote, { color: t.texto }]}>“{checkin.note}”</EliteText>
           )}
           {!context && !checkin.note && (
-            <EliteText variant="caption" style={styles.rowContext}>Sin contexto ni nota.</EliteText>
+            <EliteText variant="caption" style={[styles.rowContext, { color: t.textoSecundario }]}>Sin contexto ni nota.</EliteText>
           )}
         </Animated.View>
       )}
@@ -472,29 +485,29 @@ const styles = StyleSheet.create({
   pill: {
     paddingHorizontal: Spacing.md, height: 34, borderRadius: 17,
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: SURFACES.base, borderWidth: 0.5, borderColor: SURFACES.cardLight,
+    borderWidth: 0.5,
   },
   // MB-7 Track D: fuera el neonGreen de ELITE — lime de marca (micro-acento).
   pillActive: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
-  pillText: { color: Colors.textSecondary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, letterSpacing: 1 },
+  pillText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, letterSpacing: 1 },
   pillTextActive: { color: TEXT_COLORS.onAccent },
 
   sectionTitle: {
-    color: Colors.textSecondary, fontSize: FontSizes.xs, fontFamily: Fonts.bold,
+    fontSize: FontSizes.xs, fontFamily: Fonts.bold,
     letterSpacing: 2, marginBottom: Spacing.sm, paddingHorizontal: Spacing.md,
   },
 
   // MB-4 Bloque 5: acceso al perfil
   profileLink: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: SURFACES.card, borderRadius: Radius.card,
-    borderWidth: 0.5, borderColor: SURFACES.border,
+    borderRadius: Radius.card,
+    borderWidth: 0.5,
     padding: Spacing.md, marginHorizontal: Spacing.md, marginBottom: Spacing.md,
   },
-  profileLinkTitle: { color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
-  profileLinkSub: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 1 },
+  profileLinkTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  profileLinkSub: { fontSize: FontSizes.xs, marginTop: 1 },
   sectionSub: {
-    color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: -Spacing.xs,
+    fontSize: FontSizes.sm, marginTop: -Spacing.xs,
     marginBottom: Spacing.sm, paddingHorizontal: Spacing.md,
   },
 
@@ -507,37 +520,37 @@ const styles = StyleSheet.create({
   mosaicCircle: { alignItems: 'center', justifyContent: 'center' },
   mosaicCount: { fontFamily: Fonts.extraBold, fontSize: FontSizes.md },
   mosaicLabel: {
-    color: Colors.textSecondary, fontSize: FontSizes.xs, textAlign: 'center', marginTop: 4,
+    fontSize: FontSizes.xs, textAlign: 'center', marginTop: 4,
   },
 
   // Correlaciones
   corrCard: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card,
-    borderWidth: 0.5, borderColor: SURFACES.border,
+    borderRadius: Radius.card,
+    borderWidth: 0.5,
     padding: Spacing.md, marginHorizontal: Spacing.md, marginBottom: Spacing.sm,
   },
   corrCardSignal: { borderLeftWidth: 3, borderLeftColor: SEMANTIC.info },
   corrHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.xs },
-  corrLabel: { color: Colors.textSecondary, fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2 },
+  corrLabel: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2 },
   corrBadge: {
     backgroundColor: withOpacity(SEMANTIC.info, 0.15), borderRadius: Radius.pill,
     paddingHorizontal: Spacing.sm, paddingVertical: 2, marginLeft: 'auto',
   },
-  corrBadgeText: { color: SEMANTIC.info, fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 1 },
-  corrText: { color: Colors.textPrimary, fontSize: FontSizes.md, lineHeight: 21 },
+  corrBadgeText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 1 },
+  corrText: { fontSize: FontSizes.md, lineHeight: 21 },
 
   // MB-9 · Track C — distribución / disparadores / consistencia
   distRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xs + 1 },
   distDot: { width: 10, height: 10, borderRadius: 5 },
-  distLabel: { color: Colors.textPrimary, fontSize: FontSizes.md, flex: 1 },
-  distPct: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.md },
+  distLabel: { fontSize: FontSizes.md, flex: 1 },
+  distPct: { fontFamily: Fonts.bold, fontSize: FontSizes.md },
   distTrend: { flexDirection: 'row', alignItems: 'center', gap: 2, minWidth: 34, justifyContent: 'flex-end' },
-  distTrendText: { color: Colors.textSecondary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
-  distNote: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: Spacing.xs, lineHeight: 16 },
+  distTrendText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  distNote: { fontSize: FontSizes.xs, marginTop: Spacing.xs, lineHeight: 16 },
   consRow: { flexDirection: 'row', justifyContent: 'space-around' },
   consStat: { alignItems: 'center', gap: 2 },
-  consNum: { color: ATP_BRAND.lime, fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl },
-  consLbl: { color: Colors.textSecondary, fontSize: FontSizes.xs, textAlign: 'center' },
+  consNum: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl },
+  consLbl: { fontSize: FontSizes.xs, textAlign: 'center' },
 
   // Ciclo
   phaseRow: {
@@ -545,23 +558,23 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs + 2,
   },
   phaseName: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md, flex: 1 },
-  phaseDays: { color: Colors.textSecondary, fontSize: FontSizes.xs },
-  phaseAvg: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.md },
+  phaseDays: { fontSize: FontSizes.xs },
+  phaseAvg: { fontFamily: Fonts.bold, fontSize: FontSizes.md },
   phaseDoctrine: {
-    color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 19,
+    fontSize: FontSizes.sm, lineHeight: 19,
     marginTop: Spacing.sm, fontStyle: 'italic',
   },
 
   // Registros
   rowCard: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    borderRadius: Radius.card,
     padding: Spacing.sm + 2, marginBottom: 6, marginHorizontal: Spacing.md,
     borderLeftWidth: 3,
   },
   rowHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   rowEmotions: { fontSize: FontSizes.sm, fontFamily: Fonts.bold },
-  rowDate: { color: TEXT_COLORS.muted, fontSize: FontSizes.xs, marginTop: 2 },
+  rowDate: { fontSize: FontSizes.xs, marginTop: 2 },
   rowDetail: { marginTop: Spacing.sm, gap: Spacing.xs },
-  rowContext: { color: Colors.textSecondary, fontSize: FontSizes.sm },
-  rowNote: { color: Colors.textPrimary, fontSize: FontSizes.md, lineHeight: 21, fontStyle: 'italic' },
+  rowContext: { fontSize: FontSizes.sm },
+  rowNote: { fontSize: FontSizes.md, lineHeight: 21, fontStyle: 'italic' },
 });

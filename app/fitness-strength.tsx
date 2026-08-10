@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, ActivityIndicator, Alert, Dimensions, ImageBackground } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
@@ -30,6 +31,7 @@ import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
   ATP_BRAND, TEXT, ELEVATION, SEMANTIC, CATEGORY_COLORS, PILLAR_GRADIENTS, GLOW, withOpacity,
 } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import {
   getPersonalRecords,
   getExerciseProgression,
@@ -111,6 +113,10 @@ const REP_RANGE_LABELS: Record<number, string> = {
 
 function ProgressionLineChart({ data }: { data: ProgressionPoint[] }) {
   const [activeLines, setActiveLines] = useState<Set<number>>(new Set([1]));
+  // MB-31B3: tokens del tema global (el chart vive dentro de <ThemeReady>).
+  const { kind, tokens: tk } = useAppTheme();
+  // Regla 1 de la guía: lima como TEXTO no sobrevive el claro → teal calibrado.
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tk.tealTexto;
 
   if (data.length < 2) return null;
 
@@ -173,7 +179,7 @@ function ProgressionLineChart({ data }: { data: ProgressionPoint[] }) {
       <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
         {gridLines.map((g, i) => (
           <Line key={i} x1={CHART_PAD} y1={g.y} x2={CHART_WIDTH - CHART_PAD} y2={g.y}
-            stroke={ELEVATION[2].bg} strokeWidth={1} />
+            stroke={tk.flotante} strokeWidth={1} />
         ))}
         {e1rmAreaPath && <Path d={e1rmAreaPath} fill={LIME} opacity={0.08} />}
         {rrPaths.map(({ rr, path }) => (
@@ -195,7 +201,7 @@ function ProgressionLineChart({ data }: { data: ProgressionPoint[] }) {
         {gridLines.map((g, i) => (
           <EliteText key={i} variant="caption" style={{
             position: 'absolute', top: g.y - 6, left: 0,
-            fontSize: FontSizes.xs, color: TEXT.secondary,
+            fontSize: FontSizes.xs, color: tk.textoSecundario,
           }}>{g.label}</EliteText>
         ))}
       </View>
@@ -203,7 +209,7 @@ function ProgressionLineChart({ data }: { data: ProgressionPoint[] }) {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: CHART_PAD - 6, marginTop: 2 }}>
         {data.map((d, i) =>
           i % labelStep === 0 || i === data.length - 1 ? (
-            <EliteText key={i} variant="caption" style={{ fontSize: FontSizes.xs, color: TEXT.secondary }}>
+            <EliteText key={i} variant="caption" style={{ fontSize: FontSizes.xs, color: tk.textoSecundario }}>
               {d.dateLabel}
             </EliteText>
           ) : <View key={i} />
@@ -216,9 +222,9 @@ function ProgressionLineChart({ data }: { data: ProgressionPoint[] }) {
           const c = REP_RANGE_COLORS[rr];
           return (
             <AnimatedPressable key={rr} onPress={() => { haptic.light(); toggleLine(rr); }}
-              style={[styles.togglePill, active && { borderColor: c, backgroundColor: withOpacity(c, 0.08) }]}>
-              <View style={[styles.toggleDot, { backgroundColor: active ? c : TEXT.muted }]} />
-              <EliteText variant="caption" style={[styles.toggleText, active && { color: c }]}>
+              style={[styles.togglePill, { borderColor: tk.borde }, active && { borderColor: c, backgroundColor: withOpacity(c, 0.08) }]}>
+              <View style={[styles.toggleDot, { backgroundColor: active ? c : tk.sinDatos }]} />
+              <EliteText variant="caption" style={[styles.toggleText, { color: tk.textoSecundario }, active && { color: rr === 1 ? acento : c }]}>
                 {REP_RANGE_LABELS[rr]}
               </EliteText>
             </AnimatedPressable>
@@ -290,6 +296,10 @@ async function recalculatePR(userId: string, exerciseId: string) {
 
 export default function FitnessStrengthScreen() {
   const router = useRouter();
+  // MB-31B3: la pantalla migró a tokens y sigue el tema global.
+  const { kind, tokens: tk } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : tk.tealTexto;
+  const secTxt = { color: tk.textoSecundario };
   const [records, setRecords] = useState<PersonalRecord[]>([]);
   const [benchmarks, setBenchmarks] = useState<BenchmarkExercise[]>([]);
   const [bioSex, setBioSex] = useState<string | null>(null);
@@ -365,7 +375,9 @@ export default function FitnessStrengthScreen() {
   }
 
   return (
-    <View style={styles.screen}>
+    <ThemeReady>
+    <View style={[styles.screen, { backgroundColor: tk.fondo }]}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Fuerza" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
@@ -409,7 +421,7 @@ export default function FitnessStrengthScreen() {
 
         {/* ── 2. BENCHMARKS ── */}
         <View style={styles.sectionHeaderRow}>
-          <EliteText style={styles.sectionTitle}>BENCHMARKS</EliteText>
+          <EliteText style={[styles.sectionTitle, secTxt]}>BENCHMARKS</EliteText>
           <AnimatedPressable
             onPress={() => {
               haptic.light();
@@ -420,14 +432,14 @@ export default function FitnessStrengthScreen() {
             }}
             hitSlop={8}
           >
-            <Ionicons name="information-circle-outline" size={17} color={TEXT.secondary} />
+            <Ionicons name="information-circle-outline" size={17} color={tk.textoSecundario} />
           </AnimatedPressable>
         </View>
 
         {benchmarks.length === 0 && !loading && (
           <View style={styles.emptyBox}>
-            <Ionicons name="barbell-outline" size={30} color={TEXT.muted} />
-            <EliteText style={styles.emptyText}>Sin benchmarks disponibles todavía.</EliteText>
+            <Ionicons name="barbell-outline" size={30} color={tk.sinDatos} />
+            <EliteText style={[styles.emptyText, secTxt]}>Sin benchmarks disponibles todavía.</EliteText>
           </View>
         )}
 
@@ -491,7 +503,7 @@ export default function FitnessStrengthScreen() {
 
         {/* ── 3. TUS MARCAS ── */}
         <View style={[styles.sectionHeaderRow, { marginTop: Spacing.lg }]}>
-          <EliteText style={styles.sectionTitle}>TUS MARCAS</EliteText>
+          <EliteText style={[styles.sectionTitle, secTxt]}>TUS MARCAS</EliteText>
         </View>
 
         {/* Filtros por grupo muscular */}
@@ -509,10 +521,10 @@ export default function FitnessStrengthScreen() {
               <AnimatedPressable
                 key={item ?? 'all'}
                 onPress={() => { haptic.light(); setSelectedGroup(item); }}
-                style={[styles.filterPill, isSelected && { borderColor: color, backgroundColor: withOpacity(color, 0.08) }]}
+                style={[styles.filterPill, { borderColor: tk.borde }, isSelected && { borderColor: color, backgroundColor: withOpacity(color, 0.08) }]}
               >
                 {item != null && <View style={[styles.filterDot, { backgroundColor: color }]} />}
-                <EliteText variant="caption" style={[styles.filterText, isSelected && { color }]}>
+                <EliteText variant="caption" style={[styles.filterText, secTxt, isSelected && { color: item ? color : acento }]}>
                   {label}
                 </EliteText>
               </AnimatedPressable>
@@ -527,15 +539,15 @@ export default function FitnessStrengthScreen() {
           </View>
         ) : groupedEntries.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Ionicons name="trophy-outline" size={40} color={TEXT.tertiary} />
-            <EliteText variant="body" style={styles.emptyText}>Aún no tienes marcas personales</EliteText>
-            <EliteText variant="caption" style={styles.emptySubtext}>
+            <Ionicons name="trophy-outline" size={40} color={tk.textoTenue} />
+            <EliteText variant="body" style={[styles.emptyText, secTxt]}>Aún no tienes marcas personales</EliteText>
+            <EliteText variant="caption" style={[styles.emptySubtext, { color: tk.textoTenue }]}>
               Registra ejercicios con peso para generar PRs
             </EliteText>
           </View>
         ) : (
           Array.from(byMuscle.entries()).map(([muscleGroup, exercises]) => {
-            const mgColor = MUSCLE_GROUP_COLORS[muscleGroup] ?? TEXT.secondary;
+            const mgColor = MUSCLE_GROUP_COLORS[muscleGroup] ?? tk.textoSecundario;
             const mgDesc = MUSCLE_GROUP_DESCRIPTIONS[muscleGroup] ?? '';
 
             return (
@@ -546,7 +558,7 @@ export default function FitnessStrengthScreen() {
                     {MUSCLE_GROUP_LABELS[muscleGroup] ?? muscleGroup}
                   </EliteText>
                   {mgDesc ? (
-                    <EliteText variant="caption" style={styles.muscleGroupDesc}>{mgDesc}</EliteText>
+                    <EliteText variant="caption" style={[styles.muscleGroupDesc, { color: tk.textoTenue }]}>{mgDesc}</EliteText>
                   ) : null}
                 </View>
 
@@ -600,12 +612,12 @@ export default function FitnessStrengthScreen() {
                         );
                       }}
                     >
-                      <View style={styles.exerciseCard}>
+                      <View style={[styles.exerciseCard, { backgroundColor: tk.card, borderColor: tk.borde }]}>
                         <View style={styles.exerciseHeader}>
                           <EliteText variant="body" style={styles.exerciseName} numberOfLines={1}>
                             {entry.exerciseName}
                           </EliteText>
-                          <EliteText variant="caption" style={styles.estimated1rm}>
+                          <EliteText variant="caption" style={[styles.estimated1rm, { color: acento }]}>
                             Máximo estimado: {Math.round(entry.estimated1rm)}kg
                           </EliteText>
                         </View>
@@ -614,7 +626,7 @@ export default function FitnessStrengthScreen() {
                           <View style={styles.repRangeRow}>
                             {REP_RANGES.map(rr => (
                               <View key={rr} style={styles.repRangeCell}>
-                                <EliteText variant="caption" style={styles.repRangeHeader}>
+                                <EliteText variant="caption" style={[styles.repRangeHeader, secTxt]}>
                                   {rr} rep{rr > 1 ? 's' : ''}
                                 </EliteText>
                               </View>
@@ -638,23 +650,23 @@ export default function FitnessStrengthScreen() {
                                     <>
                                       <EliteText variant="body" style={[
                                         styles.repRangeValue,
-                                        isBestRange ? { color: mgColor } : null,
+                                        { color: isBestRange ? mgColor : tk.texto },
                                       ]}>
                                         {pr.weight_kg}kg
                                       </EliteText>
                                       {recency === 'today' && (
                                         <View style={styles.recencyBadge}>
-                                          <EliteText variant="caption" style={styles.recencyBadgeText}>HOY</EliteText>
+                                          <EliteText variant="caption" style={[styles.recencyBadgeText, { color: acento }]}>HOY</EliteText>
                                         </View>
                                       )}
                                       {recency === 'week' && (
                                         <View style={[styles.recencyBadge, styles.recencyWeek]}>
-                                          <EliteText variant="caption" style={[styles.recencyBadgeText, styles.recencyWeekText]}>PR!</EliteText>
+                                          <EliteText variant="caption" style={[styles.recencyBadgeText, { color: tk.info }]}>PR!</EliteText>
                                         </View>
                                       )}
                                     </>
                                   ) : (
-                                    <EliteText variant="body" style={styles.repRangeEmpty}>—</EliteText>
+                                    <EliteText variant="body" style={[styles.repRangeEmpty, { color: tk.sinDatos }]}>—</EliteText>
                                   )}
                                 </View>
                               );
@@ -663,16 +675,16 @@ export default function FitnessStrengthScreen() {
                         </View>
 
                         {expanded && (
-                          <View style={styles.progressionContainer}>
-                            <EliteText variant="caption" style={styles.progressionLabel}>
+                          <View style={[styles.progressionContainer, { borderTopColor: tk.borde }]}>
+                            <EliteText variant="caption" style={[styles.progressionLabel, secTxt]}>
                               PROGRESIÓN DE PESO
                             </EliteText>
                             {progressionLoading ? (
                               <ActivityIndicator color={LIME} style={{ marginVertical: Spacing.md }} />
                             ) : progressionData.length < 2 ? (
                               <View style={styles.progressionEmptyBox}>
-                                <Ionicons name="barbell-outline" size={28} color={TEXT.secondary} />
-                                <EliteText variant="caption" style={styles.progressionEmpty}>
+                                <Ionicons name="barbell-outline" size={28} color={tk.textoSecundario} />
+                                <EliteText variant="caption" style={[styles.progressionEmpty, secTxt]}>
                                   Entrena más para ver tu progresión
                                 </EliteText>
                               </View>
@@ -682,13 +694,13 @@ export default function FitnessStrengthScreen() {
 
                             {sessionHistory.length > 0 && (
                               <View style={styles.sessionHistSection}>
-                                <EliteText variant="caption" style={styles.progressionLabel}>
+                                <EliteText variant="caption" style={[styles.progressionLabel, secTxt]}>
                                   HISTORIAL DE SESIONES
                                 </EliteText>
                                 {sessionHistory.slice(0, 8).map((session) => (
-                                  <View key={session.date} style={styles.sessionHistCard}>
+                                  <View key={session.date} style={[styles.sessionHistCard, { borderBottomColor: tk.borde }]}>
                                     <View style={styles.sessionHistHeader}>
-                                      <EliteText variant="caption" style={styles.sessionHistDate}>
+                                      <EliteText variant="caption" style={[styles.sessionHistDate, secTxt]}>
                                         {session.dateLabel}
                                       </EliteText>
                                       <EliteText variant="caption" style={[styles.sessionHist1RM, { color: mgColor }]}>
@@ -696,7 +708,7 @@ export default function FitnessStrengthScreen() {
                                       </EliteText>
                                     </View>
                                     {session.sets.map((set, si) => (
-                                      <EliteText key={si} variant="caption" style={styles.sessionHistSet}>
+                                      <EliteText key={si} variant="caption" style={[styles.sessionHistSet, secTxt]}>
                                         Set {si + 1}: {set.reps} reps × {set.weight_kg}kg
                                         {set.rir != null ? ` @ RIR ${set.rir}` : ''}
                                       </EliteText>
@@ -717,19 +729,20 @@ export default function FitnessStrengthScreen() {
         )}
 
         {groupedEntries.length > 0 && (
-          <EliteText variant="caption" style={styles.hintText}>
+          <EliteText variant="caption" style={[styles.hintText, { color: tk.sinDatos }]}>
             Toca una marca para ver su progresión · mantén presionado para eliminar
           </EliteText>
         )}
       </ScrollView>
     </View>
+    </ThemeReady>
   );
 }
 
 // === ESTILOS ===
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: ELEVATION[0].bg },
+  screen: { flex: 1 },
 
   // Hero (MB-5 Bloque 3: molde editorial — imagen + overlay + contenido)
   heroCard: {
@@ -760,7 +773,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md, marginBottom: Spacing.sm,
   },
   sectionTitle: {
-    fontSize: 11, fontFamily: Fonts.bold, color: TEXT.secondary, letterSpacing: 2,
+    fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2,
   },
 
   // Benchmarks
@@ -792,15 +805,15 @@ const styles = StyleSheet.create({
   filterPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 48,
     paddingHorizontal: Spacing.sm + 2, paddingVertical: Spacing.xs + 2,
-    borderRadius: Radius.pill, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderRadius: Radius.pill, borderWidth: 1,
   },
   filterDot: { width: 8, height: 8, borderRadius: 4 },
-  filterText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  filterText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 
   // Empty
   emptyBox: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm, paddingHorizontal: Spacing.lg },
-  emptyText: { color: TEXT.secondary, textAlign: 'center' },
-  emptySubtext: { color: TEXT.tertiary, fontSize: FontSizes.sm, textAlign: 'center' },
+  emptyText: { textAlign: 'center' },
+  emptySubtext: { fontSize: FontSizes.sm, textAlign: 'center' },
 
   // Grupos musculares
   muscleGroupSection: { paddingHorizontal: Spacing.md, marginBottom: Spacing.md },
@@ -809,73 +822,72 @@ const styles = StyleSheet.create({
   muscleGroupTitle: { letterSpacing: 2, fontSize: FontSizes.md, fontFamily: Fonts.bold },
   // MB-4.1 · Bloque B: un solo mecanismo de muteo (token de color), NO
   // TEXT.secondary + opacity 0.6 apilados (el design system: se vuelve invisible).
-  muscleGroupDesc: { color: TEXT.tertiary, fontSize: FontSizes.xs, letterSpacing: 1 },
+  muscleGroupDesc: { fontSize: FontSizes.xs, letterSpacing: 1 },
 
   // Card de ejercicio
   exerciseCard: {
     borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderWidth: 1,
   },
   exerciseHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm,
   },
   exerciseName: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, flex: 1 },
-  estimated1rm: { color: LIME, fontFamily: Fonts.bold, fontSize: FontSizes.sm },
+  estimated1rm: { fontFamily: Fonts.bold, fontSize: FontSizes.sm },
 
   // Tabla de rep ranges
   repRangeTable: { gap: Spacing.xs },
   repRangeRow: { flexDirection: 'row', gap: Spacing.xs },
   repRangeCell: { flex: 1, alignItems: 'center', paddingVertical: 4, borderRadius: Radius.sm },
   repRangeHeader: {
-    color: TEXT.secondary, fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 0.5,
+    fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 0.5,
   },
-  repRangeValue: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: TEXT.primary },
-  repRangeEmpty: { color: TEXT.muted, fontSize: FontSizes.md },
+  repRangeValue: { fontFamily: Fonts.bold, fontSize: FontSizes.md },
+  repRangeEmpty: { fontSize: FontSizes.md },
 
   // Recencia
   recencyBadge: {
     backgroundColor: withOpacity(LIME, 0.15), paddingHorizontal: 5, paddingVertical: 1,
     borderRadius: Radius.pill, marginTop: 2,
   },
-  recencyBadgeText: { color: LIME, fontSize: FontSizes.xs, fontFamily: Fonts.bold },
+  recencyBadgeText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold },
   recencyWeek: { backgroundColor: withOpacity(SEMANTIC.info, 0.15) },
-  recencyWeekText: { color: SEMANTIC.info },
 
   // Progresión
   progressionContainer: {
     marginTop: Spacing.md, paddingTop: Spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ELEVATION[1].border,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   progressionLabel: {
-    color: TEXT.secondary, letterSpacing: 2, fontSize: FontSizes.xs,
+    letterSpacing: 2, fontSize: FontSizes.xs,
     fontFamily: Fonts.bold, marginBottom: Spacing.sm,
   },
   progressionEmptyBox: { alignItems: 'center', paddingVertical: Spacing.lg, gap: Spacing.sm },
-  progressionEmpty: { color: TEXT.secondary, fontSize: FontSizes.sm, textAlign: 'center' },
+  progressionEmpty: { fontSize: FontSizes.sm, textAlign: 'center' },
 
   // Toggles del chart
   togglePill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: Spacing.sm, paddingVertical: 4,
-    borderRadius: Radius.pill, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderRadius: Radius.pill, borderWidth: 1,
   },
   toggleDot: { width: 6, height: 6, borderRadius: 3 },
-  toggleText: { color: TEXT.secondary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  toggleText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
 
   // Historial
   sessionHistSection: { marginTop: Spacing.md },
   sessionHistCard: {
     paddingVertical: Spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: ELEVATION[1].border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   sessionHistHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
   },
-  sessionHistDate: { color: TEXT.secondary, fontFamily: Fonts.bold, fontSize: FontSizes.sm },
+  sessionHistDate: { fontFamily: Fonts.bold, fontSize: FontSizes.sm },
   sessionHist1RM: { fontFamily: Fonts.bold, fontSize: FontSizes.sm },
-  sessionHistSet: { color: TEXT.secondary, fontSize: FontSizes.xs, paddingLeft: Spacing.sm, lineHeight: 16 },
+  sessionHistSet: { fontSize: FontSizes.xs, paddingLeft: Spacing.sm, lineHeight: 16 },
 
   hintText: {
-    color: TEXT.muted, fontSize: 10, textAlign: 'center', marginTop: Spacing.xs, paddingHorizontal: Spacing.md,
+    fontSize: 10, textAlign: 'center', marginTop: Spacing.xs, paddingHorizontal: Spacing.md,
   },
 });

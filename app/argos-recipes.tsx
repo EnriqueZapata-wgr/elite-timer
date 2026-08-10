@@ -17,6 +17,9 @@ import { EliteToggle } from '@/components/elite-toggle';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { argosRateLimitMessage } from '@/src/services/argos-stream-core';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { StatusBar } from 'expo-status-bar';
 
 const MEAL_TYPES = [
   { id: 'desayuno', label: 'Desayuno', icon: 'sunny-outline' as const, color: '#fbbf24' },
@@ -42,6 +45,13 @@ export default function ArgosRecipesScreen() {
   useRegisterOwnNav();
 
   const insets = useSafeAreaInsets();
+  // MB-31B3: la pantalla migro a tokens y sigue el tema global. Reglas del
+  // manual en claro: lima/azul/ambar no son texto (acento calibrado o texto).
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
+  const azulTx = kind === 'dark' ? '#38bdf8' : t.info;
+  const ambarTx = kind === 'dark' ? '#fbbf24' : t.texto;
+  const suave = kind === 'dark' ? '#ccc' : t.texto;
   const [mode, setMode] = useState<'menu' | 'generating' | 'recipe' | 'shoppingResult'>('menu');
   const [selectedMeal, setSelectedMeal] = useState('');
   // E-6 (MB-12): sin macro preseleccionado — arranca en comida real.
@@ -150,16 +160,18 @@ export default function ArgosRecipesScreen() {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#000' }} contentContainerStyle={{ paddingBottom: 40 }}>
+    <ThemeReady>
+    <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 }}>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 8, paddingBottom: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Pressable onPress={() => mode === 'menu' ? router.back() : setMode('menu')} hitSlop={12}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color={t.texto} />
           </Pressable>
           <View>
-            <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ARGOS</Text>
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800' }}>Nutrición inteligente</Text>
+            <Text style={{ color: acento, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ARGOS</Text>
+            <Text style={{ color: t.texto, fontSize: 20, fontWeight: '800' }}>Nutrición inteligente</Text>
           </View>
         </View>
       </View>
@@ -167,20 +179,20 @@ export default function ArgosRecipesScreen() {
       {/* Menu */}
       {mode === 'menu' && (
         <View style={{ paddingHorizontal: 20 }}>
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 12 }}>Generar receta</Text>
+          <Text style={{ color: t.texto, fontSize: 16, fontWeight: '700', marginBottom: 12 }}>Generar receta</Text>
 
-          <Text style={{ color: '#999', fontSize: 12, marginBottom: 8 }}>Tipo de comida</Text>
+          <Text style={{ color: t.textoSecundario, fontSize: 12, marginBottom: 8 }}>Tipo de comida</Text>
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
             {MEAL_TYPES.map(m => (
               <Pressable key={m.id} onPress={() => { setSelectedMeal(m.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
                 <View style={{
                   alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14,
-                  backgroundColor: selectedMeal === m.id ? `${m.color}20` : '#0a0a0a',
+                  backgroundColor: selectedMeal === m.id ? `${m.color}20` : t.hundido,
                   borderWidth: 1.5,
-                  borderColor: selectedMeal === m.id ? m.color : '#1a1a1a',
+                  borderColor: selectedMeal === m.id ? m.color : t.borde,
                 }}>
-                  <Ionicons name={m.icon} size={20} color={selectedMeal === m.id ? m.color : '#666'} />
-                  <Text style={{ color: selectedMeal === m.id ? '#fff' : '#666', fontSize: 11, marginTop: 4, fontWeight: '600' }}>
+                  <Ionicons name={m.icon} size={20} color={selectedMeal === m.id ? m.color : t.textoSecundario} />
+                  <Text style={{ color: selectedMeal === m.id ? t.texto : t.textoSecundario, fontSize: 11, marginTop: 4, fontWeight: '600' }}>
                     {m.label}
                   </Text>
                 </View>
@@ -188,17 +200,17 @@ export default function ArgosRecipesScreen() {
             ))}
           </View>
 
-          <Text style={{ color: '#999', fontSize: 12, marginBottom: 8 }}>Objetivo</Text>
+          <Text style={{ color: t.textoSecundario, fontSize: 12, marginBottom: 8 }}>Objetivo</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
             {GOALS.map(g => (
               <Pressable key={g.id} onPress={() => { setSelectedGoal(g.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
                 <View style={{
                   paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20,
-                  backgroundColor: selectedGoal === g.id ? 'rgba(168,224,42,0.15)' : '#0a0a0a',
+                  backgroundColor: selectedGoal === g.id ? 'rgba(168,224,42,0.15)' : t.hundido,
                   borderWidth: 1.5,
-                  borderColor: selectedGoal === g.id ? '#a8e02a' : '#1a1a1a',
+                  borderColor: selectedGoal === g.id ? ATP_BRAND.lime : t.borde,
                 }}>
-                  <Text style={{ color: selectedGoal === g.id ? '#a8e02a' : '#999', fontSize: 12, fontWeight: '600' }}>
+                  <Text style={{ color: selectedGoal === g.id ? acento : t.textoSecundario, fontSize: 12, fontWeight: '600' }}>
                     {g.label}
                   </Text>
                 </View>
@@ -217,21 +229,21 @@ export default function ArgosRecipesScreen() {
           </View>
 
           <Pressable onPress={handleGenerateRecipe} disabled={!selectedMeal} style={{
-            backgroundColor: selectedMeal ? '#a8e02a' : '#1a1a1a', borderRadius: 16, padding: 16, alignItems: 'center',
+            backgroundColor: selectedMeal ? ATP_BRAND.lime : t.bordeMarcado, borderRadius: 16, padding: 16, alignItems: 'center',
             flexDirection: 'row', justifyContent: 'center', gap: 8,
           }}>
-            <Ionicons name="eye-outline" size={20} color={selectedMeal ? '#000' : '#444'} />
-            <Text style={{ color: selectedMeal ? '#000' : '#444', fontSize: 16, fontWeight: '800' }}>
+            <Ionicons name="eye-outline" size={20} color={selectedMeal ? ATP_BRAND.black : t.textoSecundario} />
+            <Text style={{ color: selectedMeal ? ATP_BRAND.black : t.textoSecundario, fontSize: 16, fontWeight: '800' }}>
               {advancedMode ? 'GENERAR RECETA · AVANZADA' : 'GENERAR RECETA'}
             </Text>
           </Pressable>
 
           {/* Separador */}
-          <View style={{ height: 1, backgroundColor: '#1a1a1a', marginVertical: 30 }} />
+          <View style={{ height: 1, backgroundColor: t.borde, marginVertical: 30 }} />
 
           {/* Lista de super */}
           <Pressable onPress={handleShoppingList} style={{
-            backgroundColor: '#0a0a0a', borderRadius: 16, padding: 20,
+            backgroundColor: t.hundido, borderRadius: 16, padding: 20,
             borderWidth: 1, borderColor: 'rgba(56,189,248,0.2)',
             flexDirection: 'row', alignItems: 'center', gap: 14,
           }}>
@@ -243,10 +255,10 @@ export default function ArgosRecipesScreen() {
               <Ionicons name="cart-outline" size={24} color="#38bdf8" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Lista de super semanal</Text>
-              <Text style={{ color: '#999', fontSize: 12, marginTop: 2 }}>ARGOS genera tu lista optimizada para 7 días</Text>
+              <Text style={{ color: t.texto, fontSize: 16, fontWeight: '700' }}>Lista de super semanal</Text>
+              <Text style={{ color: t.textoSecundario, fontSize: 12, marginTop: 2 }}>ARGOS genera tu lista optimizada para 7 días</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#666" />
+            <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />
           </Pressable>
         </View>
       )}
@@ -254,8 +266,8 @@ export default function ArgosRecipesScreen() {
       {/* Generating */}
       {mode === 'generating' && (
         <View style={{ alignItems: 'center', paddingVertical: 60 }}>
-          <ActivityIndicator size="large" color="#a8e02a" />
-          <Text style={{ color: '#a8e02a', fontSize: 16, fontWeight: '700', marginTop: 20 }}>ARGOS cocina ideas...</Text>
+          <ActivityIndicator size="large" color={kind === 'dark' ? ATP_BRAND.lime : t.tealTexto} />
+          <Text style={{ color: acento, fontSize: 16, fontWeight: '700', marginTop: 20 }}>ARGOS cocina ideas...</Text>
         </View>
       )}
 
@@ -266,34 +278,34 @@ export default function ArgosRecipesScreen() {
             backgroundColor: 'rgba(168,224,42,0.08)', borderRadius: 16, padding: 20, marginBottom: 16,
             borderWidth: 1, borderColor: 'rgba(168,224,42,0.15)',
           }}>
-            <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 4 }}>
+            <Text style={{ color: acento, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 4 }}>
               RECETA ARGOS
             </Text>
-            <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{recipe.name}</Text>
-            <Text style={{ color: '#999', fontSize: 13, marginTop: 4 }}>{recipe.description}</Text>
+            <Text style={{ color: t.texto, fontSize: 22, fontWeight: '800' }}>{recipe.name}</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 13, marginTop: 4 }}>{recipe.description}</Text>
             <View style={{ flexDirection: 'row', gap: 16, marginTop: 12 }}>
-              <Text style={{ color: '#a8e02a', fontSize: 12 }}>{recipe.calories} kcal</Text>
-              <Text style={{ color: '#60a5fa', fontSize: 12 }}>P{recipe.protein_g}g</Text>
-              <Text style={{ color: '#fbbf24', fontSize: 12 }}>C{recipe.carbs_g}g</Text>
-              <Text style={{ color: '#fb923c', fontSize: 12 }}>G{recipe.fat_g}g</Text>
-              <Text style={{ color: '#999', fontSize: 12 }}>{recipe.prepMinutes + recipe.cookMinutes} min</Text>
+              <Text style={{ color: acento, fontSize: 12 }}>{recipe.calories} kcal</Text>
+              <Text style={{ color: kind === 'dark' ? '#60a5fa' : t.info, fontSize: 12 }}>P{recipe.protein_g}g</Text>
+              <Text style={{ color: ambarTx, fontSize: 12 }}>C{recipe.carbs_g}g</Text>
+              <Text style={{ color: kind === 'dark' ? '#fb923c' : t.texto, fontSize: 12 }}>G{recipe.fat_g}g</Text>
+              <Text style={{ color: t.textoSecundario, fontSize: 12 }}>{recipe.prepMinutes + recipe.cookMinutes} min</Text>
             </View>
           </View>
 
-          <Text style={{ color: '#fbbf24', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 10 }}>
+          <Text style={{ color: ambarTx, fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 10 }}>
             INGREDIENTES
           </Text>
           {recipe.ingredients.map((ing, i) => (
             <View key={i} style={{ flexDirection: 'row', gap: 8, marginBottom: 6, paddingLeft: 8 }}>
               <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#fbbf24', marginTop: 7 }} />
-              <Text style={{ color: '#ccc', fontSize: 14 }}>
-                <Text style={{ color: '#fff', fontWeight: '600' }}>{ing.quantity}</Text> {ing.name}
-                {ing.notes ? <Text style={{ color: '#666' }}> ({ing.notes})</Text> : null}
+              <Text style={{ color: suave, fontSize: 14 }}>
+                <Text style={{ color: t.texto, fontWeight: '600' }}>{ing.quantity}</Text> {ing.name}
+                {ing.notes ? <Text style={{ color: t.textoSecundario }}> ({ing.notes})</Text> : null}
               </Text>
             </View>
           ))}
 
-          <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginTop: 20, marginBottom: 10 }}>
+          <Text style={{ color: acento, fontSize: 10, fontWeight: '700', letterSpacing: 2, marginTop: 20, marginBottom: 10 }}>
             PREPARACIÓN
           </Text>
           {recipe.steps.map((s, i) => (
@@ -302,15 +314,15 @@ export default function ArgosRecipesScreen() {
                 width: 24, height: 24, borderRadius: 12,
                 backgroundColor: 'rgba(168,224,42,0.1)', justifyContent: 'center', alignItems: 'center',
               }}>
-                <Text style={{ color: '#a8e02a', fontSize: 11, fontWeight: '700' }}>{i + 1}</Text>
+                <Text style={{ color: acento, fontSize: 11, fontWeight: '700' }}>{i + 1}</Text>
               </View>
-              <Text style={{ color: '#ccc', fontSize: 14, lineHeight: 21, flex: 1 }}>{s}</Text>
+              <Text style={{ color: suave, fontSize: 14, lineHeight: 21, flex: 1 }}>{s}</Text>
             </View>
           ))}
 
           {recipe.tips && (
             <View style={{ backgroundColor: 'rgba(251,191,36,0.08)', borderRadius: 12, padding: 14, marginTop: 16 }}>
-              <Text style={{ color: '#fbbf24', fontSize: 12, fontWeight: '600' }}>{recipe.tips}</Text>
+              <Text style={{ color: ambarTx, fontSize: 12, fontWeight: '600' }}>{recipe.tips}</Text>
             </View>
           )}
 
@@ -320,16 +332,16 @@ export default function ArgosRecipesScreen() {
             backgroundColor: 'rgba(168,224,42,0.12)', borderRadius: 16, padding: 14, alignItems: 'center', marginTop: 20,
             borderWidth: 1, borderColor: 'rgba(168,224,42,0.3)', opacity: savingRecipe ? 0.6 : 1,
           }}>
-            <Text style={{ color: '#a8e02a', fontSize: 14, fontWeight: '700' }}>
+            <Text style={{ color: acento, fontSize: 14, fontWeight: '700' }}>
               {savingRecipe ? 'Guardando…' : recipeSaved ? 'Guardada en Mis recetas ✓' : 'Guardar en Mis recetas'}
             </Text>
           </Pressable>
 
           <Pressable onPress={handleGenerateRecipe} style={{
-            backgroundColor: '#0a0a0a', borderRadius: 16, padding: 14, alignItems: 'center', marginTop: 10,
-            borderWidth: 1, borderColor: '#1a1a1a',
+            backgroundColor: t.hundido, borderRadius: 16, padding: 14, alignItems: 'center', marginTop: 10,
+            borderWidth: 1, borderColor: t.borde,
           }}>
-            <Text style={{ color: '#999', fontSize: 14, fontWeight: '600' }}>Generar otra receta</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 14, fontWeight: '600' }}>Generar otra receta</Text>
           </Pressable>
         </View>
       )}
@@ -338,43 +350,44 @@ export default function ArgosRecipesScreen() {
       {mode === 'shoppingResult' && shoppingList && (
         <View style={{ paddingHorizontal: 20 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800' }}>Lista de super</Text>
+            <Text style={{ color: t.texto, fontSize: 20, fontWeight: '800' }}>Lista de super</Text>
             <Pressable onPress={shareShoppingList} style={{
               flexDirection: 'row', alignItems: 'center', gap: 6,
               backgroundColor: 'rgba(56,189,248,0.1)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
             }}>
-              <Ionicons name="share-outline" size={16} color="#38bdf8" />
-              <Text style={{ color: '#38bdf8', fontSize: 12, fontWeight: '600' }}>Compartir</Text>
+              <Ionicons name="share-outline" size={16} color={azulTx} />
+              <Text style={{ color: azulTx, fontSize: 12, fontWeight: '600' }}>Compartir</Text>
             </Pressable>
           </View>
 
           {shoppingList.sections.map((section, i) => (
             <View key={i} style={{ marginBottom: 16 }}>
-              <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 8 }}>
+              <Text style={{ color: acento, fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 8 }}>
                 {section.name.toUpperCase()}
               </Text>
               {section.items.map((item, j) => (
                 <View key={j} style={{
                   flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-                  backgroundColor: '#0a0a0a', borderRadius: 10, padding: 12, marginBottom: 4,
+                  backgroundColor: t.hundido, borderRadius: 10, padding: 12, marginBottom: 4,
                 }}>
-                  <Text style={{ color: '#fff', fontSize: 14 }}>{item.name}</Text>
-                  <Text style={{ color: '#999', fontSize: 13 }}>{item.quantity}</Text>
+                  <Text style={{ color: t.texto, fontSize: 14 }}>{item.name}</Text>
+                  <Text style={{ color: t.textoSecundario, fontSize: 13 }}>{item.quantity}</Text>
                 </View>
               ))}
             </View>
           ))}
 
           <Pressable onPress={handleShoppingList} style={{
-            backgroundColor: '#0a0a0a', borderRadius: 16, padding: 14, alignItems: 'center', marginTop: 10,
-            borderWidth: 1, borderColor: '#1a1a1a',
+            backgroundColor: t.hundido, borderRadius: 16, padding: 14, alignItems: 'center', marginTop: 10,
+            borderWidth: 1, borderColor: t.borde,
           }}>
-            <Text style={{ color: '#999', fontSize: 14, fontWeight: '600' }}>Regenerar lista</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 14, fontWeight: '600' }}>Regenerar lista</Text>
           </Pressable>
         </View>
       )}
       {/* B-5 (MB-12): las recetas y sus macros son estimación de IA */}
       <MedicalDisclaimer feature="nutrition" />
     </ScrollView>
+    </ThemeReady>
   );
 }

@@ -9,6 +9,7 @@
  */
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { router , type Href } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -17,7 +18,8 @@ import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EliteText } from '@/components/elite-text';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 interface Step {
@@ -66,13 +68,17 @@ const STEPS: Step[] = [
 ];
 
 export default function HowToEarnScreen() {
+  const { kind, tokens: t } = useAppTheme();
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
+  const secTxt = { color: t.textoSecundario };
   return (
-    <Screen edges={[]}>
+    <Screen edges={[]} themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Cómo ganar H+" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInUp.delay(40).springify()}>
-          <EliteText style={styles.heroTitle}>Tu esfuerzo tiene economía</EliteText>
-          <EliteText style={styles.heroSubtitle}>
+          <EliteText style={[styles.heroTitle, { color: t.texto }]}>Tu esfuerzo tiene economía</EliteText>
+          <EliteText style={[styles.heroSubtitle, secTxt]}>
             En ATP no compras progreso: lo generas. Así fluye la energía.
           </EliteText>
         </Animated.View>
@@ -81,25 +87,25 @@ export default function HowToEarnScreen() {
           <View key={step.key}>
             <Animated.View
               entering={FadeInUp.delay(120 + i * 90).springify()}
-              style={styles.stepCard}
+              style={[styles.stepCard, { backgroundColor: t.card, borderColor: t.borde }]}
             >
               <View style={styles.stepHeader}>
-                <View style={styles.emojiCircle}>
+                <View style={[styles.emojiCircle, { backgroundColor: t.flotante, borderColor: t.bordeMarcado }]}>
                   <EliteText style={styles.emoji}>{step.emoji}</EliteText>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <EliteText style={styles.kicker}>{step.kicker}</EliteText>
-                  <EliteText style={styles.stepTitle}>{step.title}</EliteText>
+                  <EliteText style={[styles.kicker, { color: acento }]}>{step.kicker}</EliteText>
+                  <EliteText style={[styles.stepTitle, { color: t.texto }]}>{step.title}</EliteText>
                 </View>
               </View>
-              <EliteText style={styles.stepBody}>{step.body}</EliteText>
+              <EliteText style={[styles.stepBody, secTxt]}>{step.body}</EliteText>
               {step.cta && (
                 <AnimatedPressable
                   onPress={() => { haptic.light(); router.push(step.cta!.route); }}
                   style={styles.stepCta}
                 >
-                  <EliteText style={styles.stepCtaText}>{step.cta.label}</EliteText>
-                  <Ionicons name="chevron-forward" size={13} color={ATP_BRAND.lime} />
+                  <EliteText style={[styles.stepCtaText, { color: acento }]}>{step.cta.label}</EliteText>
+                  <Ionicons name="chevron-forward" size={13} color={acento} />
                 </AnimatedPressable>
               )}
             </Animated.View>
@@ -121,7 +127,7 @@ export default function HowToEarnScreen() {
           >
             <EliteText style={styles.mainCtaText}>Empezar a ganar</EliteText>
           </AnimatedPressable>
-          <EliteText style={styles.footNote}>
+          <EliteText style={[styles.footNote, { color: t.textoTenue }]}>
             Cada electrón que completas hoy es rendimiento mañana.
           </EliteText>
         </Animated.View>
@@ -135,19 +141,15 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontFamily: Fonts.extraBold,
     fontSize: FontSizes.hero,
-    color: TEXT.primary,
   },
   heroSubtitle: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.md,
-    color: TEXT.secondary,
     marginTop: Spacing.xs,
     marginBottom: Spacing.lg,
     lineHeight: 20,
   },
   stepCard: {
-    backgroundColor: ELEVATION[1].bg,
-    borderColor: ELEVATION[1].border,
     borderWidth: 0.5,
     borderRadius: Radius.md,
     padding: Spacing.md,
@@ -163,27 +165,22 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: ELEVATION[2].bg,
     borderWidth: 0.5,
-    borderColor: ELEVATION[2].border,
   },
   emoji: { fontSize: 20 },
   kicker: {
     fontFamily: Fonts.semiBold,
     fontSize: 10,
-    color: ATP_BRAND.lime,
     letterSpacing: 2,
   },
   stepTitle: {
     fontFamily: Fonts.bold,
     fontSize: FontSizes.lg,
-    color: TEXT.primary,
     marginTop: 1,
   },
   stepBody: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
-    color: TEXT.secondary,
     lineHeight: 19,
     marginTop: Spacing.sm,
   },
@@ -197,7 +194,6 @@ const styles = StyleSheet.create({
   stepCtaText: {
     fontFamily: Fonts.bold,
     fontSize: FontSizes.sm,
-    color: ATP_BRAND.lime,
   },
   flowArrow: {
     alignItems: 'center',
@@ -219,7 +215,6 @@ const styles = StyleSheet.create({
   footNote: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
-    color: TEXT.tertiary,
     textAlign: 'center',
     marginTop: Spacing.md,
   },
