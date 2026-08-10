@@ -18,4 +18,11 @@
   <string name="widget_agua_mas250">+250 ml</string>
   <string name="widget_agua_meta">Meta %1$s · faltan %2$s</string>
   <string name="widget_agua_meta_lograda">Meta %1$s lograda</string>
+
+  <string name="widget_ayuno_label">ATP · Ayuno</string>
+  <string name="widget_ayuno_desc">El contador de tu ayuno, corriendo. Abrir y cerrar la ventana se hace en ATP.</string>
+  <string name="widget_ayuno_header">AYUNO</string>
+  <string name="widget_ayuno_sin_activo">Sin ayuno activo. La ventana se abre en ATP.</string>
+  <string name="widget_ayuno_detalle">Meta %1$d h · empezó %2$s</string>
+  <string name="widget_ayuno_detalle_sin_meta">Empezó %1$s</string>
 </resources>

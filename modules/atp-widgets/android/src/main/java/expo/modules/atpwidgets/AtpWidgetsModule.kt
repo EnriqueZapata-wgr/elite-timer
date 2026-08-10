@@ -59,10 +59,10 @@ class AtpWidgetsModule : Module() {
   }
 
   companion object {
-    /** La pieza 3 suma aquí su provider. */
     fun updateAllProviders(context: Context) {
       HabitosWidgetProvider.pushUpdate(context)
       AguaWidgetProvider.pushUpdate(context)
+      AyunoWidgetProvider.pushUpdate(context)
     }
   }
 }

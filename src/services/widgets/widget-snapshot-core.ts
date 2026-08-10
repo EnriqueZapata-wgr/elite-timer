@@ -165,6 +165,43 @@ export function patchWaterDelta(snapshotJson: string | null, deltaMl: number): s
   return JSON.stringify(snap);
 }
 
+// ── Ayuno (pieza 3, SOLO lectura) ──
+
+export interface AyunoWidgetSnapshot {
+  v: typeof WIDGET_SNAPSHOT_V;
+  date: string;
+  signedIn: true;
+  theme: WidgetThemePayload;
+  fast: { active: true; startIso: string; targetHours: number } | { active: false };
+}
+
+/**
+ * El widget de ayuno NO actúa: muestra el contador (el Chronometer nativo
+ * corre solo desde startIso) y la ventana. startIso ilegible = sin ayuno:
+ * mejor "abre ATP" que un contador inventado.
+ */
+export function buildAyunoSnapshot(params: {
+  date: string;
+  theme: WidgetThemePayload;
+  fast: { startIso: string | null; targetHours: number | null } | null;
+}): AyunoWidgetSnapshot {
+  const { date, theme, fast } = params;
+  const startMs = fast?.startIso ? Date.parse(fast.startIso) : NaN;
+  return {
+    v: WIDGET_SNAPSHOT_V,
+    date,
+    signedIn: true,
+    theme,
+    fast: Number.isFinite(startMs)
+      ? {
+          active: true,
+          startIso: fast!.startIso as string,
+          targetHours: Math.max(0, Math.round(fast!.targetHours ?? 0)),
+        }
+      : { active: false },
+  };
+}
+
 /**
  * Parche puntual tras ejecutar un toggle (el drenador corrige el snapshot
  * con el resultado REAL de la mutación, no con la intención). JSON ilegible

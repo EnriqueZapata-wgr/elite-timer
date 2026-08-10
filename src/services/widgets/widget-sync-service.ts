@@ -19,8 +19,10 @@ import { NIGHT_FILTER_FALLBACK_CUTOFF } from '@/src/constants/night-curve';
 import { getUserSchedule, getHabitTime } from '@/src/services/hoy/habit-times-service';
 import { timeToMinutes } from '@/src/services/notification-prefs-core';
 import { getWidgetsNative } from '@/src/services/widgets/widget-bridge';
+import { getActiveFast } from '@/src/services/fasting-service';
 import {
   buildAguaSnapshot,
+  buildAyunoSnapshot,
   buildHabitosSnapshot,
   snapshotSignedOut,
   type WidgetThemePayload,
@@ -85,6 +87,16 @@ export async function syncWidgetsFromCompiled(userId: string, day: CompiledDay):
       });
       native.setSnapshot('agua', JSON.stringify(agua));
     }
+
+    // Pieza 3 (SOLO lectura): el ayuno activo vía getActiveFast, la lectura
+    // canónica de fasting-service — la única query que este sync agrega.
+    const fast = await getActiveFast(userId);
+    const ayuno = buildAyunoSnapshot({
+      date: getLocalToday(),
+      theme,
+      fast: fast ? { startIso: fast.fast_start, targetHours: fast.target_hours } : null,
+    });
+    native.setSnapshot('ayuno', JSON.stringify(ayuno));
   } catch (e) {
     logWarn('[widget-sync] push snapshot failed', e);
   }

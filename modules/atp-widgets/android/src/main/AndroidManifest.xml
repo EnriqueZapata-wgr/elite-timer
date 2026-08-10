@@ -41,6 +41,18 @@
     </receiver>
 
     <receiver
+      android:name="expo.modules.atpwidgets.AyunoWidgetProvider"
+      android:exported="true"
+      android:label="@string/widget_ayuno_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/widget_ayuno_info" />
+    </receiver>
+
+    <receiver
       android:name="expo.modules.atpwidgets.WidgetTapReceiver"
       android:exported="false" />
 
