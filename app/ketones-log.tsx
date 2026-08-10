@@ -6,7 +6,7 @@
  * fuentes/rangos/validación vive en ketones-source-core (puro, testeado).
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert, DeviceEventEmitter } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +26,8 @@ import {
   isValidKetoneReading, ketoStatusFor, formatKetoneReading,
 } from '@/src/services/salud/ketones-source-core';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { userErrorMessage } from '@/src/utils/user-error';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { warn as logWarn } from '@/src/lib/logger';
@@ -43,6 +45,9 @@ const CONTEXTS = [
 
 export default function KetonesLogScreen() {
   const { user } = useAuth();
+  // MB-31B2: tokens del tema (oscuro idéntico al de siempre; claro = acero).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
 
   const [source, setSource] = useState<KetoneSource>('blood');
   const [value, setValue] = useState('');
@@ -151,7 +156,7 @@ export default function KetonesLogScreen() {
     : numVal > 0 ? ketoStatusFor({ source, numeric: numVal }) : null;
 
   return (
-    <Screen keyboard>
+    <Screen keyboard themed>
       <PillarHeader pillar="metrics" title="Cetonas" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
@@ -165,7 +170,7 @@ export default function KetonesLogScreen() {
                 onPress={() => { haptic.light(); setSource(src.id); }}
                 style={[s.contextPill, source === src.id && s.contextPillActive]}
               >
-                <Ionicons name={src.icon as any} size={14} color={source === src.id ? '#000' : 'rgba(255,255,255,0.5)'} />
+                <Ionicons name={src.icon as any} size={14} color={source === src.id ? TEXT_COLORS.onAccent : t.textoSecundario} />
                 <EliteText style={[s.contextText, source === src.id && s.contextTextActive]}>{src.name}</EliteText>
               </AnimatedPressable>
             ))}
@@ -195,12 +200,16 @@ export default function KetonesLogScreen() {
                 onChangeText={setValue}
                 keyboardType="decimal-pad"
                 placeholder={source === 'breath' ? '12' : '1.5'}
-                placeholderTextColor="rgba(255,255,255,0.2)"
+                placeholderTextColor={t.sinDatos}
                 maxLength={5}
               />
               {previewStatus && (
-                <View style={[s.statusBadge, { backgroundColor: `${previewStatus.color}20`, borderColor: `${previewStatus.color}40` }]}>
-                  <EliteText style={[s.statusText, { color: previewStatus.color }]}>{previewStatus.label}</EliteText>
+                /* Manual 3.9: en claro el semáforo es RELLENO con negro
+                   encima; en oscuro sigue el tinte translúcido de siempre. */
+                <View style={[s.statusBadge, t.kind === 'dark'
+                  ? { backgroundColor: `${previewStatus.color}20`, borderColor: `${previewStatus.color}40` }
+                  : { backgroundColor: previewStatus.color, borderColor: previewStatus.color }]}>
+                  <EliteText style={[s.statusText, { color: t.kind === 'dark' ? previewStatus.color : TEXT_COLORS.onAccent }]}>{previewStatus.label}</EliteText>
                 </View>
               )}
             </View>
@@ -217,7 +226,7 @@ export default function KetonesLogScreen() {
                 onPress={() => { haptic.light(); setContext(c.id); }}
                 style={[s.contextPill, context === c.id && s.contextPillActive]}
               >
-                <Ionicons name={c.icon} size={14} color={context === c.id ? '#000' : 'rgba(255,255,255,0.5)'} />
+                <Ionicons name={c.icon} size={14} color={context === c.id ? TEXT_COLORS.onAccent : t.textoSecundario} />
                 <EliteText style={[s.contextText, context === c.id && s.contextTextActive]}>{c.name}</EliteText>
               </AnimatedPressable>
             ))}
@@ -232,7 +241,7 @@ export default function KetonesLogScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder="Día 3 de ayuno..."
-            placeholderTextColor="rgba(255,255,255,0.2)"
+            placeholderTextColor={t.sinDatos}
             multiline
           />
         </Animated.View>
@@ -261,7 +270,8 @@ export default function KetonesLogScreen() {
                 <View key={log.id} style={s.logRow}>
                   <EliteText style={s.logTime}>{log.time?.substring(0, 5)}</EliteText>
                   <EliteText style={s.logCtx}>{srcName} · {ctxName}</EliteText>
-                  <EliteText style={[s.logValue, { color: st.color }]}>{formatKetoneReading(reading)}</EliteText>
+                  {/* En claro el color viaja en el punto (relleno), no en la letra. */}
+                  <EliteText style={[s.logValue, { color: t.kind === 'dark' ? st.color : t.texto }]}>{formatKetoneReading(reading)}</EliteText>
                   <View style={[s.logDot, { backgroundColor: st.color }]} />
                 </View>
               );
@@ -310,11 +320,13 @@ export default function KetonesLogScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema (patrón buildVariants de
+// EliteText). En oscuro los valores compuestos quedan como siempre.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
 
   card: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: t.hundido,
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
@@ -323,30 +335,30 @@ const s = StyleSheet.create({
   trendRow: {
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: t.borde,
   },
   trendLabel: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
-    color: 'rgba(255,255,255,0.5)',
+    color: t.textoSecundario,
     letterSpacing: 2,
   },
   trendValue: {
     fontSize: FontSizes.xl,
     fontFamily: Fonts.bold,
-    color: '#fff',
+    color: t.texto,
     marginTop: 2,
   },
   trendMeta: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,
-    color: 'rgba(255,255,255,0.45)',
+    color: t.textoSecundario,
     marginTop: 1,
   },
   label: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
-    color: 'rgba(255,255,255,0.5)',
+    color: t.textoSecundario,
     letterSpacing: 2,
     marginBottom: Spacing.sm,
   },
@@ -355,7 +367,7 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 48,
     fontFamily: Fonts.extraBold,
-    color: '#fff',
+    color: t.texto,
     textAlign: 'center',
     paddingVertical: Spacing.sm,
   },
@@ -370,16 +382,17 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: Radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    // Vidrio del kit (Card glass): translúcido claro sobre acero.
+    backgroundColor: t.kind === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.55)',
     borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: t.kind === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,21,24,0.08)',
   },
   contextPillActive: { backgroundColor: KETO_ACCENT, borderColor: KETO_ACCENT },
-  contextText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, color: 'rgba(255,255,255,0.5)' },
-  contextTextActive: { color: '#000' },
+  contextText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, color: t.textoSecundario },
+  contextTextActive: { color: TEXT_COLORS.onAccent },
 
   notesInput: {
-    color: '#fff',
+    color: t.texto,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.md,
     minHeight: 48,
@@ -393,7 +406,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.sm,
   },
-  saveBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 2 },
+  saveBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.onAccent, letterSpacing: 2 },
 
   logRow: {
     flexDirection: 'row',
@@ -401,10 +414,10 @@ const s = StyleSheet.create({
     gap: 10,
     paddingVertical: 10,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: t.borde,
   },
-  logTime: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: 'rgba(255,255,255,0.4)', width: 40 },
-  logCtx: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.5)', flex: 1 },
+  logTime: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: t.textoTenue, width: 40 },
+  logCtx: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.textoSecundario, flex: 1 },
   logValue: { fontSize: FontSizes.md, fontFamily: Fonts.bold },
   logDot: { width: 8, height: 8, borderRadius: 4 },
 });

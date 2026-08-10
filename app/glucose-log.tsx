@@ -5,7 +5,7 @@
  * relacionar con tipo de comida, y ver historial de hoy con colores semánticos.
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert, DeviceEventEmitter } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +23,8 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { userErrorMessage } from '@/src/utils/user-error';
 import { resumenVentana, gki, inicioVentana, type ResumenVentana } from '@/src/services/salud/metabolic-stats-core';
@@ -52,6 +54,9 @@ function getGlucoseStatus(value: number, context: string) {
 export default function GlucoseLogScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B2: tokens del tema (oscuro idéntico al de siempre; claro = acero).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
 
   const [value, setValue] = useState('');
   const [context, setContext] = useState('fasting');
@@ -146,7 +151,7 @@ export default function GlucoseLogScreen() {
   const previewStatus = numVal > 0 ? getGlucoseStatus(numVal, context) : null;
 
   return (
-    <Screen keyboard>
+    <Screen keyboard themed>
       <PillarHeader pillar="nutrition" title="Glucosa" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
@@ -160,12 +165,17 @@ export default function GlucoseLogScreen() {
               onChangeText={setValue}
               keyboardType="number-pad"
               placeholder="95"
-              placeholderTextColor="rgba(255,255,255,0.2)"
+              placeholderTextColor={t.sinDatos}
               maxLength={3}
             />
             {previewStatus && (
-              <View style={[s.statusBadge, { backgroundColor: `${previewStatus.color}20`, borderColor: `${previewStatus.color}40` }]}>
-                <EliteText style={[s.statusText, { color: previewStatus.color }]}>{previewStatus.label}</EliteText>
+              /* Manual 3.9: en claro el semáforo es RELLENO con negro encima
+                 (el lima/ámbar como letra sobre acero no se leen); en oscuro
+                 sigue el tinte translúcido de siempre. */
+              <View style={[s.statusBadge, t.kind === 'dark'
+                ? { backgroundColor: `${previewStatus.color}20`, borderColor: `${previewStatus.color}40` }
+                : { backgroundColor: previewStatus.color, borderColor: previewStatus.color }]}>
+                <EliteText style={[s.statusText, { color: t.kind === 'dark' ? previewStatus.color : TEXT_COLORS.onAccent }]}>{previewStatus.label}</EliteText>
               </View>
             )}
           </View>
@@ -181,7 +191,7 @@ export default function GlucoseLogScreen() {
                 onPress={() => { haptic.light(); setContext(c.id); }}
                 style={[s.contextPill, context === c.id && s.contextPillActive]}
               >
-                <Ionicons name={c.icon} size={14} color={context === c.id ? '#000' : 'rgba(255,255,255,0.5)'} />
+                <Ionicons name={c.icon} size={14} color={context === c.id ? TEXT_COLORS.onAccent : t.textoSecundario} />
                 <EliteText style={[s.contextText, context === c.id && s.contextTextActive]}>{c.name}</EliteText>
               </AnimatedPressable>
             ))}
@@ -196,7 +206,7 @@ export default function GlucoseLogScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder="Después de tacos..."
-            placeholderTextColor="rgba(255,255,255,0.2)"
+            placeholderTextColor={t.sinDatos}
             multiline
           />
         </Animated.View>
@@ -217,7 +227,8 @@ export default function GlucoseLogScreen() {
                 <View key={log.id} style={s.logRow}>
                   <EliteText style={s.logTime}>{log.time?.substring(0, 5)}</EliteText>
                   <EliteText style={s.logCtx}>{ctxName}</EliteText>
-                  <EliteText style={[s.logValue, { color: st.color }]}>{log.value_mg_dl} mg/dL</EliteText>
+                  {/* En claro el color viaja en el punto (relleno), no en la letra. */}
+                  <EliteText style={[s.logValue, { color: t.kind === 'dark' ? st.color : t.texto }]}>{log.value_mg_dl} mg/dL</EliteText>
                   <View style={[s.logDot, { backgroundColor: st.color }]} />
                 </View>
               );
@@ -267,11 +278,13 @@ export default function GlucoseLogScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema (patrón buildVariants de
+// EliteText). En oscuro los valores compuestos quedan como siempre.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
 
   card: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: t.hundido,
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
@@ -280,37 +293,37 @@ const s = StyleSheet.create({
   trendRow: {
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: t.borde,
   },
   trendLabel: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
-    color: 'rgba(255,255,255,0.5)',
+    color: t.textoSecundario,
     letterSpacing: 2,
   },
   trendValue: {
     fontSize: FontSizes.xl,
     fontFamily: Fonts.bold,
-    color: '#fff',
+    color: t.texto,
     marginTop: 2,
   },
   trendMeta: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,
-    color: 'rgba(255,255,255,0.45)',
+    color: t.textoSecundario,
     marginTop: 1,
   },
   cgmSoon: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,
-    color: 'rgba(255,255,255,0.35)',
+    color: t.textoTenue,
     marginTop: Spacing.xs,
     textAlign: 'center',
   },
   label: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
-    color: 'rgba(255,255,255,0.5)',
+    color: t.textoSecundario,
     letterSpacing: 2,
     marginBottom: Spacing.sm,
   },
@@ -323,7 +336,7 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 48,
     fontFamily: Fonts.extraBold,
-    color: '#fff',
+    color: t.texto,
     textAlign: 'center',
     paddingVertical: Spacing.sm,
   },
@@ -351,9 +364,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: Radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    // Vidrio del kit (Card glass): translúcido claro sobre acero.
+    backgroundColor: t.kind === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.55)',
     borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: t.kind === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,21,24,0.08)',
   },
   contextPillActive: {
     backgroundColor: '#fb923c',
@@ -362,12 +376,12 @@ const s = StyleSheet.create({
   contextText: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
-    color: 'rgba(255,255,255,0.5)',
+    color: t.textoSecundario,
   },
-  contextTextActive: { color: '#000' },
+  contextTextActive: { color: TEXT_COLORS.onAccent },
 
   notesInput: {
-    color: '#fff',
+    color: t.texto,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.md,
     minHeight: 48,
@@ -384,7 +398,7 @@ const s = StyleSheet.create({
   saveBtnText: {
     fontSize: FontSizes.md,
     fontFamily: Fonts.bold,
-    color: '#000',
+    color: TEXT_COLORS.onAccent,
     letterSpacing: 2,
   },
 
@@ -394,18 +408,18 @@ const s = StyleSheet.create({
     gap: 10,
     paddingVertical: 10,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: t.borde,
   },
   logTime: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.semiBold,
-    color: 'rgba(255,255,255,0.4)',
+    color: t.textoTenue,
     width: 40,
   },
   logCtx: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,
-    color: 'rgba(255,255,255,0.5)',
+    color: t.textoSecundario,
     flex: 1,
   },
   logValue: {
