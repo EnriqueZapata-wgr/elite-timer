@@ -322,10 +322,24 @@ async function detectEffectiveTier(supabase: any, userId: string): Promise<strin
   if (cached && cached.expiresAt > Date.now()) return cached.effectiveTier;
 
   try {
-    // 1) Read profiles.tier
-    const { data: profile } = await supabase
-      .from("profiles").select("tier").eq("id", userId).maybeSingle();
-    const baseTier = profile?.tier ?? "free";
+    // 1) ECO-6: MISMO árbitro que el cliente. get_effective_tier (mig 262)
+    // resuelve tier_grants + profiles honrando tier_expires_at — el proxy
+    // deja de leer profiles.tier crudo (antes un tier vencido seguía siendo
+    // pro aquí, y un pro por grant era free).
+    let baseTier = "free";
+    const { data: resolved, error: tierErr } = await supabase
+      .rpc("get_effective_tier", { p_user_id: userId });
+    if (!tierErr && resolved && typeof resolved === "object" && typeof resolved.tier === "string") {
+      baseTier = resolved.tier;
+    } else {
+      if (tierErr) console.error("get_effective_tier rpc error (fallback a profiles):", tierErr);
+      // Fallback (RPC aún no en el remoto): profiles, pero HONRANDO expiry.
+      const { data: profile } = await supabase
+        .from("profiles").select("tier, tier_expires_at").eq("id", userId).maybeSingle();
+      const expired = profile?.tier_expires_at &&
+        new Date(profile.tier_expires_at).getTime() <= Date.now();
+      baseTier = expired ? "free" : (profile?.tier ?? "free");
+    }
 
     // 2) Check boost H+ activo (task #133 + MAGIA 2.0 T5)
     // T5: el boost también aplica a tier free — antes solo se consultaba para
@@ -356,15 +370,28 @@ async function checkAndIncrementUsage(supabase: any, userId: string | undefined,
   const limit = TIER_DAILY_LIMITS[effectiveTier] ?? HARD_CAP_DAILY;
   if (!userId) return { blocked: false, count: 0, limit };
   try {
-    const { data, error } = await supabase.rpc("increment_argos_usage", { p_user_id: userId });
-    if (error) {
-      console.error("increment_argos_usage error:", error);
+    // ECO-2: el contador SOLO cuenta acciones servidas. consume_argos_usage
+    // (mig 262) bloquea SIN incrementar cuando count >= limit — antes cada
+    // intento bloqueado sumaba, y quien insistió 200 veces compraba boost y
+    // seguía bloqueado (200 > 150).
+    const { data, error } = await supabase.rpc("consume_argos_usage", {
+      p_user_id: userId, p_limit: limit,
+    });
+    if (!error && data && typeof data === "object") {
+      return { blocked: data.blocked === true, count: Number(data.count ?? 0), limit };
+    }
+    if (error) console.error("consume_argos_usage error (fallback legacy):", error);
+    // Fallback (RPC aún no en el remoto): comportamiento legacy incrementa-y-checa.
+    const { data: legacy, error: legacyErr } = await supabase
+      .rpc("increment_argos_usage", { p_user_id: userId });
+    if (legacyErr) {
+      console.error("increment_argos_usage error:", legacyErr);
       return { blocked: false, count: 0, limit }; // fail-open
     }
-    const count = typeof data === "number" ? data : 0;
+    const count = typeof legacy === "number" ? legacy : 0;
     return { blocked: count > limit, count, limit };
   } catch (e) {
-    console.error("increment_argos_usage exception:", e);
+    console.error("consume_argos_usage exception:", e);
     return { blocked: false, count: 0, limit };
   }
 }
@@ -405,6 +432,16 @@ serve(async (req) => {
 
   try {
     body = await req.json();
+
+    // ─── ECO-3: invalidar tierCache por userId (el cliente lo llama tras
+    // activate_pro_boost). Best-effort: con varios isolates solo se limpia el
+    // que atiende este request; el TTL de 30s es el backstop. Inofensivo si
+    // alguien lo abusa: solo fuerza una lectura fresca de DB. ───
+    if (body.action === "invalidate_tier_cache") {
+      if (typeof body.userId === "string" && body.userId) tierCache.delete(body.userId);
+      return new Response(JSON.stringify({ ok: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // ─── Capa 5 (Files API): subir un archivo a Anthropic y devolver file_id ───
     // El cliente lo cachea en lab_uploads.anthropic_file_id y lo referencia en mensajes.
@@ -478,6 +515,33 @@ serve(async (req) => {
     // El clientTier es informativo — el server es la fuente de verdad.
     const effectiveTier = userId ? await detectEffectiveTier(supabase, userId) : (clientTier ?? "free");
 
+    // ─── ECO-8: insight SOLO Pro/Clínico o boost activo (decisión 5b 12-ago-2026).
+    // Sin cobro, sin contar contra el límite diario, sin LLM. El cliente nuevo ni
+    // dispara la llamada (canReceiveArgosInsights); esto ataja bundles viejos.
+    // effectiveTier ya es 'pro' para boosteados (detectEffectiveTier). ───
+    if (requestType === "insight" && effectiveTier !== "pro" && effectiveTier !== "clinician") {
+      await logArgosCall(supabase, {
+        user_id: userId,
+        tier: effectiveTier,
+        provider: "anthropic",
+        model: finalModel,
+        request_type: requestType,
+        latency_ms: Date.now() - startTime,
+        success: false,
+        error_message: `insight_gated:tier=${effectiveTier}`,
+        target_user_id: targetUserId ?? null,
+        target_profile_id: targetProfileId ?? null,
+      });
+      return new Response(JSON.stringify({
+        content: [{
+          type: "text",
+          text: "Los insights diarios de ARGOS son parte de ATP Pro. Activa Pro o enciende un Boost con tus H+ para recibir el tuyo.",
+        }],
+        model: finalModel,
+        _insight_gated: true,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Circuit breaker per tier (server-side)
     const usage = await checkAndIncrementUsage(supabase, userId, effectiveTier);
     if (usage.blocked) {
@@ -500,9 +564,10 @@ serve(async (req) => {
       // top-level `error` NO se usa aquí — callAnthropic legacy lanza al verlo
       // y degradaría el mensaje en apps sin OTA).
       // COPY tentativo — revisar con Enrique post-sprint.
+      // ECO-1: el boost NO es "sin límite" — sube el tope al de Pro (150/día).
       const canBoost = effectiveTier === "free" || effectiveTier === "base";
       const upgradeMsg = canBoost
-        ? `Llegaste al máximo de hoy (${usage.limit}/${usage.limit}). Activa Boost Pro por 500 H+ para 24h sin límite. O espera hasta mañana.`
+        ? `Llegaste al máximo de hoy (${usage.limit}/${usage.limit}). Activa Boost Pro por 500 H+ y sube tu límite a 150 al día por 24h. O espera hasta mañana.`
         : `Alcanzaste el límite (${usage.limit}/día). Se renueva mañana.`;
       const resetsAt = new Date(new Date().setUTCHours(24, 0, 0, 0)).toISOString();
       return new Response(JSON.stringify({
