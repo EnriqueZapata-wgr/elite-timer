@@ -130,8 +130,22 @@ export async function redeemActivationCode(code: string): Promise<RedeemCodeResu
 }
 
 /**
+ * ECO-8: ¿el usuario recibe insights de ARGOS? Doctrina 5b (12-ago-2026):
+ * el insight es SOLO para Pro/Clínico o con boost activo. El proxy tiene el
+ * mismo gate server-side; este check evita el roundtrip ("ahorro doble").
+ */
+export async function canReceiveArgosInsights(userId: string): Promise<boolean> {
+  const [tier, boost] = await Promise.all([
+    fetchEffectiveTier(userId),
+    fetchActiveBoost(userId),
+  ]);
+  return tier === 'pro' || tier === 'clinician' || boost.active;
+}
+
+/**
  * Activa el Boost Pro 24h descontando H+ (RPC atómico, rate limit 3/semana).
- * Errores posibles: rate_limit_exceeded · already_active · insufficient_h_plus.
+ * Errores posibles: rate_limit_exceeded · already_active · insufficient_h_plus
+ * · tier_already_pro (ECO-1: el boost no aplica a Pro/Clínico).
  */
 export async function activateProBoost(
   userId: string,
@@ -147,8 +161,15 @@ export async function activateProBoost(
     return { success: false, hPlusRemaining: 0, expiresAt: null, error: error.message };
   }
   const result = (data ?? {}) as Record<string, unknown>;
+  const success = result.success === true;
+  if (success) {
+    // ECO-3: sin esto el proxy sigue viendo el tier viejo hasta 30s+ y el
+    // usuario reintenta contra un límite que ya pagó por subir.
+    const { invalidateProxyTierCache } = await import('../anthropic-client');
+    void invalidateProxyTierCache(userId);
+  }
   return {
-    success: result.success === true,
+    success,
     hPlusRemaining: Number(result.h_plus_remaining ?? result.current ?? 0),
     expiresAt: typeof result.expires_at === 'string' ? new Date(result.expires_at) : null,
     error: typeof result.error === 'string' ? result.error : undefined,

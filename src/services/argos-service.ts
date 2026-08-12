@@ -1438,6 +1438,14 @@ export async function* generateResponseStream(
 // === INSIGHT DIARIO ===
 
 export async function generateDailyInsight(userId: string): Promise<string> {
+  // ECO-8: el insight diario es SOLO Pro/Clínico o boost activo (decisión
+  // 5b, 12-ago-2026). El cliente ni dispara la llamada para otros tiers; el
+  // proxy tiene el mismo gate server-side por si un bundle viejo la manda.
+  try {
+    const { canReceiveArgosInsights } = await import('./subscription/subscription-service');
+    if (!(await canReceiveArgosInsights(userId))) return '';
+  } catch { return ''; }
+
   const context = await loadUserContext(userId);
   const contextPrompt = buildContextPrompt(context);
   // ARG-1/ARG-8: mismo guard que chatWithArgos — el insight diario también
@@ -1471,6 +1479,9 @@ No uses emojis. No saludes. Ve directo al insight.${cycleGuard}${protocolGuard}$
       insightSystem,
       meta,
     );
+    // ECO-8: si el proxy gateó el insight (tier sin derecho), su texto es un
+    // CTA — NO cachearlo como insight del día.
+    if ((data as any)?._insight_gated) return '';
     return extractResponseText(data);
   } catch (e) {
     console.warn('ARGOS insight error:', e);

@@ -219,6 +219,26 @@ export async function* callAnthropicStream(
 }
 
 /**
+ * ECO-3: invalida el tierCache in-memory del proxy para este user (action
+ * 'invalidate_tier_cache'). Se llama tras activar un boost — sin esto el
+ * proxy tarda hasta 30s+ en enterarse y sigue aplicando el límite viejo.
+ * Best-effort: si hay varios isolates solo se invalida el que atiende este
+ * request; el TTL de 30s sigue siendo el backstop. Nunca lanza.
+ */
+export async function invalidateProxyTierCache(userId: string): Promise<void> {
+  try {
+    await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ action: 'invalidate_tier_cache', userId }),
+    });
+  } catch { /* best-effort — el TTL del cache resuelve solo */ }
+}
+
+/**
  * Capa 5 (Files API) — sube un archivo a Anthropic vía el proxy (action 'upload_file') y
  * devuelve el file_id. Lanza si el proxy/endpoint no responde OK; el caller hace fallback a
  * base64. NO usa la API key en cliente (la maneja el edge function).

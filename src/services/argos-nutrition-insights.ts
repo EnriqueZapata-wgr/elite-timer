@@ -63,6 +63,11 @@ export async function maybeGeneratePostMealInsight(
     const prev = await getTodayInsight();
     if (!shouldGenerateInsight({ enabled, lastGeneratedAt: prev?.at ?? null, now: Date.now() })) return;
 
+    // ECO-8: requestType 'insight' es SOLO Pro/Clínico o boost activo — mismo
+    // gate que el proxy; aquí se evita el roundtrip.
+    const { canReceiveArgosInsights } = await import('./subscription/subscription-service');
+    if (!(await canReceiveArgosInsights(userId))) return;
+
     const today = getLocalToday();
     const [foodRes, scoreRes, weightRes] = await Promise.all([
       supabase.from('food_logs').select('protein_g').eq('user_id', userId).eq('date', today),
@@ -91,6 +96,8 @@ export async function maybeGeneratePostMealInsight(
       prompt.system,
       meta,
     );
+    // ECO-8: respuesta gateada por el proxy = CTA, no insight — no cachear.
+    if ((data as any)?._insight_gated) return;
     const text = sanitizeInsightText(extractResponseText(data));
     if (!text) return;
 
