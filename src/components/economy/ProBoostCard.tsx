@@ -110,7 +110,8 @@ export function ProBoostCard() {
     }
     Alert.alert(
       'Activar Boost Pro',
-      `Usarás ${formatFull(PRO_BOOST_COST_H_PLUS)} H+ · Te quedarán ${formatFull(balance - PRO_BOOST_COST_H_PLUS)} H+.\n\n24 horas de ARGOS Pro sin límites.`,
+      // ECO-1: honestidad — el boost sube el tope diario al de Pro, no es "sin límites".
+      `Usarás ${formatFull(PRO_BOOST_COST_H_PLUS)} H+ · Te quedarán ${formatFull(balance - PRO_BOOST_COST_H_PLUS)} H+.\n\n24 horas de ARGOS Pro: 150 consultas al día (6x más que Base).`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Activar', onPress: doActivate },

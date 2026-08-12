@@ -90,7 +90,8 @@ export function RateLimitCard({ info, onBoostActivated }: Props) {
         </View>
         <View style={s.body}>
           <EliteText style={s.titleActive}>Boost Pro activo</EliteText>
-          <EliteText style={s.sub}>24 horas sin límite. Reenvía tu pregunta.</EliteText>
+          {/* ECO-1: el boost NO es "sin límite" — sube el tope al de Pro (150/día). */}
+          <EliteText style={s.sub}>24 horas con límite Pro: 150 consultas al día. Reenvía tu pregunta.</EliteText>
         </View>
       </Animated.View>
     );

@@ -10,7 +10,7 @@
  *  - Sesiones (P2): abrir en frío = en blanco; mismo proceso = retoma.
  */
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { View, FlatList, KeyboardAvoidingView, Platform, AppState } from 'react-native';
+import { Alert, View, FlatList, KeyboardAvoidingView, Platform, AppState } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -339,6 +339,22 @@ function ArgosChat() {
           setMessages(resolved.messages);
           const info = run.info ?? parseRateLimitInfo(run.payload);
           if (info) setRateLimit(info);
+          break;
+        }
+        case 'insufficient_protons': {
+          // ECO-1: bloqueo por SALDO, no por límite diario. El remedio es
+          // recargar H+ en la tienda — el boost NO aplica (sube el tope, no
+          // regala H+) y por eso aquí jamás se ofrece.
+          resolved = resolveTurn(base, userTurn, { kind: 'insufficient_protons' }, Date.now());
+          setMessages(resolved.messages);
+          Alert.alert(
+            'Te quedaste sin H+',
+            'Esta consulta necesita más H+ de los que tienes. Recarga en la tienda o convierte tus E-.',
+            [
+              { text: 'Ahora no', style: 'cancel' },
+              { text: 'Recargar H+', onPress: () => router.push('/economy/shop') },
+            ],
+          );
           break;
         }
         case 'client_error':

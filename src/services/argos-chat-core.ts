@@ -17,6 +17,11 @@ export const TIMESTAMP_GAP_MS = 5 * 60 * 1000;
 /** Copy aprobado por Mariana (doc 06, errores ARGOS >> "se cayó la red"). */
 export const CLIENT_ERROR_COPY = 'Se me fue la señal. Reintenta en unos minutos.';
 
+/** ECO-1: bloqueo por SALDO (402), no por límite diario. El remedio es
+ *  recargar H+, nunca el boost (el boost sube el tope diario, no regala H+). */
+export const INSUFFICIENT_HPLUS_COPY =
+  'Te quedaste sin H+ para esta consulta. Recarga en la tienda o convierte tus E- y reenvía tu pregunta.';
+
 /**
  * ARG-1/ARG-8: lo que viaja al LLM. Un turno degradado (rate-limited, ambos
  * providers caídos, error de cliente) NO vuelve a entrar al contexto del
@@ -64,6 +69,9 @@ export type TurnOutcome =
   /** Rate limit: el turno del usuario queda visible pero degradado; la
    *  RateLimitCard (boost H+) reemplaza a la burbuja de respuesta. */
   | { kind: 'rate_limited' }
+  /** ECO-1: 402 del proxy (saldo H+ insuficiente). Degradado con copy propio;
+   *  la pantalla ofrece CTA a la tienda — NUNCA el boost. */
+  | { kind: 'insufficient_protons' }
   /** Excepción real del cliente: ambos turnos degradados + copy aprobado. */
   | { kind: 'client_error' };
 
@@ -111,6 +119,15 @@ export function resolveTurn(
         messages: [...base, { ...userTurn, degraded: true }],
         wasDegraded: true,
       };
+    case 'insufficient_protons':
+      return {
+        messages: [
+          ...base,
+          { ...userTurn, degraded: true },
+          { role: 'assistant', content: INSUFFICIENT_HPLUS_COPY, degraded: true, ts: nowMs },
+        ],
+        wasDegraded: true,
+      };
     case 'client_error':
       return {
         messages: [
@@ -141,7 +158,19 @@ export type TurnRun =
   | { kind: 'reply'; text: string; degraded: boolean }
   /** info si vino parseada del no-stream; payload crudo si el stream lanzó. */
   | { kind: 'rate_limited'; info?: RateLimitInfo | null; payload?: unknown }
+  | { kind: 'insufficient_protons' }
   | { kind: 'client_error'; error: unknown };
+
+/**
+ * ECO-1: ¿la excepción es el 402 'insufficient_protons' del proxy?
+ * El no-stream lanza Error('Proxy error 402: {"error":{"type":"insufficient_protons"...}}');
+ * el stream lanza ArgosStreamUnavailableError('proxy_402: ...'). Ambos casos
+ * traen la marca en el message — se detecta por texto, sin tocar los clientes.
+ */
+export function isInsufficientProtonsError(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e ?? '');
+  return msg.includes('insufficient_protons') || msg.includes('Proxy error 402') || msg.includes('proxy_402');
+}
 
 /**
  * T2: orquesta el turno — primero STREAMING; si el stream "no está
@@ -166,6 +195,9 @@ export async function runTurnWithFallback(deps: {
     return { kind: 'reply', text: result.text, degraded: result.degraded };
   } catch (e) {
     if (e instanceof ArgosRateLimitError) return { kind: 'rate_limited', payload: e.payload };
+    // ECO-1: el bloqueo por saldo NO es un error de red ni un rate limit — la
+    // pantalla ofrece recargar H+ (tienda), jamás el boost.
+    if (isInsufficientProtonsError(e)) return { kind: 'insufficient_protons' };
     return { kind: 'client_error', error: e };
   }
 }

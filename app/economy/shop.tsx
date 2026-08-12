@@ -27,6 +27,7 @@ import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
+import { useSubscription } from '@/src/hooks/useSubscription';
 import { haptic } from '@/src/utils/haptics';
 import { playReveal } from '@/src/components/edad-atp/edad-sound';
 import { getProtonBalance } from '@/src/services/economy/proton-service';
@@ -65,18 +66,19 @@ interface BoostItem {
   badge?: string;
 }
 
+// ECO-1: copy honesto — el boost sube el tope diario al de Pro (150/día), no es "sin límites".
 const BOOSTS: BoostItem[] = [
   {
     key: 'boost_24h',
     title: 'Boost Pro · 24 horas',
-    poetic: 'Un día entero con ARGOS a máxima potencia. Sin límites, sin freno.',
+    poetic: 'Un día entero con ARGOS a máxima potencia: 150 consultas al día (6x más que Base).',
     cost: PRO_BOOST_COST_H_PLUS,
     durationHours: PRO_BOOST_DURATION_HOURS,
   },
   {
     key: 'boost_weekly',
     title: 'Boost Pro · Semanal',
-    poetic: 'Siete días de acceso completo. Para las semanas que importan.',
+    poetic: 'Siete días con el límite Pro: 150 consultas al día. Para las semanas que importan.',
     cost: PRO_BOOST_WEEKLY_COST_H_PLUS,
     durationHours: PRO_BOOST_WEEKLY_DURATION_HOURS,
     badge: 'NUEVO',
@@ -85,6 +87,10 @@ const BOOSTS: BoostItem[] = [
 
 export default function ShopScreen() {
   const { user } = useAuth();
+  // ECO-1 (caso Pato): el boost eleva el tier efectivo a Pro — a quien YA es
+  // Pro/Clínico no le da NADA. La tienda no se lo vende.
+  const { tier } = useSubscription();
+  const boostsApply = tier !== 'pro' && tier !== 'clinician';
   const { kind, tokens: t } = useAppTheme();
   const secTxt = { color: t.textoSecundario };
   const [hPlus, setHPlus] = useState<number | null>(null);
@@ -223,6 +229,9 @@ export default function ShopScreen() {
     haptic.warning();
     if (result.error === 'already_active') {
       Alert.alert('Boost activo', 'Ya tienes un boost corriendo. Déjalo terminar antes de encender otro.');
+    } else if (result.error === 'tier_already_pro') {
+      // ECO-1: guard server-side — el boost no aplica a Pro/Clínico.
+      Alert.alert('Ya tienes ARGOS Pro', 'Tu plan ya incluye el límite Pro completo. El boost no te daría nada extra.');
     } else if (result.error === 'rate_limit_exceeded') {
       Alert.alert('Límite semanal', result.message ?? 'Máximo 3 boosts por semana. Considera ATP Pro.');
     } else if (result.error === 'insufficient_h_plus') {
@@ -253,9 +262,9 @@ export default function ShopScreen() {
           )}
         </Animated.View>
 
-        {/* ── BOOSTS ── */}
-        <SectionKicker delay={80} label="BOOSTS" />
-        {BOOSTS.map((item, i) => (
+        {/* ── BOOSTS ── (ocultos para Pro/Clínico: no les aportan nada) */}
+        {boostsApply && <SectionKicker delay={80} label="BOOSTS" />}
+        {boostsApply && BOOSTS.map((item, i) => (
           <Animated.View key={item.key} entering={FadeInDown.delay(120 + i * 70).springify()}>
             <AnimatedPressable onPress={() => onBoostPress(item)} style={[styles.galleryCard, { backgroundColor: t.card, borderColor: t.borde }]}>
               <View style={styles.galleryHeader}>

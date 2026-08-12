@@ -7,6 +7,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   TIMESTAMP_GAP_MS,
   CLIENT_ERROR_COPY,
+  INSUFFICIENT_HPLUS_COPY,
   filterForLLM,
   filterForSave,
   resolveTurn,
@@ -14,6 +15,7 @@ import {
   buildChatListItems,
   createSendGuard,
   runTurnWithFallback,
+  isInsufficientProtonsError,
 } from '@/src/services/argos-chat-core';
 import { ArgosRateLimitError } from '@/src/services/argos-stream-core';
 import type { RateLimitInfo } from '@/src/services/argos-rate-limit-core';
@@ -227,5 +229,43 @@ describe('runTurnWithFallback — la caída de streaming a no-streaming (T2/T5)'
       reply: async () => { throw boom; },
     });
     expect(run).toEqual({ kind: 'client_error', error: boom });
+  });
+
+  it('ECO-1: 402 del proxy (saldo) → insufficient_protons, no client_error', async () => {
+    const run = await runTurnWithFallback({
+      stream: async () => null,
+      reply: async () => {
+        throw new Error('Proxy error 402: {"error":{"type":"insufficient_protons"}}');
+      },
+    });
+    expect(run).toEqual({ kind: 'insufficient_protons' });
+  });
+});
+
+describe('ECO-1 — bloqueo por saldo (402) vs bloqueo por límite', () => {
+  it('detecta las tres formas del 402 (no-stream, stream, tipo del server)', () => {
+    expect(isInsufficientProtonsError(new Error('Proxy error 402: {...}'))).toBe(true);
+    expect(isInsufficientProtonsError(new Error('proxy_402: insuficiente'))).toBe(true);
+    expect(isInsufficientProtonsError(new Error('x insufficient_protons y'))).toBe(true);
+  });
+
+  it('NO confunde errores de red ni rate limits con falta de saldo', () => {
+    expect(isInsufficientProtonsError(new Error('red rota'))).toBe(false);
+    expect(isInsufficientProtonsError(new Error('Proxy error 500: kaput'))).toBe(false);
+    expect(isInsufficientProtonsError(null)).toBe(false);
+  });
+
+  it('resolveTurn: insufficient_protons degrada ambos turnos con su copy propio (sin boost)', () => {
+    const { messages, wasDegraded } = resolveTurn(
+      [], user('hola'), { kind: 'insufficient_protons' }, NOW,
+    );
+    expect(wasDegraded).toBe(true);
+    expect(messages).toHaveLength(2);
+    expect(messages[0]).toMatchObject({ role: 'user', degraded: true });
+    expect(messages[1]).toMatchObject({
+      role: 'assistant', degraded: true, content: INSUFFICIENT_HPLUS_COPY,
+    });
+    // El remedio del copy es la tienda/conversión — jamás menciona el boost.
+    expect(INSUFFICIENT_HPLUS_COPY.toLowerCase()).not.toContain('boost');
   });
 });
