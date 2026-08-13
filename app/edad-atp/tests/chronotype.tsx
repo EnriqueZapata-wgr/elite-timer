@@ -1,6 +1,3 @@
-/**
- * T1 — Test de Cronotipos en la sección Tests.
- * Re-exporta el quiz existente (app/quiz/chronotype.tsx) para NO duplicar lógica:
- * la ruta /edad-atp/tests/chronotype renderiza exactamente el mismo componente.
- */
-export { default } from '@/app/quiz/chronotype';
+/** T1 Cronotipo — el quiz vive en /quiz/chronotype; redirect en vez de re-export (OLA0 QW-6). */
+import { Redirect } from 'expo-router';
+export default function ChronotypeTestRedirect() { return <Redirect href="/quiz/chronotype" />; }

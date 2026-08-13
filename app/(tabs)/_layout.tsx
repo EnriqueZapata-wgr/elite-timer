@@ -209,10 +209,6 @@ export default function TabLayout() {
             Su contenido se repartió; los archivos se quedan para no romper
             deep links. Ver el encabezado de este archivo. */}
         <Tabs.Screen
-          name="yo"
-          options={{ href: null }}
-        />
-        <Tabs.Screen
           name="biblioteca"
           options={{ href: null }}
         />

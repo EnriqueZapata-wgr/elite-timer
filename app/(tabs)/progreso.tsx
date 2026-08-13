@@ -1,6 +1,3 @@
-/**
- * Tab Progreso — muestra la pantalla fusionada de Fuerza (benchmarks + PRs,
- * MB-3.6 Bloque 1.1). Antes re-exportaba personal-records (hoy redirect).
- */
-import FitnessStrengthScreen from '../fitness-strength';
-export default FitnessStrengthScreen;
+/** Tab vieja Progreso — redirect para deep links externos (OLA0 QW-6). */
+import { Redirect } from 'expo-router';
+export default function ProgresoRedirect() { return <Redirect href="/fitness-strength" />; }

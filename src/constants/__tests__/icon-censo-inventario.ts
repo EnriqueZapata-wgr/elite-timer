@@ -20,11 +20,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/(tabs)/index.tsx::checkbox-outline',
   // MB-26 P4: CTA quiet "Ordenar mi día" — chip de acción, no lanzador.
   'app/(tabs)/index.tsx::sparkles-outline',
-  'app/(tabs)/yo.tsx::leaf-outline',
-  'app/(tabs)/yo.tsx::moon-outline',
-  'app/(tabs)/yo.tsx::sunny-outline',
-  'app/(tabs)/yo.tsx::water-outline',
-  'app/admin/reports.tsx::eye-outline',
   'app/agenda.tsx::calendar-outline',
   // MB-21 P3: "Que ARGOS proponga uno" (renombrar) — chip de acción, no lanzador.
   'app/argos/conversations.tsx::sparkles-outline',
@@ -182,7 +177,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/reports.tsx::restaurant-outline',
   'app/reports.tsx::timer-outline',
   'app/reports.tsx::water-outline',
-  'app/reset-password.tsx::eye-outline',
   'app/routine-generator.tsx::hourglass-outline',
   'app/salud/intervenciones/index.tsx::sparkles-outline',
   'app/salud/mi-expediente/index.tsx::document-text-outline',
