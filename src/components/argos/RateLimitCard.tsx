@@ -66,7 +66,8 @@ export function RateLimitCard({ info, onBoostActivated }: Props) {
     } else if (result.error === 'rate_limit_exceeded') {
       Alert.alert(
         'Límite semanal de boosts',
-        result.message ?? 'Máximo 3 boosts por semana. Considera ATP Pro para acceso ilimitado.',
+        // ECO-1: Pro tampoco es "ilimitado" — es 150 consultas al día.
+        result.message ?? 'Máximo 3 boosts por semana. Considera ATP Pro: 150 consultas al día, todos los días.',
         [
           { text: 'Entendido', style: 'cancel' },
           { text: 'Ver ATP Pro', onPress: () => router.push('/paywall') },

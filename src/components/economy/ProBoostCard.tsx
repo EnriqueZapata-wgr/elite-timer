@@ -80,7 +80,8 @@ export function ProBoostCard() {
     } else if (result.error === 'rate_limit_exceeded') {
       Alert.alert(
         'Límite semanal',
-        result.message ?? 'Máximo 3 boosts por semana. Considera ATP Pro para acceso ilimitado.',
+        // ECO-1: Pro tampoco es "ilimitado" — es 150 consultas al día.
+        result.message ?? 'Máximo 3 boosts por semana. Considera ATP Pro: 150 consultas al día, todos los días.',
         [
           { text: 'Entendido', style: 'cancel' },
           { text: 'Ver ATP Pro', onPress: () => router.push('/paywall') },
@@ -120,6 +121,11 @@ export function ProBoostCard() {
   }
 
   if (isLoading) return null;
+
+  // ECO-1 (audit, caso Pato exacto): a un Pro/Clínico esta card no le habla —
+  // ni promo ni countdown. Un pro con boost accidental no debe ver "ARGOS Pro
+  // activo · Xh restantes" como si el boost le estuviera dando algo.
+  if (tier === 'pro' || tier === 'clinician') return null;
 
   // ── Boost activo: countdown ──
   if (boost.active && boost.expiresAt) {

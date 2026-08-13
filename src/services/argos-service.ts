@@ -19,6 +19,7 @@ import { generateUUID } from '@/src/utils/uuid';
 import { buildPersonalityInjection, buildTimeContextInjection } from './argos-personality';
 import { buildScreenContextInjection, type ArgosScreen } from '@/src/hooks/argos-screen-context-core';
 import { parseRateLimitInfo, type RateLimitInfo } from './argos-rate-limit-core';
+import { chatFailureOutcome } from './argos-chat-core';
 import { buildHistoryWindow } from './argos-history-core';
 import {
   buildContextPrompt, canLoadRichContext,
@@ -1295,18 +1296,14 @@ export async function chatWithArgosEx(
       { ...meta, dynamicSystem },
     );
   } catch (e: any) {
-    if (e?.message === 'ARGOS_TIMEOUT') {
-      return {
-        text: 'ARGOS está tardando más de lo normal, intenta de nuevo en un momento.',
-        degraded: true,
-      };
-    }
-    console.warn('ARGOS chat error:', e);
-    // Copy aprobado por Mariana (doc 06, errores ARGOS >> "se cayó la red").
-    return {
-      text: 'Se me fue la señal. Reintenta en unos minutos.',
-      degraded: true,
-    };
+    // ECO-1 (audit Cowork): la decisión vive en argos-chat-core (pura, con
+    // tests). Bloqueos con UI propia (402 de saldo, rate limit) se PROPAGAN
+    // al turno — este catch se los tragaba como "Se me fue la señal" y el
+    // case 'insufficient_protons' del chat era código muerto.
+    const outcome = chatFailureOutcome(e);
+    if (outcome === 'propagate') throw e;
+    if (e?.message !== 'ARGOS_TIMEOUT') console.warn('ARGOS chat error:', e);
+    return outcome;
   }
 
   // ARG-3: el Edge Function marca con `_rate_limited` (circuit breaker diario)

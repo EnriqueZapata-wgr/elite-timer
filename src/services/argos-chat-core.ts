@@ -172,6 +172,24 @@ export function isInsufficientProtonsError(e: unknown): boolean {
   return msg.includes('insufficient_protons') || msg.includes('Proxy error 402') || msg.includes('proxy_402');
 }
 
+/** Copy del timeout (chatWithArgosEx) — vive junto a la decisión del catch. */
+export const TIMEOUT_COPY = 'ARGOS está tardando más de lo normal, intenta de nuevo en un momento.';
+
+/**
+ * ECO-1 (audit Cowork): la decisión del catch de chatWithArgosEx. Los
+ * bloqueos que tienen UI propia NO se degradan a burbuja genérica — se
+ * PROPAGAN para que runTurnWithFallback los clasifique (402 saldo → CTA
+ * tienda; rate limit → RateLimitCard). El catch original se los tragaba y
+ * el case 'insufficient_protons' del chat era código muerto.
+ */
+export function chatFailureOutcome(e: unknown): { text: string; degraded: true } | 'propagate' {
+  if (e instanceof ArgosRateLimitError || isInsufficientProtonsError(e)) return 'propagate';
+  if ((e as { message?: string } | null)?.message === 'ARGOS_TIMEOUT') {
+    return { text: TIMEOUT_COPY, degraded: true };
+  }
+  return { text: CLIENT_ERROR_COPY, degraded: true };
+}
+
 /**
  * T2: orquesta el turno — primero STREAMING; si el stream "no está
  * disponible" (null), cae al modo no-stream. Vivía inline en la pantalla y la

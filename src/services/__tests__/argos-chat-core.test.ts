@@ -8,6 +8,7 @@ import {
   TIMESTAMP_GAP_MS,
   CLIENT_ERROR_COPY,
   INSUFFICIENT_HPLUS_COPY,
+  TIMEOUT_COPY,
   filterForLLM,
   filterForSave,
   resolveTurn,
@@ -16,6 +17,7 @@ import {
   createSendGuard,
   runTurnWithFallback,
   isInsufficientProtonsError,
+  chatFailureOutcome,
 } from '@/src/services/argos-chat-core';
 import { ArgosRateLimitError } from '@/src/services/argos-stream-core';
 import type { RateLimitInfo } from '@/src/services/argos-rate-limit-core';
@@ -231,14 +233,57 @@ describe('runTurnWithFallback — la caída de streaming a no-streaming (T2/T5)'
     expect(run).toEqual({ kind: 'client_error', error: boom });
   });
 
-  it('ECO-1: 402 del proxy (saldo) → insufficient_protons, no client_error', async () => {
+  // El CAMINO REAL (audit Cowork): callAnthropic lanza → el catch de
+  // chatWithArgosEx decide con chatFailureOutcome (propagar o degradar) →
+  // runTurnWithFallback clasifica lo propagado. Este helper reproduce ese
+  // catch EXACTO — no un throw inyectado que se salte el swallow.
+  const replyThroughRealCatch = (boom: unknown) => async () => {
+    try {
+      throw boom; // callAnthropic falla
+    } catch (e) {
+      const outcome = chatFailureOutcome(e);
+      if (outcome === 'propagate') throw e;
+      return outcome;
+    }
+  };
+
+  it('ECO-1: 402 del proxy ATRAVIESA el catch de chatWithArgosEx → insufficient_protons', async () => {
     const run = await runTurnWithFallback({
       stream: async () => null,
-      reply: async () => {
-        throw new Error('Proxy error 402: {"error":{"type":"insufficient_protons"}}');
-      },
+      reply: replyThroughRealCatch(new Error('Proxy error 402: {"error":{"type":"insufficient_protons"}}')),
     });
     expect(run).toEqual({ kind: 'insufficient_protons' });
+  });
+
+  it('rate limit no-stream ATRAVIESA el catch → rate_limited con payload (antes se degradaba)', async () => {
+    const payload = { _rate_limited: true, rate_limit: { tier: 'base' } };
+    const run = await runTurnWithFallback({
+      stream: async () => null,
+      reply: replyThroughRealCatch(new ArgosRateLimitError(payload)),
+    });
+    expect(run).toMatchObject({ kind: 'rate_limited', payload });
+  });
+
+  it('un error genérico NO se propaga: el catch lo degrada con el copy aprobado', async () => {
+    const run = await runTurnWithFallback({
+      stream: async () => null,
+      reply: replyThroughRealCatch(new Error('red rota')),
+    });
+    expect(run).toEqual({ kind: 'reply', text: CLIENT_ERROR_COPY, degraded: true });
+  });
+});
+
+describe('chatFailureOutcome — la decisión del catch de chatWithArgosEx', () => {
+  it('402 de saldo y rate limit se PROPAGAN (tienen UI propia)', () => {
+    expect(chatFailureOutcome(new Error('Proxy error 402: {...}'))).toBe('propagate');
+    expect(chatFailureOutcome(new Error('proxy_402: x'))).toBe('propagate');
+    expect(chatFailureOutcome(new ArgosRateLimitError({ _rate_limited: true }))).toBe('propagate');
+  });
+
+  it('timeout y errores genéricos se degradan in-place con su copy', () => {
+    expect(chatFailureOutcome(new Error('ARGOS_TIMEOUT'))).toEqual({ text: TIMEOUT_COPY, degraded: true });
+    expect(chatFailureOutcome(new Error('red rota'))).toEqual({ text: CLIENT_ERROR_COPY, degraded: true });
+    expect(chatFailureOutcome(null)).toEqual({ text: CLIENT_ERROR_COPY, degraded: true });
   });
 });
 

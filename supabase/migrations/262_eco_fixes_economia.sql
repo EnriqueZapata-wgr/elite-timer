@@ -17,6 +17,18 @@
 --   ECO-1 · guard server-side en activate_pro_boost: a tier efectivo
 --           Pro/Clínico el boost no le da NADA (caso Pato: pagó 500 H+ por
 --           nada) → 'tier_already_pro', sin cobro.
+--   ECO-7 · catálogo de packs: el seed 087 vendía 10x los H+ de la doctrina
+--           ($0.01/H+). 087 es historia aplicada y NO se toca (regla 12);
+--           la corrección va aquí como UPDATE idempotente. En producción es
+--           no-op (la DB real siempre tuvo los valores correctos, verificado
+--           12-ago-2026); solo repara ambientes sembrados con el 087 malo.
+
+-- ── ECO-7 · catálogo de packs a doctrina ($0.01/H+) ───────────────────────
+-- El guard `AND protons = <valor del seed malo>` hace el UPDATE idempotente y
+-- ciego a producción: solo corrige filas que nacieron del 087 original.
+UPDATE proton_packages SET protons = 10000   WHERE sku = 'h_plus_small'  AND protons = 100000;
+UPDATE proton_packages SET protons = 50000   WHERE sku = 'h_plus_medium' AND protons = 500000;
+UPDATE proton_packages SET protons = 200000  WHERE sku = 'h_plus_large'  AND protons = 2000000;
 
 -- ── ECO-2 · consume_argos_usage ───────────────────────────────────────────
 CREATE OR REPLACE FUNCTION consume_argos_usage(p_user_id uuid, p_limit int)
@@ -161,8 +173,10 @@ BEGIN
   WHERE user_id = p_user_id AND activated_at > NOW() - INTERVAL '7 days';
 
   IF boosts_this_week >= 3 THEN
+    -- ECO-1: Pro tampoco es "ilimitado" — este message gana sobre el
+    -- fallback del cliente, así que la honestidad empieza aquí.
     RETURN jsonb_build_object('success', false, 'error', 'rate_limit_exceeded',
-      'message', 'Máximo 3 boosts por semana. Considera ATP Pro para acceso ilimitado.');
+      'message', 'Máximo 3 boosts por semana. Considera ATP Pro: 150 consultas al día, todos los días.');
   END IF;
 
   IF has_active_pro_boost(p_user_id) THEN
