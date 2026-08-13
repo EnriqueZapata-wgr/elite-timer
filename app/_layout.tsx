@@ -203,12 +203,13 @@ function RootLayout() {
                 <Stack.Screen name="register" options={{ animation: 'fade' }} />
                 <Stack.Screen name="forgot-password" />
                 <Stack.Screen name="reset-password" options={{ animation: 'fade' }} />
-                <Stack.Screen name="timer" />
+                {/* Ola 2 Fitness PR3: /timer era un Stack.Screen fantasma (el
+                    archivo no existe) y /session-summary murió huérfano — su
+                    EFICIENCIA % vive en el cierre del modo timer de /session. */}
                 {/* E-4 (MB-12): programs / create-program / create-routine /
                     standard-programs borradas — duplicaban my-routines/builder
                     con un store AsyncStorage paralelo que nadie leía. */}
 
-                <Stack.Screen name="session-summary" />
                 <Stack.Screen name="execution" options={{ animation: 'fade' }} />
                 <Stack.Screen name="builder" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="settings" options={{ animation: 'slide_from_bottom' }} />

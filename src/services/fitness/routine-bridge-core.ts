@@ -2,12 +2,14 @@
  * Routine Bridge — puente PURO entre el árbol del builder (engine `Routine`)
  * y el runner unificado de fuerza (`strength-session`, MB-3/MB-5). MB-7 Track C.
  *
- * Doctrina: exactamente DOS interfaces de entrenamiento en toda la app.
- *  1. Con clip (`/strength-session`) — SIEMPRE que la rutina traiga ejercicios
- *     con `matrix_slug`, sin importar por dónde se creó.
- *  2. Timer puro (`/execution`) — para rutinas de puro tiempo sin matriz.
- * Mezcla: la sesión corre en `/strength-session` y cada bloque usa lo que le
- * toca — ejercicio de matriz = series con clip; tiempo puro = countdown inline.
+ * Doctrina: exactamente DOS interfaces de entrenamiento en toda la app, y
+ * las dos viven DENTRO del runner unificado `/session` (Ola 2 Fitness;
+ * /execution murió, /strength-session es alias).
+ *  1. Con clip — SIEMPRE que la rutina traiga ejercicios con `matrix_slug`,
+ *     sin importar por dónde se creó.
+ *  2. Timer puro (TimerModeRunner) — para rutinas de puro tiempo sin matriz.
+ * Mezcla: la sesión corre en modo bloques y cada bloque usa lo que le toca —
+ * ejercicio de matriz = series con clip; tiempo puro = countdown inline.
  * El usuario NUNCA sale de la sesión.
  *
  * Reglas de traducción (árbol → bloques de sesión, vía flattenRoutine):

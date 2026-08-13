@@ -7,11 +7,15 @@
     "/legal/aviso": "Cerrada en MB-17: el texto tiene corchetes sin datos fiscales. Se reabre cuando el legal cierre la razón social.",
     "/legal/terminos": "Cerrada en MB-17: el texto tiene corchetes sin datos fiscales. Se reabre cuando el legal cierre la razón social.",
     "/admin/reports": "Detrás del gate de admin. No lleva puerta en la navegación del usuario a propósito.",
-    "/session-summary": "Se llega al terminar un entrenamiento, no desde un menú. La abre el motor de ejecución.",
     "/clinical-system": "DECISIÓN PENDIENTE DE ENRIQUE. 353 líneas vivas (drill-down por sistema funcional: síntomas con severidad, timeline y correlación con labs) que se quedaron sin puerta cuando Mega-Sprint B B6 la absorbió en Salud Funcional. O se borra, o se le abre puerta desde el mapa funcional (tocar un sistema entra a su drill-down). No se decide en un run de carcasa.",
-    "/shared-routine": "Landing de un link compartido de rutina: entra por deep link con el parámetro code. No es un destino de navegación interna.",
+    "/shared-routine": "Redirect legacy (Ola 2 Fitness PR3): landing de links compartidos viejos (?code=X) que reenvía a /my-routines?share=X. Entra solo por deep link.",
     "/strength-session": "Alias permanente de /session (Ola 2 Fitness PR1): re-exporta la misma pantalla para deep links, stashes en vuelo y builds OTA viejos. La puerta viva es /session.",
-    "/fitness-train": "Absorbida por /fitness-hub (Ola 2 Fitness PR2): hero del plan, tira de fase y secundarios viven en el hub. Queda viva solo para deep links y OTA viejos; el PR3 la vuelve redirect.",
-    "/fitness-my": "Absorbida por /fitness-hub (Ola 2 Fitness PR2): sus filas viven en las secciones REGISTRAR / EXPLORAR / MI FITNESS del hub. Queda viva solo para deep links y OTA viejos; el PR3 la vuelve redirect."
+    "/fitness-train": "Redirect legacy (Ola 2 Fitness PR3) a /fitness-hub: la absorbió el hub. Solo deep links y OTA viejos.",
+    "/fitness-my": "Redirect legacy (Ola 2 Fitness PR3) a /fitness-hub: la absorbió el hub. Solo deep links y OTA viejos.",
+    "/fitness-cardio": "Redirect legacy (Ola 2 Fitness PR3) a /log-cardio: la casa única del cardio. Solo deep links y OTA viejos.",
+    "/cardio-import": "Redirect legacy (Ola 2 Fitness PR3) a /log-cardio?fase=importar: el import es fase de la casa del cardio. Solo deep links y OTA viejos.",
+    "/fitness-hiit": "Redirect legacy (Ola 2 Fitness PR3) a /routine-generator?puerta=intervalos: la puerta INTERVALOS del generador. Solo deep links y OTA viejos.",
+    "/log-exercise": "Redirect legacy (Ola 2 Fitness PR3) a /log-strength (conserva ?exerciseId=). Solo deep links y OTA viejos.",
+    "/execution": "Redirect legacy (Ola 2 Fitness PR3) a /session?routine= (sin rutina cae a /fitness-hub): execution murió, su interfaz es TimerModeRunner dentro de /session. Solo deep links y OTA viejos."
   }
 }

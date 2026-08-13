@@ -44,8 +44,10 @@ const escritores = RAICES
   .filter((f) => INSERT_RE.test(sinComentarios(readFileSync(f, 'utf8'))))
   .map((f) => f.replace(process.cwd(), '').replace(/\\/g, '/').replace(/^\//, ''));
 
+// Ola 2 Fitness PR2-PR3: log-exercise murió (redirect a /log-strength, que
+// escribe vía saveWorkoutSession). Queda UN solo escritor de fuerza — el
+// contrato al que apuntaba el anexo §3.
 const ESPERADOS = [
-  'app/log-exercise.tsx',
   'src/services/fitness/workout-session-service.ts',
 ];
 
@@ -67,10 +69,8 @@ describe('exercise_logs — contrato de escritura (MB-20.4 P5.1)', () => {
   });
 
   it('la fecha local sale de los helpers canónicos, no de un toISOString UTC', () => {
-    // log-exercise usa getLocalToday(); workout-session deriva de endedAt con
-    // toLocalDateString (idéntico hoy, y correcto en el reintento diferido).
-    const logExercise = readFileSync(resolve(process.cwd(), 'app/log-exercise.tsx'), 'utf8');
-    expect(logExercise).toMatch(/const today = getLocalToday\(\)/);
+    // workout-session deriva de endedAt con toLocalDateString (idéntico a
+    // getLocalToday en el camino normal, y correcto en el reintento diferido).
     const workout = readFileSync(
       resolve(process.cwd(), 'src/services/fitness/workout-session-service.ts'),
       'utf8',

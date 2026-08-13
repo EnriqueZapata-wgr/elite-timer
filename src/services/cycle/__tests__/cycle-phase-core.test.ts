@@ -244,14 +244,15 @@ describe('mutación 9: los umbrales viven en UN solo lugar', () => {
     expect(cycleTsx, 'las bandas no pueden volver a cortar con settings crudo').not.toMatch(
       /cycleDay = daysDiff >= 0 \? \(daysDiff % settings\.avg_cycle_length\)/,
     );
-    // Entrenar SOLO por getCycleInfo: el gate (mujer + modo propio) viene
-    // incluido — mutación 10: acompañante y sin-datos degradan a null y la
-    // pantalla queda como era.
-    usaCore('app/fitness-train.tsx', /getCycleInfo/, 'la fase de Entrenar solo llega por getCycleInfo');
+    // La tira de fase vive en el hub de Fitness desde Ola 2 PR2 (ex
+    // fitness-train) y SOLO llega por getCycleInfo: el gate (mujer + modo
+    // propio) viene incluido — mutación 10: acompañante y sin-datos degradan
+    // a null y la pantalla queda como era.
+    usaCore('app/fitness-hub.tsx', /getCycleInfo/, 'la fase del hub de Fitness solo llega por getCycleInfo');
   });
 
-  it('mutación 10: Entrenar no abre camino lateral a las tablas del ciclo', () => {
-    const src = fs.readFileSync(path.join(ROOT, 'app/fitness-train.tsx'), 'utf8');
+  it('mutación 10: el hub de Fitness no abre camino lateral a las tablas del ciclo', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'app/fitness-hub.tsx'), 'utf8');
     expect(src).not.toMatch(/cycle_periods|cycle_daily_logs|cycle_settings/);
   });
 });
