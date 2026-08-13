@@ -1,6 +1,3 @@
-/**
- * Tab Perfil — Muestra la pantalla de Ajustes.
- * Re-exporta SettingsScreen que detecta automáticamente si está en tab.
- */
-import SettingsScreen from '../settings';
-export default SettingsScreen;
+/** Tab vieja Perfil — redirect para deep links externos (OLA0 QW-6). */
+import { Redirect } from 'expo-router';
+export default function PerfilRedirect() { return <Redirect href="/settings" />; }

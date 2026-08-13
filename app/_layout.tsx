@@ -203,7 +203,6 @@ function RootLayout() {
                 <Stack.Screen name="register" options={{ animation: 'fade' }} />
                 <Stack.Screen name="forgot-password" />
                 <Stack.Screen name="reset-password" options={{ animation: 'fade' }} />
-                <Stack.Screen name="timer" />
                 {/* E-4 (MB-12): programs / create-program / create-routine /
                     standard-programs borradas — duplicaban my-routines/builder
                     con un store AsyncStorage paralelo que nadie leía. */}
@@ -331,8 +330,6 @@ function RootLayout() {
                 <Stack.Screen name="economy/convert" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="economy/history" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="economy/how-to-earn" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
-                <Stack.Screen name="economy/challenges" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="economy/referrals" options={{ headerShown: false, animation: 'slide_from_right' }} />
               </Stack>
               {/* Capa 8 — UX async: sheet + banner globales del procesamiento de labs. */}
               <LabProcessingSheet />

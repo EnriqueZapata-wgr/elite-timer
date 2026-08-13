@@ -1,7 +1,3 @@
-/**
- * Tab Biblioteca (oculta del tab bar) — muestra Mis Rutinas.
- * E-4 (MB-12): programs.tsx se borró (duplicaba my-routines con "Última vez:
- * Nunca" hardcodeado y un store AsyncStorage paralelo que nadie leía).
- */
-import MyRoutinesScreen from '../my-routines';
-export default MyRoutinesScreen;
+/** Tab vieja Biblioteca — redirect para deep links externos (OLA0 QW-6). */
+import { Redirect } from 'expo-router';
+export default function BibliotecaRedirect() { return <Redirect href="/my-routines" />; }
