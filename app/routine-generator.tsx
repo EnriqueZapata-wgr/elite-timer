@@ -1,10 +1,13 @@
 /**
- * Routine Generator — 2 puertas sobre el motor determinista (MB-3 Track F).
+ * Routine Generator — 3 puertas sobre el motor determinista (MB-3 Track F;
+ * INTERVALOS desde Ola 2 Fitness PR2, ANEXO_B_FITNESS §1).
  *
  * Doctrina guiado-no-prisionero:
  *  · AUTO (default): objetivo + enfoque + equipo + tiempo → GENERAR.
  *  · EXPLORAR (opt-in, Akinator): mismos filtros paso a paso VIENDO el pool
  *    encogerse en vivo, y "Generar" sobre ese pool.
+ *  · INTERVALOS (ex /fitness-hiit): Tabata / EMOM / AMRAP / 30-30 → puro
+ *    tiempo directo al modo timer de /session; "armar el mío" → builder.
  *
  * El esqueleto es algorítmico y gratis ($0 runtime, offline, determinista por
  * día+usuario); ARGOS es la capa premium encima — este flujo no la toca.
@@ -35,6 +38,7 @@ import {
   type Objetivo,
   type EnfoquePatron,
 } from '@/src/services/fitness/routine-generator-core';
+import { buildPresetRoutine, HIIT_PRESETS, type HIITPreset } from '@/src/services/fitness/hiit-presets-core';
 import {
   EQUIPO_TOKENS,
   GRUPOS_MUSCULARES,
@@ -120,7 +124,8 @@ export default function RoutineGeneratorScreen() {
   // MB-3.6 Bloque 2: la evaluación de movilidad entra con ?objetivo=movilidad.
   // MB-27 P2: la asignación del día entra con ?enfoque= (Entrenar contesta
   // "hoy te toca X" y este deep-link trae el enfoque ya elegido).
-  const params = useLocalSearchParams<{ objetivo?: string; enfoque?: string }>();
+  // Ola 2 PR2: ?puerta=intervalos abre la puerta INTERVALOS (ex /fitness-hiit).
+  const params = useLocalSearchParams<{ objetivo?: string; enfoque?: string; puerta?: string }>();
   const objetivoParam = OBJETIVOS.some((o) => o.key === params.objetivo)
     ? (params.objetivo as Objetivo)
     : null;
@@ -128,7 +133,9 @@ export default function RoutineGeneratorScreen() {
     ? (params.enfoque as EnfoquePatron)
     : null;
 
-  const [puerta, setPuerta] = useState<'auto' | 'explorar'>('auto');
+  const [puerta, setPuerta] = useState<'auto' | 'explorar' | 'intervalos'>(
+    params.puerta === 'intervalos' ? 'intervalos' : 'auto',
+  );
   const [catalogo, setCatalogo] = useState<MatrixExercise[]>([]);
   // MB-3.5 #4: el catálogo con estado explícito — sin él, el CTA quedaba
   // "apagado" (opacity 0.4) para siempre si la red fallaba, sin explicación.
@@ -280,6 +287,17 @@ export default function RoutineGeneratorScreen() {
     });
   }
 
+  // Ola 2 PR2 (ex fitness-hiit): un preset de intervalos es puro tiempo —
+  // el árbitro del runner lo manda al modo timer de /session.
+  function empezarPreset(preset: HIITPreset) {
+    haptic.medium();
+    const routine = buildPresetRoutine(preset.name, preset.params);
+    router.push({
+      pathname: '/session',
+      params: { routine: JSON.stringify(routine) },
+    });
+  }
+
   const toggle = (arr: string[], set: (v: string[]) => void, item: string) =>
     set(arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item]);
 
@@ -289,15 +307,46 @@ export default function RoutineGeneratorScreen() {
       <ScreenHeader title="Generador" />
       <ScrollView contentContainerStyle={{ padding: Spacing.md, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
 
-        {/* 2 puertas */}
+        {/* 3 puertas (INTERVALOS desde Ola 2 PR2, ex /fitness-hiit) */}
         <View style={s.doorRow}>
-          {(['auto', 'explorar'] as const).map((p) => (
+          {(['auto', 'explorar', 'intervalos'] as const).map((p) => (
             <AnimatedPressable key={p} onPress={() => { haptic.light(); setPuerta(p); }} style={[s.door, { backgroundColor: tk.card, borderColor: tk.borde }, puerta === p && s.doorActive]}>
-              <Ionicons name={p === 'auto' ? 'flash' : 'search'} size={15} color={puerta === p ? TEXT_COLORS.onAccent : tk.textoSecundario} />
-              <Text style={[s.doorText, secTxt, puerta === p && s.doorTextActive]}>{p === 'auto' ? 'AUTO' : 'EXPLORAR'}</Text>
+              <Ionicons name={p === 'auto' ? 'flash' : p === 'explorar' ? 'search' : 'stopwatch'} size={15} color={puerta === p ? TEXT_COLORS.onAccent : tk.textoSecundario} />
+              <Text style={[s.doorText, secTxt, puerta === p && s.doorTextActive]}>{p === 'auto' ? 'AUTO' : p === 'explorar' ? 'EXPLORAR' : 'INTERVALOS'}</Text>
             </AnimatedPressable>
           ))}
         </View>
+
+        {/* Puerta INTERVALOS: presets de puro tiempo → modo timer de /session */}
+        {puerta === 'intervalos' && (
+          <Animated.View entering={FadeInDown.duration(250)}>
+            <Text style={[s.sectionLabel, secTxt]}>ENTRENAMIENTOS</Text>
+            {HIIT_PRESETS.map((preset) => (
+              <AnimatedPressable
+                key={preset.name}
+                onPress={() => empezarPreset(preset)}
+                style={[s.presetRow, { backgroundColor: tk.card, borderColor: withOpacity(ATP_BRAND.amber, 0.35) }]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.presetName, { color: tk.texto }]}>{preset.name}</Text>
+                  <Text style={[s.presetDesc, secTxt]}>{preset.description}</Text>
+                </View>
+                <View style={s.presetPlay}>
+                  <Ionicons name="play" size={14} color={TEXT_COLORS.onAccent} />
+                </View>
+              </AnimatedPressable>
+            ))}
+            <AnimatedPressable
+              style={[s.presetGhost, { backgroundColor: tk.card }]}
+              onPress={() => { haptic.light(); router.push({ pathname: '/builder', params: { mode: 'timer' } }); }}
+            >
+              <Ionicons name="create-outline" size={18} color={ATP_BRAND.amber} />
+              <Text style={s.presetGhostText}>ARMAR EL MÍO</Text>
+            </AnimatedPressable>
+          </Animated.View>
+        )}
+
+        {puerta !== 'intervalos' && (<>
 
         {/* Contador de pool (corazón del modo Explorar, visible siempre en él) */}
         {puerta === 'explorar' && (
@@ -495,6 +544,7 @@ export default function RoutineGeneratorScreen() {
             )}
           </Animated.View>
         )}
+        </>)}
       </ScrollView>
     </Screen>
   );
@@ -552,6 +602,27 @@ const s = StyleSheet.create({
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
     backgroundColor: withOpacity(ATP_BRAND.teal, 0.08), borderRadius: Radius.card,
     padding: Spacing.md, marginBottom: Spacing.sm,
+  },
+
+  // Puerta INTERVALOS (ex fitness-hiit; acento amber de la doctrina §4.2).
+  presetRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    borderWidth: 1, borderRadius: Radius.card,
+    padding: Spacing.md, marginBottom: Spacing.sm,
+  },
+  presetName: { fontFamily: Fonts.bold, fontSize: 16 },
+  presetDesc: { fontFamily: Fonts.regular, fontSize: 13, marginTop: 2 },
+  presetPlay: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: ATP_BRAND.amber,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  presetGhost: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: Spacing.sm, borderWidth: 1, borderColor: withOpacity(ATP_BRAND.amber, 0.3),
+    paddingVertical: 12, borderRadius: Radius.md, marginTop: Spacing.md,
+  },
+  presetGhostText: {
+    fontFamily: Fonts.bold, fontSize: 13, color: ATP_BRAND.amber, letterSpacing: 1.5,
   },
   avisoText: { fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 19 },
 
