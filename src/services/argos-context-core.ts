@@ -10,6 +10,8 @@
  * modelo sin permiso — y su política ante fallo es FAIL-CLOSED.
  */
 
+import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
+
 export interface PersonalRecord {
   exercise: string;
   estimated1rm: number;
@@ -22,6 +24,8 @@ export interface UserContext {
   age?: number;
   gender?: string;
   chronotype?: string;
+  /** Cuándo se determinó el cronotipo (user_chronotype.updated_at). */
+  chronotypeUpdatedAt?: string;
   activeProtocol?: string;
   todayElectrons?: { earned: number; total: number };
   recentNutrition?: {
@@ -41,17 +45,24 @@ export interface UserContext {
     isFasting: boolean;
     hoursElapsed: number;
     targetHours: number;
+    /** Pieza 3: la comparación contra la meta viene YA calculada. */
+    ratioMeta?: number;
+    /** Frase lista ("1.6 veces la meta" / "68% de la meta"). El modelo narra, no calcula. */
+    comparacionMeta?: string;
   };
   rank?: string;
   bravermanProfile?: {
     dominant: string;
     primaryDeficiency: string;
     deficiencyLevel: string;
+    /** braverman_results.completed_at — sin esto el modelo lo cita como hecho de hoy. */
+    completedAt?: string;
   };
   functionalQuizzes?: {
     quiz: string;
     scores: Record<string, number>;
     issues: string[];
+    completedAt?: string;
   }[];
   recentMindSessions?: {
     meditationDaysLast7: number;
@@ -102,6 +113,38 @@ export interface UserContext {
     score: number;
     calculatedAt: string;
   };
+  /** IMPL-03 · sueño de las últimas 7 noches (sleep_nights, fuente externa). */
+  sleepContext?: {
+    nightsLast7: number;
+    avgHours: number;
+    avgScore: number | null;
+    lastNightDate: string;
+    lastNightHours: number;
+    trend: 'up' | 'down' | 'stable';
+    /** sleep_cycle | health_connect | healthkit */
+    source: string;
+  };
+  /** IMPL-03 · Edad ATP integral y sub-edades (edad_atp_calculations). */
+  edadAtpContext?: {
+    edadIntegral: number;
+    edadCronologica: number | null;
+    subEdades: { area: string; valor: number }[];
+    calculatedAt: string;
+  };
+  /** IMPL-03 · qué tiene hoy en la agenda y qué ya cerró. */
+  agendaContext?: {
+    total: number;
+    completed: number;
+    pendingNames: string[];
+    nextName: string | null;
+    nextTime: string | null;
+  };
+  /** IMPL-03 · adherencia de hábitos 7 días y racha (daily_electrons). */
+  adherenceContext?: {
+    pctLast7: number;
+    daysWithActivity: number;
+    currentStreak: number;
+  };
 }
 
 /**
@@ -122,12 +165,137 @@ export async function canLoadRichContext(hasConsent: () => Promise<boolean>): Pr
   }
 }
 
+// === VIGENCIA DE LOS DATOS (Pieza 1) ===
+//
+// EL BUG QUE ESTO ENTIERRA: ARGOS leyó una deficiencia de GABA de un Braverman
+// de hace tres meses y la citó como hecho de hoy, encadenada como causa de la
+// energía de hoy. El contexto entregaba el rasgo sin decir CUÁNDO se midió, y
+// sin fecha el modelo asume presente. La fecha y la regla de uso viajan pegadas
+// al dato — no dependen de que el cerebro cacheado se acuerde.
+
+export type NivelVigencia = 'reciente' | 'tendencia' | 'caducado';
+
+/** Más de este número de días: el rasgo ya no se cita en presente. */
+export const VIGENCIA_DIAS_TENDENCIA = 60;
+/** Más de este número de días: el rasgo se marca como posiblemente desactualizado. */
+export const VIGENCIA_DIAS_CADUCADO = 180;
+
+export interface Vigencia {
+  nivel: NivelVigencia;
+  dias: number;
+  /** Fecha del dato en YYYY-MM-DD. */
+  fecha: string;
+  /** Antigüedad en lenguaje natural: "hace 3 meses". */
+  antiguedad: string;
+}
+
+/**
+ * Días transcurridos entre la fecha del dato y hoy (zona local).
+ * Acepta YYYY-MM-DD o timestamp ISO. Devuelve null si la fecha no es usable.
+ */
+export function diasDesde(fechaISO: string | null | undefined, hoy?: string): number | null {
+  if (!fechaISO || typeof fechaISO !== 'string') return null;
+  const ref = parseLocalDate(hoy || getLocalToday());
+  const dato = parseLocalDate(fechaISO.length >= 10 ? fechaISO.slice(0, 10) : fechaISO);
+  const ms = dato.getTime();
+  if (!Number.isFinite(ms) || !Number.isFinite(ref.getTime())) return null;
+  const dias = Math.floor((ref.getTime() - ms) / (24 * 60 * 60 * 1000));
+  // Fecha futura (reloj del dispositivo movido, dato importado mal): se trata
+  // como recién medida, nunca como antigüedad negativa.
+  return dias < 0 ? 0 : dias;
+}
+
+/** Antigüedad en lenguaje natural es-MX. */
+export function describirAntiguedad(dias: number): string {
+  if (dias <= 0) return 'hoy';
+  if (dias === 1) return 'ayer';
+  if (dias < 14) return `hace ${dias} días`;
+  if (dias < 60) {
+    const semanas = Math.round(dias / 7);
+    return `hace ${semanas} semanas`;
+  }
+  if (dias < 365) {
+    const meses = Math.round(dias / 30.44);
+    return `hace ${meses} ${meses === 1 ? 'mes' : 'meses'}`;
+  }
+  const anios = Math.round(dias / 365.25);
+  return `hace ${anios} ${anios === 1 ? 'año' : 'años'}`;
+}
+
+/** Clasifica un dato por su antigüedad. Devuelve null si no hay fecha usable. */
+export function evaluarVigencia(fechaISO: string | null | undefined, hoy?: string): Vigencia | null {
+  const dias = diasDesde(fechaISO, hoy);
+  if (dias === null) return null;
+  const nivel: NivelVigencia =
+    dias > VIGENCIA_DIAS_CADUCADO ? 'caducado'
+    : dias > VIGENCIA_DIAS_TENDENCIA ? 'tendencia'
+    : 'reciente';
+  return {
+    nivel,
+    dias,
+    fecha: (fechaISO as string).slice(0, 10),
+    antiguedad: describirAntiguedad(dias),
+  };
+}
+
+export interface OpcionesVigencia {
+  /** Verbo del dato: "medido" (default), "contestado", "determinado", "calculada". */
+  verbo?: string;
+  /** Qué invitar a repetir cuando el dato caducó. */
+  reevaluar?: string;
+  /** Hoy inyectable para tests. */
+  hoy?: string;
+}
+
+/**
+ * Pega al valor su fecha, su antigüedad en lenguaje natural y la regla de uso
+ * que corresponde a esa antigüedad. Si no hay fecha, el valor pasa intacto:
+ * fail-soft, un bloque sin fecha nunca debe tumbar el contexto entero.
+ */
+export function conVigencia(
+  valor: string,
+  fechaISO: string | null | undefined,
+  opts: OpcionesVigencia = {},
+): string {
+  const v = evaluarVigencia(fechaISO, opts.hoy);
+  if (!v) return valor;
+  const verbo = opts.verbo || 'medido';
+  const sello = `${verbo} ${v.antiguedad}, ${v.fecha}`;
+  if (v.nivel === 'reciente') return `${valor} [${sello}]`;
+  if (v.nivel === 'tendencia') {
+    return `${valor} [${sello} — NO lo digas en presente ni como causa de hoy: es una tendencia observada en esa fecha]`;
+  }
+  const repetir = opts.reevaluar || 'repetir la evaluación';
+  return `${valor} [${sello} — posiblemente desactualizado: no lo afirmes como cierto hoy e invita a ${repetir}]`;
+}
+
+/** La regla general de vigencia, una sola vez por prompt. */
+export const REGLA_VIGENCIA_GLOBAL =
+  'REGLA DE VIGENCIA (obligatoria): cada dato trae entre corchetes cuándo se midió. ' +
+  `Un rasgo de más de ${VIGENCIA_DIAS_TENDENCIA} días NUNCA se cita en presente ("tienes X") ni se encadena ` +
+  'como causa de lo que pasa hoy: se menciona como tendencia observada, con su fecha. ' +
+  `Más de ${VIGENCIA_DIAS_CADUCADO} días: trátalo como posiblemente desactualizado e invita a repetir la evaluación. ` +
+  'Si un dato no trae fecha, no asumas que es de hoy.';
+
 export function buildContextPrompt(ctx: UserContext): string {
   const parts: string[] = [];
+  // Si ningún dato viaja fechado, la regla global son ~55 tokens que no
+  // aplican a nada. `sellar` avisa cuando de verdad se estampó una fecha.
+  let hayFechas = false;
+  const sellar = (valor: string, fecha: string | null | undefined, opts?: OpcionesVigencia) => {
+    const out = conVigencia(valor, fecha, opts);
+    if (out !== valor) hayFechas = true;
+    return out;
+  };
   if (ctx.name) parts.push(`Usuario: ${ctx.name}`);
   if (ctx.age) parts.push(`Edad: ${ctx.age} años`);
   if (ctx.gender) parts.push(`Género: ${ctx.gender}`);
-  if (ctx.chronotype) parts.push(`Cronotipo: ${ctx.chronotype}`);
+  if (ctx.chronotype) {
+    parts.push(sellar(`Cronotipo: ${ctx.chronotype}`, ctx.chronotypeUpdatedAt, {
+      verbo: 'determinado',
+      reevaluar: 'volver a contestar el test de cronotipo',
+    }));
+  }
   if (ctx.activeProtocol) parts.push(`Protocolo activo: ${ctx.activeProtocol}`);
   if (ctx.rank) parts.push(`Rango: ${ctx.rank}`);
   if (ctx.todayElectrons) {
@@ -153,16 +321,30 @@ export function buildContextPrompt(ctx: UserContext): string {
   }
   if (ctx.currentFastingStatus?.isFasting) {
     const f = ctx.currentFastingStatus;
-    parts.push(`Ayuno activo: ${f.hoursElapsed}h de ${f.targetHours}h objetivo`);
+    // Pieza 3: la comparación contra la meta llega calculada. Cuando el modelo
+    // hacía la división él solo, 25.3h contra 16h le salía "más del doble".
+    const comp = f.comparacionMeta || compararConMeta(f.hoursElapsed, f.targetHours);
+    parts.push(`Ayuno activo: ${f.hoursElapsed}h de ${f.targetHours}h objetivo (${comp})`);
+    parts.push(
+      'REGLA DE ARITMÉTICA (obligatoria): las comparaciones numéricas de este bloque ya vienen calculadas. ' +
+      'Úsalas tal cual; no calcules múltiplos, porcentajes ni diferencias por tu cuenta.',
+    );
   }
   if (ctx.bravermanProfile) {
     const b = ctx.bravermanProfile;
-    parts.push(`Perfil Braverman: Naturaleza dominante ${b.dominant}, deficiencia principal ${b.primaryDeficiency} (${b.deficiencyLevel})`);
+    parts.push(sellar(
+      `Perfil Braverman: Naturaleza dominante ${b.dominant}, deficiencia principal ${b.primaryDeficiency} (${b.deficiencyLevel})`,
+      b.completedAt,
+      { verbo: 'test contestado', reevaluar: 'repetir el test Braverman' },
+    ));
   }
   if (ctx.functionalQuizzes?.length) {
     const quizSummary = ctx.functionalQuizzes.map(q => {
       const issues = q.issues.length > 0 ? q.issues.join(', ') : 'sin alertas';
-      return `${q.quiz}: ${issues}`;
+      return sellar(`${q.quiz}: ${issues}`, q.completedAt, {
+        verbo: 'contestado',
+        reevaluar: 'volver a contestar esa evaluación',
+      });
     }).join(' | ');
     parts.push(`Evaluaciones funcionales: ${quizSummary}`);
   }
@@ -204,11 +386,18 @@ export function buildContextPrompt(ctx: UserContext): string {
     const b = ctx.recentBodyMeasurements;
     const w = b.lastWeightKg !== null ? `${b.lastWeightKg}kg` : 's/d';
     const bf = b.lastBodyFatPct !== null ? `, ${b.lastBodyFatPct}% grasa` : '';
-    parts.push(`Última medición (${b.lastMeasuredAt}): ${w}${bf}, tendencia peso ${b.weightTrend30d}`);
+    parts.push(sellar(
+      `Última medición corporal: ${w}${bf}, tendencia peso ${b.weightTrend30d}`,
+      b.lastMeasuredAt,
+      { verbo: 'medido', reevaluar: 'volver a pesarse y medirse' },
+    ));
   }
   if (ctx.recentLabs) {
     const markers = ctx.recentLabs.keyMarkers.map(m => `${m.name} ${m.value}${m.unit}`).join(', ');
-    parts.push(`Labs (${ctx.recentLabs.lastUpdated}): ${markers}`);
+    parts.push(sellar(`Labs: ${markers}`, ctx.recentLabs.lastUpdated, {
+      verbo: 'muestra tomada',
+      reevaluar: 'repetir el laboratorio',
+    }));
     // E-9 (MB-12): ciclo y labs viajaban como dos líneas independientes — el
     // mismo patrón de reglas duras pegadas al dato que el estado emocional.
     if (ctx.cycleInfo) {
@@ -230,10 +419,79 @@ export function buildContextPrompt(ctx: UserContext): string {
     const h = ctx.hydrationStats;
     parts.push(`Hidratación: ${h.todayProgressPct}% meta hoy, promedio 7d ${h.last7dAvgMl}ml/día`);
   }
+  // === IMPL-03 · los cuatro bloques nuevos ===
+  if (ctx.sleepContext) {
+    const s = ctx.sleepContext;
+    const score = s.avgScore !== null ? `, calma promedio ${s.avgScore}/100` : '';
+    parts.push(
+      `Sueño 7d: ${s.nightsLast7} noches registradas, promedio ${s.avgHours} h${score}, tendencia ${s.trend}. ` +
+      `Última noche ${s.lastNightHours} h [registrado ${s.lastNightDate}]. ` +
+      `Fuente externa (${s.source}), dato NO verificado por ATP: repórtalo como lo que reportó el dispositivo.`,
+    );
+  }
+  if (ctx.edadAtpContext) {
+    const e = ctx.edadAtpContext;
+    const sub = e.subEdades.length > 0
+      ? ` Sub-edades: ${e.subEdades.map(x => `${x.area} ${x.valor}`).join(', ')}.`
+      : '';
+    const crono = e.edadCronologica !== null ? ` (edad cronológica ${e.edadCronologica})` : '';
+    parts.push(sellar(
+      `Edad ATP integral: ${e.edadIntegral}${crono}.${sub}`,
+      e.calculatedAt,
+      { verbo: 'calculada', reevaluar: 'actualizar sus datos y recalcular la Edad ATP' },
+    ));
+    parts.push(
+      'REGLA EDAD ATP (obligatoria): es una estimación educativa de hábitos y marcadores, ' +
+      'NO un diagnóstico ni una medida de esperanza de vida. Nunca la presentes como resultado clínico.',
+    );
+  }
+  if (ctx.agendaContext) {
+    const a = ctx.agendaContext;
+    const pend = a.pendingNames.length > 0 ? a.pendingNames.join(', ') : 'nada pendiente';
+    const sig = a.nextName ? ` Siguiente: ${a.nextName}${a.nextTime ? ` a las ${a.nextTime}` : ''}.` : '';
+    parts.push(`Agenda de hoy: ${a.completed} de ${a.total} completados. Pendientes: ${pend}.${sig}`);
+  }
+  if (ctx.adherenceContext) {
+    const ad = ctx.adherenceContext;
+    parts.push(
+      `Adherencia 7d: ${ad.pctLast7}% de hábitos completados, ${ad.daysWithActivity} de 7 días con actividad, ` +
+      `racha actual ${ad.currentStreak} ${ad.currentStreak === 1 ? 'día' : 'días'}`,
+    );
+  }
   if (ctx.currentHealthScore) {
     const hs = ctx.currentHealthScore;
-    parts.push(`Health Score: ${hs.score} (${hs.calculatedAt.slice(0,10)})`);
+    parts.push(sellar(`Health Score: ${hs.score}`, hs.calculatedAt, { verbo: 'calculado' }));
   }
   if (parts.length === 0) return '';
-  return `\n\n## DATOS ACTUALES DEL USUARIO\n${parts.join('\n')}`;
+  const encabezado = hayFechas ? `${REGLA_VIGENCIA_GLOBAL}\n` : '';
+  return `\n\n## DATOS ACTUALES DEL USUARIO\n${encabezado}${parts.join('\n')}`;
+}
+
+// === ARITMÉTICA FUERA DEL MODELO (Pieza 3) ===
+//
+// EL BUG QUE ESTO ENTIERRA: con "25.3h de 16h objetivo" el modelo concluyó
+// "más del doble". Es 1.6 veces. El modelo narra, no calcula: la comparación
+// entra al prompt ya resuelta.
+
+/** Redondeo a un decimal sin arrastrar ruido de punto flotante. */
+function unDecimal(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/**
+ * Frase lista de comparación contra una meta en horas. Devuelve cadena vacía
+ * si la meta no sirve para comparar (0, negativa o no numérica).
+ */
+export function compararConMeta(actual: number, meta: number): string {
+  if (!Number.isFinite(actual) || !Number.isFinite(meta) || meta <= 0) return '';
+  const ratio = actual / meta;
+  if (ratio >= 1) {
+    const exceso = unDecimal(actual - meta);
+    const veces = unDecimal(ratio);
+    return exceso === 0
+      ? 'meta cumplida exacta'
+      : `${veces} veces la meta, ${exceso} h por encima`;
+  }
+  const falta = unDecimal(meta - actual);
+  return `${Math.round(ratio * 100)}% de la meta, faltan ${falta} h`;
 }
