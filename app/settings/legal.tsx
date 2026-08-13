@@ -79,6 +79,13 @@ export default function SettingsLegalScreen() {
       onPress: () => Linking.openURL('https://somosatp.com/terminos').catch(() => {}),
     },
     {
+      // QW-5: espejo in-app (Sprint Compliance 2) accesible sin salir de la app.
+      icon: 'reader-outline' as const,
+      title: 'Términos y condiciones',
+      status: 'Leer en la app',
+      onPress: () => router.push('/legal/terminos'),
+    },
+    {
       icon: 'lock-closed-outline' as const,
       title: 'Política de privacidad',
       status: consentFailed
@@ -87,6 +94,13 @@ export default function SettingsLegalScreen() {
           ? `Aceptada: v${consent.privacy_version ?? '1.0'} · ${fmtDate(consent.privacy_accepted_at)}`
           : 'Ver documento',
       onPress: () => Linking.openURL('https://somosatp.com/privacidad').catch(() => {}),
+    },
+    {
+      // QW-5: espejo in-app (Sprint Compliance 2) accesible sin salir de la app.
+      icon: 'shield-checkmark-outline' as const,
+      title: 'Aviso de privacidad',
+      status: 'Leer en la app',
+      onPress: () => router.push('/legal/aviso'),
     },
     {
       icon: 'medkit-outline' as const,

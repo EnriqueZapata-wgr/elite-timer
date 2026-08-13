@@ -71,6 +71,15 @@ export default function V2ConsentScreen() {
             </View>
             <EliteText style={[s.checkText, th.dark ? null : th.titulo]}>{COPY.checkbox}</EliteText>
           </Pressable>
+          {/* QW-5: el checkbox menciona los documentos; aquí se pueden leer sin salir del flujo. */}
+          <View style={s.legalLinks}>
+            <Pressable onPress={() => { haptic.light(); router.push('/legal/terminos'); }} hitSlop={8}>
+              <EliteText style={[s.legalLink, th.dark ? null : th.sub]}>Términos y condiciones</EliteText>
+            </Pressable>
+            <Pressable onPress={() => { haptic.light(); router.push('/legal/aviso'); }} hitSlop={8}>
+              <EliteText style={[s.legalLink, th.dark ? null : th.sub]}>Aviso de privacidad</EliteText>
+            </Pressable>
+          </View>
         </Animated.View>
       </ScrollView>
 
@@ -109,6 +118,11 @@ const s = StyleSheet.create({
   },
   checkboxOn: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
   checkText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.8)', lineHeight: 20 },
+  legalLinks: { flexDirection: 'row', gap: 20, marginTop: 12, marginLeft: 36 },
+  legalLink: {
+    fontSize: FontSizes.xs, fontFamily: Fonts.semiBold,
+    color: 'rgba(255,255,255,0.8)', textDecorationLine: 'underline',
+  },
   bottomBar: { paddingHorizontal: Spacing.md, paddingBottom: 40 },
   continueBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 16,
