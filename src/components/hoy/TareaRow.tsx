@@ -121,6 +121,16 @@ export function TareaRow({
           <EliteText style={[s.inlineBtnText, !dark && { color: t.tealTexto }]}>+250 ml</EliteText>
         </Pressable>
       ) : null}
+
+      {/* OLA0 QW-7: una fila palomeable que SÍ tiene función detrás solo
+          navegaba con tap largo — invisible. El chevron al extremo derecho
+          da la pista (mismo vocabulario visual que el del checkSlot), sin
+          tocar los gestos: tap palomea, tap largo navega. */}
+      {tarea.gesto === 'palomear' && tarea.route ? (
+        <View style={s.checkSlot}>
+          <Ionicons name="chevron-forward" size={15} color={dark ? withOpacity('#FFFFFF', 0.3) : t.textoTenue} />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
