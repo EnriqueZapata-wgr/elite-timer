@@ -25,6 +25,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { userErrorMessage } from '@/src/utils/user-error';
 import { resumenVentana, gki, inicioVentana, type ResumenVentana } from '@/src/services/salud/metabolic-stats-core';
@@ -281,7 +282,7 @@ export default function GlucoseLogScreen() {
 // MB-31B2: los estilos leen los tokens del tema (patrón buildVariants de
 // EliteText). En oscuro los valores compuestos quedan como siempre.
 const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
-  content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
+  content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: ORB_SAFE_BOTTOM },
 
   card: {
     backgroundColor: t.hundido,

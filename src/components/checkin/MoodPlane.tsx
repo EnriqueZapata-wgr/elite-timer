@@ -44,6 +44,7 @@ import {
   QUADRANT_ZOOM_FACTOR, FOCUS_ZOOM_FACTOR,
 } from '@/src/services/emotion-plane-core';
 import { haptic } from '@/src/utils/haptics';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { BG, TEXT, withOpacity } from '@/src/constants/brand';
 
@@ -326,6 +327,9 @@ const PlaneCell = memo(function PlaneCell({ emotion, selected, highlighted, dimm
   onPress: (e: Emotion) => void;
 }) {
   const rect = cellRect(emotion.gridCol, emotion.gridRow);
+  // OLA0 QW-3b: la palabra sigue el texto del tema — blanca en oscuro,
+  // carbón (#0F1518) sobre los pasteles del modo claro.
+  const t = useSurfaceTokens();
   return (
     <Pressable
       onPress={() => onPress(emotion)}
@@ -346,7 +350,7 @@ const PlaneCell = memo(function PlaneCell({ emotion, selected, highlighted, dimm
     >
       {/* allowFontScaling off: es un rótulo de mapa a tipografía de maqueta;
           la accesibilidad la dan el zoom, la búsqueda y la hoja de definición. */}
-      <EliteText allowFontScaling={false} style={styles.cellLabel}>
+      <EliteText allowFontScaling={false} style={[styles.cellLabel, { color: t.texto }]}>
         {emotion.label}
       </EliteText>
     </Pressable>
@@ -380,7 +384,6 @@ const styles = StyleSheet.create({
   cellHighlighted: { borderColor: withOpacity(TEXT.primary, 0.45) },
   cellDimmed: { opacity: 0.4 },
   cellLabel: {
-    color: TEXT.primary,
     fontFamily: Fonts.semiBold,
     fontSize: PLANE_FONT_SIZE,
     lineHeight: PLANE_FONT_LINE_HEIGHT,

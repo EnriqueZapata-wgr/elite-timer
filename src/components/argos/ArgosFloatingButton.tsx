@@ -20,6 +20,13 @@ import { screenFromPath } from '@/src/hooks/argos-screen-context-core';
 import { openArgosChat } from '@/src/services/argos-nav';
 import { ATP_BRAND } from '@/src/constants/brand';
 
+/**
+ * OLA0 QW-1: espacio que la orbe ocupa sobre el borde inferior (56 de orbe
+ * + margen de respiro). Las pantallas cuyo contenido interactivo queda bajo
+ * la orbe lo suman a su paddingBottom de scroll para poder despejarla.
+ */
+export const ORB_SAFE_BOTTOM = 96;
+
 export function ArgosFloatingButton() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();

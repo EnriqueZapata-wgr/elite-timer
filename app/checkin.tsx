@@ -55,6 +55,7 @@ import { CrisisSupportBanner } from '@/src/components/global/CrisisSupportBanner
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, withOpacity, SKOOL_URL, ATP_BRAND } from '@/src/constants/brand';
 import { Screen } from '@/src/components/ui/Screen';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { StatusBar } from 'expo-status-bar';
 
@@ -724,6 +725,7 @@ export default function CheckinScreen() {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
             bottomOffset={24}
+            contentContainerStyle={{ paddingBottom: ORB_SAFE_BOTTOM }}
           >
             {/* Emociones seleccionadas como recordatorio */}
             <View style={styles.selectedRow}>
