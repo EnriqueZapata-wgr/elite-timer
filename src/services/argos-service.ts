@@ -25,6 +25,7 @@ import {
   buildContextPrompt, canLoadRichContext,
   type PersonalRecord, type UserContext,
 } from './argos-context-core';
+import { computeStreak } from './adherence-service';
 
 // === MODELOS ===
 const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
@@ -1144,6 +1145,173 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
       context.currentHealthScore = {
         score: Math.round((hs as any).functional_health_score),
         calculatedAt: (hs as any).calculated_at,
+      };
+    }
+  } catch (_) { /* opcional */ }
+
+  // === IMPL-03 · los cuatro bloques nuevos ===
+  // Mismo patrón que el resto: queries en paralelo, fail-soft por bloque, y
+  // cada bloque cabe en pocas líneas de prompt (presupuesto ~900 tokens entre
+  // los cuatro).
+
+  try {
+    // Sueño — últimas 7 noches (sleep_nights; night_date = fecha del despertar)
+    const { data: nights } = await supabase
+      .from('sleep_nights')
+      .select('night_date, duration_minutes, score, source')
+      .eq('user_id', userId)
+      .gte('night_date', sevenDaysAgo)
+      .order('night_date', { ascending: false });
+    const rows = ((nights as any[]) || []).filter(n => typeof n.duration_minutes === 'number');
+    if (rows.length > 0) {
+      const horas = rows.map(n => n.duration_minutes / 60);
+      const avgHours = Math.round((horas.reduce((s, h) => s + h, 0) / horas.length) * 10) / 10;
+      const scores = rows.map(n => n.score).filter((s: any) => typeof s === 'number');
+      const avgScore = scores.length > 0
+        ? Math.round(scores.reduce((s: number, v: number) => s + v, 0) / scores.length)
+        : null;
+      // Tendencia: mitad reciente vs mitad antigua (rows viene de más nueva a
+      // más vieja). Umbral 0.5h para no llamar tendencia al ruido.
+      let trend: 'up' | 'down' | 'stable' = 'stable';
+      if (horas.length >= 4) {
+        const mitad = Math.floor(horas.length / 2);
+        const recientes = horas.slice(0, mitad).reduce((s, h) => s + h, 0) / mitad;
+        const viejas = horas.slice(-mitad).reduce((s, h) => s + h, 0) / mitad;
+        if (recientes - viejas >= 0.5) trend = 'up';
+        else if (viejas - recientes >= 0.5) trend = 'down';
+      }
+      context.sleepContext = {
+        nightsLast7: rows.length,
+        avgHours,
+        avgScore,
+        lastNightDate: rows[0].night_date,
+        lastNightHours: Math.round((rows[0].duration_minutes / 60) * 10) / 10,
+        trend,
+        source: rows[0].source || 'externo',
+      };
+    }
+  } catch (_) { /* opcional */ }
+
+  try {
+    // Edad ATP — último cálculo. OJO: NO vive en functional_dx (esa tabla no
+    // tiene columnas de edad); la fuente real es edad_atp_calculations.
+    const { data: edad } = await supabase
+      .from('edad_atp_calculations')
+      .select('edad_integral, chronological_age, edad_riesgos, edad_composicion, edad_labs, edad_fitness, edad_cognicion, calculated_at')
+      .eq('user_id', userId)
+      .order('calculated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const e = edad as any;
+    if (e && typeof e.edad_integral === 'number') {
+      const candidatas: { area: string; valor: any }[] = [
+        { area: 'riesgos', valor: e.edad_riesgos },
+        { area: 'composición', valor: e.edad_composicion },
+        { area: 'labs', valor: e.edad_labs },
+        { area: 'fitness', valor: e.edad_fitness },
+        { area: 'cognición', valor: e.edad_cognicion },
+      ];
+      context.edadAtpContext = {
+        edadIntegral: Math.round(e.edad_integral * 10) / 10,
+        edadCronologica: typeof e.chronological_age === 'number' ? e.chronological_age : null,
+        subEdades: candidatas
+          .filter(c => typeof c.valor === 'number')
+          .map(c => ({ area: c.area, valor: Math.round(c.valor * 10) / 10 })),
+        calculatedAt: e.calculated_at,
+      };
+    }
+  } catch (_) { /* opcional */ }
+
+  try {
+    // Agenda de hoy — agenda_events es la plantilla recurrente (sin columna
+    // date); el estado del día vive en agenda_event_logs.
+    const [evRes, logRes, planRes] = await Promise.all([
+      supabase.from('agenda_events')
+        .select('id, name, time')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .order('time', { ascending: true }),
+      supabase.from('agenda_event_logs')
+        .select('event_id, status')
+        .eq('user_id', userId)
+        .eq('date', today),
+      supabase.from('daily_plans')
+        .select('total_actions, completed_actions')
+        .eq('user_id', userId)
+        .eq('date', today)
+        .maybeSingle(),
+    ]);
+    const eventos = ((evRes.data as any[]) || []);
+    const estados = new Map<string, string>(
+      ((logRes.data as any[]) || []).map(l => [l.event_id, l.status]),
+    );
+    if (eventos.length > 0) {
+      const cerrados = eventos.filter(ev => {
+        const st = estados.get(ev.id);
+        return st === 'completed' || st === 'skipped';
+      });
+      const pendientes = eventos.filter(ev => !cerrados.includes(ev));
+      const completados = eventos.filter(ev => estados.get(ev.id) === 'completed').length;
+      context.agendaContext = {
+        total: eventos.length,
+        completed: completados,
+        // Tope de 6 nombres: la lista completa se come el presupuesto de tokens.
+        pendingNames: pendientes.slice(0, 6).map(ev => ev.name),
+        nextName: pendientes[0]?.name ?? null,
+        nextTime: pendientes[0]?.time ? String(pendientes[0].time).slice(0, 5) : null,
+      };
+    } else if (planRes.data && typeof (planRes.data as any).total_actions === 'number') {
+      // Sin agenda propia, el plan del día es la única lista que existe.
+      const p = planRes.data as any;
+      context.agendaContext = {
+        total: p.total_actions,
+        completed: p.completed_actions ?? 0,
+        pendingNames: [],
+        nextName: null,
+        nextTime: null,
+      };
+    }
+  } catch (_) { /* opcional */ }
+
+  try {
+    // Adherencia 7d + racha.
+    //
+    // La racha NO se recalcula aquí: sale de adherence-service (fuente única,
+    // con su regla de 1 día de gracia). Dos rachas distintas para el mismo
+    // concepto es justo lo que hace que ARGOS se contradiga con la pantalla.
+    // El % sale de daily_plans.compliance_pct por la misma razón:
+    // daily_electrons es un blob de booleanos sin denominador, no sirve para
+    // sacar un porcentaje honesto. daily_electrons sí responde "¿hubo
+    // actividad ese día?".
+    const [plansRes, electronsRes, streakPlansRes] = await Promise.all([
+      supabase.from('daily_plans')
+        .select('date, compliance_pct')
+        .eq('user_id', userId)
+        .gte('date', sevenDaysAgo),
+      supabase.from('daily_electrons')
+        .select('date, electrons')
+        .eq('user_id', userId)
+        .gte('date', sevenDaysAgo),
+      supabase.from('daily_plans')
+        .select('date, compliance_pct')
+        .eq('user_id', userId)
+        .gte('date', toLocalDateString(
+          (() => { const d = parseLocalDate(today); d.setDate(d.getDate() - 90); return d; })(),
+        ))
+        .order('date'),
+    ]);
+    const plans7 = ((plansRes.data as any[]) || []);
+    const diasConActividad = ((electronsRes.data as any[]) || []).filter(d =>
+      Object.values((d.electrons || {}) as Record<string, boolean>).some(Boolean),
+    ).length;
+    if (plans7.length > 0 || diasConActividad > 0) {
+      const pct = plans7.length > 0
+        ? Math.round(plans7.reduce((s, p) => s + (p.compliance_pct ?? 0), 0) / plans7.length)
+        : 0;
+      context.adherenceContext = {
+        pctLast7: pct,
+        daysWithActivity: diasConActividad,
+        currentStreak: computeStreak(((streakPlansRes.data as any[]) || [])),
       };
     }
   } catch (_) { /* opcional */ }

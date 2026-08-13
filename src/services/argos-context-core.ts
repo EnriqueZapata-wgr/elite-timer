@@ -109,6 +109,38 @@ export interface UserContext {
     score: number;
     calculatedAt: string;
   };
+  /** IMPL-03 · sueño de las últimas 7 noches (sleep_nights, fuente externa). */
+  sleepContext?: {
+    nightsLast7: number;
+    avgHours: number;
+    avgScore: number | null;
+    lastNightDate: string;
+    lastNightHours: number;
+    trend: 'up' | 'down' | 'stable';
+    /** sleep_cycle | health_connect | healthkit */
+    source: string;
+  };
+  /** IMPL-03 · Edad ATP integral y sub-edades (edad_atp_calculations). */
+  edadAtpContext?: {
+    edadIntegral: number;
+    edadCronologica: number | null;
+    subEdades: { area: string; valor: number }[];
+    calculatedAt: string;
+  };
+  /** IMPL-03 · qué tiene hoy en la agenda y qué ya cerró. */
+  agendaContext?: {
+    total: number;
+    completed: number;
+    pendingNames: string[];
+    nextName: string | null;
+    nextTime: string | null;
+  };
+  /** IMPL-03 · adherencia de hábitos 7 días y racha (daily_electrons). */
+  adherenceContext?: {
+    pctLast7: number;
+    daysWithActivity: number;
+    currentStreak: number;
+  };
 }
 
 /**
@@ -375,6 +407,45 @@ export function buildContextPrompt(ctx: UserContext): string {
   if (ctx.hydrationStats) {
     const h = ctx.hydrationStats;
     parts.push(`Hidratación: ${h.todayProgressPct}% meta hoy, promedio 7d ${h.last7dAvgMl}ml/día`);
+  }
+  // === IMPL-03 · los cuatro bloques nuevos ===
+  if (ctx.sleepContext) {
+    const s = ctx.sleepContext;
+    const score = s.avgScore !== null ? `, calma promedio ${s.avgScore}/100` : '';
+    parts.push(
+      `Sueño 7d: ${s.nightsLast7} noches registradas, promedio ${s.avgHours} h${score}, tendencia ${s.trend}. ` +
+      `Última noche ${s.lastNightHours} h [registrado ${s.lastNightDate}]. ` +
+      `Fuente externa (${s.source}), dato NO verificado por ATP: repórtalo como lo que reportó el dispositivo.`,
+    );
+  }
+  if (ctx.edadAtpContext) {
+    const e = ctx.edadAtpContext;
+    const sub = e.subEdades.length > 0
+      ? ` Sub-edades: ${e.subEdades.map(x => `${x.area} ${x.valor}`).join(', ')}.`
+      : '';
+    const crono = e.edadCronologica !== null ? ` (edad cronológica ${e.edadCronologica})` : '';
+    parts.push(sellar(
+      `Edad ATP integral: ${e.edadIntegral}${crono}.${sub}`,
+      e.calculatedAt,
+      { verbo: 'calculada', reevaluar: 'actualizar sus datos y recalcular la Edad ATP' },
+    ));
+    parts.push(
+      'REGLA EDAD ATP (obligatoria): es una estimación educativa de hábitos y marcadores, ' +
+      'NO un diagnóstico ni una medida de esperanza de vida. Nunca la presentes como resultado clínico.',
+    );
+  }
+  if (ctx.agendaContext) {
+    const a = ctx.agendaContext;
+    const pend = a.pendingNames.length > 0 ? a.pendingNames.join(', ') : 'nada pendiente';
+    const sig = a.nextName ? ` Siguiente: ${a.nextName}${a.nextTime ? ` a las ${a.nextTime}` : ''}.` : '';
+    parts.push(`Agenda de hoy: ${a.completed} de ${a.total} completados. Pendientes: ${pend}.${sig}`);
+  }
+  if (ctx.adherenceContext) {
+    const ad = ctx.adherenceContext;
+    parts.push(
+      `Adherencia 7d: ${ad.pctLast7}% de hábitos completados, ${ad.daysWithActivity} de 7 días con actividad, ` +
+      `racha actual ${ad.currentStreak} ${ad.currentStreak === 1 ? 'día' : 'días'}`,
+    );
   }
   if (ctx.currentHealthScore) {
     const hs = ctx.currentHealthScore;
