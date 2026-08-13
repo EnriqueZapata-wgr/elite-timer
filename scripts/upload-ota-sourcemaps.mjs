@@ -47,8 +47,16 @@ if (!process.env.SENTRY_AUTH_TOKEN) {
 }
 
 function run(cmd, args) {
-  console.log(`\n▶ ${cmd} ${args.join(' ')}`);
-  const r = spawnSync(cmd, args, { stdio: 'inherit', shell: process.platform === 'win32' });
+  // En Windows corremos con shell:true (si no, npx no resuelve). Pero el shell
+  // vuelve a partir la línea por espacios, así que un --message "Ola 0 + Ola 2"
+  // llega hecho pedazos ("Unexpected arguments: Ola, 0, +..."). Se citan aquí
+  // los argumentos con espacios o comillas. Visto el 12-ago-2026.
+  const useShell = process.platform === 'win32';
+  const safeArgs = useShell
+    ? args.map((a) => (/[\s"^&|<>]/.test(a) ? `"${String(a).replace(/"/g, '\\"')}"` : a))
+    : args;
+  console.log(`\n▶ ${cmd} ${safeArgs.join(' ')}`);
+  const r = spawnSync(cmd, safeArgs, { stdio: 'inherit', shell: useShell });
   if (r.status !== 0) {
     console.error(`✗ Falló: ${cmd} ${args.join(' ')}`);
     process.exit(r.status ?? 1);
@@ -60,7 +68,10 @@ if (existsSync(DIST)) rmSync(DIST, { recursive: true, force: true });
 run('npx', ['expo', 'export', '--platform', 'all', '--output-dir', DIST]);
 
 // Publica EXACTAMENTE ese export (el hash del bundle debe coincidir con los maps).
-run('npx', ['eas', 'update', '--branch', branch, '--message', message, '--input-dir', `./${DIST}`, '--non-interactive']);
+// OJO: el paquete es 'eas-cli', NO 'eas'. En npm existe otro paquete llamado
+// 'eas' que npx baja alegremente y que no tiene el comando 'update': el error
+// que sale es "Unexpected argument: update" (12-ago-2026).
+run('npx', ['eas-cli', 'update', '--branch', branch, '--message', message, '--input-dir', `./${DIST}`, '--non-interactive']);
 
 // Sube los sourcemaps casando por Debug ID (universal en sentry-cli 2.x).
 run('npx', [
