@@ -114,6 +114,8 @@ export interface ReportDomainMeta {
   title: string;
   /** Pilar que le da el color al header. */
   pillar: ReportPillar;
+  /** Icono del dominio (Ionicons), el mismo que ya usa su sección en el hub. */
+  icon: string;
   /** Acento del dominio: el mismo que ya usa su sección en el hub. */
   accent: string;
   /** Qué contesta este reporte, en una línea. */
@@ -127,6 +129,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'nutricion',
     title: 'Nutrición',
     pillar: 'nutrition',
+    icon: 'restaurant-outline',
     accent: '#38bdf8',
     subtitle: 'Qué comiste y cómo se movieron tus calorías y tu proteína.',
     emptyCopy: 'Todavía no registraste comidas en este rango. Cada comida que anotes aparece aquí al día siguiente.',
@@ -135,6 +138,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'hidratacion',
     title: 'Hidratación',
     pillar: 'nutrition',
+    icon: 'water-outline',
     accent: '#60a5fa',
     subtitle: 'Cuánta agua tomaste y qué días llegaste a tu meta.',
     emptyCopy: 'Todavía no registraste agua en este rango. En cuanto anotes un vaso, la gráfica empieza.',
@@ -143,6 +147,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'ayuno',
     title: 'Ayuno',
     pillar: 'nutrition',
+    icon: 'timer-outline',
     accent: '#fbbf24',
     subtitle: 'Cuántos ayunos cerraste, de cuánto, y cuál fue el más largo.',
     emptyCopy: 'Todavía no cerraste ayunos en este rango. Solo cuentan los que terminaste, no los que quedaron abiertos.',
@@ -151,6 +156,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'mente',
     title: 'Mente',
     pillar: 'mind',
+    icon: 'flower-outline',
     accent: '#c084fc',
     subtitle: 'Respiración, meditación, journal y check-ins.',
     emptyCopy: 'Todavía no hay sesiones de mente en este rango. Una respiración de tres minutos ya cuenta.',
@@ -159,6 +165,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'economia',
     title: 'Economía',
     pillar: 'metrics',
+    icon: 'flash',
     accent: '#a8e02a',
     subtitle: 'Tus electrones y tus protones: qué entró y qué se fue.',
     emptyCopy: 'Todavía no hay movimientos en este rango. Tus electrones se ganan cumpliendo, no comprando.',

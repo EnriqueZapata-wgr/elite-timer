@@ -113,6 +113,7 @@ describe('registro de dominios', () => {
       expect(REPORT_DOMAINS[k].emptyCopy.length).toBeGreaterThan(20);
       expect(REPORT_DOMAINS[k].subtitle.length).toBeGreaterThan(10);
       expect(REPORT_DOMAINS[k].accent).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(REPORT_DOMAINS[k].icon.length).toBeGreaterThan(0);
     }
   });
 

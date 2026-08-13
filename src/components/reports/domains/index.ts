@@ -8,6 +8,11 @@
  */
 import type { ReportDomainKey } from '@/src/services/reports/report-domain-core';
 import type { ReportDomainDefinition } from '../ReportDomainShell';
+import { nutricionDomain } from './nutricion';
+import { hidratacionDomain } from './hidratacion';
+import { ayunoDomain } from './ayuno';
+import { menteDomain } from './mente';
+import { economiaDomain } from './economia';
 
 /**
  * Cada definición fija su propio tipo de datos puertas adentro; el mapa las
@@ -15,7 +20,13 @@ import type { ReportDomainDefinition } from '../ReportDomainShell';
  */
 export type AnyReportDomainDefinition = ReportDomainDefinition<any>;
 
-export const DOMAIN_DEFINITIONS: Partial<Record<ReportDomainKey, AnyReportDomainDefinition>> = {};
+export const DOMAIN_DEFINITIONS: Partial<Record<ReportDomainKey, AnyReportDomainDefinition>> = {
+  nutricion: nutricionDomain,
+  hidratacion: hidratacionDomain,
+  ayuno: ayunoDomain,
+  mente: menteDomain,
+  economia: economiaDomain,
+};
 
 export function getDomainDefinition(key: string | null | undefined): AnyReportDomainDefinition | null {
   if (!key) return null;
