@@ -53,7 +53,8 @@ import {
 import { generateUUID } from '@/src/utils/uuid';
 import type { SessionSet } from '@/src/services/fitness/workout-session-core';
 import type { GeneratedRoutine, RoutineBlock } from '@/src/services/fitness/routine-generator-core';
-import { bridgeRoutineToSession, type SessionBlock } from '@/src/services/fitness/routine-bridge-core';
+import { bridgeRoutineToSession, routineUsesClipRunner, type SessionBlock } from '@/src/services/fitness/routine-bridge-core';
+import { TimerModeRunner } from '@/src/components/training/TimerModeRunner';
 import type { Routine as EngineRoutine } from '@/src/engine/types';
 import { clipDe, posterDe } from '@/src/constants/exercise-matrix';
 import { esBenchmarkDistancia } from '@/src/services/fitness/edad-bridge-core';
@@ -307,6 +308,18 @@ export default function SessionScreen() {
     try { return JSON.parse(params.plan) as GeneratedRoutine; } catch { return null; }
   }, [params.plan]);
 
+  // Ola 2 Fitness PR1: el árbitro sigue siendo el CONTENIDO
+  // (routineUsesClipRunner). Una rutina de puro tiempo sin matrix_slug corre
+  // el modo timer absorbido de /execution; con matriz sigue el camino de
+  // bloques con clip vía el puente.
+  const timerRoutine = useMemo((): EngineRoutine | null => {
+    if (!params.routine) return null;
+    try {
+      const rt = JSON.parse(params.routine) as EngineRoutine;
+      return routineUsesClipRunner(rt) ? null : rt;
+    } catch { return null; }
+  }, [params.routine]);
+
   const [bloques, setBloques] = useState<SessionBlock[] | null>(plan?.bloques ?? null);
   const [idx, setIdx] = useState(0);
   const [sets, setSets] = useState<SessionSet[]>([]);
@@ -340,7 +353,9 @@ export default function SessionScreen() {
   // C-1 (MB-12): recuperación al montar — si quedó una sesión sin cerrar,
   // se ofrece retomarla (bloques, series y reloj tal como estaban).
   useEffect(() => {
-    if (recoveryChecked.current) return;
+    // En modo timer no hay series que retomar: la oferta de recuperación es
+    // exclusiva del camino de fuerza (mismo comportamiento que /execution).
+    if (recoveryChecked.current || timerRoutine) return;
     recoveryChecked.current = true;
     readLiveSession().then((stash: LiveSessionStash | null) => {
       if (!stash || stash.sessionId === sessionIdRef.current) return;
@@ -374,7 +389,7 @@ export default function SessionScreen() {
   // Camino builder (MB-7 Track C): ?routine=<Routine> → puente al catálogo.
   // Ejercicios con matrix_slug corren con clip; bloques de tiempo, inline.
   useEffect(() => {
-    if (bloques || !params.routine) return;
+    if (bloques || !params.routine || timerRoutine) return;
     let rt: EngineRoutine | null = null;
     try { rt = JSON.parse(params.routine) as EngineRoutine; } catch { rt = null; }
     if (!rt) { setBloques([]); return; }
@@ -383,7 +398,7 @@ export default function SessionScreen() {
       const map = new Map(all.map((e) => [e.slug, e]));
       setBloques(bridgeRoutineToSession(parsed, map).bloques);
     });
-  }, [bloques, params.routine]);
+  }, [bloques, params.routine, timerRoutine]);
 
   // Camino biblioteca: ?slugs=a,b,c → bloques estándar desde la matriz.
   useEffect(() => {
@@ -541,6 +556,13 @@ export default function SessionScreen() {
         ],
       );
     }
+  }
+
+  // ── Modo timer (Ola 2 Fitness PR1: la interfaz de /execution absorbida) ──
+  // Rutina de puro tiempo: motor useRoutineEngine + CircularTimer + crédito
+  // conditioning. El componente dibuja su propia nav y su propio cierre.
+  if (timerRoutine) {
+    return <TimerModeRunner routine={timerRoutine} />;
   }
 
   // ── Cierre de sesión (Track F: resumen + celebración + señal de edad) ──

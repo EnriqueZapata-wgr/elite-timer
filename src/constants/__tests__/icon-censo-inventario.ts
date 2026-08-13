@@ -244,6 +244,9 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/components/training/ExerciseClip.tsx::barbell-outline',
   'src/components/training/MetodosAtpInfo.tsx::timer-outline',
   'src/components/training/MetodosAtpInfo.tsx::trending-up-outline',
+  // Ola 2 Fitness PR1: el modo timer de /session es la copia canónica de
+  // execution.tsx (mismo indicador de ejercicio en curso, mismo glifo).
+  'src/components/training/TimerModeRunner.tsx::barbell-outline',
   'src/constants/categories.ts::analytics-outline',
   'src/constants/categories.ts::barbell-outline',
   'src/constants/categories.ts::flask-outline',
