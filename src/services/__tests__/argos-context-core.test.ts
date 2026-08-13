@@ -86,12 +86,17 @@ describe('buildContextPrompt — los 25 bloques', () => {
       'Estado emocional de HOY (check-in): motivado',
       'REGLAS DEL DATO EMOCIONAL',
       'Ciclo: día 12 (fase folicular',
-      'Última medición (2026-08-01): 82kg',
-      'Labs (2026-07-20): Ferritina 90ng/mL',
+      // Pieza 1: la fecha dejó de ser un paréntesis mudo y ahora es un sello
+      // de vigencia con antigüedad en lenguaje natural.
+      'Última medición corporal: 82kg',
+      '2026-08-01',
+      'Labs: Ferritina 90ng/mL',
+      '2026-07-20',
       'REGLA LABS + CICLO',
       'Suplementos hoy: tomados [Magnesio], pendientes [Omega 3]',
       'Hidratación: 60% meta hoy',
-      'Health Score: 78 (2026-08-05)',
+      'Health Score: 78',
+      'calculado hace',
     ];
     for (const fragment of expected) {
       expect(prompt, `falta el bloque: ${fragment}`).toContain(fragment);

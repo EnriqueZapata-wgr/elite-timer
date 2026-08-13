@@ -748,13 +748,17 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
   } catch (_) { /* opcional */ }
 
   try {
-    // Cronotipo (user_chronotype)
+    // Cronotipo (user_chronotype). updated_at es la ÚNICA fecha que tiene la
+    // tabla — sin ella el cronotipo viaja como si se hubiera medido hoy.
     const { data: chrono } = await supabase
       .from('user_chronotype')
-      .select('chronotype')
+      .select('chronotype, updated_at')
       .eq('user_id', userId)
       .maybeSingle();
-    if (chrono) context.chronotype = chrono.chronotype;
+    if (chrono) {
+      context.chronotype = chrono.chronotype;
+      context.chronotypeUpdatedAt = (chrono as any).updated_at || undefined;
+    }
   } catch (_) { /* opcional */ }
 
   try {
@@ -882,7 +886,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
     // Braverman (perfil de neurotransmisores)
     const { data: braverman } = await supabase
       .from('braverman_results')
-      .select('dominant_type, primary_deficiency, deficiency_level')
+      .select('dominant_type, primary_deficiency, deficiency_level, completed_at')
       .eq('user_id', userId)
       .eq('is_complete', true)
       .order('completed_at', { ascending: false })
@@ -893,6 +897,9 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         dominant: braverman.dominant_type,
         primaryDeficiency: braverman.primary_deficiency,
         deficiencyLevel: braverman.deficiency_level,
+        // Pieza 1: el Braverman de hace 3 meses citado como hecho de hoy nació
+        // exactamente aquí — la fila ya traía la fecha y no la mandábamos.
+        completedAt: (braverman as any).completed_at || undefined,
       };
     }
   } catch (_) { /* opcional */ }
@@ -901,7 +908,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
     // Resultados de quizzes funcionales
     const { data: quizResults } = await supabase
       .from('functional_quiz_results')
-      .select('quiz_id, domain_scores, active_insights')
+      .select('quiz_id, domain_scores, active_insights, completed_at')
       .eq('user_id', userId)
       .eq('is_complete', true)
       .order('completed_at', { ascending: false });
@@ -910,6 +917,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         quiz: r.quiz_id,
         scores: r.domain_scores as Record<string, number>,
         issues: (r.active_insights as any[])?.map((i: any) => i.title) || [],
+        completedAt: (r as any).completed_at || undefined,
       }));
     }
   } catch (_) { /* opcional */ }
