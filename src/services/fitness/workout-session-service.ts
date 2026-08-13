@@ -53,12 +53,16 @@ export interface SaveSessionResult {
  * (adopta la fila y le fija matrix_slug); si no, la crea.
  */
 async function ensureExerciseIds(
-  sets: Pick<SessionSet, 'slug' | 'nombre'>[],
+  sets: Pick<SessionSet, 'slug' | 'nombre' | 'exerciseId'>[],
 ): Promise<Record<string, string>> {
   const porSlug = new Map<string, string>(); // slug → nombre
-  for (const s of sets) if (!porSlug.has(s.slug)) porSlug.set(s.slug, s.nombre);
-  const slugs = [...porSlug.keys()];
   const out: Record<string, string> = {};
+  for (const s of sets) {
+    // Ola 2 PR2 (log-strength): FK ya conocida — nada que resolver ni adoptar.
+    if (s.exerciseId) { out[s.slug] = s.exerciseId; continue; }
+    if (!porSlug.has(s.slug)) porSlug.set(s.slug, s.nombre);
+  }
+  const slugs = [...porSlug.keys()].filter((sl) => !out[sl]);
   if (slugs.length === 0) return out;
 
   const { data: existentes, error } = await supabase
@@ -218,11 +222,13 @@ export async function saveWorkoutSession(input: SaveSessionInput): Promise<SaveS
       user_id: input.userId,
       exercise_id: exerciseIdBySlug[s.slug],
       session_id: sessionId,
-      matrix_slug: s.slug,
+      // Ola 2 PR2: un slug sintético (ejercicio fuera de la matriz) NUNCA se
+      // escribe como traza — la columna es del catálogo matriceado.
+      matrix_slug: s.fueraDeMatriz ? null : s.slug,
       set_number: s.setNumber,
       reps: s.reps,
       weight_kg: s.weightKg,
-      rir: null,
+      rir: s.rir ?? null,
       rpe: null,
       logged_at: nowIso,
       date: today,

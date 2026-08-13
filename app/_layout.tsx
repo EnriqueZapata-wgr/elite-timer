@@ -231,6 +231,8 @@ function RootLayout() {
                 <Stack.Screen name="afiliados/dashboard" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="afiliados/mi-codigo" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="log-exercise" options={{ animation: 'slide_from_bottom' }} />
+                {/* Ola 2 Fitness PR2: registro retro de fuerza (ex log-exercise, adelgazado). */}
+                <Stack.Screen name="log-strength" options={{ animation: 'slide_from_bottom' }} />
                 {/* MB-19 PIEZA 0: /personal-records y /training-methods eran redirects
                     vacíos de MB-3.6 (a /fitness-strength y /exercise-library). El censo
                     los encontró sin puerta; se borraron con su registro. */}

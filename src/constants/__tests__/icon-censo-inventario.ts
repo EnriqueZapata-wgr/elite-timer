@@ -136,6 +136,10 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/log-cardio.tsx::water-outline',
   'app/log-exercise.tsx::barbell-outline',
   'app/log-exercise.tsx::hourglass-outline',
+  // Ola 2 Fitness PR2: /log-strength es log-exercise adelgazado (mismo header
+  // de ejercicio y mismo reloj de guardado).
+  'app/log-strength.tsx::barbell-outline',
+  'app/log-strength.tsx::hourglass-outline',
   'app/login.tsx::eye-outline',
   'app/mente/nback/como-jugar.tsx::eye-outline',
   'app/mente/nback/como-jugar.tsx::trending-up-outline',

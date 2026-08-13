@@ -14,6 +14,14 @@ export interface SessionSet {
   slot?: string;
   /** MB-3.6 Bloque 5: benchmarks de distancia (broad jump) — cm del intento. */
   distanceCm?: number | null;
+  /** Ola 2 PR2 (log-strength): FK a exercises cuando el llamador YA la conoce
+   *  — el writer no resuelve ni adopta filas por slug para estos sets. */
+  exerciseId?: string | null;
+  /** Ola 2 PR2: true → slug sintético (ejercicio fuera de la matriz);
+   *  exercise_logs.matrix_slug se escribe null, nunca el sintético. */
+  fueraDeMatriz?: boolean;
+  /** Ola 2 PR2 (log-strength): RIR capturado a mano en el registro retro. */
+  rir?: number | null;
 }
 
 export interface SessionSummary {
