@@ -36,8 +36,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/builder.tsx::barbell-outline',
   'app/builder.tsx::eye-outline',
   'app/builder.tsx::timer-outline',
-  'app/cardio-import.tsx::settings-outline',
-  'app/cardio-import.tsx::water-outline',
   // MB-26 P4: fila "Ordenar mi día" en el Centro — chip de acción, no lanzador.
   'app/centro/index.tsx::sparkles-outline',
   'app/comunidad/amigos.tsx::pulse-outline',
@@ -80,24 +78,23 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/emotion-profile.tsx::hourglass-outline',
   'app/emotion-profile.tsx::pulse-outline',
   'app/emotions.tsx::pulse-outline',
-  'app/execution.tsx::barbell-outline',
   'app/exercise-detail.tsx::barbell',
   'app/exercise-library.tsx::barbell-outline',
   'app/fasting.tsx::hourglass-outline',
   'app/fasting.tsx::timer-outline',
-  'app/fitness-cardio.tsx::water-outline',
+  // Ola 2 Fitness PR2: el hub absorbe los secundarios de fitness-train y
+  // fitness-my (mismos glifos de siempre; trophy-outline murió con la fila
+  // "Mi Fitness" — ahora las retrospectivas tienen filas propias).
+  'app/fitness-hub.tsx::barbell-outline',
+  'app/fitness-hub.tsx::body-outline',
   'app/fitness-hub.tsx::book-outline',
-  'app/fitness-hub.tsx::trophy-outline',
-  'app/fitness-my.tsx::barbell-outline',
-  'app/fitness-my.tsx::body-outline',
-  'app/fitness-my.tsx::pulse-outline',
-  'app/fitness-my.tsx::trending-up-outline',
+  'app/fitness-hub.tsx::calendar-outline',
+  'app/fitness-hub.tsx::flame-outline',
+  'app/fitness-hub.tsx::list-outline',
+  'app/fitness-hub.tsx::pulse-outline',
+  'app/fitness-hub.tsx::trending-up-outline',
   'app/fitness-strength.tsx::barbell-outline::x2',
   'app/fitness-strength.tsx::trophy-outline',
-  // MB-27 P2: la fila quiet hacia el plan de días — chip de acción, no lanzador.
-  'app/fitness-train.tsx::calendar-outline',
-  'app/fitness-train.tsx::flame-outline',
-  'app/fitness-train.tsx::list-outline',
   'app/food-preferences.tsx::flame-outline',
   'app/food-preferences.tsx::flower-outline',
   'app/food-preferences.tsx::leaf-outline',
@@ -129,8 +126,10 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/ketones-log.tsx::restaurant-outline',
   'app/lista-compra.tsx::cart-outline',
   'app/log-cardio.tsx::water-outline',
-  'app/log-exercise.tsx::barbell-outline',
-  'app/log-exercise.tsx::hourglass-outline',
+  // Ola 2 Fitness PR2: /log-strength es log-exercise adelgazado (mismo header
+  // de ejercicio y mismo reloj de guardado).
+  'app/log-strength.tsx::barbell-outline',
+  'app/log-strength.tsx::hourglass-outline',
   'app/login.tsx::eye-outline',
   'app/mente/nback/como-jugar.tsx::eye-outline',
   'app/mente/nback/como-jugar.tsx::trending-up-outline',
@@ -235,9 +234,16 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/components/legal/MedicalDisclaimerModal.tsx::medkit-outline',
   'src/components/nutrition/BreakFastGuide.tsx::restaurant-outline',
   'src/components/tests/TestInputScreen.tsx::clipboard-outline',
+  // Ola 2 Fitness PR2: la fase de importación de /log-cardio es la copia
+  // canónica de cardio-import.tsx (mismos glifos: nadar y abrir ajustes HC).
+  'src/components/training/CardioImportFlow.tsx::settings-outline',
+  'src/components/training/CardioImportFlow.tsx::water-outline',
   'src/components/training/ExerciseClip.tsx::barbell-outline',
   'src/components/training/MetodosAtpInfo.tsx::timer-outline',
   'src/components/training/MetodosAtpInfo.tsx::trending-up-outline',
+  // Ola 2 Fitness PR1: el modo timer de /session es la copia canónica de
+  // execution.tsx (mismo indicador de ejercicio en curso, mismo glifo).
+  'src/components/training/TimerModeRunner.tsx::barbell-outline',
   'src/constants/categories.ts::analytics-outline',
   'src/constants/categories.ts::barbell-outline',
   'src/constants/categories.ts::flask-outline',

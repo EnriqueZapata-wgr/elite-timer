@@ -203,11 +203,13 @@ function RootLayout() {
                 <Stack.Screen name="register" options={{ animation: 'fade' }} />
                 <Stack.Screen name="forgot-password" />
                 <Stack.Screen name="reset-password" options={{ animation: 'fade' }} />
+                {/* Ola 2 Fitness PR3: /timer era un Stack.Screen fantasma (el
+                    archivo no existe) y /session-summary murió huérfano: su
+                    EFICIENCIA % vive en el cierre del modo timer de /session. */}
                 {/* E-4 (MB-12): programs / create-program / create-routine /
                     standard-programs borradas — duplicaban my-routines/builder
                     con un store AsyncStorage paralelo que nadie leía. */}
 
-                <Stack.Screen name="session-summary" />
                 <Stack.Screen name="execution" options={{ animation: 'fade' }} />
                 <Stack.Screen name="builder" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="settings" options={{ animation: 'slide_from_bottom' }} />
@@ -230,6 +232,8 @@ function RootLayout() {
                 <Stack.Screen name="afiliados/dashboard" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="afiliados/mi-codigo" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="log-exercise" options={{ animation: 'slide_from_bottom' }} />
+                {/* Ola 2 Fitness PR2: registro retro de fuerza (ex log-exercise, adelgazado). */}
+                <Stack.Screen name="log-strength" options={{ animation: 'slide_from_bottom' }} />
                 {/* MB-19 PIEZA 0: /personal-records y /training-methods eran redirects
                     vacíos de MB-3.6 (a /fitness-strength y /exercise-library). El censo
                     los encontró sin puerta; se borraron con su registro. */}
@@ -309,6 +313,8 @@ function RootLayout() {
                 {/* MB-3: generador determinista + biblioteca matriceada + runner de sesión */}
                 <Stack.Screen name="routine-generator" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="exercise-detail" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* Ola 2 Fitness PR1: /session es el runner unificado; strength-session queda como alias permanente. */}
+                <Stack.Screen name="session" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
                 <Stack.Screen name="strength-session" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
                 <Stack.Screen name="log-cardio" options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }} />
                 <Stack.Screen name="reports" options={{ headerShown: false, animation: 'slide_from_right' }} />

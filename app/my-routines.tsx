@@ -3,9 +3,12 @@
  *
  * Muestra todas las rutinas (timer + routine) con nombre, modo, # bloques y fecha.
  * Tap → ejecuta la rutina. Botones al final para crear nueva rutina o timer.
+ * Ola 2 Fitness PR2 (anexo §3): ?share=CODE abre el sheet de rutina
+ * compartida (ex pantalla /shared-routine) — preview, clonar y estados de
+ * error, sin salir de la lista.
  */
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Alert, Modal } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, Alert, Modal, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +21,8 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { haptic } from '@/src/utils/haptics';
 import { getRoutines, deleteRoutine, archiveRoutines, saveRoutine, generateUUID } from '@/src/services/routine-service';
-import { routineUsesClipRunner } from '@/src/services/fitness/routine-bridge-core';
+import { getShareInfo, cloneFromShare, type ShareInfo } from '@/src/services/share-service';
+import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, SEMANTIC, withOpacity } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
@@ -167,10 +171,53 @@ export default function MyRoutinesScreen() {
     }, []),
   );
 
+  // Ola 2 PR2 (ex /shared-routine): el sheet de rutina compartida.
+  const { session } = useAuth();
+  const [shareVisible, setShareVisible] = useState(false);
+  const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [cloning, setCloning] = useState(false);
+  const [cloned, setCloned] = useState(false);
+  const shareAbiertoRef = useRef<string | null>(null);
+
   // Audit B5/menor 9: ?abrir=<routineId> abre la rutina asignada DIRECTO
   // (el hero del hub y Entrenar deep-linkean aquí) — sin volver a buscarla.
   // Una sola vez por entrada; si el id no existe, la lista normal.
-  const { abrir } = useLocalSearchParams<{ abrir?: string }>();
+  const { abrir, share } = useLocalSearchParams<{ abrir?: string; share?: string }>();
+
+  // ?share=CODE abre el sheet una sola vez por código (deep link o interno).
+  useEffect(() => {
+    if (!share || shareAbiertoRef.current === share) return;
+    shareAbiertoRef.current = share;
+    setShareVisible(true);
+    setShareLoading(true);
+    setShareError(null);
+    setShareInfo(null);
+    setCloned(false);
+    getShareInfo(share)
+      .then((data) => {
+        if (!data) setShareError('Rutina no encontrada');
+        else setShareInfo(data);
+      })
+      .catch(() => setShareError('Error al cargar'))
+      .finally(() => setShareLoading(false));
+  }, [share]);
+
+  async function clonarCompartida() {
+    if (!share || cloning) return;
+    haptic.heavy();
+    setCloning(true);
+    try {
+      await cloneFromShare(share);
+      setCloned(true);
+      loadRoutines();
+    } catch (err: any) {
+      setShareError(userErrorMessage(err, 'No se pudo clonar la rutina.'));
+    } finally {
+      setCloning(false);
+    }
+  }
   const abiertaRef = useRef<string | null>(null);
   useEffect(() => {
     if (!abrir || abiertaRef.current === abrir || routines.length === 0) return;
@@ -202,19 +249,13 @@ export default function MyRoutinesScreen() {
       router.push({ pathname: '/builder', params: { routineId: routine.id } });
       return;
     }
-    // MB-7 Track C: la interfaz la decide el CONTENIDO, no el modo — ejercicios
-    // de matriz → runner con clip; puro tiempo → timer. (routine-execution RIP.)
-    if (routineUsesClipRunner(routine)) {
-      router.push({
-        pathname: '/strength-session',
-        params: { routine: JSON.stringify(routine), name: routine.name },
-      });
-    } else {
-      router.push({
-        pathname: '/execution',
-        params: { routine: JSON.stringify(routine) },
-      });
-    }
+    // Ola 2 PR3: la interfaz la sigue decidiendo el CONTENIDO, pero el
+    // árbitro (routineUsesClipRunner) vive DENTRO de /session — matriz corre
+    // con clip, puro tiempo corre el modo timer absorbido. Un solo destino.
+    router.push({
+      pathname: '/session',
+      params: { routine: JSON.stringify(routine), name: routine.name },
+    });
   }
 
   function handleLongPress(routine: Routine) {
@@ -501,6 +542,96 @@ export default function MyRoutinesScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Ola 2 PR2 (ex /shared-routine): sheet de rutina compartida —
+          preview con creador y stats, clonar a la biblioteca, estados de
+          error honestos. El deep link ?share=CODE cae aquí. */}
+      <Modal
+        visible={shareVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShareVisible(false)}
+      >
+        <View style={s.limpiezaOverlay}>
+          <View style={[s.limpiezaSheet, { backgroundColor: tk.flotante }]}>
+            <View style={s.limpiezaHeader}>
+              <EliteText style={[s.limpiezaSheetTitle, { color: tk.texto }]}>RUTINA COMPARTIDA</EliteText>
+              <Pressable onPress={() => setShareVisible(false)} hitSlop={8}>
+                <Ionicons name="close" size={22} color={tk.textoSecundario} />
+              </Pressable>
+            </View>
+
+            {shareLoading && (
+              <View style={s.shareCenter}>
+                <ActivityIndicator size="large" color={ATP_BRAND.lime} />
+              </View>
+            )}
+
+            {!shareLoading && shareError && !shareInfo && (
+              <View style={s.shareCenter}>
+                <Ionicons name="alert-circle-outline" size={40} color={tk.error} />
+                <EliteText style={[s.shareErrorText, { color: tk.textoSecundario }]}>{shareError}</EliteText>
+                <GradientCTA label="VOLVER" variant="quiet" onPress={() => setShareVisible(false)} />
+              </View>
+            )}
+
+            {!shareLoading && shareInfo && cloned && (
+              <View style={s.shareCenter}>
+                <Ionicons name="checkmark-circle" size={48} color={ATP_BRAND.lime} />
+                <EliteText style={[s.shareName, { color: tk.texto }]}>Rutina agregada</EliteText>
+                <EliteText style={[s.shareMeta, { color: tk.textoSecundario }]}>
+                  "{shareInfo.routine_name}" ya está en tus rutinas
+                </EliteText>
+                <GradientCTA label="LISTO" pillar="fitness" onPress={() => setShareVisible(false)} />
+              </View>
+            )}
+
+            {!shareLoading && shareInfo && !cloned && (
+              <View>
+                <View style={[s.shareModeBadge, { backgroundColor: withOpacity(shareInfo.routine_mode === 'timer' ? ATP_BRAND.amber : ATP_BRAND.lime, 0.15) }]}>
+                  <EliteText style={[s.shareModeText, { color: shareInfo.routine_mode === 'timer' ? ATP_BRAND.amber : acento }]}>
+                    {shareInfo.routine_mode === 'timer' ? 'TIMER' : 'RUTINA'}
+                  </EliteText>
+                </View>
+                <EliteText style={[s.shareName, { color: tk.texto }]}>{shareInfo.routine_name}</EliteText>
+                <View style={s.shareCreatorRow}>
+                  <Ionicons name="person-outline" size={14} color={tk.textoSecundario} />
+                  <EliteText style={[s.shareMeta, { color: tk.textoSecundario }]}>{shareInfo.creator_name}</EliteText>
+                </View>
+                <View style={s.shareStatsRow}>
+                  <View style={s.shareStat}>
+                    <EliteText style={[s.shareStatValue, { color: acento }]}>{shareInfo.block_count}</EliteText>
+                    <EliteText style={[s.shareMeta, { color: tk.textoSecundario }]}>bloques</EliteText>
+                  </View>
+                  <View style={[s.shareStatDivider, { backgroundColor: tk.borde }]} />
+                  <View style={s.shareStat}>
+                    <EliteText style={[s.shareStatValue, { color: acento }]}>{shareInfo.times_cloned}</EliteText>
+                    <EliteText style={[s.shareMeta, { color: tk.textoSecundario }]}>veces clonada</EliteText>
+                  </View>
+                </View>
+                {session ? (
+                  <GradientCTA
+                    label={cloning ? 'AGREGANDO…' : 'AGREGAR A MIS RUTINAS'}
+                    pillar="fitness"
+                    icon="download-outline"
+                    disabled={cloning}
+                    onPress={clonarCompartida}
+                  />
+                ) : (
+                  <GradientCTA
+                    label="INICIAR SESIÓN PARA AGREGARLA"
+                    pillar="fitness"
+                    onPress={() => { setShareVisible(false); router.push('/login'); }}
+                  />
+                )}
+                {shareError && (
+                  <EliteText style={[s.shareErrorText, { color: tk.error }]}>{shareError}</EliteText>
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
     </ThemeReady>
   );
@@ -615,6 +746,25 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   eliminarText: { fontFamily: Fonts.semiBold, fontSize: 13 },
+
+  // --- Sheet de rutina compartida (Ola 2 PR2, ex /shared-routine) ---
+  shareCenter: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.lg },
+  shareModeBadge: {
+    alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: Radius.pill, marginBottom: Spacing.xs,
+  },
+  shareModeText: { fontFamily: Fonts.bold, fontSize: 10, letterSpacing: 1 },
+  shareName: { fontFamily: Fonts.extraBold, fontSize: 22, marginBottom: 2 },
+  shareCreatorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.sm },
+  shareMeta: { fontFamily: Fonts.regular, fontSize: 12 },
+  shareStatsRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around',
+    marginBottom: Spacing.md, paddingVertical: Spacing.sm,
+  },
+  shareStat: { alignItems: 'center', flex: 1 },
+  shareStatValue: { fontFamily: Fonts.extraBold, fontSize: 24, fontVariant: ['tabular-nums'] },
+  shareStatDivider: { width: 1, height: 30 },
+  shareErrorText: { fontFamily: Fonts.regular, fontSize: 13, textAlign: 'center', marginTop: Spacing.xs },
 
   // --- Create buttons ---
   createBtn: {

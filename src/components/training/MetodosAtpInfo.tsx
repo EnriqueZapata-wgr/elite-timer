@@ -106,7 +106,7 @@ export function MetodosAtpInfo() {
             </View>
 
             <AnimatedPressable
-              onPress={() => { haptic.medium(); router.push('/log-exercise'); }}
+              onPress={() => { haptic.medium(); router.push('/log-strength'); }}
               style={[s.cta, { borderColor: withOpacity(m.color, 0.45) }]}
             >
               <EliteText style={[s.ctaText, { color: m.color }]}>USAR ESTE MÉTODO</EliteText>

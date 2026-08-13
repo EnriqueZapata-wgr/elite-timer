@@ -97,14 +97,14 @@ export const APP_REGISTRY: AppEntry[] = [
     description: 'Tu sesión de hoy, tus rutinas y la biblioteca de ejercicios. Genera la sesión, ejecútala y regístrala.' },
   // MB-22.1 §5.1: las disciplinas son las CUATRO de fitness-cardio.tsx —
   // decir "caminar" (que no existe) y omitir natación era inventar.
-  { key: 'cardio', label: 'Cardio', icon: 'cardio', section: 'cuerpo', route: '/fitness-cardio', installable: true, alias: ['correr', 'bici', 'caminar', 'zona 2'],
+  { key: 'cardio', label: 'Cardio', icon: 'cardio', section: 'cuerpo', route: '/log-cardio', installable: true, alias: ['correr', 'bici', 'caminar', 'zona 2'],
     description: 'Correr, ciclismo, natación y remo: registra tus sesiones y ve tus marcas por distancia.' },
   // Evaluación puntual, no hábito diario: no tiene electrón que activar.
   { key: 'movilidad', label: 'Movilidad', icon: 'movilidad', section: 'cuerpo', route: '/mobility-assessment', installable: false, alias: ['flexibilidad', 'estiramiento', 'evaluación'],
     description: 'Evaluación guiada de movilidad en siete tests, con lectura por test, asimetrías y comparación contra tu anterior.' },
   // MB-27 P1: el alias 'peso' se muda a Medidas — para el usuario "peso" es
   // su peso corporal, no el que levanta. 1RM conserva levantamiento/series.
-  { key: 'rm', label: '1RM', icon: 'rm', section: 'cuerpo', route: '/log-exercise', installable: false, alias: ['levantamiento', 'registrar', 'series', 'barra'],
+  { key: 'rm', label: '1RM', icon: 'rm', section: 'cuerpo', route: '/log-strength', installable: false, alias: ['levantamiento', 'registrar', 'series', 'barra'],
     description: 'Registra tus series de fuerza con peso y repeticiones, con cálculo de tu máximo (1RM) en vivo.' },
   { key: 'records', label: 'Récords', icon: 'records', section: 'cuerpo', route: '/fitness-strength', installable: false, alias: ['pr', 'benchmarks', 'marcas'],
     description: 'Tu fuerza en un solo lugar: nivel, récords personales y benchmarks por grupo muscular, con progresión.' },

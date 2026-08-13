@@ -36,6 +36,9 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { getTodayFitnessState, type TodayFitnessState } from '@/src/services/fitness/today-session-service';
 import { flushPendingSessions } from '@/src/services/fitness/workout-session-service';
 import { setFitnessLevel } from '@/src/services/fitness/fitness-profile-service';
+import { DIA_LABELS, tituloDeAsignacion, diaSemanaLocal } from '@/src/services/fitness/plan-semanal-core';
+import { getAsignacionHoy, type EstadoAsignacionHoy } from '@/src/services/fitness/plan-semanal-service';
+import { getCycleInfo, PHASES } from '@/src/services/cycle-service';
 import { NIVELES_USUARIO, type NivelUsuario } from '@/src/constants/exercise-matrix';
 import type { Objetivo } from '@/src/services/fitness/routine-generator-core';
 
@@ -47,13 +50,47 @@ const OBJETIVO_LABELS: Record<Objetivo, string> = {
   fuerza: 'Fuerza', hipertrofia: 'Hipertrofia', metabolico: 'Metabólico', movilidad: 'Movilidad',
 };
 
-// Navegación terciaria (las 3 cards grandes bajaron a filas compactas).
-// Explorar ya no es menú intermedio: va directo a la biblioteca (los métodos
-// ATP viven dentro de ella — MB-3.6 Bloque 1.1).
-const NAV_ITEMS = [
-  { name: 'Mi Fitness', subtitle: 'Fuerza y récords · cardio · movilidad', icon: 'trophy-outline' as const, color: CATEGORY_COLORS.fitness, route: '/fitness-my' as const },
-  { name: 'Entrenar', subtitle: 'Rutinas · builder · HIIT · registro', icon: 'flash-outline' as const, color: ATP_BRAND.teal, route: '/fitness-train' as const },
-  { name: 'Biblioteca', subtitle: 'Ejercicios con clip · métodos ATP', icon: 'book-outline' as const, color: SEMANTIC.info, route: '/exercise-library' as const },
+// Navegación terciaria en secciones (Ola 2 PR2, anexo §4: el hub es LA única
+// puerta del pilar). ENTRENAR y REGISTRAR absorben los 4 secundarios de
+// fitness-train; la fila "Intervalos" mitiga la descubribilidad de la puerta
+// del generador (§6.4).
+type NavItem = {
+  name: string; subtitle: string; icon: any; color: string;
+  route: string; params?: Record<string, string>;
+};
+const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
+  {
+    label: 'ENTRENAR',
+    items: [
+      { name: 'Mis rutinas', subtitle: 'Rutinas guardadas listas para ejecutar', icon: 'list-outline', color: CATEGORY_COLORS.fitness, route: '/my-routines' },
+      { name: 'Construir rutina', subtitle: 'Crea tu rutina desde cero', icon: 'construct-outline', color: SEMANTIC.info, route: '/builder', params: { mode: 'routine' } },
+      { name: 'Intervalos', subtitle: 'Tabata · EMOM · AMRAP · 30/30 con voz', icon: 'flame-outline', color: SEMANTIC.error, route: '/routine-generator', params: { puerta: 'intervalos' } },
+    ],
+  },
+  {
+    label: 'REGISTRAR',
+    items: [
+      { name: 'Fuerza', subtitle: 'Series, reps y peso de lo ya hecho', icon: 'add-circle-outline', color: ATP_BRAND.teal, route: '/log-strength' },
+      { name: 'Cardio', subtitle: 'Manual o importado de tu app de salud', icon: 'pulse-outline', color: SEMANTIC.error, route: '/log-cardio' },
+    ],
+  },
+  {
+    label: 'EXPLORAR',
+    items: [
+      { name: 'Biblioteca', subtitle: 'Ejercicios con clip · métodos ATP', icon: 'book-outline', color: SEMANTIC.info, route: '/exercise-library' },
+      { name: 'Movilidad', subtitle: 'Evalúate · rutinas de movilidad', icon: 'body-outline', color: CATEGORY_COLORS.mind, route: '/mobility-assessment' },
+    ],
+  },
+  // Ola 2 PR2 (ex fitness-my): las retrospectivas conservan sus rutas de hoy
+  // — se van a Reports en OTRA ola (Anexo A), no en esta.
+  {
+    label: 'MI FITNESS',
+    items: [
+      { name: 'Fuerza y récords', subtitle: 'Benchmarks · variantes · todos tus PRs', icon: 'barbell-outline', color: CATEGORY_COLORS.fitness, route: '/fitness-strength' },
+      { name: 'Mi progreso', subtitle: 'Resumen del mes · frecuencia · volumen', icon: 'trending-up-outline', color: ATP_BRAND.teal, route: '/progress' },
+      { name: 'Historial', subtitle: 'Todas tus sesiones, por fecha', icon: 'time-outline', color: SEMANTIC.info, route: '/history' },
+    ],
+  },
 ];
 
 export default function FitnessHubScreen() {
@@ -67,6 +104,17 @@ export default function FitnessHubScreen() {
   // Batch 3 (#22): hero editorial sex-aware (fitness-el/ella).
   const [bioSex, setBioSex] = useState<string | null>(null);
   const [guardandoNivel, setGuardandoNivel] = useState(false);
+  // Ola 2 PR2 (ex fitness-train): la asignación del día para el copy del
+  // plan (hoy descansas / próximo día). null = sin leer o fallida — degrada
+  // callada.
+  const [asignacion, setAsignacion] = useState<EstadoAsignacionHoy | null>(null);
+  // Ola 2 PR2 (ex fitness-train, MB-27 P3): la fase del ciclo. getCycleInfo
+  // se auto-gatea (solo mujer en modo propio, con datos); fail-CLOSED — info
+  // null LIMPIA la tira.
+  const [fase, setFase] = useState<{
+    phase: string; day: number; cycleLen: number;
+    largoFuente: 'observado' | 'ajuste'; cyclesUsed: number;
+  } | null>(null);
 
   const cargarHoy = useCallback(() => {
     if (!user) return;
@@ -92,6 +140,18 @@ export default function FitnessHubScreen() {
       supabase.from('client_profiles').select('biological_sex').eq('user_id', u.id).maybeSingle()
         .then(({ data }) => setBioSex((data as any)?.biological_sex ?? null), () => {});
     });
+    // Ola 2 PR2 (ex fitness-train): asignación del día + fase del ciclo.
+    if (user) {
+      getAsignacionHoy(user.id).then(setAsignacion).catch(() => {});
+      getCycleInfo(user.id)
+        .then((info) => {
+          setFase(info ? {
+            phase: info.currentPhase, day: info.currentDay, cycleLen: info.cycleLen,
+            largoFuente: info.largoFuente, cyclesUsed: info.cyclesUsed,
+          } : null);
+        })
+        .catch(() => setFase(null));
+    }
   }, [cargarHoy, user]));
 
   async function loadWeekStats() {
@@ -148,7 +208,7 @@ export default function FitnessHubScreen() {
     if (today?.kind !== 'lista') return;
     haptic.success();
     router.push({
-      pathname: '/strength-session',
+      pathname: '/session',
       params: { plan: JSON.stringify(today.rutina), name: 'Sesión de hoy' },
     });
   }
@@ -336,6 +396,58 @@ export default function FitnessHubScreen() {
           {renderHoy()}
         </Animated.View>
 
+        {/* Ola 2 PR2 (ex fitness-train): la salida clara al plan de días, con
+            el copy de próximo día cuando hoy es descanso. */}
+        <Animated.View entering={FadeInUp.delay(90).springify()}>
+          <AnimatedPressable
+            style={s.planLink}
+            onPress={() => { haptic.light(); router.push('/plan-entrenamiento'); }}
+          >
+            <Ionicons name="calendar-outline" size={16} color={t.textoSecundario} />
+            <EliteText style={[s.planLinkText, { color: t.textoSecundario }]}>
+              {asignacion?.hoy
+                ? 'Cambiar mi plan de días'
+                : asignacion?.tienePlan
+                  ? asignacion.proxima
+                    ? `Hoy descansas · próximo: ${DIA_LABELS[diaSemanaLocal(asignacion.proxima.date)]} · ${tituloDeAsignacion(asignacion.proxima.row)}`
+                    : 'Hoy descansas · cambiar mi plan de días'
+                  : 'Dí qué días entrenas y el hub te contesta'}
+            </EliteText>
+            <Ionicons name="chevron-forward" size={14} color={t.textoTenue} />
+          </AnimatedPressable>
+        </Animated.View>
+
+        {/* Ola 2 PR2 (ex fitness-train, MB-27 P3): la fase, bidireccional.
+            Folicular/ovulación EMPUJAN, lútea/menstrual escuchan — el copy es
+            PHASES[x].exercise (el canónico). Informa y sugiere: nada se
+            esconde ni se prohíbe por la fase. Solo cuenta propia. */}
+        {fase && PHASES[fase.phase] && (
+          <Animated.View entering={FadeInUp.delay(110).springify()}>
+            <AnimatedPressable
+              style={[s.faseCard, { backgroundColor: t.card, borderColor: withOpacity(PHASES[fase.phase].color, 0.35) }]}
+              onPress={() => { haptic.light(); router.push('/cycle'); }}
+            >
+              <Ionicons
+                name={PHASES[fase.phase].icon as any}
+                size={18}
+                color={PHASES[fase.phase].color}
+              />
+              <View style={{ flex: 1 }}>
+                <EliteText style={[s.faseTitulo, { color: PHASES[fase.phase].color }]}>
+                  Fase {PHASES[fase.phase].label.toLowerCase()} · día {fase.day}
+                </EliteText>
+                <EliteText style={[s.faseCopy, { color: t.textoSecundario }]}>{PHASES[fase.phase].exercise}</EliteText>
+                {/* Audit V2 B1: el número SIEMPRE dice de dónde sale. */}
+                <EliteText style={[s.faseFuente, { color: t.textoTenue }]}>
+                  {fase.largoFuente === 'observado'
+                    ? `Ciclo de ${fase.cycleLen} días: promedio de tus últimos ${fase.cyclesUsed} ciclos registrados.`
+                    : `Ciclo de ${fase.cycleLen} días: tu ajuste manual.`}
+                </EliteText>
+              </View>
+            </AnimatedPressable>
+          </Animated.View>
+        )}
+
         {/* SECUNDARIO — la semana (compacto, ya no hero).
             MB-3.7 §1.5: el día que YA entrenaste, la card se oculta — el hero
             de completado trae los logros de hoy y no compiten dos resúmenes. */}
@@ -363,27 +475,36 @@ export default function FitnessHubScreen() {
         </Animated.View>
         )}
 
-        {/* TERCIARIO — navegación en filas compactas */}
-        <View style={{ marginTop: Spacing.lg }}>
-          {NAV_ITEMS.map((item, idx) => (
-            <Animated.View key={item.name} entering={FadeInUp.delay(180 + idx * 40).springify()}>
-              <AnimatedPressable onPress={() => { haptic.medium(); router.push(item.route); }}>
-                <GradientCard color={item.color} style={s.navCard}>
-                  <View style={s.navRow}>
-                    <View style={[s.navIcon, { backgroundColor: withOpacity(item.color, 0.15) }]}>
-                      <Ionicons name={item.icon} size={20} color={item.color} />
+        {/* TERCIARIO — navegación en secciones (única puerta del pilar) */}
+        {NAV_SECTIONS.map((section, sIdx) => (
+          <View key={section.label} style={{ marginTop: Spacing.lg }}>
+            <EliteText style={[s.sectionLabel, { color: t.textoSecundario }]}>{section.label}</EliteText>
+            {section.items.map((item, idx) => (
+              <Animated.View key={item.name} entering={FadeInUp.delay(180 + (sIdx * 3 + idx) * 40).springify()}>
+                <AnimatedPressable
+                  onPress={() => {
+                    haptic.medium();
+                    if (item.params) router.push({ pathname: item.route as any, params: item.params });
+                    else router.push(item.route as any);
+                  }}
+                >
+                  <GradientCard color={item.color} style={s.navCard}>
+                    <View style={s.navRow}>
+                      <View style={[s.navIcon, { backgroundColor: withOpacity(item.color, 0.15) }]}>
+                        <Ionicons name={item.icon} size={20} color={item.color} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <EliteText style={[s.navName, { color: t.texto }]}>{item.name}</EliteText>
+                        <EliteText style={[s.navSub, { color: t.textoSecundario }]}>{item.subtitle}</EliteText>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <EliteText style={[s.navName, { color: t.texto }]}>{item.name}</EliteText>
-                      <EliteText style={[s.navSub, { color: t.textoSecundario }]}>{item.subtitle}</EliteText>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
-                  </View>
-                </GradientCard>
-              </AnimatedPressable>
-            </Animated.View>
-          ))}
-        </View>
+                  </GradientCard>
+                </AnimatedPressable>
+              </Animated.View>
+            ))}
+          </View>
+        ))}
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
@@ -464,7 +585,30 @@ const s = StyleSheet.create({
   statLabel: { fontSize: 10, fontFamily: Fonts.semiBold, marginTop: 2 },
   statDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.06)' },
 
+  // Ola 2 PR2 (ex fitness-train): fila quiet hacia el plan de días.
+  planLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: Spacing.sm, paddingHorizontal: 4,
+    marginTop: Spacing.xs,
+  },
+  planLinkText: { flex: 1, fontSize: FontSizes.sm },
+
+  // Ola 2 PR2 (ex fitness-train, MB-27 P3): la tira de fase — informativa,
+  // con el color de la fase desaturado en el borde (no compite con el hero).
+  faseCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderWidth: 1, borderRadius: 14,
+    padding: Spacing.md, marginTop: Spacing.xs,
+  },
+  faseTitulo: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 0.5, marginBottom: 2 },
+  faseCopy: { fontSize: FontSizes.sm, lineHeight: 18 },
+  faseFuente: { fontSize: FontSizes.xs, marginTop: 4 },
+
   // Navegación terciaria
+  sectionLabel: {
+    fontSize: 11, fontFamily: Fonts.bold,
+    letterSpacing: 2, marginBottom: Spacing.sm,
+  },
   navCard: { padding: Spacing.md, marginBottom: Spacing.sm },
   navRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   navIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
