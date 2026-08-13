@@ -26,6 +26,7 @@ import { haptic } from '@/src/utils/haptics';
 import { Colors, Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 
 interface SettingsGroup {
   icon: string;
@@ -111,7 +112,7 @@ export default function SettingsScreen() {
       <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Ajustes" />
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: ORB_SAFE_BOTTOM }}>
         {/* Header de cuenta → Perfil y cuenta */}
         <Animated.View entering={FadeInUp.delay(100).springify()}>
           {/* MB-1.5 §1: spring en pointer-down (antes Pressable sin feedback) */}

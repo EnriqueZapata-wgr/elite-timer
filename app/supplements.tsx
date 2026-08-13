@@ -26,6 +26,7 @@ import { BhaScanSheet } from '@/src/components/supplements/BhaScanSheet';
 import { ATP_BRAND, getScoreColor, getScoreLabel } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 
 const TIMING_OPTIONS = [
   { id: 'morning', label: 'Mañana', icon: 'sunny-outline' as const, color: '#fbbf24' },
@@ -362,7 +363,7 @@ export default function SupplementsScreen() {
 
   return (
     <ThemeReady>
-    <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 + ORB_SAFE_BOTTOM }}>
       <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 8, paddingBottom: 12 }}>

@@ -36,6 +36,7 @@ import { fastingGateDecision, fastingAlertForHours, type GateDecision } from '@/
 import { getSafetyState } from '@/src/services/safety/protocol-gate-service';
 import { getSafetyParams, DEFAULT_SAFETY_PARAMS, type FastingSafetyParams } from '@/src/services/safety/safety-params-service';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 // MB-22: la lista de protocolos vive en constants (fuente única, compartida
 // con la ficha de Ayuno del Centro).
 import { FASTING_PROTOCOLS } from '@/src/constants/fasting-protocols';
@@ -836,7 +837,7 @@ export default function FastingScreen() {
   // === RENDER ===
   return (
     <ThemeReady>
-    <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 + ORB_SAFE_BOTTOM }}>
       <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 8, paddingBottom: 12 }}>

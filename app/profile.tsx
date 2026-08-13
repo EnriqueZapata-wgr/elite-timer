@@ -38,6 +38,7 @@ import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { userErrorMessage } from '@/src/utils/user-error';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 
 /** Edad cronológica derivada de la fecha de nacimiento (null si inválida). */
 function ageFromDob(dob: string | null): number | null {
@@ -393,7 +394,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingTop: 8, paddingBottom: 8 },
   backBtn: { padding: 2 },
   headerTitle: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: t.texto, letterSpacing: 2 },
-  scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
+  scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl + ORB_SAFE_BOTTOM },
   avatarWrap: { alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 8 },
   avatarTap: { position: 'relative' },
   cameraBadge: {

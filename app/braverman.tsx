@@ -38,6 +38,7 @@ import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { advancePosition, retreatPosition, canRetreat } from '@/src/utils/braverman-nav';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 
 const PART1 = BRAVERMAN_QUESTIONS.filter(q => q.part === 'dominance');
 const PART2 = BRAVERMAN_QUESTIONS.filter(q => q.part === 'deficiency');
@@ -291,7 +292,7 @@ function BravermanTest() {
   if (screen === 'intro') {
     const neuros: Neurotransmitter[] = ['dopamine', 'acetylcholine', 'gaba', 'serotonin'];
     return (
-      <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 + ORB_SAFE_BOTTOM }}>
         {/* Hero cinematic: imagen ambient (ADN) bajo overlay fuerte → lee B/N */}
         <ImageBackground source={AMBIENT_IMG} style={{ width: '100%' }} imageStyle={{ opacity: 0.55 }}>
           <LinearGradient
@@ -575,7 +576,7 @@ function BravermanTest() {
     const defMeta = NEUROTRANSMITTER_META[primaryDef];
 
     return (
-      <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 + ORB_SAFE_BOTTOM }}>
         <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 16 }}>
           {/* Reveal editorial: cada sección entra en fade + desplazamiento sutil */}
           <Animated.View entering={FadeIn.duration(400)}>

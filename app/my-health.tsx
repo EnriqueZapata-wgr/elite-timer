@@ -39,6 +39,7 @@ import { useLabProcessing } from '@/src/hooks/useLabProcessing';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, withOpacity, TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 import { Screen } from '@/src/components/ui/Screen';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
@@ -657,7 +658,7 @@ function MyHealthScreen() {
 // MB-31B2: los estilos leen los tokens del tema.
 const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: t.fondo },
-  content: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
+  content: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl + ORB_SAFE_BOTTOM },
   uploadCard: { marginBottom: Spacing.md },
   uploadBody: { alignItems: 'center', padding: Spacing.lg },
   uploadBtns: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md },
