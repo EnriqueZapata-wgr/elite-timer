@@ -9,13 +9,13 @@
  * La última sesión de la disciplina prellena la sugerencia — nada de
  * formularios largos. PRs solo se chequean si hay distancia (honesto).
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, ScrollView, StyleSheet, TextInput, Alert,
   KeyboardAvoidingView, Platform, DeviceEventEmitter,
   LayoutAnimation, UIManager,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -32,12 +32,16 @@ import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import {
   logCardioSession,
   getLastCardioSessions,
+  getCardioRecordsByDiscipline,
   formatPace,
   formatDuration,
   type CardioDiscipline,
   type CardioSession,
+  type CardioRecord,
 } from '@/src/services/fitness-service';
 import { CardioImportFlow } from '@/src/components/training/CardioImportFlow';
+import { autoSyncSiActiva } from '@/src/services/fitness/health-import-service';
+import { useAuth } from '@/src/contexts/auth-context';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { warn as logWarn } from '@/src/lib/logger';
 import { userErrorMessage } from '@/src/utils/user-error';
@@ -59,6 +63,7 @@ const DURACIONES = [15, 20, 30, 45, 60, 90];
 export default function LogCardioScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ discipline?: string; fase?: string }>();
+  const { user } = useAuth();
   // MB-31B3: la pantalla migró a tokens y sigue el tema global.
   const { kind, tokens: tk } = useAppTheme();
   // Regla 1 de la guía: lima como TEXTO no sobrevive el claro → teal calibrado.
@@ -84,10 +89,27 @@ export default function LogCardioScreen() {
   // Ola 2 PR2: la fase de importación Health vive aquí (?fase=importar).
   const [modoImportar, setModoImportar] = useState(params.fase === 'importar');
 
+  // Ola 2 PR2 (ex fitness-cardio): PRs por distancia — dato que no vive en
+  // ningún otro lado.
+  const [records, setRecords] = useState<Record<CardioDiscipline, CardioRecord[]> | null>(null);
+
   // Prellenado: la última sesión de la disciplina como sugerencia visible.
   useEffect(() => {
     getLastCardioSessions().then(setUltimas).catch(() => {});
   }, []);
+
+  const cargarRecords = useCallback(() => {
+    getCardioRecordsByDiscipline().then(setRecords).catch(() => {});
+  }, []);
+
+  // Ola 2 PR2 (ex fitness-cardio): PRs al focus + auto-sync SOLO si el
+  // usuario activó el opt-in en Importar (MB-3.6 §3.2).
+  useFocusEffect(useCallback(() => {
+    cargarRecords();
+    if (user) {
+      autoSyncSiActiva(user.id).then((n) => { if (n > 0) cargarRecords(); }).catch(() => {});
+    }
+  }, [cargarRecords, user]));
 
   const ultima = ultimas?.[discipline] ?? null;
 
@@ -222,6 +244,22 @@ export default function LogCardioScreen() {
               })}
             </View>
           </Animated.View>
+
+          {/* Ola 2 PR2 (ex fitness-cardio): los PRs por distancia de la
+              disciplina elegida. Se quedan aquí: no viven en otro lado. */}
+          {(records?.[discipline]?.length ?? 0) > 0 && (
+            <Animated.View entering={FadeInUp.delay(60).springify()}>
+              <EliteText style={[s.sublabel, { color: tk.textoTenue }]}>TUS RÉCORDS POR DISTANCIA</EliteText>
+              <View style={s.prsRow}>
+                {records![discipline].slice(0, 5).map(pr => (
+                  <View key={pr.id} style={s.prChip}>
+                    <EliteText style={[s.prChipLabel, secTxt]}>{pr.distance_label}</EliteText>
+                    <EliteText style={[s.prChipValue, { color: acento }]}>{formatDuration(pr.best_time_seconds)}</EliteText>
+                  </View>
+                ))}
+              </View>
+            </Animated.View>
+          )}
 
           {/* Sugerencia: la última sesión de esta disciplina */}
           {ultima?.duration_seconds ? (
@@ -539,6 +577,15 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
     borderTopWidth: 0.5,
   },
+
+  // Ola 2 PR2 (ex fitness-cardio): chips de PRs por distancia.
+  prsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  prChip: {
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.sm,
+    backgroundColor: withOpacity(ATP_BRAND.lime, 0.1), alignItems: 'center',
+  },
+  prChipLabel: { fontSize: 9, fontFamily: Fonts.semiBold, letterSpacing: 1 },
+  prChipValue: { fontSize: FontSizes.sm, fontFamily: Fonts.bold },
 
   // Ola 2 PR2: puerta a la fase de importación (ex fitness-cardio ghost CTA).
   importRow: {
