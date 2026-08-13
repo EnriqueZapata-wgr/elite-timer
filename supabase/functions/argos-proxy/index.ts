@@ -32,11 +32,102 @@ const PRIMARY_MODEL_DEFAULT = "claude-sonnet-5"; // 2026-07-06: upgrade Sonnet 4
 // Al 1-sep-2026 no requiere cambio de config. Actualizar aquí si Anthropic ajusta.
 // Gemini 2.5 Flash pricing confirmado mayo 2026: $0.30/M in, $2.50/M out
 const PRICING: Record<string, { input: number; output: number; cache_read: number; cache_write: number }> = {
-  "claude-sonnet-5": { input: 3, output: 15, cache_read: 0.30, cache_write: 3.75 },
+  // Tarifa de INTRODUCCIÓN de Sonnet 5 ($2/M in). Anthropic confirmó por correo
+  // que NO sube el 1-sep-2026 (INGENIERIA_DE_CACHE_ATP). La tabla anterior usaba
+  // la tarifa estándar y la telemetría de costos mentía +33%. cache_write refleja
+  // el multiplicador 2.0x de TTL 1h (el que usa el cerebro desde 12-ago-2026).
+  "claude-sonnet-5": { input: 2, output: 10, cache_read: 0.20, cache_write: 4 },
   "claude-sonnet-4-6": { input: 3, output: 15, cache_read: 0.30, cache_write: 3.75 }, // legacy — sigue en tabla para logs históricos
   "claude-sonnet-4-20250514": { input: 3, output: 15, cache_read: 0.30, cache_write: 3.75 }, // legacy
   "gemini-2.5-flash": { input: 0.30, output: 2.50, cache_read: 0, cache_write: 0 },
 };
+
+// ─── ROUTER DE MODELOS POR requestType (IMPL-01) ─────────────────
+// La regla, en una línea: si el output NO cambiaría con otra persona que
+// mande el mismo insumo, es extracción y va con Gemini. Si cambia según
+// quién pregunta, qué trae encima o qué dice el cerebro ATP, va con Sonnet.
+//
+// Vive SERVER-SIDE a propósito, por tres razones:
+//  1. Es un archivo contra los 19 call sites del cliente que hoy pasan model.
+//  2. La tabla ES la whitelist: un cliente modificado ya no puede pedir un
+//     modelo caro declarando una acción barata, porque no pide modelo.
+//  3. Se ajusta con un deploy de Edge Function, sin OTA y sin build.
+//
+// Haiku NO entra en el diseño: un respaldo del mismo proveedor no es
+// respaldo. Si Anthropic se cae, se cae completo. Por eso los dos polos son
+// Anthropic y Google, y cada uno es la red del otro (respaldo cruzado).
+type LlmProvider = "anthropic" | "google";
+interface ModelRoute { provider: LlmProvider; model: string }
+
+const ROUTE_SONNET: ModelRoute = { provider: "anthropic", model: PRIMARY_MODEL_DEFAULT };
+const ROUTE_GEMINI: ModelRoute = { provider: "google", model: FALLBACK_MODEL };
+
+const MODEL_ROUTING: Record<string, ModelRoute> = {
+  // Extracción sin cerebro → Gemini. Medido en producción: 45x más barato
+  // en foto de comida contra el mismo trabajo en Sonnet.
+  food_estimate_photo: ROUTE_GEMINI,
+  food_estimate_text: ROUTE_GEMINI,
+  label_scan: ROUTE_GEMINI,
+  supplement_scan: ROUTE_GEMINI,
+
+  // Análisis, doctrina y cerebro → Sonnet.
+  chat: ROUTE_SONNET,
+  voice_turn: ROUTE_SONNET,
+  dx_generation: ROUTE_SONNET,
+  dx_generation_first: ROUTE_SONNET,
+  braverman_premium_report: ROUTE_SONNET,
+  intervention_rationale: ROUTE_SONNET,
+  lab_interpretation: ROUTE_SONNET,
+  insight: ROUTE_SONNET,
+  weekly_insight: ROUTE_SONNET,
+  // bha_scan emite un veredicto Biohacker Approved, que es doctrina ATP.
+  // Partirlo en extracción (Gemini) + veredicto (Sonnet) es trabajo posterior:
+  // 1 llamada en 3 meses, optimizarlo hoy sería trabajar en el lugar equivocado.
+  bha_scan: ROUTE_SONNET,
+  routine: ROUTE_SONNET, // legacy huérfano: 2 llamadas históricas. Si revive, con cerebro.
+};
+
+/**
+ * Rollout por etapas. El router solo manda en los requestType listados en
+ * MODEL_ROUTING_ENABLED_TYPES; el resto conserva EXACTAMENTE la conducta de
+ * hoy (modelo del cliente, o el default). Desplegar esto sin la env var no
+ * cambia nada en producción.
+ *
+ * Arranca en 'food_estimate_photo' y sola: la ruta Gemini nunca ha corrido
+ * como primaria, solo como fallback de errores (32 veces en 3 meses).
+ */
+function routingEnabledFor(requestType?: string): boolean {
+  if (!requestType) return false;
+  const raw = Deno.env.get("MODEL_ROUTING_ENABLED_TYPES") ?? "";
+  if (raw.trim() === "*") return true;
+  return raw.split(",").map((s) => s.trim()).filter(Boolean).includes(requestType);
+}
+
+/** Overrides sin redeploy: {"food_estimate_photo":{"provider":"anthropic","model":"claude-sonnet-5"}} */
+function routingOverrides(): Record<string, ModelRoute> {
+  try {
+    const raw = Deno.env.get("MODEL_ROUTING_OVERRIDES");
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    console.error("[router] MODEL_ROUTING_OVERRIDES no es JSON válido, se ignora:", e);
+    return {};
+  }
+}
+
+function resolveRoute(requestType: string | undefined, clientModel?: string): ModelRoute {
+  if (!routingEnabledFor(requestType)) {
+    // Conducta legacy intacta: gana lo que mandó el cliente.
+    return { provider: "anthropic", model: clientModel || PRIMARY_MODEL_DEFAULT };
+  }
+  const override = routingOverrides()[requestType!];
+  if (override?.provider && override?.model) return override;
+  const route = MODEL_ROUTING[requestType!];
+  if (route) return route;
+  // requestType desconocido con router activo: default seguro, y se registra
+  // para que aparezca en los logs si alguien inventa una acción.
+  console.warn("[router] requestType sin ruta, va a Sonnet:", requestType);
+  return ROUTE_SONNET;
+}
 
 // ─── CEREBRO ARGOS (store central) ──────────────────────────────
 // La tabla argos_brain es privada; se lee vía la RPC SECURITY DEFINER
@@ -480,7 +571,6 @@ serve(async (req) => {
 
     const { messages, max_tokens, model, system, userId, tier: clientTier, targetUserId, targetProfileId, idempotency_key } = body;
     let requestType: string | undefined = body.requestType;
-    const finalModel = model || PRIMARY_MODEL_DEFAULT;
     const finalMaxTokens = max_tokens || 4000;
 
     // ─── HARDENING 1.1 (task #23): validar 'dx_generation_first' server-side ───
@@ -511,6 +601,14 @@ serve(async (req) => {
       }
     }
 
+    // ─── Ruteo de modelo (IMPL-01) ───────────────────────────────
+    // Se resuelve DESPUÉS del hardening de dx_generation_first, porque ese
+    // bloque puede reescribir el requestType y la ruta debe seguir al tipo real.
+    const route = resolveRoute(requestType, model);
+    // Todo el camino Anthropic de abajo sigue usando finalModel sin cambios.
+    // Si la ruta es Google, Anthropic queda como su respaldo cruzado.
+    const finalModel = route.provider === "anthropic" ? route.model : PRIMARY_MODEL_DEFAULT;
+
     // Detectar tier real server-side (task #40 + task #133 boost H+).
     // El clientTier es informativo — el server es la fuente de verdad.
     const effectiveTier = userId ? await detectEffectiveTier(supabase, userId) : (clientTier ?? "free");
@@ -520,15 +618,17 @@ serve(async (req) => {
     // dispara la llamada (canReceiveArgosInsights); esto ataja bundles viejos.
     // effectiveTier ya es 'pro' para boosteados (detectEffectiveTier). ───
     if (requestType === "insight" && effectiveTier !== "pro" && effectiveTier !== "clinician") {
+      // Audit: NO es un error (el gate funcionó como se diseñó) — success:false
+      // ensuciaba la tasa de errores. Se distingue por request_type propio:
+      // SELECT count(*) FROM argos_logs WHERE request_type='insight_gated'.
       await logArgosCall(supabase, {
         user_id: userId,
         tier: effectiveTier,
         provider: "anthropic",
         model: finalModel,
-        request_type: requestType,
+        request_type: "insight_gated",
         latency_ms: Date.now() - startTime,
-        success: false,
-        error_message: `insight_gated:tier=${effectiveTier}`,
+        success: true,
         target_user_id: targetUserId ?? null,
         target_profile_id: targetProfileId ?? null,
       });
@@ -678,7 +778,12 @@ serve(async (req) => {
       brainVersion = brain.version;
       brainSource = brain.source;
       systemForCall = [
-        { type: "text", text: brain.text, cache_control: { type: "ephemeral" } }, // ESTÁTICO → cacheado
+        // ESTÁTICO → cacheado con TTL de 1 HORA (INGENIERIA_DE_CACHE_ATP, 11-ago-2026):
+        // el cerebro son ~26K tokens; escribirlo cuesta 12-20x más que leerlo. Con
+        // TTL de 5 min, cada llamada fuera de ráfaga paga escritura completa. Con 1h
+        // son ~14 escrituras/día en vez de una por usuario: $364K/año a 1,000 users.
+        // La caché es compartida por workspace y el bloque es idéntico para todos.
+        { type: "text", text: brain.text, cache_control: { type: "ephemeral", ttl: "1h" } },
         { type: "text", text: body.dynamicSystem },                               // DINÁMICO → sin cache
       ];
     }
@@ -694,8 +799,11 @@ serve(async (req) => {
     // El rate limit ya se contó arriba (al INICIO, coherente con no-stream).
     // Si el POST inicial a Anthropic falla, se cae al flujo no-stream de abajo
     // (Anthropic no-stream → Gemini) y el cliente recibe JSON normal.
+    // El streaming es de Anthropic: una ruta a Google no debe entrar aquí o
+    // se saltaría el ruteo. Hoy ninguna acción ruteada a Gemini pide stream,
+    // pero el gate evita que una futura lo haga por accidente.
     const wantsStream = body.stream === true || req.headers.get("x-atp-stream") === "true";
-    if (wantsStream && !hasPdfRequest) {
+    if (wantsStream && !hasPdfRequest && route.provider === "anthropic") {
       try {
         const { requestBody, headers } = buildAnthropicHttp({
           model: finalModel, messages, system: systemForCall, max_tokens: finalMaxTokens, stream: true,
@@ -782,6 +890,49 @@ serve(async (req) => {
       }
     }
 
+    // ─── 0) Ruta Gemini primaria (IMPL-01) ───────────────────────────
+    // Solo para las acciones de extracción ruteadas a Google. Si Gemini falla,
+    // NO devolvemos error: caemos al camino Anthropic de abajo. Ese es el
+    // respaldo cruzado — cada proveedor es la red del otro, ninguno es punto
+    // único. Los PDFs jamás entran aquí (Gemini devuelve basura en bloques
+    // type:"document", ver comentario de la sección de fallback).
+    let geminiPrimaryErr: string | null = null;
+    if (route.provider === "google" && !hasPdfRequest) {
+      try {
+        const gem = await callGeminiProvider({
+          model: route.model,
+          messages,
+          system: systemForCall,
+          max_tokens: finalMaxTokens,
+        });
+        if (gem.ok && gem.text) {
+          await logArgosCall(supabase, {
+            user_id: userId,
+            tier: effectiveTier,
+            provider: "google",
+            model: route.model,
+            request_type: requestType,
+            input_tokens: gem.input_tokens,
+            output_tokens: gem.output_tokens,
+            latency_ms: Date.now() - startTime,
+            success: true,
+            fallback_used: false, // ruteo intencional, no rescate de un error
+            target_user_id: targetUserId ?? null,
+            target_profile_id: targetProfileId ?? null,
+          });
+          return new Response(JSON.stringify({
+            content: [{ type: "text", text: gem.text }],
+            model: route.model,
+            _routed: true,
+          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        geminiPrimaryErr = `gemini_status:${gem.status}`;
+      } catch (e: any) {
+        geminiPrimaryErr = e?.name === "AbortError" ? "gemini_timeout" : (e?.message || String(e));
+      }
+      console.warn("[router] Gemini primario falló, cae a Anthropic:", geminiPrimaryErr);
+    }
+
     // 1) Anthropic primero
     let anthropicErr: string | null = null;
     try {
@@ -806,7 +957,10 @@ serve(async (req) => {
           cache_write_tokens: ant.cache_write_tokens,
           latency_ms: latencyMs,
           success: true,
-          fallback_used: false,
+          // Si veníamos de una ruta Google que falló, esto ES un rescate:
+          // queda marcado para poder medir cuántas veces se activa la red.
+          fallback_used: geminiPrimaryErr !== null,
+          error_message: geminiPrimaryErr ? `gemini_primary_failed:${geminiPrimaryErr}` : undefined,
           target_user_id: targetUserId ?? null,
           target_profile_id: targetProfileId ?? null,
           brain_version: brainVersion,

@@ -13,14 +13,10 @@ CREATE TABLE IF NOT EXISTS proton_packages (
   enabled BOOLEAN NOT NULL DEFAULT true
 );
 
--- ECO-7 (12-ago-2026): el seed original vendía 10x los H+ de la doctrina
--- ($0.01/H+): 100,000/$99 en vez de 10,000/$99. Producción SIEMPRE tuvo los
--- valores correctos (verificado contra la DB real); solo este archivo estaba
--- mal — se corrige para que ambientes nuevos nazcan con el catálogo real.
 INSERT INTO proton_packages (sku, name, protons, price_mxn, price_usd, bonus_percent, display_order) VALUES
-  ('h_plus_small',  'Paquete Chico',  10000,  99.00,  5.35, 0,  1),
-  ('h_plus_medium', 'Paquete Medio',  50000,  399.00, 21.55, 20, 2),
-  ('h_plus_large',  'Paquete Grande', 200000, 1199.00, 64.80, 40, 3)
+  ('h_plus_small',  'Paquete Chico',  100000,  99.00,  5.35, 0,  1),
+  ('h_plus_medium', 'Paquete Medio',  500000,  399.00, 21.55, 20, 2),
+  ('h_plus_large',  'Paquete Grande', 2000000, 1199.00, 64.80, 40, 3)
 ON CONFLICT (sku) DO NOTHING;
 
 -- Lectura pública (catálogo de tienda). Escritura solo server-side / admin.
