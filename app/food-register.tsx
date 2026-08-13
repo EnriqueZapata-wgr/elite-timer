@@ -361,7 +361,7 @@ export default function FoodRegisterScreen() {
                           <View style={s.nowPill}><EliteText style={s.nowPillText}>AHORA</EliteText></View>
                         )}
                       </View>
-                      <EliteText style={s.mealTime}>{formatMealWindow(mealTimes[meal.id as MealId])}</EliteText>
+                      <EliteText style={[s.mealTime, { color: t.textoSecundario }]}>{formatMealWindow(mealTimes[meal.id as MealId])}</EliteText>
                     </View>
                     {hasLogs ? (
                       <View style={s.mealBadge}>
@@ -503,7 +503,6 @@ const s = StyleSheet.create({
   mealTime: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,
-    color: 'rgba(255,255,255,0.4)',
     marginTop: 2,
   },
   mealBadge: {

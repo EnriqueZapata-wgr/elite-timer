@@ -386,7 +386,7 @@ function NavCard({ icon, mark, color, title, subtitle, badge, badgeColor, onPres
           </View>
           <View style={{ flex: 1 }}>
             <EliteText style={[s.navTitle, { color: t.texto }]}>{title}</EliteText>
-            <EliteText style={s.navSub}>{subtitle}</EliteText>
+            <EliteText style={[s.navSub, { color: t.textoSecundario }]}>{subtitle}</EliteText>
           </View>
           {badge ? (
             <View style={[s.badge, { backgroundColor: `${badgeColor ?? color}20` }]}>
@@ -432,7 +432,7 @@ const s = StyleSheet.create({
   navRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   navIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   navTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.bold },
-  navSub: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  navSub: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 2 },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   badgeText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold },
 

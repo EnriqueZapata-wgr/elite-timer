@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
@@ -34,39 +35,46 @@ interface Props {
 }
 
 export function MenteHubCard({ title, subtitle, icon, onPress, ctaLabel, onCta, badge, imageBn, iconColor }: Props) {
+  // OLA0 QW-3c: superficies y texto siguen el tema del scope. Sobre imagen
+  // el overlay sigue siendo oscuro, así que ahí el texto se queda blanco.
+  const t = useSurfaceTokens();
+  const sobreOscuro = t.kind === 'dark' || !!imageBn;
   const inner = (
     <View style={s.body}>
       <View style={s.topRow}>
-        <View style={s.iconCircle}>
-          <Ionicons name={icon} size={20} color={iconColor ?? TEXT.primary} />
+        <View style={[s.iconCircle, !sobreOscuro && { backgroundColor: t.hundido }]}>
+          <Ionicons name={icon} size={20} color={iconColor ?? (sobreOscuro ? TEXT.primary : t.texto)} />
         </View>
         <View style={{ flex: 1 }}>
-          <EliteText style={s.title}>{title}</EliteText>
-          <EliteText style={s.subtitle}>{subtitle}</EliteText>
+          <EliteText style={[s.title, !sobreOscuro && { color: t.texto }]}>{title}</EliteText>
+          <EliteText style={[s.subtitle, !sobreOscuro && { color: t.textoSecundario }]}>{subtitle}</EliteText>
         </View>
         {badge ? (
           <View style={s.badge}>
             <EliteText style={s.badgeText}>{badge}</EliteText>
           </View>
         ) : (
-          <Ionicons name="chevron-forward" size={18} color={TEXT.tertiary} />
+          <Ionicons name="chevron-forward" size={18} color={sobreOscuro ? TEXT.tertiary : t.textoTenue} />
         )}
       </View>
 
       {ctaLabel && onCta && (
         <AnimatedPressable
           onPress={() => { haptic.light(); onCta(); }}
-          style={s.cta}
+          style={[s.cta, !sobreOscuro && { backgroundColor: t.hundido }]}
         >
-          <EliteText style={s.ctaText}>{ctaLabel}</EliteText>
-          <Ionicons name="arrow-forward" size={14} color={TEXT.primary} />
+          <EliteText style={[s.ctaText, !sobreOscuro && { color: t.texto }]}>{ctaLabel}</EliteText>
+          <Ionicons name="arrow-forward" size={14} color={sobreOscuro ? TEXT.primary : t.texto} />
         </AnimatedPressable>
       )}
     </View>
   );
 
   return (
-    <AnimatedPressable onPress={() => { haptic.light(); onPress(); }} style={s.card}>
+    <AnimatedPressable
+      onPress={() => { haptic.light(); onPress(); }}
+      style={[s.card, t.kind !== 'dark' && { backgroundColor: t.card, borderColor: t.borde }]}
+    >
       {imageBn ? (
         <ImageBackground source={imageBn} style={s.imageBg} imageStyle={s.image}>
           <View style={s.imageOverlay}>{inner}</View>

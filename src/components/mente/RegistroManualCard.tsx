@@ -18,6 +18,7 @@ import { EliteText } from '@/components/elite-text';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { registrarExperiencia } from '@/src/services/hoy/tarea-actions';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { ATP_BRAND, CATEGORY_COLORS, TEXT, withOpacity } from '@/src/constants/brand';
 
@@ -32,6 +33,8 @@ interface Props {
 }
 
 export function RegistroManualCard({ type, label }: Props) {
+  // OLA0 QW-3a: título y subtítulo de la card siguen el texto del tema.
+  const t = useSurfaceTokens();
   const [open, setOpen] = useState(false);
   const [minutos, setMinutos] = useState(15);
   const [saving, setSaving] = useState(false);
@@ -87,8 +90,8 @@ export function RegistroManualCard({ type, label }: Props) {
           />
         </View>
         <View style={{ flex: 1 }}>
-          <EliteText style={s.label}>{registrado ? 'Sesión registrada' : label}</EliteText>
-          <EliteText style={s.sub}>
+          <EliteText style={[s.label, { color: t.texto }]}>{registrado ? 'Sesión registrada' : label}</EliteText>
+          <EliteText style={[s.sub, { color: t.textoSecundario }]}>
             {registrado
               ? 'Cuenta igual que una sesión en la app.'
               : 'Si la hiciste por fuera, regístrala aquí.'}
@@ -151,8 +154,8 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: withOpacity(PURPLE, 0.16),
   },
-  label: { color: '#fff', fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
-  sub: { color: TEXT.secondary, fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 1 },
+  label: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+  sub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 1 },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.75)',
