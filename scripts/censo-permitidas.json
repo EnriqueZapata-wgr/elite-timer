@@ -9,6 +9,7 @@
     "/admin/reports": "Detrás del gate de admin. No lleva puerta en la navegación del usuario a propósito.",
     "/session-summary": "Se llega al terminar un entrenamiento, no desde un menú. La abre el motor de ejecución.",
     "/clinical-system": "DECISIÓN PENDIENTE DE ENRIQUE. 353 líneas vivas (drill-down por sistema funcional: síntomas con severidad, timeline y correlación con labs) que se quedaron sin puerta cuando Mega-Sprint B B6 la absorbió en Salud Funcional. O se borra, o se le abre puerta desde el mapa funcional (tocar un sistema entra a su drill-down). No se decide en un run de carcasa.",
-    "/shared-routine": "Landing de un link compartido de rutina: entra por deep link con el parámetro code. No es un destino de navegación interna."
+    "/shared-routine": "Landing de un link compartido de rutina: entra por deep link con el parámetro code. No es un destino de navegación interna.",
+    "/strength-session": "Alias permanente de /session (Ola 2 Fitness PR1): re-exporta la misma pantalla para deep links, stashes en vuelo y builds OTA viejos. La puerta viva es /session."
   }
 }

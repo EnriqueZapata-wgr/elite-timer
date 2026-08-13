@@ -275,7 +275,7 @@ export default function RoutineGeneratorScreen() {
     if (!rutina) return;
     haptic.success();
     router.push({
-      pathname: '/strength-session',
+      pathname: '/session',
       params: { plan: JSON.stringify(rutina), name: 'Sesión de hoy' },
     });
   }

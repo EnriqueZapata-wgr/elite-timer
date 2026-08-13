@@ -206,7 +206,7 @@ export default function MyRoutinesScreen() {
     // de matriz → runner con clip; puro tiempo → timer. (routine-execution RIP.)
     if (routineUsesClipRunner(routine)) {
       router.push({
-        pathname: '/strength-session',
+        pathname: '/session',
         params: { routine: JSON.stringify(routine), name: routine.name },
       });
     } else {

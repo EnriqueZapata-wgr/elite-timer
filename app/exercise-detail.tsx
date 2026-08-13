@@ -195,7 +195,7 @@ export default function ExerciseDetailScreen() {
               icon="barbell"
               onPress={() => {
                 haptic.medium();
-                router.push({ pathname: '/strength-session', params: { slugs: ex.slug, name: ex.nombre } });
+                router.push({ pathname: '/session', params: { slugs: ex.slug, name: ex.nombre } });
               }}
             />
           </View>

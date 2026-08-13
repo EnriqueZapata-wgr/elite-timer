@@ -148,7 +148,7 @@ export default function FitnessHubScreen() {
     if (today?.kind !== 'lista') return;
     haptic.success();
     router.push({
-      pathname: '/strength-session',
+      pathname: '/session',
       params: { plan: JSON.stringify(today.rutina), name: 'Sesión de hoy' },
     });
   }

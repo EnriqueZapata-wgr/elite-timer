@@ -222,7 +222,7 @@ export default function BuilderScreen() {
       // modo ni el origen. Solo el puro tiempo cae al timer.
       if (routineUsesClipRunner(routine)) {
         router.push({
-          pathname: '/strength-session',
+          pathname: '/session',
           params: { routine: JSON.stringify(routine), name: routine.name },
         });
       } else {
