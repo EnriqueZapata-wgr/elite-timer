@@ -7,6 +7,7 @@ import { EliteText } from '@/components/elite-text';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { HomeChip } from '@/src/components/ui/HomeChip';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { CATEGORY_COLORS } from '@/src/constants/brand';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 
@@ -32,6 +33,9 @@ interface Props {
 
 export function PillarHeader({ pillar, title, rightContent, onBack }: Props) {
   const color = PILLAR_COLORS[pillar] || CATEGORY_COLORS.fitness;
+  // OLA0 QW-2: el título sigue el texto del scope — en pantallas migradas
+  // (ThemeReady) deja de ser blanco clavado ilegible en modo claro.
+  const t = useSurfaceTokens();
   // V1.5.1 (#8): casita fija en el header + registro de nav propia (el
   // flotante global se auto-oculta en pantallas con este header).
   useRegisterOwnNav();
@@ -40,7 +44,7 @@ export function PillarHeader({ pillar, title, rightContent, onBack }: Props) {
       <BackButton color={color} onPress={onBack} />
       <HomeChip style={{ marginRight: Spacing.xs }} />
       <EliteText style={[s.atp, { color }]}>ATP</EliteText>
-      <EliteText style={s.title}>{title.toUpperCase()}</EliteText>
+      <EliteText style={[s.title, { color: t.texto }]}>{title.toUpperCase()}</EliteText>
       {rightContent ? <View style={{ marginLeft: 'auto' }}>{rightContent}</View> : null}
     </View>
   );
@@ -49,5 +53,5 @@ export function PillarHeader({ pillar, title, rightContent, onBack }: Props) {
 const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, gap: Spacing.xs },
   atp: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, letterSpacing: 2 },
-  title: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, color: '#fff', letterSpacing: 2 },
+  title: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, letterSpacing: 2 },
 });
