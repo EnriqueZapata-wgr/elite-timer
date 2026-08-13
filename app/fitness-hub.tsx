@@ -75,10 +75,20 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
-    label: 'MÁS',
+    label: 'EXPLORAR',
     items: [
-      { name: 'Mi Fitness', subtitle: 'Fuerza y récords · cardio · movilidad', icon: 'trophy-outline', color: CATEGORY_COLORS.fitness, route: '/fitness-my' },
       { name: 'Biblioteca', subtitle: 'Ejercicios con clip · métodos ATP', icon: 'book-outline', color: SEMANTIC.info, route: '/exercise-library' },
+      { name: 'Movilidad', subtitle: 'Evalúate · rutinas de movilidad', icon: 'body-outline', color: CATEGORY_COLORS.mind, route: '/mobility-assessment' },
+    ],
+  },
+  // Ola 2 PR2 (ex fitness-my): las retrospectivas conservan sus rutas de hoy
+  // — se van a Reports en OTRA ola (Anexo A), no en esta.
+  {
+    label: 'MI FITNESS',
+    items: [
+      { name: 'Fuerza y récords', subtitle: 'Benchmarks · variantes · todos tus PRs', icon: 'barbell-outline', color: CATEGORY_COLORS.fitness, route: '/fitness-strength' },
+      { name: 'Mi progreso', subtitle: 'Resumen del mes · frecuencia · volumen', icon: 'trending-up-outline', color: ATP_BRAND.teal, route: '/progress' },
+      { name: 'Historial', subtitle: 'Todas tus sesiones, por fecha', icon: 'time-outline', color: SEMANTIC.info, route: '/history' },
     ],
   },
 ];
