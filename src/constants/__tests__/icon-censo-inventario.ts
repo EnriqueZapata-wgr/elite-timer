@@ -241,6 +241,10 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/components/legal/MedicalDisclaimerModal.tsx::medkit-outline',
   'src/components/nutrition/BreakFastGuide.tsx::restaurant-outline',
   'src/components/tests/TestInputScreen.tsx::clipboard-outline',
+  // Ola 2 Fitness PR2: la fase de importación de /log-cardio es la copia
+  // canónica de cardio-import.tsx (mismos glifos: nadar y abrir ajustes HC).
+  'src/components/training/CardioImportFlow.tsx::settings-outline',
+  'src/components/training/CardioImportFlow.tsx::water-outline',
   'src/components/training/ExerciseClip.tsx::barbell-outline',
   'src/components/training/MetodosAtpInfo.tsx::timer-outline',
   'src/components/training/MetodosAtpInfo.tsx::trending-up-outline',

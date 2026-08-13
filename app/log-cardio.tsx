@@ -1,5 +1,8 @@
 /**
- * Log Cardio (MB-3.6 Bloque 3.1) — registro manual ULTRA-fácil.
+ * Log Cardio (MB-3.6 Bloque 3.1) — la casa COMPLETA del cardio (Ola 2
+ * Fitness PR2, ANEXO_B_FITNESS §1): registro manual ULTRA-fácil + PRs por
+ * distancia de la disciplina elegida + fase de importación Health
+ * (?fase=importar, ex /cardio-import).
  *
  * 2 taps para el caso común: disciplina + duración → GUARDAR. Todo lo demás
  * (distancia, FC, RPE, notas) es opcional y vive plegado en "Más detalles".
@@ -34,6 +37,7 @@ import {
   type CardioDiscipline,
   type CardioSession,
 } from '@/src/services/fitness-service';
+import { CardioImportFlow } from '@/src/components/training/CardioImportFlow';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { warn as logWarn } from '@/src/lib/logger';
 import { userErrorMessage } from '@/src/utils/user-error';
@@ -54,7 +58,7 @@ const DURACIONES = [15, 20, 30, 45, 60, 90];
 
 export default function LogCardioScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ discipline?: string }>();
+  const params = useLocalSearchParams<{ discipline?: string; fase?: string }>();
   // MB-31B3: la pantalla migró a tokens y sigue el tema global.
   const { kind, tokens: tk } = useAppTheme();
   // Regla 1 de la guía: lima como TEXTO no sobrevive el claro → teal calibrado.
@@ -77,6 +81,8 @@ export default function LogCardioScreen() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [ultimas, setUltimas] = useState<Record<CardioDiscipline, CardioSession | null> | null>(null);
+  // Ola 2 PR2: la fase de importación Health vive aquí (?fase=importar).
+  const [modoImportar, setModoImportar] = useState(params.fase === 'importar');
 
   // Prellenado: la última sesión de la disciplina como sugerencia visible.
   useEffect(() => {
@@ -175,6 +181,11 @@ export default function LogCardioScreen() {
       setSaving(false);
     }
   };
+
+  // ── Fase de importación (Ola 2 PR2: ex /cardio-import, íntegra) ──
+  if (modoImportar) {
+    return <CardioImportFlow onManual={() => setModoImportar(false)} />;
+  }
 
   return (
     <ThemeReady>
@@ -355,6 +366,18 @@ export default function LogCardioScreen() {
             )}
           </Animated.View>
 
+          {/* Ola 2 PR2: la puerta a la fase de importación Health (MB-3.6
+              §3.2: Strava, Garmin, Samsung y Google Fit escriben ahí). */}
+          <Animated.View entering={FadeInUp.delay(180).springify()}>
+            <AnimatedPressable
+              style={[s.importRow, { borderColor: tk.borde }]}
+              onPress={() => { haptic.light(); setModoImportar(true); }}
+            >
+              <Ionicons name="download-outline" size={18} color={acento} />
+              <EliteText style={[s.importText, { color: acento }]}>IMPORTAR DE TU APP DE SALUD</EliteText>
+            </AnimatedPressable>
+          </Animated.View>
+
           <View style={{ height: 24 }} />
         </ScrollView>
 
@@ -516,4 +539,12 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
     borderTopWidth: 0.5,
   },
+
+  // Ola 2 PR2: puerta a la fase de importación (ex fitness-cardio ghost CTA).
+  importRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: Spacing.sm, borderWidth: 1, paddingVertical: 12,
+    borderRadius: Radius.md, marginTop: Spacing.xl,
+  },
+  importText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 1.5 },
 });
