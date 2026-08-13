@@ -446,7 +446,7 @@ export default function FitnessStrengthScreen() {
         {benchmarks.map((ex, idx) => (
           <Animated.View key={ex.id} entering={FadeInUp.delay(60 + idx * 40).springify()} style={styles.benchmarkWrap}>
             <AnimatedPressable
-              onPress={() => { haptic.light(); router.push({ pathname: '/log-exercise', params: { exerciseId: ex.id } }); }}
+              onPress={() => { haptic.light(); router.push({ pathname: '/log-strength', params: { exerciseId: ex.id } }); }}
             >
               <GradientCard gradient={PILLAR_GRADIENTS.fitness} accentColor={LIME} accentPosition="left">
                 <View style={styles.benchmarkHeader}>
@@ -469,7 +469,7 @@ export default function FitnessStrengthScreen() {
                   </View>
                   <AnimatedPressable onPress={() => {
                     haptic.medium();
-                    router.push({ pathname: '/log-exercise', params: { exerciseId: ex.id } });
+                    router.push({ pathname: '/log-strength', params: { exerciseId: ex.id } });
                   }}>
                     <View style={styles.benchmarkAddBtn}>
                       <Ionicons name="add" size={20} color={LIME} />
@@ -482,7 +482,7 @@ export default function FitnessStrengthScreen() {
                     {ex.variants.slice(0, 5).map(v => (
                       <AnimatedPressable
                         key={v.id}
-                        onPress={() => { haptic.light(); router.push({ pathname: '/log-exercise', params: { exerciseId: v.id } }); }}
+                        onPress={() => { haptic.light(); router.push({ pathname: '/log-strength', params: { exerciseId: v.id } }); }}
                       >
                         <View style={styles.variantChip}>
                           <EliteText style={styles.variantChipText}>{v.name_es}</EliteText>

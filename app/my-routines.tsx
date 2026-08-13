@@ -21,7 +21,6 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { haptic } from '@/src/utils/haptics';
 import { getRoutines, deleteRoutine, archiveRoutines, saveRoutine, generateUUID } from '@/src/services/routine-service';
-import { routineUsesClipRunner } from '@/src/services/fitness/routine-bridge-core';
 import { getShareInfo, cloneFromShare, type ShareInfo } from '@/src/services/share-service';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -250,19 +249,13 @@ export default function MyRoutinesScreen() {
       router.push({ pathname: '/builder', params: { routineId: routine.id } });
       return;
     }
-    // MB-7 Track C: la interfaz la decide el CONTENIDO, no el modo — ejercicios
-    // de matriz → runner con clip; puro tiempo → timer. (routine-execution RIP.)
-    if (routineUsesClipRunner(routine)) {
-      router.push({
-        pathname: '/session',
-        params: { routine: JSON.stringify(routine), name: routine.name },
-      });
-    } else {
-      router.push({
-        pathname: '/execution',
-        params: { routine: JSON.stringify(routine) },
-      });
-    }
+    // Ola 2 PR3: la interfaz la sigue decidiendo el CONTENIDO, pero el
+    // árbitro (routineUsesClipRunner) vive DENTRO de /session — matriz corre
+    // con clip, puro tiempo corre el modo timer absorbido. Un solo destino.
+    router.push({
+      pathname: '/session',
+      params: { routine: JSON.stringify(routine), name: routine.name },
+    });
   }
 
   function handleLongPress(routine: Routine) {
