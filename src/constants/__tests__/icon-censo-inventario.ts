@@ -92,6 +92,12 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/fasting.tsx::timer-outline',
   'app/fitness-cardio.tsx::water-outline',
   'app/fitness-hub.tsx::book-outline',
+  // Ola 2 Fitness PR2: el hub absorbe los secundarios de fitness-train
+  // (mismos glifos: plan de días, Intervalos, Mis rutinas y Cardio).
+  'app/fitness-hub.tsx::calendar-outline',
+  'app/fitness-hub.tsx::flame-outline',
+  'app/fitness-hub.tsx::list-outline',
+  'app/fitness-hub.tsx::pulse-outline',
   'app/fitness-hub.tsx::trophy-outline',
   'app/fitness-my.tsx::barbell-outline',
   'app/fitness-my.tsx::body-outline',
