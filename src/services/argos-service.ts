@@ -22,7 +22,7 @@ import { parseRateLimitInfo, type RateLimitInfo } from './argos-rate-limit-core'
 import { chatFailureOutcome } from './argos-chat-core';
 import { buildHistoryWindow } from './argos-history-core';
 import {
-  buildContextPrompt, canLoadRichContext,
+  buildContextPrompt, canLoadRichContext, compararConMeta,
   type PersonalRecord, type UserContext,
 } from './argos-context-core';
 import { computeStreak } from './adherence-service';
@@ -858,11 +858,18 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
     if (fast?.fast_start) {
       const startMs = new Date(fast.fast_start).getTime();
       if (Number.isFinite(startMs)) {
-        const hoursElapsed = (Date.now() - startMs) / (1000 * 60 * 60);
+        const hoursElapsed = Math.round(((Date.now() - startMs) / (1000 * 60 * 60)) * 10) / 10;
+        const targetHours = fast.target_hours;
+        // Pieza 3: la comparación contra la meta sale de aquí YA resuelta. Con
+        // "25.3h de 16h" el modelo dijo "más del doble"; es 1.6 veces.
         context.currentFastingStatus = {
           isFasting: true,
-          hoursElapsed: Math.round(hoursElapsed * 10) / 10,
-          targetHours: fast.target_hours,
+          hoursElapsed,
+          targetHours,
+          ratioMeta: targetHours > 0
+            ? Math.round((hoursElapsed / targetHours) * 100) / 100
+            : undefined,
+          comparacionMeta: compararConMeta(hoursElapsed, targetHours) || undefined,
         };
       }
     }

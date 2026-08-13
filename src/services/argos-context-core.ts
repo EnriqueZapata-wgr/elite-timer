@@ -45,6 +45,10 @@ export interface UserContext {
     isFasting: boolean;
     hoursElapsed: number;
     targetHours: number;
+    /** Pieza 3: la comparación contra la meta viene YA calculada. */
+    ratioMeta?: number;
+    /** Frase lista ("1.6 veces la meta" / "68% de la meta"). El modelo narra, no calcula. */
+    comparacionMeta?: string;
   };
   rank?: string;
   bravermanProfile?: {
@@ -317,7 +321,14 @@ export function buildContextPrompt(ctx: UserContext): string {
   }
   if (ctx.currentFastingStatus?.isFasting) {
     const f = ctx.currentFastingStatus;
-    parts.push(`Ayuno activo: ${f.hoursElapsed}h de ${f.targetHours}h objetivo`);
+    // Pieza 3: la comparación contra la meta llega calculada. Cuando el modelo
+    // hacía la división él solo, 25.3h contra 16h le salía "más del doble".
+    const comp = f.comparacionMeta || compararConMeta(f.hoursElapsed, f.targetHours);
+    parts.push(`Ayuno activo: ${f.hoursElapsed}h de ${f.targetHours}h objetivo (${comp})`);
+    parts.push(
+      'REGLA DE ARITMÉTICA (obligatoria): las comparaciones numéricas de este bloque ya vienen calculadas. ' +
+      'Úsalas tal cual; no calcules múltiplos, porcentajes ni diferencias por tu cuenta.',
+    );
   }
   if (ctx.bravermanProfile) {
     const b = ctx.bravermanProfile;
