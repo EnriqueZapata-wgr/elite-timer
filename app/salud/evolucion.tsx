@@ -1,18 +1,11 @@
 /**
- * SALUD › TU EVOLUCIÓN (MB-19 PIEZA 3) — el horizonte largo.
+ * /salud/evolucion — ya no es pantalla, es un puente.
  *
- * Hacia dónde vas: tu mapa funcional, el protocolo que sigues, el detalle de
- * tu Edad ATP y tus reportes.
+ * OLA6 PIEZA A: TU EVOLUCIÓN vive como sección del tab SALUD. La ruta se
+ * conserva para deep links e historial y abre la sección al aterrizar.
  */
-import { PuertaScreen } from '@/src/screens/salud/PuertaScreen';
-import { DESTINOS_EVOLUCION } from '@/src/constants/salud-puertas';
+import { Redirect } from 'expo-router';
 
-export default function SaludEvolucionScreen() {
-  return (
-    <PuertaScreen
-      title="Tu evolución"
-      intro="Hacia dónde vas y por qué. Aquí está el porqué detrás de lo que te sugerimos."
-      destinos={DESTINOS_EVOLUCION}
-    />
-  );
+export default function SaludEvolucionRedirect() {
+  return <Redirect href={{ pathname: '/salud', params: { seccion: 'evolucion' } }} />;
 }

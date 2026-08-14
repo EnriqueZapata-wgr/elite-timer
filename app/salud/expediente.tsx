@@ -1,19 +1,11 @@
 /**
- * SALUD › MI EXPEDIENTE (MB-19 PIEZA 3) — lo archivístico.
+ * /salud/expediente — ya no es pantalla, es un puente.
  *
- * Se llena una vez y se consulta poco: historia clínica, cuestionarios,
- * evaluaciones, padecimientos y la guía de labs. Por eso vive detrás de una
- * puerta y no compitiendo con lo de hoy.
+ * OLA6 PIEZA A: MI EXPEDIENTE vive como sección del tab SALUD. La ruta se
+ * conserva para deep links e historial y abre la sección al aterrizar.
  */
-import { PuertaScreen } from '@/src/screens/salud/PuertaScreen';
-import { DESTINOS_EXPEDIENTE } from '@/src/constants/salud-puertas';
+import { Redirect } from 'expo-router';
 
-export default function SaludExpedienteScreen() {
-  return (
-    <PuertaScreen
-      title="Mi expediente"
-      intro="Tu historia. Se llena una vez y se consulta cuando hace falta."
-      destinos={DESTINOS_EXPEDIENTE}
-    />
-  );
+export default function SaludExpedienteRedirect() {
+  return <Redirect href={{ pathname: '/salud', params: { seccion: 'expediente' } }} />;
 }

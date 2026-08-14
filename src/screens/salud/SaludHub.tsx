@@ -1,82 +1,109 @@
 /**
- * SaludHub — el contenido de SALUD. Lo montan dos rutas:
- *   · el tab SALUD (app/(tabs)/salud.tsx)
- *   · /health-hub, que se sigue empujando desde Ajustes y desde el HOY
- * Un solo componente para las dos: la pantalla no se duplica.
+ * SaludHub — el contenido de SALUD. Lo monta el tab (app/(tabs)/salud.tsx).
  *
- * Hero + CUATRO puertas. Nada más. Es presupuesto de espacio, no minimalismo:
- * el hub viejo tenía catorce cards y por eso nadie encontraba nada.
+ * OLA6 PIEZA A: las cuatro puertas dejaron de ser rutas. Antes el hub era un
+ * hero y cuatro cards editoriales; detrás de tres de ellas había un archivo de
+ * 19 líneas que solo pasaba una constante a una lista. Eso costaba un toque y
+ * no mostraba ni un dato. Ahora las secciones abren aquí mismo: el hero, las
+ * cuatro secciones y el ciclo con su gate.
  *
- * El modo denso (ajustes › salud) cambia las puertas por la lista completa en
+ * Qué colapsa y qué no: HOY, TU EVOLUCIÓN y MI EXPEDIENTE tienen lista propia
+ * y colapsan. MIS DATOS y CICLO abren su pantalla, porque su destino ya es una
+ * pantalla de datos y no un cascarón (doctrina de salud-puertas.ts: las hijas
+ * de MIS DATOS viven DENTRO de esa pantalla, que ya es una lista densa).
+ *
+ * Cómo la deja cada quien se guarda en local (salud-secciones-store), y
+ * `?seccion=X` abre una en concreto: es lo que usan las rutas viejas
+ * /salud/hoy, /salud/evolucion y /salud/expediente, que ahora redirigen aquí.
+ *
+ * El modo denso (ajustes › salud) cambia las secciones por la lista completa en
  * un scroll. Es la válvula que evita el desastre de Garmin, cuyo rediseño
  * curado fue rechazado por los veteranos porque les costaba más clics.
  */
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, DeviceEventEmitter } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AppIcon } from '@/src/components/ui/AppIcon';
-import { EditorialCard } from '@/src/components/hoy/EditorialCard';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EdadAtpHeroCard } from '@/src/components/edad-atp/EdadAtpHeroCard';
+import { SeccionColapsable } from '@/src/screens/salud/SeccionColapsable';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import {
-  visiblePuertas, visibleDestinos, DESTINOS_TODOS, type Puerta,
+  visiblePuertas, visibleDestinos, DESTINOS_TODOS, DESTINOS_POR_PUERTA,
 } from '@/src/constants/salud-puertas';
+import { canAccessCycle } from '@/src/services/cycle/cycle-access-core';
+import { getCycleAppMode } from '@/src/services/app-mode-service';
 import { loadModoDenso, SALUD_DENSO_EVENT } from '@/src/services/salud-denso-store';
+import {
+  loadSeccionesAbiertas, saveSeccionesAbiertas, SECCIONES_DEFAULT,
+  type SeccionKey, type SeccionesAbiertas,
+} from '@/src/services/salud/salud-secciones-store';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { type AppThemeTokens } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
 
-/** Foto por puerta. Todas ya viven en assets: no se movió ni se borró ninguna. */
-const PUERTA_IMAGES: Record<string, any> = {
-  hoy: require('@/assets/images/health-hub/mi-salud.webp'),
-  datos: require('@/assets/images/salud-funcional/mis-datos.webp'),
-  evolucion: require('@/assets/images/health-hub/diagnostico.webp'),
-  expediente: require('@/assets/images/salud-funcional/mi-expediente.webp'),
-  ciclo: require('@/assets/images/cycle/ciclo-01.webp'),
-};
-
-// MB-19.2 PIEZA 3: murieron los emojis de las puertas (PUERTA_ICON). Las
-// cuatro puertas son la cara de SALUD y se dibujan del set vía <AppIcon>
-// (p.icon = salud-hoy/datos/evolucion/expediente/ciclo), no con emojis del
-// sistema que se ven distintos en cada teléfono.
+/** Las secciones que tienen lista propia. Las demás navegan. */
+const CON_LISTA = new Set<SeccionKey>(['hoy', 'evolucion', 'expediente']);
 
 export function SaludHub() {
-  // MB-31B remate: es un CUERPO compartido (lo montan el tab SALUD y
-  // /health-hub) — lee el scope, no el tema global: si la montura no declara
-  // themed, sigue oscuro (regla de tránsito).
+  // MB-31B remate: es un CUERPO montado por el tab — lee el scope, no el tema
+  // global: si la montura no declara themed, sigue oscuro (regla de tránsito).
   const t = useSurfaceTokens();
   const s = useMemo(() => makeStyles(t), [t]);
   const router = useRouter();
   const { user } = useAuth();
+  const { seccion } = useLocalSearchParams<{ seccion?: string }>();
   const [isFemale, setIsFemale] = useState(false);
   const [denso, setDenso] = useState(false);
+  const [abiertas, setAbiertas] = useState<SeccionesAbiertas>(SECCIONES_DEFAULT);
 
   useFocusEffect(useCallback(() => {
     let alive = true;
     (async () => {
-      const on = await loadModoDenso();
-      if (alive) setDenso(on);
+      const [on, secs] = await Promise.all([loadModoDenso(), loadSeccionesAbiertas()]);
+      if (alive) { setDenso(on); setAbiertas(secs); }
       if (!user?.id) return;
       try {
-        const { data } = await supabase
-          .from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle();
-        if (alive) setIsFemale((data as any)?.biological_sex === 'female');
+        // MB-22 P4: SALUD es superficie del ciclo PROPIO. En modo acompañante
+        // el ciclo de otra persona no entra aquí (vive en la app de Ciclo).
+        const [{ data }, mode] = await Promise.all([
+          supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle(),
+          getCycleAppMode(user.id),
+        ]);
+        if (alive) setIsFemale(canAccessCycle((data as any)?.biological_sex, mode));
       } catch { /* sin perfil: el ciclo queda fuera */ }
     })();
     const sub = DeviceEventEmitter.addListener(SALUD_DENSO_EVENT, (on: boolean) => setDenso(!!on));
     return () => { alive = false; sub.remove(); };
   }, [user?.id]));
 
+  // Las rutas viejas (/salud/hoy, /salud/evolucion, /salud/expediente) llegan
+  // aquí con ?seccion=X: se abre esa, sin cerrar las demás.
+  useEffect(() => {
+    if (!seccion || !CON_LISTA.has(seccion as SeccionKey)) return;
+    setAbiertas((prev) => {
+      if (prev[seccion as SeccionKey]) return prev;
+      const next = { ...prev, [seccion as SeccionKey]: true };
+      void saveSeccionesAbiertas(next);
+      return next;
+    });
+  }, [seccion]);
+
+  const toggle = useCallback((key: SeccionKey) => {
+    setAbiertas((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      void saveSeccionesAbiertas(next);
+      return next;
+    });
+  }, []);
+
   const puertas = visiblePuertas(isFemale);
   const todos = visibleDestinos(DESTINOS_TODOS, isFemale);
-
-  const go = (p: Puerta) => { haptic.medium(); router.push(p.route); };
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
@@ -114,20 +141,25 @@ export function SaludHub() {
           </EliteText>
         </>
       ) : (
-        puertas.map((p, i) => (
-          <Animated.View key={p.key} entering={FadeInUp.delay(80 + i * 50).springify()}>
-            <EditorialCard
-              cardKey={`salud_${p.key}`}
-              icon={p.icon}
-              iconName={p.icon}
-              title={p.title}
-              subtitle={p.subtitle}
-              gradient={p.gradient}
-              imageBn={PUERTA_IMAGES[p.key]}
-              onTap={() => go(p)}
-            />
-          </Animated.View>
-        ))
+        puertas.map((p, i) => {
+          const key = p.key as SeccionKey;
+          const conLista = CON_LISTA.has(key);
+          return (
+            <Animated.View key={p.key} entering={FadeInUp.delay(80 + i * 40).springify()}>
+              <SeccionColapsable
+                icon={p.icon}
+                title={p.title}
+                subtitle={p.subtitle}
+                acento={p.gradient[0]}
+                destinos={conLista ? DESTINOS_POR_PUERTA[key as 'hoy' | 'evolucion' | 'expediente'] : undefined}
+                route={conLista ? undefined : p.route}
+                isFemale={isFemale}
+                abierta={!!abiertas[key]}
+                onToggle={() => toggle(key)}
+              />
+            </Animated.View>
+          );
+        })
       )}
 
       <View style={{ height: Spacing.xxl }} />

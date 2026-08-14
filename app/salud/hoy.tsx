@@ -1,19 +1,13 @@
 /**
- * SALUD › HOY EN TU CUERPO (MB-19 PIEZA 3) — el horizonte corto.
+ * /salud/hoy — ya no es pantalla, es un puente.
  *
- * Lo que está pasando ahora: glucosa, cetonas, sol y lo que sientes. Un dato =
- * un lugar: aquí se registra y se ve el de hoy; la serie histórica vive en
- * Mis Datos.
+ * OLA6 PIEZA A: HOY EN TU CUERPO dejó de ser una ruta con su propio cascarón.
+ * La sección vive en el tab SALUD y se abre ahí mismo. La ruta se conserva
+ * porque hay deep links, historial y ARGOS apuntando aquí: quien llegue entra
+ * al tab con la sección abierta.
  */
-import { PuertaScreen } from '@/src/screens/salud/PuertaScreen';
-import { DESTINOS_HOY } from '@/src/constants/salud-puertas';
+import { Redirect } from 'expo-router';
 
-export default function SaludHoyScreen() {
-  return (
-    <PuertaScreen
-      title="Hoy en tu cuerpo"
-      intro="Lo que está pasando ahora. La serie completa de cada dato vive en Mis Datos."
-      destinos={DESTINOS_HOY}
-    />
-  );
+export default function SaludHoyRedirect() {
+  return <Redirect href={{ pathname: '/salud', params: { seccion: 'hoy' } }} />;
 }
