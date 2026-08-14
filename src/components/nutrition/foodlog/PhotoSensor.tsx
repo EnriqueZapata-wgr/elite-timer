@@ -13,20 +13,21 @@
  */
 import { useState, useEffect } from 'react';
 import {
-  View, StyleSheet, ScrollView, Pressable, TextInput,
+  View, StyleSheet, Pressable, TextInput,
   Image, Alert, Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   FadeInDown, FadeIn, FadeInUp, SlideInRight,
-  useSharedValue, useAnimatedStyle, useAnimatedProps,
-  withSpring, withRepeat, withTiming, withDelay, withSequence,
+  useSharedValue, useAnimatedStyle,
+  withRepeat, withTiming, withDelay, withSequence,
   Easing,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import Svg, { Circle } from 'react-native-svg';
+import { ScoreRing, getTagColor, scoreToColor } from '@/src/components/nutrition/scan-visuals';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
@@ -74,8 +75,6 @@ async function shrinkBase64ForAI(uri: string, fallback: string | null): Promise<
 type Step = 'capture' | 'preview' | 'analyzing' | 'result';
 
 const BLUE = CATEGORY_COLORS.nutrition;
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
 const HUNGER_OPTIONS = [
   { key: 'hungry', emoji: '\u{1F60B}', label: 'Con hambre', value: 8 },
   { key: 'normal', emoji: '\u{1F610}', label: 'Normal', value: 5 },
@@ -93,112 +92,6 @@ const LABEL_CONTEXT = [
   { key: 'health', emoji: '\u{1F48A}', label: 'Salud específica' },
   { key: 'curiosity', emoji: '\u{1F937}', label: 'Solo curiosidad' },
 ];
-
-// === TAG COLORS — Semáforo verde/amarillo/rojo ===
-
-const POSITIVE_TAGS = [
-  'sin_azucar', 'sin azucar', 'ingredientes_naturales', 'ingredientes naturales',
-  'conserva_tradicional', 'conserva tradicional', 'alta_proteina', 'alta proteina',
-  'grasas_saludables', 'grasas saludables', 'alto_omega3', 'alto omega3',
-  'sin_aditivos', 'sin aditivos', 'organico', 'orgánico', 'sin_conservadores',
-  'sin conservadores', 'fibra', 'alta_fibra', 'anti_inflamatorio', 'antiinflamatorio',
-  'sin_gluten', 'sin gluten', 'fermentado', 'probiotico', 'prebiotico',
-  'bajo_indice_glucemico', 'sin_procesados', 'alimento_real', 'buena_biodisponibilidad',
-  'formas_optimas', 'dosis_terapeutica', 'sin_excipientes_daninos', 'capsula_vegetal',
-  'clean_label', 'sin_colorantes', 'sin_saborizantes_artificiales', 'bajo_azucar',
-  'bajo_sodio', 'rico_en_fibra', 'vitaminas', 'minerales', 'antioxidantes',
-];
-
-const NEGATIVE_TAGS = [
-  'ultra_procesado', 'ultraprocesado', 'azucar_alta', 'alto_azucar',
-  'colorantes_artificiales', 'exceso_sodio', 'grasas_trans', 'aceite_industrial',
-  'glutamato', 'aspartame', 'excipientes_cuestionables', 'subdosificado',
-  'formas_pobres', 'dioxido_titanio', 'bht', 'bha', 'tartrazina',
-  'jarabe_maiz', 'aceite_palma_hidrogenado', 'alto_en_azucar',
-];
-
-const CAUTION_TAGS = [
-  'sodio_moderado', 'azucar_moderada', 'procesado_minimo',
-  'contiene_soya', 'contiene_lacteos', 'cafeina', 'excipientes_aceptables',
-];
-
-export function getTagColor(tag: string): { bg: string; text: string } {
-  const n = tag.toLowerCase().trim().replace(/\s+/g, '_');
-  if (POSITIVE_TAGS.some(p => n.includes(p) || p.includes(n)))
-    return { bg: 'rgba(168,224,42,0.15)', text: ATP_BRAND.lime };
-  if (NEGATIVE_TAGS.some(p => n.includes(p) || p.includes(n)))
-    return { bg: 'rgba(226,75,74,0.15)', text: SEMANTIC.error };
-  if (CAUTION_TAGS.some(p => n.includes(p) || p.includes(n)))
-    return { bg: 'rgba(239,159,39,0.15)', text: SEMANTIC.warning };
-  // Inferencia heurística
-  if (n.startsWith('sin_') || n.startsWith('sin ') || n.includes('natural') || n.includes('limpio') || n.includes('buena') || n.includes('optim') || n.includes('puro'))
-    return { bg: 'rgba(168,224,42,0.15)', text: ATP_BRAND.lime };
-  if (n.includes('exceso') || n.includes('artificial') || n.includes('procesado') || n.includes('riesgo'))
-    return { bg: 'rgba(226,75,74,0.15)', text: SEMANTIC.error };
-  // Neutral
-  return { bg: 'rgba(255,255,255,0.06)', text: TEXT_COLORS.secondary };
-}
-
-export function scoreToColor(s: number): string {
-  if (s >= 90) return ATP_BRAND.lime;
-  if (s >= 70) return ATP_BRAND.green1;
-  if (s >= 50) return SEMANTIC.acceptable;
-  if (s >= 30) return SEMANTIC.warning;
-  return SEMANTIC.error;
-}
-
-// === SCORE RING — Animado con spring ===
-
-export function ScoreRing({ score, size = 160 }: { score: number; size?: number }) {
-  const sw = 8;
-  const radius = (size - sw) / 2;
-  const circ = 2 * Math.PI * radius;
-  const color = scoreToColor(score);
-
-  const progress = useSharedValue(0);
-  useEffect(() => {
-    progress.value = withDelay(300, withSpring(score / 100, { damping: 14, stiffness: 55 }));
-  }, [score]);
-
-  const ringProps = useAnimatedProps(() => ({
-    strokeDashoffset: circ * (1 - progress.value),
-  }));
-
-  // Animación del número (contador)
-  const [display, setDisplay] = useState(0);
-  useEffect(() => {
-    let frame: number;
-    let start: number | null = null;
-    const dur = 1200;
-    const animate = (ts: number) => {
-      if (!start) start = ts;
-      const tt = Math.min((ts - start) / dur, 1);
-      const eased = 1 - Math.pow(1 - tt, 3); // ease out cubic
-      setDisplay(Math.round(eased * score));
-      if (tt < 1) frame = requestAnimationFrame(animate);
-    };
-    const timer = setTimeout(() => { frame = requestAnimationFrame(animate); }, 400);
-    return () => { clearTimeout(timer); cancelAnimationFrame(frame); };
-  }, [score]);
-
-  return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={size} height={size} style={{ position: 'absolute' }}>
-        <Circle cx={size / 2} cy={size / 2} r={radius}
-          stroke={SURFACES.cardLight} strokeWidth={sw} fill="transparent" />
-        <AnimatedCircle cx={size / 2} cy={size / 2} r={radius}
-          stroke={color} strokeWidth={sw} fill="transparent"
-          strokeDasharray={`${circ}`} animatedProps={ringProps}
-          strokeLinecap="round"
-          transform={`rotate(-90, ${size / 2}, ${size / 2})`}
-        />
-      </Svg>
-      <EliteText style={{ fontSize: FontSizes.mega, fontFamily: Fonts.extraBold, color, includeFontPadding: false }}>
-        {display}
-      </EliteText>
-    </View>
-  );
-}
 
 function MacroPill({ label, value, unit, color, delay: d }: {
   label: string; value: string; unit: string; color: string; delay: number;
