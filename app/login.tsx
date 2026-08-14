@@ -157,7 +157,7 @@ export default function LoginScreen() {
             </Pressable>
 
             {/* OLA6 PIEZA D: la ficha de emergencia se abre ANTES de iniciar
-                sesión, leyendo la copia cifrada del teléfono. Solo aparece si
+                sesión, leyendo la copia local del teléfono. Solo aparece si
                 hay ficha guardada aquí: si no, sería una promesa vacía. */}
             {hayFicha ? (
               <Pressable onPress={() => router.push('/ficha-emergencia')} style={styles.fichaLink}>

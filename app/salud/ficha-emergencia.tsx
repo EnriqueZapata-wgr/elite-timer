@@ -4,8 +4,9 @@
  * OLA6 PIEZA D. Toda la pantalla obedece a una sola escena: estás en el piso,
  * llega quien llega, agarra tu teléfono. Por eso:
  *
- *   · Se guarda una copia CIFRADA en el teléfono y se puede abrir sin sesión
- *     (interruptor en Ajustes, encendido por default). El aviso se da al
+ *   · Se guarda una copia en el teléfono, EN CLARO, y se abre sin sesión
+ *     (interruptor en Ajustes, encendido por default). No va cifrada a
+ *     propósito: se diseñó para que la lea un extraño. El aviso se da al
  *     crearla, con todas sus letras.
  *   · Las alergias van con severidad y NO son las alimentarias de nutrición.
  *     Aquellas son preferencias; estas cambian una decisión clínica.
@@ -41,9 +42,9 @@ import { type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 
 const AVISO_CREACION =
-  'Esta ficha se guarda cifrada en tu teléfono y se puede abrir sin iniciar sesión, ' +
-  'protegida solo por el bloqueo de tu celular. Es a propósito: quien te auxilie no ' +
-  'va a poder entrar a tu cuenta. Puedes apagarlo en Ajustes › Salud y protocolo.';
+  'Esta ficha se abre sin iniciar sesión y su código se puede imprimir. Es a propósito: ' +
+  'quien te auxilie tiene que poder leerla en segundos. Por eso solo lleva lo que ayuda ' +
+  'en urgencias. Puedes apagarlo en Ajustes › Salud y protocolo.';
 
 export default function FichaEmergenciaScreen() {
   const { kind, tokens: t } = useAppTheme();
@@ -143,8 +144,8 @@ export default function FichaEmergenciaScreen() {
       <PillarHeader pillar="health" title="Ficha de emergencia" />
       <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
         <EliteText variant="caption" style={s.intro}>
-          Lo que alguien necesita saber de ti en dos minutos. Se guarda cifrada en tu teléfono
-          y abre sin señal y sin iniciar sesión.
+          Lo que alguien necesita saber de ti en dos minutos. Se guarda en tu teléfono y abre
+          sin señal y sin iniciar sesión.
         </EliteText>
 
         {revisar ? (

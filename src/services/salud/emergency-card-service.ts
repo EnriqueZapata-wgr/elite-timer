@@ -3,7 +3,7 @@
  *
  * OLA6 PIEZA D. Tres responsabilidades y ninguna más:
  *   · sincronizar la ficha con Supabase (respaldo entre dispositivos),
- *   · dejar SIEMPRE la copia local cifrada al día (es la que abre en urgencias),
+ *   · dejar SIEMPRE la copia local al día (es la que abre en urgencias),
  *   · sembrar la medicación desde el protocolo activo, CON confirmación.
  *
  * ⚠️ expo-print y expo-sharing son módulos NATIVOS: los requires van lazy,

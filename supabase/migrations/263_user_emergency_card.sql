@@ -6,7 +6,8 @@
 -- del expediente clínico ni se mezcla con las alergias alimentarias del pilar
 -- de nutrición (esas son preferencias; estas son las que matan).
 --
--- La copia que de verdad abre en urgencias vive CIFRADA en el teléfono. Esta
+-- La copia que de verdad abre en urgencias vive en el teléfono, EN CLARO y a
+-- propósito: lo que se diseñó para que lo lea un extraño no se cifra. Esta
 -- tabla es el respaldo: sincroniza entre dispositivos y sobrevive a un cambio
 -- de equipo. Sin red, la app lee la local.
 --

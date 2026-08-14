@@ -2,10 +2,11 @@
  * /ficha-emergencia — modo pantalla. La ficha para quien te auxilia.
  *
  * OLA6 PIEZA D. Vive en la raíz, fuera de /salud y fuera de cualquier sesión,
- * a propósito: se abre SIN RED y SIN INICIAR SESIÓN. Lee la copia local
- * cifrada, y la llave está en el llavero del sistema operativo, así que la
- * frontera es el bloqueo del celular. Quien te encuentre no va a poder entrar
- * a tu cuenta, y ese es todo el punto de llegar al hospital con esto.
+ * a propósito: se abre SIN RED y SIN INICIAR SESIÓN. Lee la copia local, que
+ * no va cifrada y no debe ir cifrada: es la única superficie de ATP escrita
+ * para que la lea un extraño (ver emergency-card-store). Quien te encuentre
+ * llega hasta aquí y ni un campo más: tu cuenta y tu expediente siguen
+ * detrás de la sesión.
  *
  * Reglas de la pantalla, todas por la misma razón (alguien de pie, con prisa,
  * a lo mejor con guantes):

@@ -205,12 +205,12 @@ export default function SettingsSaludScreen() {
             icon="medkit-outline"
             iconColor="#D93636"
             label="Ficha de emergencia"
-            sub="Sangre, alergias, medicación y a quién llamar"
+            sub="Sangre, alergias, condiciones y a quién llamar"
             onPress={() => { haptic.medium(); router.push('/salud/ficha-emergencia'); }}
           />
           <EliteToggle
             label="Abrir la ficha sin iniciar sesión"
-            description="Encendido: se guarda cifrada en el teléfono y se abre con el bloqueo de tu celular, sin señal y sin tu contraseña. Apagado: solo dentro de tu cuenta."
+            description="Encendido: se guarda en el teléfono y se abre sin señal y sin tu contraseña, para que quien te auxilie la lea. Apagado: solo dentro de tu cuenta."
             value={fichaPrelogin}
             onValueChange={onToggleFichaPrelogin}
           />
