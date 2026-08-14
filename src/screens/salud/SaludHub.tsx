@@ -30,6 +30,7 @@ import { AppIcon } from '@/src/components/ui/AppIcon';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EdadAtpHeroCard } from '@/src/components/edad-atp/EdadAtpHeroCard';
 import { SeccionColapsable } from '@/src/screens/salud/SeccionColapsable';
+import { FichaEmergenciaRow } from '@/src/components/salud/FichaEmergenciaRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import {
@@ -136,6 +137,7 @@ export function SaludHub() {
               </AnimatedPressable>
             </Animated.View>
           ))}
+          <FichaEmergenciaRow />
           <EliteText style={s.densoHint}>
             Modo completo encendido. Se apaga en Ajustes › Salud y protocolo.
           </EliteText>
@@ -156,7 +158,11 @@ export function SaludHub() {
                 isFemale={isFemale}
                 abierta={!!abiertas[key]}
                 onToggle={() => toggle(key)}
-              />
+              >
+                {/* La única fila roja de SALUD. Vive en el expediente porque es
+                    lo que un tercero necesita LEER de ti, no lo que tú mides. */}
+                {key === 'expediente' ? <FichaEmergenciaRow /> : null}
+              </SeccionColapsable>
             </Animated.View>
           );
         })

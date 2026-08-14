@@ -21,6 +21,9 @@
  */
 import { parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { escapeHtml } from '@/src/services/labs-guide-html';
+import {
+  BLOOD_TYPE_LABEL, SEVERITY_LABEL, edadDe, type EmergencyCard,
+} from '@/src/services/salud/emergency-card-core';
 import { CANONICAL_PCT_KEYS, decimalToPct } from '@/src/constants/lab-canonical-map';
 import { LAB_ABSOLUTE_RANGES } from '@/src/constants/lab-clinical-ranges';
 
@@ -537,6 +540,117 @@ export function buildConsultaHtml(input: ConsultaInput): string {
 
   <p class="disclaimer">${CONSULTA_DISCLAIMER}</p>
   <div class="footer">Generado desde la app ATP · Solo datos registrados por la persona</div>
+</body>
+</html>`;
+}
+
+// ─── Ficha de emergencia (OLA6 PIEZA D) ─────────────────────────────────────
+
+/**
+ * Aviso de la ficha. Dice DOS cosas, y la segunda no es negociable: que los
+ * datos los escribió la persona, y que la medicación de un protocolo ATP no
+ * es una prescripción médica.
+ */
+export const FICHA_DISCLAIMER =
+  'Datos capturados por la persona, sin validación clínica. Las intervenciones de un protocolo ATP no son prescripción médica.';
+
+function fichaFila(label: string, valor: string): string {
+  return valor
+    ? `<tr><th>${escapeHtml(label)}</th><td>${valor}</td></tr>`
+    : '';
+}
+
+/**
+ * Ficha de emergencia en UNA página A4, cuerpo de 14pt y sin un solo color de
+ * semáforo. Se cuelga del mismo módulo puro que el reporte de consulta porque
+ * obedece la misma regla: cero interpretación, y el test anti-juicio barre las
+ * dos salidas.
+ *
+ * Por qué 14pt y a una página: quien la lee está de pie, con guantes y con
+ * prisa. Un PDF de tres páginas en 10pt es un PDF que nadie lee.
+ */
+export function emergencyCardHtml(card: EmergencyCard, hoyISO: string): string {
+  const edad = edadDe(card.birthDate, hoyISO);
+  const nombre = card.fullName.trim();
+
+  const alergias = card.allergies.length
+    ? `<ul>${card.allergies
+      .map((a) => `<li><b>${escapeHtml(a.substance)}</b> · ${escapeHtml(SEVERITY_LABEL[a.severity])}${a.reaction ? ` · ${escapeHtml(a.reaction)}` : ''}</li>`)
+      .join('')}</ul>`
+    : '<p class="vacio">Sin alergias registradas.</p>';
+
+  const medicacion = card.medications.length
+    ? `<ul>${card.medications
+      .map((m) => `<li><b>${escapeHtml(m.name)}</b>${m.dose ? ` · ${escapeHtml(m.dose)}` : ''}${m.frequency ? ` · ${escapeHtml(m.frequency)}` : ''}</li>`)
+      .join('')}</ul>`
+    : '<p class="vacio">Sin medicación registrada.</p>';
+
+  const condiciones = card.conditions.length
+    ? `<ul>${card.conditions.map((c) => `<li>${escapeHtml(c)}</li>`).join('')}</ul>`
+    : '';
+
+  const contactos = card.contacts.length
+    ? `<ul>${card.contacts
+      .map((c) => `<li><b>${escapeHtml(c.phone)}</b> · ${escapeHtml(c.name)}${c.relationship ? ` (${escapeHtml(c.relationship)})` : ''}</li>`)
+      .join('')}</ul>`
+    : '<p class="vacio">Sin contactos registrados.</p>';
+
+  const otros = [
+    fichaFila('Marcapasos o implantes', card.hasPacemaker
+      ? `Sí${card.implants.trim() ? ` · ${escapeHtml(card.implants.trim())}` : ''}`
+      : card.implants.trim() ? escapeHtml(card.implants.trim()) : ''),
+    fichaFila('Donante de órganos', card.organDonor == null ? '' : card.organDonor ? 'Sí' : 'No'),
+    fichaFila('Aseguradora', [card.insurerName.trim(), card.insurerPolicy.trim()].filter(Boolean).map(escapeHtml).join(' · ')),
+    fichaFila('Idioma', escapeHtml(card.language.trim())),
+  ].join('');
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<style>
+  @page { size: A4; margin: 14mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; color: ${INK}; font-size: 14pt; line-height: 1.4; }
+  .kicker { font-size: 10pt; letter-spacing: 3px; font-weight: 700; text-transform: uppercase; color: ${MUTED}; }
+  h1 { font-size: 26pt; font-weight: 800; margin: 2px 0 0; letter-spacing: -0.5px; }
+  .quien { font-size: 16pt; margin-top: 4px; }
+  h2 { font-size: 12pt; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; margin: 14px 0 4px; border-bottom: 2px solid ${INK}; padding-bottom: 3px; }
+  ul { margin: 2px 0 0 20px; }
+  li { margin-bottom: 3px; }
+  .sangre { font-size: 30pt; font-weight: 800; letter-spacing: -1px; }
+  .vacio { color: ${MUTED}; }
+  table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  th { text-align: left; width: 38%; font-size: 11pt; text-transform: uppercase; letter-spacing: 1px; color: ${MUTED}; padding: 4px 8px 4px 0; vertical-align: top; }
+  td { padding: 4px 0; }
+  .nota { margin-top: 6px; }
+  .disclaimer { margin-top: 16px; padding-top: 8px; border-top: 1px solid #ddd; color: ${MUTED}; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+  <div class="kicker">Ficha de emergencia</div>
+  <h1>${nombre ? escapeHtml(nombre) : 'Ficha de emergencia'}</h1>
+  <div class="quien">${edad != null ? `${edad} años` : ''}${edad != null && card.birthDate ? ' · ' : ''}${card.birthDate ? escapeHtml(fmtFecha(card.birthDate)) : ''}</div>
+
+  <h2>Tipo de sangre</h2>
+  <div class="sangre">${card.bloodType ? escapeHtml(BLOOD_TYPE_LABEL[card.bloodType]) : 'Sin registrar'}</div>
+
+  <h2>Alergias</h2>
+  ${alergias}
+
+  <h2>Medicación actual</h2>
+  ${medicacion}
+
+  ${condiciones ? `<h2>Condiciones</h2>${condiciones}` : ''}
+
+  <h2>A quién llamar</h2>
+  ${contactos}
+
+  ${otros ? `<h2>Otros datos</h2><table>${otros}</table>` : ''}
+
+  ${card.note.trim() ? `<h2>Nota</h2><p class="nota">${escapeHtml(card.note.trim())}</p>` : ''}
+
+  <p class="disclaimer">${FICHA_DISCLAIMER}</p>
 </body>
 </html>`;
 }

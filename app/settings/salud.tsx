@@ -16,6 +16,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { useNutritionMode } from '@/src/hooks/useNutritionMode';
 import { getInsightsEnabled, setInsightsEnabled } from '@/src/services/argos-nutrition-insights';
 import { loadModoDenso, saveModoDenso, SALUD_DENSO_EVENT } from '@/src/services/salud-denso-store';
+import { loadFichaPrelogin, saveFichaPrelogin } from '@/src/services/salud/emergency-card-store';
 import { getFitnessLevel, setFitnessLevel } from '@/src/services/fitness/fitness-profile-service';
 import { NIVELES_USUARIO, type NivelUsuario } from '@/src/constants/exercise-matrix';
 import { SectionLabel, Divider, SettingRow, ui } from '@/src/components/settings/settings-ui';
@@ -51,6 +52,22 @@ export default function SettingsSaludScreen() {
   // MB-19: modo denso de SALUD (default OFF — la versión curada recibe a todos).
   const [modoDenso, setModoDenso] = useState(false);
   useEffect(() => { loadModoDenso().then(setModoDenso); }, []);
+  // OLA6 D: la ficha de emergencia abre sin sesión. ENCENDIDO por default:
+  // quien te auxilie no va a poder entrar a tu cuenta, y ese es el punto.
+  const [fichaPrelogin, setFichaPrelogin] = useState(true);
+  useEffect(() => { loadFichaPrelogin().then(setFichaPrelogin); }, []);
+
+  function onToggleFichaPrelogin(v: boolean) {
+    haptic.light();
+    setFichaPrelogin(v);
+    void saveFichaPrelogin(v);
+    if (!v) {
+      Alert.alert(
+        'Ficha apagada',
+        'Se borró la copia de tu teléfono. Tu ficha sigue guardada en tu cuenta, pero ya no se puede abrir sin iniciar sesión.',
+      );
+    }
+  }
 
   function onToggleDenso(v: boolean) {
     haptic.light();
@@ -181,6 +198,21 @@ export default function SettingsSaludScreen() {
             label="Salud Funcional"
             sub="Mapa funcional, datos, síntomas y expediente"
             onPress={() => { haptic.medium(); router.push('/salud'); }}
+          />
+          <Divider />
+          {/* OLA6 D: la única fila de SALUD pensada para que la lea otra persona. */}
+          <SettingRow
+            icon="medkit-outline"
+            iconColor="#D93636"
+            label="Ficha de emergencia"
+            sub="Sangre, alergias, medicación y a quién llamar"
+            onPress={() => { haptic.medium(); router.push('/salud/ficha-emergencia'); }}
+          />
+          <EliteToggle
+            label="Abrir la ficha sin iniciar sesión"
+            description="Encendido: se guarda cifrada en el teléfono y se abre con el bloqueo de tu celular, sin señal y sin tu contraseña. Apagado: solo dentro de tu cuenta."
+            value={fichaPrelogin}
+            onValueChange={onToggleFichaPrelogin}
           />
           <Divider />
           {/* MB-19 PIEZA 3: la válvula de escape del rediseño. SALUD se curó a
