@@ -17,6 +17,7 @@ import { journalDomain } from './journal';
 import { emocionesDomain } from './emociones';
 import { cicloDomain } from './ciclo';
 import { nbackDomain } from './nback';
+import { adherenciaDomain } from './adherencia';
 
 /**
  * Cada definición fija su propio tipo de datos puertas adentro; el mapa las
@@ -34,6 +35,7 @@ export const DOMAIN_DEFINITIONS: Partial<Record<ReportDomainKey, AnyReportDomain
   emociones: emocionesDomain,
   ciclo: cicloDomain,
   nback: nbackDomain,
+  adherencia: adherenciaDomain,
 };
 
 export function getDomainDefinition(key: string | null | undefined): AnyReportDomainDefinition | null {

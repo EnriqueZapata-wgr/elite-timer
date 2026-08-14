@@ -87,9 +87,11 @@ export const APP_REGISTRY: AppEntry[] = [
   { key: 'nback', label: 'N-Back', icon: 'nback', section: 'mente', route: '/mente/nback', installable: true, alias: ['memoria', 'cognición', 'juego', 'atención'],
     description: 'Dual N-Back: un juego corto de memoria de trabajo con posiciones y letras. El nivel sube y baja según tu sesión.' },
   // Al final a propósito: es consulta, no práctica. Rachas de journal,
-  // respiración, meditación y check-in + medallas de 7/30/90/365 días —
-  // nada de eso existe en ningún otro lado de la app.
-  { key: 'rachas', label: 'Rachas', icon: 'rachas', section: 'mente', route: '/mente/progreso', installable: false, alias: ['progreso', 'medallas', 'constancia', 'racha'],
+  // respiración, meditación y check-in + medallas de 7/30/90/365 días.
+  // OLA1 R-5: la pantalla se absorbió en el dominio adherencia (las rachas
+  // SON adherencia). La app conserva su nombre y su puerta, ahora con ancla a
+  // la pestaña Rachas.
+  { key: 'rachas', label: 'Rachas', icon: 'rachas', section: 'mente', route: '/reports/adherencia?tab=rachas', installable: false, alias: ['progreso', 'medallas', 'constancia', 'racha'],
     description: 'Tus rachas de journal, respiración, meditación y check-in, con medallas de 7, 30, 90 y 365 días.' },
 
   // ── Cuerpo ──

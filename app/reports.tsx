@@ -39,6 +39,7 @@ import { JournalResumen } from '@/src/components/reports/domains/journal';
 import { EmocionesResumen } from '@/src/components/reports/domains/emociones';
 import { CicloResumen } from '@/src/components/reports/domains/ciclo';
 import { NbackResumen } from '@/src/components/reports/domains/nback';
+import { AdherenciaResumen } from '@/src/components/reports/domains/adherencia';
 import { REPORT_DOMAINS, type ReportDomainKey } from '@/src/services/reports/report-domain-core';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
@@ -123,6 +124,7 @@ const SECTION_TO_DOMAIN: Partial<Record<SectionKey, ReportDomainKey>> = {
   emociones: 'emociones',
   ciclo: 'ciclo',
   nback: 'nback',
+  compliance: 'adherencia',
   electrones: 'economia',
 };
 
@@ -292,13 +294,14 @@ export default function ReportsScreen() {
         {glucose.daily.length > 0 && <SimpleBarChart data={glucose.daily} color={ORANGE} />}
       </GradientCard>
     ) : null,
+    // OLA1 R-5: compliance era la cifra sin casa. Ahora es la puerta del
+    // dominio adherencia, donde ademas viven las rachas y las medallas. La
+    // llave de la seccion NO se renombra: la preferencia guardada de la gente
+    // dice 'compliance'.
     compliance: () => (
-      <GradientCard gradient={{ start: 'rgba(168,224,42,0.08)', end: 'rgba(168,224,42,0.02)' }}>
-        <SectionHeader icon="checkmark-done-outline" color={LIME} title="COMPLIANCE" />
-        <Stat value={compliance.avgPct > 0 ? `${compliance.avgPct}%` : '—'} label="promedio" />
-        {/* target 75 = ADHERENCE_THRESHOLD (adherence-service) */}
-        {compliance.daily.length > 0 && <SimpleBarChart data={compliance.daily} color={LIME} target={75} colorByTarget />}
-      </GradientCard>
+      <DomainCard domain="adherencia" gradient={{ start: 'rgba(168,224,42,0.08)', end: 'rgba(168,224,42,0.02)' }} period={period}>
+        <AdherenciaResumen avgPct={compliance.avgPct} streak={identity?.streakCurrent ?? null} />
+      </DomainCard>
     ),
     // Mente ya no se esconde en cero: la tarjeta es la puerta al reporte, y
     // esconder la puerta dejaba el dominio inalcanzable desde el hub. El cero

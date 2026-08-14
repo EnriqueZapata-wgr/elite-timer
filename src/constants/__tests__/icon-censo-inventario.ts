@@ -307,6 +307,10 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/components/reports/domains/emociones.tsx::pulse-outline::x2',
   'src/components/reports/domains/emociones.tsx::sunny-outline',
   'src/components/reports/domains/emociones.tsx::timer-outline',
+  // OLA1 R-5: el flame-outline del encabezado "racha del protocolo". Es
+  // contenido del dominio adherencia (una racha, dibujada donde vive), no un
+  // lanzador de funcion del registro.
+  'src/components/reports/domains/adherencia.tsx::flame-outline',
   // OLA1 R-3: los dos glifos de las pantallas de ciclo, ya dentro del dominio.
   // Contenido propio (la grafica y la lista de ciclos), no lanzadores.
   'src/components/reports/domains/ciclo.tsx::analytics-outline',

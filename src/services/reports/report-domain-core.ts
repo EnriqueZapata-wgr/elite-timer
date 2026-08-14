@@ -107,7 +107,7 @@ export type ReportPillar =
 
 export type ReportDomainKey =
   | 'nutricion' | 'hidratacion' | 'ayuno' | 'mente' | 'economia'
-  | 'journal' | 'emociones' | 'ciclo' | 'nback';
+  | 'journal' | 'emociones' | 'ciclo' | 'nback' | 'adherencia';
 
 export interface ReportDomainMeta {
   key: ReportDomainKey;
@@ -197,6 +197,15 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     accent: '#7F77DD',
     subtitle: 'Tus rounds, tu nivel máximo y cómo vas contra los demás.',
     emptyCopy: 'Todavía no completaste ningún round. El primero tarda tres minutos y ya cuenta.',
+  },
+  adherencia: {
+    key: 'adherencia',
+    title: 'Adherencia',
+    pillar: 'metrics',
+    icon: 'checkmark-done-outline',
+    accent: '#a8e02a',
+    subtitle: 'Qué tanto cumpliste, y cuántos días seguidos llevas.',
+    emptyCopy: 'Todavía no hay días cerrados ni rachas vivas. El primer día que cumplas tu protocolo empieza a contar aquí.',
   },
   economia: {
     key: 'economia',
