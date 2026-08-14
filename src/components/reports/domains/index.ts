@@ -13,6 +13,7 @@ import { hidratacionDomain } from './hidratacion';
 import { ayunoDomain } from './ayuno';
 import { menteDomain } from './mente';
 import { economiaDomain } from './economia';
+import { journalDomain } from './journal';
 
 /**
  * Cada definición fija su propio tipo de datos puertas adentro; el mapa las
@@ -26,6 +27,7 @@ export const DOMAIN_DEFINITIONS: Partial<Record<ReportDomainKey, AnyReportDomain
   ayuno: ayunoDomain,
   mente: menteDomain,
   economia: economiaDomain,
+  journal: journalDomain,
 };
 
 export function getDomainDefinition(key: string | null | undefined): AnyReportDomainDefinition | null {

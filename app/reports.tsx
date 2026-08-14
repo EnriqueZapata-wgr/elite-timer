@@ -35,6 +35,7 @@ import { HidratacionContent } from '@/src/components/reports/domains/hidratacion
 import { AyunoContent } from '@/src/components/reports/domains/ayuno';
 import { MenteContent } from '@/src/components/reports/domains/mente';
 import { EconomiaContent } from '@/src/components/reports/domains/economia';
+import { JournalResumen } from '@/src/components/reports/domains/journal';
 import { REPORT_DOMAINS, type ReportDomainKey } from '@/src/services/reports/report-domain-core';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
@@ -84,14 +85,15 @@ const KEY_TO_LABEL: Record<string, PeriodLabel> = {
 /** Secciones personalizables, en su orden default. */
 const SECTION_KEYS = [
   'calendario', 'electrones', 'nutricion', 'hidratacion', 'ayuno',
-  'ejercicio', 'glucosa', 'compliance', 'mente', 'ciclo',
+  'ejercicio', 'glucosa', 'compliance', 'mente', 'journal', 'ciclo',
 ] as const;
 type SectionKey = typeof SECTION_KEYS[number];
 
 const SECTION_NAMES: Record<SectionKey, string> = {
   calendario: 'Calendario', electrones: 'Electrones', nutricion: 'Nutrición',
   hidratacion: 'Hidratación', ayuno: 'Ayuno', ejercicio: 'Ejercicio',
-  glucosa: 'Glucosa', compliance: 'Compliance', mente: 'Mente', ciclo: 'Ciclo',
+  glucosa: 'Glucosa', compliance: 'Compliance', mente: 'Mente',
+  journal: 'Journal', ciclo: 'Ciclo',
 };
 
 const PREFS_KEY = '@atp/reports_sections';
@@ -110,6 +112,7 @@ const SECTION_TO_DOMAIN: Partial<Record<SectionKey, ReportDomainKey>> = {
   hidratacion: 'hidratacion',
   ayuno: 'ayuno',
   mente: 'mente',
+  journal: 'journal',
   electrones: 'economia',
 };
 
@@ -290,6 +293,13 @@ export default function ReportsScreen() {
     mente: () => (
       <DomainCard domain="mente" gradient={{ start: 'rgba(192,132,252,0.08)', end: 'rgba(192,132,252,0.02)' }} period={period}>
         <MenteContent data={mind} variant="resumen" />
+      </DomainCard>
+    ),
+    // OLA1 R-1: el journal deja de ser una cifra dentro de mente y gana su
+    // puerta. La cifra es la MISMA de getMindReport: no se cuenta dos veces.
+    journal: () => (
+      <DomainCard domain="journal" gradient={{ start: 'rgba(167,139,250,0.10)', end: 'rgba(167,139,250,0.02)' }} period={period}>
+        <JournalResumen entries={mind.journalEntries} />
       </DomainCard>
     ),
     ciclo: () => cycle.logsCount > 0 ? (

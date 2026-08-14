@@ -106,7 +106,8 @@ export type ReportPillar =
   | 'metrics' | 'rest' | 'cycle' | 'health' | 'tests';
 
 export type ReportDomainKey =
-  | 'nutricion' | 'hidratacion' | 'ayuno' | 'mente' | 'economia';
+  | 'nutricion' | 'hidratacion' | 'ayuno' | 'mente' | 'economia'
+  | 'journal';
 
 export interface ReportDomainMeta {
   key: ReportDomainKey;
@@ -160,6 +161,15 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     accent: '#c084fc',
     subtitle: 'Respiración, meditación, journal y check-ins.',
     emptyCopy: 'Todavía no hay sesiones de mente en este rango. Una respiración de tres minutos ya cuenta.',
+  },
+  journal: {
+    key: 'journal',
+    title: 'Journal',
+    pillar: 'mind',
+    icon: 'book-outline',
+    accent: '#a78bfa',
+    subtitle: 'Todo lo que escribiste, con su fecha y su tipo.',
+    emptyCopy: 'Todavía no hay entradas en este rango. Tu primera entrada está a un tap del botón de más.',
   },
   economia: {
     key: 'economia',

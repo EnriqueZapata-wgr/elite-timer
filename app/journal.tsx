@@ -397,9 +397,11 @@ export default function JournalScreen() {
         subtitle="Elige tu práctica de hoy"
         rightContent={
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            {/* #39: historial dedicado con filtros/búsqueda/edición */}
+            {/* OLA1 R-1: el historial vive en /reports/journal, con filtros,
+                búsqueda y edición. Se empuja (nunca replace) para que el atrás
+                regrese al composer. */}
             {/* Iconos sobre el hero fotográfico: blanco anclado (no se tematiza). */}
-            <Pressable onPress={() => { haptic.light(); router.push('/journal-history'); }} hitSlop={8}>
+            <Pressable onPress={() => { haptic.light(); router.push('/reports/journal'); }} hitSlop={8}>
               <Ionicons name="time-outline" size={22} color={ATP_BRAND.white} />
             </Pressable>
             <HelpButton

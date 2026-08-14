@@ -120,7 +120,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   // de Mis hábitos — chrome de estado, no lanzador de función del registro.
   'app/hoy-habitos.tsx::moon-outline',
   'app/hoy-habitos.tsx::ribbon-outline',
-  'app/journal-history.tsx::book-outline',
   'app/journal.tsx::book-outline',
   'app/ketones-log.tsx::moon-outline',
   'app/ketones-log.tsx::restaurant-outline',
@@ -172,10 +171,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   // propio dominio (reportes), no un lanzador dibujando una función.
   'app/reports.tsx::document-text-outline',
   'app/reports.tsx::eye-outline',
-  'app/reports.tsx::flower-outline',
-  'app/reports.tsx::restaurant-outline',
-  'app/reports.tsx::timer-outline',
-  'app/reports.tsx::water-outline',
   'app/routine-generator.tsx::hourglass-outline',
   'app/salud/intervenciones/index.tsx::sparkles-outline',
   'app/salud/mi-expediente/index.tsx::document-text-outline',
@@ -313,6 +308,15 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/services/onboarding-v2-core.ts::barbell-outline',
   'src/services/onboarding-v2-core.ts::body-outline',
   'src/services/onboarding-v2-core.ts::flower-outline',
+  // OLA1 R-0/R-1: REPORT_DOMAINS es el registro de los reportes por dominio y
+  // ahi vive el icono de cada uno, que antes estaba suelto en app/reports.tsx.
+  // No dibuja: es el dato que el hub y la pantalla del dominio leen para no
+  // elegir cada uno el suyo.
+  'src/services/reports/report-domain-core.ts::book-outline',
+  'src/services/reports/report-domain-core.ts::flower-outline',
+  'src/services/reports/report-domain-core.ts::restaurant-outline',
+  'src/services/reports/report-domain-core.ts::timer-outline',
+  'src/services/reports/report-domain-core.ts::water-outline',
   'src/services/salud/ketones-source-core.ts::cloud-outline',
   'src/services/salud/ketones-source-core.ts::flask-outline',
   'src/services/salud/ketones-source-core.ts::water-outline',

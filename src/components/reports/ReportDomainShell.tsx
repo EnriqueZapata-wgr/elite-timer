@@ -44,8 +44,19 @@ export interface ReportDomainDefinition<T> {
   isEmpty: (data: T) => boolean;
   /** Las filas del export, ya del rango visible. */
   toRows: (data: T) => ExportRow[];
-  /** El contenido propio del dominio. */
-  render: (data: T) => ReactNode;
+  /**
+   * El contenido propio del dominio. `reload` vuelve a leer el rango actual:
+   * lo necesita cualquier dominio que además de mirar deja EDITAR, porque
+   * después de borrar una entrada la pantalla tiene que dejar de mostrarla.
+   */
+  render: (data: T, reload: () => void) => ReactNode;
+  /**
+   * Capa flotante sobre la pantalla, fuera del ScrollView. Es para lo que no
+   * puede desplazarse con el contenido, como un botón de acción fijo. Se pinta
+   * en TODOS los estados, con data en null mientras no hay: el botón para
+   * escribir tu primera entrada tiene que existir justo cuando no hay ninguna.
+   */
+  overlay?: (data: T | null, reload: () => void) => ReactNode;
 }
 
 interface Props<T> {
@@ -119,6 +130,8 @@ function ShellBody<T>({ definition }: { definition: ReportDomainDefinition<T> })
     }
   }, [exporting, state, definition, resolved, range, meta.title]);
 
+  const reload = useCallback(() => setAttempt((n) => n + 1), []);
+
   return (
     <Screen themed>
       <PillarHeader pillar={meta.pillar} title={meta.title} />
@@ -160,7 +173,7 @@ function ShellBody<T>({ definition }: { definition: ReportDomainDefinition<T> })
               Tus registros están, no llegamos a ellos. Revisa tu conexión y vuelve a intentar.
             </EliteText>
             <AnimatedPressable
-              onPress={() => { haptic.light(); setAttempt((n) => n + 1); }}
+              onPress={() => { haptic.light(); reload(); }}
               style={[s.retryBtn, { borderColor: meta.accent }]}
             >
               <Ionicons name="refresh-outline" size={15} color={meta.accent} />
@@ -172,7 +185,7 @@ function ShellBody<T>({ definition }: { definition: ReportDomainDefinition<T> })
         {state.status === 'ready' && (
           <>
             <Animated.View entering={FadeInUp.delay(30).springify()}>
-              {definition.render(state.data)}
+              {definition.render(state.data, reload)}
             </Animated.View>
 
             <Animated.View entering={FadeInUp.delay(90).springify()} style={s.exportBox}>
@@ -199,6 +212,8 @@ function ShellBody<T>({ definition }: { definition: ReportDomainDefinition<T> })
 
         <View style={{ height: 80 }} />
       </ScrollView>
+
+      {definition.overlay?.(state.status === 'ready' ? state.data : null, reload)}
     </Screen>
   );
 }
