@@ -263,7 +263,14 @@ const EDAD: Assessment[] = EDAD_DOMAINS.map((d) => ({
 // Sección FÍSICO · los 9 tests que hoy son 11 wrappers y 3 hubs
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Atajo: los físicos comparten casi toda la forma. */
+/**
+ * Atajo: los físicos comparten casi toda la forma.
+ *
+ * `column` marca a los que NO viven por test_key sino en una columna propia de
+ * health_measurements. No es un detalle: si el hub los buscara por test_key en
+ * edad_atp_functional_tests nunca les pondría la palomita, porque ahí no hay
+ * ni una fila suya. Se verificó contra el servicio que los escribe.
+ */
 function physical(a: {
   id: string;
   title: string;
@@ -273,7 +280,8 @@ function physical(a: {
   color: string;
   unit: string;
   table: string;
-  testKey: string;
+  testKey?: string;
+  column?: string;
   mirrors?: { table: string; matchColumn?: string; matchValue?: string }[];
   legacyRoutes: string[];
 }): Assessment {
@@ -288,16 +296,25 @@ function physical(a: {
     color: a.color,
     bank: { kind: 'none' },
     score: { kind: 'measure', unit: a.unit },
-    persist: {
-      table: a.table,
-      matchColumn: 'test_key',
-      matchValue: a.testKey,
-      mirrors: a.mirrors,
-      dateColumn: 'measured_at',
-      completion: { rule: 'match-exists' },
-      resumable: false,
-    },
+    persist: a.column
+      ? {
+          table: a.table,
+          dateColumn: 'date',
+          completion: { rule: 'not-null', column: a.column },
+          resumable: false,
+        }
+      : {
+          table: a.table,
+          matchColumn: 'test_key',
+          matchValue: a.testKey,
+          mirrors: a.mirrors,
+          dateColumn: 'measured_at',
+          completion: { rule: 'match-exists' },
+          resumable: false,
+        },
     result: { kind: 'inline' },
+    // Pieza 4: el runner ya los corre.
+    live: true,
     route: `/tests/run/${a.id}`,
     legacyRoutes: a.legacyRoutes,
   };
@@ -322,9 +339,11 @@ const FISICOS: Assessment[] = [
     legacyRoutes: ['/edad-atp/test-bolt'],
   }),
   physical({
+    // Cooper no guarda metros: guarda el VO2max que estima, en la columna que
+    // el motor v2 lee como vo2max_ml_kg_min.
     id: 'cooper', title: 'Cooper 12 minutos', subtitle: 'Distancia en 12 minutos: estima tu VO2max',
-    mode: 'capture', icon: 'walk-outline', color: '#f97316', unit: 'm',
-    table: 'edad_atp_functional_tests', testKey: 'cooper_12min',
+    mode: 'capture', icon: 'walk-outline', color: '#f97316', unit: 'ml/kg/min',
+    table: 'health_measurements', column: 'vo2max_estimate',
     legacyRoutes: ['/edad-atp/tests/cooper'],
   }),
   physical({
@@ -336,7 +355,9 @@ const FISICOS: Assessment[] = [
   physical({
     id: 'balance', title: 'Equilibrio en un pie', subtitle: 'Segundos de pie sobre una pierna, ojos abiertos',
     mode: 'capture', icon: 'accessibility-outline', color: '#14b8a6', unit: 's',
-    table: 'edad_atp_functional_tests', testKey: 'one_leg_balance',
+    // La llave que se ESCRIBE hoy. 'one_leg_balance' es alias de solo lectura:
+    // buscarla aquí dejaba sin palomita a quien ya lo capturó.
+    table: 'edad_atp_functional_tests', testKey: 'test_de_equilibrio_en_un_pie',
     legacyRoutes: ['/edad-atp/tests/balance'],
   }),
   physical({
@@ -354,7 +375,9 @@ const FISICOS: Assessment[] = [
   physical({
     id: 'grip', title: 'Fuerza de agarre', subtitle: 'Dinamómetro: de los marcadores que mejor predicen longevidad',
     mode: 'capture', icon: 'hand-left-outline', color: '#84cc16', unit: 'kg',
-    table: 'edad_atp_functional_tests', testKey: 'grip_strength',
+    // Hoy solo se captura dentro de composición, y ahí aterriza. El runner le
+    // da puerta propia sin mover el dato de lugar.
+    table: 'health_measurements', column: 'grip_strength_kg',
     legacyRoutes: ['/edad-atp/composition?focus=grip'],
   }),
   physical({
