@@ -21,6 +21,7 @@
     "/emotion-history": "Redirect legacy (Ola 1 Reports R-2, ANEXO_A §6) a /reports/emociones: el mosaico es la pestaña Mosaico del dominio. Solo deep links y OTA viejos.",
     "/emotion-profile": "Redirect legacy (Ola 1 Reports R-2, ANEXO_A §6) a /reports/emociones?section=perfil: el perfil es la pestaña Perfil del dominio, y el enlace viejo cae exactamente ahí. Solo deep links y OTA viejos.",
     "/cycle-history": "Redirect legacy (Ola 1 Reports R-3, ANEXO_A §6) a /reports/ciclo?tab=ciclos. El guard de acceso vive ahora en el dominio, así que este enlace tampoco abre ciclo a quien no le toca. Solo deep links y OTA viejos.",
-    "/cycle-charts": "Redirect legacy (Ola 1 Reports R-3, ANEXO_A §6) a /reports/ciclo?tab=graficas. Mismo guard que el anterior. Solo deep links y OTA viejos."
+    "/cycle-charts": "Redirect legacy (Ola 1 Reports R-3, ANEXO_A §6) a /reports/ciclo?tab=graficas. Mismo guard que el anterior. Solo deep links y OTA viejos.",
+    "/mente/nback/stats": "Redirect legacy (Ola 1 Reports R-4, ANEXO_A §6) a /reports/nback: las estadísticas del juego se absorbieron en el dominio, con sus tres pestañas. Solo deep links y OTA viejos."
   }
 }

@@ -38,6 +38,7 @@ import { EconomiaContent } from '@/src/components/reports/domains/economia';
 import { JournalResumen } from '@/src/components/reports/domains/journal';
 import { EmocionesResumen } from '@/src/components/reports/domains/emociones';
 import { CicloResumen } from '@/src/components/reports/domains/ciclo';
+import { NbackResumen } from '@/src/components/reports/domains/nback';
 import { REPORT_DOMAINS, type ReportDomainKey } from '@/src/services/reports/report-domain-core';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
@@ -64,6 +65,9 @@ import {
   type ElectronReport, type GlucoseReport, type MindReport, type CycleReport,
   type IdentityStats,
 } from '@/src/services/reports-service';
+// OLA1 R-4: una sola fila (nback_user_state) para que la tarjeta del hub diga
+// cifras de verdad en vez de ser una puerta muda.
+import { fetchNBackState, type NBackUserState } from '@/src/services/nback-service';
 
 const LIME = '#a8e02a';
 // OLA1 R-0: el azul de nutrición y el ámbar de ayuno se fueron al registro de
@@ -88,7 +92,7 @@ const KEY_TO_LABEL: Record<string, PeriodLabel> = {
 const SECTION_KEYS = [
   'calendario', 'electrones', 'nutricion', 'hidratacion', 'ayuno',
   'ejercicio', 'glucosa', 'compliance', 'mente', 'journal', 'emociones',
-  'ciclo',
+  'nback', 'ciclo',
 ] as const;
 type SectionKey = typeof SECTION_KEYS[number];
 
@@ -96,7 +100,7 @@ const SECTION_NAMES: Record<SectionKey, string> = {
   calendario: 'Calendario', electrones: 'Electrones', nutricion: 'Nutrición',
   hidratacion: 'Hidratación', ayuno: 'Ayuno', ejercicio: 'Ejercicio',
   glucosa: 'Glucosa', compliance: 'Compliance', mente: 'Mente',
-  journal: 'Journal', emociones: 'Emociones', ciclo: 'Ciclo',
+  journal: 'Journal', emociones: 'Emociones', nback: 'N-Back', ciclo: 'Ciclo',
 };
 
 const PREFS_KEY = '@atp/reports_sections';
@@ -118,6 +122,7 @@ const SECTION_TO_DOMAIN: Partial<Record<SectionKey, ReportDomainKey>> = {
   journal: 'journal',
   emociones: 'emociones',
   ciclo: 'ciclo',
+  nback: 'nback',
   electrones: 'economia',
 };
 
@@ -142,6 +147,7 @@ export default function ReportsScreen() {
   const [mind, setMind] = useState<MindReport>({ breathingSessions: 0, meditationSessions: 0, totalMinutes: 0, journalEntries: 0, checkins: 0 });
   const [cycle, setCycle] = useState<CycleReport>({ periodDays: 0, avgEnergy: 0, avgMood: 0, logsCount: 0 });
   const [identity, setIdentity] = useState<IdentityStats | null>(null);
+  const [nback, setNback] = useState<NBackUserState | null>(null);
   const [loading, setLoading] = useState(true);
 
   // MB-29 P1 (H3): el reporte para el médico — rango elegible + PDF.
@@ -207,12 +213,14 @@ export default function ReportsScreen() {
       getMindReport(period),
       getCycleReport(period),
       getIdentityStats(),
-    ]).then(([el, nu, hy, fa, ex, gl, co, mi, cy, id]) => {
+      // Si truena, la tarjeta de N-Back no aparece. No tumba el hub entero.
+      user?.id ? fetchNBackState(user.id).catch(() => null) : Promise.resolve(null),
+    ]).then(([el, nu, hy, fa, ex, gl, co, mi, cy, id, nb]) => {
       setElectrons(el); setNutrition(nu); setHydration(hy);
       setFasting(fa); setExercise(ex); setGlucose(gl); setCompliance(co);
-      setMind(mi); setCycle(cy); setIdentity(id);
+      setMind(mi); setCycle(cy); setIdentity(id); setNback(nb);
     }).finally(() => setLoading(false));
-  }, [period]));
+  }, [period, user?.id]));
 
   // Flags del mes visible (independiente del período de las gráficas).
   useEffect(() => {
@@ -315,6 +323,14 @@ export default function ReportsScreen() {
         <EmocionesResumen checkins={mind.checkins} />
       </DomainCard>
     ),
+    // OLA1 R-4: N-Back tenia sus estadisticas colgadas del juego y sin puerta
+    // desde reportes. En cero no se pinta: quien nunca jugo no necesita una
+    // tarjeta de ceros, y desde el juego se llega igual.
+    nback: () => nback && nback.sessions_total > 0 ? (
+      <DomainCard domain="nback" gradient={{ start: 'rgba(127,119,221,0.10)', end: 'rgba(127,119,221,0.02)' }} period={period}>
+        <NbackResumen rounds={nback.sessions_total} bestN={nback.best_n} />
+      </DomainCard>
+    ) : null,
     // OLA1 R-3: la tarjeta de ciclo pasa de cifra muda a puerta del dominio.
     // Sigue escondida en cero: a diferencia de mente, aqui el cero puede
     // significar "esta app no es para mi", y el guard del dominio ya decide

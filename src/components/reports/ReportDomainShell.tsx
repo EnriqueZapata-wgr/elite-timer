@@ -27,7 +27,7 @@ import { useAppTheme } from '@/src/contexts/theme-context';
 import {
   REPORT_DOMAINS, RANGE_LABELS, RANGE_LABEL_LIST, LABEL_TO_RANGE,
   toServicePeriod, describeRange,
-  type ExportRow, type ReportDomainKey, type ReportRangeLabel,
+  type ExportRow, type ReportDomainKey, type ReportRange, type ReportRangeLabel,
   type ResolvedRange, type ServicePeriod,
 } from '@/src/services/reports/report-domain-core';
 import { shareReportExport, type ReportExportFormat } from '@/src/services/reports/report-export-service';
@@ -66,6 +66,13 @@ export interface ReportDomainDefinition<T> {
    * le toca aunque teclee la ruta.
    */
   guard?: ComponentType<{ children: ReactNode }>;
+  /**
+   * Dominios cuyas cifras NO dependen del rango (un acumulado de siempre, un
+   * reto de largo fijo). Con esto el shell esconde las pills en vez de ofrecer
+   * un control que no cambia nada, y el export se declara sobre todo el
+   * historial, que es lo que de verdad lleva.
+   */
+  fixedRange?: ReportRange;
 }
 
 interface Props<T> {
@@ -76,7 +83,7 @@ interface Props<T> {
 
 export function ReportDomainShell<T>({ definition, seedPeriod }: Props<T>) {
   const body = (
-    <ReportRangeProvider domain={definition.key} seed={seedPeriod}>
+    <ReportRangeProvider domain={definition.key} seed={definition.fixedRange ?? seedPeriod}>
       <ShellBody definition={definition} />
     </ReportRangeProvider>
   );
@@ -149,13 +156,15 @@ function ShellBody<T>({ definition }: { definition: ReportDomainDefinition<T> })
     <Screen themed>
       <PillarHeader pillar={meta.pillar} title={meta.title} />
 
-      <View style={s.pillsRow}>
-        <FilterPills
-          options={RANGE_LABEL_LIST}
-          selected={RANGE_LABELS[range]}
-          onSelect={(label: ReportRangeLabel) => setRange(LABEL_TO_RANGE[label])}
-        />
-      </View>
+      {!definition.fixedRange && (
+        <View style={s.pillsRow}>
+          <FilterPills
+            options={RANGE_LABEL_LIST}
+            selected={RANGE_LABELS[range]}
+            onSelect={(label: ReportRangeLabel) => setRange(LABEL_TO_RANGE[label])}
+          />
+        </View>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
         <EliteText style={s.subtitle}>{meta.subtitle}</EliteText>

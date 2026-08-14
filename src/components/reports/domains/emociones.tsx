@@ -19,7 +19,7 @@
  */
 import { useMemo, useState } from 'react';
 import { View, StyleSheet, Pressable, Share } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,6 +58,7 @@ import {
   loadEmocionesReport, type EmocionesReportData,
 } from '@/src/services/reports/emociones-report-service';
 import { SectionHeader, Stat, StatsRow } from '../ReportStats';
+import { ReportTabs, useReportTab } from '../ReportTabs';
 import { useReportRange } from '../report-range-context';
 import type { ReportDomainDefinition } from '../ReportDomainShell';
 
@@ -99,49 +100,23 @@ function patternLine(report: PatternReport): string {
   return `Tu ánimo tiende a caer ${low.label.toLowerCase()} (${low.avg}/10) y a subir ${high.label.toLowerCase()} (${high.avg}/10). Es una asociación en tus datos, no una causa.`;
 }
 
-type Tab = 'mosaico' | 'perfil';
-
-const TABS: { key: Tab; label: string }[] = [
+/**
+ * El redirect del perfil viejo llega con ?section=perfil; useReportTab entiende
+ * tanto ?tab= como ?section=, asi que ese enlace sigue cayendo donde caia.
+ */
+const TABS = [
   { key: 'mosaico', label: 'MOSAICO' },
   { key: 'perfil', label: 'PERFIL' },
-];
+] as const;
 
-/** El ?section= del deep link. Solo 'perfil' abre en la segunda pestaña. */
-function tabFromSection(section: string | undefined): Tab {
-  return section === 'perfil' ? 'perfil' : 'mosaico';
-}
+type Tab = typeof TABS[number]['key'];
 
 export function EmocionesContent({ data }: { data: EmocionesReportData }) {
-  const { section } = useLocalSearchParams<{ section?: string }>();
-  const [tab, setTab] = useState<Tab>(() => tabFromSection(section));
-  const t = useAppTheme().tokens;
+  const [tab, setTab] = useReportTab<Tab>(TABS, 'mosaico');
 
   return (
     <View>
-      <View style={styles.tabRow}>
-        {TABS.map((x) => {
-          const active = tab === x.key;
-          return (
-            <Pressable
-              key={x.key}
-              onPress={() => { haptic.light(); setTab(x.key); }}
-              style={[
-                styles.tab,
-                { backgroundColor: t.hundido, borderColor: t.borde },
-                active && { backgroundColor: withOpacity(META.accent, 0.16), borderColor: META.accent },
-              ]}
-            >
-              <EliteText
-                variant="caption"
-                style={[styles.tabText, { color: active ? META.accent : t.textoSecundario }]}
-              >
-                {x.label}
-              </EliteText>
-            </Pressable>
-          );
-        })}
-      </View>
-
+      <ReportTabs tabs={TABS} active={tab} onSelect={setTab} accent={META.accent} />
       {tab === 'mosaico' ? <MosaicoTab data={data} /> : <PerfilTab data={data} />}
     </View>
   );
@@ -683,13 +658,6 @@ export const emocionesDomain: ReportDomainDefinition<EmocionesReportData> = {
 };
 
 const styles = StyleSheet.create({
-  tabRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.md },
-  tab: {
-    paddingHorizontal: Spacing.md, height: 34, borderRadius: 17,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 0.5,
-  },
-  tabText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 1.5 },
-
   sectionTitle: {
     fontSize: FontSizes.xs, fontFamily: Fonts.bold,
     letterSpacing: 2, marginBottom: Spacing.sm,

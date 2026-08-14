@@ -12,7 +12,6 @@
  */
 import { useMemo, useState, type ReactNode } from 'react';
 import { View, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import Svg, { Rect, Path } from 'react-native-svg';
@@ -36,6 +35,7 @@ import {
   loadCicloReport, type CicloReportData,
 } from '@/src/services/reports/ciclo-report-service';
 import { SectionHeader, Stat, StatsRow } from '../ReportStats';
+import { ReportTabs, useReportTab } from '../ReportTabs';
 import type { ReportDomainDefinition } from '../ReportDomainShell';
 
 const META = REPORT_DOMAINS.ciclo;
@@ -63,16 +63,12 @@ const DEFAULT_PARAMS: ChartParam[] = [
   { key: 'sleep_quality', label: 'Sueño', color: '#818cf8', enabled: false },
 ];
 
-type Tab = 'ciclos' | 'graficas';
-
-const TABS: { key: Tab; label: string }[] = [
+const TABS = [
   { key: 'ciclos', label: 'CICLOS' },
   { key: 'graficas', label: 'GRÁFICAS' },
-];
+] as const;
 
-function tabFromParam(raw: string | undefined): Tab {
-  return raw === 'graficas' ? 'graficas' : 'ciclos';
-}
+type Tab = typeof TABS[number]['key'];
 
 /**
  * La puerta del pilar Ciclo. Mientras decide no se pinta contenido, y si niega
@@ -95,34 +91,13 @@ export function CicloGuard({ children }: { children: ReactNode }) {
 }
 
 export function CicloContent({ data }: { data: CicloReportData }) {
-  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
-  const [tab, setTab] = useState<Tab>(() => tabFromParam(tabParam));
+  const [tab, setTab] = useReportTab<Tab>(TABS, 'ciclos');
   const t = useAppTheme().tokens;
   const s = useMemo(() => makeStyles(t), [t]);
 
   return (
     <View>
-      <View style={styles.tabRow}>
-        {TABS.map((x) => {
-          const active = tab === x.key;
-          return (
-            <AnimatedPressable key={x.key} onPress={() => { haptic.light(); setTab(x.key); }}>
-              <View
-                style={[
-                  styles.tab,
-                  { backgroundColor: t.hundido, borderColor: t.borde },
-                  active && { backgroundColor: withOpacity(META.accent, 0.16), borderColor: META.accent },
-                ]}
-              >
-                <EliteText style={[styles.tabText, { color: active ? META.accent : t.textoSecundario }]}>
-                  {x.label}
-                </EliteText>
-              </View>
-            </AnimatedPressable>
-          );
-        })}
-      </View>
-
+      <ReportTabs tabs={TABS} active={tab} onSelect={setTab} accent={META.accent} />
       {tab === 'ciclos' ? <CiclosTab data={data} s={s} t={t} /> : <GraficasTab data={data} s={s} t={t} />}
     </View>
   );
@@ -328,12 +303,6 @@ export const cicloDomain: ReportDomainDefinition<CicloReportData> = {
 
 const styles = StyleSheet.create({
   gateBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tabRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.md },
-  tab: {
-    paddingHorizontal: Spacing.md, height: 34, borderRadius: 17,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 0.5,
-  },
-  tabText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 1.5 },
 });
 
 type Styles = ReturnType<typeof makeStyles>;

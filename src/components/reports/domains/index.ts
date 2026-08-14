@@ -16,6 +16,7 @@ import { economiaDomain } from './economia';
 import { journalDomain } from './journal';
 import { emocionesDomain } from './emociones';
 import { cicloDomain } from './ciclo';
+import { nbackDomain } from './nback';
 
 /**
  * Cada definición fija su propio tipo de datos puertas adentro; el mapa las
@@ -32,6 +33,7 @@ export const DOMAIN_DEFINITIONS: Partial<Record<ReportDomainKey, AnyReportDomain
   journal: journalDomain,
   emociones: emocionesDomain,
   ciclo: cicloDomain,
+  nback: nbackDomain,
 };
 
 export function getDomainDefinition(key: string | null | undefined): AnyReportDomainDefinition | null {

@@ -318,6 +318,7 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/services/reports/report-domain-core.ts::book-outline',
   'src/services/reports/report-domain-core.ts::calendar-outline',
   'src/services/reports/report-domain-core.ts::flower-outline',
+  'src/services/reports/report-domain-core.ts::grid-outline',
   'src/services/reports/report-domain-core.ts::restaurant-outline',
   'src/services/reports/report-domain-core.ts::timer-outline',
   'src/services/reports/report-domain-core.ts::water-outline',

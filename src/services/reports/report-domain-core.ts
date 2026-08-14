@@ -107,7 +107,7 @@ export type ReportPillar =
 
 export type ReportDomainKey =
   | 'nutricion' | 'hidratacion' | 'ayuno' | 'mente' | 'economia'
-  | 'journal' | 'emociones' | 'ciclo';
+  | 'journal' | 'emociones' | 'ciclo' | 'nback';
 
 export interface ReportDomainMeta {
   key: ReportDomainKey;
@@ -188,6 +188,15 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     accent: '#fb7185',
     subtitle: 'Tus ciclos, sus promedios y cómo se movieron tus síntomas.',
     emptyCopy: 'Todavía no hay ciclos ni registros diarios en este rango. Marcar el primer día de tu periodo es lo único que hace falta para empezar.',
+  },
+  nback: {
+    key: 'nback',
+    title: 'N-Back',
+    pillar: 'mind',
+    icon: 'grid-outline',
+    accent: '#7F77DD',
+    subtitle: 'Tus rounds, tu nivel máximo y cómo vas contra los demás.',
+    emptyCopy: 'Todavía no completaste ningún round. El primero tarda tres minutos y ya cuenta.',
   },
   economia: {
     key: 'economia',
