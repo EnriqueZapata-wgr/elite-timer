@@ -10,6 +10,12 @@
  * primera intervención (Lieberman 2007): el aterrizaje lo dice en una línea.
  * Al cierre, una frase por cuadrante (Pieza 3 MB-14) — nunca sobre una señal
  * de crisis (tramo A MB-12).
+ *
+ * OLA5 pieza 1 — EXPLORAR ES UN MODO, NO OTRA PANTALLA (`?mode=explore`).
+ * La exploración renderizaba este MISMO plano en otra ruta y su CTA hacía push
+ * de vuelta acá: el plano se remontaba y el zoom del usuario se perdía. Ahora
+ * "ES LO QUE SIENTO" solo cambia el modo — misma cámara, mismo zoom, cero
+ * remonte. En modo explorar NADA se escribe: no hay contexto, no hay guardado.
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Pressable, TextInput, DeviceEventEmitter, Linking, BackHandler, Alert, ScrollView } from 'react-native';
@@ -27,12 +33,12 @@ import {
 import { MoodPlane, type MoodPlaneHandle } from '@/src/components/checkin/MoodPlane';
 import { BodyCheck } from '@/src/components/checkin/BodyCheck';
 import { NAMING_MECHANISM_LINE } from '@/src/data/checkin-config';
-import { GRID_HINT } from '@/src/data/emotion-grid-config';
+import { GRID_HINT, EXPLORE_HINT, QUADRANT_FEEL } from '@/src/data/emotion-grid-config';
 import { shouldOfferBodyMap } from '@/src/services/emotion-grid-core';
 import { closingPhraseForDate } from '@/src/data/checkin-closing-phrases';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
-import { searchEmotions } from '@/src/services/emotion-plane-core';
+import { searchEmotions, emotionCanonColor, quadrantFromCell } from '@/src/services/emotion-plane-core';
 import { INVITE_TITLE, INVITE_SUBTEXT, INVITE_YES, INVITE_NO } from '@/src/data/emotion-navigation';
 import { shareMood, unshareMood } from '@/src/services/community/mood-share-service';
 import { isCrisisOrigin, isCrisisHotline, hasCrisisTrajectory } from '@/src/services/emotion-navigation-core';
@@ -61,7 +67,7 @@ import { StatusBar } from 'expo-status-bar';
 
 export default function CheckinScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ protocolItemId?: string; emotionId?: string; gate?: string }>();
+  const params = useLocalSearchParams<{ protocolItemId?: string; emotionId?: string; gate?: string; mode?: string }>();
   const analytics = useAnalytics();
   // MB-31B3: la pantalla migró a tokens (Screen themed) y sigue el tema global.
   const { kind, tokens: t } = useAppTheme();
@@ -69,6 +75,14 @@ export default function CheckinScreen() {
   const priTxt = { color: t.texto };
   // Regla 1 del manual: el lima no es texto en claro — acento calibrado.
   const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
+
+  // OLA5 pieza 1: dos intenciones sobre la MISMA superficie. 'log' registra;
+  // 'explore' recorre el territorio y no escribe nada. El modo cambia en
+  // caliente (setMode) — nunca con un push, que remontaría el plano.
+  const [mode, setMode] = useState<'log' | 'explore'>(
+    params.mode === 'explore' ? 'explore' : 'log',
+  );
+  const exploring = mode === 'explore';
 
   const [step, setStep] = useState(1);
   const [quadrant, setQuadrant] = useState<QuadrantKey | null>(null);
@@ -155,9 +169,14 @@ export default function CheckinScreen() {
 
   // #20: back consciente del paso — el cuerpo regresa a la cuadrícula y el
   // contexto también; nunca saca de la app. En la cuadrícula (o done) sale.
+  // OLA5 pieza 1: si entró explorando y ya cruzó a registrar, el atrás devuelve
+  // al modo explorar antes de salir — la puerta por la que entró sigue viva.
+  const backToExplore = !exploring && params.mode === 'explore' && step === 1 && !bodyStepOpen;
+
   const handleBack = () => {
     if (bodyStepOpen) setBodyStepOpen(false);
     else if (step === 2) setStep(1);
+    else if (backToExplore) setMode('explore');
     else router.back();
   };
 
@@ -172,10 +191,14 @@ export default function CheckinScreen() {
         setStep(1);
         return true;
       }
+      if (backToExplore) {
+        setMode('explore');
+        return true;
+      }
       return false;
     });
     return () => sub.remove();
-  }, [step, bodyStepOpen]);
+  }, [step, bodyStepOpen, backToExplore]);
 
   // B.7 (MB-7): con una hoja inferior abierta (o el paso del cuerpo en foco),
   // el orbe de ARGOS se retira — ese contenido es el principal del momento.
@@ -220,7 +243,10 @@ export default function CheckinScreen() {
     if (first) setQuadrant(first.quadrant);
     setSheetEmotion(wasSelected ? null : e);
     setAskSecond(false);
-  }, [selectedEmotions, addSecond]);
+    // OLA5 pieza 1: explorando, el plano viaja hasta la palabra — se ve dónde
+    // vive. Registrando no se mueve la cámara: el dedo ya está donde eligió.
+    if (exploring && !wasSelected) planeRef.current?.focusEmotion(e.id);
+  }, [selectedEmotions, addSecond, exploring]);
 
   // Pieza 2 (MB-14): entre nombrar y contexto, el cuerpo — SOLO si alguna
   // emoción elegida es de cuadrante desagradable con intensidad alta. En
@@ -294,7 +320,12 @@ export default function CheckinScreen() {
   const activeEmotion = selectedEmotions.length > 0
     ? EMOTIONS.find(e => e.id === selectedEmotions[selectedEmotions.length - 1])
     : null;
-  const ambientColor = activeEmotion ? QUADRANTS[activeEmotion.quadrant].color : null;
+  // OLA5 pieza 1: explorando el tinte sale del color canónico de la palabra (la
+  // exploración enseña el territorio celda a celda); registrando sale del
+  // cuadrante, que es la familia cromática del momento.
+  const ambientColor = activeEmotion
+    ? (exploring ? emotionCanonColor(activeEmotion) : QUADRANTS[activeEmotion.quadrant].color)
+    : null;
 
   const handleSave = async () => {
     if (!quadrant || selectedEmotions.length === 0) return;
@@ -568,14 +599,20 @@ export default function CheckinScreen() {
       {/* I18 (V1.5): el teclado se maneja con insets nativos en el ScrollView
           del step 3 (el único con input) — scrollea al campo y restaura al
           cerrar; el KAV de Screen solo encogía sin scroll. */}
-      <PillarHeader pillar="mind" title="Check-in" onBack={handleBack} />
+      <PillarHeader
+        pillar="mind"
+        title={exploring ? 'Explorar el territorio' : 'Check-in'}
+        onBack={handleBack}
+      />
 
-      {/* Dots */}
-      <View style={styles.dots}>
-        {[1, 2].map(i => (
-          <View key={i} style={[styles.dotIndicator, { backgroundColor: t.bordeMarcado }, i <= step && { backgroundColor: qColor }]} />
-        ))}
-      </View>
+      {/* Dots — explorando no hay progreso que marcar: no lleva a ningún lado. */}
+      {!exploring && (
+        <View style={styles.dots}>
+          {[1, 2].map(i => (
+            <View key={i} style={[styles.dotIndicator, { backgroundColor: t.bordeMarcado }, i <= step && { backgroundColor: qColor }]} />
+          ))}
+        </View>
+      )}
 
       {/* ═══ PIEZA 2: EL CUERPO — paso opcional tras emoción negativa intensa ═══ */}
       {step === 1 && bodyStepOpen && (
@@ -590,19 +627,30 @@ export default function CheckinScreen() {
         <Animated.View entering={FadeIn.duration(200)} style={styles.mapFlex}>
           <View style={styles.mapHeaderRow}>
             <View style={{ flex: 1 }}>
-              <EliteText style={[styles.wheelTitle, priTxt]}>¿Cómo te sientes?</EliteText>
+              {!exploring && (
+                <EliteText style={[styles.wheelTitle, priTxt]}>¿Cómo te sientes?</EliteText>
+              )}
               <EliteText variant="caption" style={[styles.mapHint, secTxt]}>
-                {GRID_HINT}
+                {exploring ? EXPLORE_HINT : GRID_HINT}
               </EliteText>
             </View>
-            <Pressable onPress={() => { haptic.light(); setSearchOpen(o => !o); }} style={[styles.mapTool, { backgroundColor: t.card, borderColor: t.borde }]} hitSlop={8}>
-              <Ionicons name="search" size={18} color={t.textoSecundario} />
-            </Pressable>
+            {/* Explorando la herramienta es alejarse (ver el territorio entero);
+                registrando es buscar la palabra que ya tienes en la cabeza. */}
+            {exploring ? (
+              <Pressable onPress={() => { haptic.light(); planeRef.current?.zoomOut(); }} style={[styles.mapTool, { backgroundColor: t.card, borderColor: t.borde }]} hitSlop={8}>
+                <Ionicons name="contract-outline" size={18} color={t.textoSecundario} />
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => { haptic.light(); setSearchOpen(o => !o); }} style={[styles.mapTool, { backgroundColor: t.card, borderColor: t.borde }]} hitSlop={8}>
+                <Ionicons name="search" size={18} color={t.textoSecundario} />
+              </Pressable>
+            )}
           </View>
 
           {/* #21: racha viva visible al entrar. Hallazgo MB-31B3: lima como
-              TEXTO (1.34 en claro) — acento calibrado. */}
-          {checkinStreak > 1 && (
+              TEXTO (1.34 en claro) — acento calibrado. Explorando no sale: la
+              racha es del registro, y explorar no registra. */}
+          {!exploring && checkinStreak > 1 && (
             <EliteText variant="caption" style={[styles.streakBadge, { color: acento }]}>
               🔥 {checkinStreak} días seguidos escuchándote
             </EliteText>
@@ -645,8 +693,54 @@ export default function CheckinScreen() {
           {/* Pieza 2 (MB-14): la puerta del cuerpo salió del arranque — solo
               ofrecía estados negativos. Ahora es un paso condicional (arriba). */}
 
+          {/* ═══ OLA5 pieza 1 · HOJA DE EXPLORACIÓN ═══
+              La palabra, dónde vive y su descripción: vocabulario, no examen.
+              "ES LO QUE SIENTO" no navega — cambia el modo. El plano se queda
+              exactamente donde el usuario lo dejó, con su zoom y su emoción. */}
+          {exploring && sheetEmotion && (() => {
+            const canon = emotionCanonColor(sheetEmotion);
+            const feel = QUADRANT_FEEL[quadrantFromCell(sheetEmotion.gridCol, sheetEmotion.gridRow)];
+            const keepExploring = () => { setSheetEmotion(null); setSelectedEmotions([]); };
+            return (
+              <Animated.View
+                entering={SlideInDown.duration(260)}
+                exiting={SlideOutDown.duration(200)}
+                style={[styles.defSheet, { backgroundColor: t.card, borderColor: t.borde }]}
+              >
+                <View style={styles.defHeader}>
+                  <EliteText style={[styles.defName, { color: canon }]}>{sheetEmotion.label}</EliteText>
+                  <Pressable onPress={keepExploring} hitSlop={8}>
+                    <Ionicons name="close" size={20} color={t.textoSecundario} />
+                  </Pressable>
+                </View>
+                {feel && (
+                  <Animated.View entering={FadeIn.duration(200)}>
+                    <EliteText variant="caption" style={[styles.exploreHome, secTxt]}>{feel}</EliteText>
+                  </Animated.View>
+                )}
+                <EliteText variant="body" style={[styles.defDesc, priTxt]}>{sheetEmotion.description}</EliteText>
+                <View style={styles.defActions}>
+                  <Pressable onPress={keepExploring} style={styles.defSecondary}>
+                    <EliteText variant="caption" style={[styles.defSecondaryText, secTxt]}>Seguir explorando</EliteText>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      haptic.medium();
+                      // Track E: la puerta es el mapa (valor legal de la mig 238).
+                      setEntryGate('mapa');
+                      setMode('log');
+                    }}
+                    style={[styles.defContinue, { backgroundColor: canon }]}
+                  >
+                    <EliteText style={styles.exploreCtaText}>ES LO QUE SIENTO</EliteText>
+                  </Pressable>
+                </View>
+              </Animated.View>
+            );
+          })()}
+
           {/* Hoja de definición: nombre en el color de su CUADRANTE + descripción */}
-          {sheetEmotion && (() => {
+          {!exploring && sheetEmotion && (() => {
             const sheetColor = QUADRANTS[sheetEmotion.quadrant].color;
             return (
               <Animated.View
@@ -706,8 +800,9 @@ export default function CheckinScreen() {
             </Animated.View>
           )}
 
-          {/* Sin hoja abierta pero con selección: CTA para seguir */}
-          {!sheetEmotion && !askSecond && selectedEmotions.length > 0 && (
+          {/* Sin hoja abierta pero con selección: CTA para seguir.
+              Explorando no hay "siguiente": no lleva a ningún lado. */}
+          {!exploring && !sheetEmotion && !askSecond && selectedEmotions.length > 0 && (
             <Pressable onPress={handleContinue} style={[styles.nextBtn, { backgroundColor: qColor }]}>
               <EliteText style={styles.nextBtnText}>Siguiente</EliteText>
             </Pressable>
@@ -901,6 +996,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 2, borderRadius: Radius.pill,
   },
   defContinueText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.md, letterSpacing: 2 },
+  // OLA5 pieza 1: hoja del modo explorar (dónde vive la palabra + su CTA)
+  exploreHome: { fontSize: FontSizes.xs, letterSpacing: 1, marginTop: 2 },
+  exploreCtaText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.sm, letterSpacing: 1.5 },
 
   nextBtn: {
     alignSelf: 'center', position: 'absolute', bottom: Spacing.lg,
