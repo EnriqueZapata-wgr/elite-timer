@@ -10,9 +10,13 @@ import {
   filterCheckinsByRange, previousWindow, consistencyWindowDays,
 } from '../emociones-report-core';
 import { resolveRange } from '../report-domain-core';
+import { toLocalDateString } from '@/src/utils/date-helpers';
 
 /** Mediodía local: la hora no puede empujar el día a otro. */
 const at = (day: string) => ({ created_at: `${day}T12:00:00` });
+
+/** El día de un check-in, para comparar listas sin arrastrar la hora. */
+const dia = (c: { created_at: string }) => c.created_at.slice(0, 10);
 
 const HOY = new Date('2026-08-13T12:00:00');
 
@@ -39,17 +43,38 @@ describe('filterCheckinsByRange', () => {
 });
 
 describe('previousWindow', () => {
-  const week = resolveRange('week', HOY);
+  const week = resolveRange('week', HOY); // visible: 2026-08-07 a 2026-08-13
 
   it('son los siete días justo anteriores', () => {
+    // El rango visible son siete días CONTANDO hoy (08-07 a 08-13), así que
+    // la ventana anterior son los siete que le pegan por atrás: 07-31 a
+    // 08-06. Arrancarla en 08-01 la dejaría en seis días.
     const items = [
-      at('2026-07-31'), // fuera, un día antes
-      at('2026-08-01'), // primer día de la ventana anterior
+      at('2026-07-30'), // fuera, un día antes de la ventana anterior
+      at('2026-07-31'), // primer día de la ventana anterior
       at('2026-08-06'), // último día de la ventana anterior
       at('2026-08-07'), // ya es el rango visible
     ];
-    const prev = previousWindow(items, week);
-    expect(prev.map((p) => p.created_at.slice(0, 10))).toEqual(['2026-08-01', '2026-08-06']);
+    expect(previousWindow(items, week).map(dia)).toEqual(['2026-07-31', '2026-08-06']);
+  });
+
+  it('mide lo mismo que el rango visible y pega con él, sin hueco ni traslape', () => {
+    // Este es el candado del borde. La flecha de tendencia compara ventana
+    // anterior contra rango visible: si midieran distinto, la flecha mentiría
+    // siempre a favor del periodo más largo. Catorce días seguidos terminando
+    // hoy tienen que partirse en siete y siete, sin repetir ni perder ninguno.
+    const catorce = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(HOY);
+      d.setDate(d.getDate() - i);
+      return at(toLocalDateString(d));
+    });
+    const visible = filterCheckinsByRange(catorce, week).map(dia);
+    const anterior = previousWindow(catorce, week).map(dia);
+
+    expect(anterior).toHaveLength(7);
+    expect(visible).toHaveLength(7);
+    expect(anterior.filter((d) => visible.includes(d))).toEqual([]);
+    expect(new Set([...anterior, ...visible]).size).toBe(14);
   });
 
   it("en 'Todo' no hay periodo anterior", () => {
