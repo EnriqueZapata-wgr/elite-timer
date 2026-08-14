@@ -16,7 +16,7 @@
  *     alguien quiere hacer con las manos ocupadas.
  */
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, TextInput, Alert, Switch, Linking } from 'react-native';
+import { View, ScrollView, StyleSheet, TextInput, Alert, Linking } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,12 +28,12 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
 import {
   BLOOD_TYPES, BLOOD_TYPE_LABEL, SEVERITIES, SEVERITY_LABEL, NOTE_MAX,
+  CONDICIONES_URGENCIA, CONDICIONES_MAX, MEDS_CRITICOS, MEDS_CRITICOS_MAX,
   emptyCard, cardHasContent, tocaRevisar,
   type BloodType, type EmergencyCard, type Severity,
 } from '@/src/services/salud/emergency-card-core';
 import {
-  loadEmergencyCard, saveEmergencyCard, marcarRevisada,
-  sugerirMedicacionDelProtocolo, shareEmergencyCardPdf,
+  loadEmergencyCard, saveEmergencyCard, marcarRevisada, shareEmergencyCardPdf,
 } from '@/src/services/salud/emergency-card-service';
 import { ROJO_EMERGENCIA as ROJO } from '@/src/components/salud/FichaEmergenciaRow';
 import { haptic } from '@/src/utils/haptics';
@@ -88,34 +88,6 @@ export default function FichaEmergenciaScreen() {
     Alert.alert('', ok
       ? 'Ficha guardada. Tu teléfono ya tiene la copia que abre sin señal.'
       : 'Se guardó en tu teléfono. No se pudo sincronizar, se reintenta cuando haya señal.');
-  }
-
-  async function traerDelProtocolo() {
-    if (!user?.id) return;
-    const sugeridos = await sugerirMedicacionDelProtocolo(user.id);
-    if (!sugeridos.length) {
-      Alert.alert('', 'No hay intervenciones activas en tu protocolo.');
-      return;
-    }
-    Alert.alert(
-      'Traer de tu protocolo',
-      `Tu protocolo tiene ${sugeridos.length} ${sugeridos.length === 1 ? 'intervención activa' : 'intervenciones activas'}. ` +
-      'Un protocolo ATP no es una prescripción médica: al copiarlo aquí le estás diciendo a quien te atienda ' +
-      'que esto es lo que tomas. Copia solo lo que de verdad tomas.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Copiarlas',
-          onPress: () => {
-            const yaHay = new Set(card.medications.map((m) => m.name.toLowerCase()));
-            const nuevos = sugeridos.filter((m) => !yaHay.has(m.name.toLowerCase()));
-            set('medications', [...card.medications, ...nuevos]);
-            set('medicationsFromProtocolAt', new Date().toISOString());
-            haptic.light();
-          },
-        },
-      ],
-    );
   }
 
   async function compartir() {
@@ -254,83 +226,38 @@ export default function FichaEmergenciaScreen() {
           <Agregar s={s} label="Agregar alergia" onPress={() => set('allergies', [...card.allergies, { substance: '', severity: 'grave' }])} t={t} />
         </Seccion>
 
-        {/* ── Medicación ── */}
-        <Seccion titulo="Medicación actual" s={s}>
-          {card.medications.map((m, i) => (
-            <View key={`me-${i}`} style={s.item}>
-              <View style={s.itemHead}>
-                <TextInput
-                  style={s.itemInput}
-                  value={m.name}
-                  onChangeText={(v) => {
-                    const next = [...card.medications];
-                    next[i] = { ...m, name: v };
-                    set('medications', next);
-                  }}
-                  placeholder="Nombre"
-                  placeholderTextColor={t.textoTenue}
-                />
-                <AnimatedPressable onPress={() => { haptic.light(); set('medications', card.medications.filter((_, j) => j !== i)); }} style={s.quitar}>
-                  <Ionicons name="close" size={16} color={t.textoSecundario} />
-                </AnimatedPressable>
-              </View>
-              <View style={s.fila}>
-                <TextInput
-                  style={[s.itemInputChico, { flex: 1 }]}
-                  value={m.dose ?? ''}
-                  onChangeText={(v) => {
-                    const next = [...card.medications];
-                    next[i] = { ...m, dose: v };
-                    set('medications', next);
-                  }}
-                  placeholder="Dosis"
-                  placeholderTextColor={t.textoTenue}
-                />
-                <TextInput
-                  style={[s.itemInputChico, { flex: 1 }]}
-                  value={m.frequency ?? ''}
-                  onChangeText={(v) => {
-                    const next = [...card.medications];
-                    next[i] = { ...m, frequency: v };
-                    set('medications', next);
-                  }}
-                  placeholder="Cada cuándo"
-                  placeholderTextColor={t.textoTenue}
-                />
-              </View>
-            </View>
-          ))}
-          <Agregar s={s} label="Agregar medicamento" onPress={() => set('medications', [...card.medications, { name: '' }])} t={t} />
-          <AnimatedPressable style={s.secundario} onPress={() => { haptic.medium(); void traerDelProtocolo(); }}>
-            <Ionicons name="download-outline" size={15} color={t.textoSecundario} />
-            <EliteText variant="caption" style={s.secundarioTexto}>Traer de mi protocolo activo</EliteText>
-          </AnimatedPressable>
+        {/* ── Medicación crítica ── */}
+        <Seccion titulo="Medicación crítica" s={s}>
+          <EliteText variant="caption" style={s.ayuda}>
+            Solo la que quien te atienda no puede ignorar. Va la familia, no la marca ni la dosis.
+            Tu lista completa de medicación y suplementos vive en tu protocolo, dentro de la app.
+          </EliteText>
+          <ListaCurada
+            s={s} t={t}
+            valores={card.criticalMeds}
+            sugerencias={MEDS_CRITICOS}
+            max={MEDS_CRITICOS_MAX}
+            placeholder="Otra medicación crítica"
+            etiquetaAgregar="Agregar otra"
+            onChange={(v) => set('criticalMeds', v)}
+          />
         </Seccion>
 
         {/* ── Condiciones ── */}
         <Seccion titulo="Condiciones" s={s}>
           <EliteText variant="caption" style={s.ayuda}>
-            Solo las que cambian qué te harían en urgencias.
+            Solo las que cambian qué te harían en urgencias. No es tu historial: eso vive en tu
+            expediente.
           </EliteText>
-          {card.conditions.map((c, i) => (
-            <View key={`co-${i}`} style={s.itemHead}>
-              <TextInput
-                style={s.itemInput}
-                value={c}
-                onChangeText={(v) => {
-                  const next = [...card.conditions];
-                  next[i] = v;
-                  set('conditions', next);
-                }}
-                placeholder="Condición"
-                placeholderTextColor={t.textoTenue}
-              />
-              <AnimatedPressable onPress={() => { haptic.light(); set('conditions', card.conditions.filter((_, j) => j !== i)); }} style={s.quitar}>
-                <Ionicons name="close" size={16} color={t.textoSecundario} />
-              </AnimatedPressable>
-            </View>
-          ))}
-          <Agregar s={s} label="Agregar condición" onPress={() => set('conditions', [...card.conditions, ''])} t={t} />
+          <ListaCurada
+            s={s} t={t}
+            valores={card.conditions}
+            sugerencias={CONDICIONES_URGENCIA}
+            max={CONDICIONES_MAX}
+            placeholder="Otra condición"
+            etiquetaAgregar="Agregar otra"
+            onChange={(v) => set('conditions', v)}
+          />
         </Seccion>
 
         {/* ── Contactos ── */}
@@ -391,19 +318,8 @@ export default function FichaEmergenciaScreen() {
           <Agregar s={s} label="Agregar contacto" onPress={() => set('contacts', [...card.contacts, { name: '', phone: '' }])} t={t} />
         </Seccion>
 
-        {/* ── Otros ── */}
-        <Seccion titulo="Otros datos" s={s}>
-          <View style={s.toggleFila}>
-            <View style={{ flex: 1 }}>
-              <EliteText variant="body" style={s.toggleLabel}>Marcapasos o implantes</EliteText>
-              <EliteText variant="caption" style={s.ayuda}>Cambia si te pueden hacer una resonancia.</EliteText>
-            </View>
-            <Switch value={card.hasPacemaker} onValueChange={(v) => { haptic.light(); set('hasPacemaker', v); }} />
-          </View>
-          {card.hasPacemaker ? (
-            <Campo s={s} label="Cuál" value={card.implants} onChange={(v) => set('implants', v)} placeholder="Marcapasos, prótesis, stent…" t={t} />
-          ) : null}
-          <EliteText variant="caption" style={s.label}>Donante de órganos</EliteText>
+        {/* ── Donante ── */}
+        <Seccion titulo="Donante de órganos" s={s}>
           <View style={s.chips}>
             {[['Sí', true], ['No', false], ['Sin responder', null]].map(([label, val]) => (
               <AnimatedPressable
@@ -415,8 +331,6 @@ export default function FichaEmergenciaScreen() {
               </AnimatedPressable>
             ))}
           </View>
-          <Campo s={s} label="Aseguradora" value={card.insurerName} onChange={(v) => set('insurerName', v)} placeholder="Nombre" t={t} />
-          <Campo s={s} label="Póliza" value={card.insurerPolicy} onChange={(v) => set('insurerPolicy', v)} placeholder="Número" t={t} />
         </Seccion>
 
         {/* ── Nota ── */}
@@ -494,6 +408,68 @@ function Campo({
   );
 }
 
+/**
+ * Lista corta con sugerencias. Los chips son lo que de verdad se usa; el campo
+ * libre existe para el caso raro. El techo es duro a propósito: una ficha larga
+ * es una ficha que nadie lee de pie, y una lista larga de condiciones es el
+ * historial que dijimos que no iba a estar aquí.
+ */
+function ListaCurada({
+  s, t, valores, sugerencias, max, placeholder, etiquetaAgregar, onChange,
+}: {
+  s: Estilos; t: AppThemeTokens; valores: string[]; sugerencias: readonly string[];
+  max: number; placeholder: string; etiquetaAgregar: string; onChange: (v: string[]) => void;
+}) {
+  const lleno = valores.length >= max;
+  return (
+    <>
+      <View style={s.chips}>
+        {sugerencias.map((sug) => {
+          const activo = valores.includes(sug);
+          return (
+            <AnimatedPressable
+              key={sug}
+              style={[s.chipMini, activo && s.chipActivo]}
+              onPress={() => {
+                haptic.light();
+                if (activo) onChange(valores.filter((v) => v !== sug));
+                else if (!lleno) onChange([...valores, sug]);
+              }}
+            >
+              <EliteText variant="caption" style={[s.chipTexto, activo && s.chipTextoActivo]}>{sug}</EliteText>
+            </AnimatedPressable>
+          );
+        })}
+      </View>
+      {valores.map((v, i) => (
+        <View key={`lc-${i}`} style={[s.itemHead, { marginTop: 6 }]}>
+          <TextInput
+            style={s.itemInput}
+            value={v}
+            onChangeText={(nv) => {
+              const next = [...valores];
+              next[i] = nv;
+              onChange(next);
+            }}
+            placeholder={placeholder}
+            placeholderTextColor={t.textoTenue}
+          />
+          <AnimatedPressable onPress={() => { haptic.light(); onChange(valores.filter((_, j) => j !== i)); }} style={s.quitar}>
+            <Ionicons name="close" size={16} color={t.textoSecundario} />
+          </AnimatedPressable>
+        </View>
+      ))}
+      {lleno ? (
+        <EliteText variant="caption" style={s.ayuda}>
+          Hasta {max}. Si necesitas más, no es una ficha de emergencia: es tu expediente.
+        </EliteText>
+      ) : (
+        <Agregar s={s} label={etiquetaAgregar} onPress={() => onChange([...valores, ''])} t={t} />
+      )}
+    </>
+  );
+}
+
 function Agregar({ s, label, onPress, t }: { s: Estilos; label: string; onPress: () => void; t: AppThemeTokens }) {
   return (
     <AnimatedPressable style={s.agregar} onPress={() => { haptic.light(); onPress(); }}>
@@ -563,11 +539,6 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
 
   agregar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 9 },
   agregarTexto: { color: t.textoSecundario, fontFamily: Fonts.semiBold },
-  secundario: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
-  secundarioTexto: { color: t.textoSecundario },
-
-  toggleFila: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 4 },
-  toggleLabel: { color: t.texto, fontFamily: Fonts.semiBold },
 
   nota: {
     backgroundColor: t.hundido, borderRadius: Radius.sm, borderWidth: 1, borderColor: t.borde,

@@ -1,10 +1,15 @@
 /**
  * emergency-card-service — la ficha de emergencia, capa con efectos.
  *
- * OLA6 PIEZA D. Tres responsabilidades y ninguna más:
+ * OLA6 PIEZA D. Dos responsabilidades y ninguna más:
  *   · sincronizar la ficha con Supabase (respaldo entre dispositivos),
- *   · dejar SIEMPRE la copia local al día (es la que abre en urgencias),
- *   · sembrar la medicación desde el protocolo activo, CON confirmación.
+ *   · dejar SIEMPRE la copia local al día (es la que abre en urgencias).
+ *
+ * Lo que ya NO hace: sembrar medicación desde el protocolo activo. La ficha
+ * pública dejó de llevar la lista completa de medicación; ahora lleva cuatro
+ * familias críticas, y volcar ahí un protocolo entero era exactamente el
+ * material que un tercero puede aprovechar. El protocolo se consulta desde
+ * dentro de la app, con sesión.
  *
  * ⚠️ expo-print y expo-sharing son módulos NATIVOS: los requires van lazy,
  * dentro del try/catch, nunca a nivel de módulo (lección del crash 'ExpoPrint').
@@ -17,10 +22,9 @@
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
-import { resolveRows, type UserInterventionRow } from '@/src/services/interventions/intervention-service-core';
 import { emergencyCardHtml } from './consulta-report-core';
 import {
-  parseCard, cardToRow, emptyCard, type EmergencyCard, type Medicamento,
+  parseCard, cardToRow, emptyCard, type EmergencyCard,
 } from './emergency-card-core';
 import { saveLocalCard, loadLocalCard } from './emergency-card-store';
 
@@ -73,33 +77,6 @@ export async function marcarRevisada(userId: string, card: EmergencyCard): Promi
   const next: EmergencyCard = { ...card, reviewedAt: new Date().toISOString() };
   await saveEmergencyCard(userId, next);
   return next;
-}
-
-/**
- * Medicación propuesta desde el protocolo activo. NO se guarda: se devuelve
- * para que la pantalla la ofrezca y la persona confirme una por una.
- *
- * La regla dura: un protocolo ATP no es una prescripción. Copiarlo solo a la
- * ficha que lee un paramédico sería decirle a un médico que alguien te recetó
- * eso, y nadie lo hizo.
- */
-export async function sugerirMedicacionDelProtocolo(userId: string): Promise<Medicamento[]> {
-  try {
-    const { data, error } = await supabase
-      .from('user_interventions')
-      .select('id, user_id, intervention_key, status, priority, source_dx_id, is_custom, is_universal, custom_definition, custom_time, computed_time, custom_notes, custom_dose, activated_at')
-      .eq('user_id', userId)
-      .eq('status', 'active');
-    if (error) throw error;
-    const rows = (data ?? []) as unknown as UserInterventionRow[];
-    return resolveRows(rows).map((r) => ({
-      name: r.def.name,
-      dose: r.row.custom_dose ?? undefined,
-    }));
-  } catch (e) {
-    logWarn('[ficha] no se pudo leer el protocolo activo', e);
-    return [];
-  }
 }
 
 /**

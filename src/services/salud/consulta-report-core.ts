@@ -579,11 +579,9 @@ export function emergencyCardHtml(card: EmergencyCard, hoyISO: string): string {
       .join('')}</ul>`
     : '<p class="vacio">Sin alergias registradas.</p>';
 
-  const medicacion = card.medications.length
-    ? `<ul>${card.medications
-      .map((m) => `<li><b>${escapeHtml(m.name)}</b>${m.dose ? ` · ${escapeHtml(m.dose)}` : ''}${m.frequency ? ` · ${escapeHtml(m.frequency)}` : ''}</li>`)
-      .join('')}</ul>`
-    : '<p class="vacio">Sin medicación registrada.</p>';
+  const medicacion = card.criticalMeds.length
+    ? `<ul>${card.criticalMeds.map((m) => `<li><b>${escapeHtml(m)}</b></li>`).join('')}</ul>`
+    : '<p class="vacio">Sin medicación crítica registrada.</p>';
 
   const condiciones = card.conditions.length
     ? `<ul>${card.conditions.map((c) => `<li>${escapeHtml(c)}</li>`).join('')}</ul>`
@@ -596,11 +594,7 @@ export function emergencyCardHtml(card: EmergencyCard, hoyISO: string): string {
     : '<p class="vacio">Sin contactos registrados.</p>';
 
   const otros = [
-    fichaFila('Marcapasos o implantes', card.hasPacemaker
-      ? `Sí${card.implants.trim() ? ` · ${escapeHtml(card.implants.trim())}` : ''}`
-      : card.implants.trim() ? escapeHtml(card.implants.trim()) : ''),
     fichaFila('Donante de órganos', card.organDonor == null ? '' : card.organDonor ? 'Sí' : 'No'),
-    fichaFila('Aseguradora', [card.insurerName.trim(), card.insurerPolicy.trim()].filter(Boolean).map(escapeHtml).join(' · ')),
     fichaFila('Idioma', escapeHtml(card.language.trim())),
   ].join('');
 
@@ -638,7 +632,7 @@ export function emergencyCardHtml(card: EmergencyCard, hoyISO: string): string {
   <h2>Alergias</h2>
   ${alergias}
 
-  <h2>Medicación actual</h2>
+  <h2>Medicación crítica</h2>
   ${medicacion}
 
   ${condiciones ? `<h2>Condiciones</h2>${condiciones}` : ''}

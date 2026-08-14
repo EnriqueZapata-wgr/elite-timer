@@ -2,17 +2,28 @@
  * emergency-card-core — la ficha de emergencia, núcleo PURO.
  *
  * OLA6 PIEZA D. Es la única pantalla de ATP escrita para que la lea OTRA
- * persona: un paramédico, quien te encuentre, el de urgencias. Todo el diseño
- * sale de ahí:
+ * persona: un paramédico, quien te encuentre, el de urgencias. Se trae de
+ * dije, de pulsera, pegada adentro del casco. Todo el diseño sale de ahí:
  *
  *   · Se abre SIN RED y SIN SESIÓN. Un hospital es exactamente el lugar donde
  *     no hay señal y donde nadie sabe tu contraseña.
- *   · Las alergias duras NO se mezclan con las alimentarias del pilar de
- *     nutrición. Aquellas son preferencias; estas cambian una decisión clínica.
- *   · La medicación se puede sembrar desde el protocolo activo, pero solo con
- *     confirmación explícita: el protocolo ATP no es una prescripción y no se
- *     le puede decir a un médico que lo es.
  *   · Cero semáforos y cero interpretación, igual que el reporte de consulta.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * LA REGLA DE ADMISIÓN. Esta ficha es pública. No va cifrada (ver el store) y
+ * su código QR se imprime. Por eso el filtro no es técnico, es editorial:
+ *
+ *   ENTRA lo que cambia lo que un paramédico te hace en los primeros dos
+ *   minutos, y que no le sirve a un tercero para hacerte daño.
+ *
+ *   NO ENTRA lo que un extraño puede aprovechar: la lista completa de
+ *   medicación y suplementos (dice dónde estás mal y qué hay en tu casa), la
+ *   aseguradora y el número de póliza (es una identidad que se suplanta), y
+ *   el historial extenso de condiciones. Todo eso vive en el expediente,
+ *   detrás de sesión, y se abre desde dentro de la app.
+ *
+ * Si un campo nuevo no pasa esa prueba, no va aquí: va al expediente.
+ * ─────────────────────────────────────────────────────────────────────────
  *
  * Puro: sin supabase, sin react-native, sin AsyncStorage. Testeable node-only.
  */
@@ -38,16 +49,15 @@ export const SEVERITY_LABEL: Record<Severity, string> = {
   anafilaxia: 'Anafilaxia',
 };
 
+/**
+ * Alergias que matan. Anafilaxia a un medicamento, al látex o a un alimento.
+ * NO son las alimentarias del pilar de nutrición: aquellas son preferencias,
+ * estas cambian lo que te inyectan y con qué guantes te tocan.
+ */
 export interface Alergia {
   substance: string;
   severity: Severity;
   reaction?: string;
-}
-
-export interface Medicamento {
-  name: string;
-  dose?: string;
-  frequency?: string;
 }
 
 export interface Contacto {
@@ -61,15 +71,12 @@ export interface EmergencyCard {
   birthDate: string | null; // YYYY-MM-DD
   bloodType: BloodType | null;
   allergies: Alergia[];
-  medications: Medicamento[];
-  medicationsFromProtocolAt: string | null;
+  /** Solo la que un paramédico no puede ignorar. Lista corta, sin dosis. */
+  criticalMeds: string[];
+  /** Solo las que cambian el tratamiento de urgencia. Lista corta. */
   conditions: string[];
   contacts: Contacto[];
-  hasPacemaker: boolean;
-  implants: string;
   organDonor: boolean | null;
-  insurerName: string;
-  insurerPolicy: string;
   language: string;
   note: string;
   reviewedAt: string | null;
@@ -78,21 +85,51 @@ export interface EmergencyCard {
 
 export const NOTE_MAX = 280;
 
+/**
+ * Techos duros. No son un capricho de UI: una ficha de emergencia larga es una
+ * ficha que nadie lee de pie y con prisa, y una lista larga de condiciones es
+ * exactamente el historial que dijimos que no iba a estar aquí.
+ */
+export const CONDICIONES_MAX = 6;
+export const MEDS_CRITICOS_MAX = 6;
+
+/**
+ * Las condiciones que de verdad cambian una decisión en urgencias. Se ofrecen
+ * como sugerencia, no como catálogo cerrado: se puede escribir otra, pero el
+ * techo es el mismo.
+ */
+export const CONDICIONES_URGENCIA = [
+  'Epilepsia',
+  'Diabetes tipo 1',
+  'Hemofilia',
+  'Marcapasos o stent',
+  'Anticoagulación',
+  'Embarazo',
+] as const;
+
+/**
+ * Las cuatro familias de medicación que cambian el manejo inmediato. Va la
+ * FAMILIA, no la marca ni la dosis: al paramédico le sirve saber que estás
+ * anticoagulado, no cuántos miligramos tomas. Y una lista de marcas le dice a
+ * un extraño qué hay en tu buró.
+ */
+export const MEDS_CRITICOS = [
+  'Anticoagulante',
+  'Insulina',
+  'Anticonvulsivo',
+  'Inmunosupresor',
+] as const;
+
 export function emptyCard(): EmergencyCard {
   return {
     fullName: '',
     birthDate: null,
     bloodType: null,
     allergies: [],
-    medications: [],
-    medicationsFromProtocolAt: null,
+    criticalMeds: [],
     conditions: [],
     contacts: [],
-    hasPacemaker: false,
-    implants: '',
     organDonor: null,
-    insurerName: '',
-    insurerPolicy: '',
     language: '',
     note: '',
     reviewedAt: null,
@@ -125,21 +162,17 @@ export function parseCard(raw: unknown): EmergencyCard {
       })
       .filter((a) => a.substance.length > 0)
     : [];
-  out.medications = Array.isArray(r.medications)
-    ? r.medications
-      .map((m): Medicamento => {
-        const o = (m ?? {}) as Record<string, unknown>;
-        return {
-          name: str(o.name).trim(),
-          dose: str(o.dose).trim() || undefined,
-          frequency: str(o.frequency).trim() || undefined,
-        };
-      })
-      .filter((m) => m.name.length > 0)
+  // Tolera la forma vieja [{ name, dose }]: se queda solo con el nombre y se
+  // recorta al techo. La dosis no vuelve, es dato de expediente.
+  const meds = r.criticalMeds ?? r.critical_meds ?? r.medications;
+  out.criticalMeds = Array.isArray(meds)
+    ? meds
+      .map((m) => (typeof m === 'string' ? m : str((m as Record<string, unknown>)?.name)).trim())
+      .filter((m) => m.length > 0)
+      .slice(0, MEDS_CRITICOS_MAX)
     : [];
-  out.medicationsFromProtocolAt = strOrNull(r.medicationsFromProtocolAt ?? r.medications_from_protocol_at);
   out.conditions = Array.isArray(r.conditions)
-    ? r.conditions.map((c) => str(c).trim()).filter((c) => c.length > 0)
+    ? r.conditions.map((c) => str(c).trim()).filter((c) => c.length > 0).slice(0, CONDICIONES_MAX)
     : [];
   out.contacts = Array.isArray(r.contacts)
     ? r.contacts
@@ -153,12 +186,8 @@ export function parseCard(raw: unknown): EmergencyCard {
       })
       .filter((c) => c.phone.length > 0)
     : [];
-  out.hasPacemaker = r.hasPacemaker === true || r.has_pacemaker === true;
-  out.implants = str(r.implants);
   const donor = r.organDonor ?? r.organ_donor;
   out.organDonor = typeof donor === 'boolean' ? donor : null;
-  out.insurerName = str(r.insurerName ?? r.insurer_name);
-  out.insurerPolicy = str(r.insurerPolicy ?? r.insurer_policy);
   out.language = str(r.language);
   out.note = str(r.note).slice(0, NOTE_MAX);
   out.reviewedAt = strOrNull(r.reviewedAt ?? r.reviewed_at);
@@ -174,15 +203,10 @@ export function cardToRow(card: EmergencyCard, userId: string): Record<string, u
     birth_date: card.birthDate,
     blood_type: card.bloodType,
     allergies: card.allergies,
-    medications: card.medications,
-    medications_from_protocol_at: card.medicationsFromProtocolAt,
+    critical_meds: card.criticalMeds,
     conditions: card.conditions,
     contacts: card.contacts,
-    has_pacemaker: card.hasPacemaker,
-    implants: card.implants.trim() || null,
     organ_donor: card.organDonor,
-    insurer_name: card.insurerName.trim() || null,
-    insurer_policy: card.insurerPolicy.trim() || null,
     language: card.language.trim() || null,
     note: card.note.trim() || null,
     reviewed_at: card.reviewedAt,
@@ -195,11 +219,9 @@ export function cardHasContent(card: EmergencyCard): boolean {
     card.fullName.trim() ||
     card.bloodType ||
     card.allergies.length ||
-    card.medications.length ||
+    card.criticalMeds.length ||
     card.conditions.length ||
     card.contacts.length ||
-    card.hasPacemaker ||
-    card.implants.trim() ||
     card.note.trim()
   );
 }
@@ -236,23 +258,24 @@ export function tocaRevisar(card: EmergencyCard, ahoraMs: number): boolean {
 // ─── Carga para el QR ───────────────────────────────────────────────────────
 
 /**
- * Payload del QR. Va la FICHA, no un link: sin red un link no sirve, y en
- * urgencias no hay red. Las llaves son de una letra porque cada byte que se
+ * Payload del QR PÚBLICO. Va la FICHA, no un link: sin red un link no sirve, y
+ * en urgencias no hay red. Las llaves son de una letra porque cada byte que se
  * ahorra es un módulo menos que tiene que leer una cámara temblorosa.
  *
- * Se recorta a lo que un paramédico usa en los primeros dos minutos.
+ * Este código se imprime y se cuelga del cuello, así que lleva EXACTAMENTE los
+ * campos curados de la ficha y ni uno más. No confundir con el QR clínico, que
+ * es otra cosa: ese descarga la historia clínica en un hospital, vive dentro de
+ * la app y exige sesión.
  */
 export function qrPayload(card: EmergencyCard): string {
-  const p: Record<string, unknown> = { v: 1 };
+  const p: Record<string, unknown> = { v: 2 };
   if (card.fullName.trim()) p.n = card.fullName.trim();
   if (card.birthDate) p.b = card.birthDate;
   if (card.bloodType) p.s = card.bloodType;
   if (card.allergies.length) p.a = card.allergies.map((a) => [a.substance, a.severity[0]]);
-  if (card.medications.length) p.m = card.medications.map((m) => [m.name, m.dose ?? ''].filter(Boolean).join(' '));
+  if (card.criticalMeds.length) p.m = card.criticalMeds;
   if (card.conditions.length) p.c = card.conditions;
   if (card.contacts.length) p.t = card.contacts.map((c) => [c.name, c.phone]);
-  if (card.hasPacemaker) p.p = 1;
-  if (card.implants.trim()) p.i = card.implants.trim();
   if (card.organDonor != null) p.d = card.organDonor ? 1 : 0;
   if (card.language.trim()) p.l = card.language.trim();
   if (card.note.trim()) p.x = card.note.trim();

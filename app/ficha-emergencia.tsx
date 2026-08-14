@@ -99,15 +99,11 @@ export default function FichaEmergenciaPantalla() {
                 <EliteText style={s.gris}>Sin alergias registradas.</EliteText>
               )}
 
-              <EliteText style={s.rotulo}>MEDICACIÓN</EliteText>
-              {card.medications.length ? (
-                card.medications.map((m, i) => (
-                  <EliteText key={`m${i}`} style={s.dato}>
-                    {m.name}{m.dose ? ` · ${m.dose}` : ''}{m.frequency ? ` · ${m.frequency}` : ''}
-                  </EliteText>
-                ))
+              <EliteText style={s.rotulo}>MEDICACIÓN CRÍTICA</EliteText>
+              {card.criticalMeds.length ? (
+                card.criticalMeds.map((m, i) => <EliteText key={`m${i}`} style={s.dato}>{m}</EliteText>)
               ) : (
-                <EliteText style={s.gris}>Sin medicación registrada.</EliteText>
+                <EliteText style={s.gris}>Sin medicación crítica registrada.</EliteText>
               )}
 
               {card.conditions.length ? (
@@ -138,23 +134,13 @@ export default function FichaEmergenciaPantalla() {
                 <EliteText style={s.gris}>Sin contactos registrados.</EliteText>
               )}
 
-              {card.hasPacemaker || card.implants.trim() || card.organDonor != null || card.language.trim() || card.insurerName.trim() ? (
+              {card.organDonor != null || card.language.trim() ? (
                 <>
                   <EliteText style={s.rotulo}>OTROS DATOS</EliteText>
-                  {card.hasPacemaker || card.implants.trim() ? (
-                    <EliteText style={s.dato}>
-                      Marcapasos o implantes: {card.hasPacemaker ? 'Sí' : ''}{card.implants.trim() ? `${card.hasPacemaker ? ' · ' : ''}${card.implants.trim()}` : ''}
-                    </EliteText>
-                  ) : null}
                   {card.organDonor != null ? (
                     <EliteText style={s.dato}>Donante de órganos: {card.organDonor ? 'Sí' : 'No'}</EliteText>
                   ) : null}
                   {card.language.trim() ? <EliteText style={s.dato}>Idioma: {card.language.trim()}</EliteText> : null}
-                  {card.insurerName.trim() ? (
-                    <EliteText style={s.dato}>
-                      Aseguradora: {card.insurerName.trim()}{card.insurerPolicy.trim() ? ` · ${card.insurerPolicy.trim()}` : ''}
-                    </EliteText>
-                  ) : null}
                 </>
               ) : null}
 

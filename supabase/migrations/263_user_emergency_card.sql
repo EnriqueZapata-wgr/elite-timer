@@ -11,6 +11,16 @@
 -- tabla es el respaldo: sincroniza entre dispositivos y sobrevive a un cambio
 -- de equipo. Sin red, la app lee la local.
 --
+-- REGLA DE ADMISIÓN (la ficha es pública, el filtro es editorial): entra lo que
+-- cambia lo que te hacen en los primeros dos minutos y no le sirve a un tercero
+-- para hacerte daño. Por eso NO hay aquí lista completa de medicación, ni
+-- aseguradora, ni número de póliza, ni historial de condiciones: eso vive en el
+-- expediente, con sesión.
+--
+-- Esta migración todavía no se aplicó en remoto (la rama no se ha mergeado, y
+-- el db push va después del merge), así que el esquema se corrige aquí mismo en
+-- lugar de dejar columnas muertas y un 264 de limpieza.
+--
 -- Idempotente. RLS de propietario: nadie más que el dueño, nunca.
 -- ============================================================================
 
@@ -27,29 +37,24 @@ CREATE TABLE IF NOT EXISTS public.user_emergency_card (
   blood_type         text CHECK (blood_type IS NULL OR blood_type IN
                        ('O+','O-','A+','A-','B+','B-','AB+','AB-','no_se')),
 
-  -- Alergias DURAS con severidad. [{ substance, severity, reaction }]
+  -- Alergias que MATAN, con severidad. [{ substance, severity, reaction }]
   -- severity ∈ leve | moderada | grave | anafilaxia
   allergies          jsonb NOT NULL DEFAULT '[]'::jsonb,
 
-  -- Medicación actual. [{ name, dose, frequency }]
-  -- Se puede sembrar desde el protocolo activo, pero SOLO con confirmación
-  -- explícita de la persona: el protocolo ATP no es una prescripción.
-  medications        jsonb NOT NULL DEFAULT '[]'::jsonb,
-  medications_from_protocol_at timestamptz,
+  -- Medicación CRÍTICA, por familia y sin dosis. ["Anticoagulante", …]
+  -- La lista completa de medicación y suplementos NO vive aquí: vive en el
+  -- protocolo, detrás de sesión. Una lista completa le dice a un extraño
+  -- dónde estás mal y qué hay en tu casa.
+  critical_meds      jsonb NOT NULL DEFAULT '[]'::jsonb,
 
-  -- Condiciones que cambian una decisión en urgencias. ["Diabetes tipo 1", …]
+  -- Condiciones que cambian el TRATAMIENTO DE URGENCIA. ["Epilepsia", …]
+  -- Lista corta a propósito. El historial extenso vive en el expediente.
   conditions         jsonb NOT NULL DEFAULT '[]'::jsonb,
 
   -- Contactos. [{ name, relationship, phone }]
   contacts           jsonb NOT NULL DEFAULT '[]'::jsonb,
 
-  -- Marcapasos e implantes: cambian si se puede hacer una resonancia.
-  has_pacemaker      boolean NOT NULL DEFAULT false,
-  implants           text,
-
   organ_donor        boolean,
-  insurer_name       text,
-  insurer_policy     text,
   -- Idioma en el que hay que hablarle a la persona si está consciente.
   language           text,
 
