@@ -40,8 +40,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/centro/index.tsx::sparkles-outline',
   'app/comunidad/amigos.tsx::pulse-outline',
   'app/comunidad/perfil/[userId].tsx::hourglass-outline',
-  'app/cycle-charts.tsx::analytics-outline',
-  'app/cycle-history.tsx::calendar-outline',
   'app/cycle.tsx::analytics-outline',
   'app/cycle.tsx::calendar-outline',
   'app/cycle.tsx::heart-circle-outline',
@@ -156,7 +154,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/register.tsx::eye-outline',
   'app/reports.tsx::analytics-outline',
   'app/reports.tsx::barbell-outline',
-  'app/reports.tsx::calendar-outline',
   // MB-29 P1: header de la card "Para tu consulta" — chrome de sección en su
   // propio dominio (reportes), no un lanzador dibujando una función.
   'app/reports.tsx::document-text-outline',
@@ -310,11 +307,16 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/components/reports/domains/emociones.tsx::pulse-outline::x2',
   'src/components/reports/domains/emociones.tsx::sunny-outline',
   'src/components/reports/domains/emociones.tsx::timer-outline',
+  // OLA1 R-3: los dos glifos de las pantallas de ciclo, ya dentro del dominio.
+  // Contenido propio (la grafica y la lista de ciclos), no lanzadores.
+  'src/components/reports/domains/ciclo.tsx::analytics-outline',
+  'src/components/reports/domains/ciclo.tsx::calendar-outline',
   // OLA1 R-0/R-1: REPORT_DOMAINS es el registro de los reportes por dominio y
   // ahi vive el icono de cada uno, que antes estaba suelto en app/reports.tsx.
   // No dibuja: es el dato que el hub y la pantalla del dominio leen para no
   // elegir cada uno el suyo.
   'src/services/reports/report-domain-core.ts::book-outline',
+  'src/services/reports/report-domain-core.ts::calendar-outline',
   'src/services/reports/report-domain-core.ts::flower-outline',
   'src/services/reports/report-domain-core.ts::restaurant-outline',
   'src/services/reports/report-domain-core.ts::timer-outline',

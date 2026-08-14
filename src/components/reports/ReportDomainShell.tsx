@@ -10,7 +10,7 @@
  * Cada dominio solo aporta su ReportDomainDefinition: cómo lee, cuándo está
  * vacío, cómo se exporta y qué pinta.
  */
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { View, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -57,6 +57,15 @@ export interface ReportDomainDefinition<T> {
    * escribir tu primera entrada tiene que existir justo cuando no hay ninguna.
    */
   overlay?: (data: T | null, reload: () => void) => ReactNode;
+  /**
+   * Puerta del dominio. Es un COMPONENTE que envuelve la pantalla y solo pinta
+   * a sus hijos cuando el acceso está confirmado: mientras decide, o cuando
+   * niega, el shell entero no llega a montarse y por lo tanto no consulta nada.
+   *
+   * Es lo que cierra el deep link: /reports/ciclo no le enseña ciclo a quien no
+   * le toca aunque teclee la ruta.
+   */
+  guard?: ComponentType<{ children: ReactNode }>;
 }
 
 interface Props<T> {
@@ -66,11 +75,15 @@ interface Props<T> {
 }
 
 export function ReportDomainShell<T>({ definition, seedPeriod }: Props<T>) {
-  return (
+  const body = (
     <ReportRangeProvider domain={definition.key} seed={seedPeriod}>
       <ShellBody definition={definition} />
     </ReportRangeProvider>
   );
+  // La puerta va POR FUERA del provider: si el acceso se niega, no se monta
+  // nada del reporte, ni siquiera su preferencia de rango.
+  const Guard = definition.guard;
+  return Guard ? <Guard>{body}</Guard> : body;
 }
 
 type LoadState<T> =

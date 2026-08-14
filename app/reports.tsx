@@ -37,6 +37,7 @@ import { MenteContent } from '@/src/components/reports/domains/mente';
 import { EconomiaContent } from '@/src/components/reports/domains/economia';
 import { JournalResumen } from '@/src/components/reports/domains/journal';
 import { EmocionesResumen } from '@/src/components/reports/domains/emociones';
+import { CicloResumen } from '@/src/components/reports/domains/ciclo';
 import { REPORT_DOMAINS, type ReportDomainKey } from '@/src/services/reports/report-domain-core';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
@@ -116,6 +117,7 @@ const SECTION_TO_DOMAIN: Partial<Record<SectionKey, ReportDomainKey>> = {
   mente: 'mente',
   journal: 'journal',
   emociones: 'emociones',
+  ciclo: 'ciclo',
   electrones: 'economia',
 };
 
@@ -313,16 +315,19 @@ export default function ReportsScreen() {
         <EmocionesResumen checkins={mind.checkins} />
       </DomainCard>
     ),
+    // OLA1 R-3: la tarjeta de ciclo pasa de cifra muda a puerta del dominio.
+    // Sigue escondida en cero: a diferencia de mente, aqui el cero puede
+    // significar "esta app no es para mi", y el guard del dominio ya decide
+    // quien entra. Quien tiene ciclo llega igual desde el pilar.
     ciclo: () => cycle.logsCount > 0 ? (
-      <GradientCard gradient={{ start: 'rgba(251,113,133,0.08)', end: 'rgba(251,113,133,0.02)' }}>
-        <SectionHeader icon="calendar-outline" color="#fb7185" title="CICLO" />
-        <StatsRow>
-          <Stat value={`${cycle.periodDays}`} label="días periodo" />
-          {cycle.avgEnergy > 0 && <Stat value={`${cycle.avgEnergy}`} label="energía prom" />}
-          {cycle.avgMood > 0 && <Stat value={`${cycle.avgMood}`} label="humor prom" />}
-          <Stat value={`${cycle.logsCount}`} label="registros" />
-        </StatsRow>
-      </GradientCard>
+      <DomainCard domain="ciclo" gradient={{ start: 'rgba(251,113,133,0.08)', end: 'rgba(251,113,133,0.02)' }} period={period}>
+        <CicloResumen
+          periodDays={cycle.periodDays}
+          avgEnergy={cycle.avgEnergy}
+          avgMood={cycle.avgMood}
+          logsCount={cycle.logsCount}
+        />
+      </DomainCard>
     ) : null,
   };
 
