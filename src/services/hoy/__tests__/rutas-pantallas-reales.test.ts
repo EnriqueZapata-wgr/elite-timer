@@ -31,8 +31,49 @@ for (const r of censo.collectRoutes()) {
   reales.add(r.noGroups);
 }
 
-const existe = (route: unknown): boolean =>
-  typeof route === 'string' && reales.has(censo.normalizeRoute(route.split('?')[0]));
+const esDinamico = (seg: string) => /^\[.+\]$/.test(seg);
+
+/** Los segmentos públicos de una ruta, ya sin query ni hash. */
+const segmentosDe = (route: string): string[] => {
+  const limpio = censo.normalizeRoute(route.split('?')[0].split('#')[0]);
+  return limpio === '/' ? [] : limpio.slice(1).split('/');
+};
+
+/**
+ * Las rutas dinámicas de app/, partidas en segmentos. Se exige al menos un
+ * segmento literal: un patrón que fuera puro hueco daría por existente
+ * cualquier cosa y el test dejaría de servir.
+ */
+const patronesDinamicos: string[][] = censo.collectRoutes()
+  .filter((r: { dynamic: boolean; segments: string[] }) => r.dynamic)
+  .map((r: { segments: string[] }) => r.segments)
+  .filter((segs: string[]) => segs.some((s) => !esDinamico(s)));
+
+/**
+ * ¿Esta ruta la sirve un archivo real de app/? Tres reglas, en orden:
+ *
+ *   1. La query y el hash no son parte del destino. `/reports/adherencia?tab=
+ *      rachas` es la MISMA pantalla que `/reports/adherencia`; lo de después
+ *      del `?` lo lee la pantalla, no el router.
+ *   2. Coincidencia exacta contra un archivo. Va primero para que una hermana
+ *      estática le gane siempre a la dinámica.
+ *   3. Coincidencia por FORMA contra las dinámicas: mismo número de segmentos,
+ *      y en cada posición o hay un hueco `[param]` (que traga cualquier valor
+ *      no vacío) o los dos segmentos son iguales. Es el mismo criterio que ya
+ *      usa el censo para decidir si una pantalla dinámica está alcanzada.
+ *      `/reports/adherencia` existe porque la sirve `app/reports/[dominio]`;
+ *      `/inventado/adherencia` sigue sin existir.
+ */
+const existe = (route: unknown): boolean => {
+  if (typeof route !== 'string' || !route.startsWith('/')) return false;
+  const segs = segmentosDe(route);
+  if (reales.has(censo.normalizeRoute(`/${segs.join('/')}`))) return true;
+  if (segs.length === 0) return false;
+  return patronesDinamicos.some((patron) => patron.length === segs.length
+    && patron.every((seg, i) => (esDinamico(seg) || esDinamico(segs[i])
+      ? segs[i].length > 0
+      : segs[i] === seg)));
+};
 
 describe('rutas contra los archivos reales de app/', () => {
   it('la enumeración funciona (guard del propio test)', () => {
@@ -40,6 +81,22 @@ describe('rutas contra los archivos reales de app/', () => {
     expect(existe('/checkin')).toBe(true);
     // Y el detector detecta: la mutación que el test viejo dejaba pasar.
     expect(existe('/pantalla-que-no-existe')).toBe(false);
+  });
+
+  it('resuelve segmentos dinámicos y se salta la query, sin abrir la mano', () => {
+    // Lo que hay que resolver: la pantalla vive en app/reports/[dominio].tsx.
+    expect(existe('/reports/adherencia')).toBe(true);
+    expect(existe('/reports/adherencia?tab=rachas')).toBe(true);
+    expect(existe('/tests/q/cronotipo')).toBe(true);
+    // Lo que NO se debe abrir al resolver por forma: el hueco traga el valor
+    // del segmento dinámico, nunca el de un segmento literal.
+    expect(existe('/inventado/adherencia')).toBe(false);
+    // Ni de más ni de menos segmentos.
+    expect(existe('/reports/adherencia/rachas')).toBe(false);
+    expect(existe('/tests/q')).toBe(false);
+    // Y una hermana estática le gana a la dinámica: /tests existe por su
+    // propio archivo, no por /tests/q/[id].
+    expect(existe('/tests')).toBe(true);
   });
 
   it('las granulares de VERIFIED_ELECTRON_ROUTES apuntan a pantallas que existen', () => {
