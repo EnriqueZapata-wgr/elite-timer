@@ -6,10 +6,10 @@
  *
  * ATP Labs = espejo del último valor (igual fuente que ATP Edad): un solo valor real.
  */
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
 import { GlobalTopBar } from '@/src/components/ui/GlobalTopBar';
@@ -20,6 +20,7 @@ import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { loadCanonicalLabValues, collapseLanguageDuplicates, loadAllSeries, type CanonicalValue, type LabValueSource } from '@/src/services/edad-atp/lab-values-service';
+import { takeNuevos } from '@/src/services/edad-atp/lab-nuevos-store';
 import { trendFromSeries, interpretValue, type Trend, type SeriePoint } from '@/src/components/edad-atp/parameter-chart-model';
 import { loadUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { getLabParamMeta } from '@/src/components/edad-atp/component-meta';
@@ -88,6 +89,12 @@ function AtpLabsScreen() {
   const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const { width } = useWindowDimensions();
+  // OLA6 PIEZA C: se llega aquí desde la confirmación con `?nuevo=N`. El
+  // conteo va en el aviso; las claves las trae lab-nuevos-store (no caben en
+  // la URL). Sin claves, se muestra el aviso y ya: nunca se inventa una fila.
+  const { nuevo } = useLocalSearchParams<{ nuevo?: string }>();
+  const nuevoCount = Number(nuevo) > 0 ? Number(nuevo) : 0;
+  const [nuevasKeys, setNuevasKeys] = useState<Set<string>>(new Set());
   const [rows, setRows] = useState<Row[]>([]);
   const [sex, setSex] = useState<Sex>('male');
   const [sort, setSort] = useState<SortMode>('panel');
@@ -145,6 +152,13 @@ function AtpLabsScreen() {
     return () => { alive = false; };
   }, [user?.id]));
 
+  // El resaltado es del aterrizaje: se consume una vez y no persigue al usuario.
+  useEffect(() => {
+    if (!nuevoCount) return;
+    const keys = takeNuevos();
+    if (keys.length) setNuevasKeys(new Set(keys));
+  }, [nuevoCount]);
+
   const onToggleChart = useCallback((key: string) => {
     haptic.medium();
     setExpanded((prev) => (prev === key ? null : key));
@@ -161,6 +175,19 @@ function AtpLabsScreen() {
         <EliteText variant="caption" style={styles.subtitle}>
           Tus laboratorios: el último valor de cada parámetro. Mantén apretado para saber qué es.
         </EliteText>
+
+        {/* OLA6 PIEZA C: aterrizaje desde la confirmación. El usuario acaba de
+            guardar y esto es lo primero que ve: cuántos entraron y cuáles. */}
+        {nuevoCount > 0 ? (
+          <View style={styles.nuevoBanner}>
+            <Ionicons name="checkmark-circle" size={16} color={ATP_BRAND.lime} />
+            <EliteText variant="caption" style={styles.nuevoBannerText}>
+              {nuevoCount === 1
+                ? '1 valor nuevo guardado. Lo marcamos abajo.'
+                : `${nuevoCount} valores nuevos guardados. Los marcamos abajo.`}
+            </EliteText>
+          </View>
+        ) : null}
 
         {/* MB-29 P2 (H5): la vista decía "sube un PDF" sin dar el botón. */}
         <Pressable onPress={() => { haptic.medium(); router.push('/my-health'); }} style={styles.uploadBtn}>
@@ -199,7 +226,7 @@ function AtpLabsScreen() {
             <View key={g.title} style={styles.group}>
               <EliteText variant="caption" style={styles.groupTitle}>{g.title}</EliteText>
               {g.rows.map((r) => (
-                <View key={r.key} style={styles.rowWrap}>
+                <View key={r.key} style={[styles.rowWrap, nuevasKeys.has(r.key) && styles.rowWrapNuevo]}>
                   <Pressable
                     style={styles.row}
                     onPress={() => onToggleChart(r.key)}
@@ -378,6 +405,15 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   group: { gap: 2, marginBottom: Spacing.sm },
   groupTitle: { color: t.textoTenue, letterSpacing: 1, marginBottom: 2, textTransform: 'uppercase' },
   rowWrap: { backgroundColor: t.card, borderRadius: Radius.card, borderWidth: 1, borderColor: t.borde, marginBottom: 4 },
+  // OLA6 PIEZA C: lo que acaba de entrar. Borde, no fondo: el color del valor
+  // sigue siendo el del estado clínico y no se le compite.
+  rowWrapNuevo: { borderColor: 'rgba(168,224,42,0.55)', borderWidth: 1.5 },
+  nuevoBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
+    backgroundColor: 'rgba(168,224,42,0.10)', borderWidth: 1, borderColor: 'rgba(168,224,42,0.35)',
+    borderRadius: Radius.md, paddingHorizontal: Spacing.sm, paddingVertical: 9, marginBottom: Spacing.xs,
+  },
+  nuevoBannerText: { color: t.texto, flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.md },
   rowName: { color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   rowMeta: { color: t.textoTenue, fontSize: FontSizes.xs, marginTop: 1 },
