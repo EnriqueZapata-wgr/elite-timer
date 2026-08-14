@@ -265,6 +265,9 @@ function RootLayout() {
                 <Stack.Screen name="quiz/chronotype" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="nutrition" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="food-scan" options={{ animation: 'slide_from_bottom' }} />
+                {/* OLA3: /food-log es la captura unificada (foto | texto | código).
+                    Hereda el "desde abajo" que traía el registro por texto. */}
+                <Stack.Screen name="food-log" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="protocol-explorer" options={{ animation: 'slide_from_right' }} />
                 {/* E-4 (MB-12): smart-shopping borrada (27 líneas, un EmptyState) */}
                 {/* Sprint NUTRICIÓN T5: lista de compra desde mis recetas */}

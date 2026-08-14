@@ -233,6 +233,16 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/components/interventions/PrescriptionCard.tsx::moon-outline',
   'src/components/legal/MedicalDisclaimerModal.tsx::medkit-outline',
   'src/components/nutrition/BreakFastGuide.tsx::restaurant-outline',
+  // OLA3 nutrición: el sensor TEXTO de /food-log heredó tal cual el mapa
+  // CATEGORY_ICONS de food-text (categoría del alimento como CONTENIDO propio
+  // del buscador, no como lanzador de una función del registro) y el sparkles
+  // de "estimar con IA". Cuando food-text quede como redirect, sus entradas
+  // gemelas se podan de este inventario.
+  'src/components/nutrition/foodlog/TextSensor.tsx::grid-outline',
+  'src/components/nutrition/foodlog/TextSensor.tsx::leaf-outline',
+  'src/components/nutrition/foodlog/TextSensor.tsx::nutrition-outline',
+  'src/components/nutrition/foodlog/TextSensor.tsx::sparkles-outline',
+  'src/components/nutrition/foodlog/TextSensor.tsx::water-outline',
   'src/components/tests/TestInputScreen.tsx::clipboard-outline',
   // Ola 2 Fitness PR2: la fase de importación de /log-cardio es la copia
   // canónica de cardio-import.tsx (mismos glifos: nadar y abrir ajustes HC).
