@@ -59,9 +59,10 @@ function listaRemate(): string[] {
     'app/redeem-code.tsx',
     'app/login.tsx',
     'app/register.tsx',
-    // La frontera B2 cerrada: el cuerpo del tab SALUD y sus dos monturas.
+    // La frontera B2 cerrada: el cuerpo del tab SALUD y su montura. OLA6 B:
+    // /health-hub dejó de ser montura y pasó a ser redirect a /salud, así que
+    // ya no tiene tema que declarar.
     'src/screens/salud/SaludHub.tsx',
-    'app/health-hub.tsx',
     'app/(tabs)/salud.tsx',
     // Legal: cuerpo compartido de las dos rutas.
     'src/components/legal/LegalDocScreen.tsx',
@@ -187,8 +188,14 @@ describe('3b · la frontera SaludHub quedó cerrada y en el patrón correcto', (
 
   it.each([
     ['app/(tabs)/salud.tsx', /<TabScreen themed>/],
-    ['app/health-hub.tsx', /<Screen themed>/],
   ])('%s declara themed', (file, patron) => {
     expect(readFileSync(file, 'utf8')).toMatch(patron);
+  });
+
+  // OLA6 B: la segunda montura murió. Si alguien la revive, este test lo dice.
+  it('/health-hub es un redirect, no una segunda copia de SALUD', () => {
+    const src = readFileSync('app/health-hub.tsx', 'utf8');
+    expect(src).toContain('Redirect');
+    expect(src.includes('SaludHub')).toBe(false);
   });
 });

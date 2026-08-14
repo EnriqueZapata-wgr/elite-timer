@@ -180,7 +180,7 @@ export default function SettingsSaludScreen() {
             iconColor={CATEGORY_COLORS.metrics}
             label="Salud Funcional"
             sub="Mapa funcional, datos, síntomas y expediente"
-            onPress={() => { haptic.medium(); router.push('/health-hub'); }}
+            onPress={() => { haptic.medium(); router.push('/salud'); }}
           />
           <Divider />
           {/* MB-19 PIEZA 3: la válvula de escape del rediseño. SALUD se curó a
