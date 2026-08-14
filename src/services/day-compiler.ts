@@ -729,7 +729,7 @@ function buildSuggestion(
   // 5. Proteína baja
   const protein = quants.find(q => q.source === 'protein');
   if (protein && protein.current < protein.target * 0.5 && hour > 12) {
-    return { text: `Te faltan ${Math.round(protein.target - protein.current)}g de proteína.`, action: 'Registrar comida', route: '/food-register' };
+    return { text: `Te faltan ${Math.round(protein.target - protein.current)}g de proteína.`, action: 'Registrar comida', route: '/food-log' };
   }
   // 6. Agua baja
   const water = quants.find(q => q.source === 'water');

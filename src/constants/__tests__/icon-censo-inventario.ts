@@ -23,11 +23,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/agenda.tsx::calendar-outline',
   // MB-21 P3: "Que ARGOS proponga uno" (renombrar) — chip de acción, no lanzador.
   'app/argos/conversations.tsx::sparkles-outline',
-  'app/argos-recipes.tsx::cart-outline',
-  'app/argos-recipes.tsx::eye-outline',
-  'app/argos-recipes.tsx::moon-outline',
-  'app/argos-recipes.tsx::restaurant-outline',
-  'app/argos-recipes.tsx::sunny-outline',
   'app/breathing.tsx::cloud-outline',
   'app/breathing.tsx::leaf-outline',
   'app/breathing.tsx::moon-outline',
@@ -95,21 +90,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/fitness-hub.tsx::trending-up-outline',
   'app/fitness-strength.tsx::barbell-outline::x2',
   'app/fitness-strength.tsx::trophy-outline',
-  'app/food-preferences.tsx::flame-outline',
-  'app/food-preferences.tsx::flower-outline',
-  'app/food-preferences.tsx::leaf-outline',
-  'app/food-preferences.tsx::restaurant-outline',
-  'app/food-register.tsx::moon-outline',
-  'app/food-register.tsx::nutrition-outline',
-  'app/food-register.tsx::restaurant-outline',
-  'app/food-register.tsx::sunny-outline',
-  'app/food-scan.tsx::hourglass-outline::x3',
-  'app/food-scan.tsx::medkit-outline',
-  'app/food-text.tsx::grid-outline',
-  'app/food-text.tsx::leaf-outline',
-  'app/food-text.tsx::nutrition-outline',
-  'app/food-text.tsx::sparkles-outline',
-  'app/food-text.tsx::water-outline',
   'app/glucose-log.tsx::moon-outline',
   'app/glucose-log.tsx::restaurant-outline',
   'app/glucose-log.tsx::timer-outline',
@@ -124,7 +104,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/journal.tsx::book-outline',
   'app/ketones-log.tsx::moon-outline',
   'app/ketones-log.tsx::restaurant-outline',
-  'app/lista-compra.tsx::cart-outline',
   'app/log-cardio.tsx::water-outline',
   // Ola 2 Fitness PR2: /log-strength es log-exercise adelgazado (mismo header
   // de ejercicio y mismo reloj de guardado).
@@ -144,16 +123,12 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/my-health.tsx::body-outline',
   'app/my-health.tsx::document-outline',
   'app/my-health.tsx::flask-outline::x2',
-  'app/my-recipes.tsx::cart-outline',
   'app/my-routines.tsx::barbell-outline::x2',
   'app/my-routines.tsx::folder-open-outline',
   'app/my-routines.tsx::sparkles-outline',
   'app/my-routines.tsx::timer-outline::x2',
   'app/nutrition.tsx::analytics-outline',
   'app/nutrition.tsx::flask-outline',
-  'app/nutrition.tsx::medical-outline',
-  'app/nutrition.tsx::sparkles-outline',
-  'app/nutrition.tsx::timer-outline',
   'app/onboarding/v2/chronotype.tsx::sunny-outline',
   'app/onboarding/v2/positioning.tsx::trending-up-outline',
   'app/onboarding/v2/privacy.tsx::document-text-outline::x2',
@@ -233,9 +208,12 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/components/interventions/PrescriptionCard.tsx::moon-outline',
   'src/components/legal/MedicalDisclaimerModal.tsx::medkit-outline',
   'src/components/nutrition/BreakFastGuide.tsx::restaurant-outline',
-  // OLA3 nutrición: los glifos de /cocina se mudaron con su código. Son
-  // CONTENIDO de su propio dominio (tipo de comida del generador, tipo de
-  // dieta en preferencias), nunca lanzadores de una función del registro.
+  // OLA3 nutrición: los glifos de las 9 rutas fusionadas se mudaron con su
+  // código. Siguen siendo CONTENIDO de su propio dominio (categoría del
+  // alimento en el buscador, tipo de comida del generador, tipo de dieta en
+  // preferencias), nunca lanzadores. Las entradas de food-text, food-scan,
+  // food-register, my-recipes, argos-recipes, lista-compra y food-preferences
+  // se podaron: esas rutas hoy son stubs <Redirect> sin un solo dibujo.
   'src/components/nutrition/cocina/GeneradorArgos.tsx::moon-outline',
   'src/components/nutrition/cocina/GeneradorArgos.tsx::restaurant-outline',
   'src/components/nutrition/cocina/GeneradorArgos.tsx::sunny-outline',
@@ -243,11 +221,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/components/nutrition/cocina/PreferenciasTab.tsx::flower-outline',
   'src/components/nutrition/cocina/PreferenciasTab.tsx::leaf-outline',
   'src/components/nutrition/cocina/PreferenciasTab.tsx::restaurant-outline',
-  // OLA3 nutrición: el sensor TEXTO de /food-log heredó tal cual el mapa
-  // CATEGORY_ICONS de food-text (categoría del alimento como CONTENIDO propio
-  // del buscador, no como lanzador de una función del registro) y el sparkles
-  // de "estimar con IA". Cuando food-text quede como redirect, sus entradas
-  // gemelas se podan de este inventario.
   'src/components/nutrition/foodlog/TextSensor.tsx::grid-outline',
   'src/components/nutrition/foodlog/TextSensor.tsx::leaf-outline',
   'src/components/nutrition/foodlog/TextSensor.tsx::nutrition-outline',

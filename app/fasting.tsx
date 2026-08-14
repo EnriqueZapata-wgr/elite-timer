@@ -1391,7 +1391,7 @@ export default function FastingScreen() {
             if (!r.ok) logWarn('[fasting] broke_fast_with failed:', r.message);
           });
         }}
-        onRegisterMeal={() => { setBreakGuide(null); router.push('/food-scan'); }}
+        onRegisterMeal={() => { setBreakGuide(null); router.push({ pathname: '/food-log', params: { sensor: 'foto' } }); }}
         onClose={() => setBreakGuide(null)}
       />
 

@@ -1,10 +1,15 @@
 /**
- * Nutrición Hub — Resumen del día + cards de navegación.
+ * Nutrición Hub — navegación del pilar, no tablero (OLA3 · Anexo D §1).
  *
- * Muestra macros del día, agua inline, estado de ayuno, glucosa,
- * y cards de navegación a sub-pantallas.
+ * loadData hacía 5 lecturas que computeAndSaveDailyScore YA hacía por su
+ * cuenta, y tres de ellas eran de datos con dueño externo: el agua vive en
+ * /hydration, el ayuno en /fasting y la glucosa en /glucose-log. Murieron.
+ * El agua se queda SOLO como insumo del score, tomada del desglose.
+ *
+ * Lo que queda: score del día, insight de ARGOS, chat del pilar y los accesos
+ * (Registrar · Cocina · Suplementos · Glucosa). Cero queries propias más allá
+ * del score.
  */
-import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, DeviceEventEmitter, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,10 +26,7 @@ import { HelpButton } from '@/src/components/HelpButton';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
-import { supabase } from '@/src/lib/supabase';
-import { warn as logWarn } from '@/src/lib/logger';
 import { useAuth } from '@/src/contexts/auth-context';
-import { getUserWaterGoal } from '@/src/services/hydration-service';
 import { useMacroMode } from '@/src/hooks/useMacroMode';
 import { useNutritionMode } from '@/src/hooks/useNutritionMode';
 import { isFeatureVisible } from '@/src/services/nutrition-mode-core';
@@ -41,27 +43,6 @@ import { ArgosMark } from '@/src/components/argos/ArgosMark';
 
 const BLUE = CATEGORY_COLORS.nutrition;
 
-interface DaySummary {
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  mealCount: number;
-  waterMl: number;
-  waterGoal: number;
-  isFasting: boolean;
-  fastHours: number;
-  lastGlucose: number | null;
-  glucoseContext: string | null;
-}
-
-const EMPTY: DaySummary = {
-  calories: 0, protein: 0, carbs: 0, fat: 0, mealCount: 0,
-  waterMl: 0, waterGoal: 2500,
-  isFasting: false, fastHours: 0,
-  lastGlucose: null, glucoseContext: null,
-};
-
 const MACRO_BANNER_KEY = '@atp/macro_banner_seen';
 
 export default function NutritionScreen() {
@@ -72,8 +53,6 @@ export default function NutritionScreen() {
   const { macroMode } = useMacroMode();
   // T1/T2 NUTRICIÓN: cards visibles según modo simple/completo (#52)
   const { mode } = useNutritionMode();
-  const [summary, setSummary] = useState<DaySummary>(EMPTY);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showMacroBanner, setShowMacroBanner] = useState(false);
   // T3: score del día (se recalcula al enfocar / day_changed) + trend 7d
@@ -104,47 +83,10 @@ export default function NutritionScreen() {
   }, []);
 
   const loadData = useCallback(async () => {
-    if (!user?.id) { setLoading(false); return; }
-    const today = getLocalToday();
-    try {
-      const [foodRes, waterRes, fastRes, glucoseRes, waterGoalMl] = await Promise.all([
-        supabase.from('food_logs').select('calories, protein_g, carbs_g, fat_g').eq('user_id', user.id).eq('date', today),
-        supabase.from('hydration_logs').select('total_ml').eq('user_id', user.id).eq('date', today).maybeSingle(),
-        supabase.from('fasting_logs').select('fast_start, target_hours').eq('user_id', user.id).eq('status', 'active').limit(1),
-        supabase.from('glucose_logs').select('value_mg_dl, context').eq('user_id', user.id).eq('date', today).order('time', { ascending: false }).limit(1),
-        getUserWaterGoal(user.id),
-      ]);
-
-      // MB-8 Track B (G6): supabase no lanza en 4xx — sin estos checks un error
-      // de esquema se pinta como "día en ceros", indistinguible de vacío real.
-      if (foodRes.error) logWarn('[nutrition-hub] food_logs failed:', foodRes.error.message);
-      if (waterRes.error) logWarn('[nutrition-hub] hydration_logs failed:', waterRes.error.message);
-      if (fastRes.error) logWarn('[nutrition-hub] fasting_logs failed:', fastRes.error.message);
-      if (glucoseRes.error) logWarn('[nutrition-hub] glucose_logs failed:', glucoseRes.error.message);
-
-      const foods = foodRes.data ?? [];
-      const activeFast = fastRes.data?.[0];
-      // ÍTEM 4: guard NaN. Si fast_start viene nulo/corrupto, fastElapsed
-      // sería NaN → fastHours: NaN → render "NaN h".
-      const fastStartMs = activeFast?.fast_start ? new Date(activeFast.fast_start).getTime() : NaN;
-      const fastElapsed = Number.isFinite(fastStartMs) ? (Date.now() - fastStartMs) / 3600000 : 0;
-
-      setSummary({
-        calories: foods.reduce((s: number, f: any) => s + (f.calories || 0), 0),
-        protein: foods.reduce((s: number, f: any) => s + (f.protein_g || 0), 0),
-        carbs: foods.reduce((s: number, f: any) => s + (f.carbs_g || 0), 0),
-        fat: foods.reduce((s: number, f: any) => s + (f.fat_g || 0), 0),
-        mealCount: foods.length,
-        waterMl: (waterRes.data as any)?.total_ml ?? 0,
-        waterGoal: waterGoalMl,
-        isFasting: !!activeFast,
-        fastHours: Math.floor(fastElapsed),
-        lastGlucose: glucoseRes.data?.[0]?.value_mg_dl ?? null,
-        glucoseContext: glucoseRes.data?.[0]?.context ?? null,
-      });
-    } catch (e) { logWarn('[nutrition-hub] loadData failed:', e); }
-
-    // T3: score funcional — calcula + persiste (daily_nutrition_scores) y trae trend
+    if (!user?.id) { setRefreshing(false); return; }
+    // T3: score funcional — calcula + persiste (daily_nutrition_scores) y trae
+    // trend. Es la ÚNICA lectura del hub: proteína y agua viajan dentro del
+    // desglose, así que no hay que volver a preguntarle a las tablas.
     try {
       const [breakdown, trend] = await Promise.all([
         computeAndSaveDailyScore(user.id),
@@ -153,8 +95,6 @@ export default function NutritionScreen() {
       setScoreBreakdown(breakdown);
       setScoreTrend(trend);
     } catch { /* score fail-soft */ }
-
-    setLoading(false);
     setRefreshing(false);
   }, [user?.id]);
 
@@ -202,8 +142,8 @@ export default function NutritionScreen() {
             breakdown={scoreBreakdown}
             mode={mode}
             trend={scoreTrend}
-            proteinG={summary.protein}
-            waterMl={summary.waterMl}
+            proteinG={scoreBreakdown?.proteinG ?? 0}
+            waterMl={scoreBreakdown?.waterMl ?? 0}
           />
         </Animated.View>
 
@@ -231,20 +171,19 @@ export default function NutritionScreen() {
           </Animated.View>
         )}
 
-        {/* T1: REGISTRAR COMIDA — 4 vías (foto | texto | código | guardados).
-            MB-28B P1: Código lee la etiqueta por su código de barras
-            (OpenFoodFacts); mismo camino de guardado que las otras tres. */}
+        {/* OLA3: las 3 vías son SENSORES del mismo flujo. "Guardados" ya no
+            es un botón: los frecuentes y los registros de hoy viven dentro de
+            /food-log, siempre visibles. */}
         <Animated.View entering={FadeInUp.delay(70).springify()} style={{ marginTop: Spacing.md }}>
           <View style={s.registerRow}>
-            {[
-              { label: 'Foto', icon: 'camera-outline' as const, route: '/food-scan' as const },
-              { label: 'Texto', icon: 'create-outline' as const, route: '/food-text' as const },
-              { label: 'Código', icon: 'barcode-outline' as const, route: '/food-barcode' as const },
-              { label: 'Guardados', icon: 'bookmark-outline' as const, route: '/food-register' as const },
-            ].map((cta) => (
+            {([
+              { label: 'Foto', icon: 'camera-outline', sensor: 'foto' },
+              { label: 'Texto', icon: 'create-outline', sensor: 'texto' },
+              { label: 'Código', icon: 'barcode-outline', sensor: 'codigo' },
+            ] as const).map((cta) => (
               <AnimatedPressable
                 key={cta.label}
-                onPress={() => { haptic.light(); router.push(cta.route); }}
+                onPress={() => { haptic.light(); router.push({ pathname: '/food-log', params: { sensor: cta.sensor } }); }}
                 style={s.registerBtn}
               >
                 <Ionicons name={cta.icon} size={18} color={BLUE} />
@@ -253,17 +192,6 @@ export default function NutritionScreen() {
             ))}
           </View>
         </Animated.View>
-
-        {/* T1: AYUNO — visible solo cuando hay ayuno activo (no duplica el
-            acceso de Hábitos; muestra estado vivo) */}
-        {summary.isFasting && isFeatureVisible('fasting', mode) && (
-          <Animated.View entering={FadeInUp.delay(75).springify()} style={{ marginTop: Spacing.sm }}>
-            {/* E.2: sin dato duro — las horas viven en /fasting */}
-            <NavCard icon="timer-outline" color="#fbbf24" title="Ayuno activo"
-              subtitle="En curso: toca para ver tu progreso"
-              onPress={() => { haptic.light(); router.push('/fasting'); }} />
-          </Animated.View>
-        )}
 
         {/* T6: insight post-meal de ARGOS (solo si el opt-in generó uno hoy) */}
         {insight && (
@@ -282,28 +210,12 @@ export default function NutritionScreen() {
             onPress={() => { haptic.light(); openArgosChat({ from: 'nutrition' }); }} />
         </Animated.View>
 
-        {/* ARGOS recetas */}
+        {/* Cocina: recetas, lista y preferencias bajo un techo. */}
         {isFeatureVisible('recipes', mode) && (
-        <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginTop: Spacing.sm }}>
-          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/argos-recipes'); }}>
-            <View style={{
-              backgroundColor: 'rgba(56,189,248,0.06)', borderRadius: 16, padding: 18, marginBottom: 4,
-              borderWidth: 1, borderColor: 'rgba(56,189,248,0.12)',
-              flexDirection: 'row', alignItems: 'center', gap: 14,
-            }}>
-              <View style={{
-                width: 40, height: 40, borderRadius: 20,
-                backgroundColor: 'rgba(56,189,248,0.12)', justifyContent: 'center', alignItems: 'center',
-              }}>
-                <ArgosMark size={22} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <EliteText style={{ color: '#38bdf8', fontSize: 14, fontWeight: '700' }}>Recetas + Lista de super</EliteText>
-                <EliteText style={{ color: '#999', fontSize: 12 }}>ARGOS cocina según tus objetivos</EliteText>
-              </View>
-              <Ionicons name="sparkles-outline" size={18} color="#38bdf8" />
-            </View>
-          </AnimatedPressable>
+        <Animated.View entering={FadeInUp.delay(90).springify()} style={{ marginTop: Spacing.sm }}>
+          <NavCard icon="basket-outline" color="#38bdf8" title="Cocina"
+            subtitle="Tus recetas, tu lista del súper y tus preferencias"
+            onPress={() => { haptic.light(); router.push('/cocina'); }} />
         </Animated.View>
         )}
 
@@ -316,24 +228,10 @@ export default function NutritionScreen() {
           </Animated.View>
           )}
 
-          {isFeatureVisible('recipes', mode) && (
-          <Animated.View entering={FadeInUp.delay(120).springify()}>
-            <NavCard icon="bookmark-outline" color="#fbbf24" title="Mis recetas" subtitle="Guarda comidas frecuentes para reusar"
-              onPress={() => { haptic.light(); router.push('/my-recipes'); }} />
-          </Animated.View>
-          )}
-
-          {/* E-4 (MB-12): la ruta existía sin enlace — y argos-recipes promete
-              cruzar tus ALERGIAS, que solo se capturan aquí. */}
-          <Animated.View entering={FadeInUp.delay(125).springify()}>
-            <NavCard icon="options-outline" color="#60a5fa" title="Preferencias de comida"
-              subtitle="Alergias, estilo de dieta y lo que no comes"
-              onPress={() => { haptic.light(); router.push('/food-preferences'); }} />
-          </Animated.View>
-
-          {/* Nu1: Ayuno e Hidratación se quitaron de Nutrición — viven en Hábitos → Mente
-              (/fasting y /hydration). Evita duplicar el mismo acceso en dos pilares.
-              T1: la card de arriba solo aparece con ayuno ACTIVO (estado vivo). */}
+          {/* Nu1 + OLA3: Ayuno, Hidratación y Glucosa tienen dueño fuera del
+              pilar (/fasting, /hydration, /glucose-log). El hub solo enlaza;
+              ya no lee sus tablas. Mis recetas y Preferencias son pestañas de
+              /cocina y dejaron de tener card propia. */}
 
           {isFeatureVisible('glucose', mode) && (
           <Animated.View entering={FadeInUp.delay(180).springify()}>
@@ -345,18 +243,14 @@ export default function NutritionScreen() {
           )}
 
           {isFeatureVisible('scanner', mode) && (
-          <>
           <Animated.View entering={FadeInUp.delay(200).springify()}>
-            <NavCard icon="barcode-outline" color="#a8e02a" title="Escanear etiqueta" subtitle="Foto de producto → aditivos y calidad"
-              onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'label' } }); }} />
+            {/* Etiqueta es sub-modo del sensor foto: sin él se pierden
+                LABEL_CONTEXT y cleanliness_score. */}
+            <NavCard icon="pricetag-outline" color="#a8e02a" title="Escanear etiqueta" subtitle="Foto de producto → aditivos y calidad"
+              onPress={() => { haptic.light(); router.push({ pathname: '/food-log', params: { sensor: 'foto', intent: 'etiqueta' } }); }} />
           </Animated.View>
-
-          <Animated.View entering={FadeInUp.delay(220).springify()}>
-            <NavCard icon="medical-outline" color="#fbbf24" title="Evaluar suplemento" subtitle="Evalúa calidad de formulación"
-              onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'supplement' } }); }} />
-          </Animated.View>
-          </>
           )}
+          {/* "Evaluar suplemento" se mudó a /supplements: una tabla, un dueño. */}
         </View>
 
         {/* B-5 (MB-12): las macros del pilar son estimación de IA */}

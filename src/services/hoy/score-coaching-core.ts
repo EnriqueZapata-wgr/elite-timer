@@ -29,7 +29,7 @@ export const COACHING_ROUTES: Record<string, string> = {
   strength: '/fitness-hub',
   steps: '/fitness-hub',
   // Cuantitativos
-  protein: '/food-register',
+  protein: '/food-log',
   water: '/hydration',
   sleep: '/sleep',
 };

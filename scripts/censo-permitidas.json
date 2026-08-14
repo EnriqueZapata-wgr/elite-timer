@@ -16,6 +16,14 @@
     "/cardio-import": "Redirect legacy (Ola 2 Fitness PR3) a /log-cardio?fase=importar: el import es fase de la casa del cardio. Solo deep links y OTA viejos.",
     "/fitness-hiit": "Redirect legacy (Ola 2 Fitness PR3) a /routine-generator?puerta=intervalos: la puerta INTERVALOS del generador. Solo deep links y OTA viejos.",
     "/log-exercise": "Redirect legacy (Ola 2 Fitness PR3) a /log-strength (conserva ?exerciseId=). Solo deep links y OTA viejos.",
-    "/execution": "Redirect legacy (Ola 2 Fitness PR3) a /session?routine= (sin rutina cae a /fitness-hub): execution murió, su interfaz es TimerModeRunner dentro de /session. Solo deep links y OTA viejos."
+    "/execution": "Redirect legacy (Ola 2 Fitness PR3) a /session?routine= (sin rutina cae a /fitness-hub): execution murió, su interfaz es TimerModeRunner dentro de /session. Solo deep links y OTA viejos.",
+    "/food-text": "Redirect legacy (OLA3 nutrición) a /food-log?sensor=texto, conservando ?mealType=. El sensor TEXTO es un modo de la captura unificada. Solo deep links y OTA viejos.",
+    "/food-scan": "Redirect legacy (OLA3 nutrición) a /food-log?sensor=foto; ?mode=label pasa a &intent=etiqueta y ?mode=supplement a /supplements?capture=foto. Solo deep links y OTA viejos.",
+    "/food-barcode": "Redirect legacy (OLA3 nutrición) a /food-log?sensor=codigo. El sensor CÓDIGO es un modo de la captura unificada. Solo deep links y OTA viejos.",
+    "/food-register": "Redirect legacy (OLA3 nutrición) a /food-log, conservando ?mealType=. Elegir tipo de comida dejó de ser un paso previo: es una barra persistente dentro de la captura. Solo deep links y OTA viejos.",
+    "/my-recipes": "Redirect legacy (OLA3 nutrición) a /cocina?tab=recetas: la pestaña dueña de user_recipes. Solo deep links y OTA viejos.",
+    "/argos-recipes": "Redirect legacy (OLA3 nutrición) a /cocina?tab=recetas: el generador es parte de esa pestaña. Solo deep links y OTA viejos.",
+    "/lista-compra": "Redirect legacy (OLA3 nutrición) a /cocina?tab=lista: la pestaña dueña única de shopping_list_items. Solo deep links y OTA viejos.",
+    "/food-preferences": "Redirect legacy (OLA3 nutrición) a /cocina?tab=preferencias, al lado de su único consumidor (el generador de recetas). Solo deep links y OTA viejos."
   }
 }
