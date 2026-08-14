@@ -25,7 +25,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useCycleGate } from '@/src/hooks/use-cycle-gate';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { TEXT_COLORS, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { REPORT_DOMAINS } from '@/src/services/reports/report-domain-core';
 import {
