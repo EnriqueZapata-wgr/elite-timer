@@ -46,6 +46,8 @@ const FUNCIONALES: Assessment[] = ALL_FUNCTIONAL_QUIZZES.map((q) => ({
     { effect: 'electron', source: 'functional_quiz' },
     { effect: 'emit', event: 'electrons_changed' },
   ],
+  // Pieza 3b: el motor ya los corre.
+  live: true,
   route: `/tests/q/${q.id}`,
   legacyRoutes: [`/functional-quiz?quiz_id=${q.id}`],
 }));
@@ -111,6 +113,7 @@ const CRONOTIPO: Assessment = {
   },
   result: { kind: 'route', route: '/tests/resultado/cronotipo' },
   onComplete: [{ effect: 'emit', event: 'chronotype_changed' }],
+  live: true,
   route: '/tests/q/cronotipo',
   legacyRoutes: ['/quiz/chronotype', '/edad-atp/tests/chronotype', '/my-chronotype'],
 };
@@ -142,6 +145,7 @@ const LIFESTYLE: Assessment = {
   },
   result: { kind: 'inline' },
   onComplete: [{ effect: 'protocols' }],
+  live: true,
   route: '/tests/q/db-lifestyle_assessment',
   legacyRoutes: ['/quiz-take?quiz_id=lifestyle_assessment'],
 };
@@ -175,6 +179,7 @@ const MAESTRO: Assessment = {
   },
   result: { kind: 'inline' },
   onComplete: [{ effect: 'emit', event: 'master_quiz_changed' }],
+  live: true,
   route: '/tests/q/maestro',
   legacyRoutes: ['/salud/cuestionario-maestro'],
 };

@@ -13,7 +13,7 @@
  * Módulo PURO: sin supabase, sin react. Los scorers de quiz-engine-service y
  * quiz-service hoy no tienen ninguna prueba; estos sí.
  */
-import type { InputType, QuizOption } from '@/src/constants/master-quiz-bank';
+import type { InputType, QuizOption, MasterQuizQuestion } from '@/src/constants/master-quiz-bank';
 import type { FunctionalQuiz, ResultInsight } from '@/src/constants/functional-quizzes';
 
 /**
@@ -30,6 +30,17 @@ export interface UnifiedQuestion {
   /** El flash "por qué importa" de los funcionales. */
   why?: string;
   allowPreferNot?: boolean;
+  /**
+   * Lo que QuestionInput necesita para pintar escala, número y multi.
+   * Viajan aquí porque son de RENDER, no de contenido: sin ellos el banco
+   * maestro perdía sus escalas visuales al pasar por el adapter.
+   */
+  min?: number;
+  max?: number;
+  unit?: string;
+  scaleLabels?: [string, string];
+  multiHelper?: boolean;
+  placeholder?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -190,9 +201,7 @@ export function scoreSumMax(
  * skipWhen. El motor lo consume tal cual; esta función solo estrecha la vista
  * a lo que el widget de captura necesita.
  */
-export function fromMasterQuiz(
-  questions: { code: string; text: string; type: InputType; options?: QuizOption[]; why?: string; allowPreferNot?: boolean }[],
-): UnifiedQuestion[] {
+export function fromMasterQuiz(questions: MasterQuizQuestion[]): UnifiedQuestion[] {
   return questions.map((q) => ({
     code: q.code,
     text: q.text,
@@ -200,5 +209,11 @@ export function fromMasterQuiz(
     options: q.options,
     why: q.why,
     allowPreferNot: q.allowPreferNot,
+    min: q.min,
+    max: q.max,
+    unit: q.unit,
+    scaleLabels: q.scaleLabels,
+    multiHelper: q.multiHelper,
+    placeholder: q.placeholder,
   }));
 }
