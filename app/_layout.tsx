@@ -323,6 +323,10 @@ function RootLayout() {
                 <Stack.Screen name="strength-session" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
                 <Stack.Screen name="log-cardio" options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }} />
                 <Stack.Screen name="reports" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* OLA1 R-0: cada reporte tiene su pantalla. Siempre se empuja
+                    (nunca replace) para que el back regrese al origen: al hub
+                    si viniste del hub, al pilar si viniste del pilar. */}
+                <Stack.Screen name="reports/[dominio]" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Batch 2 (#15/#8): pantalla propia de Sueño + vista Mi Cronotipo */}
                 <Stack.Screen name="sleep" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* MB-30A: sesión nocturna — sin gesto de regreso (una manga dormida no debe matar la alarma) */}

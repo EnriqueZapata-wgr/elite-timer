@@ -35,8 +35,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/centro/index.tsx::sparkles-outline',
   'app/comunidad/amigos.tsx::pulse-outline',
   'app/comunidad/perfil/[userId].tsx::hourglass-outline',
-  'app/cycle-charts.tsx::analytics-outline',
-  'app/cycle-history.tsx::calendar-outline',
   'app/cycle.tsx::analytics-outline',
   'app/cycle.tsx::calendar-outline',
   'app/cycle.tsx::heart-circle-outline',
@@ -60,16 +58,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/edad-atp/lab-confirmation.tsx::calendar-outline',
   'app/edad-atp/lab-confirmation.tsx::document-outline',
   'app/edad-atp/lab-confirmation.tsx::hourglass-outline',
-  'app/emotion-history.tsx::analytics-outline',
-  'app/emotion-history.tsx::barbell-outline',
-  'app/emotion-history.tsx::calendar-outline',
-  'app/emotion-history.tsx::moon-outline',
-  'app/emotion-history.tsx::pulse-outline',
-  'app/emotion-history.tsx::sunny-outline',
-  'app/emotion-history.tsx::timer-outline',
-  'app/emotion-profile.tsx::calendar-outline',
-  'app/emotion-profile.tsx::hourglass-outline',
-  'app/emotion-profile.tsx::pulse-outline',
   'app/emotions.tsx::pulse-outline',
   'app/exercise-detail.tsx::barbell',
   'app/exercise-library.tsx::barbell-outline',
@@ -98,7 +86,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   // de Mis hábitos — chrome de estado, no lanzador de función del registro.
   'app/hoy-habitos.tsx::moon-outline',
   'app/hoy-habitos.tsx::ribbon-outline',
-  'app/journal-history.tsx::book-outline',
   'app/journal.tsx::book-outline',
   'app/ketones-log.tsx::moon-outline',
   'app/ketones-log.tsx::restaurant-outline',
@@ -132,15 +119,10 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/register.tsx::eye-outline',
   'app/reports.tsx::analytics-outline',
   'app/reports.tsx::barbell-outline',
-  'app/reports.tsx::calendar-outline',
   // MB-29 P1: header de la card "Para tu consulta" — chrome de sección en su
   // propio dominio (reportes), no un lanzador dibujando una función.
   'app/reports.tsx::document-text-outline',
   'app/reports.tsx::eye-outline',
-  'app/reports.tsx::flower-outline',
-  'app/reports.tsx::restaurant-outline',
-  'app/reports.tsx::timer-outline',
-  'app/reports.tsx::water-outline',
   'app/routine-generator.tsx::hourglass-outline',
   'app/salud/intervenciones/index.tsx::sparkles-outline',
   'app/salud/mi-expediente/index.tsx::document-text-outline',
@@ -296,6 +278,37 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/services/onboarding-v2-core.ts::barbell-outline',
   'src/services/onboarding-v2-core.ts::body-outline',
   'src/services/onboarding-v2-core.ts::flower-outline',
+  // OLA1 R-2: el historial emocional y el perfil se fusionaron en el dominio
+  // emociones. Son los MISMOS usos de antes (los iconos de correlacion, los de
+  // patrones y los del perfil), en un solo archivo: por eso dos llegan x2.
+  // Dibujan contenido propio del dominio, no lanzadores.
+  'src/components/reports/domains/emociones.tsx::analytics-outline',
+  'src/components/reports/domains/emociones.tsx::barbell-outline',
+  'src/components/reports/domains/emociones.tsx::calendar-outline::x2',
+  'src/components/reports/domains/emociones.tsx::hourglass-outline',
+  'src/components/reports/domains/emociones.tsx::moon-outline',
+  'src/components/reports/domains/emociones.tsx::pulse-outline::x2',
+  'src/components/reports/domains/emociones.tsx::sunny-outline',
+  'src/components/reports/domains/emociones.tsx::timer-outline',
+  // OLA1 R-5: el flame-outline del encabezado "racha del protocolo". Es
+  // contenido del dominio adherencia (una racha, dibujada donde vive), no un
+  // lanzador de funcion del registro.
+  'src/components/reports/domains/adherencia.tsx::flame-outline',
+  // OLA1 R-3: los dos glifos de las pantallas de ciclo, ya dentro del dominio.
+  // Contenido propio (la grafica y la lista de ciclos), no lanzadores.
+  'src/components/reports/domains/ciclo.tsx::analytics-outline',
+  'src/components/reports/domains/ciclo.tsx::calendar-outline',
+  // OLA1 R-0/R-1: REPORT_DOMAINS es el registro de los reportes por dominio y
+  // ahi vive el icono de cada uno, que antes estaba suelto en app/reports.tsx.
+  // No dibuja: es el dato que el hub y la pantalla del dominio leen para no
+  // elegir cada uno el suyo.
+  'src/services/reports/report-domain-core.ts::book-outline',
+  'src/services/reports/report-domain-core.ts::calendar-outline',
+  'src/services/reports/report-domain-core.ts::flower-outline',
+  'src/services/reports/report-domain-core.ts::grid-outline',
+  'src/services/reports/report-domain-core.ts::restaurant-outline',
+  'src/services/reports/report-domain-core.ts::timer-outline',
+  'src/services/reports/report-domain-core.ts::water-outline',
   'src/services/salud/ketones-source-core.ts::cloud-outline',
   'src/services/salud/ketones-source-core.ts::flask-outline',
   'src/services/salud/ketones-source-core.ts::water-outline',

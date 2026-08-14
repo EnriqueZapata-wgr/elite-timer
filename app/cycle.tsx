@@ -774,8 +774,8 @@ export default function CycleScreen() {
           <SectionTitle style={{ marginTop: Spacing.lg }}>HERRAMIENTAS</SectionTitle>
           <View style={st.navGrid}>
             {([
-              { route: '/cycle-charts', icon: 'analytics-outline', title: 'Gráficas', sub: 'Tendencias y patrones' },
-              { route: '/cycle-history', icon: 'calendar-outline', title: 'Historial', sub: 'Ciclos anteriores' },
+              { route: '/reports/ciclo?tab=graficas', icon: 'analytics-outline', title: 'Gráficas', sub: 'Tendencias y patrones' },
+              { route: '/reports/ciclo?tab=ciclos', icon: 'calendar-outline', title: 'Historial', sub: 'Ciclos anteriores' },
               { route: '/cycle-settings', icon: 'settings-outline', title: 'Ajustes', sub: 'Duración y modo' },
             ] as const).map(n => (
               <AnimatedPressable

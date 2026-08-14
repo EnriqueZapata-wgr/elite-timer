@@ -98,7 +98,10 @@ describe('las nueve cards de habits-portal', () => {
     // La deuda de esta card era lo que SOLO vivía tras el hub: las rachas y
     // medallas de /mente/progreso. Eso es lo que tiene que seguir teniendo
     // puerta, y hoy la tiene como la app Rachas.
-    { card: 'MENTE', route: '/mente/progreso' },
+    // OLA1 R-5: esa pantalla se absorbió en /reports/adherencia (las rachas
+    // son adherencia, no contenido de Mente). Lo que este candado cuida es que
+    // la card NO se quede sin puerta, y la ruta cambió de casa, no de dueño.
+    { card: 'MENTE', route: '/reports/adherencia?tab=rachas' },
     { card: 'CICLO', route: '/cycle' },
     { card: 'HIDRATACIÓN', route: '/hydration' },
     { card: 'ATP SOL', route: '/solar' },

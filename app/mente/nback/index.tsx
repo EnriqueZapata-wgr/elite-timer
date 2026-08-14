@@ -223,7 +223,7 @@ export default function NBackHomeScreen() {
           <Animated.View entering={FadeInUp.delay(180).springify()} style={s.linksRow}>
             <AnimatedPressable
               style={[s.linkBtn, cardSurf]}
-              onPress={() => { haptic.light(); router.push('/mente/nback/stats'); }}
+              onPress={() => { haptic.light(); router.push('/reports/nback'); }}
             >
               <Ionicons name="stats-chart-outline" size={16} color={t.texto} />
               <EliteText style={[s.linkText, priTxt]}>Estadísticas</EliteText>

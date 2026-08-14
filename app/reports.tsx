@@ -6,10 +6,15 @@
  * MB-11 C (SPEC Zero→ATP): toggle Semana/Mes/Año, calendario con puntos por
  * métrica, barras meta-cumplida, stats de identidad y secciones
  * personalizables (reordenar + prender/apagar, @atp/reports_sections).
+ *
+ * OLA1 R-0: es el hub maestro. Nutrición, hidratación, ayuno, mente y
+ * electrones ya no pintan aquí su reporte completo: son tarjetas-resumen que
+ * empujan a /reports/<dominio>, que es LA misma pantalla a la que se llega
+ * desde el pilar. Lo demás sigue igual.
  */
 import { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,6 +27,20 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { SimpleBarChart } from '@/src/components/charts/SimpleCharts';
 import { AdherenceCalendar } from '@/src/components/reports/AdherenceCalendar';
+// OLA1 R-0: las cifras las pinta un solo componente por dominio, aquí en
+// variante resumen y en /reports/<dominio> en variante completo.
+import { SectionHeader, Stat, StatsRow } from '@/src/components/reports/ReportStats';
+import { NutricionContent } from '@/src/components/reports/domains/nutricion';
+import { HidratacionContent } from '@/src/components/reports/domains/hidratacion';
+import { AyunoContent } from '@/src/components/reports/domains/ayuno';
+import { MenteContent } from '@/src/components/reports/domains/mente';
+import { EconomiaContent } from '@/src/components/reports/domains/economia';
+import { JournalResumen } from '@/src/components/reports/domains/journal';
+import { EmocionesResumen } from '@/src/components/reports/domains/emociones';
+import { CicloResumen } from '@/src/components/reports/domains/ciclo';
+import { NbackResumen } from '@/src/components/reports/domains/nback';
+import { AdherenciaResumen } from '@/src/components/reports/domains/adherencia';
+import { REPORT_DOMAINS, type ReportDomainKey } from '@/src/services/reports/report-domain-core';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { PILLAR_GRADIENTS, ATP_BRAND, TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
@@ -47,10 +66,13 @@ import {
   type ElectronReport, type GlucoseReport, type MindReport, type CycleReport,
   type IdentityStats,
 } from '@/src/services/reports-service';
+// OLA1 R-4: una sola fila (nback_user_state) para que la tarjeta del hub diga
+// cifras de verdad en vez de ser una puerta muda.
+import { fetchNBackState, type NBackUserState } from '@/src/services/nback-service';
 
 const LIME = '#a8e02a';
-const BLUE = '#38bdf8';
-const AMBER = '#fbbf24';
+// OLA1 R-0: el azul de nutrición y el ámbar de ayuno se fueron al registro de
+// dominios; aquí solo quedan los colores de las secciones que no navegan.
 const ORANGE = '#fb923c';
 
 type PeriodLabel = 'Semana' | 'Mes' | 'Año' | 'Todo';
@@ -70,17 +92,41 @@ const KEY_TO_LABEL: Record<string, PeriodLabel> = {
 /** Secciones personalizables, en su orden default. */
 const SECTION_KEYS = [
   'calendario', 'electrones', 'nutricion', 'hidratacion', 'ayuno',
-  'ejercicio', 'glucosa', 'compliance', 'mente', 'ciclo',
+  'ejercicio', 'glucosa', 'compliance', 'mente', 'journal', 'emociones',
+  'nback', 'ciclo',
 ] as const;
 type SectionKey = typeof SECTION_KEYS[number];
 
 const SECTION_NAMES: Record<SectionKey, string> = {
   calendario: 'Calendario', electrones: 'Electrones', nutricion: 'Nutrición',
   hidratacion: 'Hidratación', ayuno: 'Ayuno', ejercicio: 'Ejercicio',
-  glucosa: 'Glucosa', compliance: 'Compliance', mente: 'Mente', ciclo: 'Ciclo',
+  glucosa: 'Glucosa', compliance: 'Compliance', mente: 'Mente',
+  journal: 'Journal', emociones: 'Emociones', nback: 'N-Back', ciclo: 'Ciclo',
 };
 
 const PREFS_KEY = '@atp/reports_sections';
+
+/**
+ * OLA1 R-0: qué sección del hub lleva a qué reporte. Las llaves de sección NO
+ * se renombran: la preferencia guardada de la gente dice 'electrones', y
+ * cambiarla les borraría el orden que ya eligieron.
+ *
+ * Apagar una sección oculta SU TARJETA, nada más. La ruta /reports/<dominio>
+ * sigue viva: si entras desde el pilar, el reporte abre y el atrás te regresa
+ * ahí aunque en el hub lo tengas apagado.
+ */
+const SECTION_TO_DOMAIN: Partial<Record<SectionKey, ReportDomainKey>> = {
+  nutricion: 'nutricion',
+  hidratacion: 'hidratacion',
+  ayuno: 'ayuno',
+  mente: 'mente',
+  journal: 'journal',
+  emociones: 'emociones',
+  ciclo: 'ciclo',
+  nback: 'nback',
+  compliance: 'adherencia',
+  electrones: 'economia',
+};
 
 export default function ReportsScreen() {
   const params = useLocalSearchParams<{ period?: string }>();
@@ -103,6 +149,7 @@ export default function ReportsScreen() {
   const [mind, setMind] = useState<MindReport>({ breathingSessions: 0, meditationSessions: 0, totalMinutes: 0, journalEntries: 0, checkins: 0 });
   const [cycle, setCycle] = useState<CycleReport>({ periodDays: 0, avgEnergy: 0, avgMood: 0, logsCount: 0 });
   const [identity, setIdentity] = useState<IdentityStats | null>(null);
+  const [nback, setNback] = useState<NBackUserState | null>(null);
   const [loading, setLoading] = useState(true);
 
   // MB-29 P1 (H3): el reporte para el médico — rango elegible + PDF.
@@ -168,12 +215,14 @@ export default function ReportsScreen() {
       getMindReport(period),
       getCycleReport(period),
       getIdentityStats(),
-    ]).then(([el, nu, hy, fa, ex, gl, co, mi, cy, id]) => {
+      // Si truena, la tarjeta de N-Back no aparece. No tumba el hub entero.
+      user?.id ? fetchNBackState(user.id).catch(() => null) : Promise.resolve(null),
+    ]).then(([el, nu, hy, fa, ex, gl, co, mi, cy, id, nb]) => {
       setElectrons(el); setNutrition(nu); setHydration(hy);
       setFasting(fa); setExercise(ex); setGlucose(gl); setCompliance(co);
-      setMind(mi); setCycle(cy); setIdentity(id);
+      setMind(mi); setCycle(cy); setIdentity(id); setNback(nb);
     }).finally(() => setLoading(false));
-  }, [period]));
+  }, [period, user?.id]));
 
   // Flags del mes visible (independiente del período de las gráficas).
   useEffect(() => {
@@ -201,97 +250,103 @@ export default function ReportsScreen() {
         />
       </GradientCard>
     ),
+    // OLA1 R-0: estas cinco pasan de contenido a puerta. La gráfica completa
+    // y el export viven en /reports/<dominio>; aquí queda el resumen.
     electrones: () => (
-      <GradientCard gradient={{ start: 'rgba(168,224,42,0.10)', end: 'rgba(168,224,42,0.02)' }}>
-        <SectionHeader icon="flash" color={LIME} title="ELECTRONES" />
-        <View style={s.statsRow}>
-          <Stat value={`${electrons.avgPerDay} ⚡`} label="promedio/día" />
-          <Stat value={`${electrons.total} ⚡`} label="total" />
-          <Stat value={`${electrons.bestDay} ⚡`} label="mejor día" />
-        </View>
-        {electrons.daily.length > 0 && <SimpleBarChart data={electrons.daily} color={LIME} />}
-      </GradientCard>
+      <DomainCard domain="economia" gradient={{ start: 'rgba(168,224,42,0.10)', end: 'rgba(168,224,42,0.02)' }} period={period}>
+        <EconomiaContent data={{ electrons, movements: [], truncated: false }} variant="resumen" />
+      </DomainCard>
     ),
     nutricion: () => (
-      <GradientCard gradient={PILLAR_GRADIENTS.nutrition}>
-        <SectionHeader icon="restaurant-outline" color={BLUE} title="NUTRICIÓN" />
-        <View style={s.statsRow}>
-          <Stat value={`${nutrition.avgCalories}`} label="kcal/día" />
-          <Stat value={`${nutrition.avgProtein}g`} label="proteína" />
-        </View>
-        {nutrition.daily.length > 0 && <SimpleBarChart data={nutrition.daily} color={BLUE} target={2000} />}
-      </GradientCard>
+      <DomainCard domain="nutricion" gradient={PILLAR_GRADIENTS.nutrition} period={period}>
+        <NutricionContent data={nutrition} variant="resumen" />
+      </DomainCard>
     ),
     hidratacion: () => (
-      <GradientCard gradient={{ start: 'rgba(96,165,250,0.10)', end: 'rgba(96,165,250,0.02)' }}>
-        <SectionHeader icon="water-outline" color="#60a5fa" title="HIDRATACIÓN" />
-        <Stat value={hydration.avgMl > 0 ? `${(hydration.avgMl / 1000).toFixed(1)}L/día` : '—'} label="promedio" />
-        {/* MB-11 C: barra a color = meta cumplida, gris = no llegó */}
-        {hydration.daily.length > 0 && <SimpleBarChart data={hydration.daily} color="#60a5fa" target={2500} colorByTarget />}
-      </GradientCard>
+      <DomainCard domain="hidratacion" gradient={{ start: 'rgba(96,165,250,0.10)', end: 'rgba(96,165,250,0.02)' }} period={period}>
+        <HidratacionContent data={hydration} variant="resumen" />
+      </DomainCard>
     ),
     ayuno: () => (
-      <GradientCard gradient={{ start: 'rgba(251,191,36,0.10)', end: 'rgba(251,191,36,0.02)' }}>
-        <SectionHeader icon="timer-outline" color={AMBER} title="AYUNO" />
-        <View style={s.statsRow}>
-          <Stat value={`${fasting.totalFasts}`} label="sesiones" />
-          <Stat value={fasting.avgHours > 0 ? `${fasting.avgHours}h` : '—'} label="promedio" />
-          <Stat value={fasting.longestFast > 0 ? `${fasting.longestFast}h` : '—'} label="más largo" />
-        </View>
-        {fasting.daily.some(d => d.value > 0) && <SimpleBarChart data={fasting.daily} color={AMBER} target={16} colorByTarget />}
-      </GradientCard>
+      <DomainCard domain="ayuno" gradient={{ start: 'rgba(251,191,36,0.10)', end: 'rgba(251,191,36,0.02)' }} period={period}>
+        <AyunoContent data={fasting} variant="resumen" />
+      </DomainCard>
     ),
     ejercicio: () => (
       <GradientCard gradient={PILLAR_GRADIENTS.fitness}>
         <SectionHeader icon="barbell-outline" color={LIME} title="EJERCICIO" />
-        <View style={s.statsRow}>
+        <StatsRow>
           <Stat value={`${exercise.sessionsPerWeek}`} label="sesiones/sem" />
           <Stat value={exercise.totalVolumeKg > 0 ? `${(exercise.totalVolumeKg / 1000).toFixed(1)}t` : '—'} label="volumen" />
           <Stat value={`${exercise.prsThisPeriod}`} label="PRs" />
           <Stat value={`${exercise.cardioSessions}`} label="cardio" />
-        </View>
+        </StatsRow>
       </GradientCard>
     ),
     glucosa: () => glucose.readings > 0 ? (
       <GradientCard gradient={{ start: 'rgba(251,146,60,0.10)', end: 'rgba(251,146,60,0.02)' }}>
         <SectionHeader icon="analytics-outline" color={ORANGE} title="GLUCOSA" />
-        <View style={s.statsRow}>
+        <StatsRow>
           <Stat value={glucose.avgFasting > 0 ? `${glucose.avgFasting}` : '—'} label="ayuno mg/dL" />
           <Stat value={glucose.avgPostMeal > 0 ? `${glucose.avgPostMeal}` : '—'} label="post-comida" />
           <Stat value={`${glucose.readings}`} label="lecturas" />
-        </View>
+        </StatsRow>
         {glucose.daily.length > 0 && <SimpleBarChart data={glucose.daily} color={ORANGE} />}
       </GradientCard>
     ) : null,
+    // OLA1 R-5: compliance era la cifra sin casa. Ahora es la puerta del
+    // dominio adherencia, donde ademas viven las rachas y las medallas. La
+    // llave de la seccion NO se renombra: la preferencia guardada de la gente
+    // dice 'compliance'.
     compliance: () => (
-      <GradientCard gradient={{ start: 'rgba(168,224,42,0.08)', end: 'rgba(168,224,42,0.02)' }}>
-        <SectionHeader icon="checkmark-done-outline" color={LIME} title="COMPLIANCE" />
-        <Stat value={compliance.avgPct > 0 ? `${compliance.avgPct}%` : '—'} label="promedio" />
-        {/* target 75 = ADHERENCE_THRESHOLD (adherence-service) */}
-        {compliance.daily.length > 0 && <SimpleBarChart data={compliance.daily} color={LIME} target={75} colorByTarget />}
-      </GradientCard>
+      <DomainCard domain="adherencia" gradient={{ start: 'rgba(168,224,42,0.08)', end: 'rgba(168,224,42,0.02)' }} period={period}>
+        <AdherenciaResumen avgPct={compliance.avgPct} streak={identity?.streakCurrent ?? null} />
+      </DomainCard>
     ),
-    mente: () => (mind.breathingSessions + mind.meditationSessions + mind.journalEntries) > 0 ? (
-      <GradientCard gradient={{ start: 'rgba(192,132,252,0.08)', end: 'rgba(192,132,252,0.02)' }}>
-        <SectionHeader icon="flower-outline" color="#c084fc" title="MENTE" />
-        <View style={s.statsRow}>
-          <Stat value={`${mind.breathingSessions}`} label="respiraciones" />
-          <Stat value={`${mind.meditationSessions}`} label="meditaciones" />
-          <Stat value={`${mind.totalMinutes}`} label="min totales" />
-          <Stat value={`${mind.journalEntries}`} label="journal" />
-        </View>
-      </GradientCard>
+    // Mente ya no se esconde en cero: la tarjeta es la puerta al reporte, y
+    // esconder la puerta dejaba el dominio inalcanzable desde el hub. El cero
+    // se dice, que es cierto, y adentro está el estado vacío con su copy.
+    mente: () => (
+      <DomainCard domain="mente" gradient={{ start: 'rgba(192,132,252,0.08)', end: 'rgba(192,132,252,0.02)' }} period={period}>
+        <MenteContent data={mind} variant="resumen" />
+      </DomainCard>
+    ),
+    // OLA1 R-1: el journal deja de ser una cifra dentro de mente y gana su
+    // puerta. La cifra es la MISMA de getMindReport: no se cuenta dos veces.
+    journal: () => (
+      <DomainCard domain="journal" gradient={{ start: 'rgba(167,139,250,0.10)', end: 'rgba(167,139,250,0.02)' }} period={period}>
+        <JournalResumen entries={mind.journalEntries} />
+      </DomainCard>
+    ),
+    // OLA1 R-2: las emociones dejan de vivir en dos pantallas colgadas del
+    // pilar y ganan su puerta aqui. La cifra sale de getMindReport, la misma
+    // que ya alimenta mente.
+    emociones: () => (
+      <DomainCard domain="emociones" gradient={{ start: 'rgba(129,140,248,0.10)', end: 'rgba(129,140,248,0.02)' }} period={period}>
+        <EmocionesResumen checkins={mind.checkins} />
+      </DomainCard>
+    ),
+    // OLA1 R-4: N-Back tenia sus estadisticas colgadas del juego y sin puerta
+    // desde reportes. En cero no se pinta: quien nunca jugo no necesita una
+    // tarjeta de ceros, y desde el juego se llega igual.
+    nback: () => nback && nback.sessions_total > 0 ? (
+      <DomainCard domain="nback" gradient={{ start: 'rgba(127,119,221,0.10)', end: 'rgba(127,119,221,0.02)' }} period={period}>
+        <NbackResumen rounds={nback.sessions_total} bestN={nback.best_n} />
+      </DomainCard>
     ) : null,
+    // OLA1 R-3: la tarjeta de ciclo pasa de cifra muda a puerta del dominio.
+    // Sigue escondida en cero: a diferencia de mente, aqui el cero puede
+    // significar "esta app no es para mi", y el guard del dominio ya decide
+    // quien entra. Quien tiene ciclo llega igual desde el pilar.
     ciclo: () => cycle.logsCount > 0 ? (
-      <GradientCard gradient={{ start: 'rgba(251,113,133,0.08)', end: 'rgba(251,113,133,0.02)' }}>
-        <SectionHeader icon="calendar-outline" color="#fb7185" title="CICLO" />
-        <View style={s.statsRow}>
-          <Stat value={`${cycle.periodDays}`} label="días periodo" />
-          {cycle.avgEnergy > 0 && <Stat value={`${cycle.avgEnergy}`} label="energía prom" />}
-          {cycle.avgMood > 0 && <Stat value={`${cycle.avgMood}`} label="humor prom" />}
-          <Stat value={`${cycle.logsCount}`} label="registros" />
-        </View>
-      </GradientCard>
+      <DomainCard domain="ciclo" gradient={{ start: 'rgba(251,113,133,0.08)', end: 'rgba(251,113,133,0.02)' }} period={period}>
+        <CicloResumen
+          periodDays={cycle.periodDays}
+          avgEnergy={cycle.avgEnergy}
+          avgMood={cycle.avgMood}
+          logsCount={cycle.logsCount}
+        />
+      </DomainCard>
     ) : null,
   };
 
@@ -318,13 +373,13 @@ export default function ReportsScreen() {
         <Animated.View entering={FadeInUp.delay(30).springify()} style={s.cardWrap}>
           <GradientCard gradient={{ start: 'rgba(26,188,156,0.10)', end: 'rgba(26,188,156,0.02)' }}>
             <SectionHeader icon="person-outline" color={ATP_BRAND.teal} title="IDENTIDAD" />
-            <View style={s.statsRow}>
+            <StatsRow>
               <Stat value={identity?.streakCurrent != null ? `${identity.streakCurrent}d` : '—'} label="racha" />
               <Stat value={identity?.streakLongest != null ? `${identity.streakLongest}d` : '—'} label="racha récord" />
               <Stat value={identity?.totalFasts != null ? `${identity.totalFasts}` : '—'} label="ayunos" />
               <Stat value={identity?.longestFastH != null && identity.longestFastH > 0 ? `${identity.longestFastH}h` : '—'} label="ayuno récord" />
               <Stat value={identity?.totalWorkouts != null ? `${identity.totalWorkouts}` : '—'} label="entrenos" />
-            </View>
+            </StatsRow>
             {identity != null && identity.totalFasts === 0 && identity.totalWorkouts === 0 && (
               <EliteText style={s.emptyHint}>
                 Tu historia empieza hoy: cada entreno y cada ayuno que registres se quedan aquí.
@@ -407,26 +462,37 @@ export default function ReportsScreen() {
   );
 }
 
-function SectionHeader({ icon, color, title }: { icon: string; color: string; title: string }) {
-  // El icono conserva su color de sección (identidad); el título sigue el tema.
+/**
+ * OLA1 R-0: la tarjeta de un dominio es una puerta. Se empuja con push y
+ * NUNCA con replace: así el atrás desde el reporte regresa al hub, igual que
+ * regresa al pilar cuando se entra desde el pilar. Es la misma pantalla.
+ *
+ * Se le pasa el periodo que el hub tiene en pantalla para que el reporte abra
+ * en el mismo rango que estabas viendo.
+ */
+function DomainCard({ domain, gradient, period, children }: {
+  domain: ReportDomainKey;
+  gradient: { start: string; end: string };
+  period: ReportPeriod;
+  children: ReactNode;
+}) {
   const t = useSurfaceTokens();
   const s = useMemo(() => makeStyles(t), [t]);
+  const accent = REPORT_DOMAINS[domain].accent;
   return (
-    <View style={s.sectionHeader}>
-      <Ionicons name={icon as any} size={20} color={color} />
-      <EliteText style={s.sectionTitle}>{title}</EliteText>
-    </View>
-  );
-}
-
-function Stat({ value, label }: { value: number | string; label: string }) {
-  const t = useSurfaceTokens();
-  const s = useMemo(() => makeStyles(t), [t]);
-  return (
-    <View style={s.stat}>
-      <EliteText style={s.statValue}>{value}</EliteText>
-      <EliteText style={s.statLabel}>{label}</EliteText>
-    </View>
+    <GradientCard
+      gradient={gradient}
+      onPress={() => {
+        haptic.light();
+        router.push({ pathname: '/reports/[dominio]', params: { dominio: domain, period } });
+      }}
+    >
+      {children}
+      <View style={s.domainCta}>
+        <EliteText style={[s.domainCtaText, { color: accent }]}>Ver reporte</EliteText>
+        <Ionicons name="chevron-forward" size={14} color={accent} />
+      </View>
+    </GradientCard>
   );
 }
 
@@ -458,11 +524,8 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   consultaCtaText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, color: t.textoSobreLima },
 
   cardWrap: { marginBottom: Spacing.md },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.sm },
-  sectionTitle: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: t.texto, letterSpacing: 1 },
 
-  statsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm, flexWrap: 'wrap' },
-  stat: { flex: 1, minWidth: 65 },
-  statValue: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, color: t.texto },
-  statLabel: { fontSize: 9, fontFamily: Fonts.semiBold, color: t.textoSecundario, letterSpacing: 1, marginTop: 2 },
+  // OLA1 R-0: el "ver reporte" al pie de las tarjetas navegables
+  domainCta: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
+  domainCtaText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 });

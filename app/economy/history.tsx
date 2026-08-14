@@ -14,50 +14,14 @@ import { haptic } from '@/src/utils/haptics';
 import { getElectronHistory } from '@/src/services/economy/electron-service';
 import { getProtonHistory } from '@/src/services/economy/proton-service';
 import { formatFull } from '@/src/services/economy/format';
+// OLA1 R-0: las etiquetas se fueron a un módulo puro — el reporte del dominio
+// economía nombra los movimientos igual que esta pantalla.
+import { humanizeKey } from '@/src/services/economy/tx-labels';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 type Tab = 'electrons' | 'protons';
-
-// E-1 (MB-12): el usuario no lee claves de base de datos — se traducen, y lo
-// que no esté en el mapa se limpia (snake_case → texto con espacios).
-const KEY_LABELS: Record<string, string> = {
-  // Tipos de movimiento H+
-  action_spent: 'Uso de ARGOS',
-  conversion: 'Conversión E- → H+',
-  boost: 'Boost Pro',
-  purchase: 'Recarga',
-  grant: 'Regalo ATP',
-  refund: 'Reembolso',
-  // Acciones de ARGOS
-  food_estimate_photo: 'Análisis de comida por foto',
-  food_estimate_text: 'Comida por texto',
-  recipe_generate: 'Receta ARGOS',
-  chat_message: 'Chat con ARGOS',
-  braverman_premium: 'Reporte Premium Braverman',
-  intervention_rationale: 'Explicación de protocolo',
-  // Razones E-
-  checkin: 'Check-in emocional',
-  checkin_emotional: 'Check-in emocional',
-  strength: 'Entrenamiento de fuerza',
-  cardio: 'Cardio',
-  fasting: 'Ayuno',
-  hydration: 'Hidratación',
-  nutrition: 'Nutrición',
-  meditation: 'Meditación',
-  breathing: 'Respiración',
-  journal: 'Journal',
-  nback: 'N-Back',
-  daily_bonus: 'Bono del día',
-};
-
-function humanizeKey(key: string | null | undefined): string {
-  if (!key) return 'Movimiento';
-  if (KEY_LABELS[key]) return KEY_LABELS[key];
-  const clean = key.replace(/_/g, ' ').trim();
-  return clean.charAt(0).toUpperCase() + clean.slice(1);
-}
 
 export default function HistoryScreen() {
   const { user } = useAuth();
