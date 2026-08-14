@@ -24,6 +24,20 @@
     "/my-recipes": "Redirect legacy (OLA3 nutrición) a /cocina?tab=recetas: la pestaña dueña de user_recipes. Solo deep links y OTA viejos.",
     "/argos-recipes": "Redirect legacy (OLA3 nutrición) a /cocina?tab=recetas: el generador es parte de esa pestaña. Solo deep links y OTA viejos.",
     "/lista-compra": "Redirect legacy (OLA3 nutrición) a /cocina?tab=lista: la pestaña dueña única de shopping_list_items. Solo deep links y OTA viejos.",
-    "/food-preferences": "Redirect legacy (OLA3 nutrición) a /cocina?tab=preferencias, al lado de su único consumidor (el generador de recetas). Solo deep links y OTA viejos."
+    "/food-preferences": "Redirect legacy (OLA3 nutrición) a /cocina?tab=preferencias, al lado de su único consumidor (el generador de recetas). Solo deep links y OTA viejos.",
+    "/edad-atp/test-plank": "Redirect legacy (Ola 4 Tests pieza 5) a /tests/run/plank: el cronómetro vive en el runner físico. Solo deep links y OTA viejos.",
+    "/edad-atp/test-bolt": "Redirect legacy (Ola 4 Tests pieza 5) a /tests/run/bolt: el cronómetro vive en el runner físico. Solo deep links y OTA viejos.",
+    "/edad-atp/test-old-man": "Redirect legacy (Ola 4 Tests pieza 5) a /tests/run/old-man: la captura vive en el runner físico. Solo deep links y OTA viejos.",
+    "/edad-atp/test-recovery-hr": "Redirect legacy (Ola 4 Tests pieza 5) a /tests/run/recovery-hr: la captura vive en el runner físico. Solo deep links y OTA viejos.",
+    "/edad-atp/cinematic-tests-index": "Redirect legacy (Ola 4 Tests pieza 5) a /tests: era uno de los seis hubs que enseñaban lo mismo. Solo deep links y OTA viejos.",
+    "/edad-atp/questionnaires/sueno": "SÍ tiene puerta: el hub /tests la abre desde el registry. El detector no la ve porque la ruta se arma con plantilla (`/edad-atp/questionnaires/${dominio}`) y él solo lee literales. Deja de ser huérfana el día que el motor absorba los cuestionarios de Edad ATP.",
+    "/edad-atp/questionnaires/metabolismo": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla.",
+    "/edad-atp/questionnaires/habitos": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla.",
+    "/edad-atp/questionnaires/cardiovascular": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla.",
+    "/edad-atp/questionnaires/inflamacion": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla.",
+    "/edad-atp/questionnaires/inmunidad": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla.",
+    "/edad-atp/questionnaires/renal-micronutrientes": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla.",
+    "/edad-atp/questionnaires/vitalidad": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla.",
+    "/edad-atp/questionnaires/sistema-hormonal": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla."
   }
 }

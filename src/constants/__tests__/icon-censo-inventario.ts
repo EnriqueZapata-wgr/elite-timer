@@ -52,8 +52,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/economy/admin.tsx::trophy-outline',
   'app/economy/shop.tsx::hourglass-outline',
   'app/edad-atp/biomarkers.tsx::document-text-outline',
-  'app/edad-atp/cinematic-tests-index.tsx::body-outline',
-  'app/edad-atp/cinematic-tests-index.tsx::cloud-outline',
   'app/edad-atp/index.tsx::barbell-outline',
   'app/edad-atp/index.tsx::document-text-outline',
   'app/edad-atp/index.tsx::flask-outline',
@@ -117,9 +115,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/mobility-assessment.tsx::body-outline',
   'app/mobility-assessment.tsx::leaf',
   'app/mobility-assessment.tsx::leaf-outline',
-  'app/my-chronotype.tsx::calendar-outline',
-  'app/my-chronotype.tsx::moon-outline',
-  'app/my-chronotype.tsx::sunny-outline',
   'app/my-health.tsx::body-outline',
   'app/my-health.tsx::document-outline',
   'app/my-health.tsx::flask-outline::x2',
@@ -134,11 +129,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/onboarding/v2/privacy.tsx::document-text-outline::x2',
   'app/progress.tsx::trophy-outline',
   'app/protocol-explorer.tsx::flask-outline',
-  'app/quiz/chronotype.tsx::barbell-outline',
-  'app/quiz/chronotype.tsx::moon-outline',
-  'app/quiz/chronotype.tsx::restaurant-outline',
-  'app/quiz/chronotype.tsx::sunny-outline',
-  'app/quizzes.tsx::clipboard-outline',
   'app/register.tsx::eye-outline',
   'app/reports.tsx::analytics-outline',
   'app/reports.tsx::barbell-outline',
@@ -159,9 +149,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/salud/mis-datos/index.tsx::flask-outline',
   'app/salud/mis-datos/index.tsx::pulse-outline',
   'app/salud/mis-datos/index.tsx::water-outline',
-  'app/salud/mis-evaluaciones/index.tsx::body-outline',
-  'app/salud/mis-evaluaciones/index.tsx::clipboard-outline',
-  'app/salud/mis-evaluaciones/index.tsx::sunny-outline',
   'app/settings.tsx::document-text-outline',
   'app/settings.tsx::pulse-outline',
   'app/settings/dev.tsx::analytics-outline',
@@ -314,4 +301,33 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/services/salud/ketones-source-core.ts::water-outline',
   'src/services/uv-service.ts::glasses-outline',
   'src/services/uv-service.ts::sunny-outline',
+  // ── OLA 4 · Tests (Anexo C) ───────────────────────────────────────────────
+  // El registry de evaluaciones declara el glifo de cada uno de los 37 tests.
+  // No pasan por <AppIcon> porque el set SVG no tiene glifo para ninguno: no
+  // hay 'plank' ni 'cronotipo' ni los 9 dominios de Edad ATP. Entran aquí a
+  // conciencia, que es la salida que el propio ratchet contempla. Si algún día
+  // el set los cubre, este bloque muere y el hub dibuja con nombres lógicos.
+  'src/constants/assessments/registry.ts::barbell-outline',
+  'src/constants/assessments/registry.ts::body-outline',
+  'src/constants/assessments/registry.ts::clipboard-outline',
+  'src/constants/assessments/registry.ts::cloud-outline',
+  'src/constants/assessments/registry.ts::flame-outline',
+  'src/constants/assessments/registry.ts::list-outline',
+  'src/constants/assessments/registry.ts::moon-outline',
+  'src/constants/assessments/registry.ts::pulse-outline',
+  'src/constants/assessments/registry.ts::sunny-outline',
+  'src/constants/assessments/registry.ts::water-outline',
+  // Los horarios del cronotipo: se mudaron de app/quiz/chronotype.tsx (hoy
+  // redirect) al componente del resultado. Mismo dibujo, otra casa.
+  'src/components/assessments/ChronotypeReveal.tsx::barbell-outline',
+  'src/components/assessments/ChronotypeReveal.tsx::moon-outline',
+  'src/components/assessments/ChronotypeReveal.tsx::restaurant-outline',
+  'src/components/assessments/ChronotypeReveal.tsx::sunny-outline',
+  // La vista del cronotipo guardado: se mudó de app/my-chronotype.tsx.
+  'app/tests/resultado/cronotipo.tsx::calendar-outline',
+  'app/tests/resultado/cronotipo.tsx::moon-outline',
+  'app/tests/resultado/cronotipo.tsx::sunny-outline',
+  // Deriva ajena que cazó el barrido: OLA0 QW-5 metió el espejo in-app de
+  // términos sin inventariar su glifo. Es un enlace a documento, chrome puro.
+  'app/settings/legal.tsx::reader-outline',
 ];

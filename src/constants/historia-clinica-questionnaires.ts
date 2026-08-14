@@ -150,7 +150,7 @@ export const HC_QUESTIONNAIRES: HCQuestionnaire[] = [
   {
     id: 'salud_bucal',
     title: 'Salud bucal',
-    blurb: 'Amalgamas, encías, bruxismo — clave en medicina funcional',
+    blurb: 'Amalgamas, encías y bruxismo: clave en medicina funcional',
     icon: 'happy-outline',
     color: '#60a5fa',
     questions: [

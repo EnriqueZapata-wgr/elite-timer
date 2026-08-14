@@ -17,15 +17,26 @@ const STATUS_LABELS: { value: ConditionStatus; label: string; color: string }[] 
   { value: 'resuelto', label: 'Resuelto', color: '#4ade80' },
 ];
 
+/**
+ * Lo único que este componente lee de una pregunta (OLA 4, pieza 3b).
+ * Se declara estructural para que el motor único de /tests/q/[id] pueda pasarle
+ * preguntas normalizadas de los otros 3 bancos. MasterQuizQuestion la satisface,
+ * así que el Cuestionario Maestro sigue llamándolo igual.
+ */
+export type QuestionShape = Pick<
+  MasterQuizQuestion,
+  'type' | 'options' | 'min' | 'max' | 'unit' | 'scaleLabels' | 'multiHelper' | 'placeholder'
+>;
+
 interface Props {
-  question: MasterQuizQuestion;
+  question: QuestionShape;
   value: unknown;
   onChange: (value: unknown) => void;
 }
 
 /** Los sub-inputs reciben la pregunta como `q` (menos verboso). */
 interface SubProps {
-  q: MasterQuizQuestion;
+  q: QuestionShape;
   value: unknown;
   onChange: (value: unknown) => void;
 }
