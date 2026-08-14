@@ -151,29 +151,32 @@ export default function FichaEmergenciaPantalla() {
                 </>
               ) : null}
 
-              {/* El QR lleva la ficha ADENTRO, no un link: sin red un link no
-                  sirve, y en urgencias no hay red. */}
+              {/* El QR lleva estos mismos campos ADENTRO, no un link: sin red
+                  un link no sirve, y en urgencias no hay red. No es el QR
+                  clínico: ese descarga la historia clínica en un hospital, vive
+                  dentro de la app y exige sesión (ver QrFicha). */}
               <Pressable
                 onPress={() => { haptic.light(); setVerQr((v) => !v); }}
                 style={s.qrBoton}
               >
                 <Ionicons name="qr-code-outline" size={20} color={TINTA} />
                 <EliteText style={s.qrBotonTexto}>
-                  {verQr ? 'Ocultar código' : 'Mostrar código para copiar la ficha'}
+                  {verQr ? 'Ocultar código' : 'Mostrar código para copiar estos datos'}
                 </EliteText>
               </Pressable>
               {verQr ? (
                 <View style={s.qrCaja}>
                   <QrFicha payload={qrPayload(card)} size={280} />
                   <EliteText style={s.gris}>
-                    El código trae la ficha completa. Se lee sin conexión.
+                    El código trae estos mismos datos y nada más. Se lee sin conexión.
                   </EliteText>
                 </View>
               ) : null}
 
               <EliteText style={s.pie}>
-                Datos capturados por la persona, sin validación clínica. Las intervenciones de un
-                protocolo ATP no son prescripción médica.
+                Esta es la ficha de emergencia, no el expediente clínico. Datos capturados por la
+                persona, sin validación clínica. Las intervenciones de un protocolo ATP no son
+                prescripción médica.
               </EliteText>
             </>
           ) : null}

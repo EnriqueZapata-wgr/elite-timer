@@ -120,6 +120,24 @@ export default function FichaEmergenciaScreen() {
           sin señal y sin iniciar sesión.
         </EliteText>
 
+        {/* El aviso va arriba y va visible, no en letra chica al final. La
+            persona tiene derecho a saber qué está publicando ANTES de
+            escribirlo, no después. */}
+        <View style={s.aviso}>
+          <Ionicons name="eye-outline" size={16} color={ROJO} />
+          <View style={{ flex: 1 }}>
+            <EliteText variant="caption" style={s.avisoTitulo}>
+              Esto se lee sin tu contraseña
+            </EliteText>
+            <EliteText variant="caption" style={s.avisoTexto}>
+              Es a propósito: quien te auxilie tiene que poder leerla en segundos, y su código se
+              puede imprimir para traerlo contigo. Por eso aquí solo va lo indispensable. Tu
+              historia clínica, tu medicación completa y tus datos de seguro no están en esta
+              ficha: viven en tu expediente, dentro de la app y con tu sesión.
+            </EliteText>
+          </View>
+        </View>
+
         {revisar ? (
           <View style={s.recordatorio}>
             <Ionicons name="time-outline" size={16} color={ROJO} />
@@ -362,6 +380,10 @@ export default function FichaEmergenciaScreen() {
             <EliteText variant="caption" style={s.salidaTexto}>PDF</EliteText>
           </AnimatedPressable>
         </View>
+        <EliteText variant="caption" style={s.ayuda}>
+          Modo pantalla es lo que le enseñas a quien te auxilia, y ahí está el código para
+          escanear. El PDF es la misma ficha en una hoja, para imprimirla y traerla contigo.
+        </EliteText>
 
         <EliteText variant="caption" style={s.disclaimer}>
           Datos capturados por ti, sin validación clínica. Las intervenciones de un protocolo ATP
@@ -486,6 +508,14 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   tenue: { color: t.textoTenue },
   ayuda: { color: t.textoTenue, lineHeight: 16, marginBottom: Spacing.xs },
   label: { color: t.textoSecundario, fontFamily: Fonts.semiBold, marginBottom: 4, marginTop: Spacing.xs },
+
+  aviso: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.xs,
+    borderWidth: 1, borderColor: ROJO + '55', backgroundColor: ROJO + '12',
+    borderRadius: Radius.md, padding: Spacing.sm, marginBottom: Spacing.sm,
+  },
+  avisoTitulo: { color: t.texto, fontFamily: Fonts.semiBold, marginBottom: 2 },
+  avisoTexto: { color: t.textoSecundario, lineHeight: 16 },
 
   recordatorio: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,

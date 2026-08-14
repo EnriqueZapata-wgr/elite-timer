@@ -1,10 +1,29 @@
 /**
- * QrFicha — pinta el QR de la ficha de emergencia.
+ * QrFicha — pinta el QR PÚBLICO de la ficha de emergencia.
  *
- * OLA6 PIEZA D. La matriz la calcula qr-core (puro, verificado contra un
- * generador de referencia); aquí solo se dibuja. Un único <Path> con todos los
- * módulos en vez de miles de <Rect>: una versión 20 tiene 9,409 módulos y
- * nueve mil vistas nativas no las quiere nadie.
+ * ─────────────────────────────────────────────────────────────────────────
+ * SON DOS CÓDIGOS DISTINTOS. No los juntes.
+ *
+ * 1) QR PÚBLICO (este). Lleva los campos curados de la ficha EMBEBIDOS, no un
+ *    link: sin red un link no sirve, y en urgencias no hay red. Se imprime, se
+ *    cuelga del cuello, se pega adentro del casco. Se abre sin sesión. Lo que
+ *    entra aquí lo decide la regla de admisión de emergency-card-core.
+ *
+ * 2) QR CLÍNICO. El que se escanea en un hospital para DESCARGAR la historia
+ *    clínica. Es otra cosa: cuelga del expediente, exige sesión y se genera
+ *    desde dentro de la app con el teléfono desbloqueado. No lleva datos
+ *    embebidos, lleva una referencia que hay que autorizar.
+ *
+ *    HUECO DECLARADO: el QR clínico NO EXISTE todavía. No se construyó en esta
+ *    ola a propósito. Cuando se construya, va en su propio componente colgado
+ *    del expediente, NO reusando este: el día que los dos códigos compartan
+ *    pantalla o componente, alguien va a imprimir el equivocado.
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * La matriz la calcula qr-core (puro, verificado contra un generador de
+ * referencia); aquí solo se dibuja. Un único <Path> con todos los módulos en
+ * vez de miles de <Rect>: una versión 20 tiene 9,409 módulos y nueve mil vistas
+ * nativas no las quiere nadie.
  *
  * Negro sobre blanco y con margen: el "quiet zone" de cuatro módulos no es
  * decorativo, sin él muchos lectores no enganchan.
