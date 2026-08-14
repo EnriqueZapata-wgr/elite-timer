@@ -239,7 +239,8 @@ function AssessmentEngine() {
       await activateChronotype(outcome.template, answers, outcome.scores, outcome.result, outcome.schedule);
       await clearDraft(user.id, session!.assessment.id);
       haptic.success();
-      router.replace('/my-chronotype');
+      // El resultado del cronotipo tiene casa propia porque se consulta después.
+      router.replace('/tests/resultado/cronotipo');
     } catch {
       Alert.alert('No se pudo guardar', 'Revisa tu conexión e intenta de nuevo.');
     } finally {

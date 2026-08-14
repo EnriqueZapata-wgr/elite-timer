@@ -16,6 +16,20 @@
     "/cardio-import": "Redirect legacy (Ola 2 Fitness PR3) a /log-cardio?fase=importar: el import es fase de la casa del cardio. Solo deep links y OTA viejos.",
     "/fitness-hiit": "Redirect legacy (Ola 2 Fitness PR3) a /routine-generator?puerta=intervalos: la puerta INTERVALOS del generador. Solo deep links y OTA viejos.",
     "/log-exercise": "Redirect legacy (Ola 2 Fitness PR3) a /log-strength (conserva ?exerciseId=). Solo deep links y OTA viejos.",
-    "/execution": "Redirect legacy (Ola 2 Fitness PR3) a /session?routine= (sin rutina cae a /fitness-hub): execution murió, su interfaz es TimerModeRunner dentro de /session. Solo deep links y OTA viejos."
+    "/execution": "Redirect legacy (Ola 2 Fitness PR3) a /session?routine= (sin rutina cae a /fitness-hub): execution murió, su interfaz es TimerModeRunner dentro de /session. Solo deep links y OTA viejos.",
+    "/edad-atp/test-plank": "Redirect legacy (Ola 4 Tests pieza 5) a /tests/run/plank: el cronómetro vive en el runner físico. Solo deep links y OTA viejos.",
+    "/edad-atp/test-bolt": "Redirect legacy (Ola 4 Tests pieza 5) a /tests/run/bolt: el cronómetro vive en el runner físico. Solo deep links y OTA viejos.",
+    "/edad-atp/test-old-man": "Redirect legacy (Ola 4 Tests pieza 5) a /tests/run/old-man: la captura vive en el runner físico. Solo deep links y OTA viejos.",
+    "/edad-atp/test-recovery-hr": "Redirect legacy (Ola 4 Tests pieza 5) a /tests/run/recovery-hr: la captura vive en el runner físico. Solo deep links y OTA viejos.",
+    "/edad-atp/cinematic-tests-index": "Redirect legacy (Ola 4 Tests pieza 5) a /tests: era uno de los seis hubs que enseñaban lo mismo. Solo deep links y OTA viejos.",
+    "/edad-atp/questionnaires/sueno": "SÍ tiene puerta: el hub /tests la abre desde el registry. El detector no la ve porque la ruta se arma con plantilla (`/edad-atp/questionnaires/${dominio}`) y él solo lee literales. Deja de ser huérfana el día que el motor absorba los cuestionarios de Edad ATP.",
+    "/edad-atp/questionnaires/metabolismo": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla.",
+    "/edad-atp/questionnaires/habitos": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla.",
+    "/edad-atp/questionnaires/cardiovascular": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla.",
+    "/edad-atp/questionnaires/inflamacion": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla.",
+    "/edad-atp/questionnaires/inmunidad": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla.",
+    "/edad-atp/questionnaires/renal-micronutrientes": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla.",
+    "/edad-atp/questionnaires/vitalidad": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla.",
+    "/edad-atp/questionnaires/sistema-hormonal": "Misma razón que sueno: puerta viva desde el hub /tests, ruta armada con plantilla."
   }
 }

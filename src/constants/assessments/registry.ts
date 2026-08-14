@@ -115,7 +115,9 @@ const CRONOTIPO: Assessment = {
   onComplete: [{ effect: 'emit', event: 'chronotype_changed' }],
   live: true,
   route: '/tests/q/cronotipo',
-  legacyRoutes: ['/quiz/chronotype', '/edad-atp/tests/chronotype', '/my-chronotype'],
+  // /my-chronotype NO entra aquí: nunca fue una puerta al test, es la vista del
+  // RESULTADO. Se mudó a result.route y su redirect vive en LEGACY_RESULTS.
+  legacyRoutes: ['/quiz/chronotype', '/edad-atp/tests/chronotype'],
 };
 
 /**

@@ -183,7 +183,9 @@ describe('registry · redirects', () => {
     const map = legacyRouteMap();
     expect(map['/functional-quiz?quiz_id=sleep_functional']).toBe('/tests/q/sleep_functional');
     expect(map['/quiz/chronotype']).toBe('/tests/q/cronotipo');
-    expect(map['/my-chronotype']).toBe('/tests/q/cronotipo');
+    // /my-chronotype es la vista del RESULTADO, no una puerta al test: se mudó
+    // a result.route y por eso no está en el mapa de rutas viejas del quiz.
+    expect(map['/my-chronotype']).toBeUndefined();
     expect(map['/salud/cuestionario-maestro']).toBe('/tests/q/maestro');
     expect(map['/historia-clinica/fitzpatrick']).toBe('/tests/q/hc-fitzpatrick');
     expect(map['/edad-atp/test-plank']).toBe('/tests/run/plank');
@@ -208,10 +210,13 @@ describe('registry · el hub no manda a ninguna ruta muerta', () => {
   it('currentRoute usa la ruta nueva solo cuando ya existe', () => {
     // Braverman ya está en su destino final.
     expect(currentRoute(getAssessment('braverman')!)).toBe('/braverman');
-    // El resto todavía abre la pantalla original.
-    expect(currentRoute(getAssessment('sleep_functional')!)).toBe('/functional-quiz?quiz_id=sleep_functional');
-    expect(currentRoute(getAssessment('maestro')!)).toBe('/salud/cuestionario-maestro');
-    expect(currentRoute(getAssessment('plank')!)).toBe('/edad-atp/test-plank');
+    // Piezas 3b y 4: el motor y el runner ya reciben gente.
+    expect(currentRoute(getAssessment('sleep_functional')!)).toBe('/tests/q/sleep_functional');
+    expect(currentRoute(getAssessment('maestro')!)).toBe('/tests/q/maestro');
+    expect(currentRoute(getAssessment('plank')!)).toBe('/tests/run/plank');
+    // Lo que el motor todavía no cubre sigue abriendo su pantalla original.
+    expect(currentRoute(getAssessment('hc-fitzpatrick')!)).toBe('/historia-clinica/fitzpatrick');
+    expect(currentRoute(getAssessment('edad-sueno')!)).toBe('/edad-atp/questionnaires/sueno');
   });
 
   it('ninguna fila del hub apunta a /tests/q ni /tests/run antes de tiempo', () => {

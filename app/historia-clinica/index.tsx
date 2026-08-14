@@ -1,97 +1,10 @@
 /**
- * Historia Clínica — índice de cuestionarios funcionales (T3/HC5).
- * Una card por cuestionario; muestra ✓ cuando ya fue respondido. Tap → /historia-clinica/[category].
+ * Redirect legacy (Ola 4, Anexo C, pieza 5).
+ * El indice de historia clinica listaba sus categorias. Lo absorbio el hub unico /tests, que lee
+ * todo del registry y el completado de un jalon.
  */
-import { useState, useCallback, useMemo } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { Redirect } from 'expo-router';
 
-import { EliteText } from '@/components/elite-text';
-import { PillarHeader } from '@/src/components/ui/PillarHeader';
-import { Screen } from '@/src/components/ui/Screen';
-import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { GradientCard } from '@/src/components/ui/GradientCard';
-import { haptic } from '@/src/utils/haptics';
-import { useAuth } from '@/src/contexts/auth-context';
-import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { withOpacity, type AppThemeTokens } from '@/src/constants/brand';
-import { useAppTheme } from '@/src/contexts/theme-context';
-import { HC_QUESTIONNAIRES } from '@/src/constants/historia-clinica-questionnaires';
-import { loadHistoriaClinica, completedCategories } from '@/src/services/historia-clinica-service';
-
-export default function HistoriaClinicaIndex() {
-  const router = useRouter();
-  const { user } = useAuth();
-  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
-  const t = useAppTheme().tokens;
-  const s = useMemo(() => makeStyles(t), [t]);
-  const [done, setDone] = useState<Set<string>>(new Set());
-  // D-2 (MB-12): fallo de red ≠ "0 de M completados".
-  const [loadFailed, setLoadFailed] = useState(false);
-
-  useFocusEffect(useCallback(() => {
-    if (!user?.id) return;
-    loadHistoriaClinica(user.id)
-      .then(d => { setLoadFailed(false); setDone(completedCategories(d)); })
-      .catch(() => setLoadFailed(true));
-  }, [user?.id]));
-
-  const total = HC_QUESTIONNAIRES.length;
-  const completed = done.size;
-
-  return (
-    <Screen themed>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-        <PillarHeader pillar="health" title="Historia Clínica" />
-
-        <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <EliteText variant="caption" style={s.subtitle}>
-            {loadFailed
-              ? 'Tu avance no se pudo leer. Revisa tu conexión.'
-              : `${completed} de ${total} cuestionarios completados · tu base para personalizar ARGOS`}
-          </EliteText>
-        </Animated.View>
-
-        {HC_QUESTIONNAIRES.map((q, idx) => {
-          const isDone = done.has(q.id);
-          return (
-            <Animated.View key={q.id} entering={FadeInUp.delay(100 + idx * 50).springify()}>
-              <AnimatedPressable onPress={() => { haptic.medium(); router.push(`/historia-clinica/${q.id}`); }}>
-                <GradientCard color={q.color} style={s.card}>
-                  <View style={s.cardContent}>
-                    <View style={[s.iconWrap, { backgroundColor: withOpacity(q.color, 0.15) }]}>
-                      <Ionicons name={q.icon as any} size={22} color={q.color} />
-                    </View>
-                    <View style={s.cardInfo}>
-                      <EliteText style={s.cardName}>{q.title}</EliteText>
-                      <EliteText variant="caption" style={s.cardSub}>{q.blurb}</EliteText>
-                    </View>
-                    {isDone
-                      ? <Ionicons name="checkmark-circle" size={22} color={q.color} />
-                      : <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />}
-                  </View>
-                </GradientCard>
-              </AnimatedPressable>
-            </Animated.View>
-          );
-        })}
-
-        <View style={{ height: Spacing.xxl }} />
-      </ScrollView>
-    </Screen>
-  );
+export default function HistoriaClinicaIndexRedirect() {
+  return <Redirect href="/tests" />;
 }
-
-// MB-31B2: los estilos leen los tokens del tema.
-const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
-  scroll: { paddingHorizontal: Spacing.md },
-  subtitle: { color: t.textoSecundario, fontSize: FontSizes.sm, marginBottom: Spacing.lg, marginTop: Spacing.xs },
-  card: { padding: Spacing.md, marginBottom: Spacing.sm },
-  cardContent: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  iconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  cardInfo: { flex: 1 },
-  cardName: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: t.texto, marginBottom: 2 },
-  cardSub: { color: t.textoSecundario, fontSize: FontSizes.xs },
-});
