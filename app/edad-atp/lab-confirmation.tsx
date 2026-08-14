@@ -18,6 +18,7 @@ import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveConfirmedLabValues, deleteLabUpload, loadReviewFromDb, type LabReviewPayload } from '@/src/services/lab-service';
 import { getReview, setReview, clearReview } from '@/src/services/edad-atp/lab-review-store';
+import { setNuevos } from '@/src/services/edad-atp/lab-nuevos-store';
 import type { ProcessedItem } from '@/src/services/edad-atp/lab-parser-process';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { haptic } from '@/src/utils/haptics';
@@ -130,8 +131,10 @@ export default function LabConfirmationScreen() {
           <EliteText variant="caption" style={styles.emptyText}>
             La lectura ya no está disponible. Vuelve a subir el estudio.
           </EliteText>
-          <Pressable onPress={() => router.replace('/my-health')} style={styles.primaryBtn}>
-            <EliteText variant="body" style={styles.primaryBtnText}>Volver a Mi Salud</EliteText>
+          {/* OLA6 PIEZA C: no se guardó nada, pero tampoco se vuelve al punto
+              de partida del círculo. Se aterriza donde viven los labs. */}
+          <Pressable onPress={() => router.replace('/edad-atp/labs')} style={styles.primaryBtn}>
+            <EliteText variant="body" style={styles.primaryBtnText}>Ver mis labs</EliteText>
           </Pressable>
         </View>
       </Screen>
@@ -174,10 +177,15 @@ export default function LabConfirmationScreen() {
     clearReview(review.uploadId);
     haptic.success();
     const omitted = res.rejectedCount ?? 0;
+    // OLA6 PIEZA C: se acabó el círculo. Guardar devolvía a Mi Salud, que no
+    // muestra los valores: el usuario nunca veía lo que acababa de hacer.
+    // Ahora aterriza en ATP Labs con lo nuevo resaltado.
+    setNuevos(confirmed.map((c) => c.key));
+    const nuevo = String(res.extractedCount);
     Alert.alert(
       '',
       `${res.extractedCount} valores guardados${omitted > 0 ? `, ${omitted} omitidos por no estar claros` : ''}. Tu Edad ATP se actualizó.`,
-      [{ text: 'OK', onPress: () => router.replace('/my-health') }],
+      [{ text: 'OK', onPress: () => router.replace({ pathname: '/edad-atp/labs', params: { nuevo } }) }],
     );
   }
 
@@ -191,7 +199,9 @@ export default function LabConfirmationScreen() {
           const ids = review.uploadIds ?? [review.uploadId];
           for (const id of ids) { try { await deleteLabUpload(id); } catch { /* */ } }
           clearReview(review.uploadId);
-          router.replace('/my-health');
+          // OLA6 PIEZA C: replace, nunca back(). Volver atrás reentra al picker
+          // con el estado sucio de la lectura que se acaba de descartar.
+          router.replace('/salud/mis-datos');
         },
       },
     ]);

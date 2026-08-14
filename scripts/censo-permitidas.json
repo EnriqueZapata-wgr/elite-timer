@@ -8,6 +8,7 @@
     "/legal/terminos": "Cerrada en MB-17: el texto tiene corchetes sin datos fiscales. Se reabre cuando el legal cierre la razón social.",
     "/admin/reports": "Detrás del gate de admin. No lleva puerta en la navegación del usuario a propósito.",
     "/clinical-system": "DECISIÓN PENDIENTE DE ENRIQUE. 353 líneas vivas (drill-down por sistema funcional: síntomas con severidad, timeline y correlación con labs) que se quedaron sin puerta cuando Mega-Sprint B B6 la absorbió en Salud Funcional. O se borra, o se le abre puerta desde el mapa funcional (tocar un sistema entra a su drill-down). No se decide en un run de carcasa.",
+    "/health-hub": "Redirect legacy (OLA6 salud pieza B) a /salud: montaba el MISMO SaludHub que el tab, con la única diferencia de traer botón de regresar. Dos rutas para una pantalla es una pantalla que se mantiene dos veces. Su última entrada viva (Ajustes › Salud Funcional) ya apunta a /salud. Solo deep links y OTA viejos.",
     "/shared-routine": "Redirect legacy (Ola 2 Fitness PR3): landing de links compartidos viejos (?code=X) que reenvía a /my-routines?share=X. Entra solo por deep link.",
     "/strength-session": "Alias permanente de /session (Ola 2 Fitness PR1): re-exporta la misma pantalla para deep links, stashes en vuelo y builds OTA viejos. La puerta viva es /session.",
     "/fitness-train": "Redirect legacy (Ola 2 Fitness PR3) a /fitness-hub: la absorbió el hub. Solo deep links y OTA viejos.",

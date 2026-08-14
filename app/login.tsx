@@ -12,7 +12,7 @@
  * neutro a mano: los grises salen de Colors.* y el scope sin ThemeReady
  * entrega el oscuro canónico, que es exactamente lo que este fondo necesita.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image, Dimensions } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
@@ -23,6 +23,7 @@ import { EliteText } from '@/components/elite-text';
 import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
+import { hasLocalCard, loadFichaPrelogin } from '@/src/services/salud/emergency-card-store';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
@@ -39,6 +40,17 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // OLA6 D: ¿hay ficha de emergencia guardada en ESTE teléfono? Se pregunta
+  // sin descifrarla: solo para decidir si se pinta la entrada.
+  const [hayFicha, setHayFicha] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [permitida, existe] = await Promise.all([loadFichaPrelogin(), hasLocalCard()]);
+      if (alive) setHayFicha(permitida && existe);
+    })();
+    return () => { alive = false; };
+  }, []);
 
   // Haptic en login: light al enviar, success/error según resultado
   const handleLogin = async () => {
@@ -144,6 +156,18 @@ export default function LoginScreen() {
               </EliteText>
             </Pressable>
 
+            {/* OLA6 PIEZA D: la ficha de emergencia se abre ANTES de iniciar
+                sesión, leyendo la copia local del teléfono. Solo aparece si
+                hay ficha guardada aquí: si no, sería una promesa vacía. */}
+            {hayFicha ? (
+              <Pressable onPress={() => router.push('/ficha-emergencia')} style={styles.fichaLink}>
+                <Ionicons name="medkit-outline" size={16} color="#D93636" />
+                <EliteText variant="caption" style={styles.fichaLinkTexto}>
+                  Ficha de emergencia
+                </EliteText>
+              </Pressable>
+            ) : null}
+
             <AuthLinksFooter />
           </Animated.View>
         </ScrollView>
@@ -219,5 +243,18 @@ const styles = StyleSheet.create({
   forgotLink: {
     color: ATP_BRAND.teal,
     textAlign: 'center',
+  },
+  // OLA6 D: discreto pero presente. No compite con el acceso, y el día que
+  // hace falta está donde alguien lo va a buscar.
+  fichaLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: Spacing.lg,
+  },
+  fichaLinkTexto: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.semiBold,
   },
 });

@@ -8,9 +8,11 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-describe('health-hub es menú puro (cero datos de consulta)', () => {
+describe('el hub de SALUD es menú puro (cero datos de consulta)', () => {
+  // OLA6 B: /health-hub murió como pantalla (ahora redirige a /salud). El guard
+  // sigue al hub de verdad, que es el cuerpo del tab.
   const here = dirname(fileURLToPath(import.meta.url));
-  const raw = readFileSync(join(here, '..', '..', '..', '..', 'app', 'health-hub.tsx'), 'utf8');
+  const raw = readFileSync(join(here, '..', '..', '..', 'screens', 'salud', 'SaludHub.tsx'), 'utf8');
   // Quita comentarios (el docstring MENCIONA lo que se removió) — solo el código real cuenta.
   const hub = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
 
@@ -20,7 +22,7 @@ describe('health-hub es menú puro (cero datos de consulta)', () => {
       'loadSymptoms', 'loadUserSymptoms', 'buildExecutiveSummary', 'groupSymptomsBySystem',
     ];
     for (const f of forbidden) {
-      expect(hub.includes(f), `health-hub no debe referir "${f}" (dato en el menú)`).toBe(false);
+      expect(hub.includes(f), `el hub no debe referir "${f}" (dato en el menú)`).toBe(false);
     }
   });
 
