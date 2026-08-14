@@ -40,7 +40,9 @@ describe('topScoreMover — la acción pendiente que más mueve el score (MB-1.5
       [],
       [quant('steps', 3.0, 5000, 10000), quant('protein', 2.0, 0, 120)],
     );
-    expect(top).toMatchObject({ source: 'protein', route: '/food-register', remainingWeight: 2 });
+    // La proteína manda a /food-log: la nutrición de nueve pantallas se
+    // juntó en cuatro y /food-register quedó como redirect.
+    expect(top).toMatchObject({ source: 'protein', route: '/food-log', remainingWeight: 2 });
   });
 
   it('cuantitativo con meta cumplida o target 0 no compite', () => {

@@ -102,9 +102,13 @@ describe('registro de dominios', () => {
     for (const k of REPORT_DOMAIN_KEYS) expect(REPORT_DOMAINS[k].key).toBe(k);
   });
 
-  it('los cinco dominios baratos están registrados', () => {
-    expect(REPORT_DOMAIN_KEYS.sort()).toEqual(
-      ['ayuno', 'economia', 'hidratacion', 'mente', 'nutricion'],
+  it('los diez dominios están registrados', () => {
+    // Eran cinco cuando solo estaban los baratos. La consolidación sumó
+    // journal, emociones, ciclo, nback y adherencia, cada uno con su meta
+    // completa (la verifica el caso de abajo, que recorre TODOS).
+    expect(REPORT_DOMAIN_KEYS.slice().sort()).toEqual(
+      ['adherencia', 'ayuno', 'ciclo', 'economia', 'emociones',
+        'hidratacion', 'journal', 'mente', 'nback', 'nutricion'],
     );
   });
 
