@@ -233,6 +233,16 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/components/interventions/PrescriptionCard.tsx::moon-outline',
   'src/components/legal/MedicalDisclaimerModal.tsx::medkit-outline',
   'src/components/nutrition/BreakFastGuide.tsx::restaurant-outline',
+  // OLA3 nutrición: los glifos de /cocina se mudaron con su código. Son
+  // CONTENIDO de su propio dominio (tipo de comida del generador, tipo de
+  // dieta en preferencias), nunca lanzadores de una función del registro.
+  'src/components/nutrition/cocina/GeneradorArgos.tsx::moon-outline',
+  'src/components/nutrition/cocina/GeneradorArgos.tsx::restaurant-outline',
+  'src/components/nutrition/cocina/GeneradorArgos.tsx::sunny-outline',
+  'src/components/nutrition/cocina/PreferenciasTab.tsx::flame-outline',
+  'src/components/nutrition/cocina/PreferenciasTab.tsx::flower-outline',
+  'src/components/nutrition/cocina/PreferenciasTab.tsx::leaf-outline',
+  'src/components/nutrition/cocina/PreferenciasTab.tsx::restaurant-outline',
   // OLA3 nutrición: el sensor TEXTO de /food-log heredó tal cual el mapa
   // CATEGORY_ICONS de food-text (categoría del alimento como CONTENIDO propio
   // del buscador, no como lanzador de una función del registro) y el sparkles

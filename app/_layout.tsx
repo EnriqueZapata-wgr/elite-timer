@@ -272,6 +272,8 @@ function RootLayout() {
                 {/* E-4 (MB-12): smart-shopping borrada (27 líneas, un EmptyState) */}
                 {/* Sprint NUTRICIÓN T5: lista de compra desde mis recetas */}
                 <Stack.Screen name="lista-compra" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* OLA3: /cocina = recetas + lista + preferencias en 3 pestañas */}
+                <Stack.Screen name="cocina" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="health-input" options={{ animation: 'slide_from_right' }} />
                 {/* Sprint LABS GUÍA: guía descargable "¿qué labs me hago?" */}
                 <Stack.Screen name="labs-guide" options={{ headerShown: false, animation: 'slide_from_right' }} />
