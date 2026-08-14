@@ -67,16 +67,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/edad-atp/lab-confirmation.tsx::calendar-outline',
   'app/edad-atp/lab-confirmation.tsx::document-outline',
   'app/edad-atp/lab-confirmation.tsx::hourglass-outline',
-  'app/emotion-history.tsx::analytics-outline',
-  'app/emotion-history.tsx::barbell-outline',
-  'app/emotion-history.tsx::calendar-outline',
-  'app/emotion-history.tsx::moon-outline',
-  'app/emotion-history.tsx::pulse-outline',
-  'app/emotion-history.tsx::sunny-outline',
-  'app/emotion-history.tsx::timer-outline',
-  'app/emotion-profile.tsx::calendar-outline',
-  'app/emotion-profile.tsx::hourglass-outline',
-  'app/emotion-profile.tsx::pulse-outline',
   'app/emotions.tsx::pulse-outline',
   'app/exercise-detail.tsx::barbell',
   'app/exercise-library.tsx::barbell-outline',
@@ -308,6 +298,18 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/services/onboarding-v2-core.ts::barbell-outline',
   'src/services/onboarding-v2-core.ts::body-outline',
   'src/services/onboarding-v2-core.ts::flower-outline',
+  // OLA1 R-2: el historial emocional y el perfil se fusionaron en el dominio
+  // emociones. Son los MISMOS usos de antes (los iconos de correlacion, los de
+  // patrones y los del perfil), en un solo archivo: por eso dos llegan x2.
+  // Dibujan contenido propio del dominio, no lanzadores.
+  'src/components/reports/domains/emociones.tsx::analytics-outline',
+  'src/components/reports/domains/emociones.tsx::barbell-outline',
+  'src/components/reports/domains/emociones.tsx::calendar-outline::x2',
+  'src/components/reports/domains/emociones.tsx::hourglass-outline',
+  'src/components/reports/domains/emociones.tsx::moon-outline',
+  'src/components/reports/domains/emociones.tsx::pulse-outline::x2',
+  'src/components/reports/domains/emociones.tsx::sunny-outline',
+  'src/components/reports/domains/emociones.tsx::timer-outline',
   // OLA1 R-0/R-1: REPORT_DOMAINS es el registro de los reportes por dominio y
   // ahi vive el icono de cada uno, que antes estaba suelto en app/reports.tsx.
   // No dibuja: es el dato que el hub y la pantalla del dominio leen para no

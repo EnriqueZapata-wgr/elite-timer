@@ -17,6 +17,8 @@
     "/fitness-hiit": "Redirect legacy (Ola 2 Fitness PR3) a /routine-generator?puerta=intervalos: la puerta INTERVALOS del generador. Solo deep links y OTA viejos.",
     "/log-exercise": "Redirect legacy (Ola 2 Fitness PR3) a /log-strength (conserva ?exerciseId=). Solo deep links y OTA viejos.",
     "/execution": "Redirect legacy (Ola 2 Fitness PR3) a /session?routine= (sin rutina cae a /fitness-hub): execution murió, su interfaz es TimerModeRunner dentro de /session. Solo deep links y OTA viejos.",
-    "/journal-history": "Redirect legacy (Ola 1 Reports R-1, ANEXO_A §6) a /reports/journal: el historial se absorbió en el dominio, alcanzable desde el hub de reportes y desde el composer. Solo deep links y OTA viejos."
+    "/journal-history": "Redirect legacy (Ola 1 Reports R-1, ANEXO_A §6) a /reports/journal: el historial se absorbió en el dominio, alcanzable desde el hub de reportes y desde el composer. Solo deep links y OTA viejos.",
+    "/emotion-history": "Redirect legacy (Ola 1 Reports R-2, ANEXO_A §6) a /reports/emociones: el mosaico es la pestaña Mosaico del dominio. Solo deep links y OTA viejos.",
+    "/emotion-profile": "Redirect legacy (Ola 1 Reports R-2, ANEXO_A §6) a /reports/emociones?section=perfil: el perfil es la pestaña Perfil del dominio, y el enlace viejo cae exactamente ahí. Solo deep links y OTA viejos."
   }
 }

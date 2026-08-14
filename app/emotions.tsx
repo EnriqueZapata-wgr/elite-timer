@@ -69,9 +69,9 @@ export default function EmotionsHubScreen() {
             title="Tu historia"
             subtitle="El mosaico de lo que has sentido, tus patrones, y qué movimiento te funciona a ti."
             icon="pulse-outline"
-            onPress={() => router.push('/emotion-history')}
+            onPress={() => router.push('/reports/emociones')}
             ctaLabel="Ver mi historia"
-            onCta={() => router.push('/emotion-history')}
+            onCta={() => router.push('/reports/emociones')}
           />
         </Animated.View>
 

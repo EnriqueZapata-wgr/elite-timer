@@ -36,6 +36,7 @@ import { AyunoContent } from '@/src/components/reports/domains/ayuno';
 import { MenteContent } from '@/src/components/reports/domains/mente';
 import { EconomiaContent } from '@/src/components/reports/domains/economia';
 import { JournalResumen } from '@/src/components/reports/domains/journal';
+import { EmocionesResumen } from '@/src/components/reports/domains/emociones';
 import { REPORT_DOMAINS, type ReportDomainKey } from '@/src/services/reports/report-domain-core';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
@@ -85,7 +86,8 @@ const KEY_TO_LABEL: Record<string, PeriodLabel> = {
 /** Secciones personalizables, en su orden default. */
 const SECTION_KEYS = [
   'calendario', 'electrones', 'nutricion', 'hidratacion', 'ayuno',
-  'ejercicio', 'glucosa', 'compliance', 'mente', 'journal', 'ciclo',
+  'ejercicio', 'glucosa', 'compliance', 'mente', 'journal', 'emociones',
+  'ciclo',
 ] as const;
 type SectionKey = typeof SECTION_KEYS[number];
 
@@ -93,7 +95,7 @@ const SECTION_NAMES: Record<SectionKey, string> = {
   calendario: 'Calendario', electrones: 'Electrones', nutricion: 'Nutrición',
   hidratacion: 'Hidratación', ayuno: 'Ayuno', ejercicio: 'Ejercicio',
   glucosa: 'Glucosa', compliance: 'Compliance', mente: 'Mente',
-  journal: 'Journal', ciclo: 'Ciclo',
+  journal: 'Journal', emociones: 'Emociones', ciclo: 'Ciclo',
 };
 
 const PREFS_KEY = '@atp/reports_sections';
@@ -113,6 +115,7 @@ const SECTION_TO_DOMAIN: Partial<Record<SectionKey, ReportDomainKey>> = {
   ayuno: 'ayuno',
   mente: 'mente',
   journal: 'journal',
+  emociones: 'emociones',
   electrones: 'economia',
 };
 
@@ -300,6 +303,14 @@ export default function ReportsScreen() {
     journal: () => (
       <DomainCard domain="journal" gradient={{ start: 'rgba(167,139,250,0.10)', end: 'rgba(167,139,250,0.02)' }} period={period}>
         <JournalResumen entries={mind.journalEntries} />
+      </DomainCard>
+    ),
+    // OLA1 R-2: las emociones dejan de vivir en dos pantallas colgadas del
+    // pilar y ganan su puerta aqui. La cifra sale de getMindReport, la misma
+    // que ya alimenta mente.
+    emociones: () => (
+      <DomainCard domain="emociones" gradient={{ start: 'rgba(129,140,248,0.10)', end: 'rgba(129,140,248,0.02)' }} period={period}>
+        <EmocionesResumen checkins={mind.checkins} />
       </DomainCard>
     ),
     ciclo: () => cycle.logsCount > 0 ? (

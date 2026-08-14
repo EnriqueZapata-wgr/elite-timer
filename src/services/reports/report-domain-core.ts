@@ -107,7 +107,7 @@ export type ReportPillar =
 
 export type ReportDomainKey =
   | 'nutricion' | 'hidratacion' | 'ayuno' | 'mente' | 'economia'
-  | 'journal';
+  | 'journal' | 'emociones';
 
 export interface ReportDomainMeta {
   key: ReportDomainKey;
@@ -170,6 +170,15 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     accent: '#a78bfa',
     subtitle: 'Todo lo que escribiste, con su fecha y su tipo.',
     emptyCopy: 'Todavía no hay entradas en este rango. Tu primera entrada está a un tap del botón de más.',
+  },
+  emociones: {
+    key: 'emociones',
+    title: 'Emociones',
+    pillar: 'mind',
+    icon: 'color-palette-outline',
+    accent: '#818cf8',
+    subtitle: 'Tu mosaico, tus patrones y el perfil del periodo.',
+    emptyCopy: 'Todavía no hay check-ins emocionales en este rango. Uno solo ya pinta la primera pieza del mosaico.',
   },
   economia: {
     key: 'economia',
