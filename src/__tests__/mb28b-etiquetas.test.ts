@@ -10,16 +10,22 @@
  *  4. shopping_list_items tiene UNA puerta de escritura (el servicio),
  *     mismo patrón que el candado de food_logs.
  *
- * El contrato general de pantallas de registro (modo simple/completo, hora
- * compartida, ruta única a food_logs) vive en registro-comida.test.ts, que
- * ya incluye a food-barcode como cuarta pantalla.
+ * El contrato general de registro (modo simple/completo, hora compartida,
+ * ruta única a food_logs) vive en registro-comida.test.ts, que sigue
+ * cubriendo al sensor de código junto a los otros dos.
+ *
+ * La consolidación movió el escáner: app/food-barcode.tsx quedó como
+ * redirect para los deep links viejos y el sensor de verdad vive en
+ * src/components/nutrition/foodlog/BarcodeSensor.tsx, montado por
+ * /food-log. Los candados apuntan al sensor, que es donde está la lógica.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, sep } from 'node:path';
 
 const read = (f: string) => readFileSync(f, 'utf8');
-const BARCODE_SCREEN = read('app/food-barcode.tsx');
+const BARCODE_SENSOR = 'src/components/nutrition/foodlog/BarcodeSensor.tsx';
+const BARCODE_SCREEN = read(BARCODE_SENSOR);
 
 describe('escáner: caída con gracia a captura manual', () => {
   it('las dos ramas de fallo existen y ninguna es callejón sin salida', () => {

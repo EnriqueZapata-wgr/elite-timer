@@ -41,7 +41,10 @@ const ACTIONS = read('src/services/notification-actions.ts');
 const ACTIONS_CORE = read('src/services/notification-actions-core.ts');
 const ACTIONS_BRIDGE = read('src/components/NotificationActionsBridge.tsx');
 const AVISOS = read('src/services/app-avisos-service.ts');
-const BARCODE_SCREEN = read('app/food-barcode.tsx');
+// El escáner se mudó con la consolidación: app/food-barcode.tsx quedó como
+// redirect para los deep links viejos y la lógica del visor vive en el
+// sensor que monta /food-log.
+const BARCODE_SCREEN = read('src/components/nutrition/foodlog/BarcodeSensor.tsx');
 
 /** Cuerpo de una función exportada del servicio (hasta el próximo export). */
 function fnBody(src: string, header: string): string {

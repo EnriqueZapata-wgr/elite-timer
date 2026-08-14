@@ -1,16 +1,27 @@
 /**
- * MB-28A P3 — el contrato de las pantallas de registro de comida.
- * MB-28B P4 — food-barcode entra al MISMO contrato: cuarta pantalla, cero
- * excepciones. Sus candados propios (caída a manual, sin juicio moral)
- * viven en mb28b-etiquetas.test.ts.
+ * MB-28A P3 — el contrato del registro de comida.
+ * MB-28B P4 — el sensor de código entra al MISMO contrato, cero excepciones.
+ * Sus candados propios (caída a manual, sin juicio moral) viven en
+ * mb28b-etiquetas.test.ts.
  *
- * Tres candados, estilo censo (leen el fuente bajo node, sin montar RN):
- *   1. Modo simple/completo: las TRES pantallas leen useNutritionMode y gatean
- *      con él. Mutar una para que lo ignore truena — así murió la mentira de
- *      "modo completo" que solo afectaba a food-scan (bug 8 del recorrido).
- *   2. Tipo de comida por hora: las tres usan defaultMealTypeByHour, el MISMO
- *      helper de meal-times-core (NOCTURNO B7 lo desduplicó; nadie lo vuelve
- *      a copiar a mano). A la misma hora, las tres resuelven igual.
+ * OLA3 — el registro dejó de ser cuatro pantallas sueltas. Ahora es UNA
+ * carcasa (app/food-log.tsx) con tres paneles de sensor; food-scan,
+ * food-text, food-register y food-barcode quedaron como redirects para no
+ * romper los deep links viejos. El contrato no cambió, cambió dónde vive:
+ * los candados leen la carcasa y los tres sensores.
+ *
+ * Cuatro candados, estilo censo (leen el fuente bajo node, sin montar RN):
+ *   0. Las cuatro rutas viejas siguen siendo puro redirect a la carcasa y no
+ *      guardan nada por su cuenta. Si alguien les devuelve lógica, vuelven
+ *      las cuatro copias que OLA3 juntó.
+ *   1. Modo simple/completo: la carcasa y los TRES sensores leen
+ *      useNutritionMode y gatean con él. Mutar uno para que lo ignore truena
+ *      — así murió la mentira de "modo completo" que solo afectaba a la foto
+ *      (bug 8 del recorrido).
+ *   2. Tipo de comida por hora: lo resuelve la carcasa UNA vez, con
+ *      defaultMealTypeByHour de meal-times-core (NOCTURNO B7 lo desduplicó),
+ *      y baja a los tres sensores por prop. A la misma hora, los tres
+ *      resuelven igual porque es literalmente el mismo valor.
  *   3. Ruta única a food_logs: el ÚNICO módulo que escribe (insert/update/
  *      upsert/delete) en food_logs es food-log-service (MB-8 Track A). El
  *      camino rápido de frecuentes pasa por ahí igual que el largo — nada de
@@ -22,12 +33,45 @@ import { join, sep } from 'node:path';
 
 const read = (f: string) => readFileSync(f, 'utf8');
 
-const PANTALLAS = ['app/food-scan.tsx', 'app/food-text.tsx', 'app/food-register.tsx', 'app/food-barcode.tsx'];
+/** La carcasa: barra de tipo de comida, hora, zona de un toque y sensores. */
+const CARCASA = 'app/food-log.tsx';
 
-// ─── 1. Las tres pantallas leen el modo ─────────────────────────────────────
+/** Los tres paneles de sensor. Lo único que de verdad los distingue. */
+const SENSORES = [
+  'src/components/nutrition/foodlog/TextSensor.tsx',
+  'src/components/nutrition/foodlog/PhotoSensor.tsx',
+  'src/components/nutrition/foodlog/BarcodeSensor.tsx',
+];
 
-describe('modo simple/completo — las tres pantallas lo respetan', () => {
-  it.each(PANTALLAS)('%s lee useNutritionMode', (file) => {
+/** Las cuatro superficies donde hoy vive el registro. */
+const SUPERFICIES = [CARCASA, ...SENSORES];
+
+/** Las rutas viejas, ya sin lógica: solo puerta de entrada. */
+const REDIRECTS = [
+  'app/food-scan.tsx',
+  'app/food-text.tsx',
+  'app/food-register.tsx',
+  'app/food-barcode.tsx',
+];
+
+// ─── 0. Las rutas viejas son puerta, no pantalla ────────────────────────────
+
+describe('las cuatro rutas viejas quedaron como redirect', () => {
+  it.each(REDIRECTS)('%s redirige y no guarda nada por su cuenta', (file) => {
+    const src = read(file);
+    expect(src, `${file} dejó de ser redirect`).toContain('<Redirect');
+    expect(src, `${file} no lleva a la carcasa`).toMatch(/pathname: '\/(food-log|supplements)'/);
+    // Si a un stub le vuelve la lógica, vuelven las cuatro copias que OLA3
+    // juntó: nadie escribe comida desde una puerta.
+    expect(src, `${file} volvió a guardar comida`).not.toContain('saveFoodLog');
+    expect(src, `${file} volvió a tocar food_logs`).not.toContain("from('food_logs')");
+  });
+});
+
+// ─── 1. La carcasa y los tres sensores leen el modo ─────────────────────────
+
+describe('modo simple/completo — las cuatro superficies lo respetan', () => {
+  it.each(SUPERFICIES)('%s lee useNutritionMode', (file) => {
     const src = read(file);
     expect(src, `${file} no importa useNutritionMode`).toContain(
       "from '@/src/hooks/useNutritionMode'",
@@ -35,7 +79,7 @@ describe('modo simple/completo — las tres pantallas lo respetan', () => {
     expect(src, `${file} importa el hook pero no lo llama`).toContain('useNutritionMode()');
   });
 
-  it.each(PANTALLAS)('%s gatea comportamiento con el modo (no solo lo lee)', (file) => {
+  it.each(SUPERFICIES)('%s gatea comportamiento con el modo (no solo lo lee)', (file) => {
     // Leer el hook y tirar el valor sería otra forma de ignorarlo: se exige
     // al menos una comparación real contra 'simple' o 'complete'.
     const src = read(file);
@@ -44,21 +88,36 @@ describe('modo simple/completo — las tres pantallas lo respetan', () => {
   });
 });
 
-// ─── 2. El tipo de comida por hora: un solo helper ──────────────────────────
+// ─── 2. El tipo de comida por hora: un solo helper, un solo resolvedor ──────
 
 describe('tipo de comida por hora — compartido, no duplicado', () => {
-  it.each(PANTALLAS)('%s usa defaultMealTypeByHour de meal-times-core', (file) => {
-    const src = read(file);
-    expect(src, `${file} no usa el helper compartido`).toContain('defaultMealTypeByHour');
-    expect(src, `${file} lo importa de otro lado`).toMatch(
+  it('la carcasa usa defaultMealTypeByHour de meal-times-core', () => {
+    const src = read(CARCASA);
+    expect(src, 'la carcasa no usa el helper compartido').toContain('defaultMealTypeByHour');
+    expect(src, 'la carcasa lo importa de otro lado').toMatch(
       /import \{[^}]*defaultMealTypeByHour[^}]*\} from '@\/src\/services\/meal-times-core'/,
+    );
+    // La ventana del usuario primero, el reloj como respaldo.
+    expect(src, 'se perdió el respaldo del reloj').toContain('?? defaultMealTypeByHour()');
+  });
+
+  it.each(SENSORES)('%s recibe el tipo de comida, no lo resuelve', (file) => {
+    const src = read(file);
+    expect(src, `${file} no toma mealType del contrato de panel`).toMatch(
+      /\{[^}]*\bmealType\b[^}]*\}: SensorPanelProps/,
+    );
+    // Importarlo sería resolverlo por su cuenta y volver a abrir la puerta a
+    // que dos sensores contesten distinto a la misma hora. (Se mira el
+    // import, no la mención: los headers documentan la regla.)
+    expect(src, `${file} resuelve el tipo por su cuenta`).not.toMatch(
+      /import \{[^}]*defaultMealTypeByHour[^}]*\} from/,
     );
   });
 
-  it('ninguna pantalla redefine el mapa hora→comida a mano', () => {
+  it('ninguna superficie redefine el mapa hora→comida a mano', () => {
     // La firma de la duplicación que B7 mató: un if de rangos horarios que
     // devuelve un meal type, viviendo en la pantalla.
-    for (const file of PANTALLAS) {
+    for (const file of [...SUPERFICIES, ...REDIRECTS]) {
       const src = read(file);
       expect(src, `${file} trae su propio mapa hora→comida`).not.toMatch(
         /hour\s*>=\s*\d+\s*&&\s*hour\s*<\s*\d+.*return\s*'(breakfast|lunch|dinner|snack)/s,
@@ -136,8 +195,9 @@ describe('food_logs — ruta única de escritura', () => {
 
   it('el camino rápido (frecuentes) declara su source en el contrato del writer', () => {
     // 'frequent' es un FoodLogSource del servicio único: el camino de un toque
-    // queda etiquetado y auditable, no es un insert anónimo.
+    // queda etiquetado y auditable, no es un insert anónimo. La zona de un
+    // toque se mudó de food-register a la carcasa, el source no.
     expect(read(WRITER)).toMatch(/'frequent'/);
-    expect(read('app/food-register.tsx')).toContain("source: 'frequent'");
+    expect(read(CARCASA)).toContain("source: 'frequent'");
   });
 });
