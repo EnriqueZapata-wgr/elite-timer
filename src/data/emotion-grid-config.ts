@@ -24,6 +24,13 @@ export const QUADRANT_FEEL: Record<QuadrantKey, string> = {
 /** Hint del paso 1 (el plano se recorre y se acerca). */
 export const GRID_HINT = 'Cada emoción vive en su lugar. Acércate y toca la tuya.';
 
+/**
+ * Hint del MODO explorar (OLA5 pieza 1): el mismo plano, sin registrar nada.
+ * Vive aquí, junto al hint del paso 1, porque son la misma superficie con dos
+ * intenciones — el copy no se duplica en la pantalla.
+ */
+export const EXPLORE_HINT = '144 palabras para lo que sientes. Recorre, acerca, toca una.';
+
 // ═══ PIEZA 2 · EL CUERPO, DONDE SÍ TIENE SENTIDO ═══
 //
 // El mapa corporal deja de ser puerta de entrada (solo ofrecía estados

@@ -620,7 +620,7 @@ function PerfilTab({ data }: { data: EmocionesReportData }) {
         {/* La entrada a Exploración: el espiral vive aquí, no en el check-in.
             Para días buenos: territorio y vocabulario. */}
         <Pressable
-          onPress={() => { haptic.light(); router.push('/emotion-exploration'); }}
+          onPress={() => { haptic.light(); router.push('/checkin?mode=explore'); }}
           style={styles.exploreLink}
           hitSlop={8}
         >
