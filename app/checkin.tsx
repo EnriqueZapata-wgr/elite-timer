@@ -11,6 +11,13 @@
  * Al cierre, una frase por cuadrante (Pieza 3 MB-14) — nunca sobre una señal
  * de crisis (tramo A MB-12).
  *
+ * OLA5 pieza 2 — NAVEGAR ES UN PASO, NO UNA RUTA HERMANA.
+ * A emotion-navigation solo se llegaba desde aquí: era el paso 3 de este flujo
+ * disfrazado de pantalla. Ahora se monta como sub-máquina tras la invitación
+ * del cierre (y tras la rama de crisis). Al vivir dentro de la pantalla que la
+ * abrió, su estado sobrevive al viaje a /breathing o /meditation sin trucos, y
+ * el re-check-in de vuelta sigue esperando.
+ *
  * OLA5 pieza 1 — EXPLORAR ES UN MODO, NO OTRA PANTALLA (`?mode=explore`).
  * La exploración renderizaba este MISMO plano en otra ruta y su CTA hacía push
  * de vuelta acá: el plano se remontaba y el zoom del usuario se perdía. Ahora
@@ -42,6 +49,8 @@ import { searchEmotions, emotionCanonColor, quadrantFromCell } from '@/src/servi
 import { INVITE_TITLE, INVITE_SUBTEXT, INVITE_YES, INVITE_NO } from '@/src/data/emotion-navigation';
 import { shareMood, unshareMood } from '@/src/services/community/mood-share-service';
 import { isCrisisOrigin, isCrisisHotline, hasCrisisTrajectory } from '@/src/services/emotion-navigation-core';
+import { EmotionNavigationStep } from '@/src/components/checkin/EmotionNavigationStep';
+import { readNavDraft } from '@/src/services/checkin-nav-draft';
 import { saveCheckin, getRecentCheckins, type CheckinRecord, type CheckinEntryGate } from '@/src/services/checkin-service';
 import { deriveCheckinAxes } from '@/src/services/checkin-axes-core';
 import { shouldShowTribeBridge, TRIBE_BRIDGE_COPY, BRIDGE_WINDOW_DAYS } from '@/src/services/checkin-bridge-core';
@@ -67,7 +76,7 @@ import { StatusBar } from 'expo-status-bar';
 
 export default function CheckinScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ protocolItemId?: string; emotionId?: string; gate?: string; mode?: string }>();
+  const params = useLocalSearchParams<{ protocolItemId?: string; emotionId?: string; gate?: string; mode?: string; step?: string }>();
   const analytics = useAnalytics();
   // MB-31B3: la pantalla migró a tokens (Screen themed) y sigue el tema global.
   const { kind, tokens: t } = useAppTheme();
@@ -85,6 +94,12 @@ export default function CheckinScreen() {
   const exploring = mode === 'explore';
 
   const [step, setStep] = useState(1);
+  // OLA5 pieza 2: el paso NAVEGAR. `ret` es a dónde vuelve al cerrarse — el
+  // cierre del check-in que lo abrió, el plano limpio (rescate del borrador),
+  // o fuera de la pantalla (deep link viejo que entró directo aquí).
+  const [nav, setNav] = useState<
+    { emotionId: string; ret: 'done' | 'plane' | 'exit'; resumeChainIds?: string[] } | null
+  >(null);
   const [quadrant, setQuadrant] = useState<QuadrantKey | null>(null);
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>([]);
   // MB-4 Bloque 1: hoja de definición (reemplaza el tooltip de long-press) + buscador.
@@ -158,6 +173,13 @@ export default function CheckinScreen() {
     if (!preId) return;
     const e = EMOTIONS.find(em => em.id === preId);
     if (!e) return;
+    // OLA5 pieza 2: el enlace viejo a /emotion-navigation cae aquí con
+    // ?step=navegar. Entra directo al paso y al cerrarlo sale de la pantalla:
+    // detrás no hay check-in propio al que regresar.
+    if (params.step === 'navegar') {
+      setNav({ emotionId: e.id, ret: 'exit' });
+      return;
+    }
     setSelectedEmotions([e.id]);
     setQuadrant(e.quadrant);
     setSheetEmotion(e);
@@ -166,6 +188,39 @@ export default function CheckinScreen() {
     // Solo al montar: el param no cambia dentro de la sesión de la pantalla.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // OLA5 pieza 2 · rescate del borrador. Caso normal: la pantalla sigue montada
+  // bajo la herramienta y el ref del paso basta. Este efecto cubre el feo — que
+  // el sistema haya matado la app mientras la persona respiraba. Al reabrir el
+  // check-in, "¿cómo quedaste?" sigue esperando: ese segundo dato es la única
+  // métrica de eficacia que tenemos. Fuera de la ventana, el borrador no existe.
+  useEffect(() => {
+    if (params.emotionId) return; // una intención explícita gana al rescate
+    let alive = true;
+    readNavDraft()
+      .then((draft) => {
+        if (!alive || !draft) return;
+        setNav({ emotionId: draft.emotionId, ret: 'plane', resumeChainIds: draft.chainIds });
+      })
+      .catch(() => { /* el rescate es best-effort, nunca bloquea el check-in */ });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // OLA5 pieza 2: cerrar el paso NAVEGAR. Rescatado del borrador no hay flujo
+  // debajo, así que se aterriza en el plano limpio en vez de un cierre vacío.
+  const closeNav = useCallback(() => {
+    const ret = nav?.ret;
+    setNav(null);
+    if (ret === 'exit') router.back();
+    else if (ret === 'plane') {
+      setSelectedEmotions([]);
+      setQuadrant(null);
+      setSheetEmotion(null);
+      setStep(1);
+    }
+    // 'done': el cierre del check-in sigue vivo debajo (step ya es 3).
+  }, [nav, router]);
 
   // #20: back consciente del paso — el cuerpo regresa a la cuadrícula y el
   // contexto también; nunca saca de la app. En la cuadrícula (o done) sale.
@@ -183,6 +238,12 @@ export default function CheckinScreen() {
   // #20: hardware back de Android — consumir el evento en pasos intermedios.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      // OLA5 pieza 2: el paso NAVEGAR se cierra por su propia puerta — el back
+      // de hardware no debe tirar la pantalla entera y perder el cierre.
+      if (nav) {
+        closeNav();
+        return true;
+      }
       if (bodyStepOpen) {
         setBodyStepOpen(false);
         return true;
@@ -198,7 +259,7 @@ export default function CheckinScreen() {
       return false;
     });
     return () => sub.remove();
-  }, [step, bodyStepOpen, backToExplore]);
+  }, [step, bodyStepOpen, backToExplore, nav, closeNav]);
 
   // B.7 (MB-7): con una hoja inferior abierta (o el paso del cuerpo en foco),
   // el orbe de ARGOS se retira — ese contenido es el principal del momento.
@@ -421,6 +482,21 @@ export default function CheckinScreen() {
     setSaving(false);
   };
 
+  // === OLA5 pieza 2 · PASO NAVEGAR ===
+  // Se monta ENCIMA del cierre, no en su lugar: al cerrarse, el check-in
+  // completo (racha, compartir, puente a la Tribu) sigue exactamente donde
+  // estaba. Y al ser un componente de esta pantalla, su estado sobrevive al
+  // viaje a /breathing o /meditation: la pantalla sigue montada debajo.
+  if (nav) {
+    return (
+      <EmotionNavigationStep
+        emotionId={nav.emotionId}
+        resumeChainIds={nav.resumeChainIds}
+        onClose={closeNav}
+      />
+    );
+  }
+
   // === DONE ===
   if (step === 3) {
     // MARIANA-M2: el cierre crece condicionalmente (racha, banner de crisis,
@@ -469,7 +545,7 @@ export default function CheckinScreen() {
           {hotlineVisible && (
             <CrisisSupportBanner style={{ marginHorizontal: Spacing.lg }} />
           )}
-          {/* A-2 (MB-12): con señal de crisis, /emotion-navigation ES el destino
+          {/* A-2 (MB-12): con señal de crisis, el paso NAVEGAR ES el destino
               — su rama de acompañamiento ("ahora no toca analizar nada"), nunca
               la excepción. Se ofrece, no se impone. */}
           {crisisSelected && selectedEmotions.length > 0 && (
@@ -481,7 +557,7 @@ export default function CheckinScreen() {
                 <Pressable
                   onPress={() => {
                     haptic.medium();
-                    router.push({ pathname: '/emotion-navigation', params: { emotionId: crisisEmotionId } });
+                    setNav({ emotionId: crisisEmotionId, ret: 'done' });
                   }}
                   style={[styles.navInviteYes, { backgroundColor: qColor }]}
                 >
@@ -504,7 +580,7 @@ export default function CheckinScreen() {
                 <Pressable
                   onPress={() => {
                     haptic.medium();
-                    router.push({ pathname: '/emotion-navigation', params: { emotionId: selectedEmotions[0] } });
+                    setNav({ emotionId: selectedEmotions[0], ret: 'done' });
                   }}
                   style={[styles.navInviteYes, { backgroundColor: qColor }]}
                 >
