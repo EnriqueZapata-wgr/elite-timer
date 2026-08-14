@@ -60,6 +60,14 @@ export interface ScoreBreakdown {
   quality: number | null;
   proteinTargetG: number;
   waterGoalMl: number;
+  /**
+   * OLA3: los dos crudos que el desglose ya tenía en la mano. El hub de
+   * nutrición los pedía por su cuenta a food_logs e hydration_logs — dos
+   * lecturas que el score ya hacía. Viajan con el desglose y el hub deja de
+   * consultar tablas ajenas (el agua vive en /hydration; aquí es solo insumo).
+   */
+  proteinG: number;
+  waterMl: number;
   redFlags: string[];
   highlights: string[];
 }
@@ -183,6 +191,8 @@ export function computeNutritionScore(inputs: ScoreInputs): ScoreBreakdown {
     quality: qualityPts === null ? null : round1(qualityPts),
     proteinTargetG: target,
     waterGoalMl: inputs.waterGoalMl,
+    proteinG: inputs.proteinG,
+    waterMl: inputs.waterMl,
     redFlags,
     highlights,
   };

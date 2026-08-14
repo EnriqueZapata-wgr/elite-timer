@@ -2007,57 +2007,9 @@ ${request.restrictions?.length ? `Restricciones: ${request.restrictions.join(', 
   }
 }
 
-// === GENERAR LISTA DE SUPER ===
-
-export interface ShoppingList {
-  sections: { name: string; items: { name: string; quantity: string }[] }[];
-}
-
-export async function generateShoppingList(
-  userId: string,
-  days: number = 7,
-  preferences?: { diet?: string; budget?: string },
-): Promise<ShoppingList | null> {
-  const context = await loadUserContext(userId);
-
-  const systemPrompt = `Eres ARGOS, sistema de IA de ATP. Genera una lista de super optimizada para ${days} días.
-
-CRITERIOS (comida limpia y flexibilidad metabólica; el macro es consecuencia):
-- Comida real y sin procesar, densa en nutrientes
-- Fuentes de proteína variadas y de calidad (animal y vegetal)
-- Grasas de comida real (aguacate, aceite de oliva, nueces)
-- Verduras variadas y de temporada en México
-- Frutas de temporada
-- Sin ultra-procesados
-- Organizado por sección del supermercado
-
-${context.gender ? `Género: ${context.gender}` : ''}
-${preferences?.diet ? `Dieta: ${preferences.diet}` : ''}
-${preferences?.budget ? `Presupuesto: ${preferences.budget}` : ''}
-
-Responde SOLO en JSON (sin markdown, sin backticks):
-{
-  "sections": [
-    {"name": "Proteínas", "items": [{"name": "Pechuga de pollo", "quantity": "1 kg"}]},
-    {"name": "Verduras", "items": [{"name": "Espinacas", "quantity": "2 bolsas"}]}
-  ]
-}`;
-
-  try {
-    const meta = await getArgosCallMetadata({ requestType: 'shopping_list' });
-    const data = await callAnthropic(
-      [{ role: 'user', content: `Genera lista de super para ${days} días.` }],
-      // MAX_TOKENS_DEFAULT (antes 1500): JSON largo + thinking de Sonnet 5.
-      ATP_LLM.MAX_TOKENS_DEFAULT,
-      MODEL_CHAT,
-      systemPrompt,
-      meta,
-    );
-    const text = extractResponseText(data);
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean) as ShoppingList;
-  } catch (e) {
-    console.error('ARGOS shoppingList error:', e);
-    return null;
-  }
-}
+// === LISTA DE SUPER ===
+// OLA3: generateShoppingList murió aquí. Era el segundo productor de listas
+// (una lista en memoria que se evaporaba al compartir) en paralelo a la tabla
+// shopping_list_items. Hoy la única puerta receta→lista es sendRecipeToList
+// (shopping-list-service, bulk idempotente): un dueño de tabla, dos entradas
+// de UI (alta manual y receta).

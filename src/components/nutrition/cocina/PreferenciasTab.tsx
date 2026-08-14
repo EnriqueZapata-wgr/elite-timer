@@ -1,0 +1,191 @@
+/**
+ * OLA3 · Pestaña PREFERENCIAS de /cocina — el cuerpo de food-preferences.
+ *
+ * Vive aquí porque su único consumidor es el generador de recetas: dieta,
+ * alergias, lo que no comes y cómo cocinas entran al prompt de ARGOS.
+ * Estaba como ruta suelta a un toque del hub, tres pantallas lejos de donde
+ * se usa.
+ */
+import { useState, useCallback } from 'react';
+import { View, StyleSheet, TextInput, Alert } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+
+import { EliteText } from '@/components/elite-text';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
+import { SectionTitle } from '@/src/components/ui/SectionTitle';
+import { haptic } from '@/src/utils/haptics';
+import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
+import { useAuth } from '@/src/contexts/auth-context';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { userErrorMessage } from '@/src/utils/user-error';
+import { useAppTheme } from '@/src/contexts/theme-context';
+
+const DIET_TYPES = [
+  { id: 'omnivore', name: 'Omnívoro', icon: 'restaurant-outline' },
+  { id: 'vegetarian', name: 'Vegetariano', icon: 'leaf-outline' },
+  { id: 'vegan', name: 'Vegano', icon: 'flower-outline' },
+  { id: 'keto', name: 'Keto', icon: 'flame-outline' },
+  { id: 'paleo', name: 'Paleo', icon: 'fish-outline' },
+  { id: 'gluten_free', name: 'Sin gluten', icon: 'ban-outline' },
+];
+
+const ALLERGY_OPTIONS = ['Lácteos', 'Gluten', 'Mariscos', 'Frutos secos', 'Huevo', 'Soya', 'Ninguna'];
+
+const COOKING_STYLES = [
+  { id: 'elaborate', name: 'Cocino elaborado', icon: 'bonfire-outline' },
+  { id: 'simple', name: 'Rápido y simple', icon: 'flash-outline' },
+  { id: 'both', name: 'Un poco de ambos', icon: 'swap-horizontal-outline' },
+];
+
+export function PreferenciasTab() {
+  const { user } = useAuth();
+  const { tokens: t } = useAppTheme();
+  const [diet, setDiet] = useState('omnivore');
+  const [allergies, setAllergies] = useState<string[]>([]);
+  const [dislikes, setDislikes] = useState('');
+  const [cookingStyle, setCookingStyle] = useState('both');
+  const [saving, setSaving] = useState(false);
+
+  useFocusEffect(useCallback(() => {
+    if (!user?.id) return;
+    supabase.from('food_preferences').select('*').eq('user_id', user.id).maybeSingle()
+      .then(({ data, error }) => {
+        // MB-8 Track B (G5): un 400 no es "sin preferencias".
+        if (error) { logWarn('[cocina:preferencias] load failed:', error.message); return; }
+        if (data) {
+          setDiet(data.diet_type ?? 'omnivore');
+          setAllergies(data.allergies ?? []);
+          setDislikes(data.dislikes ?? '');
+          setCookingStyle(data.cooking_style ?? 'both');
+        }
+      });
+  }, [user?.id]));
+
+  const toggleAllergy = (a: string) => {
+    haptic.light();
+    if (a === 'Ninguna') { setAllergies([]); return; }
+    setAllergies(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev.filter(x => x !== 'Ninguna'), a]);
+  };
+
+  const handleSave = async () => {
+    if (!user?.id) return;
+    setSaving(true);
+    // MB-8 Track B (G5): el try/catch no atrapa 4xx (supabase-js no lanza) —
+    // antes mostraba "Guardado" aunque el upsert fallara.
+    const { error } = await supabase.from('food_preferences').upsert({
+      user_id: user.id, diet_type: diet, allergies,
+      dislikes: dislikes || null, cooking_style: cookingStyle,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+    if (error) {
+      logWarn('[cocina:preferencias] save failed:', error.message);
+      Alert.alert('Error', userErrorMessage(error, 'No se pudo guardar.'));
+    } else {
+      haptic.success();
+      Alert.alert('Guardado', 'Preferencias actualizadas.');
+    }
+    setSaving(false);
+  };
+
+  // MB-31B3: rol repetido → const (patrón de la guía).
+  const chipBg = { backgroundColor: t.hundido };
+  const chipTxt = { color: t.textoSecundario };
+
+  return (
+    <View>
+      <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: FontSizes.sm, marginBottom: Spacing.md }}>
+        Esto es lo que ARGOS respeta cuando te genera una receta.
+      </EliteText>
+
+      {/* Dieta */}
+      <Animated.View entering={FadeInUp.delay(50).springify()}>
+        <SectionTitle>¿QUÉ TIPO DE ALIMENTACIÓN SIGUES?</SectionTitle>
+        <View style={s.chipGrid}>
+          {DIET_TYPES.map(d => (
+            <AnimatedPressable key={d.id} onPress={() => { haptic.light(); setDiet(d.id); }}>
+              <View style={[s.chip, chipBg, diet === d.id && s.chipActive]}>
+                <Ionicons name={d.icon as any} size={16} color={diet === d.id ? ATP_BRAND.black : t.textoSecundario} />
+                <EliteText style={[s.chipText, chipTxt, diet === d.id && { color: ATP_BRAND.black }]}>{d.name}</EliteText>
+              </View>
+            </AnimatedPressable>
+          ))}
+        </View>
+      </Animated.View>
+
+      {/* Alergias */}
+      <Animated.View entering={FadeInUp.delay(100).springify()} style={{ marginTop: Spacing.lg }}>
+        <SectionTitle>¿ALERGIAS O INTOLERANCIAS?</SectionTitle>
+        <View style={s.chipGrid}>
+          {ALLERGY_OPTIONS.map(a => {
+            const active = a === 'Ninguna' ? allergies.length === 0 : allergies.includes(a);
+            return (
+              <AnimatedPressable key={a} onPress={() => toggleAllergy(a)}>
+                <View style={[s.chip, chipBg, active && { backgroundColor: '#ef4444', borderColor: '#ef4444' }]}>
+                  <EliteText style={[s.chipText, chipTxt, active && { color: '#fff' }]}>{a}</EliteText>
+                </View>
+              </AnimatedPressable>
+            );
+          })}
+        </View>
+      </Animated.View>
+
+      {/* Dislikes */}
+      <Animated.View entering={FadeInUp.delay(150).springify()} style={{ marginTop: Spacing.lg }}>
+        <SectionTitle>¿ALIMENTOS QUE NO TE GUSTAN?</SectionTitle>
+        <TextInput
+          style={[s.input, { backgroundColor: t.hundido, color: t.texto }]}
+          value={dislikes}
+          onChangeText={setDislikes}
+          placeholder="hígado, natto, berenjenas..."
+          placeholderTextColor={t.textoTenue}
+          multiline
+        />
+      </Animated.View>
+
+      {/* Cooking style */}
+      <Animated.View entering={FadeInUp.delay(200).springify()} style={{ marginTop: Spacing.lg }}>
+        <SectionTitle>¿CÓMO COCINAS?</SectionTitle>
+        <View style={s.chipGrid}>
+          {COOKING_STYLES.map(c => (
+            <AnimatedPressable key={c.id} onPress={() => { haptic.light(); setCookingStyle(c.id); }}>
+              <View style={[s.chip, chipBg, cookingStyle === c.id && s.chipActive]}>
+                <Ionicons name={c.icon as any} size={16} color={cookingStyle === c.id ? ATP_BRAND.black : t.textoSecundario} />
+                <EliteText style={[s.chipText, chipTxt, cookingStyle === c.id && { color: ATP_BRAND.black }]}>{c.name}</EliteText>
+              </View>
+            </AnimatedPressable>
+          ))}
+        </View>
+      </Animated.View>
+
+      {/* E.1 (MB-8): CTA heroico = degradado del sistema, sin opacidad apilada */}
+      <GradientCTA
+        label={saving ? 'GUARDANDO…' : 'GUARDAR'}
+        pillar="nutrition"
+        disabled={saving}
+        onPress={handleSave}
+        style={{ marginTop: Spacing.xl }}
+      />
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  },
+  chipActive: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
+  chipText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+  input: {
+    borderRadius: Radius.card, padding: Spacing.md,
+    fontFamily: Fonts.regular, fontSize: FontSizes.md, minHeight: 60,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  },
+});

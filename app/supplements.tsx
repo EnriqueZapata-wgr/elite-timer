@@ -8,7 +8,7 @@
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, Alert, DeviceEventEmitter, KeyboardAvoidingView, Platform, Modal } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +23,7 @@ import { DOSE_PATTERNS, DOSE_TIME_LABELS, doseCountFor, isCustomDoseTime, normal
 import { normalizeSupplementName } from '@/src/services/supplements-plan-core';
 import { isPregnancyActive } from '@/src/services/supplements-service';
 import { BhaScanSheet } from '@/src/components/supplements/BhaScanSheet';
+import { SupplementScanSheet } from '@/src/components/supplements/SupplementScanSheet';
 import { ATP_BRAND, getScoreColor, getScoreLabel } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
@@ -87,6 +88,10 @@ export default function SupplementsScreen() {
   // Scanner BHA: ficha destino (null = cerrado; {id:''} = scan standalone)
   const [bhaTarget, setBhaTarget] = useState<{ id: string; name: string; brand?: string | null } | null>(null);
   const [bhaVisible, setBhaVisible] = useState(false);
+  // OLA3: el escaneo de etiqueta que vivía en food-scan?mode=supplement. La
+  // tabla user_supplements tiene un dueño, y es esta pantalla.
+  const params = useLocalSearchParams<{ capture?: string }>();
+  const [scanVisible, setScanVisible] = useState(params.capture === 'foto');
 
   useEffect(() => {
     (async () => {
@@ -377,6 +382,16 @@ export default function SupplementsScreen() {
           </View>
           {/* Punto de entrada del scanner BHA en la sección (scan standalone:
               suplemento o comida empaquetada, sin persistir en ficha) */}
+          {/* OLA3: escaneo de la ETIQUETA (formulación, formas, excipientes).
+              Llegó de food-scan?mode=supplement y creaba fichas desde el pilar
+              de comida; hoy entra por aquí, junto al scanner de score. */}
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setScanVisible(true); }}
+            hitSlop={12}
+            style={{ marginRight: 14 }}
+          >
+            <Ionicons name="camera-outline" size={24} color={t.textoSecundario} />
+          </Pressable>
           <Pressable onPress={() => openBhaScan(null)} hitSlop={12} style={{ marginRight: 14 }}>
             <Ionicons name="scan-outline" size={24} color={kind === 'dark' ? '#4ade80' : t.tealTexto} />
           </Pressable>
@@ -869,6 +884,14 @@ export default function SupplementsScreen() {
         supplement={bhaTarget}
         onClose={() => setBhaVisible(false)}
         onSealPersisted={loadSupplements}
+      />
+      {/* OLA3: hoja de captura del escaneo de suplemento (analyzeSupplementPhoto,
+          10 contextos, dedupe por nombre, sin score persistido — compliance S4) */}
+      <SupplementScanSheet
+        visible={scanVisible}
+        userId={userId}
+        onClose={() => setScanVisible(false)}
+        onPlanChanged={loadSupplements}
       />
       <MedicalDisclaimer feature="supplements" />
     </ScrollView>

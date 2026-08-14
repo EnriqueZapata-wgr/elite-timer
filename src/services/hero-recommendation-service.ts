@@ -82,7 +82,7 @@ export const HERO_RULES: HeroRule[] = [
       title: 'Rompe el ayuno con proteína',
       subtitle: 'Primer alimento: proteína + grasa buena, no azúcar.',
       cta: 'Registrar comida',
-      route: '/food-register',
+      route: '/food-log',
     }),
   },
 
@@ -109,7 +109,7 @@ export const HERO_RULES: HeroRule[] = [
       title: 'Agrega proteína ahora',
       subtitle: 'Sin proteína registrada hoy — tu masa muscular la pide.',
       cta: 'Registrar',
-      route: '/food-register',
+      route: '/food-log',
     }),
   },
   {
