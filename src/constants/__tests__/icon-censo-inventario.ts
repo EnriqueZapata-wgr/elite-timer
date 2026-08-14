@@ -196,6 +196,9 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/settings/experiencia.tsx::phone-portrait-outline',
   'app/settings/legal.tsx::document-text-outline',
   'app/settings/legal.tsx::medkit-outline',
+  // Ola 0 QW-5: las filas nuevas de Términos y Aviso (antes no había NINGUNA
+  // puerta a /legal/* en la app, era bloqueante de revisión de tiendas).
+  'app/settings/legal.tsx::reader-outline',
   'app/settings/privacy.tsx::document-text-outline',
   'app/settings/salud.tsx::calendar-outline',
   'app/settings/salud.tsx::flask-outline',
