@@ -1,0 +1,23 @@
+- generic [ref=e28]:
+  - generic [ref=e29]: ACTIVA TU ENERGÍA Y SALUD
+  - generic [ref=e33]:
+    - generic [ref=e34]:
+      - generic [ref=e35]: EMAIL
+      - textbox "tu@email.com" [ref=e36]
+    - generic [ref=e37]:
+      - generic [ref=e38]:
+        - generic [ref=e39]: CONTRASEÑA
+        - textbox "Tu contraseña" [ref=e40]
+      - generic [ref=e41] [cursor=pointer]: 
+    - generic [ref=e43] [cursor=pointer]: INICIAR SESIÓN
+    - generic [ref=e45] [cursor=pointer]: ¿No tienes cuenta? Regístrate
+    - generic [ref=e47] [cursor=pointer]: ¿Olvidaste tu contraseña?
+    - generic [ref=e49]:
+      - generic [ref=e50]:
+        - generic [ref=e51] [cursor=pointer]: 🌐 ATP
+        - generic [ref=e53]: ·
+        - generic [ref=e54] [cursor=pointer]: 👥 Comunidad
+      - generic [ref=e56]:
+        - generic [ref=e57] [cursor=pointer]: Términos
+        - generic [ref=e59]: ·
+        - generic [ref=e60] [cursor=pointer]: Privacidad

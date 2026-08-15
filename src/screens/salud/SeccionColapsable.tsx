@@ -19,7 +19,8 @@
  * la fila roja de la ficha de emergencia.
  */
 import { type ReactNode, useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, type ImageSourcePropType } from 'react-native';
+import { EditorialCard } from '@/src/components/hoy/EditorialCard';
 import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -43,6 +44,16 @@ interface Props {
   destinos?: Destino[];
   /** Si no hay destinos, el encabezado navega aquí. */
   route?: Href;
+  /**
+   * La tarjeta NO cambia: es la misma EditorialCard de siempre, con su foto,
+   * su gradiente y su tamaño. Decisión de Enrique (13-ago-2026): "se quedan
+   * como estaban". Lo único que cambió en OLA6 es qué pasa al TOCARLA: antes
+   * te sacaba a una pantalla-pasillo que solo listaba destinos; ahora la
+   * lista se abre debajo, sin salir de SALUD.
+   */
+  image?: ImageSourcePropType;
+  /** Gradiente de la puerta, tal cual lo declara salud-puertas. */
+  gradient: [string, string] | [string, string, string];
   isFemale: boolean;
   abierta: boolean;
   onToggle: () => void;
@@ -50,7 +61,7 @@ interface Props {
 }
 
 export function SeccionColapsable({
-  icon, title, subtitle, acento, destinos, route, isFemale, abierta, onToggle, children,
+  icon, title, subtitle, acento, destinos, route, image, gradient, isFemale, abierta, onToggle, children,
 }: Props) {
   const t = useSurfaceTokens();
   const s = useMemo(() => makeStyles(t), [t]);
@@ -67,20 +78,22 @@ export function SeccionColapsable({
 
   return (
     <View style={s.wrap}>
-      <AnimatedPressable style={s.header} onPress={onPressHeader}>
-        <View style={[s.headerIcon, { backgroundColor: acento + '1A' }]}>
-          <AppIcon name={icon} size={20} color={acento} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <EliteText style={s.headerTitle}>{title}</EliteText>
-          <EliteText style={s.headerSub} numberOfLines={1}>{subtitle}</EliteText>
-        </View>
-        <Ionicons
-          name={colapsable ? (abierta ? 'chevron-up' : 'chevron-down') : 'chevron-forward'}
-          size={18}
-          color={t.textoSecundario}
-        />
-      </AnimatedPressable>
+      {/* LA MISMA TARJETA DE SIEMPRE. Mismo componente, misma foto, mismo
+          gradiente, mismo tamaño que antes de OLA6. El único cambio es el
+          destino del tap: colapsar en vez de navegar a un pasillo. El badge
+          avisa que la lista está abierta, para que el usuario sepa que lo de
+          abajo pertenece a esta tarjeta. */}
+      <EditorialCard
+        cardKey={`salud_${title}`}
+        icon={icon}
+        iconName={icon}
+        title={title}
+        subtitle={subtitle}
+        gradient={gradient}
+        imageBn={image}
+        badge={colapsable && abierta ? 'ABIERTO' : undefined}
+        onTap={onPressHeader}
+      />
 
       {colapsable && abierta && (
         <View style={s.body}>
@@ -111,12 +124,8 @@ export function SeccionColapsable({
 const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
 const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   wrap: { marginBottom: Spacing.sm },
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: t.card,
-    borderWidth: 0.5, borderColor: t.borde,
-    borderRadius: 14, paddingHorizontal: 12, paddingVertical: 13,
-  },
+  // El encabezado ES la EditorialCard: aquí solo queda el cuerpo que se
+  // despliega debajo cuando la sección abre.
   headerIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.sm, letterSpacing: 0.6 },
   headerSub: { color: tenue(t), fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: 2 },

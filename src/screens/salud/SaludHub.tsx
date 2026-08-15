@@ -21,7 +21,7 @@
  * curado fue rechazado por los veteranos porque les costaba más clics.
  */
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, DeviceEventEmitter } from 'react-native';
+import { View, StyleSheet, ScrollView, DeviceEventEmitter, type ImageSourcePropType } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -30,6 +30,20 @@ import { AppIcon } from '@/src/components/ui/AppIcon';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EdadAtpHeroCard } from '@/src/components/edad-atp/EdadAtpHeroCard';
 import { SeccionColapsable } from '@/src/screens/salud/SeccionColapsable';
+
+/**
+ * Foto por sección. SALUD es una de las cinco caras de la app y sus puertas
+ * siempre tuvieron foto. Al pasar de tarjeta a encabezado colapsable, la foto
+ * se conserva como banda: se mantiene el lenguaje editorial y las cinco
+ * secciones siguen cabiendo de un vistazo. Decisión de Enrique, 13-ago-2026.
+ */
+const PUERTA_IMAGES: Record<string, ImageSourcePropType> = {
+  hoy: require('@/assets/images/health-hub/mi-salud.webp'),
+  datos: require('@/assets/images/salud-funcional/mis-datos.webp'),
+  evolucion: require('@/assets/images/health-hub/diagnostico.webp'),
+  expediente: require('@/assets/images/salud-funcional/mi-expediente.webp'),
+  ciclo: require('@/assets/images/cycle/ciclo-01.webp'),
+};
 import { FichaEmergenciaRow } from '@/src/components/salud/FichaEmergenciaRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
@@ -153,6 +167,8 @@ export function SaludHub() {
                 title={p.title}
                 subtitle={p.subtitle}
                 acento={p.gradient[0]}
+                gradient={p.gradient}
+                image={PUERTA_IMAGES[key]}
                 destinos={conLista ? DESTINOS_POR_PUERTA[key as 'hoy' | 'evolucion' | 'expediente'] : undefined}
                 route={conLista ? undefined : p.route}
                 isFemale={isFemale}

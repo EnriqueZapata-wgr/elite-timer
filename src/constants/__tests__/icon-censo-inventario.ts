@@ -95,6 +95,10 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/log-strength.tsx::barbell-outline',
   'app/log-strength.tsx::hourglass-outline',
   'app/login.tsx::eye-outline',
+  // OLA6 D: el acceso a la ficha de emergencia desde el login. Va aquí a
+  // conciencia porque es la puerta que se usa SIN sesión, cuando quien tiene
+  // el teléfono no es el dueño.
+  'app/login.tsx::medkit-outline',
   'app/mente/nback/como-jugar.tsx::eye-outline',
   'app/mente/nback/como-jugar.tsx::trending-up-outline',
   'app/mente/nback/index.tsx::book-outline',
@@ -138,6 +142,13 @@ export const GLYPH_INVENTORY: readonly string[] = [
   // MB-31A: moon-outline salió — la fila display-only "Tema" se volvió el
   // selector real de chips, sin glifo.
   'app/settings/experiencia.tsx::phone-portrait-outline',
+  // OLA6 D · ficha de emergencia. Los tres glifos son de sistema, no de
+  // función: compartir, ver en pantalla, y el acceso rápido.
+  'app/salud/ficha-emergencia.tsx::document-text-outline',
+  'app/salud/ficha-emergencia.tsx::eye-outline',
+  'app/salud/ficha-emergencia.tsx::phone-portrait-outline',
+  'app/settings/salud.tsx::medkit-outline::x2',
+  'src/components/salud/FichaEmergenciaRow.tsx::medkit',
   'app/settings/legal.tsx::document-text-outline',
   'app/settings/legal.tsx::medkit-outline',
   // Ola 0 QW-5: las filas nuevas de Términos y Aviso (antes no había NINGUNA
@@ -146,7 +157,8 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/settings/privacy.tsx::document-text-outline',
   'app/settings/salud.tsx::calendar-outline',
   'app/settings/salud.tsx::flask-outline',
-  'app/settings/salud.tsx::medkit-outline',
+  // OLA6 D: medkit-outline pasó de un uso a dos (se sumó el acceso a la ficha
+  // de emergencia), así que la entrada vive arriba como ::x2.
   'app/settings/salud.tsx::sunny-outline',
   'app/sleep.tsx::moon-outline',
   'app/sleep.tsx::sunny-outline',
