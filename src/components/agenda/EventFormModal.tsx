@@ -98,7 +98,7 @@ export function EventFormModal({ visible, title, initial, onSave, onClose }: Pro
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <Pressable style={[styles.overlay, { backgroundColor: dark ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)' }]} onPress={onClose}>
         <Pressable
           style={[styles.card, { backgroundColor: t.flotante, borderColor: dark ? 'rgba(255,255,255,0.1)' : t.bordeMarcado }]}
           onPress={() => { /* eat tap */ }}
@@ -176,7 +176,7 @@ export function EventFormModal({ visible, title, initial, onSave, onClose }: Pro
 // MB-31B: solo layout + acentos de marca; superficies y texto entran inline
 // desde los tokens. El negro sobre lima es el mismo en los dos temas.
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
+  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
   card: { width: '100%', maxWidth: 360, maxHeight: '85%', borderWidth: 1, borderRadius: Radius.card, padding: Spacing.xl },
   title: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginBottom: Spacing.md, letterSpacing: 1 },
   label: { fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 1.5, marginTop: Spacing.md, marginBottom: Spacing.sm },

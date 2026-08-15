@@ -39,7 +39,7 @@ export function EventActionModal({ event, onEdit, onComplete, onSnooze, onDelete
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <Pressable style={[styles.overlay, { backgroundColor: dark ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)' }]} onPress={onClose}>
         <Pressable
           style={[styles.card, { backgroundColor: t.flotante, borderColor: dark ? 'rgba(255,255,255,0.1)' : t.bordeMarcado }]}
           onPress={() => { /* eat tap */ }}
@@ -79,7 +79,7 @@ function ActionRow({ icon, label, color, onPress }: { icon: keyof typeof Ionicon
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
+  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
   card: { width: '100%', maxWidth: 320, borderWidth: 1, borderRadius: Radius.card, padding: Spacing.xl },
   title: { fontFamily: Fonts.bold, fontSize: FontSizes.lg },
   subtitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, marginTop: 2, marginBottom: Spacing.md },

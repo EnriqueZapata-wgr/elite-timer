@@ -29,6 +29,13 @@ import { getLocalToday, getLocalHour } from '@/src/utils/date-helpers';
 import { pickTuDiaImage } from '@/src/utils/image-rotation';
 import { ATP_BRAND, TEXT } from '@/src/constants/brand';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
+
+// MB-31B: card editorial con foto + velo de gradient SIEMPRE oscuro (excepción
+// regla 1 de la doctrina de color) — título, chevron, número lima, labels y
+// stats se quedan fijos en los dos temas porque el fondo bajo ellos no cambia
+// con el tema de la app. Lo único que cambia es el fallback antes de pintar
+// la capa (backgroundColor de la card).
 
 interface Props {
   /** Porcentaje del día completado (0-100). Viene de day.electronProgress.percentage. */
@@ -48,6 +55,7 @@ const DAWN_GRADIENT: [string, string] = ['#F59E0B', '#312E81'];
 
 export function HoyDayCardEditorial({ percentage, seedKey, streak, completedCount, totalCount, coaching }: Props) {
   const { user } = useAuth();
+  const t = useSurfaceTokens();
   const [earnedToday, setEarnedToday] = useState<number>(0);
   const barWidth = useSharedValue(0);
 
@@ -102,7 +110,7 @@ export function HoyDayCardEditorial({ percentage, seedKey, streak, completedCoun
         // MB-1.5 §3: el score no es decorativo — lleva a la acción que más lo mueve hoy.
         router.push((coaching?.route ?? '/economy/admin') as any);
       }}
-      style={styles.card}
+      style={[styles.card, { backgroundColor: t.fondo }]}
     >
       {/* Fondo B/N (despertar) o placeholder gradient. width/height explícitos por el bug de
           RN con aspectRatio en el padre (ver EditorialCard). */}
@@ -187,7 +195,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     borderRadius: Radius.card,
     overflow: 'hidden',
-    backgroundColor: '#000',
   },
   content: { flex: 1, padding: Spacing.lg, justifyContent: 'space-between' },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
