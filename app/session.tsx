@@ -61,10 +61,19 @@ import { esBenchmarkDistancia } from '@/src/services/fitness/edad-bridge-core';
 import { ATP_BRAND, TEXT, TEXT_COLORS, ELEVATION, PILLAR_GRADIENTS, SEMANTIC, withOpacity, CATEGORY_COLORS } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAppTheme } from '@/src/contexts/theme-context';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 
 const CARDIO_LABELS: Record<string, string> = {
   running: 'Correr', cycling: 'Ciclismo', swimming: 'Natación', rowing: 'Remo', other: 'Cardio',
 };
+
+/**
+ * FIX-215: techo de la carga. Sin esto "Cargando…" no tenía salida: la matriz
+ * se pide sin timeout de fetch, así que una petición colgada dejaba la pantalla
+ * en negro para siempre. Doce segundos es largo para una red lenta y corto para
+ * alguien de pie esperando para entrenar.
+ */
+const TECHO_CARGA_MS = 12000;
 
 // ── Runner de bloque estándar (registro inline + descanso hablado) ──
 
@@ -332,6 +341,21 @@ export default function SessionScreen() {
   // C-1 (MB-12): series del bloque en curso al retomar una sesión recuperada.
   const [resumePartial, setResumePartial] = useState<SessionSet[] | null>(null);
   const recoveryChecked = useRef(false);
+  // FIX-215: el error de carga es un estado propio, distinto del vacío. Antes no
+  // existía: si la matriz reventaba, la pantalla se quedaba en "Cargando…".
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  const [intento, setIntento] = useState(0);
+
+  /** Salida honesta: si no hay a dónde regresar (deep link), va al hub. */
+  const salir = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/fitness-hub');
+  };
+
+  const reintentar = () => {
+    setErrorCarga(null);
+    setIntento((n) => n + 1);
+  };
 
   // C-1 (MB-12): stash incremental — el estado persiste en AsyncStorage serie
   // a serie (no al final). Si la app muere, el trabajo sigue en el teléfono.
@@ -386,6 +410,25 @@ export default function SessionScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // FIX-215: sin ningún parámetro no hay nada que cargar, y hay que decirlo.
+  // Los tres caminos de abajo hacen early return en su primera línea cuando
+  // faltan sus params, así que nadie llamaba setBloques y `bloques` se quedaba
+  // en null (= "Cargando…") de por vida. Le pasa a cualquier deep link suelto a
+  // /session o a su alias /strength-session. Resolver a [] cae en el estado
+  // vacío, que ahora sí explica qué pasó y por dónde salir.
+  useEffect(() => {
+    if (bloques) return;
+    // ?plan= que no parsea (o que llega sin bloques) tampoco tenía salida: el
+    // useMemo devolvía null, ningún efecto lo recogía y la pantalla se quedaba
+    // cargando. Eso es un error, no un vacío: el usuario sí pidió una rutina.
+    if (params.plan && !plan?.bloques) {
+      setErrorCarga('No pudimos leer la rutina que llegó.');
+      return;
+    }
+    if (params.plan || params.routine || params.slugs) return;
+    setBloques([]);
+  }, [bloques, plan, params.plan, params.routine, params.slugs]);
+
   // Camino builder (MB-7 Track C): ?routine=<Routine> → puente al catálogo.
   // Ejercicios con matrix_slug corren con clip; bloques de tiempo, inline.
   useEffect(() => {
@@ -397,8 +440,12 @@ export default function SessionScreen() {
     getExerciseMatrix().then((all) => {
       const map = new Map(all.map((e) => [e.slug, e]));
       setBloques(bridgeRoutineToSession(parsed, map).bloques);
-    });
-  }, [bloques, params.routine, timerRoutine]);
+    // FIX-215: sin este catch, una excepción de red (no un error de PostgREST,
+    // que el servicio sí maneja) dejaba la promesa rechazada y la pantalla en
+    // negro. El servicio devuelve caché ante error de query, pero un fetch que
+    // revienta llega hasta aquí.
+    }).catch(() => setErrorCarga('No pudimos leer la biblioteca de ejercicios.'));
+  }, [bloques, params.routine, timerRoutine, intento]);
 
   // Camino biblioteca: ?slugs=a,b,c → bloques estándar desde la matriz.
   useEffect(() => {
@@ -431,8 +478,21 @@ export default function SessionScreen() {
         });
       }
       setBloques(armados);
-    });
-  }, [bloques, params.slugs]);
+    }).catch(() => setErrorCarga('No pudimos leer la biblioteca de ejercicios.'));
+  }, [bloques, params.slugs, intento]);
+
+  // FIX-215: techo de la carga. La matriz se pide sin timeout de fetch, así que
+  // una petición que nunca responde no rechaza ni resuelve: la pantalla se
+  // quedaba en negro sin salida. Pasado el techo se convierte en error, que sí
+  // tiene reintento y salida.
+  useEffect(() => {
+    if (bloques || errorCarga) return;
+    const t = setTimeout(
+      () => setErrorCarga('La sesión tardó demasiado en cargar.'),
+      TECHO_CARGA_MS,
+    );
+    return () => clearTimeout(t);
+  }, [bloques, errorCarga, intento]);
 
   const actual = bloques && idx < bloques.length ? bloques[idx] : null;
 
@@ -674,12 +734,32 @@ export default function SessionScreen() {
     );
   }
 
-  // ── Carga / vacío ──
+  // ── Error / carga / vacío (FIX-215) ──
+  // Los tres son estados distintos y ahora se ven distintos. El error va
+  // primero: si algo falló, decirlo gana sobre seguir aparentando que carga.
+  if (errorCarga) {
+    return (
+      <Screen themed edges={[]}>
+        <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
+        <ScreenHeader title="Sesión" onBack={salir} />
+        <View style={s.center}>
+          <EmptyState
+            icon="cloud-offline-outline"
+            title="No pudimos armar tu sesión"
+            subtitle={`${errorCarga} Revisa tu conexión e inténtalo otra vez.`}
+            actionLabel="Reintentar"
+            onAction={reintentar}
+            color={tk.error}
+          />
+        </View>
+      </Screen>
+    );
+  }
   if (!bloques) {
     return (
       <Screen themed edges={[]}>
         <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
-        <ScreenHeader title="Sesión" onBack={() => router.back()} />
+        <ScreenHeader title="Sesión" onBack={salir} />
         <View style={s.center}><Text style={[s.metaText, secTxt]}>Cargando…</Text></View>
       </Screen>
     );
@@ -688,9 +768,16 @@ export default function SessionScreen() {
     return (
       <Screen themed edges={[]}>
         <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
-        <ScreenHeader title="Sesión" onBack={() => router.back()} />
+        <ScreenHeader title="Sesión" onBack={salir} />
         <View style={s.center}>
-          <Text style={[s.metaText, secTxt]}>No hay ejercicios en esta sesión.</Text>
+          <EmptyState
+            icon="fitness-outline"
+            title="No hay sesión que ejecutar"
+            subtitle="Llegaste al ejecutor sin una rutina. Elige una en Fitness y te la abrimos aquí."
+            actionLabel="Ir a Fitness"
+            onAction={() => router.replace('/fitness-hub')}
+            color={acento}
+          />
         </View>
       </Screen>
     );

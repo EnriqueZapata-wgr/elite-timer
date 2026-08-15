@@ -25,6 +25,7 @@ import { EliteText } from '@/components/elite-text';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 import { InfoButton } from '@/src/components/InfoButton';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
@@ -41,6 +42,12 @@ import type { SessionSet } from '@/src/services/fitness/workout-session-core';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 
 // === TIPOS LOCALES ===
+
+/**
+ * FIX-215: techo de la carga. supabase no configura timeout de fetch, así que
+ * sin esto "Cargando..." no tenía salida. Mismo número que /session.
+ */
+const TECHO_CARGA_MS = 12000;
 
 type Step = 'benchmark' | 'variant' | 'log';
 
@@ -118,6 +125,12 @@ export default function LogStrengthScreen() {
   // recibe un rango honesto (tiempo en pantalla, no un entreno inventado).
   const startedAtRef = useRef(new Date());
 
+  /** FIX-215: salida honesta. Si no hay a dónde regresar, va al hub. */
+  const salir = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/fitness-hub');
+  };
+
   // --- Modal de agregar variante ---
   const [variantModalVisible, setVariantModalVisible] = useState(false);
   const [newVariantName, setNewVariantName] = useState('');
@@ -129,6 +142,19 @@ export default function LogStrengthScreen() {
     loadBenchmarks();
   }, []);
 
+  // FIX-215: techo de la carga. supabase no configura timeout de fetch, así que
+  // una petición que nunca responde deja el await colgado para siempre y ni el
+  // try/finally salva: no hay excepción que atrapar. Pasado el techo, la
+  // pantalla pasa a error, que sí tiene reintento y salida.
+  useEffect(() => {
+    if (!loading) return;
+    const t = setTimeout(() => {
+      setLoadError('Los ejercicios tardaron demasiado en cargar.');
+      setLoading(false);
+    }, TECHO_CARGA_MS);
+    return () => clearTimeout(t);
+  }, [loading]);
+
   // Si viene con exerciseId, auto-navegar al paso correcto
   useEffect(() => {
     if (!params.exerciseId || benchmarks.length === 0) return;
@@ -138,40 +164,54 @@ export default function LogStrengthScreen() {
   async function loadBenchmarks() {
     setLoading(true);
     setLoadError(null);
-    const { data, error } = await supabase
-      .from('exercises')
-      .select('*')
-      .eq('is_benchmark', true)
-      .order('name_es');
-    if (error) {
-      logWarn('loadBenchmarks error:', error.message);
-      setLoadError('No se pudieron cargar los ejercicios. Revisa tu conexión e inténtalo de nuevo.');
-      setBenchmarks([]);
-      setLoading(false);
-      return;
-    }
-    setBenchmarks((data as ExerciseRow[]) ?? []);
-
-    // Cargar PRs del usuario
-    if (user) {
-      const { data: prData, error: prError } = await supabase
-        .from('personal_records')
+    // FIX-215: todo el cuerpo va en try/finally. Antes los await estaban
+    // pelones: PostgREST devuelve el error en la respuesta y eso sí se
+    // manejaba, pero una excepción de red (offline, DNS, TLS) rechazaba la
+    // función y setLoading(false) nunca corría. La pantalla se quedaba en
+    // "Cargando..." en gris #555 sobre negro, que es la captura en negro.
+    try {
+      const { data, error } = await supabase
+        .from('exercises')
         .select('*')
-        .eq('user_id', user.id);
-      if (prError) {
-        logWarn('loadBenchmarks PR query error:', prError.message);
-      } else if (prData) {
-        const map: Record<string, PRRow> = {};
-        for (const pr of prData as PRRow[]) {
-          // Guardar el PR con mayor 1RM estimado por ejercicio
-          if (!map[pr.exercise_id] || pr.estimated_1rm > map[pr.exercise_id].estimated_1rm) {
-            map[pr.exercise_id] = pr;
-          }
-        }
-        setPrs(map);
+        .eq('is_benchmark', true)
+        .order('name_es');
+      if (error) {
+        logWarn('loadBenchmarks error:', error.message);
+        setLoadError('No se pudieron cargar los ejercicios.');
+        setBenchmarks([]);
+        return;
       }
+      setBenchmarks((data as ExerciseRow[]) ?? []);
+      // Si el techo de carga ya había marcado error y la respuesta llega tarde,
+      // gana el dato: sería absurdo enseñar un error con la lista en la mano.
+      setLoadError(null);
+
+      // Cargar PRs del usuario
+      if (user) {
+        const { data: prData, error: prError } = await supabase
+          .from('personal_records')
+          .select('*')
+          .eq('user_id', user.id);
+        if (prError) {
+          logWarn('loadBenchmarks PR query error:', prError.message);
+        } else if (prData) {
+          const map: Record<string, PRRow> = {};
+          for (const pr of prData as PRRow[]) {
+            // Guardar el PR con mayor 1RM estimado por ejercicio
+            if (!map[pr.exercise_id] || pr.estimated_1rm > map[pr.exercise_id].estimated_1rm) {
+              map[pr.exercise_id] = pr;
+            }
+          }
+          setPrs(map);
+        }
+      }
+    } catch (e) {
+      logWarn('loadBenchmarks reventó:', e);
+      setLoadError('No pudimos conectarnos para traer los ejercicios.');
+      setBenchmarks([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function searchExercises(query: string) {
@@ -478,6 +518,9 @@ export default function LogStrengthScreen() {
       <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader
         title="Registrar"
+        // FIX-215: sin onBack, BackButton cae en router.back(), que en un deep
+        // link sin historial no hace nada y deja al usuario encerrado.
+        onBack={salir}
         rightAction={
           (step === 'variant' || step === 'log') ? (
             <AnimatedPressable onPress={goBack} hitSlop={8} style={s.backStep}>
@@ -545,18 +588,26 @@ export default function LogStrengthScreen() {
             {loading ? (
               <EliteText variant="body" style={[s.loadingText, { color: tk.textoTenue }]}>Cargando...</EliteText>
             ) : loadError ? (
-              <View style={{ alignItems: 'center', marginTop: Spacing.xl, gap: Spacing.sm }}>
-                <EliteText variant="body" style={[s.emptyText, { color: tk.textoTenue }]}>
-                  {loadError}
-                </EliteText>
-                <AnimatedPressable onPress={loadBenchmarks} style={{ paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs }}>
-                  <Text style={{ color: acento, fontFamily: Fonts.semiBold }}>Reintentar</Text>
-                </AnimatedPressable>
-              </View>
+              // FIX-215: el error se leía en textoTenue (#555 sobre negro, ~2.2:1)
+              // y sin ícono. Ahora usa el estado compartido, con el coral de error.
+              <EmptyState
+                icon="cloud-offline-outline"
+                title="No pudimos traer los ejercicios"
+                subtitle={`${loadError} Revisa tu conexión e inténtalo otra vez.`}
+                actionLabel="Reintentar"
+                onAction={loadBenchmarks}
+                color={tk.error}
+              />
             ) : benchmarks.length === 0 ? (
-              <EliteText variant="body" style={[s.emptyText, { color: tk.textoTenue }]}>
-                No hay ejercicios benchmark configurados.
-              </EliteText>
+              // Vacío honesto y distinto del error: aquí sí leímos, y no hay nada.
+              <EmptyState
+                icon="fitness-outline"
+                title="Todavía no hay ejercicios que registrar"
+                subtitle="No encontramos ejercicios de referencia. Búscalo arriba o créalo, y aquí queda tu registro."
+                actionLabel="Ir a Fitness"
+                onAction={() => router.replace('/fitness-hub')}
+                color={acento}
+              />
             ) : (
               benchmarks.map((bm, i) => {
                 const pr = prs[bm.id];
