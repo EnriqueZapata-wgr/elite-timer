@@ -120,6 +120,61 @@ export function sanear(metrica: MetricaSalud, valor: number | null | undefined):
   return metrica === 'peso' ? Math.round(valor * 10) / 10 : Math.round(valor);
 }
 
+// ── Unidades ──
+
+/**
+ * HealthKit devuelve cada cantidad en la unidad PREFERIDA del usuario, no en
+ * una unidad fija: un usuario con el iPhone en libras entrega 157 lb donde
+ * otro entrega 71.4 kg. Guardar el número sin mirar la unidad convierte a esa
+ * persona en alguien de 157 kg. Health Connect sí entrega SI, pero se pasa por
+ * aquí igual para tener una sola puerta de entrada.
+ */
+export function aKilogramos(valor: number | null | undefined, unidad: string): number | null {
+  if (valor == null || !Number.isFinite(valor)) return null;
+  switch (unidad.trim().toLowerCase()) {
+    case 'kg':
+    case 'kilogram':
+    case 'kilograms':
+      return valor;
+    case 'g':
+    case 'gram':
+    case 'grams':
+      return valor / 1000;
+    case 'lb':
+    case 'lbs':
+    case 'pound':
+    case 'pounds':
+      return valor * 0.45359237;
+    case 'st':
+    case 'stone':
+      return valor * 6.35029318;
+    default:
+      // Unidad desconocida: no adivinamos el peso de una persona.
+      return null;
+  }
+}
+
+export function aKilocalorias(valor: number | null | undefined, unidad: string): number | null {
+  if (valor == null || !Number.isFinite(valor)) return null;
+  switch (unidad.trim().toLowerCase()) {
+    case 'kcal':
+    case 'cal': // "Calorie" de nutrición: Apple usa Cal para kilocalorías
+    case 'kilocalorie':
+    case 'kilocalories':
+      return valor;
+    case 'j':
+    case 'joule':
+    case 'joules':
+      return valor / 4184;
+    case 'kj':
+    case 'kilojoule':
+    case 'kilojoules':
+      return valor / 4.184;
+    default:
+      return null;
+  }
+}
+
 // ── Un día de datos ──
 
 export interface DiaSalud {

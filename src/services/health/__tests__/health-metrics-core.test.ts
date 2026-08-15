@@ -18,6 +18,8 @@ import {
   DEFINICIONES,
   METRICAS,
   RANGOS,
+  aKilocalorias,
+  aKilogramos,
   definicionDe,
   diaVacio,
   diasConDatos,
@@ -113,6 +115,37 @@ describe('sanear (los datos de máquina se validan)', () => {
     for (const m of METRICAS) {
       expect(RANGOS[m].min).toBeLessThan(RANGOS[m].max);
     }
+  });
+});
+
+describe('unidades (HealthKit entrega en la unidad preferida del usuario)', () => {
+  it('157 lb es una persona de 71 kg, no de 157 kg', () => {
+    const kg = aKilogramos(157, 'lb');
+    expect(kg).toBeCloseTo(71.21, 1);
+    expect(sanear('peso', kg)).toBe(71.2);
+  });
+
+  it('convierte kg, gramos y stones', () => {
+    expect(aKilogramos(71.4, 'kg')).toBe(71.4);
+    expect(aKilogramos(71400, 'g')).toBeCloseTo(71.4, 3);
+    expect(aKilogramos(11, 'st')).toBeCloseTo(69.85, 1);
+  });
+
+  it('convierte joules y kilojoules a kilocalorías', () => {
+    expect(aKilocalorias(500, 'kcal')).toBe(500);
+    expect(aKilocalorias(500, 'Cal')).toBe(500); // Apple usa Cal para kcal
+    expect(aKilocalorias(4184, 'J')).toBeCloseTo(1, 6);
+    expect(aKilocalorias(4.184, 'kJ')).toBeCloseTo(1, 6);
+  });
+
+  it('una unidad desconocida no se adivina: el peso de alguien no se inventa', () => {
+    expect(aKilogramos(70, 'quintal')).toBeNull();
+    expect(aKilocalorias(500, 'watts')).toBeNull();
+  });
+
+  it('mayúsculas y espacios no rompen la conversión', () => {
+    expect(aKilogramos(1, ' KG ')).toBe(1);
+    expect(aKilocalorias(1, 'KCAL')).toBe(1);
   });
 });
 
