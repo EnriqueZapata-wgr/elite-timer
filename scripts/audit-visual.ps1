@@ -166,6 +166,18 @@ foreach ($r in $rutas) {
   Start-Sleep -Seconds $Espera
   & adb shell screencap -p $tmpRemoto 2>$null
   & adb pull $tmpRemoto $destinoPng 2>$null | Out-Null
+
+  # RESISTENCIA (14-ago-2026, revalidada al pasar a 306 rutas): una sola ruta
+  # mala tumbaba la corrida entera y las 150 capturas siguientes salian del
+  # dialogo de "la app se detuvo". Si la captura sale sospechosamente chica, la
+  # app probablemente murio: se cierra a la fuerza y la siguiente ruta la vuelve
+  # a levantar sola. Con mas del doble de rutas, la probabilidad de toparse con
+  # una mala subio, asi que esto importa mas que antes, no menos.
+  if ((Test-Path $destinoPng) -and (Get-Item $destinoPng).Length -lt 60KB) {
+    Write-Host "  ! $($r.ruta) dejo la app en mal estado, reiniciando" -ForegroundColor DarkYellow
+    & adb shell am force-stop $AppId 2>$null | Out-Null
+    Start-Sleep -Seconds 2
+  }
 }
 
 & adb shell rm -f $tmpRemoto 2>$null | Out-Null
