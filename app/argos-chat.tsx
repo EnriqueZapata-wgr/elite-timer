@@ -58,7 +58,10 @@ import { TypingIndicator } from '@/src/components/argos/chat/TypingIndicator';
 import { MessageActionsMenu } from '@/src/components/argos/chat/MessageActionsMenu';
 import { NavOptionsRow } from '@/src/components/argos/chat/NavOptionsRow';
 import { decidirTurnoNav, type TurnoNav } from '@/src/services/argos-nav-intent-core';
-import type { CandidatoNav } from '@/src/services/argos-nav-resolver-core';
+import { tituloDe, type CandidatoNav } from '@/src/services/argos-nav-resolver-core';
+import { detectarIntencionAjuste, type PeticionAjuste } from '@/src/services/argos-settings-intent-core';
+import { planearAjuste, construirPregunta, type PlanAjuste } from '@/src/services/argos-settings-core';
+import { aplicarAjuste } from '@/src/services/argos-settings-service';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 /**
@@ -286,37 +289,16 @@ function ArgosChat() {
    */
   function responderSinModelo(messageText: string, nav: TurnoNav) {
     if (nav.accion === 'chat') return;
-    // Mismo manejo de rotación de sesión que el turno normal: si el ancla rotó
-    // por debajo, este turno arranca conversación nueva en vez de adoptar la
-    // vieja en la sesión nueva.
-    const rotatedAway = sessionRotatedAway(screenSessionRef.current, getArgosSessionId());
-    if (rotatedAway) setConversationId(null);
-    const base = rotatedAway ? [] : messages;
-    const turnConversationId = rotatedAway ? null : conversationId;
-    const turnSessionId = getArgosSessionId();
-    screenSessionRef.current = turnSessionId;
-
     setInput('');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRateLimit(null);
 
-    const userTurn: ArgosMessage = { role: 'user', content: messageText, ts: Date.now() };
-    const resolved = resolveTurn(
-      base, userTurn, { kind: 'reply', text: nav.mensaje, degraded: false }, Date.now(),
-    );
-    setMessages(resolved.messages);
+    const resolved = pintarTurnoLocal(messageText, nav.mensaje);
     setNavOpciones(nav.accion === 'preguntar' ? nav.opciones : null);
     if (autoSpeak) speakArgos(nav.mensaje);
     analytics.track(ATP_EVENTS.ARGOS_MESSAGE_SENT, { turn_index: resolved.messages.length });
 
     if (nav.accion === 'navegar') navegarDiferido(nav.ruta);
-
-    const plan = persistPlan(resolved.messages, resolved.wasDegraded);
-    if (plan.persist && userId) {
-      saveConversation(userId, plan.clean, turnConversationId, turnSessionId)
-        .then((id) => { if (id) setConversationId(id); })
-        .catch((e) => console.warn('ARGOS saveConversation (nav) error:', e));
-    }
   }
 
   /** El usuario eligió una de las opciones de la desambiguación. */
@@ -330,6 +312,82 @@ function ArgosChat() {
     navegarDiferido(candidato.ruta);
   }
 
+  /** Pinta un turno completo (lo que dijo el usuario + lo que contesta ARGOS). */
+  function pintarTurnoLocal(messageText: string, respuesta: string) {
+    const rotatedAway = sessionRotatedAway(screenSessionRef.current, getArgosSessionId());
+    if (rotatedAway) setConversationId(null);
+    const base = rotatedAway ? [] : messages;
+    const turnConversationId = rotatedAway ? null : conversationId;
+    const turnSessionId = getArgosSessionId();
+    screenSessionRef.current = turnSessionId;
+
+    const userTurn: ArgosMessage = { role: 'user', content: messageText, ts: Date.now() };
+    const resolved = resolveTurn(
+      base, userTurn, { kind: 'reply', text: respuesta, degraded: false }, Date.now(),
+    );
+    setMessages(resolved.messages);
+    const plan = persistPlan(resolved.messages, resolved.wasDegraded);
+    if (plan.persist && userId) {
+      saveConversation(userId, plan.clean, turnConversationId, turnSessionId)
+        .then((id) => { if (id) setConversationId(id); })
+        .catch((e) => console.warn('ARGOS saveConversation (local) error:', e));
+    }
+    return resolved;
+  }
+
+  /**
+   * NOCHE-ARGOS P7: ARGOS configura la app. Sin red y sin costo.
+   *
+   * SIEMPRE CONFIRMA, incluso los ajustes que el catálogo marca como 'directo'.
+   * Ese nivel de riesgo se pensó para cuando ARGOS ya sabe con certeza qué le
+   * pediste; aquí la petición viene de interpretar una frase, y lo que se
+   * confirma no es el riesgo del ajuste, es que le entendimos bien. El riesgo
+   * del catálogo sigue vivo y sigue modulando el copy de la pregunta.
+   *
+   * Devuelve false cuando el plan salió rechazado: el turno sigue al chat, que
+   * sabrá explicar mejor que un mensaje de error.
+   */
+  function proponerAjuste(messageText: string, peticion: PeticionAjuste): boolean {
+    const plan = planearAjuste(peticion.clave, peticion.valor);
+    if (plan.tipo === 'rechazado') return false;
+
+    setInput('');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const pregunta = plan.tipo === 'confirmar'
+      ? plan.pregunta
+      : construirPregunta(plan.ajuste, plan.valor);
+    pintarTurnoLocal(messageText, pregunta);
+
+    Alert.alert(
+      plan.ajuste.etiqueta,
+      pregunta,
+      [
+        { text: 'Ahora no', style: 'cancel', onPress: () => {
+          setMessages(prev => [
+            ...prev,
+            { role: 'assistant', content: 'Va, lo dejo como estaba.', ts: Date.now() },
+          ]);
+        } },
+        { text: 'Sí, cámbialo', onPress: () => { void ejecutarAjuste(plan); } },
+      ],
+    );
+    return true;
+  }
+
+  async function ejecutarAjuste(plan: PlanAjuste) {
+    const r = await aplicarAjuste(plan, { userId });
+    Haptics.notificationAsync(
+      r.ok ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning,
+    );
+    setMessages(prev => [...prev, { role: 'assistant', content: r.mensaje, ts: Date.now() }]);
+    // Si no se pudo aplicar pero hay una pantalla donde el usuario sí puede,
+    // se ofrece el camino manual en vez de dejarlo con un "no pude".
+    if (!r.ok && r.sugerirPantalla) {
+      const ruta = r.sugerirPantalla;
+      setNavOpciones([{ ruta, titulo: tituloDe(ruta), puntaje: 0 }]);
+    }
+  }
+
   async function sendMessage(text?: string) {
     const messageText = text || input.trim();
     if (!messageText || !userId) return;
@@ -337,6 +395,17 @@ function ArgosChat() {
     if (!sendGuard.tryAcquire()) return;
     // C5-002: se evalúa ANTES de cualquier red/LLM — funciona incluso offline.
     if (detectCrisisContent(messageText)) setCrisisDetected(true);
+
+    // NOCHE-ARGOS P7: ¿esto era "apágame los sonidos"? Va ANTES de navegación
+    // porque es la detección más específica de las dos: exige un verbo de
+    // configuración Y un alias literal del catálogo de 9 ajustes. Al revés,
+    // "ponme el tema claro" se lo llevaría el resolvedor de rutas a Ajustes,
+    // que es a donde el usuario NO quería ir: quería el cambio hecho.
+    const ajuste = detectarIntencionAjuste(messageText);
+    if (ajuste) {
+      const manejado = proponerAjuste(messageText, ajuste);
+      if (manejado) { sendGuard.release(); return; }
+    }
 
     // NOCHE-ARGOS P5: ¿esto era "llévame a"? Se pregunta ANTES de la red, del
     // preflight de H+ y del gate offline, porque un turno de navegación no
