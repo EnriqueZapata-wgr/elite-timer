@@ -237,6 +237,28 @@ export default function SalaAtpScreen() {
           </AnimatedPressable>
         </Animated.View>
 
+        {/* CIERRE-1: /packs/armar es el hub con más salidas de la app y su
+            única puerta de verdad era el TERCER botón, en letra chica, de la
+            última pantalla del onboarding. Quien tocó "ahora no" nunca supo
+            que la app se arma sola. Aquí quedan las dos puertas juntas y
+            distintas: el Centro es para hojear, esto es para que se lo
+            resuelvan. Es la misma decisión de "guiado pero no prisionero". */}
+        <Animated.View entering={FadeInUp.delay(70).springify()}>
+          <AnimatedPressable
+            style={[s.centroCard, { backgroundColor: tokens.card, borderColor: tokens.borde }]}
+            onPress={() => { haptic.light(); router.push('/packs/armar'); }}
+          >
+            <View style={s.centroIcon}>
+              <Ionicons name="color-wand-outline" size={18} color={acento} />
+            </View>
+            <View style={s.centroBody}>
+              <EliteText style={[s.centroTitle, { color: tokens.texto }]}>Armar mi app</EliteText>
+              <EliteText style={[s.centroSub, { color: tenueInformativo }]}>Dos preguntas y te dejamos el día listo</EliteText>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={tokens.textoTenue} />
+          </AnimatedPressable>
+        </Animated.View>
+
         {/* El momento con foto de esta pantalla. UNA card: ni carrusel ni feed. */}
         {!searching && editorial && (
           <Animated.View entering={FadeInUp.delay(80).springify()}>

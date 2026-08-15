@@ -132,6 +132,29 @@ export default function CentroScreen() {
             {/* MB-26 P4: la puerta de Ordenar mi día también vive aquí — el
                 Centro es donde se cambia la configuración. */}
             <View style={[s.group, grupo, { marginBottom: Spacing.xs }]}>
+              {/* CIERRE-1: la sección se llamaba "ÁRMALA POR MÍ" y su copy
+                  prometía literalmente "contesta dos preguntas y tu app queda
+                  armada", pero ninguna fila llevaba a /packs/armar: todas
+                  llevaban a la ficha de un pack. El nombre prometía el atajo y
+                  entregaba el catálogo. Esta fila es el atajo que faltaba, y va
+                  primera porque es la respuesta a "no sé cuál elegir". Las
+                  fichas de abajo se quedan: elegir a mano sigue siendo válido
+                  (guiado, no prisionero). */}
+              <AnimatedPressable
+                style={[s.row, [s.rowDivider, { borderBottomColor: tokens.borde }]]}
+                onPress={() => { haptic.light(); router.push('/packs/armar'); }}
+              >
+                <View style={[s.packIcon, iconoNeutro]}>
+                  <Ionicons name="color-wand-outline" size={16} color={acento} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <EliteText style={[s.rowLabel, { color: tokens.texto }]} numberOfLines={1}>Armar mi app</EliteText>
+                  <EliteText style={[s.packParaQuien, { color: tokens.textoSecundario }]} numberOfLines={1}>
+                    Dos preguntas y te dejamos el día listo
+                  </EliteText>
+                </View>
+                <Ionicons name="chevron-forward" size={15} color={tokens.sinDatos} />
+              </AnimatedPressable>
               <AnimatedPressable
                 style={s.row}
                 onPress={() => { haptic.light(); router.push('/ordenar-dia'); }}
