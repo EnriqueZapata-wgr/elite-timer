@@ -332,13 +332,22 @@ export const GLYPH_INVENTORY: readonly string[] = [
   // hay 'plank' ni 'cronotipo' ni los 9 dominios de Edad ATP. Entran aquí a
   // conciencia, que es la salida que el propio ratchet contempla. Si algún día
   // el set los cubre, este bloque muere y el hub dibuja con nombres lógicos.
+  // FIX-215: los cinco quizzes funcionales compartían el portapapeles y se leían
+  // como cinco veces la misma fila. Ahora cada uno trae su glifo, y por eso
+  // entran aquí tres usos nuevos: bandage (dolor), nutrition (digestión) y el
+  // segundo moon (sueño, que ya lo usaba el dominio de Edad ATP). El
+  // portapapeles se queda como fallback de un quiz nuevo sin icono. Los otros
+  // dos glifos elegidos (battery-charging, speedometer) no son de función y no
+  // pasan por el ratchet.
+  'src/constants/assessments/registry.ts::bandage-outline',
   'src/constants/assessments/registry.ts::barbell-outline',
   'src/constants/assessments/registry.ts::body-outline',
   'src/constants/assessments/registry.ts::clipboard-outline',
   'src/constants/assessments/registry.ts::cloud-outline',
   'src/constants/assessments/registry.ts::flame-outline',
   'src/constants/assessments/registry.ts::list-outline',
-  'src/constants/assessments/registry.ts::moon-outline',
+  'src/constants/assessments/registry.ts::moon-outline::x2',
+  'src/constants/assessments/registry.ts::nutrition-outline',
   'src/constants/assessments/registry.ts::pulse-outline',
   'src/constants/assessments/registry.ts::sunny-outline',
   'src/constants/assessments/registry.ts::water-outline',

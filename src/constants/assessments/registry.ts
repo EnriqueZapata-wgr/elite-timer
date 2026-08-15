@@ -18,6 +18,23 @@ import type { Assessment } from './types';
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * FIX-215: los cinco funcionales se pintaban con el MISMO glifo (un portapapeles)
+ * cambiando nada más de color, así que la sección se leía como cinco veces la
+ * misma fila. Cronotipo y estilo de vida sí traían el suyo, y eso hacía más
+ * evidente el hueco. Cada quiz lleva ahora el glifo de su tema.
+ *
+ * El portapapeles se queda como fallback: un quiz nuevo en el catálogo entra al
+ * hub aunque nadie se acuerde de darle icono.
+ */
+const ICONO_FUNCIONAL: Record<string, string> = {
+  sleep_functional: 'moon-outline',
+  energy_functional: 'battery-charging-outline',
+  stress_functional: 'speedometer-outline',
+  digestion_functional: 'nutrition-outline',
+  pain_functional: 'bandage-outline',
+};
+
+/**
  * Derivados de ALL_FUNCTIONAL_QUIZZES para que el registry nunca se despegue
  * del catálogo. Persisten en functional_quiz_results y otorgan electrón.
  */
@@ -27,7 +44,7 @@ const FUNCIONALES: Assessment[] = ALL_FUNCTIONAL_QUIZZES.map((q) => ({
   title: q.name,
   subtitle: q.subtitle,
   section: 'funcional',
-  icon: 'clipboard-outline',
+  icon: ICONO_FUNCIONAL[q.id] ?? 'clipboard-outline',
   color: q.color,
   estimatedMinutes: q.estimatedMinutes,
   bank: { kind: 'const', module: 'functional-quizzes', key: q.id },
