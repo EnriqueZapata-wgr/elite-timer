@@ -12,7 +12,9 @@ describe('shouldTriggerMeetArgos — trigger para usuarios existentes (T3)', () 
   it('usuario logueado + no presentado + en la app principal → dispara', () => {
     expect(shouldTriggerMeetArgos(BASE)).toBe(true);
     expect(shouldTriggerMeetArgos({ ...BASE, pathname: '/nutrition' })).toBe(true);
-    expect(shouldTriggerMeetArgos({ ...BASE, pathname: '/yo' })).toBe(true);
+    // Era '/yo', que ya no existe como ruta. Lo que prueba el caso es que
+    // CUALQUIER pantalla de la app dispara, no esa pantalla en particular.
+    expect(shouldTriggerMeetArgos({ ...BASE, pathname: '/progreso' })).toBe(true);
   });
 
   it('ya presentado → nunca dispara', () => {
