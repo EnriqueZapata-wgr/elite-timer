@@ -15,6 +15,9 @@ import { OnboardingShell } from '@/src/components/onboarding/OnboardingShell';
 import { useAuth } from '@/src/contexts/auth-context';
 import { registerForPushNotificationsAsync } from '@/src/services/push-notification-service';
 import { completeV2Step } from '@/src/services/onboarding-v2-service';
+import { seedInitialApps, sembrarDia1 } from '@/src/services/hoy/install-service';
+import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 import { v2StepNumber, v2Route, V2_STEPS } from '@/src/services/onboarding-v2-core';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { haptic } from '@/src/utils/haptics';
@@ -45,6 +48,31 @@ export default function V2NotificationsScreen() {
         await registerForPushNotificationsAsync(user.id, { prompt: true });
       }
       haptic.success();
+
+      // CIERRE-1: el cierre del onboarding es el único momento en que sabemos
+      // con certeza que estamos ante un usuario NUEVO. Aquí van las dos
+      // siembras, y las dos son one-shot y fail-soft: si algo truena, el
+      // onboarding termina igual (nunca dejamos a nadie atorado en la última
+      // pantalla por una escritura de preferencias).
+      //
+      //  · seedInitialApps vivía SOLO en un useEffect al montar el tab ATP,
+      //    así que quien nunca abría ese tab no recibía ni Respirar ni Edad
+      //    ATP: la cuadrícula se quedaba vacía sin que nada lo explicara. La
+      //    llamada de kit.tsx se queda como red (es idempotente por bandera).
+      //  · sembrarDia1 escribe la lista explícita de hábitos para que HOY no
+      //    arranque con 13 renglones ajenos.
+      try {
+        const { data: perfil } = await supabase
+          .from('client_profiles')
+          .select('biological_sex')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        const esMujer = (perfil as { biological_sex?: string } | null)?.biological_sex === 'female';
+        await Promise.all([seedInitialApps(user.id, esMujer), sembrarDia1(user.id)]);
+      } catch (e) {
+        logWarn('[onboarding] siembra al cierre falló; kit.tsx reintenta', e);
+      }
+
       const next = await completeV2Step(user.id, 'notifications');
       // T5 HARDENING: último paso completado → funnel core. notifications es el
       // paso final del flow v2 (completeV2Step marcó 'completed' y enruta a meet).
