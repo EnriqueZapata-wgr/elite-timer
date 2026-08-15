@@ -377,7 +377,7 @@ export default function SupplementsScreen() {
             <Ionicons name="arrow-back" size={24} color={t.texto} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#1D9E75', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ATP</Text>
+            <Text style={{ color: tealTx, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ATP</Text>
             <Text style={{ color: t.texto, fontSize: 22, fontWeight: '800' }}>SUPLEMENTOS</Text>
           </View>
           {/* Punto de entrada del scanner BHA en la sección (scan standalone:
@@ -519,7 +519,7 @@ export default function SupplementsScreen() {
                   }}
                 >
                   {taken ? (
-                    <Ionicons name="checkmark-circle" size={26} color="#1D9E75" />
+                    <Ionicons name="checkmark-circle" size={26} color={tealTx} />
                   ) : (
                     <View style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: t.bordeMarcado, alignItems: 'center', justifyContent: 'center' }}>
                       {doseCount > 1 && takenIdxs.length > 0 && (
@@ -584,7 +584,7 @@ export default function SupplementsScreen() {
                               <Ionicons
                                 name={doseTaken ? 'checkmark-circle' : 'ellipse-outline'}
                                 size={12}
-                                color={doseTaken ? '#1D9E75' : t.textoTenue}
+                                color={doseTaken ? tealTx : t.textoTenue}
                               />
                               <Text style={{ color: doseTaken ? tealTx : t.textoSecundario, fontSize: 10, fontWeight: '600' }}>
                                 {doseLabels[i] ?? `Toma ${i + 1}`}
@@ -641,7 +641,8 @@ export default function SupplementsScreen() {
         animationType="slide"
         onRequestClose={() => { resetForm(); setShowAdd(false); }}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'flex-end' }}>
+        {/* Velo de modal (doctrina): oscuro 0.7 negro -> claro 0.35 tinta fría */}
+        <View style={{ flex: 1, backgroundColor: kind === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)', justifyContent: 'flex-end' }}>
           <Pressable style={{ flex: 1 }} onPress={() => { resetForm(); setShowAdd(false); }} />
           {/* SUP-2 (MB-2): KAV + ScrollView con tope de altura RELATIVO (el 620
               fijo excedía el viewport en pantallas chicas con teclado abierto). */}
@@ -682,7 +683,7 @@ export default function SupplementsScreen() {
                       borderWidth: 1, borderColor: 'rgba(29,158,117,0.3)',
                     }}
                   >
-                    <Ionicons name="time-outline" size={12} color="#1D9E75" />
+                    <Ionicons name="time-outline" size={12} color={tealTx} />
                     <Text style={{ color: tealTx, fontSize: 12, fontWeight: '600' }}>{h.name}</Text>
                   </Pressable>
                 ))}
@@ -736,7 +737,7 @@ export default function SupplementsScreen() {
                   }}
                 >
                   <Text style={{ color: tealTx, fontSize: 12, fontWeight: '600' }}>{tLabel}</Text>
-                  <Ionicons name="close-circle" size={14} color="#1D9E75" />
+                  <Ionicons name="close-circle" size={14} color={tealTx} />
                 </Pressable>
               ))}
               <Pressable
