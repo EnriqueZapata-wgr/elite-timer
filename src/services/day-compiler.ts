@@ -15,7 +15,13 @@ import { getCycleInfo } from '@/src/services/cycle-service';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { warn as logWarn } from '@/src/lib/logger';
 // ── DX F4 (swap HOY/AGENDA) — doble-lectura gateada por flag ──
-import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
+import { INTERVENTIONS_DRIVE_HOY, SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA } from '@/src/constants/flags';
+import { armarLectura, LECTURA_VACIA, type LecturaDelDia } from '@/src/services/health/health-read-core';
+import {
+  leerFilasDelDia,
+  pagarPremiosWearable,
+  sincronizarEnSegundoPlano,
+} from '@/src/services/health/health-read-service';
 import { selectAgendaDrivers, anchorTimes, interventionAgendaItems, canonicalConcept } from '@/src/services/interventions/intervention-agenda-core';
 import { getMyProtocol, getTodayCompletions, getChronotypeSchedule } from '@/src/services/interventions/intervention-service';
 import { buildDoneIndex, applyDoneFromLogs } from '@/src/services/hoy/day-state-core';
@@ -206,7 +212,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes,
     meditationCountRes, breathingCountRes, lastExerciseRes, suppRes, suppTakenCountRes, cycleLogCountRes,
     lastCardioRes, lastJournalRes, lastNbackRes, lastMindRes, cycleModeRes, habitStatesRes,
-    historialRes, chronoHorarioRes, uvInicioHoy,
+    historialRes, chronoHorarioRes, uvInicioHoy, filasSalud,
   ] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
@@ -293,9 +299,29 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     // MB-26 P6: la ventana UV de hoy (cacheada, timeout corto). Si llega
     // tarde, el servicio emite un recompile y el sol se recoloca solo.
     getUvInicioHoy(),
+    // CIERRE-3: la salud del día (health_measurements + sleep_nights +
+    // health_os_daily) en UNA entrada. Con el flag apagado ni se consulta.
+    // Fail-soft por dentro: nunca rechaza, lo peor que devuelve son tres nulls.
+    SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA
+      ? leerFilasDelDia(userId, today)
+      : Promise.resolve(null),
   ]);
 
   onProgress?.(45, 'Cargando métricas');
+
+  // CIERRE-3: quién gana entre lo que tecleó la persona y lo que midió la
+  // máquina lo decide el core puro, no esta función. Aquí solo se usa.
+  const lecturaSalud: LecturaDelDia = filasSalud ? armarLectura(filasSalud) : LECTURA_VACIA;
+  if (SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA) {
+    // Los dos premios de tier wearable que existían sin fuente desde el día
+    // uno. Fire-and-forget: el cap de 1/día y la clave idempotente hacen que
+    // recompilar el día no pague dos veces.
+    pagarPremiosWearable(lecturaSalud, userId, today);
+    // El interruptor de "sincroniza sola" se guardaba y no llamaba a nadie:
+    // este es su único llamador. Solo corre si la persona lo activó y hoy no
+    // ha corrido, así que no es una consulta por compile.
+    sincronizarEnSegundoPlano(userId);
+  }
 
   // Suplementos con multi-dosis: total/tomadas por el core puro (MB-2/188).
   // supabase-js no lanza en 4xx: si el embed falla se loguea y cae a {0,0}.
@@ -400,9 +426,20 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   const activeBoolKeys: string[] = keysActivas(
     Array.from(new Set([...persistedBoolKeys, ...MANDATORY_BOOLEANS])), habitEstados,
   );
+  // CIERRE-3: `steps` y `sleep` estaban vetados por un filtro de una línea
+  // ("sin fuente hasta wearables"). La fuente ya existe, así que el veto pasa a
+  // depender del dato REAL, no de una constante: un renglón solo entra si hoy
+  // hay número que ponerle. Un "Pasos 0 / 10,000" a alguien que no conectó
+  // nada es un cero falso, y un cero falso hunde el porcentaje del día.
+  const quantSinFuente = (k: string): boolean =>
+    (k === 'steps' && lecturaSalud.pasos.valor == null) ||
+    (k === 'sleep' && lecturaSalud.suenoMinutos.valor == null);
   const activeQuantKeys: string[] = keysActivas(
     (prefs?.active_quantitative_electrons ?? DEFAULT_QUANTS)
-      .filter((k: string) => k !== 'steps' && k !== 'sleep'), // Sin fuente hasta wearables
+      .filter((k: string) =>
+        SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA
+          ? !quantSinFuente(k)
+          : k !== 'steps' && k !== 'sleep'),
     habitEstados,
   );
 
@@ -534,6 +571,11 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
       let current = 0;
       if (k === 'protein') current = proteinTotal;
       else if (k === 'water') current = waterTotal;
+      // CIERRE-3: la meta de sueño está en HORAS (QUANT_CONFIG) y el dato vive
+      // en minutos de punta a punta. La división pasa AQUÍ, en el único punto
+      // donde las dos unidades se encuentran.
+      else if (k === 'steps') current = lecturaSalud.pasos.valor ?? 0;
+      else if (k === 'sleep') current = (lecturaSalud.suenoMinutos.valor ?? 0) / 60;
       return {
         source: k, name: cfg.name, icon: cfg.icon, color: cfg.color, weight: cfg.weight,
         current, target: qc.target, unit: qc.unit,

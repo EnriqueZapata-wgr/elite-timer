@@ -1,49 +1,66 @@
 /**
- * useWearableToday — fuente única del dato de wearable del día (MB-11 B.3).
+ * useWearableToday — la salud del día que YA midió el teléfono (CIERRE-3).
  *
- * getWearableDataForDate() se pedía por separado en HOY, YO y Sueño, cada
- * pantalla con su propio estado y su propia llamada. Ahora hay UNA promesa
- * por fecha, cacheada a nivel de módulo: quien llegue segundo comparte el
- * vuelo del primero (mismo dato, una llamada).
+ * QUÉ CAMBIÓ Y POR QUÉ
+ * Este hook apuntaba a `wearable-service`, un stub que devolvía `null` en las
+ * cinco funciones y llevaba escrito "DESACTIVADO TEMPORALMENTE" desde MB-11.
+ * Mientras tanto NOCHE-1 encendió HealthKit y Health Connect por otro camino
+ * (health_os_daily), así que había una fachada muerta apuntando a un servicio
+ * muerto al lado de una integración viva. El stub se borró: dejar apagado algo
+ * que ya funciona por otro lado es cómo se vuelve a perder el dato.
  *
- * El servicio hoy es un stub → null (fail-soft). Cuando HealthKit/Health
- * Connect se reactive, todos los consumidores muestran datos reales sin
- * más cambios.
+ * Ahora lee la MISMA fuente que el día (health-read-service), o sea que la
+ * pantalla y el compilador no pueden discrepar: si HOY dice 8,412 pasos, este
+ * hook dice 8,412 pasos, y los dos respetan igual que lo que la persona
+ * escribió a mano manda sobre lo que midió la máquina.
+ *
+ * Sigue habiendo UNA promesa por fecha cacheada a nivel de módulo: quien llegue
+ * segundo comparte el vuelo del primero.
  */
 import { useEffect, useState } from 'react';
-import {
-  isWearableAvailable,
-  getWearableDataForDate,
-  type WearableData,
-} from '@/src/services/wearable-service';
+
+import { supabase } from '@/src/lib/supabase';
 import { getLocalToday } from '@/src/utils/date-helpers';
+import { LECTURA_VACIA, type LecturaDelDia } from '@/src/services/health/health-read-core';
+import { leerSaludDelDia } from '@/src/services/health/health-read-service';
 
 let cacheDate: string | null = null;
-let cachePromise: Promise<WearableData | null> | null = null;
+let cachePromise: Promise<LecturaDelDia> | null = null;
 
-/** Una llamada por fecha, compartida entre pantallas. Nunca rechaza. */
-export function fetchWearableToday(): Promise<WearableData | null> {
+/**
+ * Una llamada por fecha, compartida entre pantallas. Nunca rechaza: sin sesión
+ * o sin datos devuelve la lectura vacía, donde cada métrica es
+ * `{ valor: null, fuente: 'sin_dato' }` — ausencia explícita, no un cero.
+ */
+export function fetchWearableToday(): Promise<LecturaDelDia> {
   const today = getLocalToday();
   if (cacheDate !== today || !cachePromise) {
     cacheDate = today;
     cachePromise = (async () => {
       try {
-        if (!(await isWearableAvailable())) return null;
-        return await getWearableDataForDate(today);
+        const { data } = await supabase.auth.getUser();
+        const userId = data.user?.id;
+        if (!userId) return LECTURA_VACIA;
+        return await leerSaludDelDia(userId, today);
       } catch {
-        // Sin wearable → null explícito: "sin datos", no un cero disfrazado.
-        return null;
+        return LECTURA_VACIA;
       }
     })();
   }
   return cachePromise;
 }
 
-export function useWearableToday(): WearableData | null {
-  const [data, setData] = useState<WearableData | null>(null);
+/** Olvida el vuelo cacheado. Para después de una sync manual. */
+export function invalidarSaludDelDia(): void {
+  cacheDate = null;
+  cachePromise = null;
+}
+
+export function useWearableToday(): LecturaDelDia {
+  const [data, setData] = useState<LecturaDelDia>(LECTURA_VACIA);
   useEffect(() => {
     let alive = true;
-    fetchWearableToday().then((w) => { if (alive && w) setData(w); });
+    fetchWearableToday().then((l) => { if (alive) setData(l); });
     return () => { alive = false; };
   }, []);
   return data;

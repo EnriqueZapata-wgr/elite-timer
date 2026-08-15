@@ -35,7 +35,7 @@ import { askAtpAI, saveAiReport, getAiReports, deleteAiReport, type AiReport } f
 import { getClientHabits, addHabit, updateHabit, deleteHabit, type DailyHabit } from '@/src/services/daily-habits-service';
 import { calculateAndSaveScore, getLatestScore } from '@/src/services/health-score-service';
 import { getLabHistory, approveLabResult, deleteLabResult, deleteLabUpload, getFailedUploads, uploadLabFile, extractLabValues, type LabResult as LabResultType, type LabUpload } from '@/src/services/lab-service';
-import { RATING_COLORS, type HealthScore as FHScore } from '@/src/data/functional-health-engine';
+import { type HealthScore as FHScore } from '@/src/data/functional-health-engine';
 import { rateLabValue, rateBodyValue, rateBioValue, type ValueRating } from '@/src/utils/lab-rating';
 import type { Sex } from '@/src/data/functional-health-engine';
 import { DayCalendar } from '@/src/components/DayCalendar';

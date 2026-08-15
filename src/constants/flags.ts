@@ -140,3 +140,85 @@ export const LOGIN_PASA_POR_GATE = true;
  *  deja de sembrar a los siguientes.
  */
 export const DIA_1_SIEMBRA_SUAVE = true;
+
+/**
+ * SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA — la tabla deja de ser un cul-de-sac (CIERRE-3).
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → `compileDay` lee la salud del día (health_measurements +
+ *    sleep_nights + health_os_daily, resueltas por health-read-core) y con eso:
+ *    (a) los electrones cuantitativos `steps` y `sleep` dejan de estar vetados y
+ *    vuelven al renglón del día si el usuario los tiene activos;
+ *    (b) se pagan los premios de tier wearable (`steps_wearable`,
+ *    `sleep_wearable`), que existían en award-rules desde el día uno y nunca se
+ *    dispararon; (c) corre la sync automática si la persona la activó.
+ *  · OFF → el filtro `k !== 'steps' && k !== 'sleep'` vuelve a aplicarse, no se
+ *    consulta ninguna de las tres tablas, no se paga ningún premio y no se
+ *    sincroniza nada. Byte por byte el comportamiento previo.
+ *
+ * POR QUÉ EXISTE
+ *  NOCHE-1 encendió HealthKit y Health Connect, y la tabla `health_os_daily` se
+ *  quedó llenándose sin un solo lector: exactamente 2 archivos del repo la
+ *  mencionaban, la migración y el que escribe. La persona conectaba su teléfono,
+ *  veía "sincronizado" y en la app no cambiaba absolutamente nada. Eso es peor
+ *  que no tener la función, porque promete y no cumple.
+ *
+ * LO QUE ESTE FLAG NO PUEDE ROMPER
+ *  No escribe en ninguna tabla de la persona. La separación de la migración 264
+ *  (máquina y persona en tablas distintas) se conserva: aquí solo se LEE, y
+ *  quien gana lo decide health-read-core, donde el candado "lo manual nunca se
+ *  pisa" es un test rojo y no un comentario.
+ *
+ * EL RIESGO REAL AL APAGARLO
+ *  Los premios de wearable ya pagados NO se devuelven (son historial del
+ *  usuario, y el historial no se toca). Apagarlo solo deja de pagar los
+ *  siguientes y vuelve a esconder los dos renglones del día.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración, sin build nativo, sin tocar datos.
+ */
+export const SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA = true;
+
+/**
+ * RANGOS_UNA_SOLA_FUENTE — se acaban las dos verdades (CIERRE-3).
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → `lab-rating` (el que colorea labs, composición y
+ *    biomarcadores en el panel del coach) lee los rangos de la MATRIZ V7/V6,
+ *    la misma que ya usan ATP Labs, Mi lectura y los reportes.
+ *  · OFF → vuelve a leerlos de `src/data/functional-health-engine.ts` (legacy).
+ *
+ * POR QUÉ
+ *  Convivían dos definiciones de rango funcional y el usuario las veía pelear:
+ *  el MISMO biomarcador del MISMO cliente se pintaba distinto según la
+ *  pantalla. Un VO2 de 55 salía "Aceptable" en el panel y "En tu ventana" en
+ *  ATP Labs. Una IgG de 900 salía "Óptimo" porque el legacy tenía 80 donde la
+ *  matriz dice 800, y con eso declaraba óptimo todo el intervalo [80, 1200].
+ *
+ *  La matriz gana por procedencia, no por gusto: cita archivo fuente, autoría y
+ *  fecha de extracción, tiene fixtures de regresión contra el Excel y once
+ *  archivos de test. El legacy no cita fuente, dice tener 144 parámetros y
+ *  define 98, copia los umbrales masculinos a las mujeres en casi todos los
+ *  parámetros (incluida la testosterona) y no tiene un solo test.
+ *
+ * QUÉ CAMBIA EN PANTALLA AL ENCENDERLO
+ *  Muchos valores cambian de etiqueta, y ese es el objetivo. Los que estaban
+ *  mal eran los del panel. Además se arreglan gratis seis columnas que siempre
+ *  decían "Sin dato" (LH, CPK, urea, transferrina, saturación de hierro,
+ *  capacidad de fijación de hierro) porque el mapa viejo apuntaba a claves
+ *  inexistentes; y diez columnas pasan a decir "Sin dato" de forma DECLARADA,
+ *  porque la matriz no define banda para ellas y un rango no se inventa
+ *  (listadas en COLUMNAS_LAB_SIN_BANDA).
+ *
+ * LO QUE ESTE FLAG NO ALCANZA
+ *  `calculateHealthScore` (el score funcional que se PERSISTE) sigue corriendo
+ *  con el legacy. Ese swap es otro algoritmo — PhenoAge, edad biológica y
+ *  pesos de dominio propios — y cambiarlo mueve un número guardado en base.
+ *  No entra en un flag de presentación.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración: esto solo cambia de dónde se leen números para pintar.
+ */
+export const RANGOS_UNA_SOLA_FUENTE = true;

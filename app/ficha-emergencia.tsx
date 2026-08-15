@@ -24,7 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EliteText } from '@/components/elite-text';
 import {
-  BLOOD_TYPE_LABEL, SEVERITY_LABEL, cardHasContent, edadDe, qrPayload, type EmergencyCard,
+  BLOOD_TYPE_LABEL, SEVERITY_LABEL, cardHasContent, edadDe, type EmergencyCard,
 } from '@/src/services/salud/emergency-card-core';
 import { QrFicha } from '@/src/components/salud/QrFicha';
 import { loadLocalCard } from '@/src/services/salud/emergency-card-store';
@@ -166,7 +166,7 @@ export default function FichaEmergenciaPantalla() {
               </Pressable>
               {verQr ? (
                 <View style={s.qrCaja}>
-                  <QrFicha payload={qrPayload(card)} size={280} />
+                  <QrFicha card={card} size={280} />
                   <EliteText style={s.gris}>
                     El código trae estos mismos datos y nada más. Se lee sin conexión.
                   </EliteText>
