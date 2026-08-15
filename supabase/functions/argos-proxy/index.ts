@@ -452,6 +452,81 @@ const TIER_DAILY_LIMITS: Record<string, number> = {
   clinician: 100,
 };
 
+// ─── CUOTA PONDERADA POR COSTO REAL (CIERRE-4 · Audit-5) ─────────
+// El circuit breaker cobraba UNA unidad por petición sin mirar el requestType.
+// Medido en argos_logs (30 días), el costo por llamada NO se parece entre sí:
+//
+//   chat                  $0.03837   ← la referencia, peso 1
+//   dx_generation         $0.07196
+//   insight               $0.00585
+//   food_estimate_text    $0.00338   ← 11 veces más barata que un chat
+//   weekly_insight        $0.00278
+//
+// Y eso todavía con food_estimate corriendo en Sonnet. Con el router mandándolo
+// a Gemini la brecha se abre otro orden de magnitud.
+//
+// El daño real no era el dinero, era el bloqueo: un usuario Base (25 al día)
+// que registraba 20 comidas por foto se quedaba sin ARGOS habiendo consumido
+// siete centavos de dólar. Pagó, registró su comida como debe, y se quedó sin
+// poder preguntar nada. Ese es exactamente el modo de falla que mata la app.
+//
+// EL CANDADO: todos los pesos son <= 1, y la saturación está también dentro de
+// consume_argos_usage_weighted. La cuota ponderada NUNCA puede ser más estricta
+// que la de hoy, solo más holgada. Nadie puede perder acceso por este cambio.
+// Por eso las acciones que miden MÁS que el chat (dx_generation, $0.072) se
+// quedan en 1 y no suben: ya se cobran aparte en H+ y son de una vez al año.
+// Un requestType desconocido pesa 1: nunca se abarata algo que no medimos.
+const QUOTA_WEIGHTS: Record<string, number> = {
+  // Extracción: el usuario está registrando su vida, no consultando a ARGOS.
+  // Cobrarle su cuota de consultas por fotografiar su comida es cobrarle por
+  // usar la app.
+  food_estimate_photo: 0.1,
+  food_estimate_text: 0.1,
+  food_reanalysis: 0.1,
+  label_scan: 0.1,
+  supplement_scan: 0.1,
+  // Navegación: un lookup contra un catálogo de rutas, y la mayoría ni llega
+  // aquí porque el resolvedor local las contesta sin red.
+  nav_intent: 0.05,
+  // Automáticas: las dispara la app, no la persona. Que un insight que el
+  // usuario no pidió le coma la cuota de lo que sí quiere preguntar es
+  // cobrarle por algo que no hizo.
+  insight: 0.25,
+  weekly_insight: 0.25,
+  daily_summary: 0.25,
+  title: 0.1,
+  // Conversación y análisis: la referencia.
+  chat: 1,
+  voice_turn: 1,
+  dx_generation: 1,
+  dx_generation_first: 1,
+  braverman_premium_report: 1,
+  lab_interpretation: 1,
+  clinical_interpretation: 1,
+  intervention_rationale: 1,
+  bha_scan: 1,
+  recipe: 1,
+  routine: 1,
+  meal_suggestion: 1,
+  goal_decomposition: 1,
+};
+
+/** Overrides sin redeploy: {"food_estimate_photo":0.2}. Saturado a [0,1]. */
+function quotaWeightFor(requestType?: string): number {
+  if (!requestType) return 1;
+  let w = QUOTA_WEIGHTS[requestType] ?? 1;
+  try {
+    const raw = Deno.env.get("QUOTA_WEIGHT_OVERRIDES");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.[requestType] === "number") w = parsed[requestType];
+    }
+  } catch (e) {
+    console.error("[quota] QUOTA_WEIGHT_OVERRIDES no es JSON válido, se ignora:", e);
+  }
+  return Math.min(Math.max(w, 0), 1);
+}
+
 // Detecta el tier real del user (profiles.tier + boost activo).
 // Cache 30s in-memory sencillo — evita golpear DB en cada request.
 const tierCache = new Map<string, { effectiveTier: string; expiresAt: number }>();
@@ -501,7 +576,7 @@ async function detectEffectiveTier(supabase: any, userId: string): Promise<strin
   }
 }
 
-async function checkAndIncrementUsage(supabase: any, userId: string | undefined, effectiveTier: string): Promise<{
+async function checkAndIncrementUsage(supabase: any, userId: string | undefined, effectiveTier: string, requestType?: string): Promise<{
   blocked: boolean;
   count: number;
   limit: number;
@@ -509,6 +584,21 @@ async function checkAndIncrementUsage(supabase: any, userId: string | undefined,
   const limit = TIER_DAILY_LIMITS[effectiveTier] ?? HARD_CAP_DAILY;
   if (!userId) return { blocked: false, count: 0, limit };
   try {
+    // CIERRE-4: cuota ponderada por costo real, gated. Sin la env var el
+    // proxy usa la ruta de siempre y se comporta EXACTAMENTE igual que hoy.
+    if (Deno.env.get("QUOTA_WEIGHTS_ENABLED") === "true") {
+      const weight = quotaWeightFor(requestType);
+      const { data: w, error: wErr } = await supabase.rpc("consume_argos_usage_weighted", {
+        p_user_id: userId, p_limit: limit, p_weight: weight,
+      });
+      if (!wErr && w && typeof w === "object") {
+        return { blocked: w.blocked === true, count: Number(w.count ?? 0), limit };
+      }
+      // La 275 aún no está en el remoto (o falló): se cae a la cuota plana de
+      // hoy, que es más estricta pero es la que el usuario ya conocía. Nunca
+      // se deja pasar sin contar.
+      console.error("consume_argos_usage_weighted no disponible, cae a plana:", wErr);
+    }
     // ECO-2: el contador SOLO cuenta acciones servidas. consume_argos_usage
     // (mig 262) bloquea SIN incrementar cuando count >= limit — antes cada
     // intento bloqueado sumaba, y quien insistió 200 veces compraba boost y
@@ -691,7 +781,7 @@ serve(async (req) => {
     }
 
     // Circuit breaker per tier (server-side)
-    const usage = await checkAndIncrementUsage(supabase, userId, effectiveTier);
+    const usage = await checkAndIncrementUsage(supabase, userId, effectiveTier, requestType);
     if (usage.blocked) {
       const latencyMs = Date.now() - startTime;
       await logArgosCall(supabase, {
