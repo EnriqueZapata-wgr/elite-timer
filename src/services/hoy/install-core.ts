@@ -133,6 +133,71 @@ export function initialSeedApps(isFemale: boolean): string[] {
   return ['respirar', 'edad-atp', ...(isFemale ? ['ciclo'] : [])];
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CIERRE-1 — el día 1 se siembra, no se hereda del default
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Los 3 con los que arranca quien NO eligió pack.
+ *
+ * Criterio: universales, sin equipo, sin depender de otra pantalla. Dos se
+ * palomean con el dedo (luz solar, sin alcohol) para que el día 1 tenga
+ * victorias reales, y meditación es verificado: se enciende solo cuando el
+ * usuario de verdad medita. Nada de arrancar con hábitos que exigen comprar
+ * algo o conectar un wearable.
+ */
+export const SIEMBRA_DIA_1 = ['sunlight', 'meditation', 'no_alcohol'] as const;
+
+/** Cuántos hábitos elegibles se encienden el día 1. Doctrina: arranque en 3. */
+export const TOPE_SIEMBRA_DIA_1 = 3;
+
+/**
+ * Qué se enciende el día 1 de un usuario NUEVO.
+ *
+ * EL PROBLEMA QUE RESUELVE
+ *  Sin fila persistida, el compilador cae a DEFAULT_BOOLEANS (10) ∪
+ *  MANDATORY_BOOLEANS (5) y el servicio cae a DEFAULT_QUANTS (2): el usuario
+ *  abría HOY con 13 tareas que nunca eligió y la barra en "0 de 13". Eso
+ *  contradice la doctrina propia (instalar una app equivale a activar un
+ *  hábito) porque el usuario no instaló nada y ya tenía trece.
+ *
+ * POR QUÉ SE SIEMBRA EN LUGAR DE RECORTAR EL DEFAULT
+ *  Recortar DEFAULT_BOOLEANS los rompería a TODOS: cualquier usuario que
+ *  todavía no tiene fila en user_day_preferences (nunca tocó sus hábitos)
+ *  resuelve su día contra esa constante, y encogerla le apagaría hábitos que
+ *  lleva meses palomeando sin que nadie se lo pidiera. El dato del usuario es
+ *  sagrado. Escribir una fila EXPLÍCITA al cerrar el onboarding afecta
+ *  exactamente a quien pasa por el onboarding nuevo, y a nadie más.
+ *
+ * LÍMITE CONOCIDO, DICHO EN VOZ ALTA
+ *  Esto baja el día 1 de 13 filas a 8, no a 3. Los 5 MANDATORY (journal,
+ *  no_processed_foods, screen_time_cutoff, cardio, checkin) los fuerza el
+ *  compilador por unión y NO son deseleccionables: existen para tapar el bug
+ *  del "toggle silencioso" y hoy ni siquiera se ofrecen en /hoy-habitos, así
+ *  que quitarlos dejaría al usuario sin forma de volver a encenderlos. Bajar
+ *  de 8 exige antes hacerlos seleccionables, y eso es su propio trabajo con su
+ *  propia regresión. 8 es justo el techo que la doctrina ya fijaba.
+ *
+ * @param packBooleans hábitos que el pack elegido quiere encender, si hubo pack.
+ */
+export function siembraDia1(packBooleans?: readonly string[] | null): AppToggles {
+  // Solo se siembran los SELECCIONABLES: los mandatory no viven en prefs (el
+  // compilador los une igual) y meterlos aquí sería ruido que nunca se apaga.
+  const elegibles = (packBooleans ?? SIEMBRA_DIA_1).filter(
+    (k) => BOOL_KEYS.has(k) && !(MANDATORY_BOOLEANS as readonly string[]).includes(k),
+  );
+  // Sin duplicados y con tope: un pack generoso no puede devolvernos al día 1
+  // de trece renglones por la puerta de atrás.
+  const booleans = Array.from(new Set(elegibles)).slice(0, TOPE_SIEMBRA_DIA_1);
+  return {
+    // Arranca sin cuantitativos a propósito. Proteína y agua obligan a abrir
+    // otra pantalla para mover el número: son excelentes en la semana 2 y son
+    // dos renglones en cero el día 1.
+    booleans: booleans.length > 0 ? booleans : [...SIEMBRA_DIA_1],
+    quants: [],
+  };
+}
+
 /**
  * MB-22 P4: instalar SOLO a la cuadrícula, sin encender ningún electrón.
  * Es la instalación del Ciclo en modo acompañante: el calendario de otra

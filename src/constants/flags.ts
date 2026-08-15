@@ -102,3 +102,41 @@ export const FASTING_MEASURED_MODE = false;
  *  si el gate resultara estar mandando gente a onboarding por error.
  */
 export const LOGIN_PASA_POR_GATE = true;
+
+/**
+ * DIA_1_SIEMBRA_SUAVE — el día 1 se siembra, no se hereda (CIERRE-1).
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → al CERRAR el onboarding v2 se escribe una fila explícita
+ *    en user_day_preferences con 3 hábitos (los del pack elegido, o los tres
+ *    universales de SIEMBRA_DIA_1) y cero cuantitativos.
+ *  · OFF → `sembrarDia1` sale de inmediato y el usuario nuevo hereda el
+ *    comportamiento previo: DEFAULT_BOOLEANS ∪ MANDATORY_BOOLEANS y
+ *    DEFAULT_QUANTS, o sea 13 renglones el primer día.
+ *
+ * POR QUÉ
+ *  El usuario abría HOY con 13 tareas que nunca eligió y la barra en "0 de 13".
+ *  Ese es el momento exacto en que la app se siente compleja: no por tener 145
+ *  pantallas, sino por empezar con una lista ajena y un cero. Contradice la
+ *  doctrina propia de que instalar una app equivale a activar un hábito,
+ *  porque el usuario no instaló nada.
+ *
+ * SOLO USUARIOS NUEVOS, POR TRES CANDADOS
+ *  Bandera one-shot en goals; aborta si ya hay `active_boolean_electrons`
+ *  persistido (una elección previa no se pisa jamás); y el único llamador es
+ *  el cierre del onboarding, por el que un usuario existente no vuelve a
+ *  pasar. Los defaults globales NO se tocaron justamente por esto: recortar
+ *  DEFAULT_BOOLEANS le habría apagado hábitos a todo el que aún no tiene fila
+ *  propia.
+ *
+ * LO QUE ESTE FLAG NO LOGRA
+ *  Baja el día 1 de 13 a 8, no a 3. Los 5 MANDATORY los fuerza el compilador
+ *  por unión y no son deseleccionables (ver siembraDia1 en install-core).
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Apagarlo NO deshace lo ya sembrado: quien ya recibió su fila explícita la
+ *  conserva, que es lo correcto (es su elección desde que se escribió). Solo
+ *  deja de sembrar a los siguientes.
+ */
+export const DIA_1_SIEMBRA_SUAVE = true;

@@ -16,8 +16,10 @@ import {
   applyUninstall,
   habitosQueEnciende,
   initialSeedApps,
+  siembraDia1,
   type InstallPrefs,
 } from '@/src/services/hoy/install-core';
+import { DIA_1_SIEMBRA_SUAVE } from '@/src/constants/flags';
 import { reactivarHabitos } from '@/src/services/hoy/habit-states-service';
 import { getCycleAppMode, setCycleAppMode } from '@/src/services/app-mode-service';
 
@@ -157,4 +159,90 @@ export async function seedInitialApps(userId: string, isFemale: boolean): Promis
     if (mode == null) await setCycleAppMode(userId, 'propio');
   }
   return add.length > 0;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CIERRE-1 — siembra explícita del día 1 (solo usuarios nuevos)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Bandera one-shot: la siembra del día 1 corre UNA vez por usuario. */
+const DIA1_FLAG = 'cierre1_dia1_v1';
+
+/**
+ * Escribe la lista EXPLÍCITA de hábitos con la que arranca un usuario nuevo.
+ *
+ * Sin esto, quien no tiene fila en user_day_preferences hereda
+ * DEFAULT_BOOLEANS ∪ MANDATORY_BOOLEANS + DEFAULT_QUANTS y abre HOY con 13
+ * tareas ajenas y la barra en cero. Con esto abre con 3 elegidos (los suyos si
+ * hubo pack) más los 5 mandatory: 8 renglones, que es el techo que la doctrina
+ * ya fijaba.
+ *
+ * TRES CANDADOS PARA NO TOCAR A NADIE QUE YA ESTÉ ADENTRO
+ *  1. Bandera one-shot en goals: corre una sola vez y nunca vuelve.
+ *  2. Se ABORTA si el usuario ya tiene `active_boolean_electrons` persistido.
+ *     Esa columna solo existe si alguien ya eligió (o si una migración lo
+ *     backfilleó), y una elección previa no se pisa jamás.
+ *  3. Solo la llama el cierre del onboarding v2. Un usuario existente no vuelve
+ *     a pasar por ahí, así que ni siquiera llega a evaluar los otros dos.
+ *
+ * Fail-soft: cualquier error deja todo como estaba y no escribe la bandera.
+ *
+ * @param packBooleans hábitos del pack elegido, si el usuario eligió uno.
+ * @returns true si escribió (el caller decide releer).
+ */
+export async function sembrarDia1(
+  userId: string,
+  packBooleans?: readonly string[] | null,
+): Promise<boolean> {
+  if (!DIA_1_SIEMBRA_SUAVE) return false;
+
+  const { data, error } = await supabase
+    .from('user_day_preferences')
+    .select('active_boolean_electrons, active_quantitative_electrons, goals')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) {
+    logWarn('[install] siembra dia 1: lectura falló', error);
+    return false;
+  }
+
+  const goals = (data?.goals as Record<string, unknown>) ?? {};
+  if (goals[DIA1_FLAG]) return false;
+
+  // Candado 2: ya eligió. No se pisa una decisión del usuario ni con bandera
+  // limpia. Se marca la bandera para no volver a preguntarlo cada arranque.
+  const yaEligio =
+    Array.isArray(data?.active_boolean_electrons) ||
+    Array.isArray(data?.active_quantitative_electrons);
+  if (yaEligio) {
+    await supabase
+      .from('user_day_preferences')
+      .upsert(
+        { user_id: userId, goals: { ...goals, [DIA1_FLAG]: true }, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' },
+      );
+    return false;
+  }
+
+  const siembra = siembraDia1(packBooleans);
+  const { error: writeErr } = await supabase
+    .from('user_day_preferences')
+    .upsert(
+      {
+        user_id: userId,
+        active_boolean_electrons: siembra.booleans,
+        active_quantitative_electrons: siembra.quants,
+        goals: { ...goals, [DIA1_FLAG]: true },
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' },
+    );
+  if (writeErr) {
+    // Sin bandera: se reintenta. Nada a medias.
+    logWarn('[install] siembra dia 1: escritura falló', writeErr);
+    return false;
+  }
+  // Regla 5: el HOY tiene que recompilar con la lista nueva.
+  DeviceEventEmitter.emit('electrons_changed');
+  return true;
 }
