@@ -27,6 +27,10 @@ import {
   type LecturaSnapshot,
 } from './lectura-core';
 import type { Sex } from '@/src/types/edad-atp-v2';
+import { SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA } from '@/src/constants/flags';
+import { LECTURA_VACIA } from '@/src/services/health/health-read-core';
+import { leerSaludDelDia } from '@/src/services/health/health-read-service';
+import { getLocalToday } from '@/src/utils/date-helpers';
 
 /** Corre una lectura y devuelve el fallback si truena. Nunca propaga. */
 async function suave<T>(etiqueta: string, fn: () => Promise<T>, fallback: T): Promise<T> {
@@ -81,7 +85,7 @@ async function leerCronotipo(userId: string): Promise<string | null> {
 
 /** Junta las nueve fuentes en el snapshot que el núcleo sabe leer. */
 export async function gatherLecturaSnapshot(userId: string): Promise<LecturaSnapshot> {
-  const [sexo, labs, medicion, braverman, sintomas, historia, protocolo, cronotipo, edad, ciclo] =
+  const [sexo, labs, medicion, braverman, sintomas, historia, protocolo, cronotipo, edad, ciclo, salud] =
     await Promise.all([
       suave('sexo', () => leerSexo(userId), 'male' as Sex),
       suave('labs', () => loadCanonicalLabValues(userId), {} as Record<string, { value: number; measured_at: string; is_stale: boolean }>),
@@ -93,7 +97,24 @@ export async function gatherLecturaSnapshot(userId: string): Promise<LecturaSnap
       suave('cronotipo', () => leerCronotipo(userId), null),
       suave('edad', () => leerEdad(userId), null),
       suave('ciclo', () => getCycleInfo(userId), null),
+      // CIERRE-3: la salud que midió el teléfono hoy. Entra SOLO como relleno
+      // de huecos (ver abajo): aquí no puede pisar nada.
+      SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA
+        ? suave('salud_os', () => leerSaludDelDia(userId, getLocalToday()), LECTURA_VACIA)
+        : Promise.resolve(LECTURA_VACIA),
     ]);
+
+  /**
+   * Relleno de huecos, y nada más.
+   *
+   * `medicion` es la ÚLTIMA medición manual, que puede ser de hace meses. Que
+   * un peso manual viejo le gane a la báscula de hoy es discutible y no lo
+   * decido aquí: por eso la máquina solo entra donde el valor manual es null,
+   * o sea donde no hay nada que pisar. Un renglón vacío que se llena es una
+   * mejora sin riesgo; reemplazar por antigüedad sería una política nueva.
+   */
+  const oHuecoDe = (manual: number | null | undefined, maquina: number | null): number | null =>
+    manual ?? maquina;
 
   return {
     ...SNAPSHOT_VACIO,
@@ -101,7 +122,7 @@ export async function gatherLecturaSnapshot(userId: string): Promise<LecturaSnap
     labs: labs ?? {},
     composicion: medicion
       ? {
-          pesoKg: medicion.weight_kg ?? null,
+          pesoKg: oHuecoDe(medicion.weight_kg, salud.peso.valor),
           grasaPct: medicion.body_fat_pct ?? null,
           musculoKg: medicion.muscle_mass_kg ?? null,
           visceral: medicion.visceral_fat ?? null,
@@ -109,7 +130,7 @@ export async function gatherLecturaSnapshot(userId: string): Promise<LecturaSnap
           sistolica: medicion.systolic_bp ?? null,
           diastolica: medicion.diastolic_bp ?? null,
           vo2: medicion.vo2max_estimate ?? null,
-          pasos: medicion.steps_daily ?? null,
+          pasos: oHuecoDe(medicion.steps_daily, salud.pasos.valor),
           ejercicioMin: medicion.exercise_min_weekly ?? null,
         }
       : null,
