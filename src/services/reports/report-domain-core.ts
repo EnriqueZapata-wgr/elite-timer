@@ -107,7 +107,8 @@ export type ReportPillar =
 
 export type ReportDomainKey =
   | 'nutricion' | 'hidratacion' | 'ayuno' | 'mente' | 'economia'
-  | 'journal' | 'emociones' | 'ciclo' | 'nback' | 'adherencia';
+  | 'journal' | 'emociones' | 'ciclo' | 'nback' | 'adherencia'
+  | 'entrenamiento' | 'glucosa' | 'labs' | 'expediente';
 
 export interface ReportDomainMeta {
   key: ReportDomainKey;
@@ -215,6 +216,42 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     accent: '#a8e02a',
     subtitle: 'Tus electrones y tus protones: qué entró y qué se fue.',
     emptyCopy: 'Todavía no hay movimientos en este rango. Tus electrones se ganan cumpliendo, no comprando.',
+  },
+  entrenamiento: {
+    key: 'entrenamiento',
+    title: 'Entrenamiento',
+    pillar: 'fitness',
+    icon: 'barbell-outline',
+    accent: '#a8e02a',
+    subtitle: 'Tus sesiones, tu volumen, tus marcas y qué tanto seguiste tu plan.',
+    emptyCopy: 'Todavía no hay sesiones en este rango. Un entrenamiento registrado, aunque sea corto, ya abre la gráfica.',
+  },
+  glucosa: {
+    key: 'glucosa',
+    title: 'Glucosa',
+    pillar: 'health',
+    icon: 'pulse-outline',
+    accent: '#fb923c',
+    subtitle: 'Tus lecturas en el tiempo, por contexto, y tu profundidad de cetosis.',
+    emptyCopy: 'Todavía no hay lecturas en este rango. Con un piquete en ayuno empieza tu serie, y si además anotas cetonas se calcula tu índice.',
+  },
+  labs: {
+    key: 'labs',
+    title: 'Labs',
+    pillar: 'health',
+    icon: 'flask-outline',
+    accent: '#1d9e75',
+    subtitle: 'Cada biomarcador en el tiempo, leído contra tu ventana funcional.',
+    emptyCopy: 'Todavía no hay biomarcadores en este rango. Sube una foto o el PDF de tu estudio y cada valor cae aquí con su fecha.',
+  },
+  expediente: {
+    key: 'expediente',
+    title: 'Expediente',
+    pillar: 'health',
+    icon: 'folder-open-outline',
+    accent: '#22d3ee',
+    subtitle: 'Todo lo que hay de ti, de dónde viene y qué falta por llenar.',
+    emptyCopy: 'Todavía no hay nada guardado en este rango. Cualquier registro que hagas en la app entra a tu expediente y se queda ahí.',
   },
 };
 

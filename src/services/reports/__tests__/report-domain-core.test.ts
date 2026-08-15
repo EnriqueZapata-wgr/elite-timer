@@ -102,13 +102,15 @@ describe('registro de dominios', () => {
     for (const k of REPORT_DOMAIN_KEYS) expect(REPORT_DOMAINS[k].key).toBe(k);
   });
 
-  it('los diez dominios están registrados', () => {
+  it('los catorce dominios están registrados', () => {
     // Eran cinco cuando solo estaban los baratos. La consolidación sumó
-    // journal, emociones, ciclo, nback y adherencia, cada uno con su meta
-    // completa (la verifica el caso de abajo, que recorre TODOS).
+    // journal, emociones, ciclo, nback y adherencia, y el cierre del hub sumó
+    // entrenamiento, glucosa, labs y expediente. Cada uno con su meta completa
+    // (la verifica el caso de abajo, que recorre TODOS).
     expect(REPORT_DOMAIN_KEYS.slice().sort()).toEqual(
-      ['adherencia', 'ayuno', 'ciclo', 'economia', 'emociones',
-        'hidratacion', 'journal', 'mente', 'nback', 'nutricion'],
+      ['adherencia', 'ayuno', 'ciclo', 'economia', 'emociones', 'entrenamiento',
+        'expediente', 'glucosa', 'hidratacion', 'journal', 'labs', 'mente',
+        'nback', 'nutricion'],
     );
   });
 
@@ -130,7 +132,10 @@ describe('registro de dominios', () => {
 
   it('isReportDomain rechaza lo que no está registrado', () => {
     expect(isReportDomain('nutricion')).toBe(true);
-    expect(isReportDomain('entrenamiento')).toBe(false);
+    // 'entrenamiento' dejó de servir como ejemplo negativo el día que se
+    // construyó: el candado se REAPUNTA a un dominio que de verdad no existe.
+    expect(isReportDomain('entrenamiento')).toBe(true);
+    expect(isReportDomain('suplementos')).toBe(false);
     expect(isReportDomain('')).toBe(false);
     expect(isReportDomain(null)).toBe(false);
     expect(isReportDomain('constructor')).toBe(false);

@@ -40,7 +40,18 @@ import { EmocionesResumen } from '@/src/components/reports/domains/emociones';
 import { CicloResumen } from '@/src/components/reports/domains/ciclo';
 import { NbackResumen } from '@/src/components/reports/domains/nback';
 import { AdherenciaResumen } from '@/src/components/reports/domains/adherencia';
-import { REPORT_DOMAINS, type ReportDomainKey } from '@/src/services/reports/report-domain-core';
+import { EntrenamientoResumen } from '@/src/components/reports/domains/entrenamiento';
+import { GlucosaResumen } from '@/src/components/reports/domains/glucosa';
+import { LabsResumen } from '@/src/components/reports/domains/labs';
+import { loadLabsHubSummary } from '@/src/services/reports/labs-report-service';
+import { ExpedienteResumen } from '@/src/components/reports/domains/expediente';
+import { DOMAIN_DEFINITIONS } from '@/src/components/reports/domains';
+import {
+  REPORT_DOMAINS, parseRange, resolveRange, type ReportDomainKey,
+} from '@/src/services/reports/report-domain-core';
+import {
+  shareMasterExport, type MasterExportFormat,
+} from '@/src/services/reports/master-export-service';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { PILLAR_GRADIENTS, ATP_BRAND, TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
@@ -90,10 +101,13 @@ const KEY_TO_LABEL: Record<string, PeriodLabel> = {
 };
 
 /** Secciones personalizables, en su orden default. */
+// NOCHE-REP: 'labs' y 'expediente' entran al final. effectiveOrder apendea las
+// llaves nuevas donde el default las pone, así que a quien ya reordenó su hub
+// le aparecen abajo sin perder el orden que eligió.
 const SECTION_KEYS = [
   'calendario', 'electrones', 'nutricion', 'hidratacion', 'ayuno',
   'ejercicio', 'glucosa', 'compliance', 'mente', 'journal', 'emociones',
-  'nback', 'ciclo',
+  'nback', 'ciclo', 'labs', 'expediente',
 ] as const;
 type SectionKey = typeof SECTION_KEYS[number];
 
@@ -102,6 +116,7 @@ const SECTION_NAMES: Record<SectionKey, string> = {
   hidratacion: 'Hidratación', ayuno: 'Ayuno', ejercicio: 'Ejercicio',
   glucosa: 'Glucosa', compliance: 'Compliance', mente: 'Mente',
   journal: 'Journal', emociones: 'Emociones', nback: 'N-Back', ciclo: 'Ciclo',
+  labs: 'Labs', expediente: 'Expediente',
 };
 
 const PREFS_KEY = '@atp/reports_sections';
@@ -126,6 +141,10 @@ const SECTION_TO_DOMAIN: Partial<Record<SectionKey, ReportDomainKey>> = {
   nback: 'nback',
   compliance: 'adherencia',
   electrones: 'economia',
+  ejercicio: 'entrenamiento',
+  glucosa: 'glucosa',
+  labs: 'labs',
+  expediente: 'expediente',
 };
 
 export default function ReportsScreen() {
@@ -150,11 +169,49 @@ export default function ReportsScreen() {
   const [cycle, setCycle] = useState<CycleReport>({ periodDays: 0, avgEnergy: 0, avgMood: 0, logsCount: 0 });
   const [identity, setIdentity] = useState<IdentityStats | null>(null);
   const [nback, setNback] = useState<NBackUserState | null>(null);
+  // NOCHE-REP: dos cifras de labs, de UNA consulta. Ver el comentario de
+  // loadLabsHubSummary: la evaluación de bandas exige el dominio completo.
+  const [labs, setLabs] = useState<{ parametros: number; mediciones: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
   // MB-29 P1 (H3): el reporte para el médico — rango elegible + PDF.
   const [consultaRange, setConsultaRange] = useState<ConsultaRangeDays>(30);
   const [consultaSharing, setConsultaSharing] = useState(false);
+
+  // NOCHE-REP: el export maestro. Es el otro destinatario: el usuario mismo.
+  const [maestroSharing, setMaestroSharing] = useState(false);
+
+  const handleMaestro = useCallback(async (format: MasterExportFormat) => {
+    if (maestroSharing) return;
+    haptic.medium();
+    setMaestroSharing(true);
+    try {
+      const rango = parseRange(period) ?? 'week';
+      const resolved = resolveRange(rango, new Date());
+      const dominios = Object.values(DOMAIN_DEFINITIONS)
+        .filter((d): d is NonNullable<typeof d> => !!d);
+      const out = await shareMasterExport(dominios, resolved, format);
+      if (out.result === 'empty') {
+        Alert.alert('No hay nada que llevarte', out.resumen);
+      } else if (out.result === 'unavailable') {
+        Alert.alert(
+          'Tu versión aún no comparte archivos',
+          'Este teléfono trae una versión de la app sin el módulo de compartir. Llega con la próxima actualización de la tienda.',
+        );
+      } else if (out.result === 'error') {
+        Alert.alert(
+          'No se pudo generar',
+          'No pudimos escribir el archivo. Nada se generó a medias: intenta de nuevo en un momento.',
+        );
+      } else if (out.manifiesto.dominiosNoLeidos.length > 0) {
+        // Se avisa AQUÍ y además queda marcado dentro del archivo: enterarse
+        // por un archivo incompleto es peor que enterarse en la pantalla.
+        Alert.alert('Tu archivo va incompleto', out.resumen);
+      }
+    } finally {
+      setMaestroSharing(false);
+    }
+  }, [maestroSharing, period]);
   const firstName = ((user?.user_metadata?.full_name as string) || '').trim().split(' ')[0] || '';
 
   const handleConsulta = useCallback(async () => {
@@ -217,10 +274,12 @@ export default function ReportsScreen() {
       getIdentityStats(),
       // Si truena, la tarjeta de N-Back no aparece. No tumba el hub entero.
       user?.id ? fetchNBackState(user.id).catch(() => null) : Promise.resolve(null),
-    ]).then(([el, nu, hy, fa, ex, gl, co, mi, cy, id, nb]) => {
+      // Igual con labs: ya viene fail-soft desde el servicio.
+      loadLabsHubSummary(resolveRange(parseRange(period) ?? 'week', new Date())),
+    ]).then(([el, nu, hy, fa, ex, gl, co, mi, cy, id, nb, lb]) => {
       setElectrons(el); setNutrition(nu); setHydration(hy);
       setFasting(fa); setExercise(ex); setGlucose(gl); setCompliance(co);
-      setMind(mi); setCycle(cy); setIdentity(id); setNback(nb);
+      setMind(mi); setCycle(cy); setIdentity(id); setNback(nb); setLabs(lb);
     }).finally(() => setLoading(false));
   }, [period, user?.id]));
 
@@ -272,27 +331,33 @@ export default function ReportsScreen() {
         <AyunoContent data={fasting} variant="resumen" />
       </DomainCard>
     ),
+    // NOCHE-REP: el ejercicio era la cifra sin casa más grande del hub. Ahora
+    // es la puerta del dominio entrenamiento, donde además viven el volumen
+    // día por día, la progresión de fuerza y el apego al plan. La llave de la
+    // sección NO se renombra: la preferencia guardada de la gente dice
+    // 'ejercicio', y cambiarla les borraría el orden que ya eligieron.
     ejercicio: () => (
-      <GradientCard gradient={PILLAR_GRADIENTS.fitness}>
-        <SectionHeader icon="barbell-outline" color={LIME} title="EJERCICIO" />
-        <StatsRow>
-          <Stat value={`${exercise.sessionsPerWeek}`} label="sesiones/sem" />
-          <Stat value={exercise.totalVolumeKg > 0 ? `${(exercise.totalVolumeKg / 1000).toFixed(1)}t` : '—'} label="volumen" />
-          <Stat value={`${exercise.prsThisPeriod}`} label="PRs" />
-          <Stat value={`${exercise.cardioSessions}`} label="cardio" />
-        </StatsRow>
-      </GradientCard>
+      <DomainCard domain="entrenamiento" gradient={PILLAR_GRADIENTS.fitness} period={period}>
+        <EntrenamientoResumen
+          sessionsPerWeek={exercise.sessionsPerWeek}
+          totalVolumeKg={exercise.totalVolumeKg}
+          prs={exercise.prsThisPeriod}
+          cardio={exercise.cardioSessions}
+        />
+      </DomainCard>
     ),
+    // NOCHE-REP: la glucosa tenía barras aquí y nada más. Ahora es la puerta
+    // del dominio, donde además viven las cetonas y el índice que sale de las
+    // dos. Sigue escondida en cero: quien nunca se ha picado el dedo no
+    // necesita una tarjeta de guiones, y desde la bitácora se llega igual.
     glucosa: () => glucose.readings > 0 ? (
-      <GradientCard gradient={{ start: 'rgba(251,146,60,0.10)', end: 'rgba(251,146,60,0.02)' }}>
-        <SectionHeader icon="analytics-outline" color={ORANGE} title="GLUCOSA" />
-        <StatsRow>
-          <Stat value={glucose.avgFasting > 0 ? `${glucose.avgFasting}` : '—'} label="ayuno mg/dL" />
-          <Stat value={glucose.avgPostMeal > 0 ? `${glucose.avgPostMeal}` : '—'} label="post-comida" />
-          <Stat value={`${glucose.readings}`} label="lecturas" />
-        </StatsRow>
-        {glucose.daily.length > 0 && <SimpleBarChart data={glucose.daily} color={ORANGE} />}
-      </GradientCard>
+      <DomainCard domain="glucosa" gradient={{ start: 'rgba(251,146,60,0.10)', end: 'rgba(251,146,60,0.02)' }} period={period}>
+        <GlucosaResumen
+          avgFasting={glucose.avgFasting}
+          avgPostMeal={glucose.avgPostMeal}
+          readings={glucose.readings}
+        />
+      </DomainCard>
     ) : null,
     // OLA1 R-5: compliance era la cifra sin casa. Ahora es la puerta del
     // dominio adherencia, donde ademas viven las rachas y las medallas. La
@@ -348,6 +413,22 @@ export default function ReportsScreen() {
         />
       </DomainCard>
     ) : null,
+    // NOCHE-REP: los labs vivían solo colgados de Edad ATP y no se alcanzaban
+    // desde reportes. En cero no se pinta: una tarjeta de ceros no invita a
+    // subir un estudio, y para eso ya está la puerta de Mi Salud.
+    labs: () => labs && labs.mediciones > 0 ? (
+      <DomainCard domain="labs" gradient={{ start: 'rgba(29,158,117,0.10)', end: 'rgba(29,158,117,0.02)' }} period={period}>
+        <LabsResumen parametros={labs.parametros} mediciones={labs.mediciones} />
+      </DomainCard>
+    ) : null,
+    // NOCHE-REP: el expediente SÍ se pinta siempre, aunque esté vacío. Es la
+    // única sección cuyo valor está justo en decir qué falta: esconderla
+    // cuando no hay nada la volvería invisible para quien más la necesita.
+    expediente: () => (
+      <DomainCard domain="expediente" gradient={{ start: 'rgba(34,211,238,0.10)', end: 'rgba(34,211,238,0.02)' }} period={period}>
+        <ExpedienteResumen />
+      </DomainCard>
+    ),
   };
 
   return (
@@ -367,7 +448,13 @@ export default function ReportsScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        {loading && <EliteText style={s.loadingText}>Cargando...</EliteText>}
+        {/* NOCHE-REP: la carga dice QUÉ está haciendo. Un "Cargando..." pelado
+            es indistinguible de una pantalla colgada, y esta semana hubo dos.
+            El apagado va en el finally de la promesa, no en el then: si una
+            lectura truena, esto se quita igual. */}
+        {loading && (
+          <EliteText style={s.loadingText}>Juntando tus registros del período…</EliteText>
+        )}
 
         {/* IDENTIDAD — tu historia completa, siempre arriba (MB-11 C) */}
         <Animated.View entering={FadeInUp.delay(30).springify()} style={s.cardWrap}>
@@ -420,6 +507,43 @@ export default function ReportsScreen() {
                 {consultaSharing ? 'Generando…' : 'Generar y compartir PDF'}
               </EliteText>
             </AnimatedPressable>
+          </GradientCard>
+        </Animated.View>
+
+        {/* LLÉVATE TODO — NOCHE-REP: el otro destinatario de tus datos eres TÚ.
+            El de arriba es para tu médico y está escrito para leerse en cinco
+            minutos; este es todo, crudo, sin una sola interpretación encima.
+            Son dos archivos distintos a propósito: uno solo tendría que
+            elegir a quién servirle mal. */}
+        <Animated.View entering={FadeInUp.delay(52).springify()} style={s.cardWrap}>
+          <GradientCard gradient={{ start: 'rgba(34,211,238,0.10)', end: 'rgba(34,211,238,0.02)' }}>
+            {/* El acento sale del registro de dominios, no de un literal: el
+                expediente ya tiene color y aquí no se le inventa otro. */}
+            <SectionHeader icon="download-outline" color={REPORT_DOMAINS.expediente.accent} title="LLÉVATE TODO" />
+            <EliteText style={s.consultaBody}>
+              Todos tus reportes del rango que tienes arriba, en un solo archivo tuyo. Sin
+              resumir y sin interpretar: es tu dato y te lo puedes llevar a donde quieras,
+              incluso fuera de ATP.
+            </EliteText>
+            <View style={s.exportRow}>
+              {(['csv', 'json'] as const).map((f) => (
+                <AnimatedPressable
+                  key={f}
+                  onPress={() => handleMaestro(f)}
+                  disabled={maestroSharing}
+                  style={[s.exportBtn, maestroSharing && s.consultaCtaDisabled]}
+                >
+                  <Ionicons name="share-outline" size={15} color={t.texto} />
+                  <EliteText style={s.exportBtnText}>
+                    {maestroSharing ? 'Juntando…' : f.toUpperCase()}
+                  </EliteText>
+                </AnimatedPressable>
+              ))}
+            </View>
+            <EliteText style={s.exportNota}>
+              Si alguna sección no carga, va marcada dentro del archivo en vez de
+              desaparecer. Un pilar ausente se leería como historial perdido.
+            </EliteText>
           </GradientCard>
         </Animated.View>
 
@@ -522,6 +646,19 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   consultaCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: ATP_BRAND.lime, borderRadius: 12, paddingVertical: 12 },
   consultaCtaDisabled: { opacity: 0.7 },
   consultaCtaText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, color: t.textoSobreLima },
+
+  // NOCHE-REP: botones del export maestro
+  exportRow: { flexDirection: 'row', gap: Spacing.sm },
+  exportBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 10, paddingHorizontal: 20, borderRadius: 12,
+    borderWidth: 1, borderColor: t.bordeMarcado,
+  },
+  exportBtnText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: t.texto },
+  exportNota: {
+    fontSize: FontSizes.xs, color: t.textoTenue, fontFamily: Fonts.regular,
+    lineHeight: 16, marginTop: Spacing.sm,
+  },
 
   cardWrap: { marginBottom: Spacing.md },
 
