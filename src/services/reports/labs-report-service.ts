@@ -56,6 +56,43 @@ export async function loadLabsReport(range: ResolvedRange): Promise<LabsReportDa
 }
 
 /**
+ * Resumen barato para la tarjeta del hub: cuántos biomarcadores distintos y
+ * cuántas mediciones hay en el rango. Es UNA consulta y sin evaluar bandas a
+ * propósito: el hub ya dispara una docena de lecturas, y meterle la lectura
+ * completa del dominio para pintar dos cifras lo volvería lento.
+ *
+ * Fail-soft: si no responde, la tarjeta no aparece y el hub sigue en pie.
+ */
+export async function loadLabsHubSummary(
+  range: ResolvedRange,
+): Promise<{ parametros: number; mediciones: number } | null> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user?.id;
+    if (!userId) return null;
+
+    let q = supabase
+      .from('lab_values')
+      .select('parameter_key')
+      .eq('user_id', userId)
+      .eq('is_voided', false)
+      .limit(MEDICION_CAP);
+    if (range.from) q = q.gte('measured_at', range.from);
+
+    const { data, error } = await q;
+    if (error) throw error;
+    const filas = (data ?? []) as { parameter_key: string }[];
+    return {
+      parametros: new Set(filas.map((r) => r.parameter_key)).size,
+      mediciones: filas.length,
+    };
+  } catch (e) {
+    logWarn('[reports] resumen de labs para el hub no disponible', e);
+    return null;
+  }
+}
+
+/**
  * El sexo biológico decide qué matriz de rangos funcionales aplica. Sin dato
  * se cae a 'male', que es lo que ya hace el resto de la app: es un default
  * declarado, no una suposición nueva de este archivo.

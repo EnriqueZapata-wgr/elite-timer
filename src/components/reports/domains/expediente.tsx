@@ -189,16 +189,25 @@ function FilaFuente({ f, s, t }: { f: FuenteInventario; s: Styles; t: AppThemeTo
 
 // ── La tarjeta del hub ─────────────────────────────────────────────────────
 
-export function ExpedienteResumen({ registros, fuentesConDatos, fuentesTotales }: {
-  registros: number; fuentesConDatos: number; fuentesTotales: number;
-}) {
+/**
+ * Esta tarjeta NO trae cifras, y es la única del hub que no las trae. Contarlas
+ * exige leer las seis fuentes, y hacerlo aquí le sumaría media docena de
+ * consultas a un hub que ya dispara una docena. Poner un número aproximado
+ * sería peor: una cifra que no cuadra con la de adentro destruye la confianza
+ * en las demás. Se dice qué hay del otro lado y se abre.
+ */
+export function ExpedienteResumen() {
+  const t = useAppTheme().tokens;
   return (
     <>
       <SectionHeader icon={META.icon} color={META.accent} title="EXPEDIENTE" />
-      <StatsRow>
-        <Stat value={`${registros}`} label="registros" />
-        <Stat value={`${fuentesConDatos}/${fuentesTotales}`} label="fuentes con datos" />
-      </StatsRow>
+      <EliteText style={{
+        fontSize: FontSizes.sm, fontFamily: Fonts.regular,
+        color: t.textoSecundario, lineHeight: 19,
+      }}>
+        Todo lo que hay guardado de ti, fuente por fuente, con su línea de tiempo y
+        qué falta por llenar.
+      </EliteText>
     </>
   );
 }

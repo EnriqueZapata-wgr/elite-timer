@@ -204,8 +204,14 @@ function Sparkline({ h, t }: { h: HistoriaLab; t: AppThemeTokens }) {
 
 // ── La tarjeta del hub ─────────────────────────────────────────────────────
 
-export function LabsResumen({ parametros, mediciones, atencion }: {
-  parametros: number; mediciones: number; atencion: number;
+/**
+ * La tarjeta del hub NO evalúa bandas: el conteo de "piden atención" exige
+ * cargar el dominio entero, y el hub ya dispara una docena de lecturas. Aquí
+ * van las dos cifras que salen de una sola consulta, y el estado se ve
+ * adentro.
+ */
+export function LabsResumen({ parametros, mediciones }: {
+  parametros: number; mediciones: number;
 }) {
   return (
     <>
@@ -213,7 +219,6 @@ export function LabsResumen({ parametros, mediciones, atencion }: {
       <StatsRow>
         <Stat value={`${parametros}`} label="biomarcadores" />
         <Stat value={`${mediciones}`} label="mediciones" />
-        <Stat value={`${atencion}`} label="piden atención" />
       </StatsRow>
     </>
   );
