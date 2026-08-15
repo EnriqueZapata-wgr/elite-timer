@@ -137,6 +137,31 @@ describe('nextStreak (días con ≥1 round)', () => {
     expect(nextStreak('2026-07-31', '2026-08-01', 2)).toBe(3);
     expect(nextStreak('2026-12-31', '2027-01-01', 6)).toBe(7);
   });
+
+  /**
+   * DEUDA 2026-08-15 · los dos casos donde la copia muerta de
+   * `src/services/mente/nback-core.ts` discrepaba de esta. Se fijan aquí para
+   * que la racha no vuelva a depender de cuál de los dos archivos importaste.
+   */
+  it('una fecha guardada en el FUTURO conserva la racha, no la borra', () => {
+    // Se practica en Tokio (día 16) y se aterriza en México, donde es 15.
+    // La copia muerta devolvía 1: le quitaba 11 días a quien cruzó un meridiano.
+    expect(nextStreak('2026-08-16', '2026-08-15', 11)).toBe(11);
+    // Y si además la racha venía en 0, el piso sigue siendo 1: nunca 0.
+    expect(nextStreak('2026-08-16', '2026-08-15', 0)).toBe(1);
+  });
+
+  it('racha en 0 con sesión ayer cuenta los DOS días, no uno', () => {
+    // Estado imposible salvo dato corrupto. Si hubo sesión ayer y hay sesión
+    // hoy, son dos días: recortar a 1 le come un día a alguien que sí practicó.
+    expect(nextStreak('2026-07-22', '2026-07-23', 0)).toBe(2);
+  });
+
+  it('el caso sano no cambia: la racha normal sigue sumando de uno en uno', () => {
+    // El candado de que la mejora de arriba no infló nada más.
+    expect(nextStreak('2026-07-22', '2026-07-23', 1)).toBe(2);
+    expect(nextStreak('2026-07-22', '2026-07-23', 30)).toBe(31);
+  });
 });
 
 describe('resolvePressIndex (V1.5: gracia de press tardío)', () => {
