@@ -144,6 +144,45 @@ function resolveRoute(requestType: string | undefined, clientModel?: string): Mo
 // mínimo privilegio, NUNCA service_role (la read_key filtrada solo expone
 // el cerebro, jamás la base). La app SOLO pide product='atp'; 'dx' es IP
 // clínica que no debe tocar la app.
+// ─── QUÉ ACCIONES NO RECIBEN EL CEREBRO (CIERRE-4 · Audit-4) ─────
+// El cerebro son 26,296 tokens. La pregunta era si el insight diario lo
+// necesita. Se midió contra argos_logs (30 días) y la respuesta es NO:
+//
+//  · El insight produce 165 tokens de salida en promedio sobre un prompt de
+//    ~919. Anteponerle el cerebro multiplica su entrada por 29.
+//  · En el mejor escenario imaginable (caché siempre tibia, TTL de 1h) son
+//    26,296 × $0.20/M = $0.00526 por llamada, sobre un costo medido de
+//    $0.00585: casi DUPLICA la factura del insight sin cambiar el producto.
+//  · En el escenario que de verdad mide la telemetría (el insight escribe
+//    caché en el 53% de sus llamadas y la lee en el 0.5%) cada llamada fría
+//    escribe el cerebro completo: 26,296 × $4/M = $0.105, o sea 18 veces el
+//    costo actual. El insight es una acción por persona por día repartida en
+//    las horas que la gente está despierta, así que la ráfaga que mantiene
+//    tibia la caché del chat NO existe aquí. No se cura con volumen: empeora.
+//  · Y sobre todo, el contenido no lo pide. El cerebro es doctrina de
+//    CONVERSACIÓN: preguntas en cascada, acelerador y freno, formato canónico,
+//    creer en el proceso. Nada de eso tiene superficie en dos oraciones. Los
+//    candados que SÍ aplican a un insight ya viajan en su prompt y por usuario:
+//    el guard de género (que prohíbe atribuir ciclo menstrual), el de protocolo
+//    activo, las reglas de aritmética del ayuno, de vigencia del dato, de labs
+//    con fase de ciclo y de semántica de Edad ATP, más la voz del usuario.
+//
+// QUÉ HARÍA CAMBIAR ESTA DECISIÓN: que aparezcan violaciones de doctrina
+// medibles en los insights. La respuesta entonces NO es meterle los 26K, es el
+// núcleo de seguridad y lenguaje (~2-3K tokens) de la partición del cerebro,
+// que hoy está congelada como trabajo aparte.
+//
+// El gate es server-side a propósito: hoy ningún cliente manda dynamicSystem en
+// el insight, pero esto impide que un bundle futuro lo encienda por accidente y
+// multiplique la factura sin que nadie lo note hasta el corte del mes.
+// Reversible SIN redeploy: BRAIN_DENY_TYPES="" en las env vars del function.
+const BRAIN_DENY_TYPES_DEFAULT = "insight,weekly_insight";
+function brainDeniedFor(requestType?: string): boolean {
+  if (!requestType) return false;
+  const raw = Deno.env.get("BRAIN_DENY_TYPES") ?? BRAIN_DENY_TYPES_DEFAULT;
+  return raw.split(",").map((s) => s.trim()).filter(Boolean).includes(requestType);
+}
+
 const BRAIN_TTL_MS = 5 * 60 * 1000;
 let _brainCache: { text: string; version: string; source: "store" | "embedded"; expires: number } | null = null;
 
@@ -782,7 +821,8 @@ serve(async (req) => {
     let systemForCall: string | any[] | undefined = system;
     let brainVersion: string | null = null;
     let brainSource: "store" | "embedded" | null = null;
-    if (BRAIN_ON && typeof body.dynamicSystem === "string" && body.dynamicSystem.length > 0) {
+    if (BRAIN_ON && !brainDeniedFor(requestType)
+        && typeof body.dynamicSystem === "string" && body.dynamicSystem.length > 0) {
       const brain = await getSharedBrain();
       brainVersion = brain.version;
       brainSource = brain.source;
@@ -795,6 +835,13 @@ serve(async (req) => {
         { type: "text", text: brain.text, cache_control: { type: "ephemeral", ttl: "1h" } },
         { type: "text", text: body.dynamicSystem },                               // DINÁMICO → sin cache
       ];
+    } else if (typeof body.dynamicSystem === "string" && body.dynamicSystem.length > 0 && !system) {
+      // Red de seguridad del gate de arriba: un cliente que mande SOLO
+      // dynamicSystem (esperando que el proxy le anteponga el cerebro) se
+      // quedaría sin system entero si su acción está en la lista de negados.
+      // Perder los guards de género y protocolo es un problema de doctrina, no
+      // de costo, así que el dinámico se usa tal cual.
+      systemForCall = body.dynamicSystem;
     }
     const brainEcho = brainVersion ? { _brain: brainVersion, _brain_source: brainSource } : {};
 
