@@ -178,45 +178,45 @@ export default function AfiliadosAplicarScreen() {
 
           <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Tus datos</SectionTitle>
           <EliteText style={[s.label, secTxt]}>NOMBRE COMPLETO</EliteText>
-          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={fullName} onChangeText={setFullName} placeholder="Tu nombre" placeholderTextColor={t.sinDatos} autoCapitalize="words" />
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={fullName} onChangeText={setFullName} placeholder="Tu nombre" placeholderTextColor={t.sinDatos} autoCapitalize="words" />
           <EliteText style={[s.label, secTxt]}>EMAIL</EliteText>
-          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={email} onChangeText={setEmail} placeholder="tu@email.com" placeholderTextColor={t.sinDatos} keyboardType="email-address" autoCapitalize="none" />
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={email} onChangeText={setEmail} placeholder="tu@email.com" placeholderTextColor={t.sinDatos} keyboardType="email-address" autoCapitalize="none" />
           <EliteText style={[s.label, secTxt]}>TELÉFONO</EliteText>
-          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={phone} onChangeText={setPhone} placeholder="+52 ..." placeholderTextColor={t.sinDatos} keyboardType="phone-pad" />
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={phone} onChangeText={setPhone} placeholder="+52 ..." placeholderTextColor={t.sinDatos} keyboardType="phone-pad" />
           <EliteText style={[s.label, secTxt]}>ESPECIALIDAD</EliteText>
-          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={specialty} onChangeText={setSpecialty} placeholder="Ej. medicina funcional, CrossFit, nutrición…" placeholderTextColor={t.sinDatos} />
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={specialty} onChangeText={setSpecialty} placeholder="Ej. medicina funcional, CrossFit, nutrición…" placeholderTextColor={t.sinDatos} />
 
           {requiresCedula(vertical) && (
             <>
               <EliteText style={[s.label, secTxt]}>CÉDULA PROFESIONAL (OBLIGATORIA PARA CLÍNICOS)</EliteText>
-              <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={cedula} onChangeText={setCedula} placeholder="Número de cédula" placeholderTextColor={t.sinDatos} />
+              <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={cedula} onChangeText={setCedula} placeholder="Número de cédula" placeholderTextColor={t.sinDatos} />
             </>
           )}
           <EliteText style={[s.label, secTxt]}>RFC (FACTURACIÓN MÉXICO · OPCIONAL)</EliteText>
-          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={rfc} onChangeText={(t) => setRfc(t.toUpperCase())} placeholder="XXXX000000XXX" placeholderTextColor={t.sinDatos} autoCapitalize="characters" />
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={rfc} onChangeText={(t) => setRfc(t.toUpperCase())} placeholder="XXXX000000XXX" placeholderTextColor={t.sinDatos} autoCapitalize="characters" />
 
           <EliteText style={[s.label, secTxt]}>CUÉNTANOS DE TI ({bioWords}/150 PALABRAS)</EliteText>
           <TextInput
-            style={[s.input, { backgroundColor: t.hundido, color: t.texto }, s.textArea, bioWords > 150 && { borderColor: '#ef4444' }]}
+            style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }, s.textArea, bioWords > 150 && { borderColor: '#ef4444' }]}
             value={bio} onChangeText={setBio} multiline
             placeholder="Tu experiencia, a quién atiendes y por qué quieres ser afiliado ATP…"
             placeholderTextColor={t.sinDatos}
           />
           <EliteText style={[s.label, secTxt]}>REDES / SITIO WEB (OPCIONAL)</EliteText>
-          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={social} onChangeText={setSocial} placeholder="instagram.com/tuperfil · tusitio.com" placeholderTextColor={t.sinDatos} autoCapitalize="none" />
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={social} onChangeText={setSocial} placeholder="instagram.com/tuperfil · tusitio.com" placeholderTextColor={t.sinDatos} autoCapitalize="none" />
 
           <Pressable onPress={() => { haptic.light(); setAcceptTerms(a => !a); }} style={s.checkRow}>
             <View style={[s.checkbox, { borderColor: t.bordeMarcado }, acceptTerms && s.checkboxOn]}>
               {acceptTerms && <Ionicons name="checkmark" size={14} color="#000" />}
             </View>
-            <EliteText style={s.checkText}>
+            <EliteText style={[s.checkText, secTxt]}>
               Acepto los términos del programa de afiliados ATP (v1.0) y el tratamiento de mis
               datos para evaluar esta aplicación.
             </EliteText>
           </Pressable>
 
           <AnimatedPressable
-            style={[s.submitBtn, !isValid && s.submitBtnDisabled]}
+            style={[s.submitBtn, !isValid && { backgroundColor: t.hundido }]}
             onPress={handleSubmit}
             disabled={!isValid || saving}
           >
@@ -251,7 +251,7 @@ const s = StyleSheet.create({
   input: {
     borderRadius: Radius.lg, paddingHorizontal: 16,
     paddingVertical: 13, fontSize: FontSizes.md, fontFamily: Fonts.regular,
-    borderWidth: 0.5, borderColor: '#222',
+    borderWidth: 0.5,
   },
   textArea: { minHeight: 110, textAlignVertical: 'top' },
   checkRow: { flexDirection: 'row', gap: 12, marginTop: Spacing.lg, alignItems: 'flex-start' },
@@ -260,12 +260,11 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginTop: 1,
   },
   checkboxOn: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
-  checkText: { flex: 1, fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#ccc', lineHeight: 18 },
+  checkText: { flex: 1, fontSize: FontSizes.xs, fontFamily: Fonts.regular, lineHeight: 18 },
   submitBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: Spacing.lg,
   },
-  submitBtnDisabled: { backgroundColor: '#1a1a1a' },
   submitText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
   statusCard: {
     borderWidth: 1,

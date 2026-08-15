@@ -3,12 +3,13 @@
  *
  * Header + stats + 4 tabs: Calendario, Rutinas, Progreso, Historial.
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, Modal, Alert, useWindowDimensions } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
-import { ATP_BRAND, SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
+import { ATP_BRAND, CATEGORY_COLORS, SEMANTIC, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import {
   getClientDetail,
   getClientSchedule,
@@ -60,6 +61,9 @@ import { SaveableSection } from '@/src/components/coach/SaveableSection';
 import { userErrorMessage } from '@/src/utils/user-error';
 
 const TEAL = CATEGORY_COLORS.metrics;
+// MB-31B: textoTenue del oscuro no alcanza contraste en claro para letra
+// chica (reemplaza el tenue(t) de siempre) — regla 4 del remate.
+const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
 const DAY_LABELS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 // Mapeo: PostgreSQL DOW (0=Dom) → columna del grid (0=Lun)
 const DOW_TO_COL = [6, 0, 1, 2, 3, 4, 5]; // Dom=6, Lun=0...Sáb=5
@@ -75,6 +79,8 @@ interface Props {
 }
 
 export function ClientDetailScreen({ clientId, clientName, clientEmail, connectedAt, onClientUpdated }: Props) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [activeTab, setActiveTab] = useState<Tab>('profile');
   const [stats, setStats] = useState<ClientStats | null>(null);
   const [schedule, setSchedule] = useState<ClientScheduleItem[]>([]);
@@ -161,28 +167,28 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
   ];
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.content}>
+    <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
+      <View style={s.content}>
         {/* ── Header ── */}
-        <View style={styles.header}>
-          <View style={styles.avatarLg}>
-            <EliteText style={styles.avatarLgText}>{initials}</EliteText>
+        <View style={s.header}>
+          <View style={s.avatarLg}>
+            <EliteText style={s.avatarLgText}>{initials}</EliteText>
           </View>
-          <View style={styles.headerInfo}>
-            <EliteText variant="title" style={styles.headerName}>{clientName}</EliteText>
-            <EliteText variant="caption" style={styles.headerSince}>
+          <View style={s.headerInfo}>
+            <EliteText variant="title" style={s.headerName}>{clientName}</EliteText>
+            <EliteText variant="caption" style={s.headerSince}>
               Conectado desde {new Date(connectedAt).toLocaleDateString('es-MX', {
                 day: 'numeric', month: 'long', year: 'numeric',
               })}
             </EliteText>
           </View>
-          <Pressable onPress={() => setAiVisible(true)} style={styles.aiBtn}>
+          <Pressable onPress={() => setAiVisible(true)} style={s.aiBtn}>
             <Ionicons name="sparkles" size={14} color={Colors.neonGreen} />
-            <EliteText variant="caption" style={styles.aiBtnText}>ATP AI</EliteText>
+            <EliteText variant="caption" style={s.aiBtnText}>ATP AI</EliteText>
           </Pressable>
-          <View style={styles.activeBadge}>
-            <View style={styles.activeDot} />
-            <EliteText variant="caption" style={styles.activeText}>Activo</EliteText>
+          <View style={s.activeBadge}>
+            <View style={s.activeDot} />
+            <EliteText variant="caption" style={s.activeText}>Activo</EliteText>
           </View>
         </View>
 
@@ -190,28 +196,28 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
         {loading ? (
           <ActivityIndicator color={TEAL} style={{ marginVertical: Spacing.lg }} />
         ) : stats && (
-          <View style={styles.statsRow}>
+          <View style={s.statsRow}>
             <StatCard label="Sesiones" value={String(stats.sessions_this_month)} sub="este mes" color={TEAL} />
-            <StatCard label="Condiciones" value={stats.conditions_present > 0 || stats.conditions_observation > 0 ? `${stats.conditions_present}🔴 ${stats.conditions_observation}🟡` : '0'} sub="activas" color={SEMANTIC.error} />
-            <StatCard label="Consultas" value={String(stats.total_consultations)} sub="totales" color={SEMANTIC.info} />
+            <StatCard label="Condiciones" value={stats.conditions_present > 0 || stats.conditions_observation > 0 ? `${stats.conditions_present}🔴 ${stats.conditions_observation}🟡` : '0'} sub="activas" color={t.error} />
+            <StatCard label="Consultas" value={String(stats.total_consultations)} sub="totales" color={t.info} />
             <StatCard label="Racha entreno" value={String(stats.exercise_streak_days)} sub="días" color={Colors.neonGreen} />
           </View>
         )}
 
         {/* ── Tabs ── */}
-        <View style={styles.tabsRow}>
-          {TABS.map(t => (
+        <View style={s.tabsRow}>
+          {TABS.map(tab => (
             <Pressable
-              key={t.key}
-              onPress={() => setActiveTab(t.key)}
-              style={[styles.tab, activeTab === t.key && styles.tabActive]}
+              key={tab.key}
+              onPress={() => setActiveTab(tab.key)}
+              style={[s.tab, activeTab === tab.key && s.tabActive]}
             >
-              {t.lib === 'mci'
-                ? <MaterialCommunityIcons name={t.icon as any} size={16} color={activeTab === t.key ? TEAL : TEXT_COLORS.muted} />
-                : <Ionicons name={t.icon as any} size={16} color={activeTab === t.key ? TEAL : TEXT_COLORS.muted} />
+              {tab.lib === 'mci'
+                ? <MaterialCommunityIcons name={tab.icon as any} size={16} color={activeTab === tab.key ? TEAL : tenue(t)} />
+                : <Ionicons name={tab.icon as any} size={16} color={activeTab === tab.key ? TEAL : tenue(t)} />
               }
-              <EliteText variant="caption" style={[styles.tabLabel, activeTab === t.key && { color: TEAL }]}>
-                {t.label}
+              <EliteText variant="caption" style={[s.tabLabel, activeTab === tab.key && { color: TEAL }]}>
+                {tab.label}
               </EliteText>
             </Pressable>
           ))}
@@ -219,7 +225,7 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
 
         {/* ── Tab Content ── */}
         {!loading && (
-          <View style={styles.tabContent}>
+          <View style={s.tabContent}>
             {activeTab === 'profile' && (
               <ProfileTab
                 clientId={clientId}
@@ -263,38 +269,38 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
 
       {/* ═══ MODAL ATP AI ═══ */}
       <Modal visible={aiVisible} transparent animationType="fade" onRequestClose={() => setAiVisible(false)}>
-        <Pressable style={styles.aiOverlay} onPress={() => !aiLoading && setAiVisible(false)}>
-          <Pressable style={styles.aiModal} onPress={e => e.stopPropagation()}>
-            <View style={styles.aiHeader}>
+        <Pressable style={s.aiOverlay} onPress={() => !aiLoading && setAiVisible(false)}>
+          <Pressable style={s.aiModal} onPress={e => e.stopPropagation()}>
+            <View style={s.aiHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
                 <Ionicons name="sparkles" size={18} color={Colors.neonGreen} />
                 <EliteText variant="label" style={{ color: Colors.neonGreen, letterSpacing: 2 }}>ATP AI</EliteText>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
                 <Pressable onPress={() => { setAiShowHistory(!aiShowHistory); if (!aiShowHistory) loadAiReports(); }}>
-                  <Ionicons name={aiShowHistory ? 'sparkles-outline' : 'time-outline'} size={20} color={TEXT_COLORS.secondary} />
+                  <Ionicons name={aiShowHistory ? 'sparkles-outline' : 'time-outline'} size={20} color={t.textoSecundario} />
                 </Pressable>
                 <Pressable onPress={() => setAiVisible(false)}>
-                  <Ionicons name="close" size={22} color={TEXT_COLORS.muted} />
+                  <Ionicons name="close" size={22} color={tenue(t)} />
                 </Pressable>
               </View>
             </View>
 
-            <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, marginBottom: Spacing.sm }}>
+            <EliteText variant="caption" style={{ color: t.textoSecundario, marginBottom: Spacing.sm }}>
               {aiShowHistory ? 'Historial de análisis' : `Análisis de ${clientName}`}
             </EliteText>
 
             {/* ── HISTORIAL ── */}
             {aiShowHistory ? (
-              <ScrollView style={styles.aiResultScroll} showsVerticalScrollIndicator={false}>
+              <ScrollView style={s.aiResultScroll} showsVerticalScrollIndicator={false}>
                 {aiReports.length === 0 ? (
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, textAlign: 'center', padding: Spacing.lg }}>
+                  <EliteText variant="caption" style={{ color: tenue(t), textAlign: 'center', padding: Spacing.lg }}>
                     Sin reportes guardados
                   </EliteText>
                 ) : aiReports.map(r => {
                   const isExp = aiExpandedReport === r.id;
                   return (
-                    <View key={r.id} style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm, marginBottom: Spacing.sm }}>
+                    <View key={r.id} style={{ backgroundColor: t.flotante, borderRadius: 8, padding: Spacing.sm, marginBottom: Spacing.sm }}>
                       <Pressable onPress={() => setAiExpandedReport(isExp ? null : r.id)}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                           <View style={{ flex: 1 }}>
@@ -302,26 +308,26 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
                               {new Date(r.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </EliteText>
                             {r.question && (
-                              <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 11, marginTop: 2 }}>
+                              <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 11, marginTop: 2 }}>
                                 Pregunta: {r.question}
                               </EliteText>
                             )}
                             {!isExp && (
-                              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 11, marginTop: 2 }} numberOfLines={2}>
+                              <EliteText variant="caption" style={{ color: tenue(t), fontSize: 11, marginTop: 2 }} numberOfLines={2}>
                                 {r.report.substring(0, 120)}...
                               </EliteText>
                             )}
                           </View>
                           <View style={{ flexDirection: 'row', gap: Spacing.xs }}>
                             <Pressable onPress={() => handleDeleteAiReport(r.id)} style={{ padding: 4 }}>
-                              <Ionicons name="trash-outline" size={14} color={SEMANTIC.error} />
+                              <Ionicons name="trash-outline" size={14} color={t.error} />
                             </Pressable>
-                            <Ionicons name={isExp ? 'chevron-up' : 'chevron-down'} size={16} color={TEXT_COLORS.muted} />
+                            <Ionicons name={isExp ? 'chevron-up' : 'chevron-down'} size={16} color={tenue(t)} />
                           </View>
                         </View>
                       </Pressable>
                       {isExp && (
-                        <EliteText variant="body" style={{ color: TEXT_COLORS.primary, fontSize: 13, lineHeight: 22, marginTop: Spacing.sm }}>
+                        <EliteText variant="body" style={{ color: t.texto, fontSize: 13, lineHeight: 22, marginTop: Spacing.sm }}>
                           {r.report}
                         </EliteText>
                       )}
@@ -335,23 +341,23 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
                 {!aiResult && !aiLoading && (
                   <>
                     <TextInput
-                      style={styles.aiInput}
+                      style={s.aiInput}
                       value={aiQuestion}
                       onChangeText={setAiQuestion}
                       placeholder="Pregunta específica (opcional)"
-                      placeholderTextColor={SEMANTIC.noData}
+                      placeholderTextColor={t.sinDatos}
                     />
-                    <Pressable onPress={() => handleAskAI(aiQuestion)} style={styles.aiGenerateBtn}>
+                    <Pressable onPress={() => handleAskAI(aiQuestion)} style={s.aiGenerateBtn}>
                       <Ionicons name="sparkles-outline" size={16} color={ATP_BRAND.black} />
-                      <EliteText variant="caption" style={styles.aiGenerateBtnText}>Generar análisis</EliteText>
+                      <EliteText variant="caption" style={s.aiGenerateBtnText}>Generar análisis</EliteText>
                     </Pressable>
                   </>
                 )}
 
                 {aiLoading && (
-                  <View style={styles.aiLoadingBox}>
+                  <View style={s.aiLoadingBox}>
                     <ActivityIndicator color={Colors.neonGreen} />
-                    <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, marginTop: Spacing.sm }}>
+                    <EliteText variant="caption" style={{ color: t.textoSecundario, marginTop: Spacing.sm }}>
                       Analizando expediente...
                     </EliteText>
                   </View>
@@ -359,19 +365,19 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
 
                 {aiResult && !aiLoading && (
                   <>
-                    <ScrollView style={styles.aiResultScroll} showsVerticalScrollIndicator={false}>
-                      <EliteText variant="body" style={styles.aiResultText}>{aiResult}</EliteText>
+                    <ScrollView style={s.aiResultScroll} showsVerticalScrollIndicator={false}>
+                      <EliteText variant="body" style={s.aiResultText}>{aiResult}</EliteText>
                     </ScrollView>
-                    <View style={styles.aiActions}>
-                      <Pressable onPress={handleSaveAiReport} style={[styles.aiActionBtn, aiSaved && { opacity: 0.5 }]} disabled={aiSaved}>
+                    <View style={s.aiActions}>
+                      <Pressable onPress={handleSaveAiReport} style={[s.aiActionBtn, aiSaved && { opacity: 0.5 }]} disabled={aiSaved}>
                         <Ionicons name={aiSaved ? 'checkmark-circle' : 'save-outline'} size={14} color={aiSaved ? ATP_BRAND.lime : TEAL} />
                         <EliteText variant="caption" style={{ color: aiSaved ? ATP_BRAND.lime : TEAL, fontFamily: Fonts.semiBold }}>
                           {aiSaved ? 'Guardado' : 'Guardar reporte'}
                         </EliteText>
                       </Pressable>
-                      <Pressable onPress={() => { setAiResult(''); setAiQuestion(''); setAiSaved(false); }} style={styles.aiActionBtn}>
-                        <Ionicons name="refresh-outline" size={14} color={TEXT_COLORS.secondary} />
-                        <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary }}>Nueva consulta</EliteText>
+                      <Pressable onPress={() => { setAiResult(''); setAiQuestion(''); setAiSaved(false); }} style={s.aiActionBtn}>
+                        <Ionicons name="refresh-outline" size={14} color={t.textoSecundario} />
+                        <EliteText variant="caption" style={{ color: t.textoSecundario }}>Nueva consulta</EliteText>
                       </Pressable>
                     </View>
                   </>
@@ -403,6 +409,8 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
   onFlagToggle: (key: string, zone: string) => Promise<void>;
   onClientUpdated?: () => void;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [expandedZones, setExpandedZones] = useState<Set<string>>(() => {
     // Auto-expandir zonas con flags rojos o naranjas
     const active = new Set<string>();
@@ -476,41 +484,41 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
     const redCount = zone.conditions.filter(c => getFlag(c.key) === 'present').length;
     const orangeCount = zone.conditions.filter(c => getFlag(c.key) === 'observation').length;
     const greenCount = zone.conditions.filter(c => getFlag(c.key) === 'normal').length;
-    const statusDotColor = redCount > 0 ? SEMANTIC.error : orangeCount > 0 ? SEMANTIC.warning : greenCount > 0 ? ATP_BRAND.lime : SEMANTIC.noData;
+    const statusDotColor = redCount > 0 ? t.error : orangeCount > 0 ? SEMANTIC.warning : greenCount > 0 ? ATP_BRAND.lime : t.sinDatos;
     const visiblePills = isExpanded ? zone.conditions : zone.conditions.slice(0, 8);
     const hiddenCount = isExpanded ? 0 : Math.max(0, zone.conditions.length - 8);
 
     return (
-      <View key={zone.key} style={[styles.zoneCard, { borderLeftColor: zone.color }]}>
-        <Pressable onPress={() => toggleZone(zone.key)} style={styles.zoneHeader}>
-          <View style={[styles.zoneDot, { backgroundColor: statusDotColor }]} />
-          <EliteText variant="caption" style={[styles.zoneTitle, { color: zone.color }]}>
+      <View key={zone.key} style={[s.zoneCard, { borderLeftColor: zone.color }]}>
+        <Pressable onPress={() => toggleZone(zone.key)} style={s.zoneHeader}>
+          <View style={[s.zoneDot, { backgroundColor: statusDotColor }]} />
+          <EliteText variant="caption" style={[s.zoneTitle, { color: zone.color }]}>
             {zone.label}
           </EliteText>
           {(redCount > 0 || orangeCount > 0) && (
-            <View style={styles.zoneBadges}>
-              {redCount > 0 && <View style={[styles.zoneBadge, { backgroundColor: SEMANTIC.error + '20' }]}><EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 9, fontFamily: Fonts.bold }}>{redCount}</EliteText></View>}
-              {orangeCount > 0 && <View style={[styles.zoneBadge, { backgroundColor: SEMANTIC.warning + '20' }]}><EliteText variant="caption" style={{ color: SEMANTIC.warning, fontSize: 9, fontFamily: Fonts.bold }}>{orangeCount}</EliteText></View>}
+            <View style={s.zoneBadges}>
+              {redCount > 0 && <View style={[s.zoneBadge, { backgroundColor: t.error + '20' }]}><EliteText variant="caption" style={{ color: t.error, fontSize: 9, fontFamily: Fonts.bold }}>{redCount}</EliteText></View>}
+              {orangeCount > 0 && <View style={[s.zoneBadge, { backgroundColor: SEMANTIC.warning + '20' }]}><EliteText variant="caption" style={{ color: SEMANTIC.warning, fontSize: 9, fontFamily: Fonts.bold }}>{orangeCount}</EliteText></View>}
             </View>
           )}
         </Pressable>
-        <View style={styles.conditionPills}>
+        <View style={s.conditionPills}>
           {visiblePills.map(cond => {
             const status = getFlag(cond.key);
             const st = FLAG_STATUSES[status];
             return (
               <Pressable key={cond.key} onPress={() => onFlagToggle(cond.key, zone.key)}
-                style={[styles.condPillSm, { backgroundColor: st.bgColor, borderColor: st.color + '40', borderStyle: status === 'not_evaluated' ? 'dashed' : 'solid' }]}>
+                style={[s.condPillSm, { backgroundColor: st.bgColor, borderColor: st.color + '40', borderStyle: status === 'not_evaluated' ? 'dashed' : 'solid' }]}>
                 <EliteText variant="caption" style={{ color: st.color, fontSize: 10, fontFamily: Fonts.semiBold }}>{cond.label}</EliteText>
               </Pressable>
             );
           })}
-          {hiddenCount > 0 && <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10 }}>+{hiddenCount} más</EliteText>}
+          {hiddenCount > 0 && <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10 }}>+{hiddenCount} más</EliteText>}
         </View>
         {zone.key === 'oncologic' && zone.conditions.some(c => getFlag(c.key) === 'present') && (
-          <View style={styles.oncoNoteBox}>
-            <EliteText variant="caption" style={styles.oncoNoteLabel}>Nota oncológica</EliteText>
-            <EliteText variant="caption" style={styles.oncoNoteHint}>
+          <View style={s.oncoNoteBox}>
+            <EliteText variant="caption" style={s.oncoNoteLabel}>Nota oncológica</EliteText>
+            <EliteText variant="caption" style={s.oncoNoteHint}>
               {flags.find(f => f.zone === 'oncologic' && f.notes)?.notes || 'Long press en pill para detalles'}
             </EliteText>
           </View>
@@ -522,7 +530,7 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
   return (
     <View style={{ gap: 20 }}>
       {/* Banner: ir a consultas */}
-      <Pressable style={styles.consultBanner}>
+      <Pressable style={s.consultBanner}>
         <Ionicons name="information-circle-outline" size={16} color={TEAL} />
         <EliteText variant="caption" style={{ color: TEAL, flex: 1, fontSize: 11 }}>
           Los datos clínicos se actualizan desde la tab Consultas
@@ -530,8 +538,8 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
       </Pressable>
 
       {/* ═══ FILA 1a: DATOS BASE ═══ */}
-      <EliteText variant="caption" style={styles.rowLabel}>DATOS BASE</EliteText>
-      <View style={isWide ? styles.twoColRow : { gap: Spacing.sm }}>
+      <EliteText variant="caption" style={s.rowLabel}>DATOS BASE</EliteText>
+      <View style={isWide ? s.twoColRow : { gap: Spacing.sm }}>
         <View style={isWide ? { flex: 1 } : undefined}>
           <EditableProfileCard
             clientId={clientId}
@@ -558,18 +566,18 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
       </View>
 
       {/* ═══ FILA 1b: BIOMARCADORES + OBJETIVOS ═══ */}
-      <View style={isWide ? styles.twoColRow : { gap: Spacing.sm }}>
+      <View style={isWide ? s.twoColRow : { gap: Spacing.sm }}>
         <View style={isWide ? { flex: 1 } : undefined}>
-          <View style={styles.profileCard}>
-            <EliteText variant="caption" style={styles.profileCardLabel}>BIOMARCADORES FÍSICOS</EliteText>
+          <View style={s.profileCard}>
+            <EliteText variant="caption" style={s.profileCardLabel}>BIOMARCADORES FÍSICOS</EliteText>
             {profileLoaded && (() => {
               const sx = (profile?.biological_sex as Sex) ?? 'male';
               const sysR = rateBioValue('blood_pressure_sys', profile?.blood_pressure_sys ? Number(profile.blood_pressure_sys) : null, sx);
               const diaR = rateBioValue('blood_pressure_dia', profile?.blood_pressure_dia ? Number(profile.blood_pressure_dia) : null, sx);
-              const bpColor = sysR.level !== 'no_data' ? sysR.color : diaR.level !== 'no_data' ? diaR.color : SEMANTIC.error;
+              const bpColor = sysR.level !== 'no_data' ? sysR.color : diaR.level !== 'no_data' ? diaR.color : t.error;
               const bpRating = sysR.level !== 'no_data' ? sysR : diaR.level !== 'no_data' ? diaR : null;
               return (
-              <View style={styles.bioGrid}>
+              <View style={s.bioGrid}>
                 <BioField label="F. Agarre" unit="kg" color={ATP_BRAND.lime}
                   value={profile?.grip_strength_kg?.toString() ?? ''}
                   onSave={v => saveProfileField('grip_strength_kg', v)}
@@ -584,7 +592,7 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
                   bpRating={bpRating}
                   saved={bioSavedKey === 'blood_pressure_sys' || bioSavedKey === 'blood_pressure_dia'}
                 />
-                <BioField label="VO2 máx" unit="ml/kg/min" color={SEMANTIC.info}
+                <BioField label="VO2 máx" unit="ml/kg/min" color={t.info}
                   value={profile?.vo2_max?.toString() ?? ''}
                   onSave={v => saveProfileField('vo2_max', v)}
                   saved={bioSavedKey === 'vo2_max'}
@@ -599,21 +607,21 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
           </View>
         </View>
         <View style={isWide ? { flex: 1 } : undefined}>
-          <View style={styles.profileCard}>
-            <EliteText variant="caption" style={styles.profileCardLabel}>OBJETIVOS</EliteText>
+          <View style={s.profileCard}>
+            <EliteText variant="caption" style={s.profileCardLabel}>OBJETIVOS</EliteText>
             {profileLoaded ? (
               <View style={{ gap: Spacing.xs }}>
                 <ProfileRow label="Objetivo" value={profile?.primary_goal ?? '—'} />
                 <ProfileRow label="Plazo" value={profile?.goal_timeline ?? '—'} />
                 {profile?.red_flags && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: 2 }}>
-                    <Ionicons name="warning-outline" size={12} color={SEMANTIC.error} />
-                    <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 11 }}>{profile.red_flags}</EliteText>
+                    <Ionicons name="warning-outline" size={12} color={t.error} />
+                    <EliteText variant="caption" style={{ color: t.error, fontSize: 11 }}>{profile.red_flags}</EliteText>
                   </View>
                 )}
               </View>
             ) : (
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 11 }}>Sin objetivos — definir en consulta</EliteText>
+              <EliteText variant="caption" style={{ color: tenue(t), fontSize: 11 }}>Sin objetivos — definir en consulta</EliteText>
             )}
           </View>
         </View>
@@ -623,43 +631,43 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
       <RecentStudies clientId={clientId} />
 
       {/* ═══ FILA 2: SCORES ═══ */}
-      <EliteText variant="caption" style={styles.rowLabel}>SCORES DE SALUD</EliteText>
-      <View style={styles.profileCard}>
-        <View style={styles.scoresGrid}>
+      <EliteText variant="caption" style={s.rowLabel}>SCORES DE SALUD</EliteText>
+      <View style={s.profileCard}>
+        <View style={s.scoresGrid}>
           <ScoreCard
             label="Edad biológica"
             value={healthScore?.biologicalAge ? Math.round(healthScore.biologicalAge).toString() : '—'}
             unit="años"
             color={healthScore?.biologicalAge && profile?.date_of_birth
-              ? healthScore.biologicalAge < Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / 31557600000) ? ATP_BRAND.lime : SEMANTIC.error
+              ? healthScore.biologicalAge < Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / 31557600000) ? ATP_BRAND.lime : t.error
               : CATEGORY_COLORS.mind}
           />
           <ScoreCard
             label="Calidad evaluación"
             value={healthScore?.evaluationQuality != null ? `${Math.round(healthScore.evaluationQuality)}` : '—'}
             unit="%"
-            color={healthScore?.evaluationQuality ? (healthScore.evaluationQuality > 70 ? ATP_BRAND.lime : healthScore.evaluationQuality > 40 ? SEMANTIC.warning : SEMANTIC.error) : TEAL}
+            color={healthScore?.evaluationQuality ? (healthScore.evaluationQuality > 70 ? ATP_BRAND.lime : healthScore.evaluationQuality > 40 ? SEMANTIC.warning : t.error) : TEAL}
           />
           <ScoreCard
             label="Envejecimiento"
             value={healthScore?.agingRate ? healthScore.agingRate.toFixed(2) : '—'}
             unit="x"
-            color={healthScore?.agingRate ? (healthScore.agingRate < 1.0 ? ATP_BRAND.lime : healthScore.agingRate < 1.1 ? SEMANTIC.warning : SEMANTIC.error) : SEMANTIC.error}
+            color={healthScore?.agingRate ? (healthScore.agingRate < 1.0 ? ATP_BRAND.lime : healthScore.agingRate < 1.1 ? SEMANTIC.warning : t.error) : t.error}
           />
           <ScoreCard
             label="Salud funcional"
             value={healthScore?.functionalHealthScore ? Math.round(healthScore.functionalHealthScore).toString() : '—'}
             unit="/100"
-            color={healthScore?.functionalHealthScore ? (healthScore.functionalHealthScore > 80 ? ATP_BRAND.lime : healthScore.functionalHealthScore > 60 ? SEMANTIC.warning : SEMANTIC.error) : TEAL}
+            color={healthScore?.functionalHealthScore ? (healthScore.functionalHealthScore > 80 ? ATP_BRAND.lime : healthScore.functionalHealthScore > 60 ? SEMANTIC.warning : t.error) : TEAL}
           />
         </View>
         {/* Faltan datos para PhenoAge */}
         {healthScore && !healthScore.biologicalAge && healthScore.phenoAgeMissing && healthScore.phenoAgeMissing.length > 0 && (
-          <View style={{ marginTop: Spacing.sm, backgroundColor: SURFACES.cardLight, borderRadius: 6, padding: Spacing.sm }}>
+          <View style={{ marginTop: Spacing.sm, backgroundColor: t.flotante, borderRadius: 6, padding: Spacing.sm }}>
             <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontSize: 10, marginBottom: 2 }}>
               Faltan {healthScore.phenoAgeMissing.length} de 9 biomarcadores para PhenoAge:
             </EliteText>
-            <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10 }}>
+            <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10 }}>
               {healthScore.phenoAgeMissing.join(', ')}
             </EliteText>
           </View>
@@ -678,8 +686,8 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
         {healthScore && healthScore.domains.length > 0 && (
           <>
             <Pressable onPress={() => setScoreExpanded(!scoreExpanded)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: Spacing.sm }}>
-              <Ionicons name={scoreExpanded ? 'chevron-up' : 'chevron-down'} size={14} color={TEXT_COLORS.muted} />
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10 }}>
+              <Ionicons name={scoreExpanded ? 'chevron-up' : 'chevron-down'} size={14} color={tenue(t)} />
+              <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10 }}>
                 {scoreExpanded ? 'Ocultar dominios' : 'Ver 10 dominios'}
               </EliteText>
             </Pressable>
@@ -688,15 +696,15 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
                 {healthScore.domains.map(d => {
                   const sf = Math.round(d.functionalScore);
                   const ce = Math.round(d.evaluationQuality * 100);
-                  const barColor = sf >= 80 ? ATP_BRAND.lime : sf >= 60 ? SEMANTIC.warning : SEMANTIC.error;
+                  const barColor = sf >= 80 ? ATP_BRAND.lime : sf >= 60 ? SEMANTIC.warning : t.error;
                   return (
                     <View key={d.key} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-                      <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10, width: 90 }}>{d.name}</EliteText>
-                      <View style={{ flex: 1, height: 6, backgroundColor: SURFACES.cardLight, borderRadius: 3, overflow: 'hidden' }}>
+                      <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 10, width: 90 }}>{d.name}</EliteText>
+                      <View style={{ flex: 1, height: 6, backgroundColor: t.flotante, borderRadius: 3, overflow: 'hidden' }}>
                         <View style={{ width: `${sf}%`, height: '100%', backgroundColor: barColor, borderRadius: 3 }} />
                       </View>
                       <EliteText variant="caption" style={{ color: barColor, fontSize: 10, width: 25, textAlign: 'right' }}>{sf}</EliteText>
-                      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9, width: 30 }}>CE:{ce}%</EliteText>
+                      <EliteText variant="caption" style={{ color: tenue(t), fontSize: 9, width: 30 }}>CE:{ce}%</EliteText>
                     </View>
                   );
                 })}
@@ -707,25 +715,25 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
       </View>
 
       {/* ═══ FILA 3: CONDICIONES ACTIVAS (solo lectura) ═══ */}
-      <EliteText variant="caption" style={styles.rowLabel}>CONDICIONES ACTIVAS</EliteText>
+      <EliteText variant="caption" style={s.rowLabel}>CONDICIONES ACTIVAS</EliteText>
       {(() => {
         const activeFlags = flags.filter(f => f.status === 'observation' || f.status === 'present');
         if (activeFlags.length === 0) {
           return (
-            <View style={styles.profileCard}>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, textAlign: 'center', paddingVertical: Spacing.md }}>
+            <View style={s.profileCard}>
+              <EliteText variant="caption" style={{ color: tenue(t), textAlign: 'center', paddingVertical: Spacing.md }}>
                 Sin condiciones activas — todo normal o sin evaluar
               </EliteText>
             </View>
           );
         }
         return (
-          <View style={styles.profileCard}>
-            <View style={styles.conditionPills}>
+          <View style={s.profileCard}>
+            <View style={s.conditionPills}>
               {activeFlags.map(f => {
                 const st = FLAG_STATUSES[f.status as keyof typeof FLAG_STATUSES];
                 return (
-                  <View key={f.condition_key} style={[styles.condPillSm, { backgroundColor: st.bgColor, borderColor: st.color + '40' }]}>
+                  <View key={f.condition_key} style={[s.condPillSm, { backgroundColor: st.bgColor, borderColor: st.color + '40' }]}>
                     <EliteText variant="caption" style={{ color: st.color, fontSize: 10, fontFamily: Fonts.semiBold }}>{f.condition_key}</EliteText>
                   </View>
                 );
@@ -736,18 +744,18 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
       })()}
 
       {/* ═══ FILA 5: TRATAMIENTO (solo lectura) ═══ */}
-      <EliteText variant="caption" style={styles.rowLabel}>TRATAMIENTO</EliteText>
-      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginTop: -12, marginBottom: Spacing.sm }}>
+      <EliteText variant="caption" style={s.rowLabel}>TRATAMIENTO</EliteText>
+      <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginTop: -12, marginBottom: Spacing.sm }}>
         Editar desde Consultas
       </EliteText>
-      <View style={isWide ? styles.threeColRow : { gap: Spacing.sm }}>
-        <View style={isWide ? styles.threeColItem : undefined}>
+      <View style={isWide ? s.threeColRow : { gap: Spacing.sm }}>
+        <View style={isWide ? s.threeColItem : undefined}>
           <CollapsibleSection title="Farmacología" clientId={clientId} type="medications" />
         </View>
-        <View style={isWide ? styles.threeColItem : undefined}>
+        <View style={isWide ? s.threeColItem : undefined}>
           <CollapsibleSection title="Suplementos" clientId={clientId} type="supplements" />
         </View>
-        <View style={isWide ? styles.threeColItem : undefined}>
+        <View style={isWide ? s.threeColItem : undefined}>
           <CollapsibleSection title="Antecedentes familiares" clientId={clientId} type="family" />
         </View>
       </View>
@@ -759,15 +767,19 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
 // COLLAPSIBLE SECTION (measurements, meds, supps, family)
 // ══════════════════════════
 
-const RELATION_COLORS: Record<string, string> = {
-  Madre: '#D4537E', Padre: SEMANTIC.info, 'Herman@': CATEGORY_COLORS.mind,
-  'Abuel@': TEXT_COLORS.secondary, 'Otro': TEXT_COLORS.muted,
-};
+// MB-31B: color por relación familiar — depende del tema (info/secundario/
+// tenue cambian claro↔oscuro), así que es función de t, no constante de módulo.
+const relationColors = (t: AppThemeTokens): Record<string, string> => ({
+  Madre: '#D4537E', Padre: t.info, 'Herman@': CATEGORY_COLORS.mind,
+  'Abuel@': t.textoSecundario, 'Otro': tenue(t),
+});
 
 function CollapsibleSection({ title, clientId, type, alwaysExpanded, sex }: {
   title: string; clientId: string; type: 'measurements' | 'medications' | 'supplements' | 'family';
   alwaysExpanded?: boolean; sex?: Sex;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [expanded, setExpanded] = useState(alwaysExpanded ?? false);
   const [data, setData] = useState<any[]>([]);
   const [latest, setLatest] = useState<any>(null);
@@ -813,16 +825,16 @@ function CollapsibleSection({ title, clientId, type, alwaysExpanded, sex }: {
   };
 
   return (
-    <View style={title ? styles.profileCard : undefined}>
+    <View style={title ? s.profileCard : undefined}>
       {title ? (
-        <Pressable onPress={alwaysExpanded ? undefined : () => setExpanded(!expanded)} style={styles.zoneHeader}>
-          <EliteText variant="body" style={styles.sectionTitle}>{title}</EliteText>
+        <Pressable onPress={alwaysExpanded ? undefined : () => setExpanded(!expanded)} style={s.zoneHeader}>
+          <EliteText variant="body" style={s.sectionTitle}>{title}</EliteText>
           {data.length > 0 && (
-            <View style={[styles.zoneBadge, { backgroundColor: TEAL + '20' }]}>
+            <View style={[s.zoneBadge, { backgroundColor: TEAL + '20' }]}>
               <EliteText variant="caption" style={{ color: TEAL, fontSize: 10, fontFamily: Fonts.bold }}>{data.length}</EliteText>
             </View>
           )}
-          {!alwaysExpanded && <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={TEXT_COLORS.muted} />}
+          {!alwaysExpanded && <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={tenue(t)} />}
         </Pressable>
       ) : null}
 
@@ -833,7 +845,7 @@ function CollapsibleSection({ title, clientId, type, alwaysExpanded, sex }: {
               {/* MEASUREMENTS */}
               {type === 'measurements' && (
                 latest ? (
-                  <View style={styles.measGrid}>
+                  <View style={s.measGrid}>
                     {[
                       { l: 'Peso (kg)', v: latest.weight_kg, k: '' },
                       { l: 'Grasa (%)', v: latest.body_fat_pct, k: 'body_fat_pct' },
@@ -855,13 +867,13 @@ function CollapsibleSection({ title, clientId, type, alwaysExpanded, sex }: {
                       const rating = m.k ? (bioKeys.includes(m.k) ? rateBioValue(m.k, Number(m.v), sex ?? 'male') : rateBodyValue(m.k, Number(m.v), sex ?? 'male')) : null;
                       const hasRating = rating && rating.level !== 'no_data';
                       return (
-                        <View key={m.l} style={[styles.measItem, hasRating ? { backgroundColor: rating.bgColor, borderRadius: 6, paddingHorizontal: 4 } : undefined]}>
-                          <EliteText variant="caption" style={styles.measLabel}>
+                        <View key={m.l} style={[s.measItem, hasRating ? { backgroundColor: rating.bgColor, borderRadius: 6, paddingHorizontal: 4 } : undefined]}>
+                          <EliteText variant="caption" style={s.measLabel}>
                             {hasRating && <EliteText style={{ fontSize: 12, color: rating.color }}>{rating.arrow} </EliteText>}
                             {m.l}
                           </EliteText>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <EliteText style={[styles.measValue, hasRating ? { color: rating.color } : undefined]}>
+                            <EliteText style={[s.measValue, hasRating ? { color: rating.color } : undefined]}>
                               {m.v ?? '—'}
                             </EliteText>
                             {hasRating && (
@@ -875,79 +887,79 @@ function CollapsibleSection({ title, clientId, type, alwaysExpanded, sex }: {
                     })}
                   </View>
                 ) : (
-                  <EliteText variant="caption" style={styles.emptySection}>Sin mediciones</EliteText>
+                  <EliteText variant="caption" style={s.emptySection}>Sin mediciones</EliteText>
                 )
               )}
 
               {/* MEDICATIONS */}
               {type === 'medications' && (
                 data.length > 0 ? data.map((m: any) => (
-                  <View key={m.id} style={styles.listItem}>
+                  <View key={m.id} style={s.listItem}>
                     <View style={{ flex: 1 }}>
-                      <EliteText variant="body" style={styles.listItemName}>{m.name}</EliteText>
-                      <EliteText variant="caption" style={styles.listItemMeta}>
+                      <EliteText variant="body" style={s.listItemName}>{m.name}</EliteText>
+                      <EliteText variant="caption" style={s.listItemMeta}>
                         {[m.dose, m.frequency, m.reason].filter(Boolean).join(' · ')}
                       </EliteText>
                     </View>
                     <Pressable onPress={() => handleToggleMed(m.id, m.is_active)}>
-                      <View style={[styles.activePill, !m.is_active && { backgroundColor: SURFACES.disabled, borderColor: SEMANTIC.noData }]}>
-                        <EliteText variant="caption" style={[styles.activePillText, !m.is_active && { color: TEXT_COLORS.muted }]}>
+                      <View style={[s.activePill, !m.is_active && { backgroundColor: t.bordeMarcado, borderColor: t.sinDatos }]}>
+                        <EliteText variant="caption" style={[s.activePillText, !m.is_active && { color: tenue(t) }]}>
                           {m.is_active ? 'Activo' : 'Suspendido'}
                         </EliteText>
                       </View>
                     </Pressable>
                   </View>
                 )) : (
-                  <EliteText variant="caption" style={styles.emptySection}>Sin medicamentos</EliteText>
+                  <EliteText variant="caption" style={s.emptySection}>Sin medicamentos</EliteText>
                 )
               )}
 
               {/* SUPPLEMENTS */}
               {type === 'supplements' && (
-                data.length > 0 ? data.map((s: any) => (
-                  <View key={s.id} style={styles.listItem}>
+                data.length > 0 ? data.map((sup: any) => (
+                  <View key={sup.id} style={s.listItem}>
                     <View style={{ flex: 1 }}>
-                      <EliteText variant="body" style={styles.listItemName}>{s.name}</EliteText>
-                      <EliteText variant="caption" style={styles.listItemMeta}>
-                        {[s.dose, s.frequency, s.brand].filter(Boolean).join(' · ')}
+                      <EliteText variant="body" style={s.listItemName}>{sup.name}</EliteText>
+                      <EliteText variant="caption" style={s.listItemMeta}>
+                        {[sup.dose, sup.frequency, sup.brand].filter(Boolean).join(' · ')}
                       </EliteText>
                     </View>
-                    <Pressable onPress={() => handleToggleSupp(s.id, s.is_active)}>
-                      <View style={[styles.activePill, !s.is_active && { backgroundColor: SURFACES.disabled, borderColor: SEMANTIC.noData }]}>
-                        <EliteText variant="caption" style={[styles.activePillText, !s.is_active && { color: TEXT_COLORS.muted }]}>
-                          {s.is_active ? 'Activo' : 'Suspendido'}
+                    <Pressable onPress={() => handleToggleSupp(sup.id, sup.is_active)}>
+                      <View style={[s.activePill, !sup.is_active && { backgroundColor: t.bordeMarcado, borderColor: t.sinDatos }]}>
+                        <EliteText variant="caption" style={[s.activePillText, !sup.is_active && { color: tenue(t) }]}>
+                          {sup.is_active ? 'Activo' : 'Suspendido'}
                         </EliteText>
                       </View>
                     </Pressable>
                   </View>
                 )) : (
-                  <EliteText variant="caption" style={styles.emptySection}>Sin suplementos</EliteText>
+                  <EliteText variant="caption" style={s.emptySection}>Sin suplementos</EliteText>
                 )
               )}
 
               {/* FAMILY HISTORY */}
               {type === 'family' && (
                 data.length > 0 ? data.map((f: any) => (
-                  <View key={f.id} style={styles.listItem}>
-                    <View style={[styles.relationPill, { backgroundColor: (RELATION_COLORS[f.relation] ?? TEXT_COLORS.muted) + '20' }]}>
-                      <EliteText variant="caption" style={{ color: RELATION_COLORS[f.relation] ?? TEXT_COLORS.muted, fontSize: 10, fontFamily: Fonts.bold }}>
+                  <View key={f.id} style={s.listItem}>
+                    <View style={[s.relationPill, { backgroundColor: (relationColors(t)[f.relation] ?? tenue(t)) + '20' }]}>
+                      <EliteText variant="caption" style={{ color: relationColors(t)[f.relation] ?? tenue(t), fontSize: 10, fontFamily: Fonts.bold }}>
                         {f.relation}
                       </EliteText>
                     </View>
-                    <EliteText variant="body" style={[styles.listItemName, { flex: 1 }]}>{f.condition}</EliteText>
+                    <EliteText variant="body" style={[s.listItemName, { flex: 1 }]}>{f.condition}</EliteText>
                     <Pressable onPress={() => handleDeleteFamily(f.id)} hitSlop={8}>
-                      <Ionicons name="close-circle-outline" size={16} color={TEXT_COLORS.muted} />
+                      <Ionicons name="close-circle-outline" size={16} color={tenue(t)} />
                     </Pressable>
                   </View>
                 )) : (
-                  <EliteText variant="caption" style={styles.emptySection}>Sin antecedentes</EliteText>
+                  <EliteText variant="caption" style={s.emptySection}>Sin antecedentes</EliteText>
                 )
               )}
 
               {/* Botón agregar */}
-              <Pressable onPress={() => setShowAdd(true)} style={styles.addBtn}>
+              <Pressable onPress={() => setShowAdd(true)} style={s.addBtn}>
                 <Ionicons name="add-circle-outline" size={16} color={TEAL} />
-                <EliteText variant="caption" style={styles.addBtnText}>Agregar</EliteText>
+                <EliteText variant="caption" style={s.addBtnText}>Agregar</EliteText>
               </Pressable>
 
               {/* Modal agregar */}
@@ -973,6 +985,8 @@ function CollapsibleSection({ title, clientId, type, alwaysExpanded, sex }: {
 function AddModal({ visible, type, clientId, onClose, onSaved }: {
   visible: boolean; type: string; clientId: string; onClose: () => void; onSaved: () => void;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -1025,54 +1039,54 @@ function AddModal({ visible, type, clientId, onClose, onSaved }: {
         metabolic_age_impedance: 'Edad metabólica (años)',
       };
       return Object.entries(measLabels).map(([k, label]) => (
-        <View key={k} style={styles.modalField}>
-          <EliteText variant="caption" style={styles.modalFieldLabel}>{label}</EliteText>
-          <TextInput style={styles.modalInput} value={form[k] ?? ''} onChangeText={v => set(k, v)}
-            keyboardType="numeric" placeholderTextColor={SEMANTIC.noData} placeholder="0" />
+        <View key={k} style={s.modalField}>
+          <EliteText variant="caption" style={s.modalFieldLabel}>{label}</EliteText>
+          <TextInput style={s.modalInput} value={form[k] ?? ''} onChangeText={v => set(k, v)}
+            keyboardType="numeric" placeholderTextColor={t.sinDatos} placeholder="0" />
         </View>
       ));
     }
     if (type === 'medications') {
       return ['name', 'dose', 'frequency', 'reason', 'prescriber'].map(k => (
-        <View key={k} style={styles.modalField}>
-          <EliteText variant="caption" style={styles.modalFieldLabel}>{k === 'name' ? 'Nombre *' : k}</EliteText>
-          <TextInput style={styles.modalInput} value={form[k] ?? ''} onChangeText={v => set(k, v)}
-            placeholderTextColor={SEMANTIC.noData} placeholder={k === 'name' ? 'Nombre del medicamento' : ''} />
+        <View key={k} style={s.modalField}>
+          <EliteText variant="caption" style={s.modalFieldLabel}>{k === 'name' ? 'Nombre *' : k}</EliteText>
+          <TextInput style={s.modalInput} value={form[k] ?? ''} onChangeText={v => set(k, v)}
+            placeholderTextColor={t.sinDatos} placeholder={k === 'name' ? 'Nombre del medicamento' : ''} />
         </View>
       ));
     }
     if (type === 'supplements') {
       return ['name', 'dose', 'frequency', 'brand', 'reason'].map(k => (
-        <View key={k} style={styles.modalField}>
-          <EliteText variant="caption" style={styles.modalFieldLabel}>{k === 'name' ? 'Nombre *' : k}</EliteText>
-          <TextInput style={styles.modalInput} value={form[k] ?? ''} onChangeText={v => set(k, v)}
-            placeholderTextColor={SEMANTIC.noData} placeholder={k === 'name' ? 'Nombre del suplemento' : ''} />
+        <View key={k} style={s.modalField}>
+          <EliteText variant="caption" style={s.modalFieldLabel}>{k === 'name' ? 'Nombre *' : k}</EliteText>
+          <TextInput style={s.modalInput} value={form[k] ?? ''} onChangeText={v => set(k, v)}
+            placeholderTextColor={t.sinDatos} placeholder={k === 'name' ? 'Nombre del suplemento' : ''} />
         </View>
       ));
     }
     if (type === 'family') {
       return (
         <>
-          <View style={styles.modalField}>
-            <EliteText variant="caption" style={styles.modalFieldLabel}>Relación *</EliteText>
+          <View style={s.modalField}>
+            <EliteText variant="caption" style={s.modalFieldLabel}>Relación *</EliteText>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
               {['Madre', 'Padre', 'Herman@', 'Abuel@', 'Otro'].map(r => (
                 <Pressable key={r} onPress={() => set('relation', r)}
-                  style={[styles.modalPill, form.relation === r && { backgroundColor: TEAL + '20', borderColor: TEAL }]}>
-                  <EliteText variant="caption" style={[styles.modalPillText, form.relation === r && { color: TEAL }]}>{r}</EliteText>
+                  style={[s.modalPill, form.relation === r && { backgroundColor: TEAL + '20', borderColor: TEAL }]}>
+                  <EliteText variant="caption" style={[s.modalPillText, form.relation === r && { color: TEAL }]}>{r}</EliteText>
                 </Pressable>
               ))}
             </View>
           </View>
-          <View style={styles.modalField}>
-            <EliteText variant="caption" style={styles.modalFieldLabel}>Condición *</EliteText>
-            <TextInput style={styles.modalInput} value={form.condition ?? ''} onChangeText={v => set('condition', v)}
-              placeholderTextColor={SEMANTIC.noData} placeholder="Ej: Diabetes tipo 2" />
+          <View style={s.modalField}>
+            <EliteText variant="caption" style={s.modalFieldLabel}>Condición *</EliteText>
+            <TextInput style={s.modalInput} value={form.condition ?? ''} onChangeText={v => set('condition', v)}
+              placeholderTextColor={t.sinDatos} placeholder="Ej: Diabetes tipo 2" />
           </View>
-          <View style={styles.modalField}>
-            <EliteText variant="caption" style={styles.modalFieldLabel}>Notas</EliteText>
-            <TextInput style={[styles.modalInput, { height: 60 }]} value={form.notes ?? ''} onChangeText={v => set('notes', v)}
-              placeholderTextColor={SEMANTIC.noData} placeholder="Opcional" multiline />
+          <View style={s.modalField}>
+            <EliteText variant="caption" style={s.modalFieldLabel}>Notas</EliteText>
+            <TextInput style={[s.modalInput, { height: 60 }]} value={form.notes ?? ''} onChangeText={v => set('notes', v)}
+              placeholderTextColor={t.sinDatos} placeholder="Opcional" multiline />
           </View>
         </>
       );
@@ -1082,16 +1096,16 @@ function AddModal({ visible, type, clientId, onClose, onSaved }: {
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Pressable style={styles.modalContent} onPress={e => e.stopPropagation()}>
-          <EliteText variant="label" style={styles.modalTitle}>AGREGAR</EliteText>
+      <Pressable style={s.modalOverlay} onPress={onClose}>
+        <Pressable style={s.modalContent} onPress={e => e.stopPropagation()}>
+          <EliteText variant="label" style={s.modalTitle}>AGREGAR</EliteText>
           <ScrollView showsVerticalScrollIndicator={false}>
             {renderFields()}
           </ScrollView>
-          <View style={styles.modalActions}>
-            <Pressable onPress={onClose}><EliteText variant="caption" style={{ color: TEXT_COLORS.muted }}>Cancelar</EliteText></Pressable>
-            <Pressable onPress={handleSave} disabled={saving} style={[styles.modalSaveBtn, saving && { opacity: 0.5 }]}>
-              <EliteText variant="caption" style={styles.modalSaveBtnText}>{saving ? 'Guardando...' : 'Guardar'}</EliteText>
+          <View style={s.modalActions}>
+            <Pressable onPress={onClose}><EliteText variant="caption" style={{ color: tenue(t) }}>Cancelar</EliteText></Pressable>
+            <Pressable onPress={handleSave} disabled={saving} style={[s.modalSaveBtn, saving && { opacity: 0.5 }]}>
+              <EliteText variant="caption" style={s.modalSaveBtnText}>{saving ? 'Guardando...' : 'Guardar'}</EliteText>
             </Pressable>
           </View>
         </Pressable>
@@ -1106,6 +1120,8 @@ function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, p
   profile: Record<string, any> | null; profileLoaded: boolean;
   onSave: (key: string, value: string) => Promise<void>;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [unlocked, setUnlocked] = useState(false);
   // Controlled form state
   const [form, setForm] = useState({
@@ -1185,68 +1201,68 @@ function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, p
             onSave={handleSaveAll} />
           <View style={{ gap: Spacing.xs }}>
             <View>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Nombre</EliteText>
-              <TextInput style={styles.editableInput} value={form.full_name}
+              <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: 2 }}>Nombre</EliteText>
+              <TextInput style={s.editableInput} value={form.full_name}
                 onChangeText={v => setF('full_name', v)}
-                placeholder="Nombre completo" placeholderTextColor={SURFACES.disabled} />
+                placeholder="Nombre completo" placeholderTextColor={t.bordeMarcado} />
             </View>
             <ProfileRow label="Email" value={clientEmail} />
             {profileLoaded && (
               <>
                 <View>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Fecha de nacimiento</EliteText>
-                  <TextInput style={styles.editableInput} value={form.date_of_birth}
+                  <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: 2 }}>Fecha de nacimiento</EliteText>
+                  <TextInput style={s.editableInput} value={form.date_of_birth}
                     onChangeText={v => setF('date_of_birth', v)}
-                    placeholder="AAAA-MM-DD" placeholderTextColor={SURFACES.disabled} />
+                    placeholder="AAAA-MM-DD" placeholderTextColor={t.bordeMarcado} />
                 </View>
                 <View>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Sexo biológico</EliteText>
+                  <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: 2 }}>Sexo biológico</EliteText>
                   <View style={{ flexDirection: 'row', gap: 6 }}>
-                    {['male', 'female'].map(s => (
-                      <Pressable key={s} onPress={() => setF('biological_sex', s)}
-                        style={[styles.sexPill, form.biological_sex === s && styles.sexPillActive]}>
-                        <EliteText variant="caption" style={[styles.sexPillText, form.biological_sex === s && { color: TEAL }]}>
-                          {s === 'male' ? 'Masculino' : 'Femenino'}
+                    {['male', 'female'].map(sexOpt => (
+                      <Pressable key={sexOpt} onPress={() => setF('biological_sex', sexOpt)}
+                        style={[s.sexPill, form.biological_sex === sexOpt && s.sexPillActive]}>
+                        <EliteText variant="caption" style={[s.sexPillText, form.biological_sex === sexOpt && { color: TEAL }]}>
+                          {sexOpt === 'male' ? 'Masculino' : 'Femenino'}
                         </EliteText>
                       </Pressable>
                     ))}
                   </View>
                 </View>
                 <View>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Teléfono</EliteText>
-                  <TextInput style={styles.editableInput} value={form.phone}
+                  <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: 2 }}>Teléfono</EliteText>
+                  <TextInput style={s.editableInput} value={form.phone}
                     onChangeText={v => setF('phone', v)}
-                    placeholder="Tel." placeholderTextColor={SURFACES.disabled} keyboardType="phone-pad" />
+                    placeholder="Tel." placeholderTextColor={t.bordeMarcado} keyboardType="phone-pad" />
                 </View>
                 <View>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Ocupación</EliteText>
-                  <TextInput style={styles.editableInput} value={form.occupation}
+                  <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: 2 }}>Ocupación</EliteText>
+                  <TextInput style={s.editableInput} value={form.occupation}
                     onChangeText={v => setF('occupation', v)}
-                    placeholder="Ocupación" placeholderTextColor={SURFACES.disabled} />
+                    placeholder="Ocupación" placeholderTextColor={t.bordeMarcado} />
                 </View>
                 <View>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Ciudad</EliteText>
-                  <TextInput style={styles.editableInput} value={form.city}
+                  <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: 2 }}>Ciudad</EliteText>
+                  <TextInput style={s.editableInput} value={form.city}
                     onChangeText={v => setF('city', v)}
-                    placeholder="Ciudad" placeholderTextColor={SURFACES.disabled} />
+                    placeholder="Ciudad" placeholderTextColor={t.bordeMarcado} />
                 </View>
                 <View>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>¿Cómo nos conoció?</EliteText>
+                  <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: 2 }}>¿Cómo nos conoció?</EliteText>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
                     {['Instagram', 'Facebook', 'TikTok', 'YouTube', 'Google', 'Referido', 'Amigo/Familiar', 'Evento', 'ChatGPT/IA', 'Otro'].map(src => (
                       <Pressable key={src} onPress={() => setF('referral_source', src)}
-                        style={[styles.sexPill, form.referral_source === src && styles.sexPillActive]}>
-                        <EliteText variant="caption" style={[styles.sexPillText, form.referral_source === src && { color: TEAL }]}>
+                        style={[s.sexPill, form.referral_source === src && s.sexPillActive]}>
+                        <EliteText variant="caption" style={[s.sexPillText, form.referral_source === src && { color: TEAL }]}>
                           {src}
                         </EliteText>
                       </Pressable>
                     ))}
                   </View>
                   {(form.referral_source === 'Referido' || form.referral_source === 'Amigo/Familiar' || form.referral_source === 'Otro') && (
-                    <TextInput style={[styles.editableInput, { marginTop: 4 }]} value={form.referral_detail}
+                    <TextInput style={[s.editableInput, { marginTop: 4 }]} value={form.referral_detail}
                       onChangeText={v => setF('referral_detail', v)}
                       placeholder={form.referral_source === 'Otro' ? 'Especifica' : '¿Quién te refirió?'}
-                      placeholderTextColor={SURFACES.disabled} />
+                      placeholderTextColor={t.bordeMarcado} />
                   )}
                 </View>
               </>
@@ -1256,10 +1272,10 @@ function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, p
       ) : (
         <View>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <EliteText variant="caption" style={styles.profileCardLabel}>DATOS PERSONALES</EliteText>
-            <Pressable onPress={() => setUnlocked(true)} style={styles.lockBtn}>
-              <Ionicons name="lock-closed-outline" size={14} color={TEXT_COLORS.muted} />
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10 }}>Editar</EliteText>
+            <EliteText variant="caption" style={s.profileCardLabel}>DATOS PERSONALES</EliteText>
+            <Pressable onPress={() => setUnlocked(true)} style={s.lockBtn}>
+              <Ionicons name="lock-closed-outline" size={14} color={tenue(t)} />
+              <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10 }}>Editar</EliteText>
             </Pressable>
           </View>
           <ProfileRow label="Nombre" value={clientName || '—'} />
@@ -1285,6 +1301,8 @@ function TimedGoals({ goals, onChange, editable }: {
   onChange: (goals: { weeks: string; target: string }[]) => void;
   editable: boolean;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [newWeeks, setNewWeeks] = useState('');
   const [newTarget, setNewTarget] = useState('');
 
@@ -1302,42 +1320,42 @@ function TimedGoals({ goals, onChange, editable }: {
   return (
     <View style={{ gap: Spacing.xs }}>
       {goals.map((g, i) => (
-        <View key={i} style={styles.goalRow}>
-          <View style={styles.goalWeeksBadge}>
-            <EliteText variant="caption" style={styles.goalWeeksText}>{g.weeks} sem</EliteText>
+        <View key={i} style={s.goalRow}>
+          <View style={s.goalWeeksBadge}>
+            <EliteText variant="caption" style={s.goalWeeksText}>{g.weeks} sem</EliteText>
           </View>
-          <EliteText variant="body" style={styles.goalTarget}>{g.target}</EliteText>
+          <EliteText variant="body" style={s.goalTarget}>{g.target}</EliteText>
           {editable && (
             <Pressable onPress={() => handleRemove(i)} hitSlop={8}>
-              <Ionicons name="close-circle" size={16} color={TEXT_COLORS.muted} />
+              <Ionicons name="close-circle" size={16} color={tenue(t)} />
             </Pressable>
           )}
         </View>
       ))}
       {editable && (
-        <View style={styles.goalAddRow}>
+        <View style={s.goalAddRow}>
           <TextInput
-            style={[styles.goalInput, { width: 50 }]}
+            style={[s.goalInput, { width: 50 }]}
             value={newWeeks}
             onChangeText={setNewWeeks}
             placeholder="Sem"
-            placeholderTextColor={SURFACES.disabled}
+            placeholderTextColor={t.bordeMarcado}
             keyboardType="numeric"
           />
           <TextInput
-            style={[styles.goalInput, { flex: 1 }]}
+            style={[s.goalInput, { flex: 1 }]}
             value={newTarget}
             onChangeText={setNewTarget}
             placeholder="Ej: Hemoglobina 15-18, grasa visceral <9"
-            placeholderTextColor={SURFACES.disabled}
+            placeholderTextColor={t.bordeMarcado}
           />
-          <Pressable onPress={handleAdd} style={styles.goalAddBtn}>
+          <Pressable onPress={handleAdd} style={s.goalAddBtn}>
             <Ionicons name="add" size={18} color={Colors.neonGreen} />
           </Pressable>
         </View>
       )}
       {goals.length === 0 && !editable && (
-        <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 11 }}>Sin metas definidas</EliteText>
+        <EliteText variant="caption" style={{ color: tenue(t), fontSize: 11 }}>Sin metas definidas</EliteText>
       )}
     </View>
   );
@@ -1346,27 +1364,29 @@ function TimedGoals({ goals, onChange, editable }: {
 function WeightContextBar({ lowest, current, highest, ideal }: {
   lowest: number; current: number | null; highest: number; ideal?: number;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const range = highest - lowest || 1;
   const pct = (v: number) => Math.max(0, Math.min(100, ((v - lowest) / range) * 100));
 
   return (
-    <View style={styles.weightBar}>
-      <View style={styles.weightBarTrack}>
+    <View style={s.weightBar}>
+      <View style={s.weightBarTrack}>
         {/* Points */}
-        <View style={[styles.weightBarPoint, { left: '0%', backgroundColor: ATP_BRAND.lime }]} />
+        <View style={[s.weightBarPoint, { left: '0%', backgroundColor: ATP_BRAND.lime }]} />
         {current != null && (
-          <View style={[styles.weightBarPointLg, { left: `${pct(current)}%` }]} />
+          <View style={[s.weightBarPointLg, { left: `${pct(current)}%` }]} />
         )}
-        <View style={[styles.weightBarPoint, { left: '100%', backgroundColor: SEMANTIC.error }]} />
+        <View style={[s.weightBarPoint, { left: '100%', backgroundColor: t.error }]} />
         {ideal && (
-          <View style={[styles.weightBarPoint, { left: `${pct(ideal)}%`, backgroundColor: TEAL, borderWidth: 2, borderColor: TEAL }]} />
+          <View style={[s.weightBarPoint, { left: `${pct(ideal)}%`, backgroundColor: TEAL, borderWidth: 2, borderColor: TEAL }]} />
         )}
       </View>
-      <View style={styles.weightBarLabels}>
+      <View style={s.weightBarLabels}>
         <EliteText variant="caption" style={{ color: ATP_BRAND.lime, fontSize: 10 }}>{lowest}kg</EliteText>
-        {current != null && <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 10 }}>{current}kg</EliteText>}
+        {current != null && <EliteText variant="caption" style={{ color: t.texto, fontSize: 10 }}>{current}kg</EliteText>}
         {ideal && <EliteText variant="caption" style={{ color: TEAL, fontSize: 10 }}>Meta: {ideal}kg</EliteText>}
-        <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 10 }}>{highest}kg</EliteText>
+        <EliteText variant="caption" style={{ color: t.error, fontSize: 10 }}>{highest}kg</EliteText>
       </View>
     </View>
   );
@@ -1375,6 +1395,8 @@ function WeightContextBar({ lowest, current, highest, ideal }: {
 function BioField({ label, unit, color, value, onSave, rating, saved }: {
   label: string; unit: string; color: string; value: string; onSave: (v: string) => void; rating?: ValueRating; saved?: boolean;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [text, setText] = useState(value);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1387,22 +1409,22 @@ function BioField({ label, unit, color, value, onSave, rating, saved }: {
   const hasRating = rating && rating.level !== 'no_data';
   const displayColor = hasRating ? rating.color : color;
   return (
-    <View style={[styles.bioItem, hasRating ? { backgroundColor: rating.bgColor, borderRadius: 6 } : undefined]}>
-      <EliteText variant="caption" style={styles.bioLabel}>
+    <View style={[s.bioItem, hasRating ? { backgroundColor: rating.bgColor, borderRadius: 6 } : undefined]}>
+      <EliteText variant="caption" style={s.bioLabel}>
         {saved && <EliteText style={{ fontSize: 10, color: ATP_BRAND.lime }}>{'✓ '}</EliteText>}
         {hasRating && <EliteText style={{ fontSize: 12, color: rating.color }}>{rating.arrow} </EliteText>}
         {label}
       </EliteText>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
         <TextInput
-          style={[styles.bioInput, { color: displayColor }]}
+          style={[s.bioInput, { color: displayColor }]}
           value={text}
           onChangeText={handleChange}
           keyboardType="numeric"
           placeholder="—"
-          placeholderTextColor={SURFACES.disabled}
+          placeholderTextColor={t.bordeMarcado}
         />
-        <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>{unit}</EliteText>
+        <EliteText variant="caption" style={{ color: tenue(t), fontSize: 9 }}>{unit}</EliteText>
         {hasRating && (
           <View style={{ backgroundColor: rating.bgColor, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10 }}>
             <EliteText variant="caption" style={{ color: rating.color, fontSize: 8, fontFamily: Fonts.bold }}>{rating.label}</EliteText>
@@ -1417,6 +1439,8 @@ function DebouncedBPField({ sysValue, diaValue, onSaveSys, onSaveDia, bpColor, b
   sysValue: string; diaValue: string; onSaveSys: (v: string) => void; onSaveDia: (v: string) => void;
   bpColor: string; bpRating: ValueRating | null; saved?: boolean;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [sys, setSys] = useState(sysValue);
   const [dia, setDia] = useState(diaValue);
   const sysTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1435,20 +1459,20 @@ function DebouncedBPField({ sysValue, diaValue, onSaveSys, onSaveDia, bpColor, b
 
   const hasRating = bpRating && bpRating.level !== 'no_data';
   return (
-    <View style={[styles.bioFieldWide, hasRating ? { backgroundColor: bpRating.bgColor, borderRadius: 6 } : undefined]}>
-      <EliteText variant="caption" style={styles.bioLabel}>
+    <View style={[s.bioFieldWide, hasRating ? { backgroundColor: bpRating.bgColor, borderRadius: 6 } : undefined]}>
+      <EliteText variant="caption" style={s.bioLabel}>
         {saved && <EliteText style={{ fontSize: 10, color: ATP_BRAND.lime }}>{'✓ '}</EliteText>}
         {hasRating && <EliteText style={{ fontSize: 12, color: bpRating.color }}>{bpRating.arrow} </EliteText>}
         Presión arterial
       </EliteText>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-        <TextInput style={[styles.bioInput, { width: 44, color: bpColor }]}
+        <TextInput style={[s.bioInput, { width: 44, color: bpColor }]}
           value={sys} onChangeText={handleSys}
-          keyboardType="numeric" placeholder="120" placeholderTextColor={SURFACES.disabled} />
-        <EliteText style={{ color: TEXT_COLORS.muted, fontSize: 16 }}>/</EliteText>
-        <TextInput style={[styles.bioInput, { width: 44, color: bpColor }]}
+          keyboardType="numeric" placeholder="120" placeholderTextColor={t.bordeMarcado} />
+        <EliteText style={{ color: tenue(t), fontSize: 16 }}>/</EliteText>
+        <TextInput style={[s.bioInput, { width: 44, color: bpColor }]}
           value={dia} onChangeText={handleDia}
-          keyboardType="numeric" placeholder="80" placeholderTextColor={SURFACES.disabled} />
+          keyboardType="numeric" placeholder="80" placeholderTextColor={t.bordeMarcado} />
         {hasRating && (
           <View style={{ backgroundColor: bpRating.bgColor, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10, marginLeft: 2 }}>
             <EliteText variant="caption" style={{ color: bpRating.color, fontSize: 8, fontFamily: Fonts.bold }}>{bpRating.label}</EliteText>
@@ -1463,6 +1487,8 @@ function EditableField({ label, value, placeholder, onSave, multiline, isRed }: 
   label: string; fieldKey: string; value: string; placeholder: string;
   onSave: (v: string) => void; multiline?: boolean; isRed?: boolean;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [text, setText] = useState(value);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1474,14 +1500,14 @@ function EditableField({ label, value, placeholder, onSave, multiline, isRed }: 
 
   return (
     <View>
-      <EliteText variant="caption" style={{ color: isRed ? SEMANTIC.error + '80' : TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>{label}</EliteText>
+      <EliteText variant="caption" style={{ color: isRed ? t.error + '80' : tenue(t), fontSize: 10, marginBottom: 2 }}>{label}</EliteText>
       <TextInput
-        style={[styles.editableInput, isRed && { borderColor: SEMANTIC.error + '30' }]}
+        style={[s.editableInput, isRed && { borderColor: t.error + '30' }]}
         value={text}
         onChangeText={handleChange}
         onEndEditing={() => onSave(text)}
         placeholder={placeholder}
-        placeholderTextColor={SURFACES.disabled}
+        placeholderTextColor={t.bordeMarcado}
         multiline={multiline}
       />
     </View>
@@ -1489,6 +1515,8 @@ function EditableField({ label, value, placeholder, onSave, multiline, isRed }: 
 }
 
 function RecentStudies({ clientId }: { clientId: string }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [studies, setStudies] = useState<ClinicalStudy[]>([]);
   useEffect(() => { getStudies(clientId, 5).then(setStudies).catch(() => {}); }, [clientId]);
   if (studies.length === 0) return null;
@@ -1496,7 +1524,7 @@ function RecentStudies({ clientId }: { clientId: string }) {
   return (
     <View style={{ marginBottom: Spacing.sm }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm }}>
-        <EliteText variant="caption" style={styles.rowLabel}>ESTUDIOS RECIENTES</EliteText>
+        <EliteText variant="caption" style={s.rowLabel}>ESTUDIOS RECIENTES</EliteText>
         {pending > 0 && (
           <View style={{ backgroundColor: SEMANTIC.warning + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
             <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontSize: 9, fontFamily: Fonts.bold }}>{pending} pendiente{pending > 1 ? 's' : ''}</EliteText>
@@ -1510,7 +1538,7 @@ function RecentStudies({ clientId }: { clientId: string }) {
           <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 4 }}>
             <EliteText style={{ fontSize: 16 }}>{st.emoji}</EliteText>
             <View style={{ flex: 1 }}>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 12 }}>
+              <EliteText variant="caption" style={{ color: t.texto, fontSize: 12 }}>
                 {s.study_name} — {parseLocalDate(s.study_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
               </EliteText>
               {findings.length > 0 && (
@@ -1531,22 +1559,26 @@ function RecentStudies({ clientId }: { clientId: string }) {
 }
 
 function ScoreCard({ label, value, unit, color }: { label: string; value: string; unit: string; color: string }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   return (
-    <View style={styles.scoreCard}>
-      <EliteText variant="caption" style={styles.scoreLabel}>{label}</EliteText>
+    <View style={s.scoreCard}>
+      <EliteText variant="caption" style={s.scoreLabel}>{label}</EliteText>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
-        <EliteText style={[styles.scoreValue, { color }]}>{value}</EliteText>
-        <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10 }}>{unit}</EliteText>
+        <EliteText style={[s.scoreValue, { color }]}>{value}</EliteText>
+        <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10 }}>{unit}</EliteText>
       </View>
     </View>
   );
 }
 
 function ProfileRow({ label, value }: { label: string; value: string }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   return (
-    <View style={styles.profileRow}>
-      <EliteText variant="caption" style={styles.profileRowLabel}>{label}</EliteText>
-      <EliteText variant="body" style={styles.profileRowValue}>{value || '—'}</EliteText>
+    <View style={s.profileRow}>
+      <EliteText variant="caption" style={s.profileRowLabel}>{label}</EliteText>
+      <EliteText variant="body" style={s.profileRowValue}>{value || '—'}</EliteText>
     </View>
   );
 }
@@ -1557,16 +1589,20 @@ function ProfileRow({ label, value }: { label: string; value: string }) {
 // TAB: CONSULTAS
 // ══════════════════════════
 
-const STATUS_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+// MB-31B: color por estado de consulta — "signed" usa t.info (cambia claro↔
+// oscuro), así que es función de t, no constante de módulo.
+const statusBadgeColors = (t: AppThemeTokens): Record<string, { label: string; color: string; bg: string }> => ({
   draft: { label: 'Borrador', color: SEMANTIC.warning, bg: SEMANTIC.warning + '15' },
   completed: { label: 'Completada', color: ATP_BRAND.lime, bg: ATP_BRAND.lime + '15' },
-  signed: { label: 'Firmada', color: SEMANTIC.info, bg: SEMANTIC.info + '15' },
-};
+  signed: { label: 'Firmada', color: t.info, bg: t.info + '15' },
+});
 
 function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagToggle: parentFlagToggle }: {
   clientId: string; clientName: string; flags: ConditionFlag[];
   onFlagToggle: (key: string, zone: string) => Promise<void>;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [activeConsult, setActiveConsult] = useState<Consultation | null>(null);
   const [loadingList, setLoadingList] = useState(true);
@@ -1676,7 +1712,7 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
   if (activeConsult) {
     const c = activeConsult;
     const isDraft = c.status === 'draft';
-    const badge = STATUS_BADGE[c.status] ?? STATUS_BADGE.draft;
+    const badge = statusBadgeColors(t)[c.status] ?? statusBadgeColors(t).draft;
     const changes = c.changes_summary;
 
     return (
@@ -1684,12 +1720,12 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
         {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md }}>
           <Pressable onPress={() => { setActiveConsult(null); setConsultFlagsLoaded(false); loadList(); }}>
-            <Ionicons name="arrow-back" size={20} color={TEXT_COLORS.secondary} />
+            <Ionicons name="arrow-back" size={20} color={t.textoSecundario} />
           </Pressable>
           <EliteText variant="body" style={{ fontFamily: Fonts.bold, flex: 1 }}>
             Consulta #{c.consultation_number} — {new Date(c.consultation_date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
           </EliteText>
-          <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
+          <View style={[s.statusBadge, { backgroundColor: badge.bg }]}>
             <EliteText variant="caption" style={{ color: badge.color, fontSize: 10, fontFamily: Fonts.bold }}>{badge.label}</EliteText>
           </View>
         </View>
@@ -1699,29 +1735,29 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
           <View style={isWide ? { flex: 55 } : undefined}>
             {/* Tablero de condiciones (EDITABLE) */}
             {consultFlagsLoaded && isDraft && (
-              <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
-                <EliteText variant="caption" style={styles.profileCardLabel}>TABLERO DE CONDICIONES</EliteText>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: Spacing.sm }}>
+              <View style={[s.profileCard, { marginTop: Spacing.sm }]}>
+                <EliteText variant="caption" style={s.profileCardLabel}>TABLERO DE CONDICIONES</EliteText>
+                <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: Spacing.sm }}>
                   Toca pill para ciclar estado
                 </EliteText>
-                <View style={isWide ? styles.condGrid : { gap: Spacing.xs }}>
+                <View style={isWide ? s.condGrid : { gap: Spacing.xs }}>
                   {CONDITION_ZONES.map(zone => {
                     const redC = zone.conditions.filter(co => getConsultFlag(co.key) === 'present').length;
                     const orangeC = zone.conditions.filter(co => getConsultFlag(co.key) === 'observation').length;
-                    const statusDot = redC > 0 ? SEMANTIC.error : orangeC > 0 ? SEMANTIC.warning : SEMANTIC.noData;
+                    const statusDot = redC > 0 ? t.error : orangeC > 0 ? SEMANTIC.warning : t.sinDatos;
                     return (
-                      <View key={zone.key} style={isWide ? styles.condGridItem : undefined}>
-                        <View style={[styles.zoneCard, { borderLeftColor: zone.color, marginBottom: Spacing.xs }]}>
-                          <View style={styles.zoneHeader}>
-                            <View style={[styles.zoneDot, { backgroundColor: statusDot }]} />
-                            <EliteText variant="caption" style={[styles.zoneTitle, { color: zone.color }]}>{zone.label}</EliteText>
+                      <View key={zone.key} style={isWide ? s.condGridItem : undefined}>
+                        <View style={[s.zoneCard, { borderLeftColor: zone.color, marginBottom: Spacing.xs }]}>
+                          <View style={s.zoneHeader}>
+                            <View style={[s.zoneDot, { backgroundColor: statusDot }]} />
+                            <EliteText variant="caption" style={[s.zoneTitle, { color: zone.color }]}>{zone.label}</EliteText>
                           </View>
-                          <View style={styles.conditionPills}>
+                          <View style={s.conditionPills}>
                             {zone.conditions.map(cond => {
                               const st2 = FLAG_STATUSES[getConsultFlag(cond.key)];
                               return (
                                 <Pressable key={cond.key} onPress={() => handleConsultFlagToggle(cond.key, zone.key)}
-                                  style={[styles.condPillSm, { backgroundColor: st2.bgColor, borderColor: st2.color + '40', borderStyle: getConsultFlag(cond.key) === 'not_evaluated' ? 'dashed' : 'solid' }]}>
+                                  style={[s.condPillSm, { backgroundColor: st2.bgColor, borderColor: st2.color + '40', borderStyle: getConsultFlag(cond.key) === 'not_evaluated' ? 'dashed' : 'solid' }]}>
                                   <EliteText variant="caption" style={{ color: st2.color, fontSize: 10, fontFamily: Fonts.semiBold }}>{cond.label}</EliteText>
                                 </Pressable>
                               );
@@ -1737,13 +1773,13 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
 
             {/* Condiciones snapshot (solo lectura si completada) */}
             {!isDraft && c.conditions_snapshot && (c.conditions_snapshot as any[]).length > 0 && (
-              <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
-                <EliteText variant="caption" style={styles.profileCardLabel}>CONDICIONES (SNAPSHOT)</EliteText>
-                <View style={styles.conditionPills}>
+              <View style={[s.profileCard, { marginTop: Spacing.sm }]}>
+                <EliteText variant="caption" style={s.profileCardLabel}>CONDICIONES (SNAPSHOT)</EliteText>
+                <View style={s.conditionPills}>
                   {(c.conditions_snapshot as any[]).map((cond: any) => {
                     const st3 = FLAG_STATUSES[cond.status as keyof typeof FLAG_STATUSES] ?? FLAG_STATUSES.not_evaluated;
                     return (
-                      <View key={cond.condition_key} style={[styles.condPillSm, { backgroundColor: st3.bgColor, borderColor: st3.color + '40' }]}>
+                      <View key={cond.condition_key} style={[s.condPillSm, { backgroundColor: st3.bgColor, borderColor: st3.color + '40' }]}>
                         <EliteText variant="caption" style={{ color: st3.color, fontSize: 10 }}>{cond.condition_key}</EliteText>
                       </View>
                     );
@@ -1754,13 +1790,13 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
 
             {/* Mapa de hábitos diarios */}
             {isDraft && (
-              <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
-                <Pressable onPress={() => setShowHabits(!showHabits)} style={styles.zoneHeader}>
+              <View style={[s.profileCard, { marginTop: Spacing.sm }]}>
+                <Pressable onPress={() => setShowHabits(!showHabits)} style={s.zoneHeader}>
                   <Ionicons name="time-outline" size={16} color={Colors.neonGreen} />
-                  <EliteText variant="body" style={[styles.sectionTitle, { color: Colors.neonGreen }]}>
+                  <EliteText variant="body" style={[s.sectionTitle, { color: Colors.neonGreen }]}>
                     Mapear día del paciente
                   </EliteText>
-                  <Ionicons name={showHabits ? 'chevron-up' : 'chevron-down'} size={16} color={TEXT_COLORS.muted} />
+                  <Ionicons name={showHabits ? 'chevron-up' : 'chevron-down'} size={16} color={tenue(t)} />
                 </Pressable>
                 {showHabits && (
                   <View style={{ marginTop: Spacing.sm }}>
@@ -1819,8 +1855,8 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
             />
 
             {/* Metas con plazo */}
-            <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
-              <EliteText variant="caption" style={styles.profileCardLabel}>METAS CON PLAZO</EliteText>
+            <View style={[s.profileCard, { marginTop: Spacing.sm }]}>
+              <EliteText variant="caption" style={s.profileCardLabel}>METAS CON PLAZO</EliteText>
               <TimedGoals
                 goals={(() => { try { return JSON.parse((c as any).timed_goals || '[]'); } catch { return []; } })()}
                 onChange={async (goals: any[]) => {
@@ -1845,14 +1881,14 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
             {/* Meta: completar / eliminar */}
             <View style={{ gap: Spacing.sm, marginTop: Spacing.md }}>
               {isDraft && (
-                <Pressable onPress={handleComplete} style={styles.completeBtn}>
+                <Pressable onPress={handleComplete} style={s.completeBtn}>
                   <Ionicons name="checkmark-circle" size={16} color={ATP_BRAND.black} />
-                  <EliteText variant="caption" style={styles.completeBtnText}>Completar consulta</EliteText>
+                  <EliteText variant="caption" style={s.completeBtnText}>Completar consulta</EliteText>
                 </Pressable>
               )}
-              <Pressable onPress={handleDelete} style={styles.deleteDraftBtn}>
-                <Ionicons name={isDraft ? 'trash-outline' : 'warning-outline'} size={14} color={SEMANTIC.error} />
-                <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 12 }}>
+              <Pressable onPress={handleDelete} style={s.deleteDraftBtn}>
+                <Ionicons name={isDraft ? 'trash-outline' : 'warning-outline'} size={14} color={t.error} />
+                <EliteText variant="caption" style={{ color: t.error, fontSize: 12 }}>
                   {isDraft ? 'Eliminar borrador' : 'Eliminar consulta'}
                 </EliteText>
               </Pressable>
@@ -1866,9 +1902,9 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
   // Vista de lista
   return (
     <View>
-      <Pressable onPress={handleNew} disabled={creating} style={[styles.newConsultBtn, creating && { opacity: 0.5 }, draft && { borderColor: SEMANTIC.warning + '30', backgroundColor: SEMANTIC.warning + '08' }]}>
+      <Pressable onPress={handleNew} disabled={creating} style={[s.newConsultBtn, creating && { opacity: 0.5 }, draft && { borderColor: SEMANTIC.warning + '30', backgroundColor: SEMANTIC.warning + '08' }]}>
         <Ionicons name={draft ? 'create-outline' : 'add-circle-outline'} size={18} color={draft ? SEMANTIC.warning : Colors.neonGreen} />
-        <EliteText variant="body" style={[styles.newConsultBtnText, draft && { color: SEMANTIC.warning }]}>
+        <EliteText variant="body" style={[s.newConsultBtnText, draft && { color: SEMANTIC.warning }]}>
           {creating ? 'Creando...' : draft ? `Continuar consulta #${draft.consultation_number}` : 'Nueva Consulta'}
         </EliteText>
       </Pressable>
@@ -1876,36 +1912,36 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
       {loadingList ? (
         <ActivityIndicator color={TEAL} style={{ marginTop: Spacing.lg }} />
       ) : consultations.length === 0 ? (
-        <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, textAlign: 'center', paddingVertical: Spacing.xl }}>
+        <EliteText variant="caption" style={{ color: tenue(t), textAlign: 'center', paddingVertical: Spacing.xl }}>
           Sin consultas registradas. Inicia la primera.
         </EliteText>
       ) : (
         consultations.map(c => {
-          const badge = STATUS_BADGE[c.status] ?? STATUS_BADGE.draft;
+          const badge = statusBadgeColors(t)[c.status] ?? statusBadgeColors(t).draft;
           const changes = c.changes_summary;
           return (
             <Pressable key={c.id} onPress={async () => {
               const full = await getConsultation(c.id);
               if (full) setActiveConsult(full);
-            }} style={styles.consultCard}>
+            }} style={s.consultCard}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
                 <EliteText variant="body" style={{ fontFamily: Fonts.bold, flex: 1 }}>
                   Consulta #{c.consultation_number}
                 </EliteText>
-                <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
+                <View style={[s.statusBadge, { backgroundColor: badge.bg }]}>
                   <EliteText variant="caption" style={{ color: badge.color, fontSize: 9, fontFamily: Fonts.bold }}>{badge.label}</EliteText>
                 </View>
               </View>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, marginTop: 2 }}>
+              <EliteText variant="caption" style={{ color: t.textoSecundario, marginTop: 2 }}>
                 {new Date(c.consultation_date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
               </EliteText>
               {c.chief_complaint && (
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, marginTop: 4 }} numberOfLines={1}>
+                <EliteText variant="caption" style={{ color: t.textoSecundario, marginTop: 4 }} numberOfLines={1}>
                   {c.chief_complaint}
                 </EliteText>
               )}
               {changes && !changes.is_first && (changes.weight_change != null || changes.fat_change != null) && (
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 4, fontSize: 11 }}>
+                <EliteText variant="caption" style={{ color: tenue(t), marginTop: 4, fontSize: 11 }}>
                   {changes.weight_change != null ? `${changes.weight_change > 0 ? '+' : ''}${Number(changes.weight_change).toFixed(1)} kg` : ''}
                   {changes.fat_change != null ? ` · ${changes.fat_change > 0 ? '+' : ''}${Number(changes.fat_change).toFixed(1)}% grasa` : ''}
                 </EliteText>
@@ -1939,6 +1975,8 @@ const LAB_SECTIONS = [
 ];
 
 function LabsTab({ clientId }: { clientId: string }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [labs, setLabs] = useState<LabResultType[]>([]);
   const [failedUploads, setFailedUploads] = useState<LabUpload[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1989,13 +2027,13 @@ function LabsTab({ clientId }: { clientId: string }) {
         setUploadMsg({ text: 'Analizando con IA...', color: TEAL });
         const result = await extractLabValues(uploadId);
         if ('error' in result) {
-          setUploadMsg({ text: `Error: ${result.error}`, color: SEMANTIC.error });
+          setUploadMsg({ text: `Error: ${result.error}`, color: t.error });
         } else {
           setUploadMsg({ text: `¡Listo! ${result.extractedCount} valores extraídos`, color: ATP_BRAND.lime });
           loadLabs();
         }
       } catch (err: any) {
-        setUploadMsg({ text: `Error: ${err.message ?? 'Fallo al subir'}`, color: SEMANTIC.error });
+        setUploadMsg({ text: `Error: ${err.message ?? 'Fallo al subir'}`, color: t.error });
       }
       setUploading(false);
       setTimeout(() => setUploadMsg(null), 5000);
@@ -2016,14 +2054,14 @@ function LabsTab({ clientId }: { clientId: string }) {
     loadLabs();
   };
 
-  const statusBadge = (s: string) => {
+  const statusBadge = (labStatus: string) => {
     const map: Record<string, { label: string; color: string; bg: string }> = {
       draft: { label: 'Borrador', color: SEMANTIC.warning, bg: SEMANTIC.warning + '15' },
       approved: { label: 'Aprobado', color: ATP_BRAND.lime, bg: ATP_BRAND.lime + '15' },
     };
-    const b = map[s] ?? map.draft;
+    const b = map[labStatus] ?? map.draft;
     return (
-      <View style={[styles.statusBadge, { backgroundColor: b.bg }]}>
+      <View style={[s.statusBadge, { backgroundColor: b.bg }]}>
         <EliteText variant="caption" style={{ color: b.color, fontSize: 9, fontFamily: Fonts.bold }}>{b.label}</EliteText>
       </View>
     );
@@ -2032,7 +2070,7 @@ function LabsTab({ clientId }: { clientId: string }) {
   return (
     <View>
       {/* Botón subir estudio */}
-      <Pressable onPress={handleUploadWeb} disabled={uploading} style={[styles.newConsultBtn, uploading && { opacity: 0.5 }]}>
+      <Pressable onPress={handleUploadWeb} disabled={uploading} style={[s.newConsultBtn, uploading && { opacity: 0.5 }]}>
         <Ionicons name={uploading ? 'hourglass-outline' : 'cloud-upload-outline'} size={18} color={TEAL} />
         <EliteText variant="body" style={{ color: TEAL, fontFamily: Fonts.bold }}>
           {uploading ? 'Procesando...' : 'Subir estudio de laboratorio'}
@@ -2045,24 +2083,24 @@ function LabsTab({ clientId }: { clientId: string }) {
         </View>
       )}
 
-      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: Spacing.md }}>
+      <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: Spacing.md }}>
         El cliente también puede subir estudios desde su app
       </EliteText>
 
       {/* Uploads fallidos/pendientes */}
       {failedUploads.length > 0 && (
         <View style={{ marginBottom: Spacing.md }}>
-          <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 4 }}>
+          <EliteText variant="caption" style={{ color: t.error, fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 4 }}>
             UPLOADS PENDIENTES / FALLIDOS
           </EliteText>
           {failedUploads.map(u => (
             <View key={u.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a0a0a', borderRadius: 8, padding: Spacing.sm, marginBottom: 4 }}>
-              <Ionicons name={u.status === 'failed' ? 'alert-circle' : 'hourglass-outline'} size={14} color={u.status === 'failed' ? SEMANTIC.error : SEMANTIC.warning} />
+              <Ionicons name={u.status === 'failed' ? 'alert-circle' : 'hourglass-outline'} size={14} color={u.status === 'failed' ? t.error : SEMANTIC.warning} />
               <View style={{ flex: 1, marginLeft: Spacing.sm }}>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 11 }}>
+                <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 11 }}>
                   {u.file_name ?? 'Archivo'} — {u.status === 'failed' ? 'Fallido' : u.status === 'processing' ? 'Procesando' : 'Subido'}
                 </EliteText>
-                {u.error_message && <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 10 }}>{userErrorMessage(u.error_message, 'No se pudo procesar este archivo.')}</EliteText>}
+                {u.error_message && <EliteText variant="caption" style={{ color: t.error, fontSize: 10 }}>{userErrorMessage(u.error_message, 'No se pudo procesar este archivo.')}</EliteText>}
               </View>
               <Pressable
                 onPress={async () => {
@@ -2071,7 +2109,7 @@ function LabsTab({ clientId }: { clientId: string }) {
                 }}
                 style={{ padding: 6 }}
               >
-                <Ionicons name="trash-outline" size={16} color={SEMANTIC.error} />
+                <Ionicons name="trash-outline" size={16} color={t.error} />
               </Pressable>
             </View>
           ))}
@@ -2079,7 +2117,7 @@ function LabsTab({ clientId }: { clientId: string }) {
       )}
 
       {loading ? <ActivityIndicator color={TEAL} /> : labs.length === 0 ? (
-        <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, textAlign: 'center', padding: Spacing.xl }}>
+        <EliteText variant="caption" style={{ color: tenue(t), textAlign: 'center', padding: Spacing.xl }}>
           Sin resultados de laboratorio
         </EliteText>
       ) : (
@@ -2087,7 +2125,7 @@ function LabsTab({ clientId }: { clientId: string }) {
           const isExpanded = expandedLab === lab.id;
           const valCount = LAB_SECTIONS.reduce((acc, s) => acc + s.keys.filter(k => lab[k] != null).length, 0);
           return (
-            <View key={lab.id} style={styles.consultCard}>
+            <View key={lab.id} style={s.consultCard}>
               <Pressable onPress={() => setExpandedLab(isExpanded ? null : lab.id)}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
                   <Ionicons name="flask-outline" size={16} color={TEAL} />
@@ -2096,7 +2134,7 @@ function LabsTab({ clientId }: { clientId: string }) {
                   </EliteText>
                   {statusBadge(lab.status ?? 'draft')}
                 </View>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, marginTop: 2 }}>{valCount} valores</EliteText>
+                <EliteText variant="caption" style={{ color: t.textoSecundario, marginTop: 2 }}>{valCount} valores</EliteText>
               </Pressable>
 
               {isExpanded && (
@@ -2117,7 +2155,7 @@ function LabsTab({ clientId }: { clientId: string }) {
                               <EliteText style={{ fontSize: 16, color: rating.color, width: 20, textAlign: 'center' }}>
                                 {rating.arrow}
                               </EliteText>
-                              <EliteText variant="caption" style={{ flex: 1, color: TEXT_COLORS.primary, fontSize: 12, marginLeft: 4 }}>
+                              <EliteText variant="caption" style={{ flex: 1, color: t.texto, fontSize: 12, marginLeft: 4 }}>
                                 {key.replace(/_/g, ' ')}
                               </EliteText>
                               <EliteText variant="body" style={{ color: rating.color, fontFamily: Fonts.bold, fontSize: 14, fontVariant: ['tabular-nums'] }}>
@@ -2144,10 +2182,10 @@ function LabsTab({ clientId }: { clientId: string }) {
                         OTROS VALORES
                       </EliteText>
                       {lab.other_values.map((ov: any, idx: number) => (
-                        <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: SURFACES.card }}>
-                          <EliteText variant="caption" style={{ flex: 1, color: TEXT_COLORS.secondary, fontSize: 12 }}>{ov.name}</EliteText>
+                        <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: t.card }}>
+                          <EliteText variant="caption" style={{ flex: 1, color: t.textoSecundario, fontSize: 12 }}>{ov.name}</EliteText>
                           <EliteText variant="body" style={{ color: SEMANTIC.warning, fontFamily: Fonts.bold, fontSize: 14 }}>{ov.value}</EliteText>
-                          <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginLeft: 4 }}>{ov.unit}</EliteText>
+                          <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginLeft: 4 }}>{ov.unit}</EliteText>
                         </View>
                       ))}
                     </View>
@@ -2156,14 +2194,14 @@ function LabsTab({ clientId }: { clientId: string }) {
                   {/* Actions */}
                   <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
                     {lab.status !== 'approved' && (
-                      <Pressable onPress={() => handleApprove(lab.id)} style={[styles.completeBtn, { flex: 1 }]}>
+                      <Pressable onPress={() => handleApprove(lab.id)} style={[s.completeBtn, { flex: 1 }]}>
                         <Ionicons name="checkmark" size={14} color={ATP_BRAND.black} />
-                        <EliteText variant="caption" style={styles.completeBtnText}>Aprobar</EliteText>
+                        <EliteText variant="caption" style={s.completeBtnText}>Aprobar</EliteText>
                       </Pressable>
                     )}
-                    <Pressable onPress={() => handleDelete(lab.id)} style={[styles.deleteDraftBtn, { flex: 1 }]}>
-                      <Ionicons name="trash-outline" size={14} color={SEMANTIC.error} />
-                      <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 12 }}>Eliminar</EliteText>
+                    <Pressable onPress={() => handleDelete(lab.id)} style={[s.deleteDraftBtn, { flex: 1 }]}>
+                      <Ionicons name="trash-outline" size={14} color={t.error} />
+                      <EliteText variant="caption" style={{ color: t.error, fontSize: 12 }}>Eliminar</EliteText>
                     </Pressable>
                   </View>
                 </View>
@@ -2184,6 +2222,8 @@ function LabsTab({ clientId }: { clientId: string }) {
 function DayDescriptionSaveSection({ consultation, isDraft, onSaved }: {
   consultation: Consultation; isDraft: boolean; onSaved: (v: string) => void;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [text, setText] = useState((consultation as any).day_description ?? '');
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<'idle' | 'saved' | 'error'>('idle');
@@ -2208,15 +2248,15 @@ function DayDescriptionSaveSection({ consultation, isDraft, onSaved }: {
     <SaveableSection hasChanges={hasChanges}>
       <SectionSaveHeader title="DESCRIPCIÓN DEL DÍA" hasChanges={hasChanges} isSaving={saving}
         saveStatus={saving ? 'saving' : status} onSave={handleSave} />
-      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: Spacing.xs }}>
+      <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: Spacing.xs }}>
         ¿Cómo se ve un día típico de esta persona?
       </EliteText>
       <TextInput
-        style={[styles.editableInput, { minHeight: 80 }]}
+        style={[s.editableInput, { minHeight: 80 }]}
         value={text}
         onChangeText={v => { setText(v); setStatus('idle'); }}
         placeholder="Ej: Se levanta a las 6, desayuna cereal, maneja 1hr al trabajo..."
-        placeholderTextColor={SURFACES.disabled}
+        placeholderTextColor={t.bordeMarcado}
         multiline editable={isDraft}
       />
     </SaveableSection>
@@ -2227,6 +2267,8 @@ function WeightContextSaveSection({ profile, clientId, onSaved }: {
   profile: Record<string, any>; clientId: string;
   onSaved: (updates: Record<string, any>) => void;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [form, setForm] = useState({
     weight_highest_kg: profile.weight_highest_kg?.toString() ?? '',
     weight_highest_year: profile.weight_highest_year ?? '',
@@ -2273,26 +2315,26 @@ function WeightContextSaveSection({ profile, clientId, onSaved }: {
       <SectionSaveHeader title="CONTEXTO DE PESO" hasChanges={hasChanges} isSaving={saving}
         saveStatus={saving ? 'saving' : status} onSave={handleSave} />
       <View style={{ gap: Spacing.sm }}>
-        <View style={styles.weightCtxRow}>
-          <EliteText variant="caption" style={styles.weightCtxLabel}>Más alto</EliteText>
-          <TextInput style={[styles.weightCtxInput, { flex: 1 }]} value={form.weight_highest_kg}
-            onChangeText={v => setF('weight_highest_kg', v)} placeholder="kg" placeholderTextColor={SURFACES.disabled} keyboardType="numeric" />
-          <TextInput style={[styles.weightCtxInput, { flex: 1 }]} value={form.weight_highest_year}
-            onChangeText={v => setF('weight_highest_year', v)} placeholder="año o edad" placeholderTextColor={SURFACES.disabled} />
+        <View style={s.weightCtxRow}>
+          <EliteText variant="caption" style={s.weightCtxLabel}>Más alto</EliteText>
+          <TextInput style={[s.weightCtxInput, { flex: 1 }]} value={form.weight_highest_kg}
+            onChangeText={v => setF('weight_highest_kg', v)} placeholder="kg" placeholderTextColor={t.bordeMarcado} keyboardType="numeric" />
+          <TextInput style={[s.weightCtxInput, { flex: 1 }]} value={form.weight_highest_year}
+            onChangeText={v => setF('weight_highest_year', v)} placeholder="año o edad" placeholderTextColor={t.bordeMarcado} />
         </View>
-        <View style={styles.weightCtxRow}>
-          <EliteText variant="caption" style={styles.weightCtxLabel}>Más bajo</EliteText>
-          <TextInput style={[styles.weightCtxInput, { flex: 1 }]} value={form.weight_lowest_kg}
-            onChangeText={v => setF('weight_lowest_kg', v)} placeholder="kg" placeholderTextColor={SURFACES.disabled} keyboardType="numeric" />
-          <TextInput style={[styles.weightCtxInput, { flex: 1 }]} value={form.weight_lowest_year}
-            onChangeText={v => setF('weight_lowest_year', v)} placeholder="año o edad" placeholderTextColor={SURFACES.disabled} />
+        <View style={s.weightCtxRow}>
+          <EliteText variant="caption" style={s.weightCtxLabel}>Más bajo</EliteText>
+          <TextInput style={[s.weightCtxInput, { flex: 1 }]} value={form.weight_lowest_kg}
+            onChangeText={v => setF('weight_lowest_kg', v)} placeholder="kg" placeholderTextColor={t.bordeMarcado} keyboardType="numeric" />
+          <TextInput style={[s.weightCtxInput, { flex: 1 }]} value={form.weight_lowest_year}
+            onChangeText={v => setF('weight_lowest_year', v)} placeholder="año o edad" placeholderTextColor={t.bordeMarcado} />
         </View>
-        <View style={styles.weightCtxRow}>
-          <EliteText variant="caption" style={[styles.weightCtxLabel, { color: TEAL }]}>Ideal</EliteText>
-          <TextInput style={[styles.weightCtxInput, { flex: 1 }]} value={form.weight_ideal_kg}
-            onChangeText={v => setF('weight_ideal_kg', v)} placeholder="kg" placeholderTextColor={SURFACES.disabled} keyboardType="numeric" />
-          <TextInput style={[styles.weightCtxInput, { flex: 2 }]} value={form.weight_ideal_notes}
-            onChangeText={v => setF('weight_ideal_notes', v)} placeholder="notas (frame, estilo vida)" placeholderTextColor={SURFACES.disabled} />
+        <View style={s.weightCtxRow}>
+          <EliteText variant="caption" style={[s.weightCtxLabel, { color: TEAL }]}>Ideal</EliteText>
+          <TextInput style={[s.weightCtxInput, { flex: 1 }]} value={form.weight_ideal_kg}
+            onChangeText={v => setF('weight_ideal_kg', v)} placeholder="kg" placeholderTextColor={t.bordeMarcado} keyboardType="numeric" />
+          <TextInput style={[s.weightCtxInput, { flex: 2 }]} value={form.weight_ideal_notes}
+            onChangeText={v => setF('weight_ideal_notes', v)} placeholder="notas (frame, estilo vida)" placeholderTextColor={t.bordeMarcado} />
         </View>
       </View>
     </SaveableSection>
@@ -2303,6 +2345,8 @@ function ObjectivesSaveSection({ profile, isDraft, clientId, onSaved }: {
   profile: Record<string, any> | null; isDraft: boolean; clientId: string;
   onSaved: (updates: Record<string, any>) => void;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [form, setForm] = useState({
     primary_goal: profile?.primary_goal ?? '',
     goal_timeline: profile?.goal_timeline ?? '',
@@ -2352,12 +2396,12 @@ function ObjectivesSaveSection({ profile, isDraft, clientId, onSaved }: {
         { key: 'red_flags', label: 'Banderas rojas', ph: 'Ej: Lesión rodilla' },
       ].map(f => (
         <View key={f.key} style={{ marginBottom: Spacing.xs }}>
-          <EliteText variant="caption" style={{ color: f.key === 'red_flags' ? SEMANTIC.error + '80' : TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>{f.label}</EliteText>
+          <EliteText variant="caption" style={{ color: f.key === 'red_flags' ? t.error + '80' : tenue(t), fontSize: 10, marginBottom: 2 }}>{f.label}</EliteText>
           <TextInput
-            style={[styles.editableInput, f.key === 'red_flags' && { borderColor: SEMANTIC.error + '30' }]}
+            style={[s.editableInput, f.key === 'red_flags' && { borderColor: t.error + '30' }]}
             value={form[f.key as keyof typeof form]}
             onChangeText={v => { setForm(prev => ({ ...prev, [f.key]: v })); setStatus('idle'); }}
-            placeholder={f.ph} placeholderTextColor={SURFACES.disabled} editable={isDraft}
+            placeholder={f.ph} placeholderTextColor={t.bordeMarcado} editable={isDraft}
           />
         </View>
       ))}
@@ -2369,6 +2413,8 @@ function SoapNotesSaveSection({ consultation, isDraft, onSaved }: {
   consultation: Consultation; isDraft: boolean;
   onSaved: (updates: Record<string, any>) => void;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const fields = [
     { key: 'chief_complaint', label: 'Motivo de consulta', ph: '¿Por qué viene hoy?', multi: false },
     { key: 'subjective_notes', label: 'S — Subjetivo', ph: 'Lo que el paciente reporta', multi: true },
@@ -2417,10 +2463,10 @@ function SoapNotesSaveSection({ consultation, isDraft, onSaved }: {
         <View key={f.key} style={{ marginBottom: Spacing.sm }}>
           <EliteText variant="caption" style={{ color: Colors.neonGreen + '80', fontSize: 10, marginBottom: 2 }}>{f.label}</EliteText>
           <TextInput
-            style={[styles.editableInput, f.multi && { minHeight: 60 }]}
+            style={[s.editableInput, f.multi && { minHeight: 60 }]}
             value={form[f.key]}
             onChangeText={v => { setForm(prev => ({ ...prev, [f.key]: v })); setStatus('idle'); }}
-            placeholder={f.ph} placeholderTextColor={SURFACES.disabled} multiline={f.multi} editable={isDraft}
+            placeholder={f.ph} placeholderTextColor={t.bordeMarcado} multiline={f.multi} editable={isDraft}
           />
         </View>
       ))}
@@ -2433,6 +2479,8 @@ function SoapNotesSaveSection({ consultation, isDraft, onSaved }: {
 // ══════════════════════════
 
 function NutritionCoachTab({ clientId }: { clientId: string }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [plan, setPlan] = useState<NutritionPlan | null>(null);
   const [foods, setFoods] = useState<FoodLog[]>([]);
   const [scores, setScores] = useState<any[]>([]);
@@ -2711,7 +2759,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
     const positive = ['alta_proteina', 'grasas_saludables', 'ingredientes_naturales', 'fibra', 'omega3', 'antioxidantes', 'comida_real'];
     const negative = ['ultra_procesado', 'alto_azucar', 'grasa_trans', 'harinas_refinadas', 'exceso_sodio'];
     if (positive.some(p => tag.includes(p))) return SEMANTIC.success;
-    if (negative.some(n => tag.includes(n))) return SEMANTIC.error;
+    if (negative.some(n => tag.includes(n))) return t.error;
     return CATEGORY_COLORS.nutrition;
   };
 
@@ -2719,16 +2767,16 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
 
   const NI = ({ label, field, placeholder, kb }: { label: string; field: string; placeholder: string; kb?: string }) => (
     <View style={{ flex: 1 }}>
-      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9, marginBottom: 2 }}>{label}</EliteText>
-      <TextInput style={styles.editableInput} value={planForm[field as keyof typeof planForm]}
-        onChangeText={v => setF(field, v)} placeholder={placeholder} placeholderTextColor={SURFACES.disabled}
+      <EliteText variant="caption" style={{ color: tenue(t), fontSize: 9, marginBottom: 2 }}>{label}</EliteText>
+      <TextInput style={s.editableInput} value={planForm[field as keyof typeof planForm]}
+        onChangeText={v => setF(field, v)} placeholder={placeholder} placeholderTextColor={t.bordeMarcado}
         keyboardType={kb as any ?? 'default'} />
     </View>
   );
 
   const pillStyle = {
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.card,
-    borderWidth: 1, borderColor: SURFACES.border, backgroundColor: SURFACES.card,
+    borderWidth: 1, borderColor: t.borde, backgroundColor: t.card,
   };
   const activePillStyle = {
     borderColor: CATEGORY_COLORS.nutrition, backgroundColor: CATEGORY_COLORS.nutrition + '15',
@@ -2738,11 +2786,11 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
   };
   const weekDayCellStyle = {
     alignItems: 'center' as const, padding: Spacing.xs, borderRadius: Radius.sm,
-    borderWidth: 1, borderColor: SURFACES.border, backgroundColor: SURFACES.card,
+    borderWidth: 1, borderColor: t.borde, backgroundColor: t.card,
     minWidth: 42,
   };
   const miniCardStyle = {
-    flex: 1, backgroundColor: SURFACES.cardLight, borderRadius: Radius.sm, paddingVertical: Spacing.xs, alignItems: 'center' as const,
+    flex: 1, backgroundColor: t.flotante, borderRadius: Radius.sm, paddingVertical: Spacing.xs, alignItems: 'center' as const,
   };
 
   const patterns = computePatterns();
@@ -2756,12 +2804,12 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
   } : null;
 
   // Macros con porcentaje para barras de progreso
-  const scoreCol = dayScore?.overall_score >= 75 ? SEMANTIC.success : dayScore?.overall_score >= 50 ? SEMANTIC.warning : dayScore?.overall_score ? SEMANTIC.error : TEXT_COLORS.muted;
+  const scoreCol = dayScore?.overall_score >= 75 ? SEMANTIC.success : dayScore?.overall_score >= 50 ? SEMANTIC.warning : dayScore?.overall_score ? t.error : tenue(t);
   const macros = [
     { label: 'Calorías', value: Math.round(dayTotals.calories), target: plan?.calorie_target ?? 0, unit: '', color: CATEGORY_COLORS.nutrition, pct: plan?.calorie_target ? (dayTotals.calories / plan.calorie_target) * 100 : 0 },
     { label: 'Proteína', value: Math.round(dayTotals.protein), target: plan?.protein_target ?? 0, unit: 'g', color: SEMANTIC.success, pct: plan?.protein_target ? (dayTotals.protein / plan.protein_target) * 100 : 0 },
     { label: 'Carbos', value: Math.round(dayTotals.carbs), target: plan?.carb_target ?? 0, unit: 'g', color: SEMANTIC.warning, pct: plan?.carb_target ? (dayTotals.carbs / plan.carb_target) * 100 : 0 },
-    { label: 'Grasa', value: Math.round(dayTotals.fat), target: plan?.fat_target ?? 0, unit: 'g', color: SEMANTIC.error, pct: plan?.fat_target ? (dayTotals.fat / plan.fat_target) * 100 : 0 },
+    { label: 'Grasa', value: Math.round(dayTotals.fat), target: plan?.fat_target ?? 0, unit: 'g', color: t.error, pct: plan?.fat_target ? (dayTotals.fat / plan.fat_target) * 100 : 0 },
   ];
 
   return (
@@ -2808,7 +2856,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
         {(['today', 'yesterday', 'week'] as const).map(v => (
           <Pressable key={v} onPress={() => { setViewMode(v); setSelectedDate(v === 'yesterday' ? yesterday() : today()); }}
             style={[pillStyle, viewMode === v && activePillStyle]}>
-            <EliteText variant="caption" style={{ color: viewMode === v ? CATEGORY_COLORS.nutrition : TEXT_COLORS.muted, fontSize: 11 }}>
+            <EliteText variant="caption" style={{ color: viewMode === v ? CATEGORY_COLORS.nutrition : tenue(t), fontSize: 11 }}>
               {v === 'today' ? 'Hoy' : v === 'yesterday' ? 'Ayer' : 'Semana'}
             </EliteText>
           </Pressable>
@@ -2816,7 +2864,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
       </View>
 
       {/* Score circle + macro progress bars */}
-      <View style={{ backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.sm, marginBottom: Spacing.sm }}>
+      <View style={{ backgroundColor: t.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: t.borde, padding: Spacing.sm, marginBottom: Spacing.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
           {/* Score circle */}
           <View style={{
@@ -2835,12 +2883,12 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
             {macros.map(m => (
               <View key={m.label}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>{m.label}</EliteText>
+                  <EliteText variant="caption" style={{ color: tenue(t), fontSize: 9 }}>{m.label}</EliteText>
                   <EliteText variant="caption" style={{ color: m.color, fontSize: 9 }}>
                     {m.value}{m.unit} / {m.target}{m.unit}
                   </EliteText>
                 </View>
-                <View style={{ height: 4, backgroundColor: SURFACES.cardLight, borderRadius: 2, overflow: 'hidden' }}>
+                <View style={{ height: 4, backgroundColor: t.flotante, borderRadius: 2, overflow: 'hidden' }}>
                   <View style={{ width: `${Math.min(100, m.pct)}%` as any, height: '100%', backgroundColor: m.color, borderRadius: 2 }} />
                 </View>
               </View>
@@ -2868,7 +2916,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
         </View>
 
         {/* Date + meals count */}
-        <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginTop: Spacing.xs, textAlign: 'center' }}>
+        <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginTop: Spacing.xs, textAlign: 'center' }}>
           {selectedDate === today() ? 'Hoy' : selectedDate} — {dayFoods.length} comidas registradas
         </EliteText>
       </View>
@@ -2877,8 +2925,8 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
       <EliteText variant="caption" style={sectionLabelStyle}>COMIDAS</EliteText>
       {dayFoods.length === 0 ? (
         <View style={{ alignItems: 'center', padding: Spacing.lg }}>
-          <Ionicons name="restaurant-outline" size={28} color={TEXT_COLORS.muted} />
-          <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: Spacing.sm }}>
+          <Ionicons name="restaurant-outline" size={28} color={tenue(t)} />
+          <EliteText variant="caption" style={{ color: tenue(t), marginTop: Spacing.sm }}>
             Sin registros de comida para {selectedDate === today() ? 'hoy' : selectedDate}
           </EliteText>
         </View>
@@ -2886,14 +2934,14 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
         dayFoods.map(food => {
           const ai = food.ai_analysis;
           const sc = ai?.score;
-          const foodScoreCol = sc >= 80 ? SEMANTIC.success : sc >= 60 ? SEMANTIC.warning : sc ? SEMANTIC.error : TEXT_COLORS.muted;
+          const foodScoreCol = sc >= 80 ? SEMANTIC.success : sc >= 60 ? SEMANTIC.warning : sc ? t.error : tenue(t);
           const isExpanded = expandedFoodId === food.id;
 
           // Modo edición inline
           if (editingFoodId === food.id) {
             return (
               <View key={food.id} style={{
-                backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 1,
+                backgroundColor: t.card, borderRadius: Radius.card, borderWidth: 1,
                 borderColor: CATEGORY_COLORS.nutrition + '40', padding: Spacing.sm, marginBottom: Spacing.xs,
               }}>
                 <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontFamily: Fonts.bold, fontSize: 10, marginBottom: Spacing.xs }}>
@@ -2902,11 +2950,11 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
                 {editIngredients.map((ing, idx) => {
                   const subKey = Object.keys(SUBSTITUTIONS).find(k => ing.name.toLowerCase().includes(k));
                   return (
-                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: SURFACES.border }}>
+                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: t.borde }}>
                       <Ionicons name="checkmark-circle" size={14} color={SEMANTIC.success} />
                       <View style={{ flex: 1 }}>
-                        <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 12 }}>{ing.name}</EliteText>
-                        <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>{ing.portion} · {ing.calories ?? 0}cal · {ing.protein ?? 0}g prot</EliteText>
+                        <EliteText variant="caption" style={{ color: t.texto, fontSize: 12 }}>{ing.name}</EliteText>
+                        <EliteText variant="caption" style={{ color: tenue(t), fontSize: 9 }}>{ing.portion} · {ing.calories ?? 0}cal · {ing.protein ?? 0}g prot</EliteText>
                       </View>
                       {subKey && (
                         <Pressable onPress={() => {
@@ -2918,20 +2966,20 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
                         </Pressable>
                       )}
                       <Pressable onPress={() => setEditIngredients(editIngredients.filter((_, i) => i !== idx))}>
-                        <Ionicons name="close-circle" size={16} color={SEMANTIC.error + '80'} />
+                        <Ionicons name="close-circle" size={16} color={t.error + '80'} />
                       </Pressable>
                     </View>
                   );
                 })}
                 {/* Agregar ingrediente */}
                 <Pressable onPress={() => setEditIngredients([...editIngredients, { name: 'Nuevo ingrediente', portion: '~1 porción', calories: 0, protein: 0, carbs: 0, fat: 0 }])}
-                  style={{ borderWidth: 1, borderColor: SURFACES.border, borderStyle: 'dashed', borderRadius: Radius.sm, padding: Spacing.xs, alignItems: 'center', marginTop: Spacing.xs }}>
+                  style={{ borderWidth: 1, borderColor: t.borde, borderStyle: 'dashed', borderRadius: Radius.sm, padding: Spacing.xs, alignItems: 'center', marginTop: Spacing.xs }}>
                   <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontSize: 10 }}>+ Agregar ingrediente</EliteText>
                 </Pressable>
                 {/* Botones del editor */}
                 <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.sm }}>
                   <Pressable onPress={() => setEditingFoodId(null)}>
-                    <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10 }}>Cancelar</EliteText>
+                    <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10 }}>Cancelar</EliteText>
                   </Pressable>
                   <Pressable onPress={() => handleRecalcWithAI(food.id)} disabled={recalculating}
                     style={{ backgroundColor: CATEGORY_COLORS.nutrition + '15', paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.sm }}>
@@ -2941,7 +2989,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
                   </Pressable>
                   <Pressable onPress={() => handleSaveEdit(food.id)}
                     style={{ backgroundColor: SEMANTIC.success, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.sm }}>
-                    <EliteText variant="caption" style={{ color: TEXT_COLORS.onAccent, fontSize: 10, fontFamily: Fonts.bold }}>Guardar</EliteText>
+                    <EliteText variant="caption" style={{ color: t.textoSobreLima, fontSize: 10, fontFamily: Fonts.bold }}>Guardar</EliteText>
                   </Pressable>
                 </View>
               </View>
@@ -2952,16 +3000,16 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
           return (
             <Pressable key={food.id} onPress={() => setExpandedFoodId(isExpanded ? null : food.id)}
               style={{
-                backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5,
-                borderColor: isExpanded ? CATEGORY_COLORS.nutrition + '60' : SURFACES.border,
+                backgroundColor: t.card, borderRadius: Radius.card, borderWidth: 0.5,
+                borderColor: isExpanded ? CATEGORY_COLORS.nutrition + '60' : t.borde,
                 borderLeftWidth: 3, borderLeftColor: CATEGORY_COLORS.nutrition,
                 padding: Spacing.sm, marginBottom: Spacing.xs,
               }}>
               {/* Header: descripción + score */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
                 <View style={{ flex: 1 }}>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 12 }}>{food.description}</EliteText>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>
+                  <EliteText variant="caption" style={{ color: t.texto, fontSize: 12 }}>{food.description}</EliteText>
+                  <EliteText variant="caption" style={{ color: tenue(t), fontSize: 9 }}>
                     {food.meal_type}{food.meal_time ? ` · ${food.meal_time}` : ''} · {food.date}
                   </EliteText>
                 </View>
@@ -2973,7 +3021,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
               </View>
 
               {/* Inline macros */}
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10, marginTop: 4 }}>
+              <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 10, marginTop: 4 }}>
                 {ai?.totals?.calories ?? ai?.estimated_calories ?? food.calories ?? 0} cal
                 {' · '}{ai?.totals?.protein ?? ai?.estimated_protein ?? food.protein_g ?? 0}g prot
                 {' · '}{ai?.totals?.carbs ?? ai?.estimated_carbs ?? food.carbs_g ?? 0}g carb
@@ -2995,8 +3043,8 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
 
               {/* Feedback (colapsable) — solo si score < 80 */}
               {ai?.feedback && isExpanded && (ai?.score ?? 100) < 80 && (
-                <View style={{ marginTop: Spacing.xs, paddingTop: Spacing.xs, borderTopWidth: 0.5, borderTopColor: SURFACES.border }}>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10 }}>{ai.feedback}</EliteText>
+                <View style={{ marginTop: Spacing.xs, paddingTop: Spacing.xs, borderTopWidth: 0.5, borderTopColor: t.borde }}>
+                  <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 10 }}>{ai.feedback}</EliteText>
                 </View>
               )}
 
@@ -3008,10 +3056,10 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
                   </EliteText>
                   {(ai.ingredients as any[]).map((ing: any, i: number) => (
                     <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 1 }}>
-                      <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 9, flex: 1 }}>
+                      <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 9, flex: 1 }}>
                         {ing.name} ({ing.portion})
                       </EliteText>
-                      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>
+                      <EliteText variant="caption" style={{ color: tenue(t), fontSize: 9 }}>
                         {ing.calories ?? 0}cal · {ing.protein ?? 0}p
                       </EliteText>
                     </View>
@@ -3023,8 +3071,8 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
               {ai?.red_flags && ai.red_flags.length > 0 && isExpanded && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
                   {(ai.red_flags as string[]).map((flag: string, i: number) => (
-                    <View key={i} style={{ backgroundColor: SEMANTIC.error + '15', paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.sm }}>
-                      <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 8 }}>{flag}</EliteText>
+                    <View key={i} style={{ backgroundColor: t.error + '15', paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.sm }}>
+                      <EliteText variant="caption" style={{ color: t.error, fontSize: 8 }}>{flag}</EliteText>
                     </View>
                   ))}
                 </View>
@@ -3038,15 +3086,15 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
                     <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontSize: 10 }}>Editar</EliteText>
                   </Pressable>
                   <Pressable onPress={() => handleDeleteFood(food.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                    <Ionicons name="trash-outline" size={12} color={SEMANTIC.error} />
-                    <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 10 }}>Eliminar</EliteText>
+                    <Ionicons name="trash-outline" size={12} color={t.error} />
+                    <EliteText variant="caption" style={{ color: t.error, fontSize: 10 }}>Eliminar</EliteText>
                   </Pressable>
                 </View>
               )}
 
               {/* Expand hint */}
               {!isExpanded && ai?.feedback && (
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 8, marginTop: 2 }}>
+                <EliteText variant="caption" style={{ color: tenue(t), fontSize: 8, marginTop: 2 }}>
                   Toca para ver detalles
                 </EliteText>
               )}
@@ -3057,34 +3105,34 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
 
       {/* Formulario inline para agregar comida */}
       {addingFood && (
-        <View style={{ backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: CATEGORY_COLORS.nutrition + '40', padding: Spacing.sm, marginBottom: Spacing.sm }}>
+        <View style={{ backgroundColor: t.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: CATEGORY_COLORS.nutrition + '40', padding: Spacing.sm, marginBottom: Spacing.sm }}>
           <View style={{ flexDirection: 'row', gap: 6, marginBottom: Spacing.sm }}>
-            {(['breakfast', 'lunch', 'dinner', 'snack'] as const).map(t => (
-              <Pressable key={t} onPress={() => setNewFoodType(t)}
-                style={[pillStyle, newFoodType === t && activePillStyle]}>
-                <EliteText variant="caption" style={{ color: newFoodType === t ? CATEGORY_COLORS.nutrition : TEXT_COLORS.muted, fontSize: 10 }}>
-                  {t === 'breakfast' ? 'Desayuno' : t === 'lunch' ? 'Comida' : t === 'dinner' ? 'Cena' : 'Snack'}
+            {(['breakfast', 'lunch', 'dinner', 'snack'] as const).map(mealType => (
+              <Pressable key={mealType} onPress={() => setNewFoodType(mealType)}
+                style={[pillStyle, newFoodType === mealType && activePillStyle]}>
+                <EliteText variant="caption" style={{ color: newFoodType === mealType ? CATEGORY_COLORS.nutrition : tenue(t), fontSize: 10 }}>
+                  {mealType === 'breakfast' ? 'Desayuno' : mealType === 'lunch' ? 'Comida' : mealType === 'dinner' ? 'Cena' : 'Snack'}
                 </EliteText>
               </Pressable>
             ))}
           </View>
-          <TextInput style={styles.editableInput} value={newFoodDesc} onChangeText={setNewFoodDesc}
-            placeholder="Describe la comida" placeholderTextColor={SURFACES.disabled} />
-          <TextInput style={[styles.editableInput, { marginTop: Spacing.xs }]} value={newFoodTime} onChangeText={setNewFoodTime}
-            placeholder="Hora (ej: 14:30)" placeholderTextColor={SURFACES.disabled} />
+          <TextInput style={s.editableInput} value={newFoodDesc} onChangeText={setNewFoodDesc}
+            placeholder="Describe la comida" placeholderTextColor={t.bordeMarcado} />
+          <TextInput style={[s.editableInput, { marginTop: Spacing.xs }]} value={newFoodTime} onChangeText={setNewFoodTime}
+            placeholder="Hora (ej: 14:30)" placeholderTextColor={t.bordeMarcado} />
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.sm }}>
             <Pressable onPress={() => setAddingFood(false)}>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted }}>Cancelar</EliteText>
+              <EliteText variant="caption" style={{ color: tenue(t) }}>Cancelar</EliteText>
             </Pressable>
             <Pressable onPress={() => handleAddFood(false)} disabled={savingNewFood}
-              style={{ backgroundColor: SURFACES.border, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.sm }}>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 10 }}>
+              style={{ backgroundColor: t.borde, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.sm }}>
+              <EliteText variant="caption" style={{ color: t.texto, fontSize: 10 }}>
                 {savingNewFood ? 'Guardando...' : 'Guardar'}
               </EliteText>
             </Pressable>
             <Pressable onPress={() => handleAddFood(true)} disabled={savingNewFood}
               style={{ backgroundColor: CATEGORY_COLORS.nutrition, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.sm }}>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.onAccent, fontSize: 10, fontFamily: Fonts.bold }}>
+              <EliteText variant="caption" style={{ color: t.textoSobreLima, fontSize: 10, fontFamily: Fonts.bold }}>
                 {savingNewFood ? 'Analizando...' : 'Guardar + IA'}
               </EliteText>
             </Pressable>
@@ -3102,7 +3150,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
           <EliteText variant="caption" style={sectionLabelStyle}>LO QUE FALTA HOY</EliteText>
           <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
             {/* Left: deficit */}
-            <View style={{ flex: 1, backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.sm }}>
+            <View style={{ flex: 1, backgroundColor: t.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: t.borde, padding: Spacing.sm }}>
               <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontFamily: Fonts.bold, fontSize: 10, marginBottom: Spacing.xs }}>DEFICIT</EliteText>
               {[
                 { label: 'Cal', value: deficit.calories, unit: '' },
@@ -3111,7 +3159,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
                 { label: 'Grasa', value: Math.round(deficit.fat), unit: 'g' },
               ].map(m => (
                 <View key={m.label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>{m.label}</EliteText>
+                  <EliteText variant="caption" style={{ color: tenue(t), fontSize: 9 }}>{m.label}</EliteText>
                   <EliteText variant="caption" style={{ color: m.value > 0 ? SEMANTIC.warning : SEMANTIC.success, fontFamily: Fonts.bold, fontSize: 11 }}>
                     {m.value > 0 ? `-${Math.round(m.value)}` : '0'}{m.unit}
                   </EliteText>
@@ -3119,7 +3167,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
               ))}
             </View>
             {/* Right: suggestion */}
-            <View style={{ flex: 1, backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border, borderLeftWidth: 3, borderLeftColor: TEAL, padding: Spacing.sm }}>
+            <View style={{ flex: 1, backgroundColor: t.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: t.borde, borderLeftWidth: 3, borderLeftColor: TEAL, padding: Spacing.sm }}>
               <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.bold, fontSize: 10, marginBottom: Spacing.xs }}>SUGERENCIA IA</EliteText>
               <Pressable onPress={handleSuggest} disabled={loadingSuggestion}
                 style={{
@@ -3138,7 +3186,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
               </Pressable>
               {suggestion && (
                 <View style={{ marginTop: Spacing.xs, backgroundColor: CATEGORY_COLORS.nutrition + '08', borderRadius: Radius.sm, padding: Spacing.xs }}>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 10, lineHeight: 14 }}>
+                  <EliteText variant="caption" style={{ color: t.texto, fontSize: 10, lineHeight: 14 }}>
                     {suggestion}
                   </EliteText>
                 </View>
@@ -3155,15 +3203,15 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
           const ds = scores.find(s => s.date === day.date);
           const df = foods.filter(f => f.date === day.date);
           const scVal = ds?.overall_score;
-          const color = scVal >= 75 ? SEMANTIC.success : scVal >= 50 ? SEMANTIC.warning : scVal ? SEMANTIC.error : TEXT_COLORS.muted;
+          const color = scVal >= 75 ? SEMANTIC.success : scVal >= 50 ? SEMANTIC.warning : scVal ? t.error : tenue(t);
           const isToday = day.date === today();
           const isSelected = day.date === selectedDate;
           return (
             <Pressable key={day.date} onPress={() => { setSelectedDate(day.date); setViewMode('today'); }}
               style={[weekDayCellStyle, isToday && { borderColor: CATEGORY_COLORS.nutrition }, isSelected && { backgroundColor: CATEGORY_COLORS.nutrition + '10' }]}>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>{day.label}</EliteText>
+              <EliteText variant="caption" style={{ color: tenue(t), fontSize: 9 }}>{day.label}</EliteText>
               <EliteText style={{ color, fontFamily: Fonts.bold, fontSize: 14 }}>{scVal ?? '--'}</EliteText>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 8 }}>{df.length} com</EliteText>
+              <EliteText variant="caption" style={{ color: tenue(t), fontSize: 8 }}>{df.length} com</EliteText>
             </Pressable>
           );
         })}
@@ -3174,7 +3222,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
         <View>
           <EliteText variant="caption" style={sectionLabelStyle}>PATRONES DETECTADOS</EliteText>
           {patterns.map((p, i) => {
-            const bg = p.type === 'success' ? SEMANTIC.success : p.type === 'warning' ? SEMANTIC.warning : SEMANTIC.error;
+            const bg = p.type === 'success' ? SEMANTIC.success : p.type === 'warning' ? SEMANTIC.warning : t.error;
             return (
               <View key={i} style={{
                 backgroundColor: bg + '10', borderRadius: Radius.card, borderLeftWidth: 3, borderLeftColor: bg,
@@ -3206,6 +3254,8 @@ function fourteenDaysAgo() { const d = parseLocalDate(getLocalToday()); d.setDat
 // ══════════════════════════
 
 function StudySummaryField({ studyId, initial, onSave }: { studyId: string; initial: string; onSave: (id: string, v: string) => void }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [text, setText] = useState(initial);
   const [saved, setSaved] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3228,11 +3278,11 @@ function StudySummaryField({ studyId, initial, onSave }: { studyId: string; init
         {saved && <EliteText variant="caption" style={{ color: ATP_BRAND.lime, fontSize: 9 }}>✓ Guardado</EliteText>}
       </View>
       <TextInput
-        style={{ color: TEXT_COLORS.primary, fontSize: 12, lineHeight: 18, minHeight: 40 }}
+        style={{ color: t.texto, fontSize: 12, lineHeight: 18, minHeight: 40 }}
         value={text}
         onChangeText={handleChange}
         placeholder="El resumen aparecerá aquí después de interpretar..."
-        placeholderTextColor={TEXT_COLORS.muted}
+        placeholderTextColor={tenue(t)}
         multiline
       />
     </View>
@@ -3240,6 +3290,8 @@ function StudySummaryField({ studyId, initial, onSave }: { studyId: string; init
 }
 
 function StudyNotesField({ studyId, initial, onSave }: { studyId: string; initial: string; onSave: (id: string, v: string) => void }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [text, setText] = useState(initial);
   const [saved, setSaved] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3257,15 +3309,15 @@ function StudyNotesField({ studyId, initial, onSave }: { studyId: string; initia
   return (
     <View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-        <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10 }}>Notas del coach</EliteText>
+        <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 10 }}>Notas del coach</EliteText>
         {saved && <EliteText variant="caption" style={{ color: ATP_BRAND.lime, fontSize: 9 }}>✓ Guardado</EliteText>}
       </View>
       <TextInput
-        style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm, color: TEXT_COLORS.primary, fontSize: 12, minHeight: 40 }}
+        style={{ backgroundColor: t.flotante, borderRadius: 8, padding: Spacing.sm, color: t.texto, fontSize: 12, minHeight: 40 }}
         value={text}
         onChangeText={handleChange}
         placeholder="Notas privadas..."
-        placeholderTextColor={TEXT_COLORS.muted}
+        placeholderTextColor={tenue(t)}
         multiline
       />
     </View>
@@ -3273,6 +3325,8 @@ function StudyNotesField({ studyId, initial, onSave }: { studyId: string; initia
 }
 
 function StudiesTab({ clientId }: { clientId: string }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [studies, setStudies] = useState<ClinicalStudy[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -3350,9 +3404,9 @@ function StudiesTab({ clientId }: { clientId: string }) {
 
   const statusBadge = (status: string) => {
     const map: Record<string, { label: string; color: string }> = {
-      uploaded: { label: 'Pendiente', color: TEXT_COLORS.muted },
+      uploaded: { label: 'Pendiente', color: tenue(t) },
       processing: { label: 'Procesando...', color: SEMANTIC.warning },
-      interpreted: { label: 'Interpretado', color: SEMANTIC.info },
+      interpreted: { label: 'Interpretado', color: t.info },
       reviewed: { label: 'Revisado ✓', color: SEMANTIC.success },
     };
     const s = map[status] ?? map.uploaded;
@@ -3376,33 +3430,33 @@ function StudiesTab({ clientId }: { clientId: string }) {
 
       {/* Create modal */}
       {showCreate && (
-        <View style={{ backgroundColor: SURFACES.card, borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.md, borderWidth: 0.5, borderColor: SURFACES.border }}>
-          <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10, marginBottom: 4 }}>Tipo de estudio</EliteText>
+        <View style={{ backgroundColor: t.card, borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.md, borderWidth: 0.5, borderColor: t.borde }}>
+          <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 10, marginBottom: 4 }}>Tipo de estudio</EliteText>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.sm }}>
             <View style={{ flexDirection: 'row', gap: 6 }}>
               {STUDY_TYPES.map(st => (
                 <Pressable key={st.key} onPress={() => { setNewType(st.key); if (!newName) setNewName(st.label); }}
-                  style={{ backgroundColor: newType === st.key ? CATEGORY_COLORS.metrics + '20' : SURFACES.cardLight, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: newType === st.key ? 1 : 0, borderColor: CATEGORY_COLORS.metrics + '50' }}>
-                  <EliteText variant="caption" style={{ color: newType === st.key ? CATEGORY_COLORS.metrics : TEXT_COLORS.secondary, fontSize: 11 }}>{st.emoji} {st.label}</EliteText>
+                  style={{ backgroundColor: newType === st.key ? CATEGORY_COLORS.metrics + '20' : t.flotante, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: newType === st.key ? 1 : 0, borderColor: CATEGORY_COLORS.metrics + '50' }}>
+                  <EliteText variant="caption" style={{ color: newType === st.key ? CATEGORY_COLORS.metrics : t.textoSecundario, fontSize: 11 }}>{st.emoji} {st.label}</EliteText>
                 </Pressable>
               ))}
             </View>
           </ScrollView>
-          <TextInput style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm, color: TEXT_COLORS.primary, fontSize: 14, marginBottom: Spacing.sm }}
-            value={newName} onChangeText={setNewName} placeholder="Nombre del estudio" placeholderTextColor={TEXT_COLORS.muted} />
-          <TextInput style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm, color: TEXT_COLORS.primary, fontSize: 14, marginBottom: Spacing.sm }}
-            value={newDate} onChangeText={setNewDate} placeholder="Fecha (YYYY-MM-DD)" placeholderTextColor={TEXT_COLORS.muted} />
-          <TextInput style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm, color: TEXT_COLORS.primary, fontSize: 14, marginBottom: Spacing.sm }}
-            value={newPhysician} onChangeText={setNewPhysician} placeholder="Médico (opcional)" placeholderTextColor={TEXT_COLORS.muted} />
-          <TextInput style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm, color: TEXT_COLORS.primary, fontSize: 14, marginBottom: Spacing.sm }}
-            value={newLab} onChangeText={setNewLab} placeholder="Laboratorio/Clínica (opcional)" placeholderTextColor={TEXT_COLORS.muted} />
+          <TextInput style={{ backgroundColor: t.flotante, borderRadius: 8, padding: Spacing.sm, color: t.texto, fontSize: 14, marginBottom: Spacing.sm }}
+            value={newName} onChangeText={setNewName} placeholder="Nombre del estudio" placeholderTextColor={tenue(t)} />
+          <TextInput style={{ backgroundColor: t.flotante, borderRadius: 8, padding: Spacing.sm, color: t.texto, fontSize: 14, marginBottom: Spacing.sm }}
+            value={newDate} onChangeText={setNewDate} placeholder="Fecha (YYYY-MM-DD)" placeholderTextColor={tenue(t)} />
+          <TextInput style={{ backgroundColor: t.flotante, borderRadius: 8, padding: Spacing.sm, color: t.texto, fontSize: 14, marginBottom: Spacing.sm }}
+            value={newPhysician} onChangeText={setNewPhysician} placeholder="Médico (opcional)" placeholderTextColor={tenue(t)} />
+          <TextInput style={{ backgroundColor: t.flotante, borderRadius: 8, padding: Spacing.sm, color: t.texto, fontSize: 14, marginBottom: Spacing.sm }}
+            value={newLab} onChangeText={setNewLab} placeholder="Laboratorio/Clínica (opcional)" placeholderTextColor={tenue(t)} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.sm }}>
             <Pressable onPress={() => setShowCreate(false)}>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted }}>Cancelar</EliteText>
+              <EliteText variant="caption" style={{ color: tenue(t) }}>Cancelar</EliteText>
             </Pressable>
             <Pressable onPress={handleCreate} disabled={creating}
               style={{ backgroundColor: CATEGORY_COLORS.metrics, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: 8 }}>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold }}>
+              <EliteText variant="caption" style={{ color: t.textoSobreLima, fontFamily: Fonts.bold }}>
                 {creating ? 'Guardando...' : 'Guardar'}
               </EliteText>
             </Pressable>
@@ -3416,8 +3470,8 @@ function StudiesTab({ clientId }: { clientId: string }) {
       {/* Empty */}
       {!loading && studies.length === 0 && (
         <View style={{ alignItems: 'center', padding: Spacing.xl }}>
-          <Ionicons name="document-text-outline" size={40} color={TEXT_COLORS.muted} />
-          <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: Spacing.sm }}>Sin estudios clínicos</EliteText>
+          <Ionicons name="document-text-outline" size={40} color={tenue(t)} />
+          <EliteText variant="caption" style={{ color: tenue(t), marginTop: Spacing.sm }}>Sin estudios clínicos</EliteText>
         </View>
       )}
 
@@ -3429,20 +3483,20 @@ function StudiesTab({ clientId }: { clientId: string }) {
         const findings = (study.findings ?? []) as string[];
 
         return (
-          <View key={study.id} style={{ backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border, borderLeftWidth: 3, borderLeftColor: CATEGORY_COLORS.metrics, marginBottom: Spacing.sm, overflow: 'hidden' }}>
+          <View key={study.id} style={{ backgroundColor: t.card, borderRadius: 12, borderWidth: 0.5, borderColor: t.borde, borderLeftWidth: 3, borderLeftColor: CATEGORY_COLORS.metrics, marginBottom: Spacing.sm, overflow: 'hidden' }}>
             {/* Header */}
             <Pressable onPress={() => setExpandedId(isExpanded ? null : study.id)} style={{ padding: Spacing.md }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
                 <EliteText style={{ fontSize: 20 }}>{st.emoji}</EliteText>
                 <View style={{ flex: 1 }}>
-                  <EliteText variant="body" style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: 14 }}>{study.study_name}</EliteText>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 11 }}>
+                  <EliteText variant="body" style={{ color: t.texto, fontFamily: Fonts.semiBold, fontSize: 14 }}>{study.study_name}</EliteText>
+                  <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 11 }}>
                     {parseLocalDate(study.study_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                     {study.ordering_physician ? ` · Dr. ${study.ordering_physician}` : ''}
                   </EliteText>
                 </View>
                 {statusBadge(study.status)}
-                <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={TEXT_COLORS.muted} />
+                <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={tenue(t)} />
               </View>
 
               {/* Findings pills */}
@@ -3462,9 +3516,9 @@ function StudiesTab({ clientId }: { clientId: string }) {
               <View style={{ padding: Spacing.md, paddingTop: 0, gap: Spacing.md }}>
                 {/* Interpretación clínica */}
                 {study.original_interpretation ? (
-                  <View style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm }}>
+                  <View style={{ backgroundColor: t.flotante, borderRadius: 8, padding: Spacing.sm }}>
                     <EliteText variant="caption" style={{ color: CATEGORY_COLORS.metrics, fontSize: 10, fontFamily: Fonts.bold, marginBottom: 4 }}>INTERPRETACIÓN CLÍNICA</EliteText>
-                    <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 12, lineHeight: 18 }}>{study.original_interpretation}</EliteText>
+                    <EliteText variant="caption" style={{ color: t.texto, fontSize: 12, lineHeight: 18 }}>{study.original_interpretation}</EliteText>
                   </View>
                 ) : null}
 
@@ -3494,15 +3548,15 @@ function StudiesTab({ clientId }: { clientId: string }) {
                       </Pressable>
                       <Pressable onPress={() => handleInterpret(study.id)} disabled={isInterpreting}
                         style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6 }}>
-                        <Ionicons name="refresh-outline" size={14} color={TEXT_COLORS.secondary} />
-                        <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 11 }}>Reintepretar</EliteText>
+                        <Ionicons name="refresh-outline" size={14} color={t.textoSecundario} />
+                        <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 11 }}>Reintepretar</EliteText>
                       </Pressable>
                     </>
                   )}
                   <Pressable onPress={() => handleDelete(study.id)}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6 }}>
-                    <Ionicons name="trash-outline" size={14} color={SEMANTIC.error} />
-                    <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 11 }}>Eliminar</EliteText>
+                    <Ionicons name="trash-outline" size={14} color={t.error} />
+                    <EliteText variant="caption" style={{ color: t.error, fontSize: 11 }}>Eliminar</EliteText>
                   </Pressable>
                 </View>
               </View>
@@ -3519,6 +3573,8 @@ function StudiesTab({ clientId }: { clientId: string }) {
 // ══════════════════════════
 
 function CalendarTab({ schedule }: { schedule: ClientScheduleItem[] }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const weekly = schedule.filter(s => s.schedule_type === 'weekly_cycle');
   const specific = schedule.filter(s => s.schedule_type === 'specific_date');
 
@@ -3534,30 +3590,30 @@ function CalendarTab({ schedule }: { schedule: ClientScheduleItem[] }) {
   return (
     <View>
       {schedule.length === 0 ? (
-        <EliteText variant="caption" style={styles.emptyTab}>Sin rutinas programadas</EliteText>
+        <EliteText variant="caption" style={s.emptyTab}>Sin rutinas programadas</EliteText>
       ) : (
         <>
           {/* Grid semanal */}
           {weekly.length > 0 && (
             <>
-              <EliteText variant="caption" style={styles.sectionLabel}>CICLO SEMANAL</EliteText>
-              <View style={styles.calGrid}>
+              <EliteText variant="caption" style={s.sectionLabel}>CICLO SEMANAL</EliteText>
+              <View style={s.calGrid}>
                 {DAY_LABELS_SHORT.map((day, col) => (
-                  <View key={day} style={styles.calCol}>
-                    <EliteText variant="caption" style={styles.calDayLabel}>{day}</EliteText>
+                  <View key={day} style={s.calCol}>
+                    <EliteText variant="caption" style={s.calDayLabel}>{day}</EliteText>
                     {byCol[col].length > 0 ? (
-                      byCol[col].map(s => (
-                        <View key={s.id} style={[
-                          styles.calChip,
-                          { borderColor: s.assigned_by ? TEAL : SURFACES.border },
+                      byCol[col].map(item => (
+                        <View key={item.id} style={[
+                          s.calChip,
+                          { borderColor: item.assigned_by ? TEAL : t.borde },
                         ]}>
-                          <EliteText variant="caption" style={styles.calChipText} numberOfLines={2}>
-                            {s.routine_name}
+                          <EliteText variant="caption" style={s.calChipText} numberOfLines={2}>
+                            {item.routine_name}
                           </EliteText>
                         </View>
                       ))
                     ) : (
-                      <View style={styles.calEmpty} />
+                      <View style={s.calEmpty} />
                     )}
                   </View>
                 ))}
@@ -3568,14 +3624,14 @@ function CalendarTab({ schedule }: { schedule: ClientScheduleItem[] }) {
           {/* Fechas específicas */}
           {specific.length > 0 && (
             <>
-              <EliteText variant="caption" style={[styles.sectionLabel, { marginTop: Spacing.lg }]}>
+              <EliteText variant="caption" style={[s.sectionLabel, { marginTop: Spacing.lg }]}>
                 FECHAS ESPECÍFICAS
               </EliteText>
-              {specific.map(s => (
-                <View key={s.id} style={styles.scheduleRow}>
-                  <View style={[styles.dot, { backgroundColor: SEMANTIC.info }]} />
-                  <EliteText variant="caption" style={styles.scheduleDate}>{s.specific_date}</EliteText>
-                  <EliteText variant="body" style={styles.scheduleName}>{s.routine_name}</EliteText>
+              {specific.map(item => (
+                <View key={item.id} style={s.scheduleRow}>
+                  <View style={[s.dot, { backgroundColor: t.info }]} />
+                  <EliteText variant="caption" style={s.scheduleDate}>{item.specific_date}</EliteText>
+                  <EliteText variant="body" style={s.scheduleName}>{item.routine_name}</EliteText>
                 </View>
               ))}
             </>
@@ -3591,25 +3647,27 @@ function CalendarTab({ schedule }: { schedule: ClientScheduleItem[] }) {
 // ══════════════════════════
 
 function RoutinesTab({ routines, onAssign }: { routines: ClientRoutine[]; onAssign: () => void }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   return (
     <View>
       {/* Botón asignar */}
-      <Pressable onPress={onAssign} style={styles.assignBtn}>
+      <Pressable onPress={onAssign} style={s.assignBtn}>
         <Ionicons name="add-circle-outline" size={18} color={TEAL} />
-        <EliteText variant="body" style={styles.assignBtnText}>Asignar rutina</EliteText>
+        <EliteText variant="body" style={s.assignBtnText}>Asignar rutina</EliteText>
       </Pressable>
 
       {routines.length === 0 ? (
-        <EliteText variant="caption" style={styles.emptyTab}>El cliente no tiene rutinas</EliteText>
+        <EliteText variant="caption" style={s.emptyTab}>El cliente no tiene rutinas</EliteText>
       ) : (
         routines.map(r => (
-          <View key={r.id} style={styles.routineRow}>
-            <View style={[styles.dot, {
+          <View key={r.id} style={s.routineRow}>
+            <View style={[s.dot, {
               backgroundColor: r.mode === 'timer' ? Colors.neonGreen : CATEGORY_COLORS.mind,
             }]} />
             <View style={{ flex: 1 }}>
-              <EliteText variant="body" style={styles.routineRowName}>{r.name}</EliteText>
-              <EliteText variant="caption" style={styles.routineRowMeta}>
+              <EliteText variant="body" style={s.routineRowName}>{r.name}</EliteText>
+              <EliteText variant="caption" style={s.routineRowMeta}>
                 {r.mode === 'timer' ? 'Timer' : 'Rutina'}
                 {r.original_creator_id ? ' · Asignada por ti' : ''}
               </EliteText>
@@ -3629,6 +3687,8 @@ function RoutinesTab({ routines, onAssign }: { routines: ClientRoutine[]; onAssi
 // ══════════════════════════
 
 function ProgressTab({ prs }: { prs: ClientPR[] }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   // Agrupar por ejercicio
   const byExercise = new Map<string, ClientPR[]>();
   for (const pr of prs) {
@@ -3648,21 +3708,21 @@ function ProgressTab({ prs }: { prs: ClientPR[] }) {
   return (
     <View>
       {groups.length === 0 ? (
-        <EliteText variant="caption" style={styles.emptyTab}>Sin personal records</EliteText>
+        <EliteText variant="caption" style={s.emptyTab}>Sin personal records</EliteText>
       ) : (
         groups.map(g => (
-          <View key={g.exercise_id} style={styles.prGroup}>
-            <View style={styles.prGroupHeader}>
-              <EliteText variant="body" style={styles.prGroupName}>{g.exercise_name}</EliteText>
-              <EliteText variant="caption" style={styles.prGroupMuscle}>{g.muscle_group}</EliteText>
+          <View key={g.exercise_id} style={s.prGroup}>
+            <View style={s.prGroupHeader}>
+              <EliteText variant="body" style={s.prGroupName}>{g.exercise_name}</EliteText>
+              <EliteText variant="caption" style={s.prGroupMuscle}>{g.muscle_group}</EliteText>
             </View>
-            <View style={styles.prChips}>
+            <View style={s.prChips}>
               {g.records.map((pr, i) => (
-                <View key={i} style={styles.prChip}>
-                  <EliteText variant="caption" style={styles.prChipLabel}>
+                <View key={i} style={s.prChip}>
+                  <EliteText variant="caption" style={s.prChipLabel}>
                     {pr.rep_range === 1 ? '1RM' : `${pr.rep_range}RM`}
                   </EliteText>
-                  <EliteText variant="body" style={styles.prChipValue}>{pr.weight_kg}kg</EliteText>
+                  <EliteText variant="body" style={s.prChipValue}>{pr.weight_kg}kg</EliteText>
                 </View>
               ))}
             </View>
@@ -3678,23 +3738,25 @@ function ProgressTab({ prs }: { prs: ClientPR[] }) {
 // ══════════════════════════
 
 function HistoryTab({ history }: { history: ClientSession[] }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   return (
     <View>
       {history.length === 0 ? (
-        <EliteText variant="caption" style={styles.emptyTab}>Sin historial de sesiones</EliteText>
+        <EliteText variant="caption" style={s.emptyTab}>Sin historial de sesiones</EliteText>
       ) : (
-        history.map(s => (
-          <View key={s.date} style={styles.historyRow}>
-            <View style={styles.historyDot} />
+        history.map(h => (
+          <View key={h.date} style={s.historyRow}>
+            <View style={s.historyDot} />
             <View style={{ flex: 1 }}>
-              <EliteText variant="body" style={styles.historyTitle}>
-                {s.exercises} ejercicio{s.exercises !== 1 ? 's' : ''} · {s.sets} sets
+              <EliteText variant="body" style={s.historyTitle}>
+                {h.exercises} ejercicio{h.exercises !== 1 ? 's' : ''} · {h.sets} sets
               </EliteText>
-              <EliteText variant="caption" style={styles.historyMeta}>
-                {new Date(s.date + 'T12:00:00').toLocaleDateString('es-MX', {
+              <EliteText variant="caption" style={s.historyMeta}>
+                {new Date(h.date + 'T12:00:00').toLocaleDateString('es-MX', {
                   weekday: 'long', day: 'numeric', month: 'long',
                 })}
-                {s.volume_kg > 0 ? ` · ${s.volume_kg > 999 ? `${Math.round(s.volume_kg / 1000)}k` : `${s.volume_kg}kg`} vol` : ''}
+                {h.volume_kg > 0 ? ` · ${h.volume_kg > 999 ? `${Math.round(h.volume_kg / 1000)}k` : `${h.volume_kg}kg`} vol` : ''}
               </EliteText>
             </View>
           </View>
@@ -3711,11 +3773,13 @@ function HistoryTab({ history }: { history: ClientSession[] }) {
 function StatCard({ label, value, sub, color }: {
   label: string; value: string; sub: string; color: string;
 }) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   return (
-    <View style={styles.statCard}>
-      <EliteText variant="caption" style={styles.statLabel}>{label}</EliteText>
-      <EliteText style={[styles.statValue, { color }]}>{value}</EliteText>
-      <EliteText variant="caption" style={styles.statSub}>{sub}</EliteText>
+    <View style={s.statCard}>
+      <EliteText variant="caption" style={s.statLabel}>{label}</EliteText>
+      <EliteText style={[s.statValue, { color }]}>{value}</EliteText>
+      <EliteText variant="caption" style={s.statSub}>{sub}</EliteText>
     </View>
   );
 }
@@ -3724,8 +3788,8 @@ function StatCard({ label, value, sub, color }: {
 // ESTILOS
 // ══════════════════════════
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: ATP_BRAND.black },
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.fondo },
   content: { maxWidth: 1000, padding: Spacing.lg, alignSelf: 'center', width: '100%' },
 
   // Header
@@ -3737,7 +3801,7 @@ const styles = StyleSheet.create({
   avatarLgText: { color: TEAL, fontFamily: Fonts.bold, fontSize: 24 },
   headerInfo: { flex: 1 },
   headerName: { fontSize: 24, letterSpacing: 1 },
-  headerSince: { color: TEXT_COLORS.secondary, marginTop: 2 },
+  headerSince: { color: t.textoSecundario, marginTop: 2 },
   activeBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: Colors.neonGreen + '15', paddingHorizontal: Spacing.sm,
@@ -3749,16 +3813,16 @@ const styles = StyleSheet.create({
   // Stats
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: Spacing.lg },
   statCard: {
-    flex: 1, backgroundColor: SURFACES.cardLight, borderRadius: 12, padding: 16,
-    alignItems: 'center', borderWidth: 1, borderColor: SURFACES.border,
+    flex: 1, backgroundColor: t.flotante, borderRadius: 12, padding: 16,
+    alignItems: 'center', borderWidth: 1, borderColor: t.borde,
   },
-  statLabel: { color: TEXT_COLORS.secondary, fontSize: 10, letterSpacing: 1, fontFamily: Fonts.bold },
+  statLabel: { color: t.textoSecundario, fontSize: 10, letterSpacing: 1, fontFamily: Fonts.bold },
   statValue: { fontSize: 28, fontFamily: Fonts.extraBold, marginVertical: 4 },
-  statSub: { color: TEXT_COLORS.muted, fontSize: 10 },
+  statSub: { color: tenue(t), fontSize: 10 },
 
   // Tabs
   tabsRow: {
-    flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: SURFACES.border,
+    flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: t.borde,
     marginBottom: Spacing.md, gap: Spacing.xs,
   },
   tab: {
@@ -3767,31 +3831,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2, borderBottomColor: 'transparent',
   },
   tabActive: { borderBottomColor: TEAL },
-  tabLabel: { color: TEXT_COLORS.muted, fontFamily: Fonts.bold, fontSize: 12, letterSpacing: 1 },
+  tabLabel: { color: tenue(t), fontFamily: Fonts.bold, fontSize: 12, letterSpacing: 1 },
   tabContent: { minHeight: 300 },
 
   // Shared
-  sectionLabel: { color: TEXT_COLORS.secondary, letterSpacing: 2, fontSize: 10, fontFamily: Fonts.bold, marginBottom: Spacing.sm },
-  emptyTab: { color: TEXT_COLORS.muted, textAlign: 'center', padding: Spacing.xl },
+  sectionLabel: { color: t.textoSecundario, letterSpacing: 2, fontSize: 10, fontFamily: Fonts.bold, marginBottom: Spacing.sm },
+  emptyTab: { color: tenue(t), textAlign: 'center', padding: Spacing.xl },
   dot: { width: 8, height: 8, borderRadius: 4 },
 
   // Calendar grid
   calGrid: { flexDirection: 'row', gap: Spacing.xs },
   calCol: { flex: 1, alignItems: 'center', gap: Spacing.xs },
-  calDayLabel: { color: TEXT_COLORS.secondary, fontSize: 11, fontFamily: Fonts.bold, marginBottom: Spacing.xs },
+  calDayLabel: { color: t.textoSecundario, fontSize: 11, fontFamily: Fonts.bold, marginBottom: Spacing.xs },
   calChip: {
-    width: '100%', backgroundColor: SURFACES.cardLight, borderRadius: Radius.sm,
-    padding: Spacing.xs, borderWidth: 1, borderColor: SURFACES.border,
+    width: '100%', backgroundColor: t.flotante, borderRadius: Radius.sm,
+    padding: Spacing.xs, borderWidth: 1, borderColor: t.borde,
   },
-  calChipText: { color: TEXT_COLORS.primary, fontSize: 10, textAlign: 'center' },
-  calEmpty: { width: '100%', height: 30, backgroundColor: SURFACES.base, borderRadius: Radius.sm },
+  calChipText: { color: t.texto, fontSize: 10, textAlign: 'center' },
+  calEmpty: { width: '100%', height: 30, backgroundColor: t.hundido, borderRadius: Radius.sm },
 
   // Schedule rows
   scheduleRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: SURFACES.card,
+    paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: t.card,
   },
-  scheduleDate: { color: TEXT_COLORS.secondary, fontSize: 12, width: 90 },
+  scheduleDate: { color: t.textoSecundario, fontSize: 12, width: 90 },
   scheduleName: { flex: 1, fontSize: 14 },
 
   // Routines
@@ -3803,46 +3867,46 @@ const styles = StyleSheet.create({
   assignBtnText: { color: TEAL, fontFamily: Fonts.semiBold },
   routineRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingVertical: Spacing.sm + 2, borderBottomWidth: 1, borderBottomColor: SURFACES.card,
+    paddingVertical: Spacing.sm + 2, borderBottomWidth: 1, borderBottomColor: t.card,
   },
   routineRowName: { fontFamily: Fonts.semiBold, fontSize: 14 },
-  routineRowMeta: { color: TEXT_COLORS.secondary, fontSize: 11 },
+  routineRowMeta: { color: t.textoSecundario, fontSize: 11 },
 
   // PRs
   prGroup: {
-    backgroundColor: SURFACES.cardLight, borderRadius: 12, padding: Spacing.md,
-    marginBottom: Spacing.sm, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: t.flotante, borderRadius: 12, padding: Spacing.md,
+    marginBottom: Spacing.sm, borderWidth: 1, borderColor: t.borde,
   },
   prGroupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
   prGroupName: { fontFamily: Fonts.bold, fontSize: 15 },
-  prGroupMuscle: { color: TEXT_COLORS.secondary, fontSize: 11, textTransform: 'capitalize' },
+  prGroupMuscle: { color: t.textoSecundario, fontSize: 11, textTransform: 'capitalize' },
   prChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   prChip: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.sm, paddingHorizontal: Spacing.sm,
+    backgroundColor: t.card, borderRadius: Radius.sm, paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs, alignItems: 'center', minWidth: 60,
   },
-  prChipLabel: { color: TEXT_COLORS.muted, fontSize: 10, fontFamily: Fonts.bold },
+  prChipLabel: { color: tenue(t), fontSize: 10, fontFamily: Fonts.bold },
   prChipValue: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: 14, fontVariant: ['tabular-nums'] },
 
   // History
   historyRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    paddingVertical: Spacing.sm + 2, borderBottomWidth: 1, borderBottomColor: SURFACES.card,
+    paddingVertical: Spacing.sm + 2, borderBottomWidth: 1, borderBottomColor: t.card,
   },
   historyDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: TEAL },
   historyTitle: { fontFamily: Fonts.semiBold, fontSize: 14 },
-  historyMeta: { color: TEXT_COLORS.secondary, fontSize: 12, marginTop: 2 },
+  historyMeta: { color: t.textoSecundario, fontSize: 12, marginTop: 2 },
 
   // Profile tab
   profileCard: {
-    backgroundColor: SURFACES.cardLight,
+    backgroundColor: t.flotante,
     borderRadius: 12,
     padding: Spacing.md,
     borderWidth: 1,
-    borderColor: SURFACES.border,
+    borderColor: t.borde,
   },
   profileCardLabel: {
-    color: TEXT_COLORS.secondary,
+    color: t.textoSecundario,
     letterSpacing: 2,
     fontSize: 10,
     fontFamily: Fonts.bold,
@@ -3854,25 +3918,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.xs + 2,
     borderBottomWidth: 1,
-    borderBottomColor: SURFACES.card,
+    borderBottomColor: t.card,
   },
-  profileRowLabel: { color: TEXT_COLORS.muted, fontSize: 12 },
-  profileRowValue: { color: TEXT_COLORS.primary, fontSize: 14, fontFamily: Fonts.semiBold },
+  profileRowLabel: { color: tenue(t), fontSize: 12 },
+  profileRowValue: { color: t.texto, fontSize: 14, fontFamily: Fonts.semiBold },
   profilePlaceholderRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
   },
   profilePlaceholderItem: {
     flex: 1,
-    backgroundColor: SURFACES.card,
+    backgroundColor: t.card,
     borderRadius: Radius.sm,
     padding: Spacing.sm,
     alignItems: 'center',
   },
-  profilePlaceholderLabel: { color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 4 },
-  profilePlaceholderValue: { color: SEMANTIC.noData, fontSize: 18, fontFamily: Fonts.bold },
+  profilePlaceholderLabel: { color: tenue(t), fontSize: 10, marginBottom: 4 },
+  profilePlaceholderValue: { color: t.sinDatos, fontSize: 18, fontFamily: Fonts.bold },
   profileComingSoon: {
-    color: SEMANTIC.noData,
+    color: t.sinDatos,
     fontSize: 11,
     fontStyle: 'italic',
     textAlign: 'center',
@@ -3889,13 +3953,13 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   upcomingPill: {
-    backgroundColor: SURFACES.border,
+    backgroundColor: t.borde,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: Radius.pill,
   },
   upcomingPillText: {
-    color: TEXT_COLORS.muted,
+    color: tenue(t),
     fontSize: 11,
     fontFamily: Fonts.semiBold,
   },
@@ -3923,19 +3987,19 @@ const styles = StyleSheet.create({
 
   // Oncologic note
   oncoNoteBox: {
-    marginTop: Spacing.sm, backgroundColor: SURFACES.cardLight, borderRadius: 8,
+    marginTop: Spacing.sm, backgroundColor: t.flotante, borderRadius: 8,
     padding: Spacing.sm, borderWidth: 1, borderColor: CATEGORY_COLORS.mind + '30',
   },
   oncoNoteLabel: { color: CATEGORY_COLORS.mind, fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 4 },
-  oncoNoteHint: { color: TEXT_COLORS.muted, fontSize: 11, fontStyle: 'italic' },
+  oncoNoteHint: { color: tenue(t), fontSize: 11, fontStyle: 'italic' },
 
   // Scores
   scoresGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   scoreCard: {
-    flex: 1, minWidth: '45%', backgroundColor: SURFACES.card, borderRadius: 10,
+    flex: 1, minWidth: '45%', backgroundColor: t.card, borderRadius: 10,
     padding: Spacing.sm, alignItems: 'center',
   },
-  scoreLabel: { color: TEXT_COLORS.secondary, fontSize: 9, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 4, textAlign: 'center' },
+  scoreLabel: { color: t.textoSecundario, fontSize: 9, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 4, textAlign: 'center' },
   scoreValue: { fontSize: 28, fontFamily: Fonts.extraBold },
 
   // Grid layouts
@@ -3947,7 +4011,7 @@ const styles = StyleSheet.create({
   bioGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   bioItem: { width: '45%', minWidth: 80 },
   bioFieldWide: { width: '45%', minWidth: 80 },
-  bioLabel: { color: TEXT_COLORS.secondary, fontSize: 9, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 2 },
+  bioLabel: { color: t.textoSecundario, fontSize: 9, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 2 },
   bioInput: {
     fontFamily: Fonts.extraBold, fontSize: 22, paddingVertical: 2, minWidth: 40,
     fontVariant: ['tabular-nums'],
@@ -3957,25 +4021,25 @@ const styles = StyleSheet.create({
   lockBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.pill,
-    borderWidth: 1, borderColor: SURFACES.disabled,
+    borderWidth: 1, borderColor: t.bordeMarcado,
   },
   sexPill: {
     paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 1, borderRadius: Radius.pill,
-    borderWidth: 1, borderColor: SURFACES.disabled,
+    borderWidth: 1, borderColor: t.bordeMarcado,
   },
   sexPillActive: { borderColor: TEAL, backgroundColor: TEAL + '15' },
-  sexPillText: { color: TEXT_COLORS.muted, fontSize: 12 },
+  sexPillText: { color: tenue(t), fontSize: 12 },
 
   // Weight context
   weightCtxRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  weightCtxLabel: { color: TEXT_COLORS.secondary, fontSize: 11, fontFamily: Fonts.bold, width: 55 },
+  weightCtxLabel: { color: t.textoSecundario, fontSize: 11, fontFamily: Fonts.bold, width: 55 },
   weightCtxInput: {
-    backgroundColor: SURFACES.cardLight, borderRadius: 6, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs,
-    color: TEXT_COLORS.primary, fontSize: 13, borderWidth: 0.5, borderColor: '#2a2a2a',
+    backgroundColor: t.flotante, borderRadius: 6, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs,
+    color: t.texto, fontSize: 13, borderWidth: 0.5, borderColor: t.borde,
   },
   weightBar: { marginTop: Spacing.sm, paddingHorizontal: 4 },
   weightBarTrack: {
-    height: 3, backgroundColor: SURFACES.border, borderRadius: 2, position: 'relative', marginVertical: Spacing.sm,
+    height: 3, backgroundColor: t.borde, borderRadius: 2, position: 'relative', marginVertical: Spacing.sm,
   },
   weightBarPoint: {
     position: 'absolute', width: 10, height: 10, borderRadius: 5, top: -3.5,
@@ -3992,52 +4056,52 @@ const styles = StyleSheet.create({
   // DOB
   dobRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: Spacing.xs + 2, borderBottomWidth: 1, borderBottomColor: SURFACES.card,
+    paddingVertical: Spacing.xs + 2, borderBottomWidth: 1, borderBottomColor: t.card,
   },
   dobInput: {
-    backgroundColor: SURFACES.cardLight, borderRadius: 6, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs,
-    color: TEXT_COLORS.primary, fontSize: 13, fontFamily: Fonts.semiBold, borderWidth: 0.5, borderColor: '#2a2a2a',
+    backgroundColor: t.flotante, borderRadius: 6, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs,
+    color: t.texto, fontSize: 13, fontFamily: Fonts.semiBold, borderWidth: 0.5, borderColor: t.borde,
     minWidth: 110, textAlign: 'center',
   },
   dobAge: { color: TEAL, fontFamily: Fonts.bold, fontSize: 12 },
 
   // Editable fields
   editableInput: {
-    backgroundColor: SURFACES.cardLight, borderRadius: 6, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 2,
-    color: TEXT_COLORS.primary, fontSize: 13, borderWidth: 0.5, borderColor: '#2a2a2a',
+    backgroundColor: t.flotante, borderRadius: 6, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 2,
+    color: t.texto, fontSize: 13, borderWidth: 0.5, borderColor: t.borde,
   },
   condGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   condGridItem: { width: '32%', flexGrow: 1 },
   rowLabel: {
-    color: TEXT_COLORS.muted, letterSpacing: 3, fontSize: 10, fontFamily: Fonts.bold, marginBottom: Spacing.sm,
+    color: tenue(t), letterSpacing: 3, fontSize: 10, fontFamily: Fonts.bold, marginBottom: Spacing.sm,
   },
 
   // Zone card (compact)
   zoneCard: {
-    backgroundColor: SURFACES.card, borderRadius: 12, padding: 12,
-    borderWidth: 0.5, borderColor: SURFACES.border, borderLeftWidth: 3,
+    backgroundColor: t.card, borderRadius: 12, padding: 12,
+    borderWidth: 0.5, borderColor: t.borde, borderLeftWidth: 3,
   },
   condPillSm: {
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, borderWidth: 1,
   },
 
   // Section
-  sectionTitle: { flex: 1, fontFamily: Fonts.bold, fontSize: 14, color: TEXT_COLORS.primary },
-  emptySection: { color: TEXT_COLORS.muted, textAlign: 'center', paddingVertical: Spacing.md },
+  sectionTitle: { flex: 1, fontFamily: Fonts.bold, fontSize: 14, color: t.texto },
+  emptySection: { color: tenue(t), textAlign: 'center', paddingVertical: Spacing.md },
 
   // Measurement grid
   measGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  measItem: { width: '22%', minWidth: 70, backgroundColor: SURFACES.card, borderRadius: 8, padding: Spacing.sm, alignItems: 'center' },
-  measLabel: { color: TEXT_COLORS.muted, fontSize: 9, marginBottom: 2 },
-  measValue: { color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: 16, fontVariant: ['tabular-nums'] },
+  measItem: { width: '22%', minWidth: 70, backgroundColor: t.card, borderRadius: 8, padding: Spacing.sm, alignItems: 'center' },
+  measLabel: { color: tenue(t), fontSize: 9, marginBottom: 2 },
+  measValue: { color: t.texto, fontFamily: Fonts.bold, fontSize: 16, fontVariant: ['tabular-nums'] },
 
   // List items (meds, supps, family)
   listItem: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingVertical: Spacing.xs + 2, borderBottomWidth: 1, borderBottomColor: SURFACES.card,
+    paddingVertical: Spacing.xs + 2, borderBottomWidth: 1, borderBottomColor: t.card,
   },
   listItemName: { fontFamily: Fonts.semiBold, fontSize: 13 },
-  listItemMeta: { color: TEXT_COLORS.secondary, fontSize: 11 },
+  listItemMeta: { color: t.textoSecundario, fontSize: 11 },
   activePill: {
     paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill,
     backgroundColor: 'rgba(168,224,42,0.1)', borderWidth: 1, borderColor: 'rgba(168,224,42,0.3)',
@@ -4058,21 +4122,21 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg,
   },
   modalContent: {
-    backgroundColor: SURFACES.card, borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 420, maxHeight: '70%',
-    borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: t.card, borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 420, maxHeight: '70%',
+    borderWidth: 1, borderColor: t.borde,
   },
   modalTitle: { color: TEAL, letterSpacing: 3, fontSize: 13, marginBottom: Spacing.md },
   modalField: { marginBottom: Spacing.sm },
-  modalFieldLabel: { color: TEXT_COLORS.secondary, fontSize: 11, marginBottom: 4, textTransform: 'capitalize' },
+  modalFieldLabel: { color: t.textoSecundario, fontSize: 11, marginBottom: 4, textTransform: 'capitalize' },
   modalInput: {
-    backgroundColor: SURFACES.cardLight, borderRadius: 8, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm,
-    color: TEXT_COLORS.primary, fontSize: 14, borderWidth: 0.5, borderColor: '#2a2a2a',
+    backgroundColor: t.flotante, borderRadius: 8, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm,
+    color: t.texto, fontSize: 14, borderWidth: 0.5, borderColor: t.borde,
   },
   modalPill: {
     paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 1, borderRadius: Radius.pill,
-    borderWidth: 1, borderColor: SURFACES.disabled,
+    borderWidth: 1, borderColor: t.bordeMarcado,
   },
-  modalPillText: { color: TEXT_COLORS.secondary, fontSize: 12 },
+  modalPillText: { color: t.textoSecundario, fontSize: 12 },
   modalActions: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.md,
   },
@@ -4090,15 +4154,15 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg,
   },
   aiModal: {
-    backgroundColor: SURFACES.card, borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 600, maxHeight: '80%',
+    backgroundColor: t.card, borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 600, maxHeight: '80%',
     borderWidth: 1, borderColor: Colors.neonGreen + '20',
   },
   aiHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm,
   },
   aiInput: {
-    backgroundColor: SURFACES.cardLight, borderRadius: 8, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm,
-    color: TEXT_COLORS.primary, fontSize: 14, borderWidth: 0.5, borderColor: '#2a2a2a', marginBottom: Spacing.sm,
+    backgroundColor: t.flotante, borderRadius: 8, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm,
+    color: t.texto, fontSize: 14, borderWidth: 0.5, borderColor: t.borde, marginBottom: Spacing.sm,
   },
   aiGenerateBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
@@ -4107,10 +4171,10 @@ const styles = StyleSheet.create({
   aiGenerateBtnText: { color: ATP_BRAND.black, fontFamily: Fonts.bold, fontSize: 13, letterSpacing: 1 },
   aiLoadingBox: { alignItems: 'center', paddingVertical: Spacing.xl },
   aiResultScroll: { maxHeight: 400, marginVertical: Spacing.sm },
-  aiResultText: { color: TEXT_COLORS.primary, fontSize: 13, lineHeight: 22 },
+  aiResultText: { color: t.texto, fontSize: 13, lineHeight: 22 },
   aiActions: {
     flexDirection: 'row', justifyContent: 'space-between', paddingTop: Spacing.sm,
-    borderTopWidth: 1, borderTopColor: SURFACES.cardLight,
+    borderTopWidth: 1, borderTopColor: t.flotante,
   },
   aiActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: Spacing.xs },
 
@@ -4122,8 +4186,8 @@ const styles = StyleSheet.create({
   },
   newConsultBtnText: { color: Colors.neonGreen, fontFamily: Fonts.bold },
   consultCard: {
-    backgroundColor: SURFACES.card, borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.sm,
-    borderWidth: 0.5, borderColor: SURFACES.border,
+    backgroundColor: t.card, borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.sm,
+    borderWidth: 0.5, borderColor: t.borde,
   },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill },
   completeBtn: {
@@ -4139,20 +4203,20 @@ const styles = StyleSheet.create({
   // Timed goals
   goalRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingVertical: Spacing.xs + 1, borderBottomWidth: 1, borderBottomColor: SURFACES.card,
+    paddingVertical: Spacing.xs + 1, borderBottomWidth: 1, borderBottomColor: t.card,
   },
   goalWeeksBadge: {
     backgroundColor: Colors.neonGreen + '15', paddingHorizontal: 8, paddingVertical: 3,
     borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.neonGreen + '30', minWidth: 55, alignItems: 'center',
   },
   goalWeeksText: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: 11 },
-  goalTarget: { flex: 1, fontSize: 13, color: TEXT_COLORS.primary },
+  goalTarget: { flex: 1, fontSize: 13, color: t.texto },
   goalAddRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs,
   },
   goalInput: {
-    backgroundColor: SURFACES.cardLight, borderRadius: 6, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 2,
-    color: TEXT_COLORS.primary, fontSize: 13, borderWidth: 0.5, borderColor: '#2a2a2a',
+    backgroundColor: t.flotante, borderRadius: 6, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 2,
+    color: t.texto, fontSize: 13, borderWidth: 0.5, borderColor: t.borde,
   },
   goalAddBtn: {
     width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: Colors.neonGreen + '40',
@@ -4161,6 +4225,6 @@ const styles = StyleSheet.create({
 
   deleteDraftBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
-    paddingVertical: Spacing.sm, borderWidth: 1, borderColor: SEMANTIC.error + '30', borderRadius: Radius.pill,
+    paddingVertical: Spacing.sm, borderWidth: 1, borderColor: t.error + '30', borderRadius: Radius.pill,
   },
 });

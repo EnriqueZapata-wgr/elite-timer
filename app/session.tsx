@@ -663,7 +663,7 @@ export default function SessionScreen() {
           {cardioHoy.length > 0 && (
             <Animated.View entering={FadeInDown.delay(60).duration(300)} style={[s.sectionCard, { backgroundColor: tk.card, borderColor: tk.borde }]}>
               <View style={s.sectionHeader}>
-                <Ionicons name="pulse" size={16} color={SEMANTIC.info} />
+                <Ionicons name="pulse" size={16} color={tk.info} />
                 <Text style={[s.sectionTitle, { color: tk.texto }]}>CARDIO DE HOY · TAMBIÉN CUENTA</Text>
               </View>
               {cardioHoy.map((c, i) => (

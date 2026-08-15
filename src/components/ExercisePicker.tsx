@@ -4,7 +4,7 @@
  * Incluye búsqueda por nombre, filtros por grupo muscular,
  * y opción de crear ejercicio custom.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Modal, StyleSheet, Pressable, FlatList,
   TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
@@ -12,7 +12,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { getExercises, createExercise } from '@/src/services/exercise-service';
 import {
   MUSCLE_GROUPS,
@@ -45,6 +47,8 @@ interface ExercisePickerProps {
 // === COMPONENTE PRINCIPAL ===
 
 export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerProps) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -106,40 +110,42 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
       onRequestClose={handleClose}
     >
       <KeyboardAvoidingView
-        style={styles.overlay}
+        style={s.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.container}>
+        <View style={s.container}>
           {/* Header */}
-          <View style={styles.header}>
-            <EliteText variant="label" style={styles.title}>SELECCIONAR EJERCICIO</EliteText>
+          <View style={s.header}>
+            <EliteText variant="label" style={s.title}>SELECCIONAR EJERCICIO</EliteText>
             <Pressable onPress={handleClose} hitSlop={8}>
-              <Ionicons name="close" size={24} color={Colors.textSecondary} />
+              <Ionicons name="close" size={24} color={t.textoSecundario} />
             </Pressable>
           </View>
 
           {showCreate ? (
             <CreateExerciseForm
+              t={t}
+              s={s}
               onCancel={() => setShowCreate(false)}
               onCreate={handleCreate}
             />
           ) : (
             <>
               {/* Búsqueda */}
-              <View style={styles.searchRow}>
-                <Ionicons name="search" size={18} color={Colors.textSecondary} />
+              <View style={s.searchRow}>
+                <Ionicons name="search" size={18} color={t.textoSecundario} />
                 <TextInput
-                  style={styles.searchInput}
+                  style={s.searchInput}
                   value={search}
                   onChangeText={setSearch}
                   placeholder="Buscar ejercicio..."
-                  placeholderTextColor={Colors.textSecondary}
+                  placeholderTextColor={t.textoSecundario}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
                 {search.length > 0 && (
                   <Pressable onPress={() => setSearch('')} hitSlop={8}>
-                    <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
+                    <Ionicons name="close-circle" size={18} color={t.textoSecundario} />
                   </Pressable>
                 )}
               </View>
@@ -150,25 +156,25 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
                 showsHorizontalScrollIndicator={false}
                 data={[null, ...MUSCLE_GROUPS]}
                 keyExtractor={(item) => item ?? 'all'}
-                style={styles.filterList}
-                contentContainerStyle={styles.filterContent}
+                style={s.filterList}
+                contentContainerStyle={s.filterContent}
                 renderItem={({ item }) => {
                   const isSelected = selectedGroup === item;
                   const label = item ? MUSCLE_GROUP_LABELS[item] : 'Todos';
-                  const color = item ? MUSCLE_GROUP_COLORS[item] : Colors.neonGreen;
+                  const color = item ? MUSCLE_GROUP_COLORS[item] : ATP_BRAND.lime;
 
                   return (
                     <Pressable
                       onPress={() => setSelectedGroup(item)}
                       style={[
-                        styles.filterPill,
+                        s.filterPill,
                         isSelected && { borderColor: color, backgroundColor: color + '20' },
                       ]}
                     >
                       <EliteText
                         variant="caption"
                         style={[
-                          styles.filterText,
+                          s.filterText,
                           isSelected && { color },
                         ]}
                       >
@@ -181,18 +187,18 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
 
               {/* Lista de ejercicios */}
               {loading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator color={Colors.neonGreen} size="large" />
+                <View style={s.loadingContainer}>
+                  <ActivityIndicator color={ATP_BRAND.lime} size="large" />
                 </View>
               ) : (
                 <FlatList
                   data={exercises}
                   keyExtractor={(item) => item.id}
-                  style={styles.exerciseList}
+                  style={s.exerciseList}
                   showsVerticalScrollIndicator={false}
                   ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                      <EliteText variant="body" style={styles.emptyText}>
+                    <View style={s.emptyContainer}>
+                      <EliteText variant="body" style={s.emptyText}>
                         No se encontraron ejercicios
                       </EliteText>
                     </View>
@@ -200,10 +206,10 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
                   ListFooterComponent={
                     <Pressable
                       onPress={() => setShowCreate(true)}
-                      style={styles.createButton}
+                      style={s.createButton}
                     >
-                      <Ionicons name="add-circle-outline" size={20} color={Colors.neonGreen} />
-                      <EliteText variant="body" style={styles.createText}>
+                      <Ionicons name="add-circle-outline" size={20} color={ATP_BRAND.lime} />
+                      <EliteText variant="body" style={s.createText}>
                         Crear ejercicio custom
                       </EliteText>
                     </Pressable>
@@ -212,36 +218,36 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
                     <Pressable
                       onPress={() => handleSelect(item)}
                       style={({ pressed }) => [
-                        styles.exerciseRow,
-                        pressed && { backgroundColor: Colors.surfaceLight },
+                        s.exerciseRow,
+                        pressed && { backgroundColor: t.flotante },
                       ]}
                     >
-                      <View style={styles.exerciseInfo}>
-                        <EliteText variant="body" style={styles.exerciseName} numberOfLines={1}>
+                      <View style={s.exerciseInfo}>
+                        <EliteText variant="body" style={s.exerciseName} numberOfLines={1}>
                           {item.name}
                         </EliteText>
-                        <View style={styles.badges}>
+                        <View style={s.badges}>
                           {/* Badge de grupo muscular */}
                           <View style={[
-                            styles.badge,
-                            { backgroundColor: (MUSCLE_GROUP_COLORS[item.muscle_group] ?? '#888') + '25' },
+                            s.badge,
+                            { backgroundColor: (MUSCLE_GROUP_COLORS[item.muscle_group] ?? t.sinDatos) + '25' },
                           ]}>
                             <EliteText variant="caption" style={[
-                              styles.badgeText,
-                              { color: MUSCLE_GROUP_COLORS[item.muscle_group] ?? '#888' },
+                              s.badgeText,
+                              { color: MUSCLE_GROUP_COLORS[item.muscle_group] ?? t.sinDatos },
                             ]}>
                               {MUSCLE_GROUP_LABELS[item.muscle_group] ?? item.muscle_group}
                             </EliteText>
                           </View>
                           {/* Badge de equipment */}
-                          <View style={styles.equipmentBadge}>
-                            <EliteText variant="caption" style={styles.equipmentText}>
+                          <View style={s.equipmentBadge}>
+                            <EliteText variant="caption" style={s.equipmentText}>
                               {EQUIPMENT_LABELS[item.equipment] ?? item.equipment}
                             </EliteText>
                           </View>
                         </View>
                       </View>
-                      <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+                      <Ionicons name="chevron-forward" size={16} color={t.textoSecundario} />
                     </Pressable>
                   )}
                 />
@@ -261,9 +267,13 @@ const EQUIPMENT_OPTIONS = [
 ];
 
 function CreateExerciseForm({
+  t,
+  s,
   onCancel,
   onCreate,
 }: {
+  t: AppThemeTokens;
+  s: ReturnType<typeof makeStyles>;
   onCancel: () => void;
   onCreate: (name: string, muscleGroup: string, equipment: string) => void;
 }) {
@@ -280,29 +290,29 @@ function CreateExerciseForm({
   };
 
   return (
-    <View style={styles.createForm}>
-      <EliteText variant="label" style={styles.createFormTitle}>NUEVO EJERCICIO</EliteText>
+    <View style={s.createForm}>
+      <EliteText variant="label" style={s.createFormTitle}>NUEVO EJERCICIO</EliteText>
 
       {/* Nombre */}
       <TextInput
-        style={styles.createInput}
+        style={s.createInput}
         value={name}
         onChangeText={setName}
         placeholder="Nombre del ejercicio"
-        placeholderTextColor={Colors.textSecondary}
+        placeholderTextColor={t.textoSecundario}
         autoFocus
         maxLength={60}
       />
 
       {/* Grupo muscular */}
-      <EliteText variant="caption" style={styles.createLabel}>Grupo muscular</EliteText>
-      <View style={styles.createOptions}>
+      <EliteText variant="caption" style={s.createLabel}>Grupo muscular</EliteText>
+      <View style={s.createOptions}>
         {MUSCLE_GROUPS.map(g => (
           <Pressable
             key={g}
             onPress={() => setMuscleGroup(g)}
             style={[
-              styles.createOption,
+              s.createOption,
               muscleGroup === g && {
                 borderColor: MUSCLE_GROUP_COLORS[g],
                 backgroundColor: MUSCLE_GROUP_COLORS[g] + '20',
@@ -312,7 +322,7 @@ function CreateExerciseForm({
             <EliteText
               variant="caption"
               style={[
-                styles.createOptionText,
+                s.createOptionText,
                 muscleGroup === g && { color: MUSCLE_GROUP_COLORS[g] },
               ]}
             >
@@ -323,25 +333,25 @@ function CreateExerciseForm({
       </View>
 
       {/* Equipment */}
-      <EliteText variant="caption" style={styles.createLabel}>Equipamiento</EliteText>
-      <View style={styles.createOptions}>
+      <EliteText variant="caption" style={s.createLabel}>Equipamiento</EliteText>
+      <View style={s.createOptions}>
         {EQUIPMENT_OPTIONS.map(e => (
           <Pressable
             key={e}
             onPress={() => setEquipment(e)}
             style={[
-              styles.createOption,
+              s.createOption,
               equipment === e && {
-                borderColor: Colors.neonGreen,
-                backgroundColor: Colors.neonGreen + '20',
+                borderColor: ATP_BRAND.lime,
+                backgroundColor: ATP_BRAND.lime + '20',
               },
             ]}
           >
             <EliteText
               variant="caption"
               style={[
-                styles.createOptionText,
-                equipment === e && { color: Colors.neonGreen },
+                s.createOptionText,
+                equipment === e && { color: ATP_BRAND.lime },
               ]}
             >
               {EQUIPMENT_LABELS[e]}
@@ -351,7 +361,7 @@ function CreateExerciseForm({
       </View>
 
       {/* Botones */}
-      <View style={styles.createButtons}>
+      <View style={s.createButtons}>
         <EliteButton label="Cancelar" variant="ghost" onPress={onCancel} />
         <EliteButton label="Crear" onPress={handleSubmit} />
       </View>
@@ -361,14 +371,14 @@ function CreateExerciseForm({
 
 // === ESTILOS ===
 
-const styles = StyleSheet.create({
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: t.kind === 'dark' ? 'rgba(0,0,0,0.8)' : 'rgba(15,21,24,0.4)',
     justifyContent: 'flex-end',
   },
   container: {
-    backgroundColor: Colors.surface,
+    backgroundColor: t.card,
     borderTopLeftRadius: Radius.md,
     borderTopRightRadius: Radius.md,
     maxHeight: '85%',
@@ -380,10 +390,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.surfaceLight,
+    borderBottomColor: t.flotante,
   },
   title: {
-    color: Colors.neonGreen,
+    color: ATP_BRAND.lime,
     letterSpacing: 2,
   },
 
@@ -391,7 +401,7 @@ const styles = StyleSheet.create({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.black,
+    backgroundColor: t.fondo,
     marginHorizontal: Spacing.md,
     marginTop: Spacing.sm,
     paddingHorizontal: Spacing.sm,
@@ -402,7 +412,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
-    color: Colors.textPrimary,
+    color: t.texto,
     paddingVertical: Spacing.sm,
   },
 
@@ -420,10 +430,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.surfaceLight,
+    borderColor: t.flotante,
   },
   filterText: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     fontFamily: Fonts.semiBold,
     fontSize: 11,
   },
@@ -438,7 +448,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.surfaceLight,
+    borderBottomColor: t.flotante,
   },
   exerciseInfo: {
     flex: 1,
@@ -465,11 +475,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xs + 2,
     paddingVertical: 2,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.surfaceLight,
+    backgroundColor: t.flotante,
   },
   equipmentText: {
     fontSize: 10,
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     fontFamily: Fonts.semiBold,
   },
 
@@ -479,7 +489,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
   },
   loadingContainer: {
     paddingVertical: Spacing.xxl,
@@ -495,10 +505,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     marginTop: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: Colors.surfaceLight,
+    borderTopColor: t.flotante,
   },
   createText: {
-    color: Colors.neonGreen,
+    color: ATP_BRAND.lime,
     fontFamily: Fonts.semiBold,
   },
 
@@ -508,21 +518,21 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   createFormTitle: {
-    color: Colors.neonGreen,
+    color: ATP_BRAND.lime,
     letterSpacing: 2,
     marginBottom: Spacing.xs,
   },
   createInput: {
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.md,
-    color: Colors.textPrimary,
-    backgroundColor: Colors.black,
+    color: t.texto,
+    backgroundColor: t.fondo,
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.sm,
   },
   createLabel: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     marginTop: Spacing.xs,
   },
   createOptions: {
@@ -535,10 +545,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.surfaceLight,
+    borderColor: t.flotante,
   },
   createOptionText: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     fontFamily: Fonts.semiBold,
     fontSize: 11,
   },
