@@ -1,16 +1,24 @@
 /**
  * OLA3 · Sensor TEXTO — el cuerpo de food-text, ya sin carcasa propia.
  *
- * Conserva entero: autocompletado local sobre la base de alimentos, macros en
- * vivo, estimación con IA cuando el buscador no encuentra, calcQualityScore,
- * los clamps anti-NaN (REG-3 / REG-4) y el editor de revisión como salida.
+ * Conserva entero: macros en vivo, estimación con IA cuando el buscador no
+ * encuentra, calcQualityScore, los clamps anti-NaN (REG-3 / REG-4) y el
+ * editor de revisión como salida.
+ *
+ * NOCHE-2: el autocompletado dejó de leer los 147 alimentos hardcodeados y
+ * ahora consulta la biblioteca real (604 alimentos, 44 nutrientes por 100 g,
+ * porciones caseras). Dos consecuencias visibles:
+ *  - Se elige la cantidad en la unidad del alimento (3 tortillas, 1 taza,
+ *    250 ml), no en gramos a ojo. La conversión vive en food-library-core.
+ *  - Un nutriente sin dato NO se cuenta como cero: el total lo marca con ≥
+ *    para no fabricar un déficit que no existe.
  *
  * Lo que perdió (ahora es de la carcasa): header, chips de tipo de comida y
  * el selector de hora HH:MM — que dejó de ser exclusivo de este sensor y hoy
  * lo comparten los tres.
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, StyleSheet, TextInput, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -19,8 +27,12 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
 import { warn as logWarn } from '@/src/lib/logger';
-import { searchFoods, calculateNutrients } from '@/src/data/food-database';
-import type { FoodItem } from '@/src/data/food-database';
+import { buscarAlimentos } from '@/src/services/food-library-service';
+import {
+  escalarPerfil, sumarPerfiles, resolverGramos, porcionDefault,
+  type Cantidad, type FoodItem,
+} from '@/src/services/food-library-core';
+import { PortionSelector } from './PortionSelector';
 import { analyzeFoodText as analyzeWithAI } from '@/src/services/nutrition-service';
 import { saveFoodLog } from '@/src/services/food-log-service';
 import { FoodReviewEditor, type ReviewState } from '@/src/components/nutrition/FoodReviewEditor';
@@ -38,23 +50,63 @@ import type { SensorPanelProps } from './types';
 
 const BLUE = CATEGORY_COLORS.nutrition;
 
-/** Íconos por categoría de alimento */
-const CATEGORY_ICONS: Record<FoodItem['category'], keyof typeof Ionicons.glyphMap> = {
+/** Íconos por categoría de la biblioteca. Las 14 categorías del esquema. */
+const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   proteina: 'fish-outline',
-  vegetal: 'leaf-outline',
-  fruta: 'nutrition-outline',
-  grano: 'grid-outline',
-  grasa: 'water-outline',
   lacteo: 'cafe-outline',
-  procesado: 'fast-food-outline',
+  grano: 'grid-outline',
+  leguminosa: 'ellipse-outline',
+  verdura: 'leaf-outline',
+  fruta: 'nutrition-outline',
+  grasa: 'water-outline',
   bebida: 'beer-outline',
+  platillo: 'restaurant-outline',
+  snack: 'fast-food-outline',
+  suplemento: 'flask-outline',
+  condimento: 'color-filter-outline',
+  endulzante: 'cube-outline',
+  otro: 'ellipsis-horizontal',
 };
 
-/** Ingrediente seleccionado con cantidad editable */
+function iconoDe(categoria: string): keyof typeof Ionicons.glyphMap {
+  return CATEGORY_ICONS[categoria] ?? 'ellipsis-horizontal';
+}
+
+/**
+ * Ingrediente elegido. Se guarda la CANTIDAD tal como la dijo el usuario
+ * (3 tortillas, 250 ml) y los gramos se derivan, nunca al revés: así el
+ * selector puede volver a mostrar "3 tortillas" y no "90 g".
+ */
 interface SelectedIngredient {
   food: FoodItem;
-  grams: number;
+  cantidad: Cantidad;
   id: string; // clave única para la lista
+}
+
+/** Los gramos que representa una cantidad, ya topados al rango seguro. */
+function gramosDe(ing: SelectedIngredient): number {
+  const g = resolverGramos(ing.food, ing.cantidad);
+  if (g == null) return 0;
+  // REG-4: 5 kg de un solo alimento es un dedo pegado al teclado, no una comida.
+  if (g > MAX_GRAMS) {
+    logWarn('food-log[texto]: gramos topados a MAX_GRAMS', { resuelto: g, clamped: MAX_GRAMS });
+  }
+  return clampGrams(g);
+}
+
+/** Cómo se lee la cantidad en el registro: "1 taza", "1 tortilla ×3", "250 ml". */
+function describirCantidad(ing: SelectedIngredient): string {
+  const c = ing.cantidad;
+  if (c.tipo === 'porcion') return c.valor === 1 ? c.label : `${c.label} ×${c.valor}`;
+  if (c.tipo === 'gramos') return `${Math.round(c.valor)} g`;
+  return `${c.valor} ${c.unidad}`;
+}
+
+/** La cantidad con la que se abre el selector: la porción default. */
+function cantidadInicial(food: FoodItem): Cantidad {
+  const p = porcionDefault(food);
+  if ((food.portions ?? []).length > 0) return { tipo: 'porcion', valor: 1, label: p.label };
+  return { tipo: 'gramos', valor: p.grams };
 }
 
 // REG-4: límites duros para gramos por ingrediente.
@@ -97,7 +149,7 @@ function parseAIPortion(portion: unknown): number {
  */
 function calcQualityScore(ingredients: SelectedIngredient[], totalProtein: number): number {
   if (ingredients.length === 0) return 0;
-  const processedCount = ingredients.filter(i => i.food.isProcessed).length;
+  const processedCount = ingredients.filter(i => i.food.is_processed).length;
   const cleanRatio = 1 - processedCount / ingredients.length;
   let score = 40 + Math.round(cleanRatio * 50); // 40-90: la limpieza manda
   if (totalProtein >= 25) score += 10;          // bono de adecuación proteica
@@ -118,30 +170,52 @@ export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPa
   const [showReview, setShowReview] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
 
-  const searchResults = useMemo(() => {
-    if (query.trim().length < 2) return [];
-    return searchFoods(query.trim());
+  const [searchResults, setSearchResults] = useState<FoodItem[]>([]);
+  const [buscando, setBuscando] = useState(false);
+
+  // La búsqueda ahora va a la base, así que se espera a que el usuario deje
+  // de teclear. 250 ms es el punto donde ya no se siente el retraso y deja de
+  // dispararse una consulta por letra.
+  useEffect(() => {
+    const termino = query.trim();
+    if (termino.length < 2) {
+      setSearchResults([]);
+      setBuscando(false);
+      return;
+    }
+    let vivo = true;
+    setBuscando(true);
+    const timer = setTimeout(async () => {
+      const encontrados = await buscarAlimentos(termino);
+      if (!vivo) return;
+      setSearchResults(encontrados);
+      setBuscando(false);
+    }, 250);
+    return () => { vivo = false; clearTimeout(timer); };
   }, [query]);
 
-  // --- Macros totales calculados en tiempo real ---
-  const totals = useMemo(() => {
-    let calories = 0, protein = 0, carbs = 0, fat = 0, fiber = 0;
-    for (const ing of ingredients) {
-      const n = calculateNutrients(ing.food, ing.grams);
-      calories += n.calories;
-      protein += n.protein;
-      carbs += n.carbs;
-      fat += n.fat;
-      fiber += n.fiber;
-    }
-    return {
-      calories: Math.round(calories),
-      protein: Math.round(protein * 10) / 10,
-      carbs: Math.round(carbs * 10) / 10,
-      fat: Math.round(fat * 10) / 10,
-      fiber: Math.round(fiber * 10) / 10,
-    };
-  }, [ingredients]);
+  // --- Perfil total calculado en tiempo real ---
+  // sumarPerfiles preserva la diferencia entre 0 y sin dato: `parciales` trae
+  // los nutrientes donde algún ingrediente no traía el dato, y la UI los marca
+  // con ≥ en vez de presentar un número exacto que sería mentira.
+  const { total, parciales } = useMemo(
+    () => sumarPerfiles(ingredients.map((i) => escalarPerfil(i.food, gramosDe(i)))),
+    [ingredients],
+  );
+
+  const totals = useMemo(() => ({
+    calories: Math.round(total.kcal ?? 0),
+    protein: Math.round((total.protein_g ?? 0) * 10) / 10,
+    carbs: Math.round((total.carbs_g ?? 0) * 10) / 10,
+    fat: Math.round((total.fat_g ?? 0) * 10) / 10,
+    fiber: Math.round((total.fiber_g ?? 0) * 10) / 10,
+  }), [total]);
+
+  /** ¿Este nutriente quedó incompleto? Entonces el número es un mínimo. */
+  const esParcial = useCallback(
+    (k: (typeof parciales)[number]) => parciales.includes(k),
+    [parciales],
+  );
 
   const openReview = useCallback((v: boolean) => {
     setShowReview(v);
@@ -150,25 +224,20 @@ export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPa
 
   const addIngredient = useCallback((food: FoodItem, gramsOverride?: number) => {
     haptic.light();
-    // REG-3/REG-4: gramos siempre finitos y dentro de rango.
-    const grams = clampGrams(gramsOverride ?? food.servingGrams ?? 100);
+    // El alimento entra en SU porción default (1 tortilla, 1 taza). Solo la
+    // estimación con IA llega en gramos, y ahí sí se topa (REG-3 / REG-4).
+    const cantidad: Cantidad = gramsOverride != null
+      ? { tipo: 'gramos', valor: clampGrams(gramsOverride) }
+      : cantidadInicial(food);
     setIngredients(prev => [
       ...prev,
-      { food, grams, id: `${food.name}-${Date.now()}` },
+      { food, cantidad, id: `${food.slug || food.name_es}-${Date.now()}` },
     ]);
     setQuery(''); // Limpiar búsqueda al seleccionar
   }, []);
 
-  const updateGrams = useCallback((id: string, text: string) => {
-    const parsed = parseInt(text, 10);
-    if (isNaN(parsed) && text !== '') return;
-    // REG-4: clamp 0–5000g. Si el usuario teclea un valor mayor, lo topamos
-    // (no rechazamos toda la entrada) y registramos un warning.
-    const next = isNaN(parsed) ? 0 : clampGrams(parsed);
-    if (!isNaN(parsed) && parsed > MAX_GRAMS) {
-      logWarn('food-log[texto]: gramos topados a MAX_GRAMS', { input: parsed, clamped: MAX_GRAMS });
-    }
-    setIngredients(prev => prev.map(i => i.id === id ? { ...i, grams: next } : i));
+  const updateCantidad = useCallback((id: string, cantidad: Cantidad) => {
+    setIngredients(prev => prev.map(i => (i.id === id ? { ...i, cantidad } : i)));
   }, []);
 
   const removeIngredient = useCallback((id: string) => {
@@ -178,17 +247,19 @@ export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPa
   // El estado de revisión que representa lo armado (compartido por el editor
   // en COMPLETO y por el guardado directo en SIMPLE — mismos números).
   const buildReviewState = useCallback((): ReviewState => ({
-    description: ingredients.map(i => `${i.food.name}`).join(', '),
+    description: ingredients.map(i => `${i.food.name_es} · ${describirCantidad(i)}`).join(', '),
     items: ingredients.map(i => {
-      const n = calculateNutrients(i.food, i.grams);
+      const p = escalarPerfil(i.food, gramosDe(i));
       return {
-        name: i.food.name,
-        quantity: i.grams,
+        name: i.food.name_es,
+        // El editor de revisión trabaja en gramos: la unidad mínima, la misma
+        // a la que ya se resolvió la porción que eligió el usuario.
+        quantity: gramosDe(i),
         unit: 'g' as const,
-        calories: n.calories,
-        protein_g: n.protein,
-        carbs_g: n.carbs,
-        fat_g: n.fat,
+        calories: p.kcal ?? 0,
+        protein_g: p.protein_g ?? 0,
+        carbs_g: p.carbs_g ?? 0,
+        fat_g: p.fat_g ?? 0,
       };
     }),
     totals: {
@@ -205,7 +276,17 @@ export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPa
     setSaving(true);
     try {
       const today = getLocalToday();
-      const desc = reviewed.description || ingredients.map(i => `${i.food.name} (${i.grams}g)`).join(', ') || query.trim();
+      const desc = reviewed.description
+        || ingredients.map(i => `${i.food.name_es} (${gramosDe(i)} g)`).join(', ')
+        || query.trim();
+
+      // El puente con la biblioteca solo aplica cuando la comida ES un
+      // alimento de la biblioteca. Con dos o más ingredientes el registro ya
+      // no apunta a uno solo, y apuntarlo de todas formas mentiría sobre lo
+      // que se comió y ensuciaría los frecuentes.
+      const unico = ingredients.length === 1 && ingredients[0].food.slug
+        ? ingredients[0]
+        : null;
       // REG-cabos: barrera final antes de la DB. Aunque reviewed.totals viene
       // ya saneado, blindamos cada total con safeNum por si algún path nuevo
       // de edición deja un NaN colgado.
@@ -230,6 +311,11 @@ export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPa
         carbsG: hasMacros ? Math.round(safeCarbs * 10) / 10 : null,
         fatG: hasMacros ? Math.round(safeFat * 10) / 10 : null,
         extras: { fiber_g: safeNum(totals.fiber, 0), quality_score: qualityScore },
+        ...(unico ? {
+          foodSlug: unico.food.slug,
+          quantityGrams: gramosDe(unico),
+          portionLabel: unico.cantidad.tipo === 'porcion' ? unico.cantidad.label : null,
+        } : {}),
       });
       if (!result.ok) throw new Error(result.message);
       // D-2 (MB-12): el buzz de éxito va DESPUÉS del guardado confirmado.
@@ -344,32 +430,45 @@ export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPa
         </Animated.View>
       )}
 
-      {/* ═══ Resultados de autocompletado ═══ */}
+      {/* La búsqueda vive en la base: mientras viaja, se dice. */}
+      {buscando && searchResults.length === 0 && (
+        <View style={s.buscandoRow}>
+          <ActivityIndicator size="small" color={t.textoSecundario} />
+          <EliteText style={[s.resultMeta, { color: t.textoSecundario }]}>Buscando en la biblioteca</EliteText>
+        </View>
+      )}
+
+      {/* ═══ Resultados de la biblioteca ═══ */}
       {searchResults.length > 0 && (
         <Animated.View entering={FadeInUp.duration(300)} style={[s.resultsContainer, { backgroundColor: t.card, borderColor: t.borde }]}>
-          {searchResults.map((food, idx) => (
-            <AnimatedPressable
-              key={`${food.name}-${idx}`}
-              onPress={() => addIngredient(food)}
-              style={[s.resultItem, { borderBottomColor: t.borde }]}
-            >
-              <View style={[s.categoryDot, { backgroundColor: withOpacity(BLUE, 0.2) }]}>
-                <Ionicons name={CATEGORY_ICONS[food.category]} size={16} color={BLUE} />
-              </View>
-              <View style={s.resultInfo}>
-                <EliteText style={[s.resultName, { color: t.texto }]}>{food.name}</EliteText>
-                <EliteText style={[s.resultMeta, { color: t.textoSecundario }]}>
-                  {food.per100g.calories} kcal · {food.per100g.protein}g prot / 100g
-                </EliteText>
-              </View>
-              <Ionicons name="add-circle-outline" size={22} color={BLUE} />
-            </AnimatedPressable>
-          ))}
+          {searchResults.map((food, idx) => {
+            const p = porcionDefault(food);
+            return (
+              <AnimatedPressable
+                key={food.slug || `${food.name_es}-${idx}`}
+                onPress={() => addIngredient(food)}
+                style={[s.resultItem, { borderBottomColor: t.borde }]}
+              >
+                <View style={[s.categoryDot, { backgroundColor: withOpacity(BLUE, 0.2) }]}>
+                  <Ionicons name={iconoDe(food.category)} size={16} color={BLUE} />
+                </View>
+                <View style={s.resultInfo}>
+                  <EliteText style={[s.resultName, { color: t.texto }]}>{food.name_es}</EliteText>
+                  {/* Primero la porción con la que se va a registrar: es como
+                      el usuario piensa la comida, no en gramos. */}
+                  <EliteText style={[s.resultMeta, { color: t.textoSecundario }]}>
+                    {`${p.label} · ${nutritionMode === 'complete' ? `${Math.round(food.kcal ?? 0)} kcal · ` : ''}${food.protein_g ?? 0} g de proteína por 100 g`}
+                  </EliteText>
+                </View>
+                <Ionicons name="add-circle-outline" size={22} color={BLUE} />
+              </AnimatedPressable>
+            );
+          })}
         </Animated.View>
       )}
 
-      {/* ═══ Estimar con IA cuando no hay resultados ═══ */}
-      {searchResults.length === 0 && query.trim().length > 2 && (
+      {/* ═══ Estimar con IA cuando la biblioteca no tiene el alimento ═══ */}
+      {!buscando && searchResults.length === 0 && query.trim().length > 2 && (
         <Animated.View entering={FadeInUp.duration(300)}>
           <AnimatedPressable
             onPress={async () => {
@@ -380,21 +479,27 @@ export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPa
                 if (result?.ingredients?.length > 0) {
                   for (const ing of result.ingredients) {
                     // REG-3: blindar TODOS los campos numéricos de la IA.
-                    const food = {
-                      name: ing.name ?? query.trim(),
-                      category: 'procesado',
-                      per100g: {
-                        calories: safeNum(ing.calories, 0),
-                        protein: safeNum(ing.protein, 0),
-                        carbs: safeNum(ing.carbs, 0),
-                        fat: safeNum(ing.fat, 0),
-                        fiber: safeNum(ing.fiber, 0),
-                      },
-                      servingSize: ing.portion ?? '100g',
-                      servingGrams: 100,
-                      isProcessed: false,
-                      tags: [] as string[],
-                    } as FoodItem;
+                    //
+                    // El alimento estimado tiene la forma de la biblioteca
+                    // pero SIN slug: no está en ella y no debe ensuciarla.
+                    // Solo trae los cinco macros, así que sus micronutrientes
+                    // quedan sin dato (no en cero) y el total los marca como
+                    // parciales. Eso es exactamente lo que pasó: no sabemos.
+                    const food: FoodItem = {
+                      slug: '',
+                      name_es: ing.name ?? query.trim(),
+                      category: 'otro',
+                      region: 'universal',
+                      base_unit: 'g',
+                      kcal: safeNum(ing.calories, 0),
+                      protein_g: safeNum(ing.protein, 0),
+                      carbs_g: safeNum(ing.carbs, 0),
+                      fat_g: safeNum(ing.fat, 0),
+                      fiber_g: safeNum(ing.fiber, 0),
+                      is_processed: false,
+                      tags: [],
+                      portions: [],
+                    };
                     addIngredient(food, parseAIPortion(ing.portion));
                   }
                 } else {
@@ -432,7 +537,7 @@ export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPa
         <Animated.View entering={FadeInUp.duration(300)}>
           <EliteText style={[s.sectionTitle, { color: t.texto }]}>Ingredientes</EliteText>
           {ingredients.map((ing) => {
-            const nutrients = calculateNutrients(ing.food, ing.grams);
+            const nutrients = escalarPerfil(ing.food, gramosDe(ing));
             return (
               <Animated.View
                 key={ing.id}
@@ -441,43 +546,36 @@ export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPa
               >
                 <View style={s.ingredientHeader}>
                   <View style={s.ingredientNameRow}>
-                    <Ionicons name={CATEGORY_ICONS[ing.food.category]} size={16} color={BLUE} />
-                    <EliteText style={[s.ingredientName, { color: t.texto }]}>{ing.food.name}</EliteText>
+                    <Ionicons name={iconoDe(ing.food.category)} size={16} color={BLUE} />
+                    <EliteText style={[s.ingredientName, { color: t.texto }]}>{ing.food.name_es}</EliteText>
                   </View>
                   <Pressable onPress={() => removeIngredient(ing.id)} hitSlop={10}>
                     <Ionicons name="close-circle" size={22} color={t.error} />
                   </Pressable>
                 </View>
 
-                <View style={s.ingredientBody}>
-                  {/* Input de cantidad — más grande y visible */}
-                  <View style={s.gramsInputRow}>
-                    <TextInput
-                      style={[s.gramsInput, { backgroundColor: t.flotante, color: acento }]}
-                      value={ing.grams > 0 ? ing.grams.toString() : ''}
-                      onChangeText={(v) => updateGrams(ing.id, v)}
-                      keyboardType="decimal-pad"
-                      selectTextOnFocus
-                    />
-                    <View style={s.gramsUnitBadge}>
-                      <EliteText style={[s.gramsLabel, { color: acento }]}>g</EliteText>
-                    </View>
-                  </View>
+                {/* El selector abre en la porción default del alimento y deja
+                    cambiar a gramos, tazas o piezas. */}
+                <PortionSelector
+                  food={ing.food}
+                  cantidad={ing.cantidad}
+                  onChange={(c) => updateCantidad(ing.id, c)}
+                  acento={acento}
+                />
 
-                  {/* Mini macros del ingrediente. P1 MB-28A: en SIMPLE el único
-                      número es la proteína (doctrina score+proteína). */}
-                  <View style={s.ingredientMacros}>
-                    {nutritionMode === 'complete' && (
-                      <EliteText style={[s.macroMini, { color: t.textoSecundario }]}>{nutrients.calories} kcal</EliteText>
-                    )}
-                    <EliteText style={[s.macroMini, { color: t.info }]}>P {nutrients.protein}</EliteText>
-                    {nutritionMode === 'complete' && (
-                      <>
-                        <EliteText style={[s.macroMini, { color: SEMANTIC.warning }]}>C {nutrients.carbs}</EliteText>
-                        <EliteText style={[s.macroMini, { color: t.error }]}>G {nutrients.fat}</EliteText>
-                      </>
-                    )}
-                  </View>
+                {/* Mini macros del ingrediente. P1 MB-28A: en SIMPLE el único
+                    número es la proteína (doctrina score+proteína). */}
+                <View style={[s.ingredientMacros, { marginTop: 10 }]}>
+                  {nutritionMode === 'complete' && (
+                    <EliteText style={[s.macroMini, { color: t.textoSecundario }]}>{nutrients.kcal ?? 0} kcal</EliteText>
+                  )}
+                  <EliteText style={[s.macroMini, { color: t.info }]}>P {nutrients.protein_g ?? 0}</EliteText>
+                  {nutritionMode === 'complete' && (
+                    <>
+                      <EliteText style={[s.macroMini, { color: SEMANTIC.warning }]}>C {nutrients.carbs_g ?? 0}</EliteText>
+                      <EliteText style={[s.macroMini, { color: t.error }]}>G {nutrients.fat_g ?? 0}</EliteText>
+                    </>
+                  )}
                 </View>
               </Animated.View>
             );
@@ -491,17 +589,25 @@ export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPa
           <EliteText style={[s.totalsTitle, { color: t.texto }]}>Total</EliteText>
           <View style={s.totalsRow}>
             {nutritionMode === 'complete' && (
-              <MacroBox label="Calorías" value={`${totals.calories}`} unit="kcal" color={BLUE} />
+              <MacroBox label="Calorías" value={`${esParcial('kcal') ? '≥ ' : ''}${totals.calories}`} unit="kcal" color={BLUE} />
             )}
-            <MacroBox label="Proteína" value={`${totals.protein}`} unit="g" color={t.info} />
+            <MacroBox label="Proteína" value={`${esParcial('protein_g') ? '≥ ' : ''}${totals.protein}`} unit="g" color={t.info} />
             {nutritionMode === 'complete' && (
               <>
-                <MacroBox label="Carbs" value={`${totals.carbs}`} unit="g" color={SEMANTIC.warning} />
-                <MacroBox label="Grasa" value={`${totals.fat}`} unit="g" color={t.error} />
-                <MacroBox label="Fibra" value={`${totals.fiber}`} unit="g" color={SEMANTIC.success} />
+                <MacroBox label="Carbs" value={`${esParcial('carbs_g') ? '≥ ' : ''}${totals.carbs}`} unit="g" color={SEMANTIC.warning} />
+                <MacroBox label="Grasa" value={`${esParcial('fat_g') ? '≥ ' : ''}${totals.fat}`} unit="g" color={t.error} />
+                <MacroBox label="Fibra" value={`${esParcial('fiber_g') ? '≥ ' : ''}${totals.fiber}`} unit="g" color={SEMANTIC.success} />
               </>
             )}
           </View>
+          {/* La regla de la biblioteca, visible: un dato que falta no es un
+              cero. Decirlo aquí evita que el usuario lea un déficit falso. */}
+          {(esParcial('kcal') || esParcial('protein_g') || esParcial('carbs_g')
+            || esParcial('fat_g') || esParcial('fiber_g')) && (
+            <EliteText style={[s.parcialNota, { color: t.textoTenue }]}>
+              Los números con ≥ son el mínimo conocido: algún alimento no traía ese dato y no lo contamos como cero.
+            </EliteText>
+          )}
         </Animated.View>
       )}
 
@@ -564,6 +670,10 @@ const s = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   searchIcon: { marginRight: Spacing.xs },
+  buscandoRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
+    paddingVertical: Spacing.sm, paddingHorizontal: Spacing.xs,
+  },
   searchInput: {
     flex: 1,
     height: 48,
@@ -645,31 +755,8 @@ const s = StyleSheet.create({
     flex: 1,
   },
   ingredientName: { fontFamily: Fonts.bold, fontSize: 15 },
-  ingredientBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 10,
-  },
-  gramsInputRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  gramsInput: {
-    width: 80,
-    height: 50,
-    fontFamily: Fonts.bold,
-    fontSize: 22,
-    textAlign: 'center',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-  },
-  gramsUnitBadge: {
-    backgroundColor: 'rgba(168,224,42,0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(168,224,42,0.25)',
-  },
-  gramsLabel: { fontFamily: Fonts.bold, fontSize: 14 },
+  // El input de gramos y su badge salieron con NOCHE-2: la cantidad ahora la
+  // maneja PortionSelector, que además dice a cuántos gramos equivale.
   ingredientMacros: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   macroMini: { fontFamily: Fonts.regular, fontSize: FontSizes.xs },
 
@@ -687,6 +774,13 @@ const s = StyleSheet.create({
     textAlign: 'center',
   },
   totalsRow: { flexDirection: 'row', justifyContent: 'space-around' },
+  parcialNota: {
+    fontFamily: Fonts.regular,
+    fontSize: FontSizes.xs,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    lineHeight: 15,
+  },
   macroBox: { alignItems: 'center' },
   macroValue: { fontFamily: Fonts.bold, fontSize: FontSizes.xl },
   macroUnit: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: -2 },

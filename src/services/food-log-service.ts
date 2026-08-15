@@ -59,6 +59,16 @@ export interface SaveFoodLogInput {
   photoUrl?: string | null;
   aiAnalysis?: any | null;
   extras?: FoodLogExtras;
+  /**
+   * NOCHE-2 · puente con la biblioteca de alimentos (migración 265).
+   * Solo cuando el registro ES un alimento de la biblioteca: guarda a cuál
+   * apunta, cuántos gramos y en qué porción lo dijo el usuario ("1 tortilla").
+   * Con eso los frecuentes salen de lo que el usuario come de verdad y un
+   * registro se puede reconstruir con sus 44 nutrientes, no solo con macros.
+   */
+  foodSlug?: string;
+  quantityGrams?: number | null;
+  portionLabel?: string | null;
 }
 
 export type SaveFoodLogResult =
@@ -97,6 +107,15 @@ export async function saveFoodLog(input: SaveFoodLogInput): Promise<SaveFoodLogR
       source: input.source,
       was_edited: input.wasEdited ?? false,
       notes: input.extras ? JSON.stringify(input.extras) : null,
+      // Las tres columnas del puente se escriben SOLO si hay alimento de
+      // biblioteca. Así, si el OTA llegara antes del db push de la 265, el
+      // registro por foto, por código y por texto libre sigue guardando igual:
+      // el único camino que dependería de la migración es el que la usa.
+      ...(input.foodSlug ? {
+        food_slug: input.foodSlug,
+        quantity_grams: input.quantityGrams ?? null,
+        portion_label: input.portionLabel ?? null,
+      } : {}),
     })
     .select('id')
     .single();
