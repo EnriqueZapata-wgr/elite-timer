@@ -10,17 +10,30 @@ import { useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
 import { EliteText } from '@/components/elite-text';
+import { AppIcon, hasAppIcon, type AppIconName } from '@/src/components/ui/AppIcon';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { type AppThemeTokens } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
-export function SectionHeader({ icon, color, title }: { icon: string; color: string; title: string }) {
+/**
+ * FIX-NOCHE: por aquí entran DOS clases de nombre y se distinguen solas.
+ *   · Los dominios pasan el nombre LÓGICO que declara REPORT_DOMAINS
+ *     ('labs', 'entrenar', 'ciclo'…): son funciones del registro y se dibujan
+ *     con <AppIcon>, así que el día que cambie el set no se toca ni un dominio.
+ *   · El hub pasa chrome propio de /reports ('download-outline',
+ *     'person-outline'…): no son funciones y el set no tiene pieza para ellos.
+ * `hasAppIcon` es el mismo guard que usa AppIcon para los datos que llegan como
+ * string. Cuando el chrome también tenga glifo, esta bifurcación muere.
+ */
+export function SectionHeader({ icon, color, title }: { icon: AppIconName | string; color: string; title: string }) {
   // El icono conserva su color de sección (identidad); el título sigue el tema.
   const t = useSurfaceTokens();
   const s = useMemo(() => makeStyles(t), [t]);
   return (
     <View style={s.sectionHeader}>
-      <Ionicons name={icon as any} size={20} color={color} />
+      {hasAppIcon(icon)
+        ? <AppIcon name={icon} size={20} color={color} />
+        : <Ionicons name={icon as any} size={20} color={color} />}
       <EliteText style={s.sectionTitle}>{title}</EliteText>
     </View>
   );

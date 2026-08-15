@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
 
 import { EliteText } from '@/components/elite-text';
+import { AppIcon } from '@/src/components/ui/AppIcon';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
@@ -110,7 +111,10 @@ export function ExpedienteContent({ data }: { data: ExpedienteReportData }) {
         <>
           <AnimatedPressable onPress={() => { haptic.light(); router.push('/salud/mi-lectura'); }}>
             <View style={[s.enlace, { borderColor: t.bordeMarcado }]}>
-              <Ionicons name="git-network-outline" size={16} color={META.accent} />
+              {/* FIX-NOCHE: esta fila ES el destino 'lectura' de salud-puertas
+                  (misma ruta, mismo título). Dibujarlo a mano era declarar un
+                  glifo donde el registro ya tiene nombre lógico. */}
+              <AppIcon name="diagnostico" size={16} color={META.accent} />
               <View style={{ flex: 1 }}>
                 <EliteText style={[s.cardTitle, { color: t.texto }]}>Cómo te leo</EliteText>
                 <EliteText style={[s.sub, { color: t.textoSecundario }]}>
@@ -169,7 +173,7 @@ function FilaFuente({ f, s, t }: { f: FuenteInventario; s: Styles; t: AppThemeTo
       <View style={[s.card, { backgroundColor: t.card, borderColor: t.borde }]}>
         <View style={s.rowBetween}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 }}>
-            <Ionicons name={f.icon as any} size={18} color={hay ? META.accent : t.textoTenue} />
+            <AppIcon name={f.icon} size={18} color={hay ? META.accent : t.textoTenue} />
             <View style={{ flex: 1 }}>
               <EliteText style={[s.cardTitle, { color: t.texto }]}>{f.titulo}</EliteText>
               <EliteText style={[s.sub, { color: t.textoTenue }]}>

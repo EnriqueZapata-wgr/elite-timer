@@ -36,6 +36,7 @@ import { ALL_BOOLEAN_OPTIONS, ALL_QUANT_OPTIONS } from '@/src/services/hoy/day-b
 import { ACTIVITY_META } from '@/src/components/mente/mente-hub-core';
 import { CATEGORY_COPY } from '@/src/services/mente-streaks-core';
 import { TAB_BAR_ICONS } from '../tab-bar';
+import { REPORT_DOMAINS } from '@/src/services/reports/report-domain-core';
 import { GLYPH_INVENTORY } from './icon-censo-inventario';
 
 // ─── El árbol que se recorre ────────────────────────────────────────────────
@@ -71,6 +72,8 @@ describe('los registros declaran nombres lógicos, no dibujos', () => {
     ['TAB_BAR_ICONS', Object.values(TAB_BAR_ICONS).flatMap((t) => [
       { icon: t.reposo }, { icon: t.activo },
     ])],
+    // FIX-NOCHE: el registro de dominios de reportes, ya con nombres lógicos.
+    ['REPORT_DOMAINS', Object.values(REPORT_DOMAINS)],
   ];
 
   it.each(REGISTROS)('%s: todo icono resuelve en el mapa', (_nombre, entradas) => {
@@ -94,6 +97,12 @@ const REGISTRY_FILES_SIN_IONICON = [
   'src/services/hoy/day-booleans.ts',
   'src/components/mente/mente-hub-core.ts',
   'src/services/mente-streaks-core.ts',
+  // FIX-NOCHE: los dos registros de reportes. REPORT_DOMAINS declaraba el
+  // dibujo de cada dominio y el inventario del expediente el de cada fuente:
+  // misma clase que la divergencia de mente-streaks-core, migrada igual (a
+  // nombres lógicos de AppIconName). Aquí quedan para que no recaigan.
+  'src/services/reports/report-domain-core.ts',
+  'src/services/reports/expediente-report-core.ts',
 ];
 
 const REGISTRY_FILES_SIN_EMOJI = [...REGISTRY_FILES_SIN_IONICON, 'src/constants/electrons.ts'];

@@ -8,6 +8,11 @@
  * /reports. Todo lo que toque red o pantalla vive fuera de este archivo.
  */
 import { toLocalDateString, parseLocalDate } from '@/src/utils/date-helpers';
+// FIX-NOCHE: `icon` es un nombre lógico del AppIcon (app-icon-names), NO un
+// Ionicon. Un registro que nombra un glifo está declarando un DIBUJO donde
+// debería declarar una FUNCIÓN, y por eso el censo lo caza. El import es de
+// tipo: el módulo sigue siendo node-testeable (app-icon-names es datos puros).
+import type { AppIconName } from '@/src/components/ui/app-icon-names';
 
 // ── Rangos ───────────────────────────────────────────────────────────────
 
@@ -116,8 +121,9 @@ export interface ReportDomainMeta {
   title: string;
   /** Pilar que le da el color al header. */
   pillar: ReportPillar;
-  /** Icono del dominio (Ionicons), el mismo que ya usa su sección en el hub. */
-  icon: string;
+  /** Nombre LÓGICO del icono, el mismo que ya usa su sección en el hub. Quien
+   * lo pinte pasa por <AppIcon>; aquí no se elige dibujo. */
+  icon: AppIconName;
   /** Acento del dominio: el mismo que ya usa su sección en el hub. */
   accent: string;
   /** Qué contesta este reporte, en una línea. */
@@ -131,7 +137,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'nutricion',
     title: 'Nutrición',
     pillar: 'nutrition',
-    icon: 'restaurant-outline',
+    icon: 'comida',
     accent: '#38bdf8',
     subtitle: 'Qué comiste y cómo se movieron tus calorías y tu proteína.',
     emptyCopy: 'Todavía no registraste comidas en este rango. Cada comida que anotes aparece aquí al día siguiente.',
@@ -140,7 +146,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'hidratacion',
     title: 'Hidratación',
     pillar: 'nutrition',
-    icon: 'water-outline',
+    icon: 'hidratacion',
     accent: '#60a5fa',
     subtitle: 'Cuánta agua tomaste y qué días llegaste a tu meta.',
     emptyCopy: 'Todavía no registraste agua en este rango. En cuanto anotes un vaso, la gráfica empieza.',
@@ -149,7 +155,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'ayuno',
     title: 'Ayuno',
     pillar: 'nutrition',
-    icon: 'timer-outline',
+    icon: 'ayuno',
     accent: '#fbbf24',
     subtitle: 'Cuántos ayunos cerraste, de cuánto, y cuál fue el más largo.',
     emptyCopy: 'Todavía no cerraste ayunos en este rango. Solo cuentan los que terminaste, no los que quedaron abiertos.',
@@ -158,7 +164,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'mente',
     title: 'Mente',
     pillar: 'mind',
-    icon: 'flower-outline',
+    icon: 'meditar',
     accent: '#c084fc',
     subtitle: 'Respiración, meditación, journal y check-ins.',
     emptyCopy: 'Todavía no hay sesiones de mente en este rango. Una respiración de tres minutos ya cuenta.',
@@ -167,7 +173,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'journal',
     title: 'Journal',
     pillar: 'mind',
-    icon: 'book-outline',
+    icon: 'journal',
     accent: '#a78bfa',
     subtitle: 'Todo lo que escribiste, con su fecha y su tipo.',
     emptyCopy: 'Todavía no hay entradas en este rango. Tu primera entrada está a un tap del botón de más.',
@@ -176,7 +182,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'emociones',
     title: 'Emociones',
     pillar: 'mind',
-    icon: 'color-palette-outline',
+    icon: 'emociones',
     accent: '#818cf8',
     subtitle: 'Tu mosaico, tus patrones y el perfil del periodo.',
     emptyCopy: 'Todavía no hay check-ins emocionales en este rango. Uno solo ya pinta la primera pieza del mosaico.',
@@ -185,7 +191,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'ciclo',
     title: 'Ciclo',
     pillar: 'cycle',
-    icon: 'calendar-outline',
+    icon: 'ciclo',
     accent: '#fb7185',
     subtitle: 'Tus ciclos, sus promedios y cómo se movieron tus síntomas.',
     emptyCopy: 'Todavía no hay ciclos ni registros diarios en este rango. Marcar el primer día de tu periodo es lo único que hace falta para empezar.',
@@ -194,7 +200,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'nback',
     title: 'N-Back',
     pillar: 'mind',
-    icon: 'grid-outline',
+    icon: 'nback',
     accent: '#7F77DD',
     subtitle: 'Tus rounds, tu nivel máximo y cómo vas contra los demás.',
     emptyCopy: 'Todavía no completaste ningún round. El primero tarda tres minutos y ya cuenta.',
@@ -203,7 +209,9 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'adherencia',
     title: 'Adherencia',
     pillar: 'metrics',
-    icon: 'checkmark-done-outline',
+    // La app Rachas del registro apunta justo aquí (/reports/adherencia?tab=
+    // rachas): comparten función, comparten nombre lógico.
+    icon: 'rachas',
     accent: '#a8e02a',
     subtitle: 'Qué tanto cumpliste, y cuántos días seguidos llevas.',
     emptyCopy: 'Todavía no hay días cerrados ni rachas vivas. El primer día que cumplas tu protocolo empieza a contar aquí.',
@@ -212,7 +220,11 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'economia',
     title: 'Economía',
     pillar: 'metrics',
-    icon: 'flash',
+    // El set no tiene pieza propia de economía todavía, y este reporte se lee
+    // como serie (qué entró y qué se fue), así que toma prestado el nombre de
+    // reportes — mismo criterio que 'lectura' en salud-puertas. El día que
+    // llegue su glifo, cambia aquí y en un solo lugar.
+    icon: 'reportes',
     accent: '#a8e02a',
     subtitle: 'Tus electrones y tus protones: qué entró y qué se fue.',
     emptyCopy: 'Todavía no hay movimientos en este rango. Tus electrones se ganan cumpliendo, no comprando.',
@@ -221,7 +233,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'entrenamiento',
     title: 'Entrenamiento',
     pillar: 'fitness',
-    icon: 'barbell-outline',
+    icon: 'entrenar',
     accent: '#a8e02a',
     subtitle: 'Tus sesiones, tu volumen, tus marcas y qué tanto seguiste tu plan.',
     emptyCopy: 'Todavía no hay sesiones en este rango. Un entrenamiento registrado, aunque sea corto, ya abre la gráfica.',
@@ -230,7 +242,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'glucosa',
     title: 'Glucosa',
     pillar: 'health',
-    icon: 'pulse-outline',
+    icon: 'glucosa',
     accent: '#fb923c',
     subtitle: 'Tus lecturas en el tiempo, por contexto, y tu profundidad de cetosis.',
     emptyCopy: 'Todavía no hay lecturas en este rango. Con un piquete en ayuno empieza tu serie, y si además anotas cetonas se calcula tu índice.',
@@ -239,7 +251,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'labs',
     title: 'Labs',
     pillar: 'health',
-    icon: 'flask-outline',
+    icon: 'labs',
     accent: '#1d9e75',
     subtitle: 'Cada biomarcador en el tiempo, leído contra tu ventana funcional.',
     emptyCopy: 'Todavía no hay biomarcadores en este rango. Sube una foto o el PDF de tu estudio y cada valor cae aquí con su fecha.',
@@ -248,7 +260,7 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     key: 'expediente',
     title: 'Expediente',
     pillar: 'health',
-    icon: 'folder-open-outline',
+    icon: 'salud-expediente',
     accent: '#22d3ee',
     subtitle: 'Todo lo que hay de ti, de dónde viene y qué falta por llenar.',
     emptyCopy: 'Todavía no hay nada guardado en este rango. Cualquier registro que hagas en la app entra a tu expediente y se queda ahí.',

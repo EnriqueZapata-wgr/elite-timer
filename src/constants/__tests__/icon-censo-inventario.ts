@@ -121,8 +121,10 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/progress.tsx::trophy-outline',
   'app/protocol-explorer.tsx::flask-outline',
   'app/register.tsx::eye-outline',
-  'app/reports.tsx::analytics-outline',
-  'app/reports.tsx::barbell-outline',
+  // FIX-NOCHE: analytics-outline y barbell-outline salieron. OLA1 se llevó las
+  // secciones por dominio del hub a REPORT_DOMAINS y app/reports.tsx dejó de
+  // dibujarlas, pero las entradas se quedaron. El test nunca las reportó porque
+  // la aserción de usos nuevos truena antes que la de muertos.
   // MB-29 P1: header de la card "Para tu consulta" — chrome de sección en su
   // propio dominio (reportes), no un lanzador dibujando una función.
   'app/reports.tsx::document-text-outline',
@@ -137,6 +139,14 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/salud/mis-datos/index.tsx::water-outline',
   'app/settings.tsx::document-text-outline',
   'app/settings.tsx::pulse-outline',
+  // NOCHE-1 · HealthKit / Health Connect. Los dos usos son de la CONEXIÓN con
+  // la plataforma de salud del teléfono, que no es una función del registro (no
+  // tiene app, ni puerta, ni glifo en el set): en conexiones.tsx es el CTA que
+  // lleva a conectar, y en salud-conexion.tsx es el indicador de estado, en
+  // ternario con shield-checkmark cuando ya está conectado. Chrome de su propia
+  // pantalla.
+  'app/settings/conexiones.tsx::pulse-outline',
+  'app/settings/salud-conexion.tsx::pulse-outline',
   'app/settings/dev.tsx::analytics-outline',
   'app/settings/dev.tsx::eye-outline',
   // MB-31A: moon-outline salió — la fila display-only "Tema" se volvió el
@@ -205,6 +215,12 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/components/nutrition/cocina/PreferenciasTab.tsx::flower-outline',
   'src/components/nutrition/cocina/PreferenciasTab.tsx::leaf-outline',
   'src/components/nutrition/cocina/PreferenciasTab.tsx::restaurant-outline',
+  // NOCHE-6 · biblioteca de alimentos: dos categorías nuevas en el MISMO mapa
+  // de categorías que ya estaba inventariado (platillo y suplemento). Es la
+  // categoría del alimento en el buscador, contenido del dominio nutrición, no
+  // un lanzador.
+  'src/components/nutrition/foodlog/TextSensor.tsx::flask-outline',
+  'src/components/nutrition/foodlog/TextSensor.tsx::restaurant-outline',
   'src/components/nutrition/foodlog/TextSensor.tsx::grid-outline',
   'src/components/nutrition/foodlog/TextSensor.tsx::leaf-outline',
   'src/components/nutrition/foodlog/TextSensor.tsx::nutrition-outline',
@@ -302,6 +318,15 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/components/reports/domains/emociones.tsx::pulse-outline::x2',
   'src/components/reports/domains/emociones.tsx::sunny-outline',
   'src/components/reports/domains/emociones.tsx::timer-outline',
+  // NOCHE-REP: la anotación "N marcas nuevas ese día" dentro de la tarjeta de
+  // cada sesión. Es contenido del reporte de entrenamiento (una marca, dicha
+  // donde pasó), no la puerta a Récords — mismo trato que ya tienen los otros
+  // trophy de progreso, retos y fuerza.
+  'src/components/reports/domains/entrenamiento.tsx::trophy-outline',
+  // NOCHE-7 · labs con contexto de ciclo: la nota que dice en qué fase se tomó
+  // el estudio. Va en ternario con alert-circle cuando la fase no se conoce:
+  // es el par de estado (conocida / desconocida), chrome puro de la nota.
+  'src/components/reports/domains/labs.tsx::moon-outline',
   // OLA1 R-5: el flame-outline del encabezado "racha del protocolo". Es
   // contenido del dominio adherencia (una racha, dibujada donde vive), no un
   // lanzador de funcion del registro.
@@ -310,17 +335,12 @@ export const GLYPH_INVENTORY: readonly string[] = [
   // Contenido propio (la grafica y la lista de ciclos), no lanzadores.
   'src/components/reports/domains/ciclo.tsx::analytics-outline',
   'src/components/reports/domains/ciclo.tsx::calendar-outline',
-  // OLA1 R-0/R-1: REPORT_DOMAINS es el registro de los reportes por dominio y
-  // ahi vive el icono de cada uno, que antes estaba suelto en app/reports.tsx.
-  // No dibuja: es el dato que el hub y la pantalla del dominio leen para no
-  // elegir cada uno el suyo.
-  'src/services/reports/report-domain-core.ts::book-outline',
-  'src/services/reports/report-domain-core.ts::calendar-outline',
-  'src/services/reports/report-domain-core.ts::flower-outline',
-  'src/services/reports/report-domain-core.ts::grid-outline',
-  'src/services/reports/report-domain-core.ts::restaurant-outline',
-  'src/services/reports/report-domain-core.ts::timer-outline',
-  'src/services/reports/report-domain-core.ts::water-outline',
+  // FIX-NOCHE: los siete de report-domain-core.ts murieron. OLA1 los inventarió
+  // con el argumento de que "no dibuja, es el dato que el hub lee", y ese
+  // argumento estaba mal: un registro que nombra un glifo declara un DIBUJO
+  // donde debe declarar una FUNCIÓN. REPORT_DOMAINS ya usa nombres lógicos de
+  // AppIconName y el archivo entró a REGISTRY_FILES_SIN_IONICON. Lo mismo con
+  // expediente-report-core.ts, que nunca llegó a inventariarse.
   'src/services/salud/ketones-source-core.ts::cloud-outline',
   'src/services/salud/ketones-source-core.ts::flask-outline',
   'src/services/salud/ketones-source-core.ts::water-outline',
@@ -361,7 +381,4 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/tests/resultado/cronotipo.tsx::calendar-outline',
   'app/tests/resultado/cronotipo.tsx::moon-outline',
   'app/tests/resultado/cronotipo.tsx::sunny-outline',
-  // Deriva ajena que cazó el barrido: OLA0 QW-5 metió el espejo in-app de
-  // términos sin inventariar su glifo. Es un enlace a documento, chrome puro.
-  'app/settings/legal.tsx::reader-outline',
 ];

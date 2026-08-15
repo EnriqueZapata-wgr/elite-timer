@@ -14,6 +14,10 @@
  * mi-expediente-core, que ya lo arma y ya tiene pruebas.
  */
 import type { TimelineSources } from '@/src/services/salud/mi-expediente-core';
+// FIX-NOCHE: mismo criterio que report-domain-core — este archivo declara qué
+// FUENTE es cada fila, no con qué dibujo se pinta. El nombre lógico lo resuelve
+// <AppIcon>; el import de tipo no rompe la node-testeabilidad.
+import type { AppIconName } from '@/src/components/ui/app-icon-names';
 
 // ── Inventario por fuente ────────────────────────────────────────────────
 
@@ -31,7 +35,8 @@ export interface FuenteInventario {
   comoSeLlena: string;
   /** A dónde va el botón. */
   route: string;
-  icon: string;
+  /** Nombre LÓGICO del icono de la fuente. Quien lo pinte pasa por <AppIcon>. */
+  icon: AppIconName;
 }
 
 /** El orden de lectura del expediente, de lo más pesado a lo más granular. */
@@ -41,42 +46,42 @@ const DEFINICIONES: Omit<FuenteInventario, 'registros' | 'ultimo'>[] = [
     titulo: 'Biomarcadores',
     comoSeLlena: 'Sube la foto o el PDF de tu estudio y cada valor entra con su fecha.',
     route: '/my-health',
-    icon: 'flask-outline',
+    icon: 'labs',
   },
   {
     key: 'mediciones',
     titulo: 'Mediciones del cuerpo',
     comoSeLlena: 'Peso, cintura, presión y fuerza de agarre. Se anotan a mano y toman dos minutos.',
     route: '/medidas',
-    icon: 'body-outline',
+    icon: 'medidas',
   },
   {
     key: 'sintomas',
     titulo: 'Lo que sientes',
     comoSeLlena: 'Anota lo que te pasa y desde cuándo. Sirve igual cuando se resuelve.',
     route: '/salud/mis-sintomas',
-    icon: 'medkit-outline',
+    icon: 'sintomas',
   },
   {
     key: 'intervenciones',
     titulo: 'Lo que estás haciendo',
     comoSeLlena: 'Cada cosa que activas queda con su fecha, y así se puede ver qué cambió después.',
     route: '/salud/intervenciones',
-    icon: 'leaf-outline',
+    icon: 'protocolos',
   },
   {
     key: 'glucosa',
     titulo: 'Glucosa',
     comoSeLlena: 'Un piquete en ayuno ya empieza tu serie.',
     route: '/glucose-log',
-    icon: 'pulse-outline',
+    icon: 'glucosa',
   },
   {
     key: 'cetonas',
     titulo: 'Cetonas',
     comoSeLlena: 'Sangre, aliento o tira. Las de sangre son las que además calculan tu índice.',
     route: '/ketones-log',
-    icon: 'flame-outline',
+    icon: 'cetonas',
   },
 ];
 
