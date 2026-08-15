@@ -40,6 +40,7 @@ import { EmocionesResumen } from '@/src/components/reports/domains/emociones';
 import { CicloResumen } from '@/src/components/reports/domains/ciclo';
 import { NbackResumen } from '@/src/components/reports/domains/nback';
 import { AdherenciaResumen } from '@/src/components/reports/domains/adherencia';
+import { EntrenamientoResumen } from '@/src/components/reports/domains/entrenamiento';
 import { REPORT_DOMAINS, type ReportDomainKey } from '@/src/services/reports/report-domain-core';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
@@ -272,16 +273,20 @@ export default function ReportsScreen() {
         <AyunoContent data={fasting} variant="resumen" />
       </DomainCard>
     ),
+    // NOCHE-REP: el ejercicio era la cifra sin casa más grande del hub. Ahora
+    // es la puerta del dominio entrenamiento, donde además viven el volumen
+    // día por día, la progresión de fuerza y el apego al plan. La llave de la
+    // sección NO se renombra: la preferencia guardada de la gente dice
+    // 'ejercicio', y cambiarla les borraría el orden que ya eligieron.
     ejercicio: () => (
-      <GradientCard gradient={PILLAR_GRADIENTS.fitness}>
-        <SectionHeader icon="barbell-outline" color={LIME} title="EJERCICIO" />
-        <StatsRow>
-          <Stat value={`${exercise.sessionsPerWeek}`} label="sesiones/sem" />
-          <Stat value={exercise.totalVolumeKg > 0 ? `${(exercise.totalVolumeKg / 1000).toFixed(1)}t` : '—'} label="volumen" />
-          <Stat value={`${exercise.prsThisPeriod}`} label="PRs" />
-          <Stat value={`${exercise.cardioSessions}`} label="cardio" />
-        </StatsRow>
-      </GradientCard>
+      <DomainCard domain="entrenamiento" gradient={PILLAR_GRADIENTS.fitness} period={period}>
+        <EntrenamientoResumen
+          sessionsPerWeek={exercise.sessionsPerWeek}
+          totalVolumeKg={exercise.totalVolumeKg}
+          prs={exercise.prsThisPeriod}
+          cardio={exercise.cardioSessions}
+        />
+      </DomainCard>
     ),
     glucosa: () => glucose.readings > 0 ? (
       <GradientCard gradient={{ start: 'rgba(251,146,60,0.10)', end: 'rgba(251,146,60,0.02)' }}>
