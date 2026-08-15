@@ -62,6 +62,7 @@ import { tituloDe, type CandidatoNav } from '@/src/services/argos-nav-resolver-c
 import { detectarIntencionAjuste, type PeticionAjuste } from '@/src/services/argos-settings-intent-core';
 import { planearAjuste, construirPregunta, type PlanAjuste } from '@/src/services/argos-settings-core';
 import { aplicarAjuste } from '@/src/services/argos-settings-service';
+import { resolverConModelo } from '@/src/services/argos-nav-model-service';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 /**
@@ -388,6 +389,34 @@ function ArgosChat() {
     }
   }
 
+  /**
+   * NOCHE-ARGOS P8: el respaldo con modelo. Devuelve true si atendió el turno.
+   *
+   * Falla hacia el chat en TODO lo que no sea una ruta válida: si no hay red,
+   * si no hay H+, si el modelo se equivoca o si simplemente no encuentra. El
+   * chat es peor negocio pero es la respuesta que el usuario espera, y dejarlo
+   * con un error de navegación cuando quizá preguntaba otra cosa es peor.
+   */
+  async function escalarNavegacion(messageText: string): Promise<boolean> {
+    try {
+      if (!(await isOnline())) return false;
+      // Sí hay espera de red: sin indicador el chat se ve congelado. Si el turno
+      // acaba cayendo al chat, sendMessage lo vuelve a encender y no parpadea.
+      setLoading(true);
+      // El preflight avisa del saldo ANTES de gastar. 20 H+, no 280.
+      const gate = await withPreflight('nav_intent', () => resolverConModelo(messageText));
+      if (wasAborted(gate)) { setLoading(false); return true; } // sin saldo: ya se ofreció la tienda.
+      const turno: TurnoNav = gate;
+      if (turno.accion === 'chat') return false;
+      setLoading(false);
+      responderSinModelo(messageText, turno);
+      return true;
+    } catch (e) {
+      console.warn('[ARGOS] respaldo de navegación no disponible:', (e as Error)?.message);
+      return false;
+    }
+  }
+
   async function sendMessage(text?: string) {
     const messageText = text || input.trim();
     if (!messageText || !userId) return;
@@ -417,6 +446,15 @@ function ArgosChat() {
       responderSinModelo(messageText, nav);
       sendGuard.release();
       return;
+    }
+    // NOCHE-ARGOS P8: el usuario SÍ pidió que lo llevaran pero el índice local
+    // no encontró. Antes de mandarlo al chat completo (280 H+, cerebro entero,
+    // Sonnet) se intenta el respaldo barato: 20 H+ y Gemini sin cerebro. Es el
+    // único camino de navegación que cuesta, y solo se toma cuando el gratis
+    // ya falló.
+    if (nav.escalable) {
+      const escalado = await escalarNavegacion(messageText);
+      if (escalado) { sendGuard.release(); return; }
     }
     // A partir de aquí, turno normal: sí cuesta y sí necesita red.
     setNavOpciones(null);

@@ -33,6 +33,10 @@ if (objetivos.length === 0) {
 
 fs.rmSync(SALIDA, { recursive: true, force: true });
 fs.mkdirSync(SALIDA, { recursive: true });
+// El emitido es CommonJS. Sin esta marca, Node hereda el `type` del package.json
+// más cercano hacia arriba y algunos archivos revientan con "exports is not
+// defined in ES module scope".
+fs.writeFileSync(path.join(SALIDA, 'package.json'), '{"type":"commonjs"}');
 
 // 1. Transpilar (sin type-check real: de eso ya se encarga `tsc --noEmit -p .`).
 //    El tsconfig va aparte porque `paths` no se puede pasar por línea de comandos
@@ -87,4 +91,4 @@ for (const objetivo of objetivos) {
   require(compilado);
 }
 
-process.exitCode = shim.reportar() ? 0 : 1;
+shim.reportar().then((ok) => { process.exitCode = ok ? 0 : 1; });

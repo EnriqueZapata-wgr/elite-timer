@@ -14,12 +14,18 @@ function describe(nombre, fn) {
   try { fn(); } finally { pila.pop(); }
 }
 
+const pendientes = [];
+
 function it(nombre, fn) {
   const ruta = [...pila, nombre].join(' > ');
   try {
     const r = fn();
     if (r && typeof r.then === 'function') {
-      throw new Error('test async: el shim solo corre tests síncronos');
+      // Los tests async se dejan corriendo y se cobran en reportar(). Marcarlos
+      // como no soportados sería un verde por omisión, que es peor que no
+      // tener runner.
+      pendientes.push(r.then(() => { pasados++; }, (e) => { fallas.push({ ruta, error: e }); }));
+      return;
     }
     pasados++;
   } catch (e) {
@@ -45,6 +51,13 @@ function igual(a, b) {
   return ka.every((k) => igual(a[k], b[k]));
 }
 
+/** Igualdad PARCIAL: `esperado` es un subconjunto de `actual`, recursivo. */
+function parcial(actual, esperado) {
+  if (esperado === null || typeof esperado !== 'object') return Object.is(actual, esperado);
+  if (actual === null || typeof actual !== 'object') return false;
+  return Object.keys(esperado).every((k) => parcial(actual[k], esperado[k]));
+}
+
 const ver = (v) => {
   try { return JSON.stringify(v); } catch { return String(v); }
 };
@@ -58,6 +71,8 @@ function construir(actual, negado) {
     toBe: (e) => chk(Object.is(actual, e), `esperaba ${ver(e)}`),
     toEqual: (e) => chk(igual(actual, e), `esperaba (profundo) ${ver(e)}`),
     toStrictEqual: (e) => chk(igual(actual, e), `esperaba (estricto) ${ver(e)}`),
+    // Parcial y recursivo: solo se exigen las claves que el esperado menciona.
+    toMatchObject: (e) => chk(parcial(actual, e), `esperaba que incluyera ${ver(e)}`),
     toContain: (e) => chk(
       typeof actual === 'string' ? actual.includes(e) : Array.isArray(actual) && actual.some((x) => igual(x, e)),
       `esperaba que contuviera ${ver(e)}`,
@@ -103,7 +118,8 @@ const vi = {
   },
 };
 
-function reportar() {
+async function reportar() {
+  await Promise.all(pendientes);
   console.log(`\n${pasados} pasaron, ${fallas.length} fallaron`);
   for (const f of fallas) {
     console.log(`\n  FALLA: ${f.ruta}\n    ${f.error && f.error.message}`);
