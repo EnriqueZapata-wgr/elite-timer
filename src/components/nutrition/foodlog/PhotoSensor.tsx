@@ -157,7 +157,7 @@ function LoadingDots({ color }: { color: string }) {
   );
 }
 
-export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved }: SensorPanelProps) {
+export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, porGesto }: SensorPanelProps) {
   const { user } = useAuth();
   const analytics = useAnalytics();
   const esEtiqueta = intent === 'etiqueta';
@@ -221,8 +221,19 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved }:
     onTakeover(step !== 'capture' || showReview);
   }, [step, showReview, onTakeover]);
 
-  // Lanzar cámara al montar el panel (tocar el chip Foto ES pedir la cámara).
-  useEffect(() => { openCamera(); }, []);
+  // La cámara se abre por un GESTO, nunca por montar la pantalla.
+  //
+  // Tocar el chip Foto sí es pedir la cámara, y ese atajo se conserva. Lo que
+  // se corta es el otro camino: llegar por deep link (/food-scan) o que un
+  // barrido de rutas monte la pantalla abría la cámara del sistema sin que
+  // nadie la pidiera. Aquí siempre queda el paso de captura con su obturador
+  // y su botón de galería, así que sin el atajo no se pierde ninguna función:
+  // solo se agrega un toque para quien no vino tocando el chip.
+  useEffect(() => {
+    if (porGesto) openCamera();
+    // Solo al montar: cambiar de sensor desmonta y vuelve a montar el panel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // === CÁMARA / GALERÍA ===
 
