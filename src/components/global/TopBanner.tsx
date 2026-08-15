@@ -13,7 +13,7 @@
  * Dismissable: se oculta el resto del DÍA (AsyncStorage @atp/top_banner_dismissed).
  * Editorial: pill flotante ELEVATION[2], acento mínimo.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,7 +27,8 @@ import { getCurrentStreak } from '@/src/services/adherence-service';
 import { countUnreadInbox } from '@/src/services/user-notifications-service';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { Fonts, FontSizes, Radius } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, TEXT } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 const DISMISS_KEY = '@atp/top_banner_dismissed';
 const ROTATE_MS = 15_000;
@@ -58,6 +59,10 @@ interface Props {
 
 export function TopBanner({ offset = 0 }: Props) {
   const insets = useSafeAreaInsets();
+  // MB-31B: el pill flota sobre HOY y ARGOS, que ya declaran themed. En claro
+  // la píldora sube a papel y el lima del CTA cede al teal.
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const [variants, setVariants] = useState<BannerVariant[]>([]);
   const [index, setIndex] = useState(0);
@@ -196,7 +201,13 @@ export function TopBanner({ offset = 0 }: Props) {
       pointerEvents="box-none"
     >
       <View style={s.pill}>
-        <Ionicons name={v.icon} size={14} color={v.critical ? '#fbbf24' : ATP_BRAND.lime} />
+        {/* El ámbar de "crítica" es señal, no decoración: se queda en los dos
+            temas (es el secundario de marca, no hay token oscuro equivalente). */}
+        <Ionicons
+          name={v.icon}
+          size={14}
+          color={v.critical ? ATP_BRAND.amber : (t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto)}
+        />
         <Text style={s.text} numberOfLines={1}>{v.text}</Text>
         {v.route && (
           <Pressable
@@ -208,48 +219,52 @@ export function TopBanner({ offset = 0 }: Props) {
           </Pressable>
         )}
         <Pressable onPress={dismiss} hitSlop={10}>
-          <Ionicons name="close" size={14} color={TEXT.tertiary} />
+          <Ionicons name="close" size={14} color={t.textoSecundario} />
         </Pressable>
       </View>
     </Animated.View>
   );
 }
 
-const s = StyleSheet.create({
-  wrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 50,
-    alignItems: 'center',
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    maxWidth: '92%',
-    backgroundColor: 'rgba(26,26,26,0.96)', // ELEVATION[2] con leve translucidez
-    borderWidth: 0.5,
-    borderColor: ELEVATION[2].border,
-    borderRadius: Radius.pill,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  text: {
-    color: '#ddd',
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.semiBold,
-    flexShrink: 1,
-  },
-  cta: {
-    backgroundColor: 'rgba(168,224,42,0.14)',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  ctaText: {
-    color: ATP_BRAND.lime,
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.bold,
-  },
-});
+const makeStyles = (t: AppThemeTokens) => {
+  const dark = t.kind === 'dark';
+  return StyleSheet.create({
+    wrap: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      zIndex: 50,
+      alignItems: 'center',
+    },
+    pill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      maxWidth: '92%',
+      // ELEVATION[2] con leve translucidez en oscuro; papel flotante en claro.
+      backgroundColor: dark ? 'rgba(26,26,26,0.96)' : t.flotante,
+      borderWidth: 0.5,
+      borderColor: dark ? ELEVATION[2].border : t.borde,
+      borderRadius: Radius.pill,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+    },
+    text: {
+      color: t.texto,
+      fontSize: FontSizes.sm,
+      fontFamily: Fonts.semiBold,
+      flexShrink: 1,
+    },
+    cta: {
+      backgroundColor: dark ? 'rgba(168,224,42,0.14)' : 'rgba(8,106,94,0.12)',
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    ctaText: {
+      color: dark ? ATP_BRAND.lime : t.tealTexto,
+      fontSize: FontSizes.xs,
+      fontFamily: Fonts.bold,
+    },
+  });
+};
