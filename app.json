@@ -41,6 +41,10 @@
         "android.permission.health.READ_HEART_RATE",
         "android.permission.health.READ_TOTAL_CALORIES_BURNED",
         "android.permission.health.READ_SLEEP",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_WEIGHT",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.READ_RESTING_HEART_RATE",
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
@@ -80,7 +84,7 @@
         "expo-image-picker",
         {
           "photosPermission": "ATP necesita acceso a tus fotos para que puedas registrar tus comidas, tus suplementos y tus estudios de laboratorio desde imágenes que ya tienes.",
-          "cameraPermission": "ATP necesita la cámara para que puedas fotografiar tus comidas, tus suplementos y tus estudios de laboratorio."
+          "cameraPermission": "ATP necesita la cámara para que puedas fotografiar tus comidas, tus suplementos y tus estudios de laboratorio, y para escanear el código de barras de un producto."
         }
       ],
       "@react-native-community/datetimepicker",
@@ -89,8 +93,8 @@
       [
         "@kingstinct/react-native-healthkit",
         {
-          "NSHealthShareUsageDescription": "ATP lee tus entrenamientos (tipo, duración, distancia, calorías y frecuencia cardiaca media) para tu pilar Fitness, y tus horas de sueño para tu pantalla de Sueño. Solo lectura: nada se escribe ni se comparte.",
-          "NSHealthUpdateUsageDescription": "ATP no escribe información en Salud. Solo lee tus entrenamientos y tus horas de sueño para mostrarlos en la app.",
+          "NSHealthShareUsageDescription": "ATP lee de Salud tus pasos, tus horas de sueño, tu frecuencia cardiaca en reposo, tu peso y tu energía activa, además de tus entrenamientos (tipo, duración, distancia y calorías), para mostrarlos en tus pantallas de Hoy, Fitness, Sueño y Salud sin que los captures a mano. Solo lectura: ATP nunca escribe ni comparte tu información de Salud.",
+          "NSHealthUpdateUsageDescription": "ATP no escribe información en Salud. Solo lee tus datos de actividad, sueño, peso y frecuencia cardiaca para mostrarlos dentro de la app.",
           "background": false
         }
       ],
