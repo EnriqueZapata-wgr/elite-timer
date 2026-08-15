@@ -34,4 +34,15 @@ export interface SensorPanelProps {
   onTakeover: (activo: boolean) => void;
   /** Se guardó algo en food_logs: la zona "de un toque" se refresca. */
   onSaved: () => void;
+  /**
+   * ¿Este sensor se eligió tocando su chip, aquí y ahora?
+   *
+   * false cuando el sensor viene del parámetro de la ruta, o sea al aterrizar
+   * por deep link (/food-scan, /food-barcode) o al montar la pantalla sin que
+   * nadie haya tocado nada. La distinción existe para una sola regla: la
+   * cámara se abre por un gesto de la persona, NUNCA porque una pantalla se
+   * montó. Abrirla al montar hace que un deep link secuestre la cámara sin
+   * que nadie la haya pedido, y tumba cualquier barrido automatizado de rutas.
+   */
+  porGesto: boolean;
 }

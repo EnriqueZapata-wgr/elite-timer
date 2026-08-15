@@ -98,6 +98,9 @@ export default function FoodLogScreen() {
 
   // El sensor por defecto es TEXTO: el más barato y el que no pide permisos.
   const [sensor, setSensor] = useState<SensorId>(esSensor(params.sensor) ? params.sensor : 'texto');
+  // ¿El sensor actual se eligió tocando su chip? Al montar NO: el sensor
+  // inicial viene del parámetro de la ruta. Solo el gesto abre la cámara.
+  const [sensorPorGesto, setSensorPorGesto] = useState(false);
   const intent: CaptureIntent = params.intent === 'etiqueta' ? 'etiqueta' : 'comida';
 
   // Tipo de comida: el param manda; si no, la ventana del usuario; si no, el reloj.
@@ -249,6 +252,7 @@ export default function FoodLogScreen() {
     intent,
     onTakeover: setTakeover,
     onSaved,
+    porGesto: sensorPorGesto,
   };
 
   const oculto = takeover ? s.oculto : undefined;
@@ -342,7 +346,7 @@ export default function FoodLogScreen() {
                 <AnimatedPressable
                   key={sen.id}
                   scaleDown={0.95}
-                  onPress={() => { haptic.light(); setSensor(sen.id); }}
+                  onPress={() => { haptic.light(); setSensorPorGesto(true); setSensor(sen.id); }}
                   style={[
                     s.sensorBtn,
                     { backgroundColor: t.card, borderColor: t.borde },
