@@ -5,7 +5,7 @@
  * el signup. El checkbox llega NO pre-marcado; aceptar loguea en
  * user_consent_log y desbloquea la función. Declinar cierra sin activar.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
@@ -14,7 +14,8 @@ import { ConsentCheckboxRow } from '@/src/components/legal/ConsentCheckboxRow';
 import { haptic } from '@/src/utils/haptics';
 import { CONSENT_BY_ID, type ConsentCheckboxId } from '@/src/constants/consent-copy';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface Props {
   visible: boolean;
@@ -29,6 +30,8 @@ interface Props {
 
 export function ContextualConsentModal({ visible, checkboxId, title, onAccept, onDecline, saving }: Props) {
   const [checked, setChecked] = useState(false);
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDecline}>
@@ -69,13 +72,15 @@ export function ContextualConsentModal({ visible, checkboxId, title, onAccept, o
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B: el icono del escudo se queda en lima (badge decorativo, no
+// texto) en los dos temas, igual que el resto de badges de consentimiento.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   overlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.85)',
+    flex: 1, backgroundColor: t.kind === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(15,21,24,0.35)',
     justifyContent: 'center', paddingHorizontal: Spacing.md,
   },
   card: {
-    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
+    backgroundColor: t.flotante, borderWidth: 1, borderColor: t.bordeMarcado,
     borderRadius: 24, padding: Spacing.lg, alignItems: 'center',
   },
   iconWrap: {
@@ -83,19 +88,19 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md,
   },
   title: {
-    fontSize: 20, fontFamily: Fonts.bold, color: TEXT.primary,
+    fontSize: 20, fontFamily: Fonts.bold, color: t.texto,
     textAlign: 'center', lineHeight: 27,
   },
   body: {
-    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#999',
+    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: t.textoSecundario,
     textAlign: 'center', marginTop: 10, lineHeight: 20,
   },
   primaryBtn: {
     alignSelf: 'stretch', backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg,
     paddingVertical: 15, alignItems: 'center', marginTop: Spacing.lg,
   },
-  primaryBtnDisabled: { backgroundColor: '#1a1a1a' },
-  primaryBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  primaryBtnDisabled: { backgroundColor: t.flotante },
+  primaryBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: t.textoSobreLima, letterSpacing: 1 },
   secondaryBtn: { paddingVertical: 12, marginTop: 4 },
-  secondaryText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#666' },
+  secondaryText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: t.textoSecundario },
 });

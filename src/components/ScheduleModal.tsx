@@ -7,7 +7,7 @@
  *
  * Muestra los schedules actuales con opción de eliminar.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View, Modal, StyleSheet, Pressable, ScrollView, ActivityIndicator,
 } from 'react-native';
@@ -15,7 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { EliteButton } from '@/components/elite-button';
-import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { Spacing, Radius, Fonts } from '@/constants/theme';
+import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import {
   getRoutineSchedule,
   scheduleWeeklyCycle,
@@ -52,6 +54,10 @@ export function ScheduleModal({ visible, onClose, routineId, routineName }: Sche
   const [schedules, setSchedules] = useState<ScheduledRoutine[]>([]);
   const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set());
   const [mode, setMode] = useState<'weekly' | 'date' | null>(null);
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
+  // Acento lima en oscuro; en claro el lima no se lee como texto (1.34) → teal.
+  const accent = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
 
   // Cargar schedules al abrir
   useEffect(() => {
@@ -150,12 +156,12 @@ export function ScheduleModal({ visible, onClose, routineId, routineName }: Sche
               {routineName}
             </EliteText>
             <Pressable onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={22} color={Colors.textSecondary} />
+              <Ionicons name="close" size={22} color={t.textoSecundario} />
             </Pressable>
           </View>
 
           {loading ? (
-            <ActivityIndicator size="small" color={Colors.neonGreen} style={{ marginVertical: Spacing.lg }} />
+            <ActivityIndicator size="small" color={accent} style={{ marginVertical: Spacing.lg }} />
           ) : (
             <ScrollView showsVerticalScrollIndicator={false} style={styles.body}>
               {/* ── Schedules actuales ── */}
@@ -167,7 +173,7 @@ export function ScheduleModal({ visible, onClose, routineId, routineName }: Sche
                       <Ionicons
                         name={s.schedule_type === 'weekly_cycle' ? 'repeat-outline' : 'calendar-outline'}
                         size={16}
-                        color={Colors.neonGreen}
+                        color={accent}
                       />
                       <EliteText variant="body" style={styles.scheduleText}>
                         {s.schedule_type === 'weekly_cycle' && s.day_of_week !== null
@@ -175,7 +181,7 @@ export function ScheduleModal({ visible, onClose, routineId, routineName }: Sche
                           : s.specific_date ?? ''}
                       </EliteText>
                       <Pressable onPress={() => handleRemove(s.id)} hitSlop={8}>
-                        <Ionicons name="close-circle" size={20} color={Colors.error} />
+                        <Ionicons name="close-circle" size={20} color={t.error} />
                       </Pressable>
                     </View>
                   ))}
@@ -186,21 +192,21 @@ export function ScheduleModal({ visible, onClose, routineId, routineName }: Sche
               {mode === null && (
                 <View style={styles.section}>
                   <Pressable style={styles.optionCard} onPress={() => setMode('weekly')}>
-                    <Ionicons name="repeat-outline" size={24} color={Colors.neonGreen} />
+                    <Ionicons name="repeat-outline" size={24} color={accent} />
                     <View style={styles.optionText}>
                       <EliteText variant="body" style={styles.optionTitle}>Ciclo semanal</EliteText>
                       <EliteText variant="caption">Se repite cada semana</EliteText>
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+                    <Ionicons name="chevron-forward" size={20} color={t.textoSecundario} />
                   </Pressable>
 
                   <Pressable style={styles.optionCard} onPress={() => setMode('date')}>
-                    <Ionicons name="calendar-outline" size={24} color={Colors.info} />
+                    <Ionicons name="calendar-outline" size={24} color={t.info} />
                     <View style={styles.optionText}>
                       <EliteText variant="body" style={styles.optionTitle}>Fecha específica</EliteText>
                       <EliteText variant="caption">Un solo día</EliteText>
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+                    <Ionicons name="chevron-forward" size={20} color={t.textoSecundario} />
                   </Pressable>
                 </View>
               )}
@@ -263,7 +269,7 @@ export function ScheduleModal({ visible, onClose, routineId, routineName }: Sche
                           </EliteText>
                           <EliteText variant="body" style={[
                             styles.dateDayNum,
-                            d.isToday && { color: Colors.neonGreen },
+                            d.isToday && { color: accent },
                           ]}>
                             {d.dayNum}
                           </EliteText>
@@ -274,7 +280,7 @@ export function ScheduleModal({ visible, onClose, routineId, routineName }: Sche
                             <Ionicons
                               name="checkmark-circle"
                               size={14}
-                              color={Colors.neonGreen}
+                              color={accent}
                               style={styles.dateCheck}
                             />
                           )}
@@ -289,7 +295,7 @@ export function ScheduleModal({ visible, onClose, routineId, routineName }: Sche
               )}
 
               {saving && (
-                <ActivityIndicator size="small" color={Colors.neonGreen} style={{ marginVertical: Spacing.sm }} />
+                <ActivityIndicator size="small" color={accent} style={{ marginVertical: Spacing.sm }} />
               )}
             </ScrollView>
           )}
@@ -301,174 +307,177 @@ export function ScheduleModal({ visible, onClose, routineId, routineName }: Sche
 
 // === ESTILOS ===
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.lg,
-  },
-  modal: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    width: '100%',
-    maxHeight: '80%',
-    borderWidth: 0.5,
-    borderColor: '#2a2a2a',
-  },
-  modalHeader: {
-    padding: Spacing.md,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#2a2a2a',
-  },
-  modalTitle: {
-    color: Colors.neonGreen,
-    letterSpacing: 3,
-    fontSize: 13,
-  },
-  modalSubtitle: {
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  closeBtn: {
-    position: 'absolute',
-    top: Spacing.md,
-    right: Spacing.md,
-    padding: Spacing.xs,
-  },
-  body: {
-    padding: Spacing.md,
-  },
+const makeStyles = (t: AppThemeTokens) => {
+  const accent = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
+  return StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: t.kind === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: Spacing.lg,
+    },
+    modal: {
+      backgroundColor: t.card,
+      borderRadius: Radius.lg,
+      width: '100%',
+      maxHeight: '80%',
+      borderWidth: 0.5,
+      borderColor: t.borde,
+    },
+    modalHeader: {
+      padding: Spacing.md,
+      borderBottomWidth: 0.5,
+      borderBottomColor: t.borde,
+    },
+    modalTitle: {
+      color: accent,
+      letterSpacing: 3,
+      fontSize: 13,
+    },
+    modalSubtitle: {
+      color: t.textoSecundario,
+      marginTop: 2,
+    },
+    closeBtn: {
+      position: 'absolute',
+      top: Spacing.md,
+      right: Spacing.md,
+      padding: Spacing.xs,
+    },
+    body: {
+      padding: Spacing.md,
+    },
 
-  // Secciones
-  section: {
-    marginBottom: Spacing.md,
-  },
-  sectionLabel: {
-    color: Colors.textSecondary,
-    letterSpacing: 2,
-    fontSize: 11,
-    marginBottom: Spacing.sm,
-  },
+    // Secciones
+    section: {
+      marginBottom: Spacing.md,
+    },
+    sectionLabel: {
+      color: t.textoSecundario,
+      letterSpacing: 2,
+      fontSize: 11,
+      marginBottom: Spacing.sm,
+    },
 
-  // Schedules actuales
-  scheduleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.surfaceLight,
-    borderRadius: Radius.sm,
-    padding: Spacing.sm,
-    marginBottom: Spacing.xs,
-  },
-  scheduleText: {
-    flex: 1,
-    fontSize: 14,
-  },
+    // Schedules actuales
+    scheduleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      backgroundColor: t.flotante,
+      borderRadius: Radius.sm,
+      padding: Spacing.sm,
+      marginBottom: Spacing.xs,
+    },
+    scheduleText: {
+      flex: 1,
+      fontSize: 14,
+    },
 
-  // Opciones (weekly / date)
-  optionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    backgroundColor: Colors.surfaceLight,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 0.5,
-    borderColor: '#2a2a2a',
-  },
-  optionText: {
-    flex: 1,
-  },
-  optionTitle: {
-    fontFamily: Fonts.semiBold,
-    marginBottom: 2,
-  },
+    // Opciones (weekly / date)
+    optionCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+      backgroundColor: t.flotante,
+      borderRadius: Radius.md,
+      padding: Spacing.md,
+      marginBottom: Spacing.sm,
+      borderWidth: 0.5,
+      borderColor: t.borde,
+    },
+    optionText: {
+      flex: 1,
+    },
+    optionTitle: {
+      fontFamily: Fonts.semiBold,
+      marginBottom: 2,
+    },
 
-  // Chips de días
-  daysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.md,
-  },
-  dayChip: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    backgroundColor: Colors.surfaceLight,
-  },
-  dayChipActive: {
-    borderColor: Colors.neonGreen,
-    backgroundColor: Colors.neonGreen + '20',
-  },
-  dayChipText: {
-    color: Colors.textSecondary,
-    fontFamily: Fonts.bold,
-    fontSize: 13,
-  },
-  dayChipTextActive: {
-    color: Colors.neonGreen,
-  },
+    // Chips de días
+    daysRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: Spacing.md,
+    },
+    dayChip: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: t.borde,
+      backgroundColor: t.flotante,
+    },
+    dayChipActive: {
+      borderColor: accent,
+      backgroundColor: withOpacity(accent, 0.13),
+    },
+    dayChipText: {
+      color: t.textoSecundario,
+      fontFamily: Fonts.bold,
+      fontSize: 13,
+    },
+    dayChipTextActive: {
+      color: accent,
+    },
 
-  // Acciones
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cancelText: {
-    color: Colors.textSecondary,
-    padding: Spacing.sm,
-  },
-  saveBtn: {
-    minWidth: 120,
-  },
+    // Acciones
+    actionRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    cancelText: {
+      color: t.textoSecundario,
+      padding: Spacing.sm,
+    },
+    saveBtn: {
+      minWidth: 120,
+    },
 
-  // Grid de fechas
-  dateGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  dateCard: {
-    width: 58,
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    backgroundColor: Colors.surfaceLight,
-  },
-  dateCardToday: {
-    borderColor: Colors.neonGreen + '50',
-  },
-  dateCardScheduled: {
-    borderColor: Colors.neonGreen,
-    backgroundColor: Colors.neonGreen + '10',
-  },
-  dateDayLabel: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-    fontFamily: Fonts.bold,
-  },
-  dateDayNum: {
-    fontFamily: Fonts.bold,
-    fontSize: 18,
-    color: Colors.textPrimary,
-  },
-  dateMonthLabel: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-  },
-  dateCheck: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-  },
-});
+    // Grid de fechas
+    dateGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: Spacing.sm,
+    },
+    dateCard: {
+      width: 58,
+      alignItems: 'center',
+      paddingVertical: Spacing.sm,
+      borderRadius: Radius.sm,
+      borderWidth: 1,
+      borderColor: t.borde,
+      backgroundColor: t.flotante,
+    },
+    dateCardToday: {
+      borderColor: withOpacity(accent, 0.31),
+    },
+    dateCardScheduled: {
+      borderColor: accent,
+      backgroundColor: withOpacity(accent, 0.06),
+    },
+    dateDayLabel: {
+      color: t.textoSecundario,
+      fontSize: 10,
+      fontFamily: Fonts.bold,
+    },
+    dateDayNum: {
+      fontFamily: Fonts.bold,
+      fontSize: 18,
+      color: t.texto,
+    },
+    dateMonthLabel: {
+      color: t.textoSecundario,
+      fontSize: 10,
+    },
+    dateCheck: {
+      position: 'absolute',
+      top: 2,
+      right: 2,
+    },
+  });
+};

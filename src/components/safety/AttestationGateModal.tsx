@@ -12,7 +12,7 @@
  * El estado de las casillas se resetea en cada apertura: el gate corre CADA
  * VEZ (el contexto cambia entre sesiones).
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
@@ -28,7 +28,8 @@ import {
 import type { GateDecision } from '@/src/services/safety/protocol-gate-core';
 import { logAttestation } from '@/src/services/safety/protocol-gate-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, TEXT, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, SEMANTIC, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface Props {
   visible: boolean;
@@ -45,6 +46,8 @@ interface Props {
 export function AttestationGateModal({ visible, decision, userId, protocolKey, onProceed, onClose }: Props) {
   const [checked, setChecked] = useState<boolean[]>([]);
   const [saving, setSaving] = useState(false);
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
 
   const spec = decision?.result === 'attest' ? ATTESTATIONS[decision.attestationId as AttestationId] : null;
 
@@ -125,13 +128,18 @@ export function AttestationGateModal({ visible, decision, userId, protocolKey, o
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B: iconWrap del bloqueo se queda en el coral de SEÑAL (SEMANTIC.error)
+// en los dos temas, a propósito: es la advertencia de seguridad del gate.
+// El footer ambar (#8a7a2f) es la nota fina bajo las casillas: en oscuro es
+// legible sobre la card; en claro usa t.error para no perder el acento de
+// aviso sin volverse invisible sobre acero.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   overlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.88)',
+    flex: 1, backgroundColor: t.kind === 'dark' ? 'rgba(0,0,0,0.88)' : 'rgba(15,21,24,0.35)',
     justifyContent: 'center', paddingHorizontal: Spacing.md,
   },
   card: {
-    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
+    backgroundColor: t.flotante, borderWidth: 1, borderColor: t.bordeMarcado,
     borderRadius: 24, padding: Spacing.lg, alignItems: 'center', maxHeight: '86%',
   },
   iconWrap: {
@@ -139,24 +147,24 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md,
   },
   title: {
-    fontSize: 18, fontFamily: Fonts.bold, color: TEXT.primary,
+    fontSize: 18, fontFamily: Fonts.bold, color: t.texto,
     textAlign: 'center', lineHeight: 25,
   },
   body: {
-    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#999',
+    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: t.textoSecundario,
     textAlign: 'center', marginTop: 10, lineHeight: 20,
   },
   checksScroll: { alignSelf: 'stretch', marginTop: Spacing.md, flexGrow: 0 },
   footer: {
-    fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#8a7a2f',
+    fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.kind === 'dark' ? '#8a7a2f' : t.error,
     marginTop: Spacing.md, lineHeight: 17, alignSelf: 'stretch',
   },
   primaryBtn: {
     alignSelf: 'stretch', backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg,
     paddingVertical: 15, alignItems: 'center', marginTop: Spacing.lg,
   },
-  primaryBtnDisabled: { backgroundColor: '#1a1a1a' },
-  primaryBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  primaryBtnDisabled: { backgroundColor: t.flotante },
+  primaryBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: t.textoSobreLima, letterSpacing: 1 },
   secondaryBtn: { paddingVertical: 12, marginTop: 4 },
-  secondaryText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#666' },
+  secondaryText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: t.textoSecundario },
 });

@@ -7,7 +7,7 @@
  * conversación abierta, paginación, y navegación con push (con replace el
  * panel desaparecía del historial y el regreso se sentía roto).
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, Alert, TextInput, Modal, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,8 +26,12 @@ import {
 } from '@/src/services/argos-conversations-core';
 import { openArgosChat } from '@/src/services/argos-nav';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
-import { ATP_BRAND, BG, BORDER, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
+
+/** textoTenue del oscuro no alcanza contraste en claro para letra chica. */
+const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
 
 function fmtDate(iso: string): string {
   const d = new Date(iso);
@@ -59,6 +63,11 @@ export default function ArgosConversationsScreen() {
   const [renaming, setRenaming] = useState<ConversationListRow | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [suggesting, setSuggesting] = useState(false);
+  // Ruta sin <Screen>: lee el tema global directo (no hay scope de tránsito
+  // que abrir aquí, esta pantalla ya sigue el tema del sistema/ajustes).
+  const t = useAppTheme().tokens;
+  const s = useMemo(() => makeStyles(t), [t]);
+  const accent = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
 
   const reload = useCallback(async () => {
     if (!user?.id) return;
@@ -143,11 +152,11 @@ export default function ArgosConversationsScreen() {
   const groups = groupConversations(filtered, Date.now());
 
   return (
-    <View style={{ flex: 1, backgroundColor: ELEVATION[0].bg }}>
+    <View style={{ flex: 1, backgroundColor: t.fondo }}>
       {/* Header */}
       <View style={[s.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
+          <Ionicons name="arrow-back" size={24} color={t.texto} />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={s.title}>Conversaciones</Text>
@@ -157,18 +166,18 @@ export default function ArgosConversationsScreen() {
 
       {/* Búsqueda por contenido, no solo por título */}
       <View style={s.searchBox}>
-        <Ionicons name="search-outline" size={16} color={TEXT.tertiary} />
+        <Ionicons name="search-outline" size={16} color={t.textoSecundario} />
         <TextInput
           value={query}
           onChangeText={setQuery}
           placeholder="Buscar en tus conversaciones..."
-          placeholderTextColor={TEXT.muted}
+          placeholderTextColor={t.sinDatos}
           style={s.searchInput}
           autoCorrect={false}
         />
         {query.length > 0 && (
           <Pressable onPress={() => setQuery('')} hitSlop={10}>
-            <Ionicons name="close-circle" size={16} color={TEXT.tertiary} />
+            <Ionicons name="close-circle" size={16} color={tenue(t)} />
           </Pressable>
         )}
       </View>
@@ -181,7 +190,7 @@ export default function ArgosConversationsScreen() {
             openArgosChat({ startNew: true });
           }}
         >
-          <Ionicons name="add" size={18} color="#000" />
+          <Ionicons name="add" size={18} color={t.textoSobreLima} />
           <Text style={s.newBtnText}>NUEVA CONVERSACIÓN</Text>
         </AnimatedPressable>
 
@@ -218,7 +227,7 @@ export default function ArgosConversationsScreen() {
                 <Animated.View key={conv.id} entering={FadeInUp.delay(Math.min(i * 30, 300)).springify()}>
                   <Pressable onPress={() => openConv(conv.id)} style={[s.row, isCurrent && s.rowCurrent]}>
                     <View style={s.rowIcon}>
-                      <Ionicons name="chatbubble-ellipses-outline" size={16} color={ATP_BRAND.lime} />
+                      <Ionicons name="chatbubble-ellipses-outline" size={16} color={accent} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -237,10 +246,10 @@ export default function ArgosConversationsScreen() {
                       <Text style={s.rowDate}>{fmtDate(conv.updated_at)}</Text>
                     </View>
                     <Pressable onPress={() => startRename(conv)} hitSlop={10} style={{ padding: 4 }}>
-                      <Ionicons name="pencil-outline" size={16} color={TEXT.tertiary} />
+                      <Ionicons name="pencil-outline" size={16} color={tenue(t)} />
                     </Pressable>
                     <Pressable onPress={() => confirmDelete(conv)} hitSlop={10} style={{ padding: 4 }}>
-                      <Ionicons name="trash-outline" size={16} color={TEXT.tertiary} />
+                      <Ionicons name="trash-outline" size={16} color={tenue(t)} />
                     </Pressable>
                   </Pressable>
                 </Animated.View>
@@ -253,7 +262,7 @@ export default function ArgosConversationsScreen() {
         {more && !query && (
           <Pressable onPress={loadMore} style={s.moreBtn} disabled={loadingMore}>
             {loadingMore
-              ? <ActivityIndicator size="small" color={TEXT.secondary} />
+              ? <ActivityIndicator size="small" color={t.textoSecundario} />
               : <Text style={s.moreBtnText}>Ver más</Text>}
           </Pressable>
         )}
@@ -269,17 +278,17 @@ export default function ArgosConversationsScreen() {
               onChangeText={setDraftTitle}
               style={s.modalInput}
               placeholder="Título"
-              placeholderTextColor={TEXT.muted}
+              placeholderTextColor={t.sinDatos}
               maxLength={80}
               autoFocus
             />
             {renaming != null && hasTitleSubstance(renaming.messages?.length ?? 0) && (
               <Pressable onPress={suggestTitle} style={s.suggestBtn} disabled={suggesting}>
                 {suggesting
-                  ? <ActivityIndicator size="small" color={ATP_BRAND.lime} />
+                  ? <ActivityIndicator size="small" color={accent} />
                   : (
                     <>
-                      <Ionicons name="sparkles-outline" size={14} color={ATP_BRAND.lime} />
+                      <Ionicons name="sparkles-outline" size={14} color={accent} />
                       <Text style={s.suggestBtnText}>Que ARGOS proponga uno</Text>
                     </>
                   )}
@@ -300,91 +309,94 @@ export default function ArgosConversationsScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    paddingHorizontal: Spacing.md, paddingBottom: Spacing.md,
-    borderBottomWidth: 0.5, borderBottomColor: BORDER.subtle,
-  },
-  title: { color: TEXT.primary, fontSize: FontSizes.xl, fontFamily: Fonts.bold },
-  subtitle: { color: TEXT.tertiary, fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 1 },
-  searchBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: BG.input, borderWidth: 1, borderColor: BORDER.input,
-    borderRadius: Radius.lg, paddingHorizontal: 14,
-    marginHorizontal: Spacing.md, marginTop: Spacing.md,
-  },
-  searchInput: {
-    flex: 1, color: TEXT.primary, fontSize: FontSizes.md,
-    fontFamily: Fonts.regular, paddingVertical: 10,
-  },
-  newBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg,
-    paddingVertical: 13, marginTop: Spacing.md, marginBottom: Spacing.sm,
-  },
-  newBtnText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 1 },
-  empty: {
-    color: TEXT.muted, fontSize: FontSizes.sm, fontFamily: Fonts.regular,
-    textAlign: 'center', marginTop: Spacing.xl, lineHeight: 20,
-  },
-  groupLabel: {
-    color: TEXT.secondary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold,
-    letterSpacing: 2, marginTop: Spacing.md, marginBottom: Spacing.sm,
-  },
-  row: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
-    borderRadius: Radius.md, padding: Spacing.md, marginBottom: 8,
-  },
-  rowCurrent: { borderColor: withOpacity(ATP_BRAND.lime, 0.45) },
-  rowIcon: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: withOpacity(ATP_BRAND.lime, 0.1),
-    alignItems: 'center', justifyContent: 'center',
-  },
-  rowTitle: { color: TEXT.primary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
-  currentPill: {
-    backgroundColor: withOpacity(ATP_BRAND.lime, 0.15),
-    borderRadius: Radius.pill, paddingHorizontal: 8, paddingVertical: 2,
-  },
-  currentPillText: {
-    color: ATP_BRAND.lime, fontSize: 8, fontFamily: Fonts.bold, letterSpacing: 1,
-  },
-  rowPreview: { color: TEXT.secondary, fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
-  rowDate: { color: TEXT.muted, fontSize: 10, fontFamily: Fonts.regular, marginTop: 3 },
-  moreBtn: {
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: BORDER.card, borderRadius: Radius.lg,
-    paddingVertical: 12, marginTop: Spacing.sm,
-  },
-  moreBtnText: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
-  modalBackdrop: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center', paddingHorizontal: Spacing.lg,
-  },
-  modalCard: {
-    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
-    borderRadius: Radius.md, padding: Spacing.md,
-  },
-  modalTitle: { color: TEXT.primary, fontSize: FontSizes.lg, fontFamily: Fonts.bold, marginBottom: Spacing.md },
-  modalInput: {
-    backgroundColor: BG.input, borderWidth: 1, borderColor: BORDER.input,
-    borderRadius: Radius.sm, color: TEXT.primary, fontSize: FontSizes.md,
-    fontFamily: Fonts.regular, paddingHorizontal: 12, paddingVertical: 10,
-  },
-  suggestBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 10, marginTop: Spacing.sm,
-  },
-  suggestBtnText: { color: ATP_BRAND.lime, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
-  modalActions: {
-    flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: Spacing.md,
-  },
-  modalBtn: {
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: Radius.sm,
-  },
-  modalBtnPrimary: { backgroundColor: ATP_BRAND.lime },
-  modalBtnText: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
-  modalBtnPrimaryText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold },
-});
+const makeStyles = (t: AppThemeTokens) => {
+  const accent = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
+  return StyleSheet.create({
+    header: {
+      flexDirection: 'row', alignItems: 'center', gap: 14,
+      paddingHorizontal: Spacing.md, paddingBottom: Spacing.md,
+      borderBottomWidth: 0.5, borderBottomColor: t.borde,
+    },
+    title: { color: t.texto, fontSize: FontSizes.xl, fontFamily: Fonts.bold },
+    subtitle: { color: tenue(t), fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 1 },
+    searchBox: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      backgroundColor: t.hundido, borderWidth: 1, borderColor: t.borde,
+      borderRadius: Radius.lg, paddingHorizontal: 14,
+      marginHorizontal: Spacing.md, marginTop: Spacing.md,
+    },
+    searchInput: {
+      flex: 1, color: t.texto, fontSize: FontSizes.md,
+      fontFamily: Fonts.regular, paddingVertical: 10,
+    },
+    newBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+      backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg,
+      paddingVertical: 13, marginTop: Spacing.md, marginBottom: Spacing.sm,
+    },
+    newBtnText: { color: t.textoSobreLima, fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 1 },
+    empty: {
+      color: t.sinDatos, fontSize: FontSizes.sm, fontFamily: Fonts.regular,
+      textAlign: 'center', marginTop: Spacing.xl, lineHeight: 20,
+    },
+    groupLabel: {
+      color: t.textoSecundario, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold,
+      letterSpacing: 2, marginTop: Spacing.md, marginBottom: Spacing.sm,
+    },
+    row: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      backgroundColor: t.card, borderWidth: 1, borderColor: t.borde,
+      borderRadius: Radius.md, padding: Spacing.md, marginBottom: 8,
+    },
+    rowCurrent: { borderColor: withOpacity(accent, 0.45) },
+    rowIcon: {
+      width: 34, height: 34, borderRadius: 17,
+      backgroundColor: withOpacity(accent, 0.1),
+      alignItems: 'center', justifyContent: 'center',
+    },
+    rowTitle: { color: t.texto, fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+    currentPill: {
+      backgroundColor: withOpacity(accent, 0.15),
+      borderRadius: Radius.pill, paddingHorizontal: 8, paddingVertical: 2,
+    },
+    currentPillText: {
+      color: accent, fontSize: 8, fontFamily: Fonts.bold, letterSpacing: 1,
+    },
+    rowPreview: { color: t.textoSecundario, fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
+    rowDate: { color: t.sinDatos, fontSize: 10, fontFamily: Fonts.regular, marginTop: 3 },
+    moreBtn: {
+      alignItems: 'center', justifyContent: 'center',
+      borderWidth: 1, borderColor: t.borde, borderRadius: Radius.lg,
+      paddingVertical: 12, marginTop: Spacing.sm,
+    },
+    moreBtnText: { color: t.textoSecundario, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+    modalBackdrop: {
+      flex: 1, backgroundColor: t.kind === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)',
+      justifyContent: 'center', paddingHorizontal: Spacing.lg,
+    },
+    modalCard: {
+      backgroundColor: t.flotante, borderWidth: 1, borderColor: t.bordeMarcado,
+      borderRadius: Radius.md, padding: Spacing.md,
+    },
+    modalTitle: { color: t.texto, fontSize: FontSizes.lg, fontFamily: Fonts.bold, marginBottom: Spacing.md },
+    modalInput: {
+      backgroundColor: t.hundido, borderWidth: 1, borderColor: t.borde,
+      borderRadius: Radius.sm, color: t.texto, fontSize: FontSizes.md,
+      fontFamily: Fonts.regular, paddingHorizontal: 12, paddingVertical: 10,
+    },
+    suggestBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+      paddingVertical: 10, marginTop: Spacing.sm,
+    },
+    suggestBtnText: { color: accent, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+    modalActions: {
+      flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: Spacing.md,
+    },
+    modalBtn: {
+      paddingHorizontal: 16, paddingVertical: 10, borderRadius: Radius.sm,
+    },
+    modalBtnPrimary: { backgroundColor: ATP_BRAND.lime },
+    modalBtnText: { color: t.textoSecundario, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+    modalBtnPrimaryText: { color: t.textoSobreLima, fontSize: FontSizes.sm, fontFamily: Fonts.bold },
+  });
+};

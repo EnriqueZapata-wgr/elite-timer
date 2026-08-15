@@ -13,7 +13,7 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
-import { ATP_BRAND, PILL, TEXT_COLORS } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface Props {
@@ -31,7 +31,7 @@ export function AgeGateModal({ visible, onExit, onDismiss }: Props) {
   const dark = t.kind === 'dark';
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onExit}>
-      <View style={s.overlay}>
+      <View style={[s.overlay, !dark && { backgroundColor: 'rgba(15,21,24,0.35)' }]}>
         <View style={[s.card, { backgroundColor: t.flotante, borderColor: t.bordeMarcado }]}>
           <View style={s.iconWrap}>
             <Ionicons name="hand-left-outline" size={32} color={dark ? '#ef4444' : t.error} />
@@ -45,7 +45,7 @@ export function AgeGateModal({ visible, onExit, onDismiss }: Props) {
             <EliteText style={s.primaryBtnText}>ENTENDIDO</EliteText>
           </AnimatedPressable>
           <AnimatedPressable style={s.secondaryBtn} onPress={() => { haptic.light(); onDismiss(); }}>
-            <EliteText style={[s.secondaryText, { color: dark ? PILL.textColor : t.textoSecundario }]}>Corregir mi fecha de nacimiento</EliteText>
+            <EliteText style={[s.secondaryText, { color: t.textoSecundario }]}>Corregir mi fecha de nacimiento</EliteText>
           </AnimatedPressable>
         </View>
       </View>
