@@ -75,12 +75,19 @@ function* recorrer(dir) {
 function descripcionDe(archivo) {
   let texto;
   try {
-    texto = fs.readFileSync(archivo, 'utf8').slice(0, 1200);
+    texto = fs.readFileSync(archivo, 'utf8');
   } catch {
     return null;
   }
+  // Se lee el archivo COMPLETO y luego se exige que el docblock ARRANQUE arriba.
+  // Antes se leían 1200 caracteres y se buscaba el bloque dentro de esa ventana:
+  // cualquier pantalla con encabezado largo perdía su cierre `*/`, no había match
+  // y nacía sin descripción. Así se cayó /checkin del catálogo que consume ARGOS,
+  // en silencio. El tope sigue existiendo, pero ahora aplica al INICIO del bloque,
+  // que es lo que de verdad distingue "encabezado del archivo" de "comentario de
+  // una función a la mitad".
   const m = texto.match(/\/\*\*([\s\S]*?)\*\//);
-  if (!m) return null;
+  if (!m || m.index > 1200) return null;
   const lineas = m[1]
     .split('\n')
     .map((l) => l.replace(/^\s*\*+\s?/, '').trim())

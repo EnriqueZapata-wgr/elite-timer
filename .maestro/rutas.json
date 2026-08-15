@@ -822,6 +822,11 @@
       "archivo": "app/salud/mi-expediente/index.tsx"
     },
     {
+      "ruta": "/salud/mi-lectura",
+      "slug": "salud-mi-lectura",
+      "archivo": "app/salud/mi-lectura/index.tsx"
+    },
+    {
       "ruta": "/salud/mis-datos",
       "slug": "salud-mis-datos",
       "archivo": "app/salud/mis-datos/index.tsx"
@@ -900,6 +905,11 @@
       "ruta": "/settings/salud",
       "slug": "settings-salud",
       "archivo": "app/settings/salud.tsx"
+    },
+    {
+      "ruta": "/settings/salud-conexion",
+      "slug": "settings-salud-conexion",
+      "archivo": "app/settings/salud-conexion.tsx"
     },
     {
       "ruta": "/settings/subscription",
