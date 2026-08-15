@@ -82,7 +82,12 @@ function ArgosChat() {
   const navigation = useNavigation();
   // N1: solo mostrar back-arrow si hay a dónde volver (deep link / push).
   const canGoBack = navigation.canGoBack();
-  const params = useLocalSearchParams<{ conversationId?: string; new?: string; from?: string }>();
+  // CIERRE-1: `q` prellena el campo con una pregunta, SIN enviarla. Es lo que
+  // usa el "¿qué es esto?" del encabezado. Deliberadamente no auto-envía: un
+  // turno de chat cuesta H+ y consume cuota, y disparar ese gasto desde un
+  // botón que el usuario tocó para "ver qué es" sería cobrarle por curiosear.
+  // Así ve la pregunta escrita, la puede editar, y decide él si la manda.
+  const params = useLocalSearchParams<{ conversationId?: string; new?: string; from?: string; q?: string }>();
   // Guard de re-entrada (#71) — la lógica vive en argos-chat-core (con tests);
   // aquí solo la instancia por pantalla.
   const sendGuard = useRef(createSendGuard()).current;
@@ -126,6 +131,18 @@ function ArgosChat() {
   // pantalla se desmonta antes: navegar desde una pantalla ya muerta tira el
   // stack a un lugar que el usuario no pidió.
   const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // CIERRE-1: la pregunta que llega por deep link se escribe una sola vez, al
+  // montar. Si se re-aplicara en cada render pisaría lo que el usuario está
+  // tecleando; el ref lo corta en seco.
+  const qPrellenadaRef = useRef(false);
+  useEffect(() => {
+    if (qPrellenadaRef.current) return;
+    const q = typeof params.q === 'string' ? params.q.trim() : '';
+    if (!q) return;
+    qPrellenadaRef.current = true;
+    setInput(q);
+  }, [params.q]);
 
   useEffect(() => () => {
     if (navTimerRef.current) clearTimeout(navTimerRef.current);
