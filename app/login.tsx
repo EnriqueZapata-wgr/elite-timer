@@ -26,6 +26,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { hasLocalCard, loadFichaPrelogin } from '@/src/services/salud/emergency-card-store';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND } from '@/src/constants/brand';
+import { LOGIN_PASA_POR_GATE } from '@/src/constants/flags';
 import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
 
 // Logo grande en login (~22% del alto de pantalla, como el splash nativo).
@@ -70,7 +71,13 @@ export default function LoginScreen() {
       setError(result.error);
     } else {
       haptic.success();
-      router.replace('/(tabs)');
+      // CIERRE-1: entrar por `/` y no por `/(tabs)`. `app/index.tsx` es el
+      // único gate de onboarding de la app; brincarlo metía a HOY a usuarios
+      // que nunca aceptaron CB-2, CB-3 y CB-4 (se firman en
+      // /onboarding/v2/privacy y se asientan en user_consent_log). Quien ya
+      // terminó tiene onboarding_step='completed' y el gate lo suelta a
+      // /(tabs) de inmediato: no repite nada.
+      router.replace(LOGIN_PASA_POR_GATE ? '/' : '/(tabs)');
     }
   };
 

@@ -27,7 +27,7 @@ import { NUDGE_COPY } from '@/src/components/hoy/tarea-gesto-core';
 import { MomentoBanda } from '@/src/components/hoy/MomentoBanda';
 import { OrbCard } from '@/src/components/hoy/OrbCard';
 import {
-  buildTareas, agendaLens, repartoTareas,
+  buildTareas, agendaLens, repartoTareas, ofrecerArmarDia,
   type Tarea,
 } from '@/src/services/hoy/tareas-core';
 import {
@@ -306,6 +306,38 @@ export function TareasView({ day, userId, uvMini }: Props) {
 
       <OrbCard userId={userId} />
 
+      {/* CIERRE-1: el día casi vacío, con UNA sola salida.
+          HOY nunca tuvo estado vacío porque nunca hizo falta: llegaba con 13
+          tareas puestas por default y la barra en cero. Al sembrar solo lo
+          que el usuario eligió, este estado pasa a existir de verdad, y un
+          día corto sin salida se lee como una app que no trae nada.
+          Es UNA acción, no un menú, y no es un muro: las tareas siguen
+          debajo. Guiado, no prisionero. Se apaga sola en cuanto el día
+          crece por encima del techo de 8. */}
+      {ofrecerArmarDia(result.global.total) ? (
+        <Pressable
+          onPress={() => { haptic.light(); router.push('/packs/armar'); }}
+          style={({ pressed }) => [
+            s.armarDia,
+            { backgroundColor: t.card, borderColor: t.borde },
+            pressed && { opacity: 0.6 },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Armar mi app"
+        >
+          <Ionicons name="color-wand-outline" size={16} color={acento} />
+          <View style={{ flex: 1 }}>
+            <EliteText style={[s.armarDiaTitulo, { color: t.texto }]}>
+              Tu día está corto a propósito
+            </EliteText>
+            <EliteText style={[s.armarDiaSub, { color: t.textoSecundario }]}>
+              Dos preguntas y te lo armamos con lo que quieres cambiar primero
+            </EliteText>
+          </View>
+          <Ionicons name="chevron-forward" size={14} color={t.textoTenue} />
+        </Pressable>
+      ) : null}
+
       {lens === 'tareas' ? (
         <View>{tareasChildren}</View>
       ) : (
@@ -444,6 +476,19 @@ const s = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     fontVariant: ['tabular-nums'],
   },
+  // CIERRE-1: card discreta, no un muro. Es una oferta, no un bloqueo.
+  armarDia: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: Radius.card,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  armarDiaTitulo: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+  armarDiaSub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 1 },
   agendaLink: {
     flexDirection: 'row',
     alignItems: 'center',

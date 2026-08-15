@@ -237,6 +237,28 @@ export default function SalaAtpScreen() {
           </AnimatedPressable>
         </Animated.View>
 
+        {/* CIERRE-1: /packs/armar es el hub con más salidas de la app y su
+            única puerta de verdad era el TERCER botón, en letra chica, de la
+            última pantalla del onboarding. Quien tocó "ahora no" nunca supo
+            que la app se arma sola. Aquí quedan las dos puertas juntas y
+            distintas: el Centro es para hojear, esto es para que se lo
+            resuelvan. Es la misma decisión de "guiado pero no prisionero". */}
+        <Animated.View entering={FadeInUp.delay(70).springify()}>
+          <AnimatedPressable
+            style={[s.centroCard, { backgroundColor: tokens.card, borderColor: tokens.borde }]}
+            onPress={() => { haptic.light(); router.push('/packs/armar'); }}
+          >
+            <View style={s.centroIcon}>
+              <Ionicons name="color-wand-outline" size={18} color={acento} />
+            </View>
+            <View style={s.centroBody}>
+              <EliteText style={[s.centroTitle, { color: tokens.texto }]}>Armar mi app</EliteText>
+              <EliteText style={[s.centroSub, { color: tenueInformativo }]}>Dos preguntas y te dejamos el día listo</EliteText>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={tokens.textoTenue} />
+          </AnimatedPressable>
+        </Animated.View>
+
         {/* El momento con foto de esta pantalla. UNA card: ni carrusel ni feed. */}
         {!searching && editorial && (
           <Animated.View entering={FadeInUp.delay(80).springify()}>
@@ -345,6 +367,15 @@ export default function SalaAtpScreen() {
             ) : (
               <View style={[s.grid, s.gridFlat]}>{listed.map(renderTile)}</View>
             )}
+
+            {/* CIERRE-1: desinstalar existía solo como tap largo sobre el
+                icono, y nada en pantalla lo decía. La puerta visible ya existe
+                (Centro → ficha de la app → Desinstalar), así que aquí no hace
+                falta ensuciar la cuadrícula con una X en cada tile: basta con
+                nombrar las dos vías. Enunciar el gesto también lo enseña. */}
+            <EliteText style={[s.gestoHint, { color: tenueInformativo }]}>
+              Mantén presionado un icono para desinstalarlo, o hazlo desde su ficha en el Centro
+            </EliteText>
           </>
         )}
 
@@ -379,6 +410,14 @@ const s = StyleSheet.create({
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     padding: 0,
+  },
+
+  gestoHint: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.regular,
+    textAlign: 'center',
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   },
 
   chipRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing.md },

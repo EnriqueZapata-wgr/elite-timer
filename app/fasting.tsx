@@ -917,12 +917,27 @@ export default function FastingScreen() {
                       {hours >= fast.target_hours ? '✓ Completado' : 'Parcial'}
                     </Text>
                   </View>
+                  {/* CIERRE-1: borrar un ayuno solo existía como tap largo. Un
+                      gesto invisible para NAVEGAR se perdona; uno para BORRAR
+                      no, porque el usuario tampoco descubre cómo deshacer lo
+                      que hizo sin querer. El tap largo se queda intacto: esto
+                      es una vía más, no un reemplazo. deleteFast ya pide
+                      confirmación, así que el botón no borra de golpe. */}
+                  <Pressable
+                    onPress={() => deleteFast(fast.id)}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Eliminar ayuno de ${Math.round(hours)} horas`}
+                    style={({ pressed }) => ({ padding: 4, opacity: pressed ? 0.5 : 1 })}
+                  >
+                    <Ionicons name="trash-outline" size={16} color={t.error} />
+                  </Pressable>
                 </Pressable>
               );
             })
           )}
           <Text style={{ color: t.sinDatos, fontSize: 9, textAlign: 'center', marginTop: 8 }}>
-            Toca para editar · mantén presionado para eliminar
+            Toca para editar · el bote elimina
           </Text>
 
           {/* Registrar ayuno pasado */}

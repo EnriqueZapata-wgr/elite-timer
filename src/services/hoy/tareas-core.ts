@@ -374,3 +374,25 @@ export function repartoTareas(agendaItems: Tarea[], blocks: TareaBlock[]): {
       .filter((b) => b.pending.length > 0),
   };
 }
+
+/**
+ * CIERRE-1 — hasta cuántas filas se considera que el día está "casi vacío".
+ *
+ * 8 no es un número al azar: es el techo de hábitos que la doctrina ya fijaba,
+ * y es exactamente lo que trae un día 1 recién sembrado (3 elegidos más los 5
+ * mandatory que el compilador une). O sea que en cuanto el usuario enciende
+ * algo por decisión propia, deja de considerarse casi vacío.
+ */
+export const UMBRAL_DIA_CASI_VACIO = 8;
+
+/**
+ * ¿Toca ofrecer que le armen el día?
+ *
+ * HOY nunca tuvo estado vacío porque nunca hizo falta: el día 1 llegaba con 13
+ * tareas puestas por default. Al sembrar solo lo elegido, el estado casi vacío
+ * pasa a existir y necesita UNA salida, no un menú. Se apaga sola en cuanto el
+ * día crece, así que no estorba a quien ya armó su app.
+ */
+export function ofrecerArmarDia(total: number): boolean {
+  return total <= UMBRAL_DIA_CASI_VACIO;
+}

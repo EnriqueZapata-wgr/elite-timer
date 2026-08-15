@@ -125,3 +125,19 @@ export function puedeExplicar(pathname: string | null | undefined): boolean {
   const ctx = contextoDePantalla(pathname);
   return ctx.conocida && ctx.resumen !== null && !rutaVetada(ctx.ruta);
 }
+
+/**
+ * CIERRE-1 — la pregunta que escribe el atajo "¿qué es esto?" del encabezado.
+ *
+ * Está redactada para caer en el CHAT y no en el navegador, a propósito: lleva
+ * "para qué sirve", que es una de las frases de VETOS_NAV. Preguntar qué hace
+ * una pantalla es trabajo de la inyección de contexto (construirInyeccionPantalla),
+ * no del resolvedor de rutas: llevarte a otro lado cuando preguntaste qué es
+ * esto sería no haber escuchado.
+ *
+ * Se prellena en el campo y NO se envía sola: un turno de chat cuesta H+ y
+ * consume cuota, y disparar ese gasto desde un botón que el usuario tocó para
+ * curiosear sería cobrarle por curiosear. La ve escrita, la puede editar, y
+ * decide él.
+ */
+export const PREGUNTA_EXPLICAR = '¿Qué es esta pantalla y para qué sirve?';

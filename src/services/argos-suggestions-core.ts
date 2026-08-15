@@ -49,9 +49,38 @@ export const DEFAULT_SUGGESTIONS: ChatSuggestion[] = [
 ];
 
 /**
+ * CIERRE-1 — los dos chips que enseñan que la orbe también NAVEGA.
+ *
+ * Los seis de arriba son preguntas de contenido, todas. Nada en la app le
+ * dice al usuario que la orbe es además el buscador: puede pedirle que lo
+ * lleve a cualquiera de las 192 rutas del bundle y eso cuesta 0 protones y no
+ * consume cuota, porque `decidirTurnoNav` resuelve ANTES de llamar al modelo.
+ * La capacidad estaba construida y probada, y era invisible.
+ *
+ * El copy no es decorativo: `detectarIntencionNavegacion` busca el disparador
+ * al ARRANQUE del texto normalizado, así que estas dos frases están escritas
+ * para empezar con uno válido ("donde" y "llevame", ambos en DISPARADORES_NAV).
+ * `normalizar` tira los signos, así que el "¿" inicial no estorba. Enseñan la
+ * sintaxis que el resolvedor espera sin un solo tutorial: el usuario ve que
+ * funcionó y generaliza solo.
+ *
+ * Si se editan, tienen que seguir arrancando con un disparador y NO contener
+ * ninguna frase de VETOS_NAV, o caen al chat y entonces sí cobran.
+ */
+export const NAV_SUGGESTIONS: ChatSuggestion[] = [
+  { label: '¿Dónde registro mis análisis?', icon: 'navigate-outline' },
+  { label: 'Llévame a mi ayuno', icon: 'compass-outline' },
+];
+
+/**
  * Arma los chips del día: primero lo vivo (insight, ayuno, comidas, cierre),
- * luego relleno de los defaults sin repetir icono. Siempre devuelve
- * CHAT_SUGGESTIONS_COUNT.
+ * luego los dos de navegación, luego relleno de los defaults sin repetir
+ * icono. Siempre devuelve CHAT_SUGGESTIONS_COUNT.
+ *
+ * CIERRE-1: los de navegación tienen lugar RESERVADO. Si se dejaran al final
+ * de la lista de relleno, un día con muchas señales vivas los empujaría fuera
+ * del corte de seis y volverían a ser invisibles justo los días en que el
+ * usuario más usa el chat.
  */
 export function buildTodaySuggestions(signals: TodaySignals): ChatSuggestion[] {
   const out: ChatSuggestion[] = [];
@@ -74,10 +103,15 @@ export function buildTodaySuggestions(signals: TodaySignals): ChatSuggestion[] {
     out.push({ label: '¿Qué me falta para cerrar el día?', icon: 'moon-outline' });
   }
 
+  // Las señales vivas no pueden ocupar los seis lugares: se les recorta a lo
+  // que deja libre la cuota reservada de navegación.
+  const vivas = out.slice(0, CHAT_SUGGESTIONS_COUNT - NAV_SUGGESTIONS.length);
+  const conNav = [...vivas, ...NAV_SUGGESTIONS];
+
   for (const d of DEFAULT_SUGGESTIONS) {
-    if (out.length >= CHAT_SUGGESTIONS_COUNT) break;
-    if (out.some((s) => s.icon === d.icon)) continue;
-    out.push(d);
+    if (conNav.length >= CHAT_SUGGESTIONS_COUNT) break;
+    if (conNav.some((s) => s.icon === d.icon)) continue;
+    conNav.push(d);
   }
-  return out.slice(0, CHAT_SUGGESTIONS_COUNT);
+  return conNav.slice(0, CHAT_SUGGESTIONS_COUNT);
 }
