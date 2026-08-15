@@ -5,19 +5,26 @@
  * impacto epigenético, nota de fase del ciclo (si aplica) y biomarcadores por
  * Tier 1/2/3 (doctrina: no cargar labs caros por default). CTA "Activar".
  *
- * Tokens del design system (ELEVATION/TEXT/ATP_BRAND) + spring + haptics.
+ * Tokens del design system (tokens de tema + ATP_BRAND) + spring + haptics.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { displayLabels } from '@/src/constants/display-labels';
 import type { PrescribedIntervention, RationaleSource } from '@/src/services/interventions/personalize-types';
+
+// MB-31B2: es un CUERPO (src/components/**) — lee el scope con useSurfaceTokens.
+const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
+// Rosa de ciclo (#D4537E) como TEXTO chico: en claro se oscurece para leerse
+// sobre papel (regla 5 de la doctrina); en oscuro se queda el valor de siempre.
+const cycleNoteTextColor = (t: AppThemeTokens) => (t.kind === 'dark' ? '#F0A6C0' : '#9C3A5C');
 
 interface Props {
   prescription: PrescribedIntervention;
@@ -29,12 +36,12 @@ interface Props {
   onOpenDetail?: (key: string) => void;
 }
 
-/** Color del score: verde alto, ámbar medio, gris bajo. */
-function scoreColor(score: number): string {
+/** Color del score: verde alto, ámbar medio, gris bajo (fallback = tenue del tema). */
+function scoreColor(score: number, fallback: string): string {
   if (score >= 80) return '#4ade80';
   if (score >= 60) return ATP_BRAND.lime;
   if (score >= 40) return '#fbbf24';
-  return TEXT.tertiary;
+  return fallback;
 }
 
 const SOURCE_LABEL: Record<RationaleSource, string> = {
@@ -43,10 +50,12 @@ const SOURCE_LABEL: Record<RationaleSource, string> = {
 };
 
 export function PrescriptionCard({ prescription, index, isActive, busy, onActivate, onOpenDetail }: Props) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [expanded, setExpanded] = useState(false);
   const [tier, setTier] = useState<1 | 2 | 3>(1);
   const p = prescription;
-  const color = scoreColor(p.score);
+  const color = scoreColor(p.score, tenue(t));
   const bio = p.suggestedBiomarkers;
   const tierList = tier === 1 ? bio.tier1 : tier === 2 ? bio.tier2 : bio.tier3;
   const hasBiomarkers = bio.tier1.length + bio.tier2.length + bio.tier3.length > 0;
@@ -80,7 +89,7 @@ export function PrescriptionCard({ prescription, index, isActive, busy, onActiva
       {p.cyclePhaseNote && (
         <View style={s.cycleNote}>
           <Ionicons name="moon-outline" size={13} color="#D4537E" />
-          <EliteText style={s.cycleNoteText}>{p.cyclePhaseNote}</EliteText>
+          <EliteText style={[s.cycleNoteText, { color: cycleNoteTextColor(t) }]}>{p.cyclePhaseNote}</EliteText>
         </View>
       )}
 
@@ -155,7 +164,7 @@ export function PrescriptionCard({ prescription, index, isActive, busy, onActiva
         <Ionicons
           name={isActive ? 'checkmark-circle' : 'add-circle-outline'}
           size={16}
-          color={isActive ? ATP_BRAND.lime : '#000'}
+          color={isActive ? ATP_BRAND.lime : t.textoSobreLima}
         />
         <EliteText style={[s.ctaText, isActive && s.ctaTextActive]}>
           {isActive ? 'Activa en tu protocolo' : 'Activar'}
@@ -165,9 +174,9 @@ export function PrescriptionCard({ prescription, index, isActive, busy, onActiva
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   card: {
-    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card, borderWidth: 0.5, borderColor: t.borde,
     borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.sm, gap: Spacing.sm,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
@@ -177,54 +186,54 @@ const s = StyleSheet.create({
   },
   rankText: { fontFamily: Fonts.extraBold, fontSize: FontSizes.sm },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  name: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md, color: TEXT.primary, flexShrink: 1 },
+  name: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md, color: t.texto, flexShrink: 1 },
   baseBadge: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderRadius: Radius.xs,
     paddingHorizontal: 6, paddingVertical: 2,
   },
-  baseBadgeText: { fontFamily: Fonts.bold, fontSize: 9, color: ATP_BRAND.lime, letterSpacing: 1 },
+  baseBadgeText: { fontFamily: Fonts.bold, fontSize: 9, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, letterSpacing: 1 },
   scoreTrack: {
-    height: 4, borderRadius: 2, backgroundColor: ELEVATION[2].bg, marginTop: 6, overflow: 'hidden',
+    height: 4, borderRadius: 2, backgroundColor: t.flotante, marginTop: 6, overflow: 'hidden',
   },
   scoreFill: { height: 4, borderRadius: 2 },
   scoreNum: { fontFamily: Fonts.extraBold, fontSize: FontSizes.md, minWidth: 30, textAlign: 'right' },
-  summary: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary, lineHeight: 19 },
+  summary: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoSecundario, lineHeight: 19 },
   cycleNote: {
     flexDirection: 'row', gap: 6, alignItems: 'flex-start',
     backgroundColor: withOpacity('#D4537E', 0.08), borderRadius: Radius.sm,
     padding: Spacing.sm, borderWidth: 0.5, borderColor: withOpacity('#D4537E', 0.25),
   },
-  cycleNoteText: { flex: 1, fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: '#F0A6C0', lineHeight: 16 },
-  epi: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary, lineHeight: 16 },
+  cycleNoteText: { flex: 1, fontFamily: Fonts.regular, fontSize: FontSizes.xs, lineHeight: 16 },
+  epi: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: tenue(t), lineHeight: 16 },
   expandBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
   expandText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
   reasonsBox: {
-    gap: 6, backgroundColor: ELEVATION[2].bg, borderRadius: Radius.sm,
-    padding: Spacing.sm, borderWidth: 0.5, borderColor: ELEVATION[2].border,
+    gap: 6, backgroundColor: t.flotante, borderRadius: Radius.sm,
+    padding: Spacing.sm, borderWidth: 0.5, borderColor: t.bordeMarcado,
   },
   reasonRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   sourceBadge: { borderRadius: Radius.xs, paddingHorizontal: 6, paddingVertical: 2, minWidth: 62, alignItems: 'center' },
   sourceBadgeText: { fontFamily: Fonts.bold, fontSize: 9, letterSpacing: 0.5 },
-  reasonText: { flex: 1, fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.secondary },
+  reasonText: { flex: 1, fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoSecundario },
   bioBox: { marginTop: 6, gap: 6 },
-  bioLabel: { fontFamily: Fonts.bold, fontSize: 9, letterSpacing: 1.5, color: TEXT.tertiary },
+  bioLabel: { fontFamily: Fonts.bold, fontSize: 9, letterSpacing: 1.5, color: tenue(t) },
   tierTabs: { flexDirection: 'row', gap: 6 },
   tierTab: {
     flex: 1, borderRadius: Radius.xs, paddingVertical: 6, alignItems: 'center',
-    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card, borderWidth: 0.5, borderColor: t.borde,
   },
   tierTabActive: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderColor: withOpacity(ATP_BRAND.lime, 0.4) },
-  tierTabText: { fontFamily: Fonts.semiBold, fontSize: 10, color: TEXT.tertiary },
-  tierTabTextActive: { color: ATP_BRAND.lime },
-  tierHint: { fontFamily: Fonts.regular, fontSize: 10, color: TEXT.muted, fontStyle: 'italic' },
-  bioList: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.secondary, lineHeight: 16 },
+  tierTabText: { fontFamily: Fonts.semiBold, fontSize: 10, color: tenue(t) },
+  tierTabTextActive: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
+  tierHint: { fontFamily: Fonts.regular, fontSize: 10, color: t.sinDatos, fontStyle: 'italic' },
+  bioList: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoSecundario, lineHeight: 16 },
   cta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.sm, paddingVertical: 10, marginTop: 2,
   },
   ctaActive: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.1), borderWidth: 0.5, borderColor: withOpacity(ATP_BRAND.lime, 0.4) },
-  ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: '#000', letterSpacing: 0.5 },
-  ctaTextActive: { color: ATP_BRAND.lime },
+  ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: t.textoSobreLima, letterSpacing: 0.5 },
+  ctaTextActive: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
 });
 
 export default PrescriptionCard;

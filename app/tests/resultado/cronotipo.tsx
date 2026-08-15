@@ -10,7 +10,7 @@
  * (mecanismo, no autoridad — doctrina #140), tu ventana wake→sleep real, y el
  * CTA para repetir el test si algo cambió. Sin cronotipo guardado, redirige al test.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, ImageBackground } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,8 +26,16 @@ import { supabase } from '@/src/lib/supabase';
 import { pickCronotipoImage } from '@/src/utils/yo-image-picker';
 import { motherChronotype } from '@/src/services/interventions/intervention-agenda-core';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND, TEXT_COLORS, SURFACES, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+
+// MB-31B2: tenue = textoTenue en oscuro (canon), textoSecundario en claro.
+const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
+// El lima de los 4 cronotipos (Oso) es identidad del test y no se toca — salvo
+// como TEXTO chico en claro, donde el lima no alcanza contraste (regla 3).
+const identityTextColor = (color: string, t: AppThemeTokens) =>
+  (t.kind === 'dark' || color.toLowerCase() !== '#a8e02a') ? color : t.tealTexto;
 
 interface ChronoInfo {
   emoji: string;
@@ -102,6 +110,9 @@ function fmtHora(t?: string | null): string | null {
 export default function MyChronotypeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useAppTheme().tokens;
+  const s = useMemo(() => makeStyles(t), [t]);
   const [loading, setLoading] = useState(true);
   const [chrono, setChrono] = useState<string | null>(null);
   const [wake, setWake] = useState<string | null>(null);
@@ -152,7 +163,7 @@ export default function MyChronotypeScreen() {
 
   if (loading) {
     return (
-      <Screen>
+      <Screen themed>
         <View style={{ padding: Spacing.md, gap: 14 }}>
           <SkeletonLoader variant="card" height={220} />
           <SkeletonLoader variant="card" height={120} />
@@ -165,7 +176,7 @@ export default function MyChronotypeScreen() {
   // D-2 (MB-12): falló la lectura → se dice la verdad, no "haz el test".
   if (!info && loadFailed) {
     return (
-      <Screen>
+      <Screen themed>
         <View style={s.emptyWrap}>
           <BackButton />
           <View style={s.emptyBody}>
@@ -183,7 +194,7 @@ export default function MyChronotypeScreen() {
   // Sin cronotipo guardado → esta pantalla no tiene nada que contar: al test.
   if (!info) {
     return (
-      <Screen>
+      <Screen themed>
         <View style={s.emptyWrap}>
           <BackButton />
           <View style={s.emptyBody}>
@@ -206,7 +217,7 @@ export default function MyChronotypeScreen() {
   }
 
   return (
-    <Screen edges={[]}>
+    <Screen edges={[]} themed>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
         {/* Hero editorial: imagen del animal + overlay (patrón MenteHero) */}
         <ImageBackground source={pickCronotipoImage(chrono)} style={s.hero} imageStyle={{ resizeMode: 'cover' }}>
@@ -216,7 +227,7 @@ export default function MyChronotypeScreen() {
           />
           <View style={s.heroBack}><BackButton color="#fff" /></View>
           <View style={s.heroContent}>
-            <EliteText style={[s.heroKicker, { color: info.color }]}>TU CRONOTIPO</EliteText>
+            <EliteText style={[s.heroKicker, { color: identityTextColor(info.color, t) }]}>TU CRONOTIPO</EliteText>
             <EliteText style={s.heroTitle}>{info.emoji} {info.name.toUpperCase()}</EliteText>
             <EliteText style={s.heroSub}>{info.headline}</EliteText>
           </View>
@@ -244,7 +255,7 @@ export default function MyChronotypeScreen() {
               user_chronotype), no genérico. Solo se pinta si hay dato. */}
           {(focusStart || physicalStart) && (
             <Animated.View entering={FadeInUp.delay(110).springify()} style={s.blockCard}>
-              <EliteText style={[s.blockKicker, { color: info.color }]}>TUS VENTANAS</EliteText>
+              <EliteText style={[s.blockKicker, { color: identityTextColor(info.color, t) }]}>TUS VENTANAS</EliteText>
               {focusStart && (
                 <View style={s.tipRow}>
                   <View style={[s.tipDot, { backgroundColor: info.color }]} />
@@ -266,7 +277,7 @@ export default function MyChronotypeScreen() {
 
           {/* Qué significa (mecanismo) */}
           <Animated.View entering={FadeInUp.delay(140).springify()} style={s.blockCard}>
-            <EliteText style={[s.blockKicker, { color: info.color }]}>QUÉ SIGNIFICA</EliteText>
+            <EliteText style={[s.blockKicker, { color: identityTextColor(info.color, t) }]}>QUÉ SIGNIFICA</EliteText>
             <EliteText style={s.blockBody}>{info.meaning}</EliteText>
           </Animated.View>
 
@@ -291,7 +302,7 @@ export default function MyChronotypeScreen() {
 
           {/* Cómo aprovecharlo (ejemplos concretos) */}
           <Animated.View entering={FadeInUp.delay(200).springify()} style={s.blockCard}>
-            <EliteText style={[s.blockKicker, { color: info.color }]}>CÓMO APROVECHARLO</EliteText>
+            <EliteText style={[s.blockKicker, { color: identityTextColor(info.color, t) }]}>CÓMO APROVECHARLO</EliteText>
             {info.tips.map((tip, i) => (
               <View key={i} style={s.tipRow}>
                 <View style={[s.tipDot, { backgroundColor: info.color }]} />
@@ -314,7 +325,7 @@ export default function MyChronotypeScreen() {
             style={s.retakeBtn}
             onPress={() => { haptic.light(); router.push('/tests/q/cronotipo'); }}
           >
-            <Ionicons name="refresh-outline" size={16} color={TEXT_COLORS.secondary} />
+            <Ionicons name="refresh-outline" size={16} color={t.textoSecundario} />
             <EliteText style={s.retakeText}>Repetir el test (5 min)</EliteText>
           </AnimatedPressable>
         </View>
@@ -323,7 +334,9 @@ export default function MyChronotypeScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B2: los estilos leen los tokens del tema. El hero (heroTitle/heroSub)
+// queda anclado al oscuro: es la card editorial foto+velo (regla 5), no tema.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   hero: { width: '100%', height: 220, justifyContent: 'flex-end' },
   heroBack: { position: 'absolute', top: Spacing.xl + Spacing.md, left: Spacing.sm, zIndex: 10 },
   heroContent: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
@@ -332,23 +345,23 @@ const s = StyleSheet.create({
   heroSub: { color: 'rgba(255,255,255,0.75)', fontSize: FontSizes.sm, marginTop: 2 },
 
   scheduleCard: {
-    flexDirection: 'row', backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    flexDirection: 'row', backgroundColor: t.card, borderRadius: Radius.card,
     paddingVertical: Spacing.md, marginTop: Spacing.md,
   },
   scheduleCol: { flex: 1, alignItems: 'center', gap: 4 },
-  scheduleDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
-  scheduleLabel: { fontSize: 10, fontFamily: Fonts.bold, color: TEXT_COLORS.muted, letterSpacing: 1.5 },
-  scheduleValue: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, color: '#fff' },
+  scheduleDivider: { width: 1, backgroundColor: t.borde },
+  scheduleLabel: { fontSize: 10, fontFamily: Fonts.bold, color: tenue(t), letterSpacing: 1.5 },
+  scheduleValue: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, color: t.texto },
 
   blockCard: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    backgroundColor: t.card, borderRadius: Radius.card,
     padding: Spacing.md, marginTop: Spacing.sm, gap: 8,
   },
   blockKicker: { fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2 },
-  blockBody: { fontSize: FontSizes.sm, color: TEXT_COLORS.secondary, lineHeight: 21 },
+  blockBody: { fontSize: FontSizes.sm, color: t.textoSecundario, lineHeight: 21 },
   tipRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   tipDot: { width: 6, height: 6, borderRadius: 3, marginTop: 7 },
-  tipText: { flex: 1, fontSize: FontSizes.sm, color: TEXT_COLORS.secondary, lineHeight: 21 },
+  tipText: { flex: 1, fontSize: FontSizes.sm, color: t.textoSecundario, lineHeight: 21 },
 
   noteCard: {
     flexDirection: 'row', gap: 10, alignItems: 'center',
@@ -356,22 +369,22 @@ const s = StyleSheet.create({
     borderWidth: 0.5, borderColor: withOpacity(ATP_BRAND.lime, 0.25),
     padding: Spacing.md, marginTop: Spacing.sm,
   },
-  noteText: { flex: 1, fontSize: FontSizes.xs, color: TEXT_COLORS.secondary, lineHeight: 18 },
+  noteText: { flex: 1, fontSize: FontSizes.xs, color: t.textoSecundario, lineHeight: 18 },
 
   retakeBtn: {
     flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center',
     paddingVertical: Spacing.md, marginTop: Spacing.sm,
   },
-  retakeText: { fontSize: FontSizes.sm, color: TEXT_COLORS.secondary, fontFamily: Fonts.semiBold },
+  retakeText: { fontSize: FontSizes.sm, color: t.textoSecundario, fontFamily: Fonts.semiBold },
 
   emptyWrap: { flex: 1, padding: Spacing.md },
   emptyBody: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: Spacing.lg },
   emptyEmoji: { fontSize: 44 },
-  emptyTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, color: '#fff', textAlign: 'center' },
-  emptySub: { fontSize: FontSizes.sm, color: TEXT_COLORS.secondary, textAlign: 'center', lineHeight: 21 },
+  emptyTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, color: t.texto, textAlign: 'center' },
+  emptySub: { fontSize: FontSizes.sm, color: t.textoSecundario, textAlign: 'center', lineHeight: 21 },
   ctaBtn: {
     marginTop: Spacing.md, backgroundColor: ATP_BRAND.lime, borderRadius: Radius.pill,
     paddingHorizontal: Spacing.xl, paddingVertical: 14,
   },
-  ctaBtnText: { color: '#0A0A0A', fontFamily: Fonts.extraBold, fontSize: FontSizes.sm, letterSpacing: 2 },
+  ctaBtnText: { color: t.textoSobreLima, fontFamily: Fonts.extraBold, fontSize: FontSizes.sm, letterSpacing: 2 },
 });

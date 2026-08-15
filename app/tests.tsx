@@ -36,7 +36,7 @@ import {
 } from '@/src/constants/assessments';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
-import { TEXT_COLORS, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 
 const HERO_TESTS = require('@/assets/images/health-hub/tests-evaluaciones.webp');
@@ -265,7 +265,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   },
   itemIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   itemTitle: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: t.texto },
-  itemDone: { color: MASTER_COLOR, fontSize: FontSizes.xs },
+  itemDone: { color: t.kind === 'dark' ? MASTER_COLOR : t.tealTexto, fontSize: FontSizes.xs },
   iconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  blurb: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, lineHeight: 16 },
+  blurb: { color: t.textoSecundario, fontSize: FontSizes.xs, lineHeight: 16 },
 });
