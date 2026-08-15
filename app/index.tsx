@@ -25,11 +25,20 @@ export default function IndexRedirect() {
     setCheckingOnboarding(true);
     (async () => {
       try {
+        // CIERRE-1: `maybeSingle` en vez de `single`. Con `single`, un perfil
+        // que todavía no existe (registro recién hecho, trigger que no alcanzó
+        // a correr) devolvía ERROR, caía al catch de abajo y el catch degrada a
+        // tabs. O sea: la ausencia de perfil abría la puerta en vez de
+        // cerrarla. Con `maybeSingle` no hay error, hay `data === null`, y un
+        // step `undefined` lo resuelve `resolveOnboardingRoute` mandando a
+        // /onboarding/v2/welcome, que es lo correcto: sin perfil no hay
+        // consentimientos asentados. El catch se queda para fallas de red
+        // reales, donde sí preferimos no dejar a nadie afuera de su propia app.
         const { data } = await supabase
           .from('profiles')
           .select('onboarding_step')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
         const step = data?.onboarding_step;
         if (step === 'completed') {
           // Backfill (Step COACH 7.2/N): founders que terminaron onboarding ANTES
