@@ -18,6 +18,8 @@ import { persistTurnAudit } from './coach-audit-service';
 import { generateUUID } from '@/src/utils/uuid';
 import { buildPersonalityInjection, buildTimeContextInjection } from './argos-personality';
 import { buildScreenContextInjection, type ArgosScreen } from '@/src/hooks/argos-screen-context-core';
+import { construirInyeccionPantalla } from './argos-screen-explain-core';
+import { ultimaRutaVisitada } from './argos-last-route';
 import { parseRateLimitInfo, type RateLimitInfo } from './argos-rate-limit-core';
 import { chatFailureOutcome } from './argos-chat-core';
 import { buildHistoryWindow } from './argos-history-core';
@@ -1392,6 +1394,12 @@ interface ArgosChatOptions {
   idempotencyKey?: string;
   /** T4 MAGIA ARGOS: pantalla desde la que se abrió el chat (contexto). */
   screenContext?: ArgosScreen;
+  /**
+   * NOCHE-ARGOS P6: la RUTA exacta (`/labs`, `/packs/hormonal`). Resolución
+   * fina: manda sobre screenContext y sobre el rastro global, porque el caller
+   * sabe más que ambos. Si se omite se usa la última ruta visitada.
+   */
+  screenPath?: string | null;
   /** MB-4 J5: action_key de cobro H+ (default 'chat'; el modo voz manda 'voice_turn'). */
   requestType?: string;
 }
@@ -1438,8 +1446,21 @@ async function prepareChatTurn(
   // Capa de CONTEXTO TEMPORAL (T5 MAGIA ARGOS): momento del día en CDMX + cómo
   // adaptar recomendaciones a la hora.
   const timeInjection = buildTimeContextInjection();
-  // Capa de CONTEXTO DE PANTALLA (T4 MAGIA ARGOS): desde dónde se abrió el chat.
-  const screenInjection = buildScreenContextInjection(options?.screenContext);
+  // Capa de CONTEXTO DE PANTALLA. Dos resoluciones, y se prefiere la fina.
+  //
+  // NOCHE-ARGOS P6: hasta ahora esto era `buildScreenContextInjection(screenContext)`,
+  // que solo conoce 9 pilares gruesos ("el usuario está en Salud") y además
+  // llegaba vacío salvo que el chat se abriera por el botón flotante. Con la
+  // ruta exacta, construirInyeccionPantalla usa el catálogo de 192 pantallas y
+  // ARGOS puede explicar en qué está parado el usuario y para qué sirve.
+  //
+  // No hay doble bloque: cuando la ruta no está catalogada, esa misma función
+  // cae al contexto grueso por pilar. Y el param explícito manda sobre el
+  // singleton porque el caller sabe más que el rastro global.
+  const rutaPantalla = options?.screenPath ?? ultimaRutaVisitada();
+  const screenInjection = rutaPantalla
+    ? construirInyeccionPantalla(rutaPantalla)
+    : buildScreenContextInjection(options?.screenContext);
   // Cerebro servido (BRAIN_ENABLED en el proxy): dynamicSystem = SOLO la parte
   // dinámica (guards + contexto), SIN ARGOS_SYSTEM_PROMPT. El proxy la ensambla
   // como bloque sin cache detrás del cerebro cacheado. El systemPrompt legacy

@@ -6,10 +6,10 @@ const visible = (pathname: string) =>
   !shouldHideHomeButton({ pathname, keyboardVisible: false });
 
 describe('shouldHideHomeButton (#26)', () => {
-  it('oculto en TODOS los tabs (triple-audit P1.2: la casita tapaba headers de yo/kit)', () => {
+  it('oculto en TODOS los tabs (triple-audit P1.2: la casita tapaba headers de perfil/kit)', () => {
     expect(visible('/')).toBe(false);
     expect(visible('/index')).toBe(false);
-    expect(visible('/yo')).toBe(false);
+    expect(visible('/perfil')).toBe(false);
     expect(visible('/kit')).toBe(false);
   });
 

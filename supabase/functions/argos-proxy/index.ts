@@ -69,6 +69,15 @@ const MODEL_ROUTING: Record<string, ModelRoute> = {
   food_estimate_text: ROUTE_GEMINI,
   label_scan: ROUTE_GEMINI,
   supplement_scan: ROUTE_GEMINI,
+  // nav_intent: "¿a qué pantalla quiere ir?" contra un catálogo de 192 rutas.
+  // Es clasificación sobre una lista cerrada, no razonamiento clínico: no toca
+  // el cerebro, no lee datos de salud, y su salida es un JSON de una ruta. La
+  // mayoría de las peticiones ni llegan aquí porque el resolvedor LOCAL
+  // (argos-nav-resolver-core) las contesta sin red; esto es solo la red de
+  // seguridad para las frases que el índice no alcanzó. Gemini y no Sonnet
+  // porque pagar razonamiento por un lookup es el error que este router existe
+  // para evitar.
+  nav_intent: ROUTE_GEMINI,
 
   // Análisis, doctrina y cerebro → Sonnet.
   chat: ROUTE_SONNET,

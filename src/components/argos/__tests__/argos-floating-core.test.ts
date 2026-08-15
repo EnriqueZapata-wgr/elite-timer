@@ -68,12 +68,20 @@ describe('isTabRootPath (MB-19: la orbe vive en el tab bar)', () => {
     }
   });
 
-  it('detecta también las cuatro retiradas con href: null', () => {
+  it('detecta también las tres retiradas con href: null', () => {
     // Siguen siendo rutas del grupo (tabs) y renderizan CON tab bar. Si no
     // estuvieran, sobre ellas saldrían la orbe y el flotante a la vez.
-    for (const p of ['/yo', '/biblioteca', '/progreso', '/perfil']) {
+    // Eran cuatro: `/yo` se cayó en NOCHE-ARGOS porque ya no existe como ruta.
+    for (const p of ['/biblioteca', '/progreso', '/perfil']) {
       expect(isTabRootPath(p), p).toBe(true);
     }
+  });
+
+  it('una ruta que ya no existe NO se considera tab', () => {
+    // Candado del borrado: `/yo` vivió en RUTAS_DE_TAB después de que la
+    // pantalla muriera. Este Set es la fuente única de "qué es un tab" y con
+    // datos muertos deja de ser confiable.
+    expect(isTabRootPath('/yo')).toBe(false);
   });
 
   it('es LA lista: la casita usa la misma, no una copia', async () => {

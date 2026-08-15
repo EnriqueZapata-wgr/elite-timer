@@ -46,6 +46,7 @@ import { NIGHT_FILTER_FALLBACK_CUTOFF } from '@/src/constants/night-curve';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getUserSchedule, getHabitTime } from '@/src/services/hoy/habit-times-service';
 import { timeToMinutes } from '@/src/services/notification-prefs-core';
+import { registrarEscritores } from '@/src/services/argos-writers-bridge';
 
 const KEY_MODE = '@atp/theme_mode';
 const KEY_VEIL = '@atp/night_veil_enabled';
@@ -138,6 +139,15 @@ export function AtpThemeProvider({ children }: { children: ReactNode }) {
     setVeilState(v);
     AsyncStorage.setItem(KEY_VEIL, v ? 'true' : 'false').catch(() => {});
   }, []);
+
+  // NOCHE-ARGOS P7: estos dos setters son los ÚNICOS que dejan el tema
+  // consistente (estado de React + storage). ARGOS los alcanza por el puente
+  // porque prepareChatTurn y el servicio de ajustes viven fuera del árbol.
+  // Escribir las claves de AsyncStorage por detrás cambiaría el disco sin
+  // cambiar la pantalla, y un ajuste que no se ve no se aplicó.
+  useEffect(() => {
+    registrarEscritores({ setTema: setMode, setVelo: setVeilEnabled });
+  }, [setMode, setVeilEnabled]);
 
   const kind = resolveThemeKind(mode, {
     nowMinutes: minute,

@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { registrarEscritores } from '@/src/services/argos-writers-bridge';
 
 // === TIPOS ===
 
@@ -82,6 +83,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       return next;
     });
   }, []);
+
+  // NOCHE-ARGOS P7: ARGOS alcanza estas preferencias por el puente. No puede
+  // escribirlas solo: updateSetting serializa el objeto COMPLETO, así que un
+  // servicio que tocara la clave por fuera tendría que replicar el merge y aun
+  // así el provider no se enteraría hasta el próximo arranque.
+  // El puente solo expone las tres de experiencia que están en la lista blanca
+  // de ARGOS; la voz y el estilo de sonido NO se exponen a propósito.
+  useEffect(() => {
+    registrarEscritores({
+      setPreferencia: (clave, valor) => updateSetting(clave, valor),
+    });
+  }, [updateSetting]);
 
   return (
     <SettingsContext.Provider value={{ settings, updateSetting, loading }}>
