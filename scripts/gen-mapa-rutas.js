@@ -27,6 +27,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { ejemplosDe, variantesDe, SIN_FUENTE } = require('./ejemplos-rutas');
 
 const RAIZ = path.resolve(__dirname, '..');
 const APP_DIR = path.join(RAIZ, 'app');
@@ -130,6 +131,80 @@ function slug(ruta) {
   return (ruta === '/' ? 'hoy' : ruta.slice(1)).replace(/[^a-zA-Z0-9]+/g, '-');
 }
 
+/**
+ * La lista que recorre el barrido visual: rutas CONCRETAS, ya abribles.
+ *
+ * Aquí es donde el mapa deja de ser un catálogo y se vuelve un recorrido. Una
+ * ruta con corchetes no se puede abrir con un deep link, así que se le dan sus
+ * valores reales (los que viven en el código, ver scripts/ejemplos-rutas.js) y
+ * se convierte en tantas entradas como valores tenga. Lo mismo con las
+ * pantallas de pestañas: cada pestaña es su propia entrada.
+ *
+ * Antes de esto el barrido solo veía las estáticas, y lo más nuevo de la app
+ * (reportes por dominio, el motor de cuestionarios, packs, fichas del centro)
+ * nunca había salido en una captura.
+ */
+function listaDeBarrido(mapa) {
+  const ejemplos = ejemplosDe(RAIZ, mapa.dinamicas.map((e) => e.ruta));
+  const entradas = [];
+
+  for (const e of mapa.estaticas) {
+    entradas.push({ ruta: e.ruta, archivo: e.archivo, tipo: 'estatica' });
+  }
+
+  for (const d of mapa.dinamicas) {
+    const info = ejemplos[d.ruta];
+    if (!info) continue; // está en SIN_FUENTE: documentada, no se puede abrir sin datos reales
+    const params = d.ruta.match(/\[[^\]]+\]/g) || [];
+    if (params.length !== 1) {
+      throw new Error(
+        `[gen-mapa-rutas] ${d.ruta} tiene ${params.length} parámetros y el barrido solo sabe\n` +
+        `  sustituir uno. Hay que decidir cómo se combinan antes de meterla al recorrido.`
+      );
+    }
+    for (const v of info.valores) {
+      entradas.push({
+        ruta: d.ruta.replace(/\[[^\]]+\]/, v),
+        archivo: d.archivo,
+        tipo: 'dinamica',
+        plantilla: d.ruta,
+      });
+    }
+  }
+
+  for (const v of variantesDe(RAIZ, mapa.estaticas.map((e) => e.ruta))) {
+    const base = mapa.estaticas.find((e) => e.ruta === v.base);
+    entradas.push({
+      ruta: v.ruta,
+      archivo: base ? base.archivo : null,
+      tipo: 'variante',
+      plantilla: v.base,
+    });
+  }
+
+  entradas.sort((a, b) => a.ruta.localeCompare(b.ruta));
+  const conSlug = entradas.map((e) => ({ ...e, slug: slug(e.ruta) }));
+
+  // Dos pantallas no pueden escribir el mismo png: la segunda pisa a la
+  // primera y el barrido reporta más capturas de las que de verdad tiene.
+  // Con las rutas concretas el slug ya sale distinto solo (reports-nutricion
+  // contra reports-labs), pero esto lo fija: si algún día un cambio de slug
+  // las vuelve a juntar, revienta aquí y no en la carpeta de capturas.
+  const vistos = new Map();
+  const choques = [];
+  for (const e of conSlug) {
+    if (vistos.has(e.slug)) choques.push(`  ${e.slug}.png <- ${vistos.get(e.slug)}  y  ${e.ruta}`);
+    else vistos.set(e.slug, e.ruta);
+  }
+  if (choques.length) {
+    throw new Error(
+      `[gen-mapa-rutas] Estas rutas escribirían la misma captura:\n${choques.join('\n')}`
+    );
+  }
+
+  return { entradas: conSlug, ejemplos };
+}
+
 function escribirConstante({ estaticas, dinamicas }, scheme) {
   const destino = path.join(RAIZ, 'src', 'constants', 'app-routes.generated.ts');
   const cuerpo = `/**
@@ -176,20 +251,21 @@ ${estaticas.filter((e) => e.desc).map((e) => `  ${JSON.stringify(e.ruta)}: ${JSO
   return destino;
 }
 
-function escribirFlujoRutas({ estaticas }, scheme, tema) {
+function escribirFlujoRutas(entradas, scheme, tema) {
   const dir = path.join(RAIZ, '.maestro');
   fs.mkdirSync(dir, { recursive: true });
   const archivo = path.join(dir, `10-rutas-${tema}.yaml`);
-  const pasos = estaticas
+  const pasos = entradas
     .map((e) => `- openLink: ${scheme}://${e.ruta.replace(/^\//, '')}\n` +
                 `- waitForAnimationToEnd:\n    timeout: 4000\n` +
-                `- takeScreenshot: capturas/${tema}/${slug(e.ruta)}`)
+                `- takeScreenshot: capturas/${tema}/${e.slug}`)
     .join('\n');
   const cuerpo = `# GENERADO por scripts/gen-mapa-rutas.js. NO editar a mano.
 #
-# Recorre TODAS las rutas estáticas con deep link y dispara una captura por
-# pantalla. No navega menús: salta directo, que es lo que hace viable pasar
-# por ~${estaticas.length} pantallas sin que nadie toque el teléfono.
+# Recorre TODAS las pantallas con deep link y dispara una captura por pantalla,
+# incluidas las rutas con parámetro ya resueltas. No navega menús: salta
+# directo, que es lo que hace viable pasar por ~${entradas.length} pantallas sin
+# que nadie toque el teléfono.
 #
 # Antes de correr esto, deja la app en tema ${tema.toUpperCase()}.
 appId: com.atpperformance.app
@@ -207,15 +283,23 @@ function main() {
   const appJson = JSON.parse(fs.readFileSync(path.join(RAIZ, 'app.json'), 'utf8'));
   const scheme = appJson.expo?.scheme || 'atp';
   const mapa = construirMapa();
+  const barrido = listaDeBarrido(mapa);
 
   console.log(`  ${mapa.estaticas.length} rutas estáticas`);
   console.log(`  ${mapa.dinamicas.length} rutas con parámetro (ARGOS las resuelve antes de navegar)`);
+  console.log(`  ${barrido.entradas.length} pantallas en el barrido visual (dinámicas ya expandidas)`);
   console.log(`  scheme: ${scheme}://`);
 
+  for (const [plantilla, info] of Object.entries(barrido.ejemplos)) {
+    const cola = info.omitidos ? `  (${info.omitidos} omitidas: ${info.porQue})` : '';
+    console.log(`    ${plantilla} -> ${info.valores.length} de ${info.total}${cola}`);
+  }
+  for (const [ruta, razon] of Object.entries(SIN_FUENTE)) {
+    console.log(`    ${ruta} -> fuera del barrido: ${razon}`);
+  }
+
   if (args.includes('--print')) {
-    mapa.estaticas.forEach((e) => console.log('   ', e.ruta));
-    console.log('\n  Con parámetro:');
-    mapa.dinamicas.forEach((e) => console.log('   ', e.ruta));
+    barrido.entradas.forEach((e) => console.log('   ', e.ruta));
     return;
   }
 
@@ -223,16 +307,36 @@ function main() {
 
   // JSON plano para el barrido con adb (PowerShell lo lee directo, sin
   // depender de Node ni de TypeScript en tiempo de corrida).
+  //
+  // Las rutas van CONCRETAS: `/reports/glucosa`, no `/reports/[dominio]`. El
+  // script de PowerShell no tiene que saber nada de parámetros; sigue siendo
+  // un bucle que abre lo que le den.
   const destinoJson = path.join(RAIZ, '.maestro', 'rutas.json');
   fs.mkdirSync(path.dirname(destinoJson), { recursive: true });
   fs.writeFileSync(destinoJson, JSON.stringify({
     scheme,
-    rutas: mapa.estaticas.map((e) => ({ ruta: e.ruta, slug: slug(e.ruta), archivo: e.archivo })),
+    generado: new Date().toISOString(),
+    resumen: {
+      estaticas: barrido.entradas.filter((e) => e.tipo === 'estatica').length,
+      dinamicas: barrido.entradas.filter((e) => e.tipo === 'dinamica').length,
+      variantes: barrido.entradas.filter((e) => e.tipo === 'variante').length,
+    },
+    // Lo que quedó fuera, a la vista. Un barrido que omite cosas sin decirlo
+    // es lo mismo que un barrido incompleto.
+    fuera: {
+      ...SIN_FUENTE,
+      ...Object.fromEntries(
+        Object.entries(barrido.ejemplos)
+          .filter(([, i]) => i.omitidos)
+          .map(([p, i]) => [p, `${i.omitidos} de ${i.total} omitidas: ${i.porQue}`])
+      ),
+    },
+    rutas: barrido.entradas,
   }, null, 2), 'utf8');
   console.log('  escrito: ' + path.relative(RAIZ, destinoJson));
   if (args.includes('--maestro')) {
     for (const tema of ['oscuro', 'claro']) {
-      console.log('  escrito: ' + path.relative(RAIZ, escribirFlujoRutas(mapa, scheme, tema)));
+      console.log('  escrito: ' + path.relative(RAIZ, escribirFlujoRutas(barrido.entradas, scheme, tema)));
     }
   }
 }
