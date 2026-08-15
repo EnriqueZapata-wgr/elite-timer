@@ -278,6 +278,48 @@ async function logArgosCall(supabase: any, params: {
 
 // ─── PROVIDERS ──────────────────────────────────────────────────
 
+// ─── CACHÉ DE LOS LLAMADORES QUE NO SON CHAT (CIERRE-4 · IMPL-02) ─
+// Aquí el diagnóstico salió al revés de lo que se esperaba, así que vale la
+// pena dejarlo escrito: los llamadores no-chat no es que "no aprovechen" la
+// caché, es que NO PUEDEN aprovecharla, y mientras tanto la estaban pagando.
+//
+// El código anterior envolvía TODO `system` string en un bloque con
+// cache_control. Escribir caché cuesta 1.25x lo que cuesta la entrada normal;
+// solo sale a cuenta si alguien vuelve a leer ese bloque idéntico antes de que
+// expire (5 minutos). Lo medido en argos_logs (30 días), sumando todos los
+// tipos que no son chat: 108 escrituras de caché y 2 lecturas. 1.8% de acierto.
+// El insight solo: 103 escrituras, 1 lectura.
+//
+// Y no es mala suerte, es estructural, por dos razones distintas:
+//  · El system del insight lleva el nombre y los datos de UNA persona. Dos
+//    usuarios nunca generan el mismo bloque, así que jamás habrá una segunda
+//    lectura. Pagar la escritura es tirar el 25% del costo de entrada.
+//  · Los que sí tienen system constante entre usuarios (dx_generation,
+//    bha_scan, intervention_rationale, braverman_premium_report) miden entre 1
+//    y 5 llamadas al MES. Con una ventana de 5 minutos, la segunda lectura no
+//    llega nunca. A ese volumen, cachear también es pérdida pura.
+//
+// Por eso el default se invierte: un `system` string NO se cachea. El cerebro
+// (que llega como array de bloques y sí es idéntico para todos, con 84% de
+// acierto medido en chat) no se toca en absoluto.
+//
+// EFECTO SECUNDARIO QUE IMPORTA: la tabla PRICING cobra cache_write a $4/M,
+// que es el multiplicador 2.0x del TTL de 1 hora que usa el cerebro. Las
+// escrituras legacy eran de 5 minutos (1.25x = $2.50/M), así que la telemetría
+// de costos venía inflando esas llamadas ~60%. Al dejar de existir, PRICING
+// pasa a describir la realidad: el único que escribe caché es el cerebro, a 1h.
+//
+// CUÁNDO REVISAR ESTO: cuando algún tipo de system constante pase de ~1 llamada
+// cada 5 minutos sostenida. Entonces se enciende por tipo, sin redeploy:
+// NONCHAT_PROMPT_CACHE="bha_scan,dx_generation" (o "*" para todos).
+function shouldCacheStringSystem(requestType?: string): boolean {
+  const raw = (Deno.env.get("NONCHAT_PROMPT_CACHE") ?? "").trim();
+  if (!raw) return false;
+  if (raw === "*") return true;
+  if (!requestType) return false;
+  return raw.split(",").map((s) => s.trim()).filter(Boolean).includes(requestType);
+}
+
 // 🟡 Anthropic prompt caching ya es GA en mayo 2026 — sin header beta requerido.
 // Si Anthropic vuelve a exigir beta, agregar: "anthropic-beta": "prompt-caching-2024-07-31".
 //
@@ -289,6 +331,8 @@ function buildAnthropicHttp(args: {
   system?: string | any[];
   max_tokens: number;
   stream?: boolean;
+  /** Ver shouldCacheStringSystem: por default un `system` string NO se cachea. */
+  cacheSystem?: boolean;
 }): { requestBody: Record<string, unknown>; headers: Record<string, string> } {
   const requestBody: Record<string, unknown> = {
     model: args.model,
@@ -299,14 +343,13 @@ function buildAnthropicHttp(args: {
   if (args.system) {
     // Array = bloques ya armados (cerebro cacheado + dinámico sin cache) →
     // passthrough con sus cache_control (máx 4 breakpoints; usamos 1).
-    // String = legacy: un solo bloque con cache_control ephemeral.
+    // String = un solo bloque. El cache_control ya NO va por default: ver
+    // shouldCacheStringSystem para el porqué (medido, no supuesto).
     requestBody.system = Array.isArray(args.system)
       ? args.system
-      : [{
-        type: "text",
-        text: args.system,
-        cache_control: { type: "ephemeral" },
-      }];
+      : [args.cacheSystem
+        ? { type: "text", text: args.system, cache_control: { type: "ephemeral" } }
+        : { type: "text", text: args.system }];
   }
 
   // Capa 5: si el documento referencia un file_id (Files API), añadir su beta header.
@@ -334,6 +377,7 @@ async function callAnthropicProvider(args: {
   messages: any[];
   system?: string | any[];
   max_tokens: number;
+  cacheSystem?: boolean;
 }): Promise<{
   ok: boolean;
   data: any;
@@ -343,7 +387,7 @@ async function callAnthropicProvider(args: {
   cache_read_tokens: number;
   cache_write_tokens: number;
 }> {
-  const { requestBody, headers } = buildAnthropicHttp(args);
+  const { requestBody, headers } = buildAnthropicHttp({ ...args, cacheSystem: args.cacheSystem });
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
@@ -935,6 +979,11 @@ serve(async (req) => {
     }
     const brainEcho = brainVersion ? { _brain: brainVersion, _brain_source: brainSource } : {};
 
+    // CIERRE-4: solo aplica cuando systemForCall quedó como STRING (ruta
+    // legacy). Si es array, los cache_control ya vienen puestos por el bloque
+    // del cerebro y esto no lo toca.
+    const cacheStringSystem = shouldCacheStringSystem(requestType);
+
     // Detectar si el request incluye PDFs. Para PDFs grandes evitamos el
     // fallback Gemini porque (a) Gemini no soporta type:"document" tipo Anthropic
     // y (b) consume tiempo del Edge Function (60s cap) que Anthropic puede usar.
@@ -953,6 +1002,7 @@ serve(async (req) => {
       try {
         const { requestBody, headers } = buildAnthropicHttp({
           model: finalModel, messages, system: systemForCall, max_tokens: finalMaxTokens, stream: true,
+          cacheSystem: cacheStringSystem,
         });
         const upstream = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST", headers, body: JSON.stringify(requestBody),
@@ -1087,6 +1137,7 @@ serve(async (req) => {
         messages,
         system: systemForCall,
         max_tokens: finalMaxTokens,
+        cacheSystem: cacheStringSystem,
       });
       const latencyMs = Date.now() - startTime;
 
