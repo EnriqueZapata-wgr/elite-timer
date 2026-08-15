@@ -13,7 +13,7 @@
 import { useMemo, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -165,11 +165,11 @@ export function ExpedienteContent({ data }: { data: ExpedienteReportData }) {
 function FilaFuente({ f, s, t }: { f: FuenteInventario; s: Styles; t: AppThemeTokens }) {
   const hay = f.registros > 0;
   return (
-    <AnimatedPressable onPress={() => { haptic.light(); router.push(f.route as never); }}>
+    <AnimatedPressable onPress={() => { haptic.light(); router.push(f.route as Href); }}>
       <View style={[s.card, { backgroundColor: t.card, borderColor: t.borde }]}>
         <View style={s.rowBetween}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 }}>
-            <Ionicons name={f.icon as never} size={18} color={hay ? META.accent : t.textoTenue} />
+            <Ionicons name={f.icon as any} size={18} color={hay ? META.accent : t.textoTenue} />
             <View style={{ flex: 1 }}>
               <EliteText style={[s.cardTitle, { color: t.texto }]}>{f.titulo}</EliteText>
               <EliteText style={[s.sub, { color: t.textoTenue }]}>

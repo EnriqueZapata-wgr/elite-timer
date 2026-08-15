@@ -448,7 +448,13 @@ export default function ReportsScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        {loading && <EliteText style={s.loadingText}>Cargando...</EliteText>}
+        {/* NOCHE-REP: la carga dice QUÉ está haciendo. Un "Cargando..." pelado
+            es indistinguible de una pantalla colgada, y esta semana hubo dos.
+            El apagado va en el finally de la promesa, no en el then: si una
+            lectura truena, esto se quita igual. */}
+        {loading && (
+          <EliteText style={s.loadingText}>Juntando tus registros del período…</EliteText>
+        )}
 
         {/* IDENTIDAD — tu historia completa, siempre arriba (MB-11 C) */}
         <Animated.View entering={FadeInUp.delay(30).springify()} style={s.cardWrap}>
@@ -511,7 +517,9 @@ export default function ReportsScreen() {
             elegir a quién servirle mal. */}
         <Animated.View entering={FadeInUp.delay(52).springify()} style={s.cardWrap}>
           <GradientCard gradient={{ start: 'rgba(34,211,238,0.10)', end: 'rgba(34,211,238,0.02)' }}>
-            <SectionHeader icon="download-outline" color="#22d3ee" title="LLÉVATE TODO" />
+            {/* El acento sale del registro de dominios, no de un literal: el
+                expediente ya tiene color y aquí no se le inventa otro. */}
+            <SectionHeader icon="download-outline" color={REPORT_DOMAINS.expediente.accent} title="LLÉVATE TODO" />
             <EliteText style={s.consultaBody}>
               Todos tus reportes del rango que tienes arriba, en un solo archivo tuyo. Sin
               resumir y sin interpretar: es tu dato y te lo puedes llevar a donde quieras,
