@@ -2,7 +2,7 @@
   "expo": {
     "name": "ATP",
     "slug": "EliteTimer",
-    "version": "2.1.0",
+    "version": "2.1.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "atp",
@@ -23,7 +23,7 @@
       }
     },
     "android": {
-      "versionCode": 21,
+      "versionCode": 22,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"
