@@ -179,3 +179,46 @@ export const DIA_1_SIEMBRA_SUAVE = true;
  *  Sin migración, sin build nativo, sin tocar datos.
  */
 export const SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA = true;
+
+/**
+ * RANGOS_UNA_SOLA_FUENTE — se acaban las dos verdades (CIERRE-3).
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → `lab-rating` (el que colorea labs, composición y
+ *    biomarcadores en el panel del coach) lee los rangos de la MATRIZ V7/V6,
+ *    la misma que ya usan ATP Labs, Mi lectura y los reportes.
+ *  · OFF → vuelve a leerlos de `src/data/functional-health-engine.ts` (legacy).
+ *
+ * POR QUÉ
+ *  Convivían dos definiciones de rango funcional y el usuario las veía pelear:
+ *  el MISMO biomarcador del MISMO cliente se pintaba distinto según la
+ *  pantalla. Un VO2 de 55 salía "Aceptable" en el panel y "En tu ventana" en
+ *  ATP Labs. Una IgG de 900 salía "Óptimo" porque el legacy tenía 80 donde la
+ *  matriz dice 800, y con eso declaraba óptimo todo el intervalo [80, 1200].
+ *
+ *  La matriz gana por procedencia, no por gusto: cita archivo fuente, autoría y
+ *  fecha de extracción, tiene fixtures de regresión contra el Excel y once
+ *  archivos de test. El legacy no cita fuente, dice tener 144 parámetros y
+ *  define 98, copia los umbrales masculinos a las mujeres en casi todos los
+ *  parámetros (incluida la testosterona) y no tiene un solo test.
+ *
+ * QUÉ CAMBIA EN PANTALLA AL ENCENDERLO
+ *  Muchos valores cambian de etiqueta, y ese es el objetivo. Los que estaban
+ *  mal eran los del panel. Además se arreglan gratis seis columnas que siempre
+ *  decían "Sin dato" (LH, CPK, urea, transferrina, saturación de hierro,
+ *  capacidad de fijación de hierro) porque el mapa viejo apuntaba a claves
+ *  inexistentes; y diez columnas pasan a decir "Sin dato" de forma DECLARADA,
+ *  porque la matriz no define banda para ellas y un rango no se inventa
+ *  (listadas en COLUMNAS_LAB_SIN_BANDA).
+ *
+ * LO QUE ESTE FLAG NO ALCANZA
+ *  `calculateHealthScore` (el score funcional que se PERSISTE) sigue corriendo
+ *  con el legacy. Ese swap es otro algoritmo — PhenoAge, edad biológica y
+ *  pesos de dominio propios — y cambiarlo mueve un número guardado en base.
+ *  No entra en un flag de presentación.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración: esto solo cambia de dónde se leen números para pintar.
+ */
+export const RANGOS_UNA_SOLA_FUENTE = true;

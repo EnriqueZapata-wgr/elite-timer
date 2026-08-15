@@ -1,9 +1,36 @@
 /**
- * Lab Rating — Evalúa valores de lab/composición/biomarcadores contra rangos funcionales.
- * Conecta lab_results columns con el motor de salud (functional-health-engine).
+ * Lab Rating — evalúa valores de lab, composición y biomarcadores contra los
+ * rangos funcionales de la casa.
+ *
+ * CIERRE-3: esta capa es la que producía la contradicción visible. Leía los
+ * rangos de `functional-health-engine` (legacy, sin fuente citada y sin un solo
+ * test) mientras ATP Labs, Mi lectura y los reportes leían la matriz V7/V6. El
+ * mismo biomarcador del mismo cliente se pintaba distinto según la pantalla.
+ * Ahora los dos caminos leen la MISMA matriz.
+ *
+ * La API pública no cambió (rateLabValue / rateBodyValue / rateBioValue
+ * devuelven `ValueRating` igual que siempre), así que las pantallas no se
+ * tocaron. Lo que cambió es de dónde salen los números.
  */
-import { DOMAINS, type Sex, type RatingLevel } from '../data/functional-health-engine';
+import { RANGOS_UNA_SOLA_FUENTE } from '../constants/flags';
+import { DOMAINS } from '../data/functional-health-engine';
+import {
+  BIO_A_MATRIZ,
+  COLUMNA_A_MATRIZ,
+  CUERPO_A_MATRIZ,
+  evaluarCampo,
+  type LecturaFuncional,
+  type NivelFuncional,
+} from '../services/salud/rangos-funcionales-core';
+import type { Sex } from '../types/edad-atp-v2';
 import { SEMANTIC } from '../constants/brand';
+
+/**
+ * Los mismos literales que exportaba el legacy. Se declaran aquí para que el
+ * tipo deje de venir del módulo que estamos jubilando: mientras el tipo siga
+ * importándose de allá, el legacy no se puede borrar nunca.
+ */
+export type RatingLevel = 'out_of_range' | 'critical' | 'risk' | 'acceptable' | 'optimal';
 
 export type Direction = 'above' | 'below' | 'in_range' | null;
 
@@ -201,25 +228,62 @@ function rateWithEngineKeys(keys: string[], value: number, sex: Sex): ValueRatin
   return NO_DATA;
 }
 
-/** Evaluar un valor de lab_results */
+// ── Puente a la matriz V7/V6 (la fuente de verdad) ──
+
+/** Vocabulario del core → vocabulario que ya consumen las pantallas. */
+const NIVEL_A_LEVEL: Record<Exclude<NivelFuncional, 'sin_banda'>, RatingLevel> = {
+  optimo: 'optimal',
+  aceptable: 'acceptable',
+  riesgo: 'risk',
+  critico: 'critical',
+  fuera_de_rango: 'out_of_range',
+};
+
+const DIRECCION_A_DIRECTION: Record<'arriba' | 'abajo' | 'en_rango', Direction> = {
+  arriba: 'above',
+  abajo: 'below',
+  en_rango: 'in_range',
+};
+
+function aValueRating(l: LecturaFuncional): ValueRating {
+  // 'sin_banda' se pinta como "Sin dato" a propósito: la matriz no define
+  // ventana para ese parámetro y un veredicto inventado sería peor que
+  // ninguno. Es la misma doctrina de ATP Labs.
+  if (l.nivel === 'sin_banda') return NO_DATA;
+  return buildRating(
+    NIVEL_A_LEVEL[l.nivel],
+    l.direccion ? DIRECCION_A_DIRECTION[l.direccion] : null,
+  );
+}
+
+/** Evaluar un valor de lab_results. */
 export function rateLabValue(labColumn: string, value: number | null | undefined, sex: Sex = 'male'): ValueRating {
   if (value == null) return NO_DATA;
+  if (RANGOS_UNA_SOLA_FUENTE) {
+    return aValueRating(evaluarCampo(COLUMNA_A_MATRIZ, labColumn, value, sex));
+  }
   const keys = LAB_TO_ENGINE[labColumn];
   if (!keys) return NO_DATA;
   return rateWithEngineKeys(keys, value, sex);
 }
 
-/** Evaluar composición corporal */
+/** Evaluar composición corporal. */
 export function rateBodyValue(field: string, value: number | null | undefined, sex: Sex = 'male'): ValueRating {
   if (value == null) return NO_DATA;
+  if (RANGOS_UNA_SOLA_FUENTE) {
+    return aValueRating(evaluarCampo(CUERPO_A_MATRIZ, field, value, sex));
+  }
   const engineKey = BODY_TO_ENGINE[field];
   if (!engineKey) return NO_DATA;
   return rateWithEngineKeys([engineKey], value, sex);
 }
 
-/** Evaluar biomarcador físico */
+/** Evaluar biomarcador físico. */
 export function rateBioValue(field: string, value: number | null | undefined, sex: Sex = 'male'): ValueRating {
   if (value == null) return NO_DATA;
+  if (RANGOS_UNA_SOLA_FUENTE) {
+    return aValueRating(evaluarCampo(BIO_A_MATRIZ, field, value, sex));
+  }
   const engineKey = BIO_TO_ENGINE[field];
   if (!engineKey) return NO_DATA;
   return rateWithEngineKeys([engineKey], value, sex);

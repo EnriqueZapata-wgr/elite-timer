@@ -1,5 +1,29 @@
 /**
- * Motor de Salud Funcional — 144 parámetros, 10 dominios, PhenoAge de Levine.
+ * Motor de Salud Funcional — LEGACY EN RETIRADA (CIERRE-3).
+ *
+ * ⚠️ ESTE ARCHIVO YA NO ES FUENTE DE RANGOS. La fuente de verdad es la matriz
+ * V7/V6 (`src/constants/edad-atp-matriz-v7-v6.ts`), que cita archivo Excel,
+ * autoría y fecha de extracción y tiene fixtures de regresión. Todo lo que
+ * COLOREA un valor en pantalla ya lee de allá vía
+ * `src/services/salud/rangos-funcionales-core.ts`.
+ *
+ * QUÉ SIGUE VIVO AQUÍ, Y SOLO ESTO: `calculateHealthScore` /
+ * `mapPatientDataToInput`, o sea el score funcional que se PERSISTE y la
+ * PhenoAge de Levine. Ese swap es otro algoritmo (pesos de dominio propios,
+ * edad biológica, coeficientes de Levine) y mueve un número guardado en base,
+ * así que no entra en un cambio de presentación. Es la cola declarada.
+ *
+ * NO AGREGUES NI EDITES RANGOS AQUÍ. Si falta un rango, va en la matriz, y a
+ * la matriz la firma quien la firma.
+ *
+ * Deudas conocidas de este archivo (medidas, no estimadas): el encabezado
+ * declaraba 144 parámetros y define 98; copia los umbrales masculinos al array
+ * femenino en casi todos los parámetros, incluida la testosterona; y no tiene
+ * un solo test automatizado (el `health-engine-validation.ts` que parece uno es
+ * un script suelto que reimplementa `rateValue` por su cuenta, o sea valida una
+ * copia y no este código).
+ *
+ * Original: 144 parámetros declarados, 10 dominios, PhenoAge de Levine.
  * Rangos funcionales por sexo, ajustes por composición corporal.
  */
 import { SEMANTIC } from '../constants/brand';
@@ -235,7 +259,12 @@ export const DOMAINS: Domain[] = [
     p('crp_imm', 'PCR', 'immunity', 'lab', 'mg/dl', 0.15, [null,null,null,0,0.2,0.4,0.6,0.7], [null,null,null,0,0.2,0.4,0.6,0.7]),
     p('vitamin_d_imm', 'Vitamina D', 'immunity', 'lab', 'ng/ml', 0.12, [110,100,90,80,50,40,30,20], [110,100,90,80,50,40,30,20]),
     p('bilirubin_imm', 'Bilirrubina', 'immunity', 'lab', 'mg/dl', 0.12, [1.6,1.5,1.2,1,0.3,null,null,null], [1.6,1.5,1.2,1,0.3,null,null,null]),
-    p('igg', 'IgG', 'immunity', 'lab', 'mg/dl', 0.10, [1401,1400,1300,1200,80,700,600,599], [1401,1400,1300,1200,80,700,600,599]),
+    // CIERRE-3: decía 80 donde va 800 (un cero perdido). Con el 80, el rango
+    // "óptimo" iba de 80 a 1200 y CUALQUIER IgG en ese tramo salía en verde,
+    // incluida una francamente baja. El 800 no se inventó: es el umbral de la
+    // matriz V7/V6 (`igg`, dominio inmunidad, bandLimits 599..1401), que es la
+    // fuente y coincide con el resto de la serie al derecho.
+    p('igg', 'IgG', 'immunity', 'lab', 'mg/dl', 0.10, [1401,1400,1300,1200,800,700,600,599], [1401,1400,1300,1200,800,700,600,599]),
     p('iga', 'IgA', 'immunity', 'lab', 'mg/dl', 0.08, [401,400,300,250,120,100,80,79], [401,400,300,250,120,100,80,79]),
     p('ige', 'IgE', 'immunity', 'lab', 'UI/ml', 0.08, [null,null,null,10,40,60,100,101], [null,null,null,10,40,60,100,101]),
     p('ldh_imm', 'LDH', 'immunity', 'lab', 'U/L', 0.07, [null,null,null,100,170,200,250,280], [null,null,null,100,170,200,250,280]),
