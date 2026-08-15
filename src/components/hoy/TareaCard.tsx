@@ -127,6 +127,15 @@ export function TareaCard({
             {tarea.weight != null ? (
               <View style={s.pill}><EliteText style={s.pillText}>+{tarea.weight}</EliteText></View>
             ) : null}
+            {/* CIERRE-1: el parche QW-7 puso el chevron en TareaRow y se saltó
+                justo la fila más visible de HOY. Una card palomeable CON ruta
+                pintaba el círculo pelón: cero pista de que atrás hay pantalla.
+                Aquí el círculo se queda en su lugar (el tap sigue palomeando)
+                y el chevron aparece al extremo derecho, que es donde ya vive
+                en el resto del día. No toca gestos: solo deja de esconder. */}
+            {tarea.gesto === 'palomear' && tarea.route ? (
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.7)" />
+            ) : null}
           </View>
         </View>
 
