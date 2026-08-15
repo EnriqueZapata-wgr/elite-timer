@@ -56,7 +56,18 @@ import { ChatEmptyState } from '@/src/components/argos/chat/ChatEmptyState';
 import { MessageBubble } from '@/src/components/argos/chat/MessageBubble';
 import { TypingIndicator } from '@/src/components/argos/chat/TypingIndicator';
 import { MessageActionsMenu } from '@/src/components/argos/chat/MessageActionsMenu';
+import { NavOptionsRow } from '@/src/components/argos/chat/NavOptionsRow';
+import { decidirTurnoNav, type TurnoNav } from '@/src/services/argos-nav-intent-core';
+import type { CandidatoNav } from '@/src/services/argos-nav-resolver-core';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+
+/**
+ * Cuánto se ve el "te llevo a X" antes de que la pantalla cambie debajo.
+ * Sin esta pausa el push ocurre en el mismo frame que el mensaje y el usuario
+ * nunca ve QUÉ entendió ARGOS: si se equivocó, no tiene forma de saber por qué
+ * acabó donde acabó.
+ */
+const RETARDO_NAVEGACION_MS = 700;
 
 function ArgosChat() {
   // MB-31B remate: pantalla sin dueño en el reparto — tokens del tema.
@@ -104,6 +115,17 @@ function ArgosChat() {
   const [suggestions, setSuggestions] = useState<ChatSuggestion[]>(DEFAULT_SUGGESTIONS);
   // MB-21 P4.4: menú propio de long-press (antes Alert nativo).
   const [selected, setSelected] = useState<ChatListItem | null>(null);
+  // NOCHE-ARGOS P5: cuando el resolvedor devuelve 'ambigua', las dos opciones
+  // entre las que el usuario elige. El contrato del resolvedor es no adivinar.
+  const [navOpciones, setNavOpciones] = useState<CandidatoNav[] | null>(null);
+  // El push diferido de la navegación. En un ref para poder cancelarlo si la
+  // pantalla se desmonta antes: navegar desde una pantalla ya muerta tira el
+  // stack a un lugar que el usuario no pidió.
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (navTimerRef.current) clearTimeout(navTimerRef.current);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -241,6 +263,73 @@ function ArgosChat() {
     }
   }
 
+  /** El push real. Diferido para que se alcance a leer a dónde te lleva. */
+  function navegarDiferido(ruta: string) {
+    if (navTimerRef.current) clearTimeout(navTimerRef.current);
+    navTimerRef.current = setTimeout(() => {
+      navTimerRef.current = null;
+      router.push(ruta as never);
+    }, RETARDO_NAVEGACION_MS);
+  }
+
+  /**
+   * NOCHE-ARGOS P5: turno resuelto SIN red y SIN modelo.
+   *
+   * Cuesta 0 H+ y NO consume la cuota diaria de ARGOS, porque nunca llega al
+   * proxy: el catálogo de 192 rutas ya viaja en el bundle y la resolución es un
+   * índice invertido local. Ese es todo el punto. En el tier gratis son 5
+   * consultas al día; que preguntar cinco veces dónde está algo te deje sin
+   * ARGOS hasta mañana es exactamente el error que ya nos costó una usuaria.
+   *
+   * El turno se persiste como cualquier otro: para el usuario esto ES una
+   * conversación, y al volver al chat tiene que seguir ahí.
+   */
+  function responderSinModelo(messageText: string, nav: TurnoNav) {
+    if (nav.accion === 'chat') return;
+    // Mismo manejo de rotación de sesión que el turno normal: si el ancla rotó
+    // por debajo, este turno arranca conversación nueva en vez de adoptar la
+    // vieja en la sesión nueva.
+    const rotatedAway = sessionRotatedAway(screenSessionRef.current, getArgosSessionId());
+    if (rotatedAway) setConversationId(null);
+    const base = rotatedAway ? [] : messages;
+    const turnConversationId = rotatedAway ? null : conversationId;
+    const turnSessionId = getArgosSessionId();
+    screenSessionRef.current = turnSessionId;
+
+    setInput('');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setRateLimit(null);
+
+    const userTurn: ArgosMessage = { role: 'user', content: messageText, ts: Date.now() };
+    const resolved = resolveTurn(
+      base, userTurn, { kind: 'reply', text: nav.mensaje, degraded: false }, Date.now(),
+    );
+    setMessages(resolved.messages);
+    setNavOpciones(nav.accion === 'preguntar' ? nav.opciones : null);
+    if (autoSpeak) speakArgos(nav.mensaje);
+    analytics.track(ATP_EVENTS.ARGOS_MESSAGE_SENT, { turn_index: resolved.messages.length });
+
+    if (nav.accion === 'navegar') navegarDiferido(nav.ruta);
+
+    const plan = persistPlan(resolved.messages, resolved.wasDegraded);
+    if (plan.persist && userId) {
+      saveConversation(userId, plan.clean, turnConversationId, turnSessionId)
+        .then((id) => { if (id) setConversationId(id); })
+        .catch((e) => console.warn('ARGOS saveConversation (nav) error:', e));
+    }
+  }
+
+  /** El usuario eligió una de las opciones de la desambiguación. */
+  function elegirOpcionNav(candidato: CandidatoNav) {
+    setNavOpciones(null);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setMessages(prev => [
+      ...prev,
+      { role: 'assistant', content: `Va, te llevo a ${candidato.titulo}.`, ts: Date.now() },
+    ]);
+    navegarDiferido(candidato.ruta);
+  }
+
   async function sendMessage(text?: string) {
     const messageText = text || input.trim();
     if (!messageText || !userId) return;
@@ -248,6 +337,20 @@ function ArgosChat() {
     if (!sendGuard.tryAcquire()) return;
     // C5-002: se evalúa ANTES de cualquier red/LLM — funciona incluso offline.
     if (detectCrisisContent(messageText)) setCrisisDetected(true);
+
+    // NOCHE-ARGOS P5: ¿esto era "llévame a"? Se pregunta ANTES de la red, del
+    // preflight de H+ y del gate offline, porque un turno de navegación no
+    // necesita ninguna de las tres: se resuelve contra el bundle. Ponerlo
+    // después convertiría en llamada de red algo que no lo es, y dejaría sin
+    // navegación al usuario sin conexión, que es justo cuando más se pierde.
+    const nav = decidirTurnoNav(messageText);
+    if (nav.accion !== 'chat') {
+      responderSinModelo(messageText, nav);
+      sendGuard.release();
+      return;
+    }
+    // A partir de aquí, turno normal: sí cuesta y sí necesita red.
+    setNavOpciones(null);
     // Una sola idempotency_key para TODO este turno (incluye retries internos).
     const idempotencyKey = generateUUID();
 
@@ -503,6 +606,11 @@ function ArgosChat() {
             // Con inverted, el header de la lista es el borde INFERIOR (lo más nuevo).
             ListHeaderComponent={
               <View>
+                {/* Con inverted esto queda PEGADO al último mensaje: las opciones
+                    aparecen justo debajo de la pregunta de ARGOS. */}
+                {navOpciones && !loading && (
+                  <NavOptionsRow opciones={navOpciones} onPick={elegirOpcionNav} />
+                )}
                 {rateLimit && (
                   <RateLimitCard info={rateLimit} onBoostActivated={() => setBoostJustActivated(true)} />
                 )}
