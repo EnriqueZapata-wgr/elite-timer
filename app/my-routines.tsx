@@ -427,6 +427,22 @@ export default function MyRoutinesScreen() {
                       size={28}
                       color={blockCount === 0 ? tk.error : meta.color}
                     />
+
+                    {/* CIERRE-1: editar, duplicar y ELIMINAR vivían solo detrás
+                        del tap largo. Nadie descubre un menú que no se ve, y
+                        menos el único camino para deshacer. Este botón abre
+                        exactamente el mismo menú (handleLongPress), así que no
+                        hay lógica nueva ni una segunda forma de borrar: es la
+                        misma puerta, ahora visible. El tap largo sigue vivo. */}
+                    <Pressable
+                      onPress={() => handleLongPress(r)}
+                      hitSlop={10}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Opciones de ${r.name}`}
+                      style={({ pressed }) => [s.menuBtn, pressed && { opacity: 0.5 }]}
+                    >
+                      <Ionicons name="ellipsis-horizontal" size={18} color={tk.textoSecundario} />
+                    </Pressable>
                   </View>
                 </GradientCard>
               </Animated.View>
@@ -437,7 +453,7 @@ export default function MyRoutinesScreen() {
         {/* Hint */}
         {!loading && routines.length > 0 && (
           <EliteText variant="caption" style={{ color: tk.bordeMarcado, fontSize: 9, textAlign: 'center', marginBottom: Spacing.sm }}>
-            Mantén presionado para editar o eliminar
+            Toca los tres puntos para editar, duplicar o eliminar
           </EliteText>
         )}
 
@@ -678,6 +694,15 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+  },
+  // CIERRE-1: 44x44 es el mínimo táctil de Apple. El icono es de 18 para no
+  // competir con el play de 28, pero el área que se toca es la completa.
+  menuBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: -Spacing.sm,
   },
   iconCircle: {
     width: 44,

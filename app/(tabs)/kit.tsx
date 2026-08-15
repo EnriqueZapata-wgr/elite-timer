@@ -345,6 +345,15 @@ export default function SalaAtpScreen() {
             ) : (
               <View style={[s.grid, s.gridFlat]}>{listed.map(renderTile)}</View>
             )}
+
+            {/* CIERRE-1: desinstalar existía solo como tap largo sobre el
+                icono, y nada en pantalla lo decía. La puerta visible ya existe
+                (Centro → ficha de la app → Desinstalar), así que aquí no hace
+                falta ensuciar la cuadrícula con una X en cada tile: basta con
+                nombrar las dos vías. Enunciar el gesto también lo enseña. */}
+            <EliteText style={[s.gestoHint, { color: tenueInformativo }]}>
+              Mantén presionado un icono para desinstalarlo, o hazlo desde su ficha en el Centro
+            </EliteText>
           </>
         )}
 
@@ -379,6 +388,14 @@ const s = StyleSheet.create({
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     padding: 0,
+  },
+
+  gestoHint: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.regular,
+    textAlign: 'center',
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   },
 
   chipRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing.md },
