@@ -43,6 +43,7 @@ import { THEME_DARK } from '@/src/constants/brand';
 import { NightVeil } from '@/src/components/theme/NightVeil';
 import { NotificationActionsBridge } from '@/src/components/NotificationActionsBridge';
 import { WidgetSyncBridge } from '@/src/components/WidgetSyncBridge';
+import { ArgosRouteTracker } from '@/src/components/argos/ArgosRouteTracker';
 import { ArgosPresenceProvider } from '@/src/components/argos/ArgosPresenceContext';
 import { ArgosFloatingButton } from '@/src/components/argos/ArgosFloatingButton';
 import { HomeFloatingButton } from '@/src/components/ui/HomeFloatingButton';
@@ -183,6 +184,9 @@ function RootLayout() {
           {/* MB-32: replay de taps del widget (cola → writers canónicos) +
               limpieza al cerrar sesión */}
           <WidgetSyncBridge />
+          {/* NOCHE-ARGOS P6: apunta en qué pantalla está el usuario para que
+              ARGOS lo sepa al abrir el chat. Invisible, sin estado propio. */}
+          <ArgosRouteTracker />
           {/* MB-31A: el motor de temas (4 modos) + velo nocturno in-app.
               Vive DENTRO de AuthProvider: adaptativo necesita el horario
               real del usuario (despertar + corte de pantallas). */}
