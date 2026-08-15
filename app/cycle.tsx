@@ -1083,7 +1083,11 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   navSub: { color: t.textoTenue, fontSize: FontSizes.xs, textAlign: 'center' },
 
   // ── Modal ──
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  overlay: {
+    flex: 1,
+    backgroundColor: t.kind === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)',
+    justifyContent: 'flex-end',
+  },
   sheet: {
     backgroundColor: t.flotante, borderTopLeftRadius: 24, borderTopRightRadius: 24,
     paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm, maxHeight: '90%',

@@ -24,7 +24,7 @@ import { EliteToggle } from '@/components/elite-toggle';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { argosRateLimitMessage } from '@/src/services/argos-stream-core';
 import { ATP_BRAND } from '@/src/constants/brand';
-import { useAppTheme } from '@/src/contexts/theme-context';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 const MEAL_TYPES = [
   { id: 'desayuno', label: 'Desayuno', icon: 'sunny-outline' as const, color: '#fbbf24' },
@@ -52,11 +52,13 @@ interface Props {
 }
 
 export function GeneradorArgos({ onRecipeSaved, onClose }: Props) {
-  // MB-31B3: reglas del manual en claro (lima/ámbar no son texto).
-  const { kind, tokens: t } = useAppTheme();
+  // MB-31B3: reglas del manual en claro (lima/ámbar no son texto). Componente
+  // compartido → useSurfaceTokens (oscuro fuera de <ThemeReady>).
+  const t = useSurfaceTokens();
+  const kind = t.kind;
   const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const ambarTx = kind === 'dark' ? '#fbbf24' : t.texto;
-  const suave = kind === 'dark' ? '#ccc' : t.texto;
+  const suave = kind === 'dark' ? t.texto : t.texto;
 
   const [mode, setMode] = useState<'menu' | 'generating' | 'recipe'>('menu');
   const [selectedMeal, setSelectedMeal] = useState('');

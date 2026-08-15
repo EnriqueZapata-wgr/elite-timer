@@ -12,6 +12,7 @@ import { UNIT_CYCLE, type FoodUnit } from '@/src/constants/food-units';
 import { findFood as findArgosFood } from '@/src/constants/argos-food-library';
 import { validateFoodEstimate, validateAndFixFoodEstimate, type ValidationResult } from '@/src/utils/food-validation';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 // === TIPOS ===
 
@@ -110,6 +111,9 @@ const UNIT_OPTIONS: { value: FoodUnit; label: string }[] = [
 ];
 
 export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
+  // MB-31B: pantalla de revisión, migrada a tokens del scope compartido.
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
   const [review, setReview] = useState<ReviewState>(initialState);
   const [unitPickerIndex, setUnitPickerIndex] = useState<number | null>(null);
 
@@ -195,42 +199,46 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
     { key: 'fat_g' as const, label: 'Grasa', unit: 'g', color: '#fb923c' },
   ];
 
+  // MB-31B: el lima como TEXTO no pasa contraste en claro (doctrina) — cae a
+  // tealTexto; como relleno de fondo (tint bajo) se queda igual en los dos.
+  const acento = dark ? '#a8e02a' : t.tealTexto;
+
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#000' }} keyboardShouldPersistTaps="handled">
+    <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} keyboardShouldPersistTaps="handled">
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
         <Pressable onPress={onCancel} hitSlop={12}>
-          <Ionicons name="arrow-back" size={22} color="#999" />
+          <Ionicons name="arrow-back" size={22} color={t.textoSecundario} />
         </Pressable>
-        <Text style={{ color: '#fff', fontSize: 16, fontFamily: Fonts.bold }}>REVISAR ALIMENTO</Text>
+        <Text style={{ color: t.texto, fontSize: 16, fontFamily: Fonts.bold }}>REVISAR ALIMENTO</Text>
         <View style={{ width: 22 }} />
       </View>
 
       {/* Descripción editable */}
       <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
-        <Text style={{ color: '#666', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 6 }}>DESCRIPCIÓN</Text>
+        <Text style={{ color: t.textoSecundario, fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 6 }}>DESCRIPCIÓN</Text>
         <TextInput
           value={review.description}
           onChangeText={v => setReview(prev => ({ ...prev, description: v }))}
           style={{
-            backgroundColor: '#0a0a0a', color: '#fff', padding: 14,
+            backgroundColor: t.hundido, color: t.texto, padding: 14,
             borderRadius: 12, fontSize: 15, fontFamily: Fonts.regular,
-            borderWidth: 1, borderColor: '#1a1a1a',
+            borderWidth: 1, borderColor: t.borde,
           }}
           multiline
-          placeholderTextColor="#444"
+          placeholderTextColor={t.textoTenue}
           placeholder="Describe tu comida"
         />
       </View>
 
       {/* Ingredientes editables */}
       <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
-        <Text style={{ color: '#666', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 10 }}>INGREDIENTES</Text>
+        <Text style={{ color: t.textoSecundario, fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 10 }}>INGREDIENTES</Text>
 
         {review.items.map((item, index) => (
           <View key={index} style={{
-            backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14, marginBottom: 10,
-            borderWidth: 1, borderColor: '#1a1a1a',
+            backgroundColor: t.hundido, borderRadius: 14, padding: 14, marginBottom: 10,
+            borderWidth: 1, borderColor: t.borde,
           }}>
             {/* Fila 1: Nombre + eliminar */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -238,11 +246,11 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
                 value={item.name}
                 onChangeText={v => updateItem(index, 'name', v)}
                 placeholder="Ingrediente"
-                placeholderTextColor="#444"
-                style={{ color: '#fff', fontSize: 15, fontFamily: Fonts.bold, flex: 1 }}
+                placeholderTextColor={t.textoTenue}
+                style={{ color: t.texto, fontSize: 15, fontFamily: Fonts.bold, flex: 1 }}
               />
               <Pressable onPress={() => removeItem(index)} hitSlop={12}>
-                <Ionicons name="close-circle" size={22} color="#ef4444" />
+                <Ionicons name="close-circle" size={22} color={t.error} />
               </Pressable>
             </View>
 
@@ -254,7 +262,7 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
                 keyboardType="decimal-pad"
                 selectTextOnFocus
                 style={{
-                  backgroundColor: '#1a1a1a', color: '#a8e02a',
+                  backgroundColor: t.flotante, color: acento,
                   fontSize: 22, fontFamily: Fonts.extraBold,
                   width: 80, height: 50, textAlign: 'center',
                   borderRadius: 12, paddingHorizontal: 8,
@@ -267,14 +275,14 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
                   borderWidth: 1, borderColor: 'rgba(168,224,42,0.25)',
                   flexDirection: 'row', alignItems: 'center', gap: 4,
                 }}>
-                  <Text style={{ color: '#a8e02a', fontSize: 14, fontFamily: Fonts.bold }}>
+                  <Text style={{ color: acento, fontSize: 14, fontFamily: Fonts.bold }}>
                     {item.unit}
                   </Text>
-                  <Ionicons name="chevron-down" size={14} color="#a8e02a" />
+                  <Ionicons name="chevron-down" size={14} color={acento} />
                 </View>
               </Pressable>
               <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', gap: 6 }}>
-                <Text style={{ color: '#999', fontSize: 11 }}>{Math.round(item.calories || 0)}kcal</Text>
+                <Text style={{ color: t.textoSecundario, fontSize: 11 }}>{Math.round(item.calories || 0)}kcal</Text>
                 <Text style={{ color: '#60a5fa', fontSize: 11 }}>P{Math.round(item.protein_g || 0)}</Text>
                 <Text style={{ color: '#fbbf24', fontSize: 11 }}>C{Math.round(item.carbs_g || 0)}</Text>
                 <Text style={{ color: '#fb923c', fontSize: 11 }}>G{Math.round(item.fat_g || 0)}</Text>
@@ -285,11 +293,11 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
 
         <Pressable onPress={addItem} style={{
           flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-          gap: 6, paddingVertical: 12, borderWidth: 1, borderColor: '#1a1a1a',
+          gap: 6, paddingVertical: 12, borderWidth: 1, borderColor: t.borde,
           borderRadius: 12, borderStyle: 'dashed',
         }}>
-          <Ionicons name="add-circle-outline" size={18} color="#a8e02a" />
-          <Text style={{ color: '#a8e02a', fontSize: 13, fontFamily: Fonts.semiBold }}>Agregar ingrediente</Text>
+          <Ionicons name="add-circle-outline" size={18} color={acento} />
+          <Text style={{ color: acento, fontSize: 13, fontFamily: Fonts.semiBold }}>Agregar ingrediente</Text>
         </Pressable>
       </View>
 
@@ -300,15 +308,15 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
           padding: 14, marginHorizontal: 20, marginBottom: 12,
         }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <Ionicons name="warning-outline" size={18} color="#ef4444" />
-            <Text style={{ color: '#ef4444', fontSize: 13, fontFamily: Fonts.bold }}>Posibles errores detectados</Text>
+            <Ionicons name="warning-outline" size={18} color={t.error} />
+            <Text style={{ color: t.error, fontSize: 13, fontFamily: Fonts.bold }}>Posibles errores detectados</Text>
           </View>
           {validation.warnings.map((w, i) => (
-            <Text key={i} style={{ color: '#ccc', fontSize: 12, marginBottom: 4, lineHeight: 18 }}>• {w}</Text>
+            <Text key={i} style={{ color: t.texto, fontSize: 12, marginBottom: 4, lineHeight: 18 }}>• {w}</Text>
           ))}
           {validation.autoFixes.length > 0 && (
             <Pressable onPress={applyAutoFixes} style={{ marginTop: 8 }}>
-              <Text style={{ color: '#a8e02a', fontSize: 12, fontFamily: Fonts.semiBold }}>
+              <Text style={{ color: acento, fontSize: 12, fontFamily: Fonts.semiBold }}>
                 Aplicar correcciones sugeridas →
               </Text>
             </Pressable>
@@ -318,15 +326,15 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
 
       {/* Macros editables */}
       <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
-        <Text style={{ color: '#666', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 10 }}>MACROS</Text>
+        <Text style={{ color: t.textoSecundario, fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 10 }}>MACROS</Text>
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
           {MACROS.map(macro => (
             <View key={macro.key} style={{
-              width: '47%', backgroundColor: '#0a0a0a',
+              width: '47%', backgroundColor: t.hundido,
               borderRadius: 12, padding: 12,
             }}>
-              <Text style={{ color: '#999', fontSize: 10, fontFamily: Fonts.bold, marginBottom: 4 }}>{macro.label}</Text>
+              <Text style={{ color: t.textoSecundario, fontSize: 10, fontFamily: Fonts.bold, marginBottom: 4 }}>{macro.label}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
                 <TextInput
                   value={String(Math.round(review.totals[macro.key]))}
@@ -335,9 +343,9 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
                     totals: { ...prev.totals, [macro.key]: parseFloat(v) || 0 },
                   }))}
                   keyboardType="decimal-pad"
-                  style={{ color: macro.color, fontSize: 22, fontFamily: Fonts.extraBold, minWidth: 40 }}
+                  style={{ color: macro.key === 'calories' ? acento : macro.color, fontSize: 22, fontFamily: Fonts.extraBold, minWidth: 40 }}
                 />
-                <Text style={{ color: '#666', fontSize: 12 }}>{macro.unit}</Text>
+                <Text style={{ color: t.textoSecundario, fontSize: 12 }}>{macro.unit}</Text>
               </View>
             </View>
           ))}
@@ -350,7 +358,7 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
           borderRadius: 12, padding: 12,
         }}>
           <Ionicons name="alert-circle-outline" size={18} color="#fbbf24" />
-          <Text style={{ color: '#999', fontSize: 12, flex: 1 }}>
+          <Text style={{ color: t.textoSecundario, fontSize: 12, flex: 1 }}>
             Macros estimados por ARGOS. Ajusta si notas errores.
           </Text>
         </View>
@@ -361,7 +369,7 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
         <Pressable onPress={handleSave} style={{
           backgroundColor: '#a8e02a', borderRadius: 16, padding: 16, alignItems: 'center',
         }}>
-          <Text style={{ color: '#000', fontSize: 16, fontFamily: Fonts.extraBold, letterSpacing: 1 }}>GUARDAR</Text>
+          <Text style={{ color: t.textoSobreLima, fontSize: 16, fontFamily: Fonts.extraBold, letterSpacing: 1 }}>GUARDAR</Text>
         </Pressable>
       </View>
 
@@ -373,11 +381,11 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
         onRequestClose={() => setUnitPickerIndex(null)}
       >
         <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}
+          style={{ flex: 1, backgroundColor: dark ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)', justifyContent: 'flex-end' }}
           onPress={() => setUnitPickerIndex(null)}
         >
-          <Pressable style={{ backgroundColor: '#1a1a1a', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 40 }} onPress={() => {}}>
-            <Text style={{ color: '#fff', fontSize: 16, fontFamily: Fonts.bold, textAlign: 'center', marginBottom: 16 }}>
+          <Pressable style={{ backgroundColor: t.flotante, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 40 }} onPress={() => {}}>
+            <Text style={{ color: t.texto, fontSize: 16, fontFamily: Fonts.bold, textAlign: 'center', marginBottom: 16 }}>
               Seleccionar unidad
             </Text>
             {UNIT_OPTIONS.map(opt => {
@@ -395,7 +403,7 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
                   }}
                 >
                   <Text style={{
-                    color: isActive ? '#a8e02a' : '#fff',
+                    color: isActive ? acento : t.texto,
                     fontSize: 16, fontFamily: isActive ? Fonts.bold : Fonts.regular,
                   }}>
                     {opt.label}

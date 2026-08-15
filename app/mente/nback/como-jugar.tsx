@@ -117,8 +117,8 @@ export default function NBackComoJugarScreen() {
 
           <AnimatedPressable style={s.startBtn} onPress={advance}>
             <LinearGradient colors={ATP_BRAND.moleculeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.startBtnInner}>
-              {last && <Ionicons name="play" size={18} color="#000" />}
-              <EliteText style={s.startText}>{last ? 'EMPEZAR' : 'ENTENDIDO'}</EliteText>
+              {last && <Ionicons name="play" size={18} color={t.textoSobreLima} />}
+              <EliteText style={[s.startText, { color: t.textoSobreLima }]}>{last ? 'EMPEZAR' : 'ENTENDIDO'}</EliteText>
             </LinearGradient>
           </AnimatedPressable>
           {idx > 0 && (
@@ -178,7 +178,8 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 14,
   },
-  startText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
+  // El color se aplica inline con t.textoSobreLima (texto sobre relleno lima).
+  startText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
   startHint: {
     fontSize: FontSizes.xs, fontFamily: Fonts.regular,
     textAlign: 'center', marginTop: 10,

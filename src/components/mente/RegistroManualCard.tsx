@@ -11,7 +11,7 @@
  * camino de siempre. Nada de una ruta paralela: eso es exactamente lo que
  * rompe el ledger (hay test de contrato).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
@@ -20,7 +20,11 @@ import { supabase } from '@/src/lib/supabase';
 import { registrarExperiencia } from '@/src/services/hoy/tarea-actions';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { ATP_BRAND, CATEGORY_COLORS, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, CATEGORY_COLORS, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+
+// MB-31B: tenue del oscuro no alcanza contraste chico en claro (mismo
+// criterio que SaludHub/centro/[appKey]).
+const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
 
 const MINUTOS = [5, 10, 15, 20, 30, 45, 60];
 const PURPLE = CATEGORY_COLORS.mind;
@@ -35,6 +39,9 @@ interface Props {
 export function RegistroManualCard({ type, label }: Props) {
   // OLA0 QW-3a: título y subtítulo de la card siguen el texto del tema.
   const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
+  // El lima como LETRA no pasa contraste en claro (regla 1): teal calibrado.
+  const acento = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const [open, setOpen] = useState(false);
   const [minutos, setMinutos] = useState(15);
   const [saving, setSaving] = useState(false);
@@ -86,7 +93,7 @@ export function RegistroManualCard({ type, label }: Props) {
           <Ionicons
             name={registrado ? 'checkmark-circle' : 'checkmark-done-outline'}
             size={18}
-            color={registrado ? ATP_BRAND.lime : PURPLE}
+            color={registrado ? acento : PURPLE}
           />
         </View>
         <View style={{ flex: 1 }}>
@@ -97,7 +104,7 @@ export function RegistroManualCard({ type, label }: Props) {
               : 'Si la hiciste por fuera, regístrala aquí.'}
           </EliteText>
         </View>
-        <Ionicons name="add" size={18} color={TEXT.muted} />
+        <Ionicons name="add" size={18} color={tenue(t)} />
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={close}>
@@ -111,7 +118,7 @@ export function RegistroManualCard({ type, label }: Props) {
                   onPress={() => { haptic.light(); setMinutos(m); }}
                   style={[s.minutoChip, minutos === m && s.minutoChipOn]}
                 >
-                  <EliteText style={[s.minutoText, minutos === m && s.minutoTextOn]}>{m}</EliteText>
+                  <EliteText style={[s.minutoText, minutos === m && { color: acento }]}>{m}</EliteText>
                 </Pressable>
               ))}
             </View>
@@ -123,7 +130,7 @@ export function RegistroManualCard({ type, label }: Props) {
               accessibilityLabel={`Guardar ${minutos} minutos`}
             >
               {saving
-                ? <ActivityIndicator size="small" color="#000" />
+                ? <ActivityIndicator size="small" color={t.textoSobreLima} />
                 : <EliteText style={s.btnText}>GUARDAR {minutos} MIN</EliteText>}
             </Pressable>
           </Pressable>
@@ -133,12 +140,12 @@ export function RegistroManualCard({ type, label }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.045)',
+    backgroundColor: t.card,
     borderWidth: 0.5,
     borderColor: withOpacity(PURPLE, 0.35),
     borderRadius: Radius.md,
@@ -156,9 +163,10 @@ const s = StyleSheet.create({
   },
   label: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
   sub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 1 },
+  // Velo de modal: doctrina Card.tsx (oscuro 0.75 negro → claro tinte de tinta).
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: t.kind === 'dark' ? 'rgba(0,0,0,0.75)' : 'rgba(15,21,24,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.lg,
@@ -166,14 +174,14 @@ const s = StyleSheet.create({
   sheet: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: '#111',
+    backgroundColor: t.flotante,
     borderRadius: Radius.lg,
     borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: t.borde,
     padding: Spacing.lg,
   },
   title: {
-    color: '#fff',
+    color: t.texto,
     fontSize: FontSizes.xl,
     fontFamily: Fonts.extraBold,
     textAlign: 'center',
@@ -189,17 +197,16 @@ const s = StyleSheet.create({
     width: 52,
     paddingVertical: 10,
     borderRadius: Radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: t.hundido,
     borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: t.borde,
     alignItems: 'center',
   },
   minutoChipOn: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.18),
     borderColor: ATP_BRAND.lime,
   },
-  minutoText: { color: TEXT.secondary, fontSize: FontSizes.md, fontFamily: Fonts.bold },
-  minutoTextOn: { color: ATP_BRAND.lime },
+  minutoText: { color: t.textoSecundario, fontSize: FontSizes.md, fontFamily: Fonts.bold },
   btn: {
     marginTop: Spacing.md,
     borderRadius: Radius.md,
@@ -208,5 +215,5 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: ATP_BRAND.lime,
   },
-  btnText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 1 },
+  btnText: { color: t.textoSobreLima, fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 1 },
 });

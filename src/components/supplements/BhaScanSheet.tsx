@@ -19,12 +19,15 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from '@/src/utils/haptics';
-import { ELEVATION, TEXT, getScoreColor, getScoreLabel } from '@/src/constants/brand';
+import { ATP_BRAND, getScoreColor, getScoreLabel } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { getBhaScanQuote, persistFunctionalScore, runBhaScan } from '@/src/services/bha-service';
 import { addSupplementToPlan } from '@/src/services/supplements-plan-service';
 import type { FunctionalScoreResult } from '@/src/services/bha-core';
 
+// Rojo de dominio (INGREDIENTES SEÑALADOS): en oscuro se queda igual; en
+// claro cae a t.error (calibrado) para no gritar más que un biomarcador.
 const RED = '#ef4444';
 
 interface BhaTarget {
@@ -47,6 +50,12 @@ type Phase = 'quote' | 'scanning' | 'result';
 
 export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersisted }: Props) {
   const insets = useSafeAreaInsets();
+  // Componente compartido: tokens del scope (oscuro fuera de <ThemeReady>).
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
+  const acento = dark ? ATP_BRAND.lime : t.tealTexto;
+  const tealTx = dark ? '#1D9E75' : t.tealTexto;
+  const errorTx = dark ? RED : t.error;
   const { track } = useAnalytics();
   const [phase, setPhase] = useState<Phase>('quote');
   const [quote, setQuote] = useState<{ cost: number; balance: number } | null>(null);
@@ -177,47 +186,47 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
     }
   }, [quote, insufficientAlert, scan]);
 
-  const scoreColor = result ? getScoreColor(result.score) : TEXT.secondary;
+  const scoreColor = result ? getScoreColor(result.score) : t.textoSecundario;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'flex-end' }}>
+      <View style={{ flex: 1, backgroundColor: dark ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)', justifyContent: 'flex-end' }}>
         <Pressable style={{ flex: 1 }} onPress={phase === 'scanning' ? undefined : onClose} />
         <View style={{
-          backgroundColor: ELEVATION[2].bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-          borderWidth: 1, borderColor: ELEVATION[2].border,
+          backgroundColor: t.flotante, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+          borderWidth: 1, borderColor: t.bordeMarcado,
           padding: 24, paddingBottom: insets.bottom + 24, maxHeight: '85%',
         }}>
-          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#333', alignSelf: 'center', marginBottom: 16 }} />
+          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: t.bordeMarcado, alignSelf: 'center', marginBottom: 16 }} />
 
           {/* ── Fase 1: quote + tomar foto ── */}
           {phase === 'quote' && (
             <View>
-              <Text style={{ color: TEXT.primary, fontSize: 18, fontWeight: '800' }}>
+              <Text style={{ color: t.texto, fontSize: 18, fontWeight: '800' }}>
                 ATP Functional Score
               </Text>
-              <Text style={{ color: TEXT.secondary, fontSize: 13, marginTop: 6, lineHeight: 19 }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 13, marginTop: 6, lineHeight: 19 }}>
                 Toma una foto de la etiqueta{supplement ? ` de ${supplement.name}` : ' (suplemento o comida empaquetada)'} y
                 obtén un score de 0 a 100 de la formulación por atributos: formas y
                 biodisponibilidad, colorantes y endulzantes, excipientes y transparencia.
               </Text>
-              <Text style={{ color: TEXT.tertiary, fontSize: 11, marginTop: 10, lineHeight: 16 }}>
+              <Text style={{ color: t.textoTenue, fontSize: 11, marginTop: 10, lineHeight: 16 }}>
                 Evaluación educativa de la formulación, privada para ti. No evalúa marcas,
                 no es recomendación de compra ni consejo médico.
               </Text>
 
               <View style={{
                 flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                backgroundColor: '#0a0a0a', borderRadius: 12, padding: 14, marginTop: 16,
-                borderWidth: 1, borderColor: ELEVATION[1].border,
+                backgroundColor: t.hundido, borderRadius: 12, padding: 14, marginTop: 16,
+                borderWidth: 1, borderColor: t.borde,
               }}>
-                <Text style={{ color: TEXT.secondary, fontSize: 12, fontWeight: '600' }}>Costo del escaneo</Text>
+                <Text style={{ color: t.textoSecundario, fontSize: 12, fontWeight: '600' }}>Costo del escaneo</Text>
                 <Text style={{ color: '#EF9F27', fontSize: 14, fontWeight: '800' }}>
                   {quote ? `${quote.cost} H+` : '…'}
                 </Text>
               </View>
               {quote && (
-                <Text style={{ color: quote.balance >= quote.cost ? TEXT.tertiary : '#f97316', fontSize: 11, marginTop: 6 }}>
+                <Text style={{ color: quote.balance >= quote.cost ? t.textoTenue : '#f97316', fontSize: 11, marginTop: 6 }}>
                   Tu balance: {quote.balance} H+
                 </Text>
               )}
@@ -226,21 +235,21 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
                 <Pressable
                   onPress={() => pick('camera')}
                   style={{
-                    flex: 1, backgroundColor: '#a8e02a', borderRadius: 14, padding: 15,
+                    flex: 1, backgroundColor: ATP_BRAND.lime, borderRadius: 14, padding: 15,
                     alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
                   }}
                 >
-                  <Ionicons name="camera-outline" size={18} color="#000" />
-                  <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>TOMAR FOTO</Text>
+                  <Ionicons name="camera-outline" size={18} color={t.textoSobreLima} />
+                  <Text style={{ color: t.textoSobreLima, fontSize: 14, fontWeight: '800' }}>TOMAR FOTO</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => pick('library')}
                   style={{
-                    backgroundColor: '#0a0a0a', borderRadius: 14, padding: 15, paddingHorizontal: 18,
-                    alignItems: 'center', borderWidth: 1, borderColor: ELEVATION[2].border,
+                    backgroundColor: t.hundido, borderRadius: 14, padding: 15, paddingHorizontal: 18,
+                    alignItems: 'center', borderWidth: 1, borderColor: t.bordeMarcado,
                   }}
                 >
-                  <Ionicons name="images-outline" size={18} color={TEXT.secondary} />
+                  <Ionicons name="images-outline" size={18} color={t.textoSecundario} />
                 </Pressable>
               </View>
             </View>
@@ -249,11 +258,11 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
           {/* ── Fase 2: escaneando ── */}
           {phase === 'scanning' && (
             <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-              <ActivityIndicator size="large" color="#a8e02a" />
-              <Text style={{ color: TEXT.primary, fontSize: 15, fontWeight: '700', marginTop: 16 }}>
+              <ActivityIndicator size="large" color={acento} />
+              <Text style={{ color: t.texto, fontSize: 15, fontWeight: '700', marginTop: 16 }}>
                 Analizando etiqueta…
               </Text>
-              <Text style={{ color: TEXT.tertiary, fontSize: 12, marginTop: 6 }}>
+              <Text style={{ color: t.textoTenue, fontSize: 12, marginTop: 6 }}>
                 Leyendo ingredientes y formas químicas
               </Text>
             </View>
@@ -274,49 +283,49 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
                 <Text style={{ color: scoreColor, fontSize: 12, fontWeight: '800', marginTop: 8, letterSpacing: 1.5 }}>
                   {getScoreLabel(result.score)}
                 </Text>
-                <Text style={{ color: TEXT.primary, fontSize: 16, fontWeight: '800', marginTop: 6, letterSpacing: 0.5 }}>
+                <Text style={{ color: t.texto, fontSize: 16, fontWeight: '800', marginTop: 6, letterSpacing: 0.5 }}>
                   ATP FUNCTIONAL SCORE
                 </Text>
                 {supplement && (
-                  <Text style={{ color: TEXT.tertiary, fontSize: 12, marginTop: 4 }}>
+                  <Text style={{ color: t.textoTenue, fontSize: 12, marginTop: 4 }}>
                     Score guardado en la ficha de {supplement.name}
                   </Text>
                 )}
                 {!supplement && !!result.product_name && (
-                  <Text style={{ color: TEXT.tertiary, fontSize: 12, marginTop: 4 }}>
+                  <Text style={{ color: t.textoTenue, fontSize: 12, marginTop: 4 }}>
                     {result.product_name}
                   </Text>
                 )}
               </View>
 
               {!!result.summary && (
-                <Text style={{ color: TEXT.primary, fontSize: 14, lineHeight: 21, marginBottom: 14 }}>
+                <Text style={{ color: t.texto, fontSize: 14, lineHeight: 21, marginBottom: 14 }}>
                   {result.summary}
                 </Text>
               )}
 
               {result.attributes.length > 0 && (
                 <View style={{
-                  backgroundColor: '#0a0a0a', borderRadius: 12, padding: 14, marginBottom: 10,
-                  borderWidth: 1, borderColor: ELEVATION[1].border,
+                  backgroundColor: t.hundido, borderRadius: 12, padding: 14, marginBottom: 10,
+                  borderWidth: 1, borderColor: t.borde,
                 }}>
-                  <Text style={{ color: TEXT.secondary, fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 10 }}>
+                  <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 10 }}>
                     ATRIBUTOS
                   </Text>
                   {result.attributes.map((a) => (
                     <View key={a.key} style={{ marginBottom: 12 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <Text style={{ color: TEXT.secondary, fontSize: 12, fontWeight: '600' }}>{a.label}</Text>
+                        <Text style={{ color: t.textoSecundario, fontSize: 12, fontWeight: '600' }}>{a.label}</Text>
                         <Text style={{ color: getScoreColor(a.score), fontSize: 12, fontWeight: '800' }}>{a.score}</Text>
                       </View>
-                      <View style={{ height: 5, borderRadius: 3, backgroundColor: '#1a1a1a', overflow: 'hidden' }}>
+                      <View style={{ height: 5, borderRadius: 3, backgroundColor: t.flotante, overflow: 'hidden' }}>
                         <View style={{
                           width: `${a.score}%`, height: '100%', borderRadius: 3,
                           backgroundColor: getScoreColor(a.score),
                         }} />
                       </View>
                       {!!a.note && (
-                        <Text style={{ color: TEXT.tertiary, fontSize: 11, lineHeight: 15, marginTop: 3 }}>
+                        <Text style={{ color: t.textoTenue, fontSize: 11, lineHeight: 15, marginTop: 3 }}>
                           {a.note}
                         </Text>
                       )}
@@ -330,18 +339,18 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
                   backgroundColor: 'rgba(239,68,68,0.06)', borderRadius: 12, padding: 14, marginBottom: 10,
                   borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)',
                 }}>
-                  <Text style={{ color: RED, fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8 }}>
+                  <Text style={{ color: errorTx, fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8 }}>
                     INGREDIENTES SEÑALADOS
                   </Text>
                   {result.flagged_ingredients.map((f, i) => (
-                    <Text key={i} style={{ color: TEXT.secondary, fontSize: 13, lineHeight: 19, marginBottom: 4 }}>
+                    <Text key={i} style={{ color: t.textoSecundario, fontSize: 13, lineHeight: 19, marginBottom: 4 }}>
                       •  {f}
                     </Text>
                   ))}
                 </View>
               )}
 
-              <Text style={{ color: TEXT.muted, fontSize: 10, lineHeight: 15, marginBottom: 16, textAlign: 'center' }}>
+              <Text style={{ color: t.sinDatos, fontSize: 10, lineHeight: 15, marginBottom: 16, textAlign: 'center' }}>
                 Esto es tu registro. No es recomendación. Es responsabilidad de quien te lo indicó.
               </Text>
 
@@ -353,8 +362,8 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
                   backgroundColor: 'rgba(29,158,117,0.1)', borderRadius: 14, padding: 14, marginBottom: 10,
                   borderWidth: 1, borderColor: 'rgba(29,158,117,0.3)',
                 }}>
-                  <Ionicons name="checkmark-circle" size={18} color="#1D9E75" />
-                  <Text style={{ color: '#1D9E75', fontSize: 13, fontWeight: '700', flexShrink: 1 }}>
+                  <Ionicons name="checkmark-circle" size={18} color={tealTx} />
+                  <Text style={{ color: tealTx, fontSize: 13, fontWeight: '700', flexShrink: 1 }}>
                     {addedName} está en tu plan con este score
                   </Text>
                 </View>
@@ -363,28 +372,28 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
                   onPress={addToPlan}
                   disabled={addingToPlan}
                   style={{
-                    backgroundColor: '#a8e02a', borderRadius: 14, padding: 15, alignItems: 'center',
+                    backgroundColor: ATP_BRAND.lime, borderRadius: 14, padding: 15, alignItems: 'center',
                     marginBottom: 10, opacity: addingToPlan ? 0.6 : 1,
                     flexDirection: 'row', justifyContent: 'center', gap: 8,
                   }}
                 >
                   {addingToPlan
-                    ? <ActivityIndicator size="small" color="#000" />
-                    : <Ionicons name="add-circle-outline" size={18} color="#000" />}
-                  <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>AGREGAR A MI PLAN</Text>
+                    ? <ActivityIndicator size="small" color={t.textoSobreLima} />
+                    : <Ionicons name="add-circle-outline" size={18} color={t.textoSobreLima} />}
+                  <Text style={{ color: t.textoSobreLima, fontSize: 14, fontWeight: '800' }}>AGREGAR A MI PLAN</Text>
                 </Pressable>
               ))}
               <Pressable
                 onPress={() => { haptic.light(); onClose(); }}
                 style={{
-                  backgroundColor: !supplement && !addedName ? '#0a0a0a' : '#a8e02a',
+                  backgroundColor: !supplement && !addedName ? t.hundido : ATP_BRAND.lime,
                   borderWidth: !supplement && !addedName ? 1 : 0,
-                  borderColor: ELEVATION[2].border,
+                  borderColor: t.bordeMarcado,
                   borderRadius: 14, padding: 15, alignItems: 'center',
                 }}
               >
                 <Text style={{
-                  color: !supplement && !addedName ? TEXT.secondary : '#000',
+                  color: !supplement && !addedName ? t.textoSecundario : t.textoSobreLima,
                   fontSize: 14, fontWeight: '800',
                 }}>LISTO</Text>
               </Pressable>

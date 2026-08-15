@@ -384,7 +384,7 @@ export default function FoodLogScreen() {
                   <AnimatedPressable onPress={() => addFrequentQuick(food)} style={[s.frequentCard, { backgroundColor: t.hundido }]}>
                     <View style={{ flex: 1 }}>
                       <EliteText style={[s.frequentName, { color: t.texto }]} numberOfLines={1}>{food.food_name}</EliteText>
-                      <Text style={s.frequentMeta}>
+                      <Text style={[s.frequentMeta, { color: t.textoSecundario }]}>
                         {/* P1: en SIMPLE la proteína es el único número. */}
                         {nutritionMode === 'complete' && food.calories ? `${Math.round(food.calories)} kcal · ` : ''}
                         {food.protein_g ? `${Math.round(food.protein_g)}g prot` : ''}
@@ -411,12 +411,12 @@ export default function FoodLogScreen() {
                   onConfirmDelete={() => handleDeleteLog(log.id, log.description || 'este alimento')}
                 >
                   <Pressable onLongPress={() => handleDeleteLog(log.id, log.description || 'este alimento')}>
-                    <View style={s.logRow}>
+                    <View style={[s.logRow, { borderBottomColor: t.borde }]}>
                       <Ionicons name="checkmark-circle" size={16} color={ATP_BRAND.lime} />
                       <View style={{ flex: 1 }}>
                         <EliteText style={[s.logDesc, { color: t.texto }]} numberOfLines={1}>{log.description}</EliteText>
                       </View>
-                      <EliteText style={s.logKcal}>
+                      <EliteText style={[s.logKcal, { color: t.textoSecundario }]}>
                         {nutritionMode === 'complete' && log.calories ? `${log.calories} kcal · ` : ''}
                         {log.protein_g ? `${log.protein_g}g prot` : ''}
                       </EliteText>
@@ -436,32 +436,32 @@ export default function FoodLogScreen() {
 
       {/* Editor de horarios de comida — sync DB + timezone real. */}
       <Modal visible={editorOpen} transparent animationType="fade" onRequestClose={() => setEditorOpen(false)}>
-        <Pressable style={s.modalBackdrop} onPress={() => setEditorOpen(false)}>
-          <Pressable style={s.modalCard} onPress={() => {}}>
-            <EliteText style={s.modalTitle}>Tus horarios de comida</EliteText>
-            <EliteText style={s.modalHint}>Formato 24h (HH:MM). Se sincronizan en todos tus dispositivos.</EliteText>
+        <Pressable style={[s.modalBackdrop, { backgroundColor: kind === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)' }]} onPress={() => setEditorOpen(false)}>
+          <Pressable style={[s.modalCard, { backgroundColor: t.flotante, borderColor: t.borde }]} onPress={() => {}}>
+            <EliteText style={[s.modalTitle, { color: t.texto }]}>Tus horarios de comida</EliteText>
+            <EliteText style={[s.modalHint, { color: t.textoSecundario }]}>Formato 24h (HH:MM). Se sincronizan en todos tus dispositivos.</EliteText>
             {MEAL_IDS.map((id) => {
               const meal = MEAL_TYPES.find((m) => m.id === id);
               return (
                 <View key={id} style={s.editRow}>
-                  <EliteText style={s.editLabel}>{meal?.name ?? id}</EliteText>
+                  <EliteText style={[s.editLabel, { color: t.texto }]}>{meal?.name ?? id}</EliteText>
                   <View style={s.editTimes}>
                     <TextInput
-                      style={s.editInput}
+                      style={[s.editInput, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]}
                       value={editDraft[id].start}
                       onChangeText={(v) => updateDraft(id, 'start', v)}
                       placeholder={DEFAULT_MEAL_TIMES[id].start}
-                      placeholderTextColor="#444"
+                      placeholderTextColor={t.textoTenue}
                       maxLength={5}
                       keyboardType="numbers-and-punctuation"
                     />
-                    <EliteText style={s.editDash}>–</EliteText>
+                    <EliteText style={[s.editDash, { color: t.textoSecundario }]}>–</EliteText>
                     <TextInput
-                      style={s.editInput}
+                      style={[s.editInput, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]}
                       value={editDraft[id].end}
                       onChangeText={(v) => updateDraft(id, 'end', v)}
                       placeholder={DEFAULT_MEAL_TIMES[id].end}
-                      placeholderTextColor="#444"
+                      placeholderTextColor={t.textoTenue}
                       maxLength={5}
                       keyboardType="numbers-and-punctuation"
                     />
@@ -471,10 +471,10 @@ export default function FoodLogScreen() {
             })}
             <View style={s.modalBtns}>
               <Pressable onPress={() => setEditorOpen(false)} style={s.modalCancel}>
-                <EliteText style={s.modalCancelText}>Cancelar</EliteText>
+                <EliteText style={[s.modalCancelText, { color: t.textoSecundario }]}>Cancelar</EliteText>
               </Pressable>
               <Pressable onPress={guardarHorarios} style={s.modalSave}>
-                <EliteText style={s.modalSaveText}>Guardar</EliteText>
+                <EliteText style={[s.modalSaveText, { color: t.textoSobreLima }]}>Guardar</EliteText>
               </Pressable>
             </View>
           </Pressable>
@@ -524,24 +524,24 @@ const s = StyleSheet.create({
   },
 
   // Editor de horarios (modal)
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: Spacing.lg },
-  modalCard: { backgroundColor: '#0d0d0d', borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1, borderColor: '#222' },
-  modalTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, color: '#fff' },
-  modalHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#666', marginTop: 4, marginBottom: Spacing.md },
+  modalBackdrop: { flex: 1, justifyContent: 'center', padding: Spacing.lg },
+  modalCard: { borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1 },
+  modalTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.bold },
+  modalHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 4, marginBottom: Spacing.md },
   editRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm, marginBottom: Spacing.sm },
-  editLabel: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#fff', flex: 1 },
+  editLabel: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, flex: 1 },
   editTimes: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  editDash: { color: '#666', fontFamily: Fonts.semiBold },
+  editDash: { fontFamily: Fonts.semiBold },
   editInput: {
-    width: 64, textAlign: 'center', backgroundColor: '#000', borderRadius: Radius.sm,
-    paddingHorizontal: 8, paddingVertical: 8, color: '#fff', fontFamily: Fonts.semiBold,
-    borderWidth: 1, borderColor: '#222',
+    width: 64, textAlign: 'center', borderRadius: Radius.sm,
+    paddingHorizontal: 8, paddingVertical: 8, fontFamily: Fonts.semiBold,
+    borderWidth: 1,
   },
   modalBtns: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.md },
   modalCancel: { paddingVertical: 10, paddingHorizontal: 16 },
-  modalCancelText: { color: '#888', fontFamily: Fonts.semiBold },
+  modalCancelText: { fontFamily: Fonts.semiBold },
   modalSave: { backgroundColor: '#a8e02a', borderRadius: Radius.sm, paddingVertical: 10, paddingHorizontal: 20 },
-  modalSaveText: { color: '#000', fontFamily: Fonts.bold },
+  modalSaveText: { fontFamily: Fonts.bold },
 
   // Log rows
   logRow: {
@@ -550,10 +550,9 @@ const s = StyleSheet.create({
     gap: 10,
     paddingVertical: 10,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
   logDesc: { fontSize: FontSizes.sm, fontFamily: Fonts.regular },
-  logKcal: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, color: 'rgba(255,255,255,0.5)' },
+  logKcal: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
 
   // Frecuentes
   frequentCard: {
@@ -568,7 +567,6 @@ const s = StyleSheet.create({
   frequentMeta: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,
-    color: '#666',
     marginTop: 2,
   },
 });

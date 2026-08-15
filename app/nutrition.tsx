@@ -157,7 +157,7 @@ export default function NutritionScreen() {
         {showMacroBanner && (
           <Animated.View entering={FadeInUp.delay(60).springify()} style={s.macroBanner}>
             <Ionicons name="bulb-outline" size={20} color={BLUE} />
-            <EliteText style={s.macroBannerText}>
+            <EliteText style={[s.macroBannerText, { color: t.texto }]}>
               Aquí no contamos calorías. Te enseñamos a elegir mejor.
             </EliteText>
             {/* MB-1.5 §1: pressed visible */}
@@ -198,7 +198,7 @@ export default function NutritionScreen() {
           <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginTop: Spacing.sm }}>
             <View style={s.insightCard}>
               <ArgosMark size={14} style={{ marginTop: 2 }} />
-              <EliteText style={s.insightText}>{insight.text}</EliteText>
+              <EliteText style={[s.insightText, { color: t.texto }]}>{insight.text}</EliteText>
             </View>
           </Animated.View>
         )}
@@ -287,7 +287,7 @@ function NavCard({ icon, mark, color, title, subtitle, badge, badgeColor, onPres
               <EliteText style={[s.badgeText, { color: badgeColor ?? color }]}>{badge}</EliteText>
             </View>
           ) : (
-            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.2)" />
+            <Ionicons name="chevron-forward" size={18} color={t.sinDatos} />
           )}
         </View>
       </GradientCard>
@@ -304,7 +304,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(91,155,213,0.08)', borderWidth: 1, borderColor: 'rgba(91,155,213,0.2)',
     borderRadius: 14, padding: 14, marginTop: Spacing.md,
   },
-  macroBannerText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#cbd5e1', lineHeight: 18 },
+  macroBannerText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, lineHeight: 18 },
 
   navCard: { marginBottom: Spacing.sm },
   // T1: vías de registro — 4 desde MB-28B, en cuadrícula 2x2 para que
@@ -322,7 +322,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(168,224,42,0.06)', borderWidth: 1, borderColor: 'rgba(168,224,42,0.2)',
     borderRadius: 14, padding: 14,
   },
-  insightText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#cbd5e1', lineHeight: 19, fontStyle: 'italic' },
+  insightText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, lineHeight: 19, fontStyle: 'italic' },
   navRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   navIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   navTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.bold },

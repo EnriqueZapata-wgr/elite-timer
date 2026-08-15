@@ -25,7 +25,7 @@ import {
 } from '@/src/services/shopping-list-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
-import { useAppTheme } from '@/src/contexts/theme-context';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface RecipeRow {
   id: string;
@@ -36,7 +36,7 @@ interface RecipeRow {
 
 export function ListaTab() {
   const { user } = useAuth();
-  const { tokens: t } = useAppTheme();
+  const t = useSurfaceTokens();
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [listFailed, setListFailed] = useState(false);
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
@@ -166,7 +166,7 @@ export function ListaTab() {
         <View style={s.empty}>
           <Ionicons name="cloud-offline-outline" size={48} color={t.bordeMarcado} />
           <EliteText style={[s.emptyTitle, { color: t.texto }]}>Tu lista no se pudo leer</EliteText>
-          <EliteText style={s.emptySub}>
+          <EliteText style={[s.emptySub, { color: t.textoSecundario }]}>
             Revisa tu conexión y vuelve a entrar. Tu lista sigue guardada.
           </EliteText>
         </View>
@@ -189,7 +189,7 @@ export function ListaTab() {
                   style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 }}>
                   <Ionicons name="ellipse-outline" size={20} color={t.sinDatos} />
                   <View style={{ flex: 1 }}>
-                    <EliteText style={s.itemName}>
+                    <EliteText style={[s.itemName, { color: t.texto }]}>
                       {item.name}{item.detail ? ` · ${item.detail}` : ''}
                     </EliteText>
                     {item.fromRecipes.length > 0 && (
@@ -212,7 +212,7 @@ export function ListaTab() {
         <View style={s.empty}>
           <Ionicons name="basket-outline" size={48} color={t.bordeMarcado} />
           <EliteText style={[s.emptyTitle, { color: t.texto }]}>Tu lista está vacía</EliteText>
-          <EliteText style={s.emptySub}>
+          <EliteText style={[s.emptySub, { color: t.textoSecundario }]}>
             Escribe arriba lo que necesitas, o manda los ingredientes de una receta con un toque.
           </EliteText>
         </View>
@@ -232,7 +232,7 @@ export function ListaTab() {
               <Pressable onPress={() => handleToggleBought(item)} hitSlop={8}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 }}>
                 <Ionicons name="checkmark-circle" size={20} color={ATP_BRAND.lime} />
-                <EliteText style={[s.itemName, s.itemDone, tenue]}>
+                <EliteText style={[s.itemName, { color: t.texto }, s.itemDone, tenue]}>
                   {item.name}{item.detail ? ` · ${item.detail}` : ''}
                 </EliteText>
               </Pressable>
@@ -262,9 +262,9 @@ export function ListaTab() {
         <Animated.View key={r.id} entering={FadeInUp.delay(idx * 40).springify()}>
           <AnimatedPressable onPress={() => handleSendRecipe(r)} style={[s.recipeRow, { backgroundColor: t.card }]} disabled={busy}>
             <Ionicons name="arrow-up-circle-outline" size={22} color={ATP_BRAND.lime} />
-            <EliteText style={s.recipeName} numberOfLines={1}>{r.name}</EliteText>
+            <EliteText style={[s.recipeName, { color: t.texto }]} numberOfLines={1}>{r.name}</EliteText>
             {r.is_favorite && <Ionicons name="heart" size={14} color="#fb7185" />}
-            <EliteText variant="caption" style={{ color: '#666', fontSize: FontSizes.xs }}>
+            <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: FontSizes.xs }}>
               {Array.isArray(r.ingredients) ? (r.ingredients as unknown[]).length : 0} ing.
             </EliteText>
           </AnimatedPressable>
@@ -302,11 +302,11 @@ const s = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.md, marginBottom: 6, borderWidth: 1, borderColor: 'transparent',
   },
-  recipeName: { flex: 1, fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#ccc' },
+  recipeName: { flex: 1, fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
 
   empty: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm, paddingHorizontal: Spacing.lg },
   emptyTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.semiBold },
-  emptySub: { fontSize: FontSizes.sm, color: '#666', textAlign: 'center', lineHeight: 20 },
+  emptySub: { fontSize: FontSizes.sm, textAlign: 'center', lineHeight: 20 },
   note: { fontSize: FontSizes.xs, marginTop: 4, marginBottom: Spacing.sm },
   pantryHint: { fontSize: FontSizes.xs, marginBottom: Spacing.sm, lineHeight: 16 },
   sendSummary: { color: ATP_BRAND.amber, fontSize: FontSizes.xs, marginBottom: Spacing.sm, lineHeight: 16 },
@@ -326,7 +326,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.05)',
   },
-  itemName: { fontSize: FontSizes.md, color: '#eee' },
+  itemName: { fontSize: FontSizes.md },
   itemDone: { textDecorationLine: 'line-through' },
   itemFrom: { fontSize: FontSizes.xs, marginTop: 1 },
 });

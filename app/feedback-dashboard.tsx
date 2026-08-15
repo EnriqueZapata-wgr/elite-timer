@@ -12,6 +12,8 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../src/lib/supabase';
 import { isAdmin as checkIsAdmin } from '../src/constants/admin-config';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import type { AppThemeTokens } from '@/src/constants/brand';
 
 const STATUS_OPTIONS = [
   { id: 'new', label: 'Nuevo', color: '#60a5fa' },
@@ -38,6 +40,10 @@ export default function FeedbackDashboard() {
   // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
   // casita flotante global se retira sola (ver useOwnNavPresence).
   useRegisterOwnNav();
+
+  // Sin <Screen>, la pantalla lee el tema global y se declara lista
+  // envolviendo su árbol en <ThemeReady> (mismo patrón que app/solar.tsx).
+  const t = useAppTheme().tokens;
 
   const insets = useSafeAreaInsets();
   const [feedback, setFeedback] = useState<any[]>([]);
@@ -87,22 +93,25 @@ export default function FeedbackDashboard() {
 
   if (!isAdmin) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: '#666', fontSize: 16 }}>Acceso restringido</Text>
-      </View>
+      <ThemeReady>
+        <View style={{ flex: 1, backgroundColor: t.fondo, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: t.textoSecundario, fontSize: 16 }}>Acceso restringido</Text>
+        </View>
+      </ThemeReady>
     );
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#000' }} contentContainerStyle={{ paddingBottom: 40 }}>
+    <ThemeReady>
+    <ScrollView style={{ flex: 1, backgroundColor: t.fondo }} contentContainerStyle={{ paddingBottom: 40 }}>
       <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 8, paddingBottom: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color={t.texto} />
           </Pressable>
           <View>
-            <Text style={{ color: '#ef4444', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ADMIN</Text>
-            <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>Feedback Beta</Text>
+            <Text style={{ color: t.error, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ADMIN</Text>
+            <Text style={{ color: t.texto, fontSize: 22, fontWeight: '800' }}>Feedback Beta</Text>
           </View>
         </View>
 
@@ -114,12 +123,12 @@ export default function FeedbackDashboard() {
               onPress={() => setFilter(s.id)}
               style={{
                 paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8,
-                backgroundColor: filter === s.id ? 'rgba(168,224,42,0.15)' : '#0a0a0a',
+                backgroundColor: filter === s.id ? 'rgba(168,224,42,0.15)' : t.hundido,
                 borderWidth: 1,
-                borderColor: filter === s.id ? '#a8e02a' : '#1a1a1a',
+                borderColor: filter === s.id ? '#a8e02a' : t.borde,
               }}
             >
-              <Text style={{ color: filter === s.id ? '#a8e02a' : '#999', fontSize: 12, fontWeight: '600' }}>
+              <Text style={{ color: filter === s.id ? (t.kind === 'dark' ? '#a8e02a' : t.tealTexto) : t.textoSecundario, fontSize: 12, fontWeight: '600' }}>
                 {s.label}
               </Text>
             </Pressable>
@@ -129,34 +138,34 @@ export default function FeedbackDashboard() {
 
       {/* Lista de feedback */}
       <View style={{ paddingHorizontal: 20 }}>
-        <Text style={{ color: '#666', fontSize: 11, marginBottom: 12 }}>{feedback.length} reportes</Text>
+        <Text style={{ color: t.textoSecundario, fontSize: 11, marginBottom: 12 }}>{feedback.length} reportes</Text>
 
         {feedback.length === 0 && (
           <View style={{ alignItems: 'center', paddingVertical: 40 }}>
             <Ionicons name="checkmark-circle-outline" size={48} color="#22c55e" />
-            <Text style={{ color: '#666', fontSize: 14, marginTop: 12 }}>Sin reportes en este filtro</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 14, marginTop: 12 }}>Sin reportes en este filtro</Text>
           </View>
         )}
 
         {feedback.map(item => (
           <View key={item.id} style={{
-            backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginBottom: 10,
-            borderLeftWidth: 3, borderLeftColor: SEVERITY_COLORS[item.severity] || '#666',
+            backgroundColor: t.card, borderRadius: 16, padding: 16, marginBottom: 10,
+            borderLeftWidth: 3, borderLeftColor: SEVERITY_COLORS[item.severity] || t.sinDatos,
           }}>
             {/* Header */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text style={{ fontSize: 14 }}>{SEVERITY_EMOJIS[item.severity]}</Text>
-                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
+                  <Text style={{ color: t.texto, fontSize: 13, fontWeight: '700' }}>
                     {item.user_name || item.user_email?.split('@')[0] || 'Anónimo'}
                   </Text>
-                  <Text style={{ color: '#444', fontSize: 11 }}>·</Text>
-                  <Text style={{ color: '#666', fontSize: 11 }}>
+                  <Text style={{ color: tenue(t), fontSize: 11 }}>·</Text>
+                  <Text style={{ color: t.textoSecundario, fontSize: 11 }}>
                     {item.screen_name || '?'}
                   </Text>
                 </View>
-                <Text style={{ color: '#444', fontSize: 10, marginTop: 2 }}>
+                <Text style={{ color: tenue(t), fontSize: 10, marginTop: 2 }}>
                   {new Date(item.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   {' · '}{item.category}
                   {item.device_info ? ` · ${item.device_info}` : ''}
@@ -170,10 +179,18 @@ export default function FeedbackDashboard() {
               }}>
                 <View style={{
                   paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
-                  backgroundColor: item.priority === 3 ? 'rgba(239,68,68,0.15)' : item.priority === 2 ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.05)',
+                  backgroundColor: item.priority === 3 ? 'rgba(239,68,68,0.15)' : item.priority === 2 ? 'rgba(251,191,36,0.15)' : (t.kind === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(15,21,24,0.06)'),
                 }}>
+                  {/* P1/P2 son señal de urgencia (relleno rojo/ámbar); como letra
+                      chica en claro el ámbar no alcanza, así que ahí cae a t.texto. */}
                   <Text style={{
-                    color: item.priority === 3 ? '#ef4444' : item.priority === 2 ? '#fbbf24' : item.priority === 1 ? '#999' : '#444',
+                    color: item.priority === 3
+                      ? (t.kind === 'dark' ? '#ef4444' : t.error)
+                      : item.priority === 2
+                      ? (t.kind === 'dark' ? '#fbbf24' : t.texto)
+                      : item.priority === 1
+                      ? t.textoSecundario
+                      : tenue(t),
                     fontSize: 10, fontWeight: '700',
                   }}>
                     {item.priority === 3 ? 'P1' : item.priority === 2 ? 'P2' : item.priority === 1 ? 'P3' : '—'}
@@ -183,18 +200,18 @@ export default function FeedbackDashboard() {
             </View>
 
             {/* Contenido */}
-            <Text style={{ color: '#ccc', fontSize: 14, lineHeight: 21, marginBottom: 6 }}>
+            <Text style={{ color: t.texto, fontSize: 14, lineHeight: 21, marginBottom: 6 }}>
               {item.description}
             </Text>
 
             {item.expected && (
-              <Text style={{ color: '#666', fontSize: 12, marginBottom: 6 }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 12, marginBottom: 6 }}>
                 Esperaba: {item.expected}
               </Text>
             )}
 
             {item.screenshot_url && (
-              <Text style={{ color: '#60a5fa', fontSize: 11, marginBottom: 6 }}>
+              <Text style={{ color: t.info, fontSize: 11, marginBottom: 6 }}>
                 Screenshot adjunto
               </Text>
             )}
@@ -207,13 +224,13 @@ export default function FeedbackDashboard() {
                   onPress={() => updateStatus(item.id, s.id)}
                   style={{
                     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, marginRight: 6,
-                    backgroundColor: item.status === s.id ? `${s.color}20` : '#111',
+                    backgroundColor: item.status === s.id ? `${s.color}20` : t.hundido,
                     borderWidth: 1,
-                    borderColor: item.status === s.id ? s.color : '#1a1a1a',
+                    borderColor: item.status === s.id ? s.color : t.borde,
                   }}
                 >
                   <Text style={{
-                    color: item.status === s.id ? s.color : '#666',
+                    color: item.status === s.id ? (t.kind === 'dark' ? s.color : t.texto) : t.textoSecundario,
                     fontSize: 10, fontWeight: '600',
                   }}>
                     {s.label}
@@ -225,5 +242,10 @@ export default function FeedbackDashboard() {
         ))}
       </View>
     </ScrollView>
+    </ThemeReady>
   );
 }
+
+// El tenue del oscuro (#555) no alcanza contraste en claro para letra chica
+// (mismo patrón que SaludHub y centro/[appKey]).
+const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);

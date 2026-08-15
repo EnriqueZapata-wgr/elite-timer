@@ -112,8 +112,8 @@ export default function HydrationScreen() {
               </Pressable>
             </View>
 
-            {/* Barra */}
-            <View style={s.bar}>
+            {/* Barra: el track es cristal (Card glass), claro no se pierde sobre acero */}
+            <View style={[s.bar, kind === 'light' && { backgroundColor: 'rgba(15,21,24,0.08)' }]}>
               <View style={[s.barFill, { width: `${pct}%` }]} />
             </View>
             <EliteText style={[s.pctText, { color: t.textoSecundario }]}>{pct}%</EliteText>
@@ -122,7 +122,7 @@ export default function HydrationScreen() {
             <View style={s.btns}>
               {waterMl > 0 && (
                 <AnimatedPressable onPress={() => addWater(-250)} style={s.btnMinus}>
-                  <EliteText style={s.btnMinusText}>-250ml</EliteText>
+                  <EliteText style={[s.btnMinusText, kind === 'light' && { color: t.error }]}>-250ml</EliteText>
                 </AnimatedPressable>
               )}
               <AnimatedPressable onPress={() => addWater(250)} style={s.btn}>
@@ -156,7 +156,10 @@ const s = StyleSheet.create({
   heroImg: { resizeMode: 'cover' },
   heroContent: { padding: Spacing.md },
   heroKicker: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, color: WATER_COLOR, letterSpacing: 2, marginBottom: 4 },
-  heroSub: { color: '#ddd', fontSize: FontSizes.sm, lineHeight: 18 },
+  // Hero editorial (foto + velo oscuro): se queda oscuro en los dos temas
+  // (doctrina), el texto blanco translúcido es el mismo patrón que edad-atp/
+  // sleep/tests, no un #ddd suelto.
+  heroSub: { color: 'rgba(255,255,255,0.75)', fontSize: FontSizes.sm, lineHeight: 18 },
   center: { alignItems: 'center', marginBottom: Spacing.lg },
   bigValue: { fontSize: 48, fontFamily: Fonts.extraBold, color: WATER_COLOR },
   goalText: { fontSize: FontSizes.sm },

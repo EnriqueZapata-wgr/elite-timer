@@ -8,15 +8,22 @@
  * se cierra con CONFIRMAR SERIE — no al primer tap. La regla de peso no cambia.
  */
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { TRAINING_METHODS } from '../../constants/training-methods';
 import { Fonts, Radius } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 // B9: el único amarillo de la casa es ATP_BRAND.amber (doctrina MB-3.6).
 const AMBAR = ATP_BRAND.amber;
+// MB-31B: el ámbar de marca (amarillo claro) no alcanza contraste como TEXTO
+// en claro (1.27:1) — se oscurece solo ahí. Como relleno se queda igual.
+const ambarTexto = (dark: boolean) => (dark ? AMBAR : '#7A5D14');
+// MB-31B: rojo de estado "baja peso" — mismo tratamiento que MYO REPS/EMOM.
+const rojoTexto = (dark: boolean) => (dark ? '#ef4444' : '#C0392B');
+const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
 
 interface Props {
   exerciseName: string;
@@ -28,6 +35,9 @@ interface Props {
 }
 
 export function Method35({ exerciseName, userLevel, lastWeight, onComplete, onCue }: Props) {
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
+  const s = useMemo(() => makeStyles(t), [t]);
   const config = TRAINING_METHODS.method_3_5.rules[userLevel];
   const targetReps = config.targetReps;
   const [currentWeight, setCurrentWeight] = useState(lastWeight || 20);
@@ -75,7 +85,7 @@ export function Method35({ exerciseName, userLevel, lastWeight, onComplete, onCu
       {/* Header */}
       <View style={s.headerCard}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <Ionicons name="flash" size={18} color={AMBAR} />
+          <Ionicons name="flash" size={18} color={ambarTexto(dark)} />
           <Text style={s.headerTitle}>MÉTODO 3-5</Text>
         </View>
         <Text style={s.headerBody}>
@@ -119,7 +129,7 @@ export function Method35({ exerciseName, userLevel, lastWeight, onComplete, onCu
       {/* Confirmar serie (cierre explícito) */}
       {seleccion != null && (
         <Pressable onPress={confirmarSerie} style={s.confirmBtn}>
-          <Ionicons name="checkmark-circle" size={18} color="#000" />
+          <Ionicons name="checkmark-circle" size={18} color={t.textoSobreLima} />
           <Text style={s.confirmText}>CONFIRMAR SERIE</Text>
         </Pressable>
       )}
@@ -135,7 +145,8 @@ export function Method35({ exerciseName, userLevel, lastWeight, onComplete, onCu
               </View>
               <Text style={s.logText}>{set.weight}kg × {set.reps}</Text>
               <Text style={{
-                color: set.reps > targetReps ? '#a8e02a' : set.reps < targetReps ? '#ef4444' : AMBAR,
+                color: set.reps > targetReps ? (dark ? ATP_BRAND.lime : t.tealTexto)
+                  : set.reps < targetReps ? rojoTexto(dark) : ambarTexto(dark),
                 fontSize: 11, fontFamily: Fonts.semiBold,
               }}>
                 {set.feedback}
@@ -155,41 +166,45 @@ export function Method35({ exerciseName, userLevel, lastWeight, onComplete, onCu
   );
 }
 
-const s = StyleSheet.create({
-  headerCard: { backgroundColor: withOpacity(ATP_BRAND.amber, 0.1), borderRadius: Radius.card, padding: 16, marginBottom: 20 },
-  headerTitle: { color: AMBAR, fontSize: 15, fontFamily: Fonts.extraBold },
-  headerBody: { color: '#ccc', fontSize: 13, lineHeight: 20, fontFamily: Fonts.regular },
+// MB-31B: estilos derivados del tema — dark = valores de siempre (ELEVATION/TEXT).
+const makeStyles = (t: AppThemeTokens) => {
+  const dark = t.kind === 'dark';
+  return StyleSheet.create({
+    headerCard: { backgroundColor: withOpacity(ATP_BRAND.amber, dark ? 0.1 : 0.14), borderRadius: Radius.card, padding: 16, marginBottom: 20 },
+    headerTitle: { color: ambarTexto(dark), fontSize: 15, fontFamily: Fonts.extraBold },
+    headerBody: { color: t.textoSecundario, fontSize: 13, lineHeight: 20, fontFamily: Fonts.regular },
 
-  weightBtn: {
-    width: 48, height: 48, borderRadius: 24, backgroundColor: ELEVATION[2].bg,
-    borderWidth: 1, borderColor: ELEVATION[2].border, justifyContent: 'center', alignItems: 'center',
-  },
-  weightBtnText: { color: '#fff', fontSize: 22, fontFamily: Fonts.bold },
-  weightValue: { color: '#fff', fontSize: 42, fontFamily: Fonts.extraBold },
-  weightUnit: { color: TEXT.tertiary, fontSize: 12, fontFamily: Fonts.regular },
+    weightBtn: {
+      width: 48, height: 48, borderRadius: 24, backgroundColor: t.flotante,
+      borderWidth: 1, borderColor: t.bordeMarcado, justifyContent: 'center', alignItems: 'center',
+    },
+    weightBtnText: { color: t.texto, fontSize: 22, fontFamily: Fonts.bold },
+    weightValue: { color: t.texto, fontSize: 42, fontFamily: Fonts.extraBold },
+    weightUnit: { color: tenue(t), fontSize: 12, fontFamily: Fonts.regular },
 
-  setHint: { color: TEXT.secondary, fontSize: 12, textAlign: 'center', marginBottom: 12, fontFamily: Fonts.regular },
+    setHint: { color: t.textoSecundario, fontSize: 12, textAlign: 'center', marginBottom: 12, fontFamily: Fonts.regular },
 
-  repBtn: {
-    width: 52, height: 52, borderRadius: 26,
-    backgroundColor: ELEVATION[2].bg, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: ELEVATION[2].border,
-  },
-  repBtnActivo: { backgroundColor: AMBAR, borderColor: AMBAR },
-  repBtnText: { color: '#fff', fontSize: 18, fontFamily: Fonts.extraBold },
-  repBtnTextActivo: { color: '#000' },
+    repBtn: {
+      width: 52, height: 52, borderRadius: 26,
+      backgroundColor: t.flotante, justifyContent: 'center', alignItems: 'center',
+      borderWidth: 1, borderColor: t.bordeMarcado,
+    },
+    repBtnActivo: { backgroundColor: AMBAR, borderColor: AMBAR },
+    repBtnText: { color: t.texto, fontSize: 18, fontFamily: Fonts.extraBold },
+    repBtnTextActivo: { color: t.textoSobreLima },
 
-  confirmBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: AMBAR, borderRadius: Radius.card, padding: 16, marginTop: 16,
-  },
-  confirmText: { color: '#000', fontSize: 15, fontFamily: Fonts.extraBold, letterSpacing: 1 },
+    confirmBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      backgroundColor: AMBAR, borderRadius: Radius.card, padding: 16, marginTop: 16,
+    },
+    confirmText: { color: t.textoSobreLima, fontSize: 15, fontFamily: Fonts.extraBold, letterSpacing: 1 },
 
-  logLabel: { color: TEXT.tertiary, fontSize: 10, fontFamily: Fonts.semiBold, letterSpacing: 1, marginBottom: 8 },
-  logDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#a8e02a', justifyContent: 'center', alignItems: 'center' },
-  logDotText: { color: '#000', fontSize: 11, fontFamily: Fonts.bold },
-  logText: { color: '#fff', fontSize: 13, flex: 1, fontFamily: Fonts.regular },
+    logLabel: { color: tenue(t), fontSize: 10, fontFamily: Fonts.semiBold, letterSpacing: 1, marginBottom: 8 },
+    logDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: ATP_BRAND.lime, justifyContent: 'center', alignItems: 'center' },
+    logDotText: { color: t.textoSobreLima, fontSize: 11, fontFamily: Fonts.bold },
+    logText: { color: t.texto, fontSize: 13, flex: 1, fontFamily: Fonts.regular },
 
-  endBtn: { backgroundColor: '#a8e02a', borderRadius: Radius.card, padding: 16, alignItems: 'center', marginTop: 20 },
-  endText: { color: '#000', fontSize: 16, fontFamily: Fonts.extraBold },
-});
+    endBtn: { backgroundColor: ATP_BRAND.lime, borderRadius: Radius.card, padding: 16, alignItems: 'center', marginTop: 20 },
+    endText: { color: t.textoSobreLima, fontSize: 16, fontFamily: Fonts.extraBold },
+  });
+};

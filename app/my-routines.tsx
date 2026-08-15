@@ -336,7 +336,7 @@ export default function MyRoutinesScreen() {
       >
         {/* Estado de carga */}
         {loading && (
-          <EliteText variant="body" style={s.loadingText}>Cargando...</EliteText>
+          <EliteText variant="body" style={[s.loadingText, { color: tk.textoSecundario }]}>Cargando...</EliteText>
         )}
 
         {/* MB-5 2.3: banner de limpieza — solo marca; decidir es del usuario */}
@@ -364,7 +364,7 @@ export default function MyRoutinesScreen() {
             <EliteText variant="subtitle" style={[s.emptyTitle, { color: tk.texto }]}>
               Aún no tienes rutinas
             </EliteText>
-            <EliteText variant="body" style={s.emptyText}>
+            <EliteText variant="body" style={[s.emptyText, { color: tk.textoSecundario }]}>
               Crea tu primera rutina de fuerza o un timer personalizado.
             </EliteText>
           </Animated.View>
@@ -404,18 +404,18 @@ export default function MyRoutinesScreen() {
                           </EliteText>
                         </View>
                         {blockCount === 0 ? (
-                          <View style={[s.modeBadge, { backgroundColor: 'rgba(239,68,68,0.18)' }]}>
-                            <EliteText style={[s.modeBadgeText, { color: '#ef4444' }]}>
+                          <View style={[s.modeBadge, { backgroundColor: withOpacity(tk.error, 0.18) }]}>
+                            <EliteText style={[s.modeBadgeText, { color: tk.error }]}>
                               0 ejercicios · toca para editar
                             </EliteText>
                           </View>
                         ) : (
-                          <EliteText style={s.metaText}>
+                          <EliteText style={[s.metaText, { color: tk.textoSecundario }]}>
                             {blockCount} {blockCount === 1 ? 'bloque' : 'bloques'}
                           </EliteText>
                         )}
                         {r.description ? (
-                          <EliteText style={s.metaText} numberOfLines={1}>
+                          <EliteText style={[s.metaText, { color: tk.textoSecundario }]} numberOfLines={1}>
                             · {r.description}
                           </EliteText>
                         ) : null}
@@ -425,7 +425,7 @@ export default function MyRoutinesScreen() {
                     <Ionicons
                       name={blockCount === 0 ? 'create-outline' : 'play-circle'}
                       size={28}
-                      color={blockCount === 0 ? '#ef4444' : meta.color}
+                      color={blockCount === 0 ? tk.error : meta.color}
                     />
                   </View>
                 </GradientCard>
@@ -452,7 +452,7 @@ export default function MyRoutinesScreen() {
                 <Ionicons name="barbell-outline" size={22} color={ATP_BRAND.lime} />
                 <View style={s.createInfo}>
                   <EliteText style={[s.createTitle, { color: tk.texto }]}>CREAR RUTINA</EliteText>
-                  <EliteText style={s.createSub}>Rutina de fuerza con ejercicios y sets</EliteText>
+                  <EliteText style={[s.createSub, { color: tk.textoSecundario }]}>Rutina de fuerza con ejercicios y sets</EliteText>
                 </View>
                 <Ionicons name="add-circle" size={24} color={ATP_BRAND.lime} />
               </View>
@@ -466,7 +466,7 @@ export default function MyRoutinesScreen() {
                 <Ionicons name="timer-outline" size={22} color={ATP_BRAND.amber} />
                 <View style={s.createInfo}>
                   <EliteText style={[s.createTitle, { color: tk.texto }]}>CREAR TIMER</EliteText>
-                  <EliteText style={s.createSub}>Timer personalizado con bloques de tiempo</EliteText>
+                  <EliteText style={[s.createSub, { color: tk.textoSecundario }]}>Timer personalizado con bloques de tiempo</EliteText>
                 </View>
                 <Ionicons name="add-circle" size={24} color={ATP_BRAND.amber} />
               </View>
@@ -485,7 +485,7 @@ export default function MyRoutinesScreen() {
         animationType="slide"
         onRequestClose={() => setLimpiezaVisible(false)}
       >
-        <View style={s.limpiezaOverlay}>
+        <View style={[s.limpiezaOverlay, { backgroundColor: kind === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)' }]}>
           <View style={[s.limpiezaSheet, { backgroundColor: tk.flotante }]}>
             <View style={s.limpiezaHeader}>
               <EliteText style={[s.limpiezaSheetTitle, { color: tk.texto }]}>LIMPIEZA DE RUTINAS</EliteText>
@@ -507,7 +507,7 @@ export default function MyRoutinesScreen() {
                 const motivoTexto = motivo === 'patrón viejo' ? tk.tealTexto
                   : motivo === 'vacía' ? tk.error : MOTIVO_COLOR[motivo];
                 return (
-                  <Pressable key={r.id} onPress={() => toggleSeleccion(r.id)} style={s.limpiezaRow}>
+                  <Pressable key={r.id} onPress={() => toggleSeleccion(r.id)} style={[s.limpiezaRow, { borderBottomColor: tk.borde }]}>
                     <Ionicons
                       name={marcada ? 'checkbox' : 'square-outline'}
                       size={20}
@@ -552,7 +552,7 @@ export default function MyRoutinesScreen() {
         animationType="slide"
         onRequestClose={() => setShareVisible(false)}
       >
-        <View style={s.limpiezaOverlay}>
+        <View style={[s.limpiezaOverlay, { backgroundColor: kind === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)' }]}>
           <View style={[s.limpiezaSheet, { backgroundColor: tk.flotante }]}>
             <View style={s.limpiezaHeader}>
               <EliteText style={[s.limpiezaSheetTitle, { color: tk.texto }]}>RUTINA COMPARTIDA</EliteText>
@@ -649,9 +649,9 @@ const s = StyleSheet.create({
   },
 
   // --- Loading / Empty ---
-  // MB-31B3: '#666' no mapea a ningún token (guía §hallazgo 3) — se queda y se reporta.
+  // NOCHE-4: el color lo pone tk.textoSecundario en cada uso. El gris de base
+  // que vivia aqui era codigo muerto: nunca se pintaba y confundia al leer.
   loadingText: {
-    color: '#666',
     textAlign: 'center',
     marginTop: Spacing.xxl,
   },
@@ -666,7 +666,6 @@ const s = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   emptyText: {
-    color: '#666',
     textAlign: 'center',
     paddingHorizontal: Spacing.lg,
   },
@@ -711,7 +710,6 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
   },
   metaText: {
-    color: '#666',
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,
   },
@@ -790,7 +788,6 @@ const s = StyleSheet.create({
   createSub: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,
-    color: '#666',
     marginTop: 1,
   },
 });

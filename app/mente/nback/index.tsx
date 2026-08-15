@@ -153,7 +153,7 @@ export default function NBackHomeScreen() {
                     active && s.weekDotActive,
                     isToday && s.weekDotToday,
                   ]}>
-                    <EliteText style={[s.weekNum, secTxt, (active || isToday) && { color: '#000' }]}>
+                    <EliteText style={[s.weekNum, secTxt, (active || isToday) && { color: t.textoSobreLima }]}>
                       {d.getDate()}
                     </EliteText>
                   </View>
@@ -204,8 +204,8 @@ export default function NBackHomeScreen() {
                 colors={ATP_BRAND.moleculeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                 style={s.startBtnInner}
               >
-                <Ionicons name="play" size={18} color="#000" />
-                <EliteText style={s.startText}>
+                <Ionicons name="play" size={18} color={t.textoSobreLima} />
+                <EliteText style={[s.startText, { color: t.textoSobreLima }]}>
                   {(state?.sessions_total ?? 0) === 0 ? 'APRENDER A JUGAR' : 'EMPEZAR SESIÓN'}
                 </EliteText>
               </LinearGradient>
@@ -320,7 +320,8 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 13,
   },
-  startText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
+  // El color se aplica inline con t.textoSobreLima (texto sobre relleno lima).
+  startText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
   audioHint: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
   audioHintText: { flex: 1, fontSize: FontSizes.xs, fontFamily: Fonts.regular },
 

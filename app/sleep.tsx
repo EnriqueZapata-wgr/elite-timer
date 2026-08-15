@@ -6,7 +6,7 @@
  * SÍ tenemos), el estado honesto de conexión y el bloque "Próximamente: ATP Sleep
  * Track" sin inventar datos ni gráficas falsas. Lista para llenarse con #16.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, ImageBackground } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -37,9 +37,14 @@ import {
 } from '@/src/services/fitness/health-import-service';
 import { desfaseAcostarse, etiquetaDeScore } from '@/src/services/sleep/sleep-core';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND, TEXT_COLORS, SURFACES, getScoreColor, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, getScoreColor, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { parseLocalDate } from '@/src/utils/date-helpers';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+
+// MB-31B: el tenue del oscuro (#555) no alcanza contraste en claro para
+// letra chica (mismo criterio que SaludHub y centro/[appKey]).
+const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
 
 // Asset editorial del pilar (require estático · Metro).
 const HERO_SUENO = require('@/assets/images/habits-portal/sueno.webp');
@@ -94,6 +99,12 @@ function diaCorto(nightDate: string): string {
 export default function SleepScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-31B: pantalla migrada — el scope se abre con <Screen themed> y estos
+  // tokens alimentan las cards; el hero editorial (foto + gradiente) se queda
+  // oscuro en los dos temas por doctrina.
+  const { kind, tokens: t } = useAppTheme();
+  const s = useMemo(() => makeStyles(t), [t]);
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const [noches, setNoches] = useState<SleepNightRow[]>([]);
   const [pendientes, setPendientes] = useState(0);
   const [plataforma, setPlataforma] = useState<HealthPlatform | null>(null);
@@ -191,7 +202,7 @@ export default function SleepScreen() {
   const desfase = anoche?.bed_time ? desfaseAcostarse(anoche.bed_time, sleep) : null;
 
   return (
-    <Screen edges={[]}>
+    <Screen edges={[]} themed>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
         {/* Hero editorial (patrón MenteHero: imagen + overlay + acento del pilar) */}
         <ImageBackground source={HERO_SUENO} style={s.hero} imageStyle={{ resizeMode: 'cover' }}>
@@ -274,7 +285,7 @@ export default function SleepScreen() {
             </Animated.View>
           ) : (
             <Animated.View entering={FadeInUp.delay(140).springify()} style={s.emptyCard}>
-              <AppIcon name="sueno" size={22} color={TEXT_COLORS.muted} />
+              <AppIcon name="sueno" size={22} color={tenue(t)} />
               <View style={{ flex: 1 }}>
                 <EliteText style={s.emptyTitle}>Aún no vemos tu descanso</EliteText>
                 <EliteText style={s.emptySub}>
@@ -364,8 +375,8 @@ export default function SleepScreen() {
           {/* Sleep Cycle propio (MB-30A): el hueco que era "Próximamente" ya vive */}
           <Animated.View entering={FadeInUp.delay(260).springify()} style={s.soonCard}>
             <View style={s.soonHeader}>
-              <EliteText style={[s.blockKicker, { color: ATP_BRAND.lime }]}>SLEEP CYCLE</EliteText>
-              <View style={s.soonPill}><EliteText style={s.soonPillText}>NUEVO</EliteText></View>
+              <EliteText style={[s.blockKicker, { color: acento }]}>SLEEP CYCLE</EliteText>
+              <View style={s.soonPill}><EliteText style={[s.soonPillText, { color: acento }]}>NUEVO</EliteText></View>
             </View>
             <EliteText style={s.soonTitle}>Mide tu noche desde el buró</EliteText>
             <EliteText style={s.blockBody}>
@@ -378,7 +389,7 @@ export default function SleepScreen() {
               style={s.cycleBtn}
               onPress={() => { haptic.light(); router.push('/sleep-session'); }}
             >
-              <EliteText style={s.cycleBtnText}>PREPARAR MI NOCHE</EliteText>
+              <EliteText style={[s.cycleBtnText, { color: acento }]}>PREPARAR MI NOCHE</EliteText>
             </AnimatedPressable>
           </Animated.View>
         </View>
@@ -387,7 +398,10 @@ export default function SleepScreen() {
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B: el hero (foto + gradiente) es superficie EDITORIAL — se queda
+// oscura en los dos temas por doctrina (blanco anclado, no se tematiza). Las
+// cards de abajo sí migran a tokens (makeStyles(t)).
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   hero: { width: '100%', height: 200, justifyContent: 'flex-end' },
   heroBack: { position: 'absolute', top: Spacing.xl + Spacing.md, left: Spacing.sm, zIndex: 10 },
   heroContent: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
@@ -396,50 +410,50 @@ const s = StyleSheet.create({
   heroSub: { color: 'rgba(255,255,255,0.75)', fontSize: FontSizes.sm, marginTop: 2, lineHeight: 19 },
 
   windowCard: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    backgroundColor: t.card, borderRadius: Radius.card,
     padding: Spacing.md, marginTop: Spacing.md, gap: 10,
   },
-  windowKicker: { fontSize: 10, fontFamily: Fonts.bold, color: TEXT_COLORS.muted, letterSpacing: 1.5 },
+  windowKicker: { fontSize: 10, fontFamily: Fonts.bold, color: tenue(t), letterSpacing: 1.5 },
   windowRow: { flexDirection: 'row' },
   windowCol: { flex: 1, alignItems: 'center', gap: 4 },
-  windowDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
-  windowLabel: { fontSize: 10, fontFamily: Fonts.bold, color: TEXT_COLORS.muted, letterSpacing: 1.5 },
-  windowValue: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, color: '#fff' },
+  windowDivider: { width: 1, backgroundColor: t.borde },
+  windowLabel: { fontSize: 10, fontFamily: Fonts.bold, color: tenue(t), letterSpacing: 1.5 },
+  windowValue: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, color: t.texto },
   windowLink: { fontSize: FontSizes.xs, color: REST, fontFamily: Fonts.semiBold, textAlign: 'center' },
 
   dataCard: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    backgroundColor: t.card, borderRadius: Radius.card,
     padding: Spacing.md, marginTop: Spacing.sm, alignItems: 'center', gap: 4,
   },
-  dataValue: { fontSize: 34, fontFamily: Fonts.extraBold, color: '#fff' },
-  dataSub: { fontSize: FontSizes.xs, color: TEXT_COLORS.muted, textAlign: 'center' },
+  dataValue: { fontSize: 34, fontFamily: Fonts.extraBold, color: t.texto },
+  dataSub: { fontSize: FontSizes.xs, color: tenue(t), textAlign: 'center' },
   dataScore: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
-  dataFuente: { fontSize: 10, fontFamily: Fonts.bold, color: TEXT_COLORS.muted, letterSpacing: 1.5, marginTop: 2 },
+  dataFuente: { fontSize: 10, fontFamily: Fonts.bold, color: tenue(t), letterSpacing: 1.5, marginTop: 2 },
 
   pendientesTexto: {
-    fontSize: FontSizes.xs, color: TEXT_COLORS.muted, marginTop: Spacing.xs,
+    fontSize: FontSizes.xs, color: tenue(t), marginTop: Spacing.xs,
     textAlign: 'center', fontStyle: 'italic',
   },
 
   trendCard: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    backgroundColor: t.card, borderRadius: Radius.card,
     padding: Spacing.md, marginTop: Spacing.sm, gap: 10,
   },
   trendRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around' },
   trendCol: { alignItems: 'center', gap: 4 },
-  trendHoras: { fontSize: 10, fontFamily: Fonts.semiBold, color: TEXT_COLORS.secondary },
+  trendHoras: { fontSize: 10, fontFamily: Fonts.semiBold, color: t.textoSecundario },
   trendBar: { width: 14, borderRadius: 4, backgroundColor: withOpacity(REST, 0.55) },
-  trendDia: { fontSize: 9, fontFamily: Fonts.bold, color: TEXT_COLORS.muted, letterSpacing: 1 },
+  trendDia: { fontSize: 9, fontFamily: Fonts.bold, color: tenue(t), letterSpacing: 1 },
 
   importMsg: { fontSize: FontSizes.xs, color: REST, marginTop: 4 },
 
   emptyCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    backgroundColor: t.card, borderRadius: Radius.card,
     padding: Spacing.md, marginTop: Spacing.sm,
   },
-  emptyTitle: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#fff' },
-  emptySub: { fontSize: FontSizes.xs, color: TEXT_COLORS.muted, marginTop: 2, lineHeight: 17 },
+  emptyTitle: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: t.texto },
+  emptySub: { fontSize: FontSizes.xs, color: tenue(t), marginTop: 2, lineHeight: 17 },
   connectBtn: {
     backgroundColor: withOpacity(REST, 0.15), borderWidth: 0.5, borderColor: withOpacity(REST, 0.4),
     borderRadius: Radius.pill, paddingHorizontal: 14, paddingVertical: 8,
@@ -447,11 +461,11 @@ const s = StyleSheet.create({
   connectBtnText: { fontSize: 10, fontFamily: Fonts.bold, color: REST, letterSpacing: 1.5 },
 
   blockCard: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    backgroundColor: t.card, borderRadius: Radius.card,
     padding: Spacing.md, marginTop: Spacing.sm, gap: 8,
   },
   blockKicker: { fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2 },
-  blockBody: { fontSize: FontSizes.sm, color: TEXT_COLORS.secondary, lineHeight: 21 },
+  blockBody: { fontSize: FontSizes.sm, color: t.textoSecundario, lineHeight: 21 },
 
   soonCard: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.05), borderRadius: Radius.card,
@@ -464,11 +478,13 @@ const s = StyleSheet.create({
     borderColor: withOpacity(ATP_BRAND.lime, 0.4), borderRadius: Radius.pill,
     paddingVertical: 10, alignItems: 'center', marginTop: 4,
   },
-  cycleBtnText: { fontSize: 11, fontFamily: Fonts.bold, color: ATP_BRAND.lime, letterSpacing: 2 },
+  // El lima como TEXTO no pasa contraste en claro (regla 1) — el color va
+  // inline con `acento` (lima en oscuro, tealTexto en claro).
+  cycleBtnText: { fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2 },
   soonPill: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderRadius: Radius.pill,
     paddingHorizontal: 10, paddingVertical: 3,
   },
-  soonPillText: { fontSize: 9, fontFamily: Fonts.bold, color: ATP_BRAND.lime, letterSpacing: 1.5 },
-  soonTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.extraBold, color: '#fff' },
+  soonPillText: { fontSize: 9, fontFamily: Fonts.bold, letterSpacing: 1.5 },
+  soonTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.extraBold, color: t.texto },
 });

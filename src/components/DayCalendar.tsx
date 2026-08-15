@@ -1,15 +1,17 @@
 /**
  * DayCalendar — Vista de día tipo Google Calendar para mapear hábitos.
  */
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { View, ScrollView, Pressable, TextInput, Modal, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { HABIT_CATEGORIES, type DailyHabit } from '@/src/services/daily-habits-service';
-import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { Spacing, Radius, Fonts } from '@/constants/theme';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 // TimePicker con botones +/- para hora y minuto
-function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function TimePicker({ value, onChange, t }: { value: string; onChange: (v: string) => void; t: AppThemeTokens }) {
   // Parsear con fallback a 0 si es NaN
   const parts = (value || '00:00').split(':');
   const h = Number(parts[0]) || 0;
@@ -19,33 +21,36 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
     `${String(((hh % 24) + 24) % 24).padStart(2, '0')}:${String(((mm % 60) + 60) % 60).padStart(2, '0')}`;
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.surfaceLight, borderRadius: 8, padding: 8, borderWidth: 0.5, borderColor: '#2a2a2a' }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: t.flotante, borderRadius: 8, padding: 8, borderWidth: 0.5, borderColor: t.borde }}>
       <View style={{ alignItems: 'center', minWidth: 36 }}>
         <Pressable onPress={() => onChange(fmt(h + 1, m))} hitSlop={12} style={{ padding: 4 }}>
-          <Ionicons name="chevron-up" size={18} color={Colors.textSecondary} />
+          <Ionicons name="chevron-up" size={18} color={t.textoSecundario} />
         </Pressable>
-        <EliteText style={{ color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: 22, fontVariant: ['tabular-nums'] }}>
+        <EliteText style={{ color: t.texto, fontFamily: Fonts.bold, fontSize: 22, fontVariant: ['tabular-nums'] }}>
           {String(h).padStart(2, '0')}
         </EliteText>
         <Pressable onPress={() => onChange(fmt(h - 1, m))} hitSlop={12} style={{ padding: 4 }}>
-          <Ionicons name="chevron-down" size={18} color={Colors.textSecondary} />
+          <Ionicons name="chevron-down" size={18} color={t.textoSecundario} />
         </Pressable>
       </View>
-      <EliteText style={{ color: Colors.textMuted, fontSize: 22, fontFamily: Fonts.bold }}>:</EliteText>
+      <EliteText style={{ color: tenue(t), fontSize: 22, fontFamily: Fonts.bold }}>:</EliteText>
       <View style={{ alignItems: 'center', minWidth: 36 }}>
         <Pressable onPress={() => onChange(fmt(h, m + 15))} hitSlop={12} style={{ padding: 4 }}>
-          <Ionicons name="chevron-up" size={18} color={Colors.textSecondary} />
+          <Ionicons name="chevron-up" size={18} color={t.textoSecundario} />
         </Pressable>
-        <EliteText style={{ color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: 22, fontVariant: ['tabular-nums'] }}>
+        <EliteText style={{ color: t.texto, fontFamily: Fonts.bold, fontSize: 22, fontVariant: ['tabular-nums'] }}>
           {String(m).padStart(2, '0')}
         </EliteText>
         <Pressable onPress={() => onChange(fmt(h, m - 15))} hitSlop={12} style={{ padding: 4 }}>
-          <Ionicons name="chevron-down" size={18} color={Colors.textSecondary} />
+          <Ionicons name="chevron-down" size={18} color={t.textoSecundario} />
         </Pressable>
       </View>
     </View>
   );
 }
+
+/** textoTenue del oscuro no alcanza contraste en claro para letra chica. */
+const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
 
 const HOUR_H = 60; // px por hora
 const TOTAL_H = 24 * HOUR_H;
@@ -81,6 +86,8 @@ export function DayCalendar({ habits, onAdd, onEdit, onDelete, readOnly }: Props
   const [modal, setModal] = useState<{ habit?: DailyHabit; startMin?: number } | null>(null);
   const [form, setForm] = useState({ start: '', end: '', title: '', category: 'other', notes: '' });
   const scrollRef = useRef<ScrollView>(null);
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
 
   const openAdd = (yPos: number) => {
     if (readOnly) return;
@@ -193,18 +200,18 @@ export function DayCalendar({ habits, onAdd, onEdit, onDelete, readOnly }: Props
             <View style={s.timeRow}>
               <View style={{ flex: 1 }}>
                 <EliteText variant="caption" style={s.fieldLabel}>Inicio</EliteText>
-                <TimePicker value={form.start} onChange={v => setForm(p => ({ ...p, start: v }))} />
+                <TimePicker value={form.start} onChange={v => setForm(p => ({ ...p, start: v }))} t={t} />
               </View>
-              <EliteText style={{ color: Colors.disabled, fontSize: 18, paddingTop: 18 }}>→</EliteText>
+              <EliteText style={{ color: t.sinDatos, fontSize: 18, paddingTop: 18 }}>→</EliteText>
               <View style={{ flex: 1 }}>
                 <EliteText variant="caption" style={s.fieldLabel}>Fin</EliteText>
-                <TimePicker value={form.end} onChange={v => setForm(p => ({ ...p, end: v }))} />
+                <TimePicker value={form.end} onChange={v => setForm(p => ({ ...p, end: v }))} t={t} />
               </View>
             </View>
 
             <EliteText variant="caption" style={s.fieldLabel}>Actividad</EliteText>
             <TextInput style={s.input} value={form.title} onChangeText={v => setForm(p => ({ ...p, title: v }))}
-              placeholder="Ej: Desayuno, Oficina, Gym" placeholderTextColor={Colors.disabled} />
+              placeholder="Ej: Desayuno, Oficina, Gym" placeholderTextColor={t.sinDatos} />
 
             <EliteText variant="caption" style={s.fieldLabel}>Categoría</EliteText>
             <View style={s.catGrid}>
@@ -219,17 +226,17 @@ export function DayCalendar({ habits, onAdd, onEdit, onDelete, readOnly }: Props
 
             <EliteText variant="caption" style={s.fieldLabel}>Notas</EliteText>
             <TextInput style={[s.input, { height: 40 }]} value={form.notes}
-              onChangeText={v => setForm(p => ({ ...p, notes: v }))} placeholder="Opcional" placeholderTextColor={Colors.disabled} multiline />
+              onChangeText={v => setForm(p => ({ ...p, notes: v }))} placeholder="Opcional" placeholderTextColor={t.sinDatos} multiline />
 
             <View style={s.actions}>
               {modal?.habit && (
                 <Pressable onPress={handleDelete}>
-                  <EliteText variant="caption" style={{ color: Colors.error, fontSize: 12 }}>Eliminar</EliteText>
+                  <EliteText variant="caption" style={{ color: t.error, fontSize: 12 }}>Eliminar</EliteText>
                 </Pressable>
               )}
               <View style={{ flex: 1 }} />
               <Pressable onPress={() => setModal(null)}>
-                <EliteText variant="caption" style={{ color: Colors.textMuted }}>Cancelar</EliteText>
+                <EliteText variant="caption" style={{ color: tenue(t) }}>Cancelar</EliteText>
               </Pressable>
               <Pressable onPress={handleSave} style={s.saveBtn}>
                 <EliteText variant="caption" style={s.saveBtnText}>Guardar</EliteText>
@@ -242,31 +249,34 @@ export function DayCalendar({ habits, onAdd, onEdit, onDelete, readOnly }: Props
   );
 }
 
-const s = StyleSheet.create({
-  container: { height: 400, borderRadius: 12, overflow: 'hidden', backgroundColor: Colors.surfaceBase, borderWidth: 0.5, borderColor: Colors.surfaceLight },
-  hourRow: { position: 'absolute', left: 0, right: 0, height: HOUR_H, flexDirection: 'row', alignItems: 'flex-start' },
-  hourLabel: { width: LABEL_W, color: Colors.textMuted, fontSize: 10, textAlign: 'right', paddingRight: 8, paddingTop: -6 },
-  hourLine: { flex: 1, height: 0.5, backgroundColor: Colors.surfaceLight, marginTop: 0 },
-  block: {
-    position: 'absolute', left: LABEL_W + 4, right: 8, borderRadius: 6, borderLeftWidth: 3,
-    paddingHorizontal: 8, paddingVertical: 3, justifyContent: 'center',
-  },
-  blockTitle: { color: Colors.textPrimary, fontSize: 11, fontFamily: Fonts.semiBold },
-  blockTime: { color: '#aaa', fontSize: 9 },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
-  modal: { backgroundColor: Colors.surface, borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 400, borderWidth: 1, borderColor: Colors.border },
-  modalTitle: { color: Colors.neonGreen, letterSpacing: 2, fontSize: 12, marginBottom: Spacing.md },
-  fieldLabel: { color: Colors.textSecondary, fontSize: 10, marginBottom: 4, marginTop: Spacing.sm },
-  input: {
-    backgroundColor: Colors.surfaceLight, borderRadius: 8, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 2,
-    color: Colors.textPrimary, fontSize: 14, borderWidth: 0.5, borderColor: '#2a2a2a',
-  },
-  timeRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-end' },
-  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  catPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.disabled },
-  catDot: { width: 6, height: 6, borderRadius: 3 },
-  catText: { color: Colors.textSecondary, fontSize: 11 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginTop: Spacing.md },
-  saveBtn: { backgroundColor: Colors.neonGreen, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radius.pill },
-  saveBtnText: { color: Colors.black, fontFamily: Fonts.bold, fontSize: 13 },
-});
+const makeStyles = (t: AppThemeTokens) => {
+  const accent = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
+  return StyleSheet.create({
+    container: { height: 400, borderRadius: 12, overflow: 'hidden', backgroundColor: t.hundido, borderWidth: 0.5, borderColor: t.flotante },
+    hourRow: { position: 'absolute', left: 0, right: 0, height: HOUR_H, flexDirection: 'row', alignItems: 'flex-start' },
+    hourLabel: { width: LABEL_W, color: tenue(t), fontSize: 10, textAlign: 'right', paddingRight: 8, paddingTop: -6 },
+    hourLine: { flex: 1, height: 0.5, backgroundColor: t.flotante, marginTop: 0 },
+    block: {
+      position: 'absolute', left: LABEL_W + 4, right: 8, borderRadius: 6, borderLeftWidth: 3,
+      paddingHorizontal: 8, paddingVertical: 3, justifyContent: 'center',
+    },
+    blockTitle: { color: t.texto, fontSize: 11, fontFamily: Fonts.semiBold },
+    blockTime: { color: t.textoSecundario, fontSize: 9 },
+    overlay: { flex: 1, backgroundColor: t.kind === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
+    modal: { backgroundColor: t.card, borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 400, borderWidth: 1, borderColor: t.borde },
+    modalTitle: { color: accent, letterSpacing: 2, fontSize: 12, marginBottom: Spacing.md },
+    fieldLabel: { color: t.textoSecundario, fontSize: 10, marginBottom: 4, marginTop: Spacing.sm },
+    input: {
+      backgroundColor: t.flotante, borderRadius: 8, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 2,
+      color: t.texto, fontSize: 14, borderWidth: 0.5, borderColor: t.borde,
+    },
+    timeRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-end' },
+    catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    catPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.pill, borderWidth: 1, borderColor: t.sinDatos },
+    catDot: { width: 6, height: 6, borderRadius: 3 },
+    catText: { color: t.textoSecundario, fontSize: 11 },
+    actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginTop: Spacing.md },
+    saveBtn: { backgroundColor: ATP_BRAND.lime, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radius.pill },
+    saveBtnText: { color: t.textoSobreLima, fontFamily: Fonts.bold, fontSize: 13 },
+  });
+};

@@ -11,7 +11,7 @@
  * hoja de captura (un solo dueño de user_supplements), y el tipo de comida,
  * que hoy es de la carcasa.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View, StyleSheet, Pressable, TextInput,
   Image, Alert, Platform,
@@ -38,7 +38,9 @@ import {
 } from '@/src/services/nutrition-service';
 import { saveFoodLog } from '@/src/services/food-log-service';
 import { Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
-import { SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, ATP_BRAND } from '@/src/constants/brand';
+import { CATEGORY_COLORS, SEMANTIC, ATP_BRAND } from '@/src/constants/brand';
+import type { AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { FoodReviewEditor, parseAIToReview, type ReviewState } from '@/src/components/nutrition/FoodReviewEditor';
 import { updateFrequentFood } from '@/src/services/frequent-foods-service';
 import { saveMealAsRecipe, logItemsToIngredients } from '@/src/services/recipe-save-service';
@@ -96,15 +98,18 @@ const LABEL_CONTEXT = [
 function MacroPill({ label, value, unit, color, delay: d }: {
   label: string; value: string; unit: string; color: string; delay: number;
 }) {
+  // Componente compartido → useSurfaceTokens (oscuro fuera de <ThemeReady>).
+  const t = useSurfaceTokens();
+  const st = useMemo(() => makeSt(t), [t]);
   return (
     <Animated.View entering={FadeInUp.delay(d).springify().damping(16)} style={st.macroPill}>
       <EliteText style={{ fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, color, includeFontPadding: false }}>
         {value}
       </EliteText>
-      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs, marginTop: -2 }}>
+      <EliteText variant="caption" style={{ color: t.textoTenue, fontSize: FontSizes.xs, marginTop: -2 }}>
         {unit}
       </EliteText>
-      <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginTop: 2 }}>
+      <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: FontSizes.xs, marginTop: 2 }}>
         {label}
       </EliteText>
     </Animated.View>
@@ -114,6 +119,9 @@ function MacroPill({ label, value, unit, color, delay: d }: {
 function GlassButton({ onPress, children, style }: {
   onPress: () => void; children: React.ReactNode; style?: any;
 }) {
+  // st no lleva color aquí, pero sale de makeSt(t) igual que en el resto.
+  const t = useSurfaceTokens();
+  const st = useMemo(() => makeSt(t), [t]);
   return (
     <AnimatedPressable onPress={onPress} style={[st.glassBtn, style]} scaleDown={0.95}>
       {Platform.OS === 'ios' ? (
@@ -160,6 +168,11 @@ function LoadingDots({ color }: { color: string }) {
 export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, porGesto }: SensorPanelProps) {
   const { user } = useAuth();
   const analytics = useAnalytics();
+  // NOCHE-4: componente compartido → useSurfaceTokens; st sale de makeSt(t)
+  // porque el StyleSheet estático (fuera del componente) no puede leer tokens.
+  const t = useSurfaceTokens();
+  const kind = t.kind;
+  const st = useMemo(() => makeSt(t), [t]);
   const esEtiqueta = intent === 'etiqueta';
   const accent = esEtiqueta ? SEMANTIC.warning : BLUE;
   const titulo = esEtiqueta ? 'Escanear Etiqueta' : 'Escanear Comida';
@@ -544,7 +557,7 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
 
   if (showReview && result) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#000', minHeight: 560 }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: t.fondo, minHeight: 560 }}>
         <FoodReviewEditor
           initialState={parseAIToReview(result)}
           onSave={handleConfirmSave}
@@ -565,10 +578,10 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
               <Ionicons name={esEtiqueta ? 'pricetag-outline' : 'camera-outline'} size={36} color={accent} />
             </View>
           </View>
-          <EliteText style={{ fontSize: FontSizes.xl, fontFamily: Fonts.bold, color: TEXT_COLORS.primary, marginTop: Spacing.md }}>
+          <EliteText style={{ fontSize: FontSizes.xl, fontFamily: Fonts.bold, color: t.texto, marginTop: Spacing.md }}>
             {titulo}
           </EliteText>
-          <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 4, fontSize: FontSizes.md }}>
+          <EliteText variant="caption" style={{ color: t.textoTenue, marginTop: 4, fontSize: FontSizes.md }}>
             {esEtiqueta ? 'Toma una foto para analizar con IA' : 'Foto o describe lo que comiste'}
           </EliteText>
         </Animated.View>
@@ -578,15 +591,15 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.lg }}>
             <Pressable onPress={openGallery} hitSlop={10}
               style={{
-                width: 44, height: 44, borderRadius: Radius.lg, backgroundColor: SURFACES.card,
-                borderWidth: 1, borderColor: SURFACES.border, alignItems: 'center', justifyContent: 'center',
+                width: 44, height: 44, borderRadius: Radius.lg, backgroundColor: t.card,
+                borderWidth: 1, borderColor: t.borde, alignItems: 'center', justifyContent: 'center',
               }}>
-              <Ionicons name="images-outline" size={20} color={TEXT_COLORS.secondary} />
+              <Ionicons name="images-outline" size={20} color={t.textoSecundario} />
             </Pressable>
 
             <AnimatedPressable onPress={openCamera} scaleDown={0.92} style={[st.shutterOuter, { borderColor: accent }]}>
               <View style={[st.shutterInner, { backgroundColor: accent }]}>
-                <Ionicons name="camera" size={28} color={TEXT_COLORS.onAccent} />
+                <Ionicons name="camera" size={28} color={t.textoSobreLima} />
               </View>
             </AnimatedPressable>
 
@@ -597,8 +610,8 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
           {esEtiqueta && (
             <View style={st.captureSecRow}>
               <GlassButton onPress={openGallery}>
-                <Ionicons name="images-outline" size={18} color={TEXT_COLORS.primary} />
-                <EliteText style={{ color: TEXT_COLORS.primary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold }}>
+                <Ionicons name="images-outline" size={18} color={t.texto} />
+                <EliteText style={{ color: t.texto, fontSize: FontSizes.md, fontFamily: Fonts.semiBold }}>
                   Galería
                 </EliteText>
               </GlassButton>
@@ -616,7 +629,7 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
                 value={textInput}
                 onChangeText={setTextInput}
                 placeholder="Describe lo que comiste..."
-                placeholderTextColor={TEXT_COLORS.muted}
+                placeholderTextColor={t.textoTenue}
                 returnKeyType="send"
                 onSubmitEditing={handleTextSubmit}
                 multiline={false}
@@ -624,8 +637,8 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
               <AnimatedPressable
                 onPress={handleTextSubmit}
                 scaleDown={0.9}
-                style={[st.textBarSend, { backgroundColor: textInput.trim() ? accent : SURFACES.cardLight }]}>
-                <Ionicons name="arrow-up" size={18} color={textInput.trim() ? TEXT_COLORS.onAccent : TEXT_COLORS.muted} />
+                style={[st.textBarSend, { backgroundColor: textInput.trim() ? accent : t.flotante }]}>
+                <Ionicons name="arrow-up" size={18} color={textInput.trim() ? t.textoSobreLima : t.textoTenue} />
               </AnimatedPressable>
             </View>
           </Animated.View>
@@ -643,7 +656,7 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
         <Animated.View entering={FadeIn.duration(400).springify()}>
           <View style={st.textBubble}>
             <Ionicons name="chatbubble-ellipses-outline" size={20} color={accent} style={{ marginRight: 8 }} />
-            <EliteText style={{ color: TEXT_COLORS.primary, fontSize: FontSizes.lg, flex: 1, lineHeight: 22 }}>
+            <EliteText style={{ color: t.texto, fontSize: FontSizes.lg, flex: 1, lineHeight: 22 }}>
               {textInput}
             </EliteText>
           </View>
@@ -668,8 +681,8 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
       ) : (
         <Animated.View entering={FadeIn.duration(300)}>
           <Pressable onPress={openCamera} style={st.noPhoto}>
-            <Ionicons name="camera-outline" size={36} color={TEXT_COLORS.muted} />
-            <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 4 }}>
+            <Ionicons name="camera-outline" size={36} color={t.textoTenue} />
+            <EliteText variant="caption" style={{ color: t.textoTenue, marginTop: 4 }}>
               Toca para tomar foto
             </EliteText>
           </Pressable>
@@ -686,7 +699,7 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
               value={description}
               onChangeText={setDescription}
               placeholder={inputType === 'photo' ? '¿Qué es? (la IA identifica sola)' : '¿Algo más? (contexto adicional)'}
-              placeholderTextColor={TEXT_COLORS.muted}
+              placeholderTextColor={t.textoTenue}
               returnKeyType="done"
             />
 
@@ -704,7 +717,7 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
                     <EliteText style={{ fontSize: FontSizes.xxl }}>{h.emoji}</EliteText>
                     <EliteText variant="caption" style={{
                       fontSize: FontSizes.xs, marginTop: 3,
-                      color: active ? accent : TEXT_COLORS.muted,
+                      color: active ? accent : t.textoTenue,
                       fontFamily: active ? Fonts.bold : Fonts.regular,
                     }}>
                       {h.label}
@@ -722,7 +735,7 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
               value={productName}
               onChangeText={setProductName}
               placeholder="Ej: Yogurt Griego Lala"
-              placeholderTextColor={TEXT_COLORS.muted}
+              placeholderTextColor={t.textoTenue}
               returnKeyType="done"
             />
 
@@ -740,7 +753,7 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
                     <EliteText style={{ fontSize: FontSizes.md }}>{c.emoji}</EliteText>
                     <EliteText style={{
                       fontSize: FontSizes.sm, fontFamily: active ? Fonts.bold : Fonts.regular,
-                      color: active ? accent : TEXT_COLORS.secondary,
+                      color: active ? accent : t.textoSecundario,
                     }}>
                       {c.label}
                     </EliteText>
@@ -776,9 +789,9 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
                 onPress={handleAnalyze}
                 disabled={!canAnalyze}
                 scaleDown={0.96}
-                style={[st.ctaBtn, { backgroundColor: canAnalyze ? accent : SURFACES.cardLight }]}>
-                <Ionicons name="sparkles" size={20} color={canAnalyze ? TEXT_COLORS.onAccent : TEXT_COLORS.muted} />
-                <EliteText style={{ color: canAnalyze ? TEXT_COLORS.onAccent : TEXT_COLORS.muted, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
+                style={[st.ctaBtn, { backgroundColor: canAnalyze ? accent : t.flotante }]}>
+                <Ionicons name="sparkles" size={20} color={canAnalyze ? t.textoSobreLima : t.textoTenue} />
+                <EliteText style={{ color: canAnalyze ? t.textoSobreLima : t.textoTenue, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
                   Analizar con IA
                 </EliteText>
               </AnimatedPressable>
@@ -788,14 +801,14 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
           {!esEtiqueta && (
             <Pressable onPress={handleSaveWithout} disabled={saving}
               style={{ alignSelf: 'center', paddingVertical: Spacing.sm }}>
-              <EliteText style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.md }}>
+              <EliteText style={{ color: t.textoTenue, fontSize: FontSizes.md }}>
                 {saving ? 'Guardando...' : 'Guardar sin analizar'}
               </EliteText>
             </Pressable>
           )}
 
           <Pressable onPress={resetAndScan} style={{ alignSelf: 'center', paddingVertical: Spacing.sm }}>
-            <EliteText style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.md }}>Empezar de nuevo</EliteText>
+            <EliteText style={{ color: t.textoTenue, fontSize: FontSizes.md }}>Empezar de nuevo</EliteText>
           </Pressable>
         </View>
       </Animated.View>
@@ -835,10 +848,10 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
           <Ionicons name="sparkles" size={32} color={accent} />
         </View>
 
-        <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xxl, marginTop: Spacing.xl }}>
+        <EliteText style={{ color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.xxl, marginTop: Spacing.xl }}>
           Analizando
         </EliteText>
-        <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 6, fontSize: FontSizes.md, textAlign: 'center' }}>
+        <EliteText variant="caption" style={{ color: t.textoTenue, marginTop: 6, fontSize: FontSizes.md, textAlign: 'center' }}>
           {esEtiqueta ? 'Leyendo ingredientes y aditivos' : 'Identificando comida y nutrientes'}
         </EliteText>
         <LoadingDots color={accent} />
@@ -862,7 +875,7 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
           {getScoreLabel()}
         </EliteText>
         <EliteText style={{
-          color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xxl,
+          color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.xxl,
           textAlign: 'center', marginTop: Spacing.xs,
         }}>
           {getTitle()}
@@ -878,14 +891,14 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
               {ingredients.map((ing, idx) => (
                 <View key={idx} style={st.foodIngredientRow}>
                   <View style={{ flex: 1 }}>
-                    <EliteText style={{ color: TEXT_COLORS.primary, fontSize: FontSizes.md }}>{ing.name}</EliteText>
-                    <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.sm }}>{ing.portion}</EliteText>
+                    <EliteText style={{ color: t.texto, fontSize: FontSizes.md }}>{ing.name}</EliteText>
+                    <EliteText variant="caption" style={{ color: t.textoTenue, fontSize: FontSizes.sm }}>{ing.portion}</EliteText>
                   </View>
                   <EliteText variant="caption" style={{ color: BLUE, fontSize: FontSizes.sm }}>
                     {ing.calories}cal · {ing.protein}p
                   </EliteText>
                   <Pressable onPress={() => removeIngredient(idx)} hitSlop={8}>
-                    <Ionicons name="close-circle-outline" size={18} color={TEXT_COLORS.muted} />
+                    <Ionicons name="close-circle-outline" size={18} color={t.textoTenue} />
                   </Pressable>
                 </View>
               ))}
@@ -897,7 +910,7 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
                     value={newIngredientName}
                     onChangeText={setNewIngredientName}
                     placeholder="¿Qué más?"
-                    placeholderTextColor={TEXT_COLORS.muted}
+                    placeholderTextColor={t.textoTenue}
                     returnKeyType="done"
                     onSubmitEditing={handleAddIngredient}
                   />
@@ -914,12 +927,12 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
           </Animated.View>
 
           <View style={st.macrosRow}>
-            <MacroPill label="Calorías" value={`${displayTotals?.calories ?? result.estimated_calories ?? '—'}`} unit="kcal" color={TEXT_COLORS.primary} delay={500} />
+            <MacroPill label="Calorías" value={`${displayTotals?.calories ?? result.estimated_calories ?? '—'}`} unit="kcal" color={t.texto} delay={500} />
             <MacroPill label="Proteína" value={`${displayTotals?.protein ?? result.estimated_protein ?? '—'}`} unit="g" color={BLUE} delay={600} />
             <MacroPill label="Carbos" value={`${displayTotals?.carbs ?? result.estimated_carbs ?? '—'}`} unit="g" color={SEMANTIC.acceptable} delay={700} />
             <MacroPill label="Grasa" value={`${displayTotals?.fat ?? result.estimated_fat ?? '—'}`} unit="g" color={SEMANTIC.warning} delay={800} />
           </View>
-          <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.sm, textAlign: 'center', marginTop: 4 }}>
+          <EliteText variant="caption" style={{ color: t.textoTenue, fontSize: FontSizes.sm, textAlign: 'center', marginTop: 4 }}>
             Estimados por ARGOS
           </EliteText>
 
@@ -928,8 +941,8 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
               <View style={{ marginTop: Spacing.md }}>
                 {result.good_points.map((p: string, i: number) => (
                   <View key={i} style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
-                    <Ionicons name="checkmark-circle" size={14} color={ATP_BRAND.lime} />
-                    <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.md }}>{p}</EliteText>
+                    <Ionicons name="checkmark-circle" size={14} color={kind === 'dark' ? ATP_BRAND.lime : t.tealTexto} />
+                    <EliteText style={{ color: t.textoSecundario, fontSize: FontSizes.md }}>{p}</EliteText>
                   </View>
                 ))}
               </View>
@@ -942,7 +955,7 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
                 {result.improve_points.map((p: string, i: number) => (
                   <View key={i} style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
                     <Ionicons name="arrow-up-circle" size={14} color={SEMANTIC.warning} />
-                    <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.md }}>{p}</EliteText>
+                    <EliteText style={{ color: t.textoSecundario, fontSize: FontSizes.md }}>{p}</EliteText>
                   </View>
                 ))}
               </View>
@@ -956,7 +969,7 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
         <>
           <View style={st.macrosRow}>
             <MacroPill label="Ingredientes" value={`${result.ingredients_count ?? '—'}`} unit="" color={accent} delay={400} />
-            <MacroPill label="Naturales" value={`${result.natural_ingredients ?? '—'}`} unit="" color={ATP_BRAND.lime} delay={500} />
+            <MacroPill label="Naturales" value={`${result.natural_ingredients ?? '—'}`} unit="" color={kind === 'dark' ? ATP_BRAND.lime : t.tealTexto} delay={500} />
             <MacroPill label="Aditivos" value={`${result.additives?.length ?? 0}`} unit="" color={SEMANTIC.error} delay={600} />
             <MacroPill label="Azúcar" value={`${result.sugar_g ?? '—'}`} unit="g" color={SEMANTIC.warning} delay={700} />
           </View>
@@ -969,11 +982,11 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
                 <Animated.View key={i} entering={SlideInRight.delay(800 + i * 80).springify().damping(18)}>
                   <View style={st.additiveRow}>
                     <View style={{ flex: 1 }}>
-                      <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>
+                      <EliteText style={{ color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>
                         {a.code ? `${a.code} ` : ''}{a.name}
                       </EliteText>
                       {a.explanation && (
-                        <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.sm, marginTop: 2 }}>
+                        <EliteText variant="caption" style={{ color: t.textoTenue, fontSize: FontSizes.sm, marginTop: 2 }}>
                           {a.explanation}
                         </EliteText>
                       )}
@@ -982,7 +995,7 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
                       backgroundColor: (a.risk === 'alto' ? SEMANTIC.error : a.risk === 'medio' ? SEMANTIC.warning : ATP_BRAND.lime) + '18',
                     }]}>
                       <EliteText variant="caption" style={{
-                        color: a.risk === 'alto' ? SEMANTIC.error : a.risk === 'medio' ? SEMANTIC.warning : ATP_BRAND.lime,
+                        color: a.risk === 'alto' ? SEMANTIC.error : a.risk === 'medio' ? SEMANTIC.warning : (kind === 'dark' ? ATP_BRAND.lime : t.tealTexto),
                         fontSize: FontSizes.xs, fontFamily: Fonts.bold,
                       }}>
                         {(a.risk ?? 'bajo').toUpperCase()}
@@ -1000,7 +1013,7 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
       {result.feedback && (
         <Animated.View entering={FadeInDown.delay(esEtiqueta ? 900 : 950).springify().damping(18)}>
           <View style={[st.card, { borderLeftColor: accent, borderLeftWidth: 3, marginTop: Spacing.lg }]}>
-            <EliteText style={{ color: TEXT_COLORS.primary, fontSize: FontSizes.lg, lineHeight: 22 }}>
+            <EliteText style={{ color: t.texto, fontSize: FontSizes.lg, lineHeight: 22 }}>
               {result.feedback}
             </EliteText>
           </View>
@@ -1026,8 +1039,8 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
       {(result.suggestions || result.better_alternative) && (
         <Animated.View entering={FadeInDown.delay(1050).springify()}>
           <View style={st.tipCard}>
-            <Ionicons name="bulb-outline" size={18} color={ATP_BRAND.teal2} />
-            <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.md, flex: 1, lineHeight: 20 }}>
+            <Ionicons name="bulb-outline" size={18} color={kind === 'dark' ? ATP_BRAND.teal2 : t.tealTexto} />
+            <EliteText style={{ color: t.textoSecundario, fontSize: FontSizes.md, flex: 1, lineHeight: 20 }}>
               {result.suggestions || result.better_alternative}
             </EliteText>
           </View>
@@ -1058,8 +1071,8 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
           {!esEtiqueta && !saved && (
             <AnimatedPressable onPress={handleSaveFood} disabled={saving} scaleDown={0.96}
               style={[st.ctaBtn, { backgroundColor: accent }]}>
-              <Ionicons name="checkmark-circle" size={20} color={TEXT_COLORS.onAccent} />
-              <EliteText style={{ color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
+              <Ionicons name="checkmark-circle" size={20} color={t.textoSobreLima} />
+              <EliteText style={{ color: t.textoSobreLima, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
                 {saving ? 'Guardando...' : 'Guardar ✓'}
               </EliteText>
             </AnimatedPressable>
@@ -1070,7 +1083,7 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
           {!esEtiqueta && !saved && nutritionMode === 'simple' && (
             <Pressable onPress={() => setShowReview(true)} disabled={saving}
               style={{ alignSelf: 'center', paddingVertical: Spacing.sm }}>
-              <EliteText style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.md }}>
+              <EliteText style={{ color: t.textoTenue, fontSize: FontSizes.md }}>
                 Revisar y ajustar antes de guardar
               </EliteText>
             </Pressable>
@@ -1091,9 +1104,9 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
             <Animated.View entering={FadeIn.springify()}>
               <View style={st.savedRow}>
                 <View style={st.savedCheck}>
-                  <Ionicons name="checkmark" size={20} color={TEXT_COLORS.onAccent} />
+                  <Ionicons name="checkmark" size={20} color={t.textoSobreLima} />
                 </View>
-                <EliteText style={{ color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
+                <EliteText style={{ color: kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
                   Guardado
                 </EliteText>
               </View>
@@ -1134,7 +1147,9 @@ export function PhotoSensor({ mealType, mealTime, intent, onTakeover, onSaved, p
   );
 }
 
-const st = StyleSheet.create({
+// NOCHE-4: fábrica de estilos con tokens — el StyleSheet vive fuera del
+// componente (no puede llamar hooks), así que recibe t ya resuelto.
+const makeSt = (t: AppThemeTokens) => StyleSheet.create({
   // Capture
   captureRing: {
     width: 110, height: 110, borderRadius: Radius.pill, borderWidth: 1.5,
@@ -1157,11 +1172,11 @@ const st = StyleSheet.create({
   // Barra de texto tipo chat
   textBarWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: SURFACES.card, borderRadius: Radius.lg, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: t.card, borderRadius: Radius.lg, borderWidth: 1, borderColor: t.borde,
     paddingHorizontal: 16, paddingVertical: 6,
   },
   textBarInput: {
-    flex: 1, color: TEXT_COLORS.primary, fontSize: FontSizes.lg, fontFamily: Fonts.regular,
+    flex: 1, color: t.texto, fontSize: FontSizes.lg, fontFamily: Fonts.regular,
     paddingVertical: Platform.OS === 'ios' ? 10 : 8,
   },
   textBarSend: {
@@ -1172,7 +1187,7 @@ const st = StyleSheet.create({
   // Burbuja de texto en preview
   textBubble: {
     flexDirection: 'row', alignItems: 'flex-start',
-    backgroundColor: SURFACES.card, borderRadius: Radius.lg, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: t.card, borderRadius: Radius.lg, borderWidth: 1, borderColor: t.borde,
     padding: 16, marginBottom: 4,
   },
 
@@ -1184,7 +1199,7 @@ const st = StyleSheet.create({
   },
 
   // Preview
-  photoWrap: { borderRadius: Radius.lg, overflow: 'hidden', backgroundColor: SURFACES.card },
+  photoWrap: { borderRadius: Radius.lg, overflow: 'hidden', backgroundColor: t.card },
   photo: { width: '100%', aspectRatio: 4 / 3 },
   photoControls: { position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', gap: 8 },
   photoCtrlBtn: {
@@ -1192,27 +1207,27 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   noPhoto: {
-    height: 200, borderRadius: Radius.lg, backgroundColor: SURFACES.card,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: SURFACES.border,
+    height: 200, borderRadius: Radius.lg, backgroundColor: t.card,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: t.borde,
     borderStyle: 'dashed',
   },
   sectionLabel: {
-    color: TEXT_COLORS.secondary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold,
+    color: t.textoSecundario, fontSize: FontSizes.md, fontFamily: Fonts.semiBold,
     marginBottom: 10, letterSpacing: 0.5,
   },
   mealChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 10, borderRadius: Radius.card,
-    backgroundColor: SURFACES.card, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: t.card, borderWidth: 1, borderColor: t.borde,
   },
   input: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 1, borderColor: SURFACES.border,
-    paddingHorizontal: 16, paddingVertical: 14, color: TEXT_COLORS.primary,
+    backgroundColor: t.card, borderRadius: Radius.card, borderWidth: 1, borderColor: t.borde,
+    paddingHorizontal: 16, paddingVertical: 14, color: t.texto,
     fontSize: FontSizes.lg, fontFamily: Fonts.regular, marginTop: Spacing.sm,
   },
   hungerCard: {
     flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: Radius.md,
-    backgroundColor: SURFACES.card, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: t.card, borderWidth: 1, borderColor: t.borde,
   },
   errorCard: {
     flexDirection: 'row', gap: 10, alignItems: 'center',
@@ -1224,7 +1239,7 @@ const st = StyleSheet.create({
   },
   outlineBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    paddingVertical: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: SURFACES.border,
+    paddingVertical: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: t.borde,
   },
 
   // Analyzing
@@ -1247,22 +1262,22 @@ const st = StyleSheet.create({
   },
   macroPill: {
     flex: 1, alignItems: 'center', paddingVertical: 14,
-    backgroundColor: SURFACES.card, borderRadius: Radius.md, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: t.card, borderRadius: Radius.md, borderWidth: 1, borderColor: t.borde,
   },
   card: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.lg, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: t.card, borderRadius: Radius.lg, borderWidth: 1, borderColor: t.borde,
     padding: 16,
   },
   additiveRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: SURFACES.card, borderRadius: Radius.md, borderWidth: 1, borderColor: SEMANTIC.error + '15',
+    backgroundColor: t.card, borderRadius: Radius.md, borderWidth: 1, borderColor: SEMANTIC.error + '15',
     padding: 14, marginBottom: 8,
   },
   riskBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.sm },
   foodIngredientRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: SURFACES.border,
+    borderBottomColor: t.borde,
   },
   flagChip: {
     backgroundColor: SEMANTIC.error + '10', paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.card,
@@ -1272,7 +1287,7 @@ const st = StyleSheet.create({
     backgroundColor: 'rgba(26,188,156,0.08)', borderRadius: Radius.lg, padding: 14, marginTop: Spacing.md,
   },
   tagChip: {
-    backgroundColor: SURFACES.card, paddingHorizontal: 12, paddingVertical: 5, borderRadius: Radius.card,
+    backgroundColor: t.card, paddingHorizontal: 12, paddingVertical: 5, borderRadius: Radius.card,
     borderWidth: 1,
   },
   savedRow: {

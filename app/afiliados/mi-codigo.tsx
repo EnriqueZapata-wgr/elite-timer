@@ -150,7 +150,7 @@ export default function AfiliadosMiCodigoScreen() {
             <EliteText style={[s.previewName, { color: t.texto }]}>{affiliate.business_name ?? 'Afiliado ATP'}</EliteText>
             <EliteText style={[s.previewVertical, secTxt]}>{VERTICAL_LABELS[affiliate.vertical]}</EliteText>
             {affiliate.short_bio ? (
-              <EliteText style={s.previewBio} numberOfLines={3}>{affiliate.short_bio}</EliteText>
+              <EliteText style={[s.previewBio, { color: t.textoSecundario }]} numberOfLines={3}>{affiliate.short_bio}</EliteText>
             ) : null}
             <View style={s.previewCta}>
               <EliteText style={s.previewCtaText}>EMPEZAR CON ATP</EliteText>
@@ -206,7 +206,7 @@ const s = StyleSheet.create({
   previewName: { fontSize: 22, fontFamily: Fonts.bold, marginTop: 4, textAlign: 'center' },
   previewVertical: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, marginTop: 2 },
   previewBio: {
-    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#aaa',
+    fontSize: FontSizes.sm, fontFamily: Fonts.regular,
     textAlign: 'center', marginTop: 10, lineHeight: 19,
   },
   previewCta: {

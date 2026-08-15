@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, Pressable, Animated, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 // Importación segura — el módulo nativo puede no estar disponible
 let SpeechModule: any = null;
@@ -26,6 +27,7 @@ interface VoiceButtonProps {
 }
 
 export function VoiceButton({ onTranscript, variant = 'fab' }: VoiceButtonProps) {
+  const t = useSurfaceTokens();
   const [isListening, setIsListening] = useState(false);
   const [partialText, setPartialText] = useState('');
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -173,10 +175,11 @@ export function VoiceButton({ onTranscript, variant = 'fab' }: VoiceButtonProps)
       {isListening && partialText && isFab && (
         <View style={{
           position: 'absolute', bottom: btnSize + 10, right: 0, left: -200,
-          backgroundColor: '#0a0a0a', borderRadius: 12, padding: 10,
+          backgroundColor: t.flotante, borderRadius: 12, padding: 10,
           borderWidth: 1, borderColor: 'rgba(168,224,42,0.2)',
         }}>
-          <Text style={{ color: '#a8e02a', fontSize: 12 }} numberOfLines={2}>
+          {/* Regla 3 del claro: el lima jamás es letra en claro. */}
+          <Text style={{ color: t.kind === 'dark' ? '#a8e02a' : t.tealTexto, fontSize: 12 }} numberOfLines={2}>
             {partialText}...
           </Text>
         </View>
@@ -187,10 +190,10 @@ export function VoiceButton({ onTranscript, variant = 'fab' }: VoiceButtonProps)
           onPress={isListening ? stopListening : startListening}
           style={{
             width: btnSize, height: btnSize, borderRadius: btnRadius,
-            backgroundColor: isListening ? '#ef4444' : (isFab ? '#a8e02a' : '#1a1a1a'),
+            backgroundColor: isListening ? t.error : (isFab ? '#a8e02a' : t.hundido),
             justifyContent: 'center', alignItems: 'center',
             ...(isListening && {
-              shadowColor: '#ef4444',
+              shadowColor: t.error,
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: 0.5,
               shadowRadius: 12,
@@ -198,16 +201,18 @@ export function VoiceButton({ onTranscript, variant = 'fab' }: VoiceButtonProps)
             }),
           }}
         >
+          {/* Icono sobre relleno sólido (error o lima): blanco/negro fijos son
+              el contraste correcto en los dos temas, no el texto de chrome. */}
           <Ionicons
             name={isListening ? 'radio-outline' : 'mic-outline'}
             size={iconSize}
-            color={isListening ? '#fff' : (isFab ? '#000' : '#666')}
+            color={isListening ? '#fff' : (isFab ? t.textoSobreLima : t.textoSecundario)}
           />
         </Pressable>
       </Animated.View>
 
       {isListening && isFab && (
-        <Text style={{ color: '#ef4444', fontSize: 9, fontWeight: '700', textAlign: 'center', marginTop: 4 }}>
+        <Text style={{ color: t.error, fontSize: 9, fontWeight: '700', textAlign: 'center', marginTop: 4 }}>
           ESCUCHANDO...
         </Text>
       )}

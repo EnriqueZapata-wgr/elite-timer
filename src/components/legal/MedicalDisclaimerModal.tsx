@@ -6,6 +6,7 @@
  * mode='gate' → aceptar/rechazar (rechazo navega back vía onDecline).
  * mode='read' → solo lectura desde Settings > Legal (botón Cerrar).
  */
+import { useMemo } from 'react';
 import { View, StyleSheet, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
@@ -17,7 +18,8 @@ import {
   MEDICAL_DISCLAIMER_VERSION,
 } from '@/src/constants/medical-disclaimers';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, TEXT } from '@/src/constants/brand';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface Props {
   visible: boolean;
@@ -29,6 +31,8 @@ interface Props {
 
 export function MedicalDisclaimerModal({ visible, mode, onAccept, onDecline, onClose }: Props) {
   const dismiss = mode === 'read' ? onClose : onDecline;
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
       <View style={s.overlay}>
@@ -73,13 +77,15 @@ export function MedicalDisclaimerModal({ visible, mode, onAccept, onDecline, onC
   );
 }
 
-const s = StyleSheet.create({
+// MB-31B: iconWrap/icono del medkit se quedan en el ámbar de marca a
+// propósito (badge decorativo, no texto) en los dos temas.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   overlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.88)',
+    flex: 1, backgroundColor: t.kind === 'dark' ? 'rgba(0,0,0,0.88)' : 'rgba(15,21,24,0.35)',
     justifyContent: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.xl,
   },
   card: {
-    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
+    backgroundColor: t.flotante, borderWidth: 1, borderColor: t.bordeMarcado,
     borderRadius: 24, padding: Spacing.lg, maxHeight: '90%',
   },
   header: { flexDirection: 'row', gap: 12, alignItems: 'center', marginBottom: Spacing.md },
@@ -87,20 +93,25 @@ const s = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(251,191,36,0.1)',
     alignItems: 'center', justifyContent: 'center',
   },
-  kicker: { fontSize: 10, fontFamily: Fonts.semiBold, color: '#fbbf24', letterSpacing: 2 },
-  title: { fontSize: 19, fontFamily: Fonts.bold, color: TEXT.primary, marginTop: 2, lineHeight: 25 },
+  // Kicker "AVISO MÉDICO": en oscuro ámbar de marca; en claro el ámbar no
+  // se lee sobre acero (1.6:1), usa t.error, que sí está calibrado.
+  kicker: {
+    fontSize: 10, fontFamily: Fonts.semiBold,
+    color: t.kind === 'dark' ? '#fbbf24' : t.error, letterSpacing: 2,
+  },
+  title: { fontSize: 19, fontFamily: Fonts.bold, color: t.texto, marginTop: 2, lineHeight: 25 },
   scroll: { flexGrow: 0 },
-  intro: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#ccc', lineHeight: 20 },
+  intro: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: t.textoSecundario, lineHeight: 20 },
   sectionTitle: {
-    fontSize: 10, fontFamily: Fonts.semiBold, color: '#888',
+    fontSize: 10, fontFamily: Fonts.semiBold, color: t.textoSecundario,
     letterSpacing: 2, marginBottom: 4,
   },
-  sectionBody: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#999', lineHeight: 18 },
+  sectionBody: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.textoSecundario, lineHeight: 18 },
   acceptBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 15,
     alignItems: 'center', marginTop: Spacing.md,
   },
-  acceptText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  acceptText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: t.textoSobreLima, letterSpacing: 1 },
   declineBtn: { alignItems: 'center', paddingVertical: 12, marginTop: 2 },
-  declineText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#666' },
+  declineText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: t.textoSecundario },
 });

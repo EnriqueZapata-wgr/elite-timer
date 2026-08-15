@@ -6,17 +6,21 @@
  *
  * Diseño: barra de color izquierda, drag handle, expand/collapse con chevron.
  */
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { View, Pressable, StyleSheet, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import type { Block } from '@/src/engine/types';
 import { deepCopyBlock } from '@/src/utils/routine-storage';
 import { AddBlockButton } from './AddBlockButton';
 
 // === PALETA DE COLORES PARA GRUPOS ===
+// MB-31B: estos valores se GUARDAN en block.color (dato persistido, no
+// display). Quedan fijos a propósito: si dependieran del tema, el mismo
+// bloque se vería con un color distinto según el tema de quien lo edita.
 
 const COLOR_PALETTE = [
   Colors.textSecondary, Colors.neonGreen, Colors.info, Colors.warning,
@@ -66,11 +70,13 @@ export function BlockCard({
   onAssignExercise,
   onRequestExercisePicker,
 }: BlockCardProps) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [expanded, setExpanded] = useState(true);
   const [editing, setEditing] = useState(false);
 
   const isGroup = block.type === 'group';
-  const blockColor = isGroup ? (block.color ?? Colors.textSecondary) : TYPE_COLORS[block.type];
+  const blockColor = isGroup ? (block.color ?? t.textoSecundario) : TYPE_COLORS[block.type];
   const indent = depth * 12;
 
   // --- Helpers para actualizar campos ---
@@ -129,22 +135,22 @@ export function BlockCard({
     const childCount = (block.children ?? []).length;
 
     return (
-      <View style={[styles.cardOuter, { marginLeft: indent }, expanded && { borderColor: blockColor + '40' }]}>
+      <View style={[s.cardOuter, { marginLeft: indent }, expanded && { borderColor: blockColor + '40' }]}>
         {/* Barra color izquierda */}
-        <View style={[styles.accentBar, { backgroundColor: blockColor }]} />
+        <View style={[s.accentBar, { backgroundColor: blockColor }]} />
 
         {/* Header colapsable */}
-        <Pressable onPress={() => setExpanded(!expanded)} style={styles.cardHeader}>
+        <Pressable onPress={() => setExpanded(!expanded)} style={s.cardHeader}>
           {/* Drag handle (visual) */}
-          <View style={styles.dragHandle}>
-            <Ionicons name="reorder-two-outline" size={18} color={Colors.textSecondary} />
+          <View style={s.dragHandle}>
+            <Ionicons name="reorder-two-outline" size={18} color={t.textoSecundario} />
           </View>
 
           {/* Label editable */}
-          <View style={styles.headerInfo}>
+          <View style={s.headerInfo}>
             {editing ? (
               <TextInput
-                style={styles.labelInput}
+                style={s.labelInput}
                 value={block.label}
                 onChangeText={t => updateField('label', t)}
                 onBlur={() => setEditing(false)}
@@ -153,20 +159,20 @@ export function BlockCard({
               />
             ) : (
               <Pressable onPress={() => setEditing(true)}>
-                <EliteText variant="subtitle" style={styles.groupName} numberOfLines={1}>
+                <EliteText variant="subtitle" style={s.groupName} numberOfLines={1}>
                   {block.label}
                 </EliteText>
               </Pressable>
             )}
-            <EliteText variant="caption" style={styles.subtitleText}>
+            <EliteText variant="caption" style={s.subtitleText}>
               {childCount} paso{childCount !== 1 ? 's' : ''} · {block.rounds} ronda{block.rounds !== 1 ? 's' : ''}
               {block.rest_between_seconds > 0 ? ` · ${formatDur(block.rest_between_seconds)} descanso` : ''}
             </EliteText>
           </View>
 
           {/* Badge rounds */}
-          <View style={[styles.roundsBadge, { backgroundColor: blockColor + '25' }]}>
-            <EliteText variant="caption" style={[styles.roundsBadgeText, { color: blockColor }]}>
+          <View style={[s.roundsBadge, { backgroundColor: blockColor + '25' }]}>
+            <EliteText variant="caption" style={[s.roundsBadgeText, { color: blockColor }]}>
               ×{block.rounds}
             </EliteText>
           </View>
@@ -175,18 +181,19 @@ export function BlockCard({
           <Ionicons
             name={expanded ? 'chevron-up' : 'chevron-down'}
             size={18}
-            color={Colors.textSecondary}
+            color={t.textoSecundario}
           />
         </Pressable>
 
         {/* Contenido expandido */}
         {expanded && (
-          <View style={styles.expandedContent}>
+          <View style={s.expandedContent}>
             {/* Config: rondas, descanso, color */}
-            <View style={styles.configSection}>
-              <View style={styles.configRow}>
-                <EliteText variant="caption" style={styles.configLabel}>Rondas</EliteText>
+            <View style={s.configSection}>
+              <View style={s.configRow}>
+                <EliteText variant="caption" style={s.configLabel}>Rondas</EliteText>
                 <NumberStepper
+                  t={t}
                   value={block.rounds}
                   onChange={v => updateField('rounds', v)}
                   min={1}
@@ -194,29 +201,30 @@ export function BlockCard({
                   accent={blockColor}
                 />
               </View>
-              <View style={styles.configRow}>
-                <EliteText variant="caption" style={styles.configLabel}>Descanso entre</EliteText>
+              <View style={s.configRow}>
+                <EliteText variant="caption" style={s.configLabel}>Descanso entre</EliteText>
                 <NumberStepper
+                  t={t}
                   value={block.rest_between_seconds}
                   onChange={v => updateField('rest_between_seconds', v)}
                   min={0}
                   max={600}
                   step={5}
                   suffix="s"
-                  accent={Colors.info}
+                  accent={t.info}
                 />
               </View>
-              <View style={styles.configRow}>
-                <EliteText variant="caption" style={styles.configLabel}>Color</EliteText>
-                <View style={styles.colorRow}>
+              <View style={s.configRow}>
+                <EliteText variant="caption" style={s.configLabel}>Color</EliteText>
+                <View style={s.colorRow}>
                   {COLOR_PALETTE.map(c => (
                     <Pressable
                       key={c}
                       onPress={() => updateField('color', c)}
                       style={[
-                        styles.colorDot,
+                        s.colorDot,
                         { backgroundColor: c },
-                        block.color === c && styles.colorDotSelected,
+                        block.color === c && s.colorDotSelected,
                       ]}
                     />
                   ))}
@@ -225,7 +233,7 @@ export function BlockCard({
             </View>
 
             {/* Children */}
-            <View style={styles.childrenZone}>
+            <View style={s.childrenZone}>
               {(block.children ?? []).map((child, index) => (
                 <BlockCard
                   key={child.id}
@@ -259,23 +267,23 @@ export function BlockCard({
             </View>
 
             {/* Acciones */}
-            <View style={styles.actionsBar}>
+            <View style={s.actionsBar}>
               {onMoveUp && (
-                <Pressable onPress={onMoveUp} hitSlop={8} style={styles.actionBtn}>
-                  <Ionicons name="arrow-up" size={16} color={Colors.textSecondary} />
+                <Pressable onPress={onMoveUp} hitSlop={8} style={s.actionBtn}>
+                  <Ionicons name="arrow-up" size={16} color={t.textoSecundario} />
                 </Pressable>
               )}
               {onMoveDown && (
-                <Pressable onPress={onMoveDown} hitSlop={8} style={styles.actionBtn}>
-                  <Ionicons name="arrow-down" size={16} color={Colors.textSecondary} />
+                <Pressable onPress={onMoveDown} hitSlop={8} style={s.actionBtn}>
+                  <Ionicons name="arrow-down" size={16} color={t.textoSecundario} />
                 </Pressable>
               )}
-              <Pressable onPress={onDuplicate} hitSlop={8} style={styles.actionBtn}>
-                <Ionicons name="copy-outline" size={16} color={Colors.textSecondary} />
+              <Pressable onPress={onDuplicate} hitSlop={8} style={s.actionBtn}>
+                <Ionicons name="copy-outline" size={16} color={t.textoSecundario} />
               </Pressable>
               <View style={{ flex: 1 }} />
-              <Pressable onPress={onDelete} hitSlop={8} style={styles.actionBtn}>
-                <Ionicons name="trash-outline" size={16} color={Colors.error} />
+              <Pressable onPress={onDelete} hitSlop={8} style={s.actionBtn}>
+                <Ionicons name="trash-outline" size={16} color={t.error} />
               </Pressable>
             </View>
           </View>
@@ -287,21 +295,21 @@ export function BlockCard({
   // === RENDER HOJA (work/rest/prep) ===
 
   return (
-    <View style={[styles.cardOuter, { marginLeft: indent }]}>
+    <View style={[s.cardOuter, { marginLeft: indent }]}>
       {/* Barra color izquierda */}
-      <View style={[styles.accentBar, { backgroundColor: blockColor }]} />
+      <View style={[s.accentBar, { backgroundColor: blockColor }]} />
 
       {/* Header colapsable */}
-      <Pressable onPress={() => setExpanded(!expanded)} style={styles.cardHeader}>
+      <Pressable onPress={() => setExpanded(!expanded)} style={s.cardHeader}>
         {/* Drag handle */}
-        <View style={styles.dragHandle}>
-          <Ionicons name="reorder-two-outline" size={18} color={Colors.textSecondary} />
+        <View style={s.dragHandle}>
+          <Ionicons name="reorder-two-outline" size={18} color={t.textoSecundario} />
         </View>
 
-        <View style={styles.headerInfo}>
+        <View style={s.headerInfo}>
           {editing ? (
             <TextInput
-              style={[styles.labelInput, { fontSize: 14 }]}
+              style={[s.labelInput, { fontSize: 14 }]}
               value={block.label}
               onChangeText={t => updateField('label', t)}
               onBlur={() => setEditing(false)}
@@ -310,20 +318,20 @@ export function BlockCard({
             />
           ) : (
             <Pressable onPress={() => setEditing(true)}>
-              <EliteText variant="body" style={styles.leafName} numberOfLines={1}>
+              <EliteText variant="body" style={s.leafName} numberOfLines={1}>
                 {block.label}
                 {block.exercise_name ? ` — ${block.exercise_name}` : ''}
               </EliteText>
             </Pressable>
           )}
-          <EliteText variant="caption" style={styles.subtitleText}>
+          <EliteText variant="caption" style={s.subtitleText}>
             {TYPE_LABELS[block.type]} · {formatDur(block.duration_seconds)}
           </EliteText>
         </View>
 
         {/* Badge duración */}
-        <View style={[styles.durationBadge, { backgroundColor: blockColor + '20' }]}>
-          <EliteText variant="caption" style={[styles.durationBadgeText, { color: blockColor }]}>
+        <View style={[s.durationBadge, { backgroundColor: blockColor + '20' }]}>
+          <EliteText variant="caption" style={[s.durationBadgeText, { color: blockColor }]}>
             {formatDur(block.duration_seconds)}
           </EliteText>
         </View>
@@ -331,17 +339,17 @@ export function BlockCard({
         <Ionicons
           name={expanded ? 'chevron-up' : 'chevron-down'}
           size={18}
-          color={Colors.textSecondary}
+          color={t.textoSecundario}
         />
       </Pressable>
 
       {/* Contenido expandido */}
       {expanded && (
-        <View style={styles.expandedContent}>
+        <View style={s.expandedContent}>
           {/* Tipo selector */}
-          <View style={styles.configRow}>
-            <EliteText variant="caption" style={styles.configLabel}>Tipo</EliteText>
-            <View style={styles.typeSelector}>
+          <View style={s.configRow}>
+            <EliteText variant="caption" style={s.configLabel}>Tipo</EliteText>
+            <View style={s.typeSelector}>
               {(['work', 'rest', 'prep'] as const).map(t => (
                 <Pressable
                   key={t}
@@ -350,13 +358,13 @@ export function BlockCard({
                     updateField('color', TYPE_COLORS[t]);
                   }}
                   style={[
-                    styles.typePill,
+                    s.typePill,
                     block.type === t && { backgroundColor: TYPE_COLORS[t] + '25', borderColor: TYPE_COLORS[t] + '50' },
                   ]}
                 >
-                  <View style={[styles.typeDot, { backgroundColor: TYPE_COLORS[t] }]} />
+                  <View style={[s.typeDot, { backgroundColor: TYPE_COLORS[t] }]} />
                   <EliteText variant="caption" style={[
-                    styles.typeText,
+                    s.typeText,
                     block.type === t && { color: TYPE_COLORS[t] },
                   ]}>
                     {TYPE_LABELS[t]}
@@ -367,9 +375,10 @@ export function BlockCard({
           </View>
 
           {/* Duración */}
-          <View style={styles.configRow}>
-            <EliteText variant="caption" style={styles.configLabel}>Duración</EliteText>
+          <View style={s.configRow}>
+            <EliteText variant="caption" style={s.configLabel}>Duración</EliteText>
             <NumberStepper
+              t={t}
               value={block.duration_seconds ?? 0}
               onChange={v => updateField('duration_seconds', v)}
               min={1}
@@ -382,51 +391,51 @@ export function BlockCard({
 
           {/* Ejercicio (solo work) */}
           {block.type === 'work' && (
-            <View style={styles.exerciseSection}>
-              <EliteText variant="caption" style={styles.configLabel}>Ejercicio</EliteText>
+            <View style={s.exerciseSection}>
+              <EliteText variant="caption" style={s.configLabel}>Ejercicio</EliteText>
               {block.exercise_id && block.exercise_name ? (
-                <View style={styles.exerciseAssigned}>
+                <View style={s.exerciseAssigned}>
                   <Ionicons name="barbell-outline" size={14} color={Colors.neonGreen} />
-                  <EliteText variant="caption" style={styles.exerciseNameText} numberOfLines={1}>
+                  <EliteText variant="caption" style={s.exerciseNameText} numberOfLines={1}>
                     {block.exercise_name}
                   </EliteText>
-                  <Pressable onPress={onAssignExercise} hitSlop={8} style={styles.changeBtn}>
-                    <EliteText variant="caption" style={styles.changeBtnText}>CAMBIAR</EliteText>
+                  <Pressable onPress={onAssignExercise} hitSlop={8} style={s.changeBtn}>
+                    <EliteText variant="caption" style={s.changeBtnText}>CAMBIAR</EliteText>
                   </Pressable>
                   <Pressable
                     onPress={() => { updateField('exercise_id', null); updateField('exercise_name', null); updateField('matrix_slug', null); }}
                     hitSlop={8}
                   >
-                    <Ionicons name="close-circle" size={16} color={Colors.textSecondary} />
+                    <Ionicons name="close-circle" size={16} color={t.textoSecundario} />
                   </Pressable>
                 </View>
               ) : (
-                <Pressable onPress={onAssignExercise} style={styles.assignBtn}>
+                <Pressable onPress={onAssignExercise} style={s.assignBtn}>
                   <Ionicons name="add-circle-outline" size={16} color={Colors.neonGreen} />
-                  <EliteText variant="caption" style={styles.assignBtnText}>Asignar ejercicio</EliteText>
+                  <EliteText variant="caption" style={s.assignBtnText}>Asignar ejercicio</EliteText>
                 </Pressable>
               )}
             </View>
           )}
 
           {/* Acciones */}
-          <View style={styles.actionsBar}>
+          <View style={s.actionsBar}>
             {onMoveUp && (
-              <Pressable onPress={onMoveUp} hitSlop={8} style={styles.actionBtn}>
-                <Ionicons name="arrow-up" size={16} color={Colors.textSecondary} />
+              <Pressable onPress={onMoveUp} hitSlop={8} style={s.actionBtn}>
+                <Ionicons name="arrow-up" size={16} color={t.textoSecundario} />
               </Pressable>
             )}
             {onMoveDown && (
-              <Pressable onPress={onMoveDown} hitSlop={8} style={styles.actionBtn}>
-                <Ionicons name="arrow-down" size={16} color={Colors.textSecondary} />
+              <Pressable onPress={onMoveDown} hitSlop={8} style={s.actionBtn}>
+                <Ionicons name="arrow-down" size={16} color={t.textoSecundario} />
               </Pressable>
             )}
-            <Pressable onPress={onDuplicate} hitSlop={8} style={styles.actionBtn}>
-              <Ionicons name="copy-outline" size={16} color={Colors.textSecondary} />
+            <Pressable onPress={onDuplicate} hitSlop={8} style={s.actionBtn}>
+              <Ionicons name="copy-outline" size={16} color={t.textoSecundario} />
             </Pressable>
             <View style={{ flex: 1 }} />
-            <Pressable onPress={onDelete} hitSlop={8} style={styles.actionBtn}>
-              <Ionicons name="trash-outline" size={16} color={Colors.error} />
+            <Pressable onPress={onDelete} hitSlop={8} style={s.actionBtn}>
+              <Ionicons name="trash-outline" size={16} color={t.error} />
             </Pressable>
           </View>
         </View>
@@ -438,29 +447,30 @@ export function BlockCard({
 // === NUMBER STEPPER ===
 
 function NumberStepper({
-  value, onChange, min = 0, max = 999, step = 1, suffix = '', accent = Colors.neonGreen,
+  t, value, onChange, min = 0, max = 999, step = 1, suffix = '', accent = Colors.neonGreen,
 }: {
-  value: number; onChange: (v: number) => void;
+  t: AppThemeTokens; value: number; onChange: (v: number) => void;
   min?: number; max?: number; step?: number; suffix?: string; accent?: string;
 }) {
+  const s = useMemo(() => makeStyles(t), [t]);
   return (
-    <View style={styles.stepperRow}>
+    <View style={s.stepperRow}>
       <Pressable
         onPress={() => onChange(Math.max(min, value - step))}
         disabled={value <= min}
-        style={[styles.stepperBtn, { borderColor: value <= min ? Colors.disabled : accent + '40' }]}
+        style={[s.stepperBtn, { borderColor: value <= min ? t.bordeMarcado : accent + '40' }]}
       >
-        <Ionicons name="remove" size={14} color={value <= min ? Colors.disabled : accent} />
+        <Ionicons name="remove" size={14} color={value <= min ? t.bordeMarcado : accent} />
       </Pressable>
-      <EliteText variant="body" style={styles.stepperValue}>
+      <EliteText variant="body" style={s.stepperValue}>
         {value}{suffix}
       </EliteText>
       <Pressable
         onPress={() => onChange(Math.min(max, value + step))}
         disabled={value >= max}
-        style={[styles.stepperBtn, { borderColor: value >= max ? Colors.disabled : accent + '40' }]}
+        style={[s.stepperBtn, { borderColor: value >= max ? t.bordeMarcado : accent + '40' }]}
       >
-        <Ionicons name="add" size={14} color={value >= max ? Colors.disabled : accent} />
+        <Ionicons name="add" size={14} color={value >= max ? t.bordeMarcado : accent} />
       </Pressable>
     </View>
   );
@@ -468,15 +478,15 @@ function NumberStepper({
 
 // === ESTILOS ===
 
-const styles = StyleSheet.create({
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   // Card exterior (compartida grupo y hoja)
   cardOuter: {
-    backgroundColor: Colors.surfaceLight,
+    backgroundColor: t.flotante,
     borderRadius: Radius.md,
     marginBottom: Spacing.sm,
     overflow: 'hidden',
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: t.borde,
   },
   accentBar: {
     position: 'absolute',
@@ -508,15 +518,15 @@ const styles = StyleSheet.create({
   groupName: {
     fontSize: 15,
     fontFamily: Fonts.bold,
-    color: Colors.textPrimary,
+    color: t.texto,
   },
   leafName: {
     fontSize: 14,
     fontFamily: Fonts.semiBold,
-    color: Colors.textPrimary,
+    color: t.texto,
   },
   subtitleText: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     fontSize: 11,
     marginTop: 1,
   },
@@ -544,7 +554,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.sm,
     borderTopWidth: 0.5,
-    borderTopColor: '#2a2a2a',
+    borderTopColor: t.borde,
   },
 
   // Config
@@ -560,7 +570,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   configLabel: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     fontSize: 12,
     fontFamily: Fonts.semiBold,
   },
@@ -575,7 +585,7 @@ const styles = StyleSheet.create({
   },
   colorDotSelected: {
     borderWidth: 2,
-    borderColor: Colors.textPrimary,
+    borderColor: t.texto,
   },
 
   // Children zone
@@ -590,7 +600,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingTop: Spacing.sm,
     borderTopWidth: 0.5,
-    borderTopColor: '#2a2a2a',
+    borderTopColor: t.borde,
     marginTop: Spacing.xs,
   },
   actionBtn: {
@@ -610,7 +620,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: t.borde,
   },
   typeDot: {
     width: 6,
@@ -620,7 +630,7 @@ const styles = StyleSheet.create({
   typeText: {
     fontSize: 11,
     fontFamily: Fonts.semiBold,
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
   },
 
   // Ejercicio
@@ -673,8 +683,8 @@ const styles = StyleSheet.create({
   labelInput: {
     fontFamily: Fonts.semiBold,
     fontSize: 15,
-    color: Colors.textPrimary,
-    backgroundColor: '#252525',
+    color: t.texto,
+    backgroundColor: t.flotante,
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
@@ -690,7 +700,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: Colors.surfaceLight,
+    backgroundColor: t.flotante,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -701,6 +711,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     fontSize: 14,
     fontVariant: ['tabular-nums'],
-    color: Colors.textPrimary,
+    color: t.texto,
   },
 });

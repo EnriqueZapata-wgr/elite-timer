@@ -11,6 +11,13 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { ATP_BRAND, TEXT } from '@/src/constants/brand';
 import { Spacing, FontSizes, Fonts, Radius } from '@/constants/theme';
 import { haptic } from '@/src/utils/haptics';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
+
+// MB-31B: el título/hora/mensaje se quedan en TEXT.primary/rgba blanco fijo
+// a propósito en los dos temas — van SIEMPRE sobre foto con velo oscuro o
+// gradient sólido (excepción de la doctrina de color, regla 1). Lo que sí
+// cambia con el tema es el fondo base (fallback antes de pintar la capa) y
+// el texto sobre el relleno lima del botón primario.
 
 export interface HeroAgendaCardProps {
   icon: string;
@@ -27,8 +34,9 @@ export interface HeroAgendaCardProps {
 export function HeroAgendaCard({
   icon, title, timeLabel, countdownLabel, message, gradient, imageBn, onTapAgenda, onComplete,
 }: HeroAgendaCardProps) {
+  const t = useSurfaceTokens();
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: t.fondo }]}>
       {imageBn ? (
         <Image source={imageBn} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : (
@@ -55,7 +63,7 @@ export function HeroAgendaCard({
             <EliteText style={styles.btnSecondaryText}>Ver mi agenda →</EliteText>
           </AnimatedPressable>
           <AnimatedPressable onPress={() => { haptic.success(); onComplete(); }} style={styles.btnPrimary}>
-            <EliteText style={styles.btnPrimaryText}>✓ Listo</EliteText>
+            <EliteText style={[styles.btnPrimaryText, { color: t.textoSobreLima }]}>✓ Listo</EliteText>
           </AnimatedPressable>
         </View>
       </View>
@@ -64,7 +72,7 @@ export function HeroAgendaCard({
 }
 
 const styles = StyleSheet.create({
-  card: { width: '100%', minHeight: 220, borderRadius: Radius.card, overflow: 'hidden', marginBottom: Spacing.md, backgroundColor: '#000' },
+  card: { width: '100%', minHeight: 220, borderRadius: Radius.card, overflow: 'hidden', marginBottom: Spacing.md },
   content: { flex: 1, padding: Spacing.lg, justifyContent: 'flex-end', gap: 4, minHeight: 220 },
   countdown: { color: ATP_BRAND.lime, fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, letterSpacing: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 4 },
@@ -76,5 +84,5 @@ const styles = StyleSheet.create({
   btnSecondary: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.sm, borderRadius: 999, borderWidth: 1, borderColor: ATP_BRAND.teal },
   btnSecondaryText: { color: ATP_BRAND.teal, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   btnPrimary: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.sm, borderRadius: 999, backgroundColor: ATP_BRAND.lime },
-  btnPrimaryText: { color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.sm },
+  btnPrimaryText: { fontFamily: Fonts.bold, fontSize: FontSizes.sm },
 });

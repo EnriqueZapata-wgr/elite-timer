@@ -8,6 +8,8 @@ import { View, Text, Pressable } from 'react-native';
 import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface Props {
   exerciseName: string;
@@ -16,7 +18,15 @@ interface Props {
   onCue?: (text: string, opts?: { hito?: boolean }) => void;
 }
 
+// MB-31B: rojo de MYO REPS = señal de dominio (doctrina), se queda
+// hardcodeado como relleno/icono en los dos temas. Como TEXTO chico en claro
+// no alcanza contraste (3.19:1) — se oscurece solo ahí.
+const MYO_RED = '#ef4444';
+const myoRedText = (dark: boolean) => (dark ? MYO_RED : '#C0392B');
+
 export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
   const [phase, setPhase] = useState<'activation' | 'rest' | 'overload' | 'done'>('activation');
   const [overloadSets, setOverloadSets] = useState<number[]>([]);
   const [restTimer, setRestTimer] = useState(5);
@@ -87,12 +97,12 @@ export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
   return (
     <View style={{ padding: 20 }}>
       {/* Header */}
-      <View style={{ backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 16, padding: 16, marginBottom: 20 }}>
+      <View style={{ backgroundColor: dark ? 'rgba(239,68,68,0.1)' : 'rgba(192,57,43,0.10)', borderRadius: 16, padding: 16, marginBottom: 20 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <Ionicons name="flame" size={18} color="#ef4444" />
-          <Text style={{ color: '#ef4444', fontSize: 15, fontWeight: '800' }}>MYO REPS</Text>
+          <Ionicons name="flame" size={18} color={MYO_RED} />
+          <Text style={{ color: myoRedText(dark), fontSize: 15, fontWeight: '800' }}>MYO REPS</Text>
         </View>
-        <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 20 }}>
+        <Text style={{ color: t.textoSecundario, fontSize: 13, lineHeight: 20 }}>
           Activación: 20 reps{'\n'}
           Sobrecargas: 5 reps con 5 seg descanso hasta fallar{'\n'}
           Elige un peso con el que puedas hacer 20 reps.
@@ -102,11 +112,11 @@ export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
       {/* ACTIVATION */}
       {phase === 'activation' && (
         <View style={{ alignItems: 'center' }}>
-          <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800', marginBottom: 4 }}>SET DE ACTIVACIÓN</Text>
-          <Text style={{ color: '#999', fontSize: 14, marginBottom: 24 }}>Haz 20 reps con tu peso elegido</Text>
+          <Text style={{ color: t.texto, fontSize: 20, fontWeight: '800', marginBottom: 4 }}>SET DE ACTIVACIÓN</Text>
+          <Text style={{ color: t.textoSecundario, fontSize: 14, marginBottom: 24 }}>Haz 20 reps con tu peso elegido</Text>
           <Pressable
             onPress={completeActivation}
-            style={{ backgroundColor: '#ef4444', borderRadius: 20, padding: 18, paddingHorizontal: 40 }}
+            style={{ backgroundColor: MYO_RED, borderRadius: 20, padding: 18, paddingHorizontal: 40 }}
           >
             <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>COMPLETÉ 20 REPS</Text>
           </Pressable>
@@ -117,8 +127,8 @@ export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
       {phase === 'rest' && (
         <View style={{ alignItems: 'center' }}>
           <Text style={{ color: '#38bdf8', fontSize: 64, fontWeight: '900' }}>{restTimer}</Text>
-          <Text style={{ color: '#999', fontSize: 14 }}>segundos de descanso</Text>
-          <Text style={{ color: '#666', fontSize: 12, marginTop: 8 }}>
+          <Text style={{ color: t.textoSecundario, fontSize: 14 }}>segundos de descanso</Text>
+          <Text style={{ color: dark ? t.textoTenue : t.textoSecundario, fontSize: 12, marginTop: 8 }}>
             Siguiente: Sobrecarga {overloadSets.length + 1}
           </Text>
         </View>
@@ -127,10 +137,10 @@ export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
       {/* OVERLOAD */}
       {phase === 'overload' && (
         <View style={{ alignItems: 'center' }}>
-          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', marginBottom: 4 }}>
+          <Text style={{ color: t.texto, fontSize: 18, fontWeight: '800', marginBottom: 4 }}>
             SOBRECARGA {overloadSets.length + 1}
           </Text>
-          <Text style={{ color: '#999', fontSize: 13, marginBottom: 20 }}>
+          <Text style={{ color: t.textoSecundario, fontSize: 13, marginBottom: 20 }}>
             Haz 5 reps. Menos de 5 = fallo controlado (fin del método).
           </Text>
           {/* Tap = seleccionar (corregible); CONFIRMAR cierra la sobrecarga */}
@@ -141,16 +151,16 @@ export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSeleccion(r); }}
                 style={{
                   width: 50, height: 50, borderRadius: 25,
-                  backgroundColor: seleccion === r ? (r === 5 ? '#a8e02a' : '#ef4444') : '#1a1a1a',
+                  backgroundColor: seleccion === r ? (r === 5 ? ATP_BRAND.lime : MYO_RED) : t.flotante,
                   justifyContent: 'center', alignItems: 'center',
-                  borderWidth: 1, borderColor: seleccion === r ? (r === 5 ? '#a8e02a' : '#ef4444') : '#333',
+                  borderWidth: 1, borderColor: seleccion === r ? (r === 5 ? ATP_BRAND.lime : MYO_RED) : t.bordeMarcado,
                 }}
               >
-                <Text style={{ color: seleccion === r ? '#000' : '#fff', fontSize: 17, fontWeight: '800' }}>{r}</Text>
+                <Text style={{ color: seleccion === r ? (r === 5 ? t.textoSobreLima : '#fff') : t.texto, fontSize: 17, fontWeight: '800' }}>{r}</Text>
               </Pressable>
             ))}
           </View>
-          <Text style={{ color: '#666', fontSize: 11, marginTop: 10 }}>
+          <Text style={{ color: dark ? t.textoTenue : t.textoSecundario, fontSize: 11, marginTop: 10 }}>
             {seleccion == null ? 'Tocar selecciona — confirma para cerrar.'
               : seleccion === 5 ? '5 reps completas — confirma para seguir.'
                 : `${seleccion} reps = fallo controlado — confirma para cerrar.`}
@@ -160,12 +170,12 @@ export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
               onPress={confirmarSobrecarga}
               style={{
                 flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14,
-                backgroundColor: seleccion === 5 ? '#a8e02a' : '#ef4444',
+                backgroundColor: seleccion === 5 ? ATP_BRAND.lime : MYO_RED,
                 borderRadius: 16, padding: 14, paddingHorizontal: 32,
               }}
             >
-              <Ionicons name="checkmark-circle" size={18} color={seleccion === 5 ? '#000' : '#fff'} />
-              <Text style={{ color: seleccion === 5 ? '#000' : '#fff', fontSize: 15, fontWeight: '800' }}>
+              <Ionicons name="checkmark-circle" size={18} color={seleccion === 5 ? t.textoSobreLima : '#fff'} />
+              <Text style={{ color: seleccion === 5 ? t.textoSobreLima : '#fff', fontSize: 15, fontWeight: '800' }}>
                 CONFIRMAR
               </Text>
             </Pressable>
@@ -176,9 +186,9 @@ export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
       {/* DONE */}
       {phase === 'done' && (
         <View style={{ alignItems: 'center', paddingVertical: 16 }}>
-          <Ionicons name="checkmark-circle" size={48} color="#a8e02a" />
-          <Text style={{ color: '#a8e02a', fontSize: 20, fontWeight: '800', marginTop: 8 }}>MYO REPS COMPLETADO</Text>
-          <Text style={{ color: '#999', fontSize: 13, marginTop: 8, textAlign: 'center' }}>
+          <Ionicons name="checkmark-circle" size={48} color={ATP_BRAND.lime} />
+          <Text style={{ color: dark ? ATP_BRAND.lime : t.tealTexto, fontSize: 20, fontWeight: '800', marginTop: 8 }}>MYO REPS COMPLETADO</Text>
+          <Text style={{ color: t.textoSecundario, fontSize: 13, marginTop: 8, textAlign: 'center' }}>
             20 activación + {overloadSets.length} sobrecargas
           </Text>
         </View>
@@ -187,23 +197,23 @@ export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
       {/* Sets log */}
       {overloadSets.length > 0 && (
         <View style={{ marginTop: 20 }}>
-          <Text style={{ color: '#666', fontSize: 10, fontWeight: '600', letterSpacing: 1, marginBottom: 6 }}>PROGRESO</Text>
+          <Text style={{ color: dark ? t.textoTenue : t.textoSecundario, fontSize: 10, fontWeight: '600', letterSpacing: 1, marginBottom: 6 }}>PROGRESO</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#a8e02a', justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ color: '#000', fontSize: 9, fontWeight: '700' }}>A</Text>
+            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: ATP_BRAND.lime, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={{ color: t.textoSobreLima, fontSize: 9, fontWeight: '700' }}>A</Text>
             </View>
-            <Text style={{ color: '#a8e02a', fontSize: 12 }}>Activación: 20 reps</Text>
+            <Text style={{ color: dark ? ATP_BRAND.lime : t.tealTexto, fontSize: 12 }}>Activación: 20 reps</Text>
           </View>
           {overloadSets.map((reps, i) => (
             <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
               <View style={{
                 width: 20, height: 20, borderRadius: 10,
-                backgroundColor: reps === 5 ? '#a8e02a' : '#ef4444',
+                backgroundColor: reps === 5 ? ATP_BRAND.lime : MYO_RED,
                 justifyContent: 'center', alignItems: 'center',
               }}>
-                <Text style={{ color: reps === 5 ? '#000' : '#fff', fontSize: 9, fontWeight: '700' }}>{i + 1}</Text>
+                <Text style={{ color: reps === 5 ? t.textoSobreLima : '#fff', fontSize: 9, fontWeight: '700' }}>{i + 1}</Text>
               </View>
-              <Text style={{ color: reps === 5 ? '#a8e02a' : '#ef4444', fontSize: 12 }}>
+              <Text style={{ color: reps === 5 ? (dark ? ATP_BRAND.lime : t.tealTexto) : myoRedText(dark), fontSize: 12 }}>
                 Sobrecarga: {reps} reps {reps < 5 ? '(FALLO)' : ''}
               </Text>
             </View>

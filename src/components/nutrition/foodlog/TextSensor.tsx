@@ -43,7 +43,7 @@ import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, TEXT_COLORS, SEMANTIC, withOpacity, ATP_BRAND } from '@/src/constants/brand';
-import { useAppTheme } from '@/src/contexts/theme-context';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { argosRateLimitMessage } from '@/src/services/argos-stream-core';
 import type { SensorPanelProps } from './types';
@@ -159,7 +159,9 @@ function calcQualityScore(ingredients: SelectedIngredient[], totalProtein: numbe
 export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPanelProps) {
   const { user } = useAuth();
   const analytics = useAnalytics();
-  const { kind, tokens: t } = useAppTheme();
+  // Componente compartido → useSurfaceTokens (oscuro fuera de <ThemeReady>).
+  const t = useSurfaceTokens();
+  const kind = t.kind;
   const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const { mode: nutritionMode } = useNutritionMode();
 
@@ -383,11 +385,11 @@ export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPa
     });
   }, [user, ingredients, query, nutritionMode, buildReviewState, persistSave, openReview]);
 
-  // MB-31B3: FoodReviewEditor NO está tematizado (pinta su propio #000) — la
-  // rama de revisión se queda oscura.
+  // NOCHE-4: FoodReviewEditor ya migró a tokens — el fondo de esta hoja sigue
+  // los tokens del scope en vez de pintar negro fijo.
   if (showReview && ingredients.length > 0) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#000', minHeight: 560 }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: t.fondo, minHeight: 560 }} edges={['top']}>
         <FoodReviewEditor
           initialState={buildReviewState()}
           onSave={persistSave}
@@ -526,7 +528,7 @@ export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPa
             )}
             <View style={{ flex: 1 }}>
               <EliteText style={[s.aiSearchTitle, { color: acento }]}>Estimar con IA</EliteText>
-              <EliteText style={s.aiSearchSub}>{`"${query.trim()}" · calcular macros`}</EliteText>
+              <EliteText style={[s.aiSearchSub, { color: t.textoTenue }]}>{`"${query.trim()}" · calcular macros`}</EliteText>
             </View>
           </AnimatedPressable>
         </Animated.View>
@@ -649,7 +651,7 @@ export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPa
 function MacroBox({ label, value, unit, color }: {
   label: string; value: string; unit: string; color: string;
 }) {
-  const { tokens: t } = useAppTheme();
+  const t = useSurfaceTokens();
   return (
     <View style={s.macroBox}>
       <EliteText style={[s.macroValue, { color }]}>{value}</EliteText>
@@ -724,7 +726,6 @@ const s = StyleSheet.create({
   },
   aiSearchTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.md },
   aiSearchSub: {
-    color: 'rgba(255,255,255,0.4)',
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     marginTop: 2,

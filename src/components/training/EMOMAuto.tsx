@@ -14,14 +14,22 @@
  * ⚠️ La regla de peso (deuda, serie de paga, subir/mantener/bajar) NO se toca.
  */
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { ELEVATION, TEXT } from '@/src/constants/brand';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, Radius } from '@/constants/theme';
 import { EMOM_CLASE_LABEL, type EmomPrescripcion } from '@/src/services/fitness/emom-core';
 
+// MB-31B: naranja de fase EMOM = señal de dominio (doctrina), se queda
+// hardcodeado como relleno/icono en los dos temas. Como TEXTO no alcanza
+// contraste en claro (1.96:1) — se oscurece solo ahí.
 const NARANJA = '#fb923c';
+const naranjaTexto = (dark: boolean) => (dark ? NARANJA : '#B45309');
+// MB-31B: rojo de estado "fallo/deuda" — mismo tratamiento que MYO REPS.
+const ROJO = '#ef4444';
+const rojoTexto = (dark: boolean) => (dark ? ROJO : '#C0392B');
 
 // Límites duros del ajuste manual (guiado, no prisionero: el rango sugerido
 // viene de la prescripción; estos solo evitan configuraciones sin sentido).
@@ -43,6 +51,9 @@ interface Props {
 }
 
 export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, onCue }: Props) {
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
+  const s = useMemo(() => makeStyles(t), [t]);
   const legacy = userLevel === 'beginner' ? { rounds: 8, targetReps: 8 } : { rounds: 10, targetReps: 10 };
   // X×X ajustable en la fase ready; al iniciar queda fijo para toda la sesión.
   const [rondasCfg, setRondasCfg] = useState(prescripcion?.rondas ?? legacy.rounds);
@@ -176,14 +187,14 @@ export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, on
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange(Math.max(0, valor - 1)); }}
         style={s.fineBtn}
       >
-        <Ionicons name="remove" size={18} color={TEXT.primary} />
+        <Ionicons name="remove" size={18} color={t.texto} />
       </Pressable>
       <Text style={s.fineValue}>{valor}</Text>
       <Pressable
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange(Math.min(REPS_LIM.max, valor + 1)); }}
         style={s.fineBtn}
       >
-        <Ionicons name="add" size={18} color={TEXT.primary} />
+        <Ionicons name="add" size={18} color={t.texto} />
       </Pressable>
     </View>
   );
@@ -197,14 +208,14 @@ export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, on
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); set(Math.max(min, valor - 1)); }}
           style={s.fineBtn}
         >
-          <Ionicons name="remove" size={18} color={TEXT.primary} />
+          <Ionicons name="remove" size={18} color={t.texto} />
         </Pressable>
         <Text style={s.cfgValue}>{valor}</Text>
         <Pressable
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); set(Math.min(max, valor + 1)); }}
           style={s.fineBtn}
         >
-          <Ionicons name="add" size={18} color={TEXT.primary} />
+          <Ionicons name="add" size={18} color={t.texto} />
         </Pressable>
       </View>
     </View>
@@ -260,7 +271,7 @@ export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, on
           <Text style={s.roundLabel}>
             Ronda {currentRound + 1} de {config.rounds}
           </Text>
-          <Text style={[s.debtLabel, { color: deudaParcial > 0 ? '#ef4444' : '#a8e02a' }]}>
+          <Text style={[s.debtLabel, { color: deudaParcial > 0 ? rojoTexto(dark) : (dark ? ATP_BRAND.lime : t.tealTexto) }]}>
             Deuda acumulada: {deudaParcial} reps
           </Text>
 
@@ -298,7 +309,7 @@ export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, on
                       : reps === config.targetReps ? 'rgba(168,224,42,0.15)' : 'rgba(239,68,68,0.15)',
                   }]}>
                     <Text style={{
-                      color: reps == null ? NARANJA : reps === config.targetReps ? '#a8e02a' : '#ef4444',
+                      color: reps == null ? naranjaTexto(dark) : reps === config.targetReps ? (dark ? ATP_BRAND.lime : t.tealTexto) : rojoTexto(dark),
                       fontSize: 11, fontFamily: Fonts.semiBold,
                     }}>
                       R{i + 1}: {reps == null ? '¿?' : reps}
@@ -348,7 +359,7 @@ export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, on
       {/* DONE */}
       {phase === 'done' && (
         <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-          <Ionicons name="checkmark-circle" size={48} color="#a8e02a" />
+          <Ionicons name="checkmark-circle" size={48} color={ATP_BRAND.lime} />
           <Text style={s.doneTitle}>EMOM COMPLETADO</Text>
           <Text style={s.doneMeta}>
             {results.length} rondas · Deuda: {totalDebt} reps
@@ -359,67 +370,71 @@ export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, on
   );
 }
 
-const s = StyleSheet.create({
-  headerCard: { backgroundColor: 'rgba(251,146,60,0.1)', borderRadius: Radius.card, padding: 16, marginBottom: 20 },
-  headerTitle: { color: NARANJA, fontSize: 15, fontFamily: Fonts.extraBold },
-  headerBody: { color: '#ccc', fontSize: 13, lineHeight: 20, fontFamily: Fonts.regular },
+// MB-31B: estilos derivados del tema — dark = valores de siempre (ELEVATION/TEXT).
+const makeStyles = (t: AppThemeTokens) => {
+  const dark = t.kind === 'dark';
+  return StyleSheet.create({
+    headerCard: { backgroundColor: dark ? 'rgba(251,146,60,0.1)' : 'rgba(180,83,9,0.10)', borderRadius: Radius.card, padding: 16, marginBottom: 20 },
+    headerTitle: { color: naranjaTexto(dark), fontSize: 15, fontFamily: Fonts.extraBold },
+    headerBody: { color: t.textoSecundario, fontSize: 13, lineHeight: 20, fontFamily: Fonts.regular },
 
-  exerciseName: { color: '#fff', fontSize: 18, fontFamily: Fonts.bold, marginBottom: 8 },
-  claseHint: { color: NARANJA, fontSize: 12, fontFamily: Fonts.semiBold, marginBottom: 12, textAlign: 'center' },
-  cfgCard: {
-    width: '100%', backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border,
-    borderWidth: 1, borderRadius: Radius.card, padding: 14, gap: 10,
-  },
-  cfgRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cfgLabel: { color: TEXT.secondary, fontSize: 11, fontFamily: Fonts.semiBold, letterSpacing: 1.5 },
-  cfgControls: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  cfgValue: { color: '#fff', fontSize: 22, fontFamily: Fonts.extraBold, fontVariant: ['tabular-nums'], minWidth: 40, textAlign: 'center' },
-  sugeridoText: { color: TEXT.secondary, fontSize: 11, fontFamily: Fonts.regular, textAlign: 'center', marginTop: 2 },
-  fineRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 12 },
-  fineBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: ELEVATION[2].bg,
-    borderWidth: 1, borderColor: ELEVATION[2].border, justifyContent: 'center', alignItems: 'center',
-  },
-  fineValue: { color: '#fff', fontSize: 20, fontFamily: Fonts.extraBold, fontVariant: ['tabular-nums'], minWidth: 36, textAlign: 'center' },
-  miniCta: {
-    backgroundColor: NARANJA, borderRadius: Radius.pill, paddingVertical: 10, paddingHorizontal: 24,
-    marginTop: 12, alignSelf: 'center',
-  },
-  miniCtaText: { color: '#000', fontSize: 13, fontFamily: Fonts.extraBold, letterSpacing: 1 },
-  ctaBtn: {
-    backgroundColor: NARANJA, borderRadius: Radius.card, padding: 18, paddingHorizontal: 48,
-    alignItems: 'center', marginTop: 16,
-  },
-  ctaText: { color: '#000', fontSize: 16, fontFamily: Fonts.extraBold },
+    exerciseName: { color: t.texto, fontSize: 18, fontFamily: Fonts.bold, marginBottom: 8 },
+    claseHint: { color: naranjaTexto(dark), fontSize: 12, fontFamily: Fonts.semiBold, marginBottom: 12, textAlign: 'center' },
+    cfgCard: {
+      width: '100%', backgroundColor: t.card, borderColor: t.borde,
+      borderWidth: 1, borderRadius: Radius.card, padding: 14, gap: 10,
+    },
+    cfgRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    cfgLabel: { color: t.textoSecundario, fontSize: 11, fontFamily: Fonts.semiBold, letterSpacing: 1.5 },
+    cfgControls: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    cfgValue: { color: t.texto, fontSize: 22, fontFamily: Fonts.extraBold, fontVariant: ['tabular-nums'], minWidth: 40, textAlign: 'center' },
+    sugeridoText: { color: t.textoSecundario, fontSize: 11, fontFamily: Fonts.regular, textAlign: 'center', marginTop: 2 },
+    fineRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 12 },
+    fineBtn: {
+      width: 40, height: 40, borderRadius: 20, backgroundColor: t.flotante,
+      borderWidth: 1, borderColor: t.bordeMarcado, justifyContent: 'center', alignItems: 'center',
+    },
+    fineValue: { color: t.texto, fontSize: 20, fontFamily: Fonts.extraBold, fontVariant: ['tabular-nums'], minWidth: 36, textAlign: 'center' },
+    miniCta: {
+      backgroundColor: NARANJA, borderRadius: Radius.pill, paddingVertical: 10, paddingHorizontal: 24,
+      marginTop: 12, alignSelf: 'center',
+    },
+    miniCtaText: { color: t.textoSobreLima, fontSize: 13, fontFamily: Fonts.extraBold, letterSpacing: 1 },
+    ctaBtn: {
+      backgroundColor: NARANJA, borderRadius: Radius.card, padding: 18, paddingHorizontal: 48,
+      alignItems: 'center', marginTop: 16,
+    },
+    ctaText: { color: t.textoSobreLima, fontSize: 16, fontFamily: Fonts.extraBold },
 
-  bigTimer: { color: NARANJA, fontSize: 56, fontFamily: Fonts.extraBold, fontVariant: ['tabular-nums'] },
-  roundLabel: { color: TEXT.secondary, fontSize: 14, marginBottom: 4, fontFamily: Fonts.regular },
-  debtLabel: { fontSize: 13, fontFamily: Fonts.semiBold, marginBottom: 16 },
-  hintText: { color: TEXT.secondary, fontSize: 12, marginTop: 12, marginBottom: 10, textAlign: 'center', fontFamily: Fonts.regular },
+    bigTimer: { color: naranjaTexto(dark), fontSize: 56, fontFamily: Fonts.extraBold, fontVariant: ['tabular-nums'] },
+    roundLabel: { color: t.textoSecundario, fontSize: 14, marginBottom: 4, fontFamily: Fonts.regular },
+    debtLabel: { fontSize: 13, fontFamily: Fonts.semiBold, marginBottom: 16 },
+    hintText: { color: t.textoSecundario, fontSize: 12, marginTop: 12, marginBottom: 10, textAlign: 'center', fontFamily: Fonts.regular },
 
-  repsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
-  repBtn: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: ELEVATION[2].bg, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: ELEVATION[2].border,
-  },
-  repBtnActivo: { backgroundColor: NARANJA, borderColor: NARANJA },
-  repBtnText: { color: '#fff', fontSize: 16, fontFamily: Fonts.bold },
-  repBtnTextActivo: { color: '#000' },
+    repsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
+    repBtn: {
+      width: 48, height: 48, borderRadius: 24,
+      backgroundColor: t.flotante, justifyContent: 'center', alignItems: 'center',
+      borderWidth: 1, borderColor: t.bordeMarcado,
+    },
+    repBtnActivo: { backgroundColor: NARANJA, borderColor: NARANJA },
+    repBtnText: { color: t.texto, fontSize: 16, fontFamily: Fonts.bold },
+    repBtnTextActivo: { color: t.textoSobreLima },
 
-  pendienteCard: {
-    width: '100%', backgroundColor: ELEVATION[1].bg, borderColor: NARANJA, borderWidth: 1,
-    borderRadius: Radius.card, padding: 14, marginBottom: 14, alignItems: 'center',
-  },
-  pendienteTitle: { color: NARANJA, fontSize: 13, fontFamily: Fonts.extraBold, letterSpacing: 1, marginTop: 6 },
-  pendienteBody: { color: TEXT.secondary, fontSize: 12, marginVertical: 8, fontFamily: Fonts.regular },
+    pendienteCard: {
+      width: '100%', backgroundColor: t.card, borderColor: NARANJA, borderWidth: 1,
+      borderRadius: Radius.card, padding: 14, marginBottom: 14, alignItems: 'center',
+    },
+    pendienteTitle: { color: naranjaTexto(dark), fontSize: 13, fontFamily: Fonts.extraBold, letterSpacing: 1, marginTop: 6 },
+    pendienteBody: { color: t.textoSecundario, fontSize: 12, marginVertical: 8, fontFamily: Fonts.regular },
 
-  roundChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+    roundChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
 
-  debtTitle: { color: NARANJA, fontSize: 22, fontFamily: Fonts.extraBold, marginTop: 8 },
-  debtNumber: { color: '#fff', fontSize: 56, fontFamily: Fonts.extraBold, marginVertical: 16 },
-  debtHint: { color: TEXT.secondary, fontSize: 14, marginBottom: 8, fontFamily: Fonts.regular },
+    debtTitle: { color: naranjaTexto(dark), fontSize: 22, fontFamily: Fonts.extraBold, marginTop: 8 },
+    debtNumber: { color: t.texto, fontSize: 56, fontFamily: Fonts.extraBold, marginVertical: 16 },
+    debtHint: { color: t.textoSecundario, fontSize: 14, marginBottom: 8, fontFamily: Fonts.regular },
 
-  doneTitle: { color: '#a8e02a', fontSize: 20, fontFamily: Fonts.extraBold, marginTop: 8 },
-  doneMeta: { color: TEXT.secondary, fontSize: 13, marginTop: 8, textAlign: 'center', fontFamily: Fonts.regular },
-});
+    doneTitle: { color: dark ? ATP_BRAND.lime : t.tealTexto, fontSize: 20, fontFamily: Fonts.extraBold, marginTop: 8 },
+    doneMeta: { color: t.textoSecundario, fontSize: 13, marginTop: 8, textAlign: 'center', fontFamily: Fonts.regular },
+  });
+};

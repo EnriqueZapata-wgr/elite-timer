@@ -178,10 +178,10 @@ export default function FastingScreen() {
   // y en claro caen a tokens legibles (reportado en el run).
   const verdeOk = kind === 'dark' ? '#22c55e' : t.tealTexto;
   const ambarParcial = kind === 'dark' ? '#f59e0b' : t.textoSecundario;
-  // Texto suave de lectura en hojas (#ccc/#bbb no mapean a token; en claro
-  // caen a texto principal para no perder legibilidad).
-  const suave = kind === 'dark' ? '#ccc' : t.texto;
-  const suave2 = kind === 'dark' ? '#bbb' : t.texto;
+  // Texto suave de lectura en hojas: los tokens SON el canon (doctrina de
+  // color), no un literal #ccc/#bbb metido en el ternario del oscuro.
+  const suave = t.texto;
+  const suave2 = t.textoSecundario;
   const [userId, setUserId] = useState('');
   const [activeFast, setActiveFast] = useState<any>(null);
   const [selectedProtocol, setSelectedProtocol] = useState(FASTING_PROTOCOLS[2]); // 16:8
@@ -847,7 +847,7 @@ export default function FastingScreen() {
               <Ionicons name="arrow-back" size={24} color={t.texto} />
             </Pressable>
             <View>
-              <Text style={{ color: '#5B9BD5', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ATP</Text>
+              <Text style={{ color: kind === 'dark' ? '#5B9BD5' : t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ATP</Text>
               {/* F.0.6: el estado se anuncia con palabras */}
               <Text style={{ color: t.texto, fontSize: 22, fontWeight: '800' }}>
                 {activeFast ? 'Estás ayunando' : 'AYUNO'}
@@ -1220,7 +1220,7 @@ export default function FastingScreen() {
       {/* ── Hoja de META (F.2): los 8 protocolos plegados aquí — antes
           vivían expandidos en la pantalla ── */}
       <Modal visible={goalSheetOpen} transparent animationType="slide" onRequestClose={() => setGoalSheetOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }} onPress={() => setGoalSheetOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: kind === 'dark' ? 'rgba(0,0,0,0.75)' : 'rgba(15,21,24,0.35)', justifyContent: 'flex-end' }} onPress={() => setGoalSheetOpen(false)}>
           <Pressable
             style={{ backgroundColor: t.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34, borderWidth: 1, borderColor: t.borde }}
             onPress={() => {}}
@@ -1257,7 +1257,7 @@ export default function FastingScreen() {
 
       {/* ── Hoja de FASE (F.1): qué pasa ahora, qué sigue, mapa completo ── */}
       <Modal visible={phaseSheetOpen} transparent animationType="slide" onRequestClose={() => setPhaseSheetOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }} onPress={() => setPhaseSheetOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: kind === 'dark' ? 'rgba(0,0,0,0.75)' : 'rgba(15,21,24,0.35)', justifyContent: 'flex-end' }} onPress={() => setPhaseSheetOpen(false)}>
           <Pressable
             style={{ backgroundColor: t.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34, borderWidth: 1, borderColor: t.borde }}
             onPress={() => {}}

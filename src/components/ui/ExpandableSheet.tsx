@@ -7,12 +7,14 @@
  * Bullet-proof: si el gesto fallara, el handle es TAPPABLE (cicla 50%↔90%) y hay backdrop
  * para cerrar, así que siempre es usable.
  */
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Modal, View, Pressable, StyleSheet, Dimensions } from 'react-native';
 import { GestureHandlerRootView, GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 const SCREEN_H = Dimensions.get('window').height;
 const SHEET_H = Math.round(SCREEN_H * 0.9);
@@ -32,6 +34,11 @@ interface Props {
 }
 
 export function ExpandableSheet({ visible, onClose, title, children }: Props) {
+  // MB-31B: superficies del scope. El oscuro queda idéntico al de siempre; en
+  // claro la hoja flota en papel y el lima del título cede al teal (el lima
+  // sobre claro da 1.34 de contraste, o sea nada).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const ty = useSharedValue(SHEET_H); // arranca cerrado (fuera de pantalla)
 
   useEffect(() => {
@@ -62,35 +69,51 @@ export function ExpandableSheet({ visible, onClose, title, children }: Props) {
 
   return (
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
-      <GestureHandlerRootView style={styles.root}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
-        <Animated.View style={[styles.sheet, sheetStyle]}>
+      <GestureHandlerRootView style={s.root}>
+        <Pressable style={s.backdrop} onPress={onClose} />
+        <Animated.View style={[s.sheet, sheetStyle]}>
           <GestureDetector gesture={pan}>
-            <View style={styles.handleArea}>
-              <Pressable onPress={cycle} hitSlop={16} style={styles.handleHit}>
-                <View style={styles.handle} />
+            <View style={s.handleArea}>
+              <Pressable onPress={cycle} hitSlop={16} style={s.handleHit}>
+                <View style={s.handle} />
               </Pressable>
-              {title ? <EliteText variant="body" style={styles.title}>{title}</EliteText> : null}
+              {title ? <EliteText variant="body" style={s.title}>{title}</EliteText> : null}
             </View>
           </GestureDetector>
-          <View style={styles.body}>{children}</View>
+          <View style={s.body}>{children}</View>
         </Animated.View>
       </GestureHandlerRootView>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1 },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: {
-    position: 'absolute', left: 0, right: 0, bottom: 0, height: SHEET_H,
-    backgroundColor: '#0c0c0c', borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg,
-    borderTopWidth: 1, borderColor: 'rgba(168,224,42,0.25)',
-  },
-  handleArea: { alignItems: 'center', paddingTop: Spacing.sm, paddingBottom: Spacing.xs },
-  handleHit: { paddingVertical: 6, paddingHorizontal: 40 },
-  handle: { width: 44, height: 5, borderRadius: 3, backgroundColor: '#444' },
-  title: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: FontSizes.sm, marginTop: 4, letterSpacing: 1 },
-  body: { flex: 1, paddingHorizontal: Spacing.md, paddingBottom: Spacing.lg },
-});
+const makeStyles = (t: AppThemeTokens) => {
+  const dark = t.kind === 'dark';
+  return StyleSheet.create({
+    root: { flex: 1 },
+    // El velo se mantiene oscuro en los dos temas: es lo que hunde el fondo.
+    // En claro se suaviza para no ensuciar el papel de abajo.
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: dark ? 'rgba(0,0,0,0.5)' : 'rgba(15,21,24,0.32)',
+    },
+    sheet: {
+      position: 'absolute', left: 0, right: 0, bottom: 0, height: SHEET_H,
+      backgroundColor: dark ? t.hundido : t.flotante,
+      borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg,
+      borderTopWidth: 1,
+      borderColor: dark ? 'rgba(168,224,42,0.25)' : t.borde,
+    },
+    handleArea: { alignItems: 'center', paddingTop: Spacing.sm, paddingBottom: Spacing.xs },
+    handleHit: { paddingVertical: 6, paddingHorizontal: 40 },
+    handle: {
+      width: 44, height: 5, borderRadius: 3,
+      backgroundColor: dark ? t.sinDatos : withOpacity(t.texto, 0.28),
+    },
+    title: {
+      color: dark ? Colors.neonGreen : t.tealTexto,
+      fontFamily: Fonts.bold, fontSize: FontSizes.sm, marginTop: 4, letterSpacing: 1,
+    },
+    body: { flex: 1, paddingHorizontal: Spacing.md, paddingBottom: Spacing.lg },
+  });
+};

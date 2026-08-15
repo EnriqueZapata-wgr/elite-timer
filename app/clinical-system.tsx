@@ -13,13 +13,15 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { Screen } from '@/src/components/ui/Screen';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Spacing } from '@/constants/theme';
-import { ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { withOpacity, type AppThemeTokens } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import {
   FUNCTIONAL_SYSTEM_BY_KEY,
   SEVERITY_LABELS,
@@ -41,6 +43,10 @@ import {
 } from '@/src/services/edad-atp/lab-values-service';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
+// MB-31B2: tenue = textoTenue en oscuro (canon), textoSecundario en claro
+// (el #555 de siempre no alcanza contraste para letra chica sobre papel).
+const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
+
 /** parameter_key → nombre legible (fallback: humanizar la key) */
 function humanizeLabKey(key: string): string {
   const clean = key.replace(/_/g, ' ');
@@ -58,6 +64,8 @@ export default function ClinicalSystemScreen() {
   useRegisterOwnNav();
 
   const insets = useSafeAreaInsets();
+  // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
+  const t = useAppTheme().tokens;
   const { user } = useAuth();
   const params = useLocalSearchParams<{ system?: string }>();
   const systemKey = (params.system ?? 'energia') as FunctionalSystemKey;
@@ -129,7 +137,7 @@ export default function ClinicalSystemScreen() {
     const logs = logsBySymptom[sym.id] ?? [];
     return (
       <View key={sym.id} style={{
-        backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+        backgroundColor: t.card, borderWidth: 1, borderColor: t.borde,
         borderRadius: 14, marginBottom: 8, overflow: 'hidden',
       }}>
         <Pressable
@@ -138,34 +146,34 @@ export default function ClinicalSystemScreen() {
         >
           <View style={{
             width: 8, height: 8, borderRadius: 4,
-            backgroundColor: isResolved ? TEXT.muted : severityColor(sym.severity),
+            backgroundColor: isResolved ? t.sinDatos : severityColor(sym.severity),
           }} />
           <View style={{ flex: 1 }}>
             <Text style={{
-              color: isResolved ? TEXT.secondary : TEXT.primary,
+              color: isResolved ? t.textoSecundario : t.texto,
               fontSize: FontSizes.md, fontFamily: Fonts.semiBold,
               textDecorationLine: isResolved ? 'line-through' : 'none',
             }}>
               {sym.name}
             </Text>
-            <Text style={{ color: TEXT.tertiary, fontSize: 11, fontFamily: Fonts.regular, marginTop: 1 }}>
+            <Text style={{ color: tenue(t), fontSize: 11, fontFamily: Fonts.regular, marginTop: 1 }}>
               {isResolved
                 ? `Resuelto ${sym.resolved_at ? formatDate(sym.resolved_at) : ''}`
                 : `${SEVERITY_LABELS[sym.severity]} · desde ${sym.first_seen ? formatDate(sym.first_seen) : '—'}`}
             </Text>
           </View>
-          <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={TEXT.tertiary} />
+          <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={tenue(t)} />
         </Pressable>
 
         {isOpen && (
           <View style={{
             paddingHorizontal: Spacing.md, paddingBottom: Spacing.md,
-            borderTopWidth: 1, borderTopColor: '#141414', paddingTop: Spacing.sm,
+            borderTopWidth: 1, borderTopColor: t.borde, paddingTop: Spacing.sm,
           }}>
             {!isResolved && (
               <>
                 <Text style={{
-                  color: TEXT.tertiary, fontSize: 10, fontFamily: Fonts.semiBold,
+                  color: tenue(t), fontSize: 10, fontFamily: Fonts.semiBold,
                   letterSpacing: 2, marginBottom: 8,
                 }}>
                   REGISTRAR SEVERIDAD HOY
@@ -177,13 +185,13 @@ export default function ClinicalSystemScreen() {
                       onPress={() => { haptic.light(); setPendingSeverity(lvl); }}
                       style={{
                         flex: 1, height: 38, borderRadius: 10, borderWidth: 1,
-                        borderColor: pendingSeverity === lvl ? severityColor(lvl) : '#222',
-                        backgroundColor: pendingSeverity === lvl ? withOpacity(severityColor(lvl), 0.15) : '#0a0a0a',
+                        borderColor: pendingSeverity === lvl ? severityColor(lvl) : t.borde,
+                        backgroundColor: pendingSeverity === lvl ? withOpacity(severityColor(lvl), 0.15) : t.hundido,
                         justifyContent: 'center', alignItems: 'center',
                       }}
                     >
                       <Text style={{
-                        color: pendingSeverity === lvl ? severityColor(lvl) : TEXT.secondary,
+                        color: pendingSeverity === lvl ? severityColor(lvl) : t.textoSecundario,
                         fontSize: 14, fontFamily: Fonts.bold,
                       }}>
                         {lvl}
@@ -207,11 +215,11 @@ export default function ClinicalSystemScreen() {
                     onPress={() => resolve(sym, true)}
                     disabled={busy}
                     style={{
-                      flex: 1, backgroundColor: '#0a0a0a', borderRadius: 10,
-                      paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#222',
+                      flex: 1, backgroundColor: t.hundido, borderRadius: 10,
+                      paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: t.borde,
                     }}
                   >
-                    <Text style={{ color: TEXT.secondary, fontSize: 12, fontFamily: Fonts.semiBold }}>
+                    <Text style={{ color: t.textoSecundario, fontSize: 12, fontFamily: Fonts.semiBold }}>
                       Marcar resuelto
                     </Text>
                   </AnimatedPressable>
@@ -223,11 +231,11 @@ export default function ClinicalSystemScreen() {
                 onPress={() => resolve(sym, false)}
                 disabled={busy}
                 style={{
-                  backgroundColor: '#0a0a0a', borderRadius: 10, paddingVertical: 10,
-                  alignItems: 'center', borderWidth: 1, borderColor: '#222',
+                  backgroundColor: t.hundido, borderRadius: 10, paddingVertical: 10,
+                  alignItems: 'center', borderWidth: 1, borderColor: t.borde,
                 }}
               >
-                <Text style={{ color: TEXT.secondary, fontSize: 12, fontFamily: Fonts.semiBold }}>Reabrir síntoma</Text>
+                <Text style={{ color: t.textoSecundario, fontSize: 12, fontFamily: Fonts.semiBold }}>Reabrir síntoma</Text>
               </AnimatedPressable>
             )}
 
@@ -235,7 +243,7 @@ export default function ClinicalSystemScreen() {
             {logs.length > 0 && (
               <View style={{ marginTop: Spacing.md }}>
                 <Text style={{
-                  color: TEXT.tertiary, fontSize: 10, fontFamily: Fonts.semiBold,
+                  color: tenue(t), fontSize: 10, fontFamily: Fonts.semiBold,
                   letterSpacing: 2, marginBottom: 6,
                 }}>
                   HISTORIAL
@@ -245,11 +253,11 @@ export default function ClinicalSystemScreen() {
                     <View style={{
                       width: 6, height: 6, borderRadius: 3, backgroundColor: severityColor(log.severity),
                     }} />
-                    <Text style={{ color: '#ccc', fontSize: 12, fontFamily: Fonts.regular, flex: 1 }}>
+                    <Text style={{ color: t.textoSecundario, fontSize: 12, fontFamily: Fonts.regular, flex: 1 }}>
                       {SEVERITY_LABELS[log.severity]}
                       {log.note ? ` · ${log.note}` : ''}
                     </Text>
-                    <Text style={{ color: TEXT.muted, fontSize: 11, fontFamily: Fonts.regular }}>
+                    <Text style={{ color: t.sinDatos, fontSize: 11, fontFamily: Fonts.regular }}>
                       {formatDate(log.logged_at)}
                     </Text>
                   </View>
@@ -263,14 +271,15 @@ export default function ClinicalSystemScreen() {
   };
 
   return (
+    <Screen edges={[]} themed>
     <ScrollView
-      style={{ flex: 1, backgroundColor: ELEVATION[0].bg }}
+      style={{ flex: 1 }}
       contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: Spacing.md }}
     >
       {/* Header */}
       <View style={{ paddingTop: insets.top + 8, marginBottom: Spacing.md }}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
+          <Ionicons name="arrow-back" size={24} color={t.texto} />
         </Pressable>
         <Animated.View entering={FadeInUp.delay(40).springify()} style={{ marginTop: Spacing.md }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -281,10 +290,10 @@ export default function ClinicalSystemScreen() {
               }}>
                 SISTEMA FUNCIONAL
               </Text>
-              <Text style={{ color: TEXT.primary, fontSize: 24, fontFamily: Fonts.extraBold }}>{sys.name}</Text>
+              <Text style={{ color: t.texto, fontSize: 24, fontFamily: Fonts.extraBold }}>{sys.name}</Text>
             </View>
           </View>
-          <Text style={{ color: TEXT.secondary, fontSize: 13, fontFamily: Fonts.regular, marginTop: 6 }}>
+          <Text style={{ color: t.textoSecundario, fontSize: 13, fontFamily: Fonts.regular, marginTop: 6 }}>
             {sys.scope}
           </Text>
         </Animated.View>
@@ -294,7 +303,7 @@ export default function ClinicalSystemScreen() {
       <Animated.View entering={FadeInUp.delay(80).springify()}>
         <SectionTitle>Síntomas activos</SectionTitle>
         {active.length === 0 && (
-          <Text style={{ color: TEXT.muted, fontSize: 13, fontFamily: Fonts.regular, marginBottom: Spacing.md }}>
+          <Text style={{ color: t.sinDatos, fontSize: 13, fontFamily: Fonts.regular, marginBottom: Spacing.md }}>
             Sin síntomas activos. Regístralos desde Historia Clínica.
           </Text>
         )}
@@ -305,21 +314,21 @@ export default function ClinicalSystemScreen() {
       <Animated.View entering={FadeInUp.delay(140).springify()} style={{ marginTop: Spacing.lg }}>
         <SectionTitle>Labs del sistema</SectionTitle>
         {relatedLabRows.length === 0 && (
-          <Text style={{ color: TEXT.muted, fontSize: 13, fontFamily: Fonts.regular }}>
+          <Text style={{ color: t.sinDatos, fontSize: 13, fontFamily: Fonts.regular }}>
             Sin labs registrados para este sistema. Sube tus estudios en Laboratorios.
           </Text>
         )}
         {relatedLabRows.map(row => (
           <View key={row.key} style={{
             flexDirection: 'row', alignItems: 'center', gap: 10,
-            backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+            backgroundColor: t.card, borderWidth: 1, borderColor: t.borde,
             borderRadius: 12, padding: 12, marginBottom: 6,
           }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#ccc', fontSize: 13, fontFamily: Fonts.semiBold }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 13, fontFamily: Fonts.semiBold }}>
                 {humanizeLabKey(row.key)}
               </Text>
-              <Text style={{ color: TEXT.muted, fontSize: 11, fontFamily: Fonts.regular }}>
+              <Text style={{ color: t.sinDatos, fontSize: 11, fontFamily: Fonts.regular }}>
                 {formatDate(row.measured_at)}
               </Text>
             </View>
@@ -354,5 +363,6 @@ export default function ClinicalSystemScreen() {
 
       <MedicalDisclaimer feature="health" />
     </ScrollView>
+    </Screen>
   );
 }

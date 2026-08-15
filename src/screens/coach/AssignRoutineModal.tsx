@@ -1,13 +1,14 @@
 /**
  * AssignRoutineModal — Seleccionar rutina del coach + programación para asignar a cliente.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, Modal, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
-import { CATEGORY_COLORS } from '@/src/constants/brand';
+import { CATEGORY_COLORS, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { getCoachRoutines, assignRoutineToClient, type ClientRoutine } from '@/src/services/coach-panel-service';
 import { getLocalToday } from '@/src/utils/date-helpers';
 
@@ -23,6 +24,8 @@ interface Props {
 }
 
 export function AssignRoutineModal({ visible, onClose, clientId, clientName, onAssigned }: Props) {
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [routines, setRoutines] = useState<ClientRoutine[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRoutine, setSelectedRoutine] = useState<ClientRoutine | null>(null);
@@ -59,25 +62,25 @@ export function AssignRoutineModal({ visible, onClose, clientId, clientName, onA
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.modal} onPress={e => e.stopPropagation()}>
-          <View style={styles.header}>
-            <EliteText variant="label" style={styles.title}>
+      <Pressable style={s.overlay} onPress={onClose}>
+        <Pressable style={s.modal} onPress={e => e.stopPropagation()}>
+          <View style={s.header}>
+            <EliteText variant="label" style={s.title}>
               {step === 'select' ? 'ASIGNAR RUTINA' : 'PROGRAMAR'}
             </EliteText>
-            <EliteText variant="caption" style={styles.subtitle}>Para {clientName}</EliteText>
-            <Pressable onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={22} color={Colors.textSecondary} />
+            <EliteText variant="caption" style={s.subtitle}>Para {clientName}</EliteText>
+            <Pressable onPress={onClose} style={s.closeBtn}>
+              <Ionicons name="close" size={22} color={t.textoSecundario} />
             </Pressable>
           </View>
 
           {step === 'select' ? (
             /* Paso 1: seleccionar rutina */
-            <ScrollView style={styles.body}>
+            <ScrollView style={s.body}>
               {loading ? (
                 <ActivityIndicator color={TEAL} style={{ marginVertical: Spacing.lg }} />
               ) : routines.length === 0 ? (
-                <EliteText variant="caption" style={styles.emptyText}>
+                <EliteText variant="caption" style={s.emptyText}>
                   No tienes rutinas. Crea una primero en Biblioteca.
                 </EliteText>
               ) : (
@@ -85,46 +88,46 @@ export function AssignRoutineModal({ visible, onClose, clientId, clientName, onA
                   <Pressable
                     key={r.id}
                     onPress={() => { setSelectedRoutine(r); setStep('schedule'); }}
-                    style={styles.routineItem}
+                    style={s.routineItem}
                   >
-                    <View style={[styles.routineDot, {
+                    <View style={[s.routineDot, {
                       backgroundColor: r.mode === 'timer' ? Colors.neonGreen : CATEGORY_COLORS.mind,
                     }]} />
-                    <View style={styles.routineInfo}>
-                      <EliteText variant="body" style={styles.routineName}>{r.name}</EliteText>
-                      <EliteText variant="caption" style={styles.routineMeta}>
+                    <View style={s.routineInfo}>
+                      <EliteText variant="body" style={s.routineName}>{r.name}</EliteText>
+                      <EliteText variant="caption" style={s.routineMeta}>
                         {r.mode === 'timer' ? 'Timer' : 'Rutina'}
                       </EliteText>
                     </View>
-                    <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+                    <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />
                   </Pressable>
                 ))
               )}
             </ScrollView>
           ) : (
             /* Paso 2: programar */
-            <View style={styles.body}>
-              <EliteText variant="body" style={styles.selectedName}>
+            <View style={s.body}>
+              <EliteText variant="body" style={s.selectedName}>
                 {selectedRoutine?.name}
               </EliteText>
 
               {/* Tipo de programación */}
-              <View style={styles.scheduleToggle}>
+              <View style={s.scheduleToggle}>
                 <Pressable
                   onPress={() => setScheduleType('weekly_cycle')}
-                  style={[styles.scheduleOption, scheduleType === 'weekly_cycle' && styles.scheduleOptionActive]}
+                  style={[s.scheduleOption, scheduleType === 'weekly_cycle' && s.scheduleOptionActive]}
                 >
                   <EliteText variant="caption" style={[
-                    styles.scheduleOptionText,
+                    s.scheduleOptionText,
                     scheduleType === 'weekly_cycle' && { color: TEAL },
                   ]}>Semanal</EliteText>
                 </Pressable>
                 <Pressable
                   onPress={() => setScheduleType('specific_date')}
-                  style={[styles.scheduleOption, scheduleType === 'specific_date' && styles.scheduleOptionActive]}
+                  style={[s.scheduleOption, scheduleType === 'specific_date' && s.scheduleOptionActive]}
                 >
                   <EliteText variant="caption" style={[
-                    styles.scheduleOptionText,
+                    s.scheduleOptionText,
                     scheduleType === 'specific_date' && { color: TEAL },
                   ]}>Hoy</EliteText>
                 </Pressable>
@@ -132,15 +135,15 @@ export function AssignRoutineModal({ visible, onClose, clientId, clientName, onA
 
               {/* Selector de día (solo weekly) */}
               {scheduleType === 'weekly_cycle' && (
-                <View style={styles.daysRow}>
+                <View style={s.daysRow}>
                   {DAY_LABELS.map((label, idx) => (
                     <Pressable
                       key={idx}
                       onPress={() => setSelectedDay(idx)}
-                      style={[styles.dayChip, selectedDay === idx && styles.dayChipActive]}
+                      style={[s.dayChip, selectedDay === idx && s.dayChipActive]}
                     >
                       <EliteText variant="caption" style={[
-                        styles.dayText,
+                        s.dayText,
                         selectedDay === idx && { color: TEAL },
                       ]}>{label}</EliteText>
                     </Pressable>
@@ -148,14 +151,14 @@ export function AssignRoutineModal({ visible, onClose, clientId, clientName, onA
                 </View>
               )}
 
-              <View style={styles.actionRow}>
+              <View style={s.actionRow}>
                 <Pressable onPress={() => setStep('select')}>
-                  <EliteText variant="caption" style={styles.backText}>← Cambiar rutina</EliteText>
+                  <EliteText variant="caption" style={s.backText}>← Cambiar rutina</EliteText>
                 </Pressable>
                 <EliteButton
                   label={saving ? 'Asignando...' : 'Asignar'}
                   onPress={handleAssign}
-                  style={styles.assignBtn}
+                  style={s.assignBtn}
                 />
               </View>
             </View>
@@ -166,55 +169,55 @@ export function AssignRoutineModal({ visible, onClose, clientId, clientName, onA
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: t.kind === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.lg,
   },
   modal: {
-    backgroundColor: Colors.surface,
+    backgroundColor: t.card,
     borderRadius: Radius.lg,
     width: '100%',
     maxWidth: 480,
     maxHeight: '70%',
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: t.borde,
   },
-  header: { padding: Spacing.md, borderBottomWidth: 0.5, borderBottomColor: '#2a2a2a' },
+  header: { padding: Spacing.md, borderBottomWidth: 0.5, borderBottomColor: t.borde },
   title: { color: TEAL, letterSpacing: 3, fontSize: 13 },
-  subtitle: { color: Colors.textSecondary, marginTop: 2 },
+  subtitle: { color: t.textoSecundario, marginTop: 2 },
   closeBtn: { position: 'absolute', top: Spacing.md, right: Spacing.md, padding: Spacing.xs },
   body: { padding: Spacing.md },
-  emptyText: { color: Colors.textSecondary, textAlign: 'center', padding: Spacing.lg },
+  emptyText: { color: t.textoSecundario, textAlign: 'center', padding: Spacing.lg },
   routineItem: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    paddingVertical: Spacing.sm, borderBottomWidth: 0.5, borderBottomColor: Colors.surfaceLight,
+    paddingVertical: Spacing.sm, borderBottomWidth: 0.5, borderBottomColor: t.flotante,
   },
   routineDot: { width: 8, height: 8, borderRadius: 4 },
   routineInfo: { flex: 1 },
   routineName: { fontFamily: Fonts.semiBold, fontSize: 14 },
-  routineMeta: { color: Colors.textSecondary, fontSize: 11 },
+  routineMeta: { color: t.textoSecundario, fontSize: 11 },
   selectedName: { fontFamily: Fonts.bold, fontSize: 16, marginBottom: Spacing.md },
   scheduleToggle: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md },
   scheduleOption: {
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    borderRadius: Radius.pill, borderWidth: 1, borderColor: '#2a2a2a',
+    borderRadius: Radius.pill, borderWidth: 1, borderColor: t.borde,
   },
   scheduleOptionActive: { borderColor: TEAL, backgroundColor: TEAL + '15' },
-  scheduleOptionText: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: 13 },
+  scheduleOptionText: { color: t.textoSecundario, fontFamily: Fonts.semiBold, fontSize: 13 },
   daysRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.md },
   dayChip: {
     width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: '#2a2a2a',
+    borderWidth: 1, borderColor: t.borde,
   },
   dayChipActive: { borderColor: TEAL, backgroundColor: TEAL + '20' },
-  dayText: { color: Colors.textSecondary, fontFamily: Fonts.bold, fontSize: 13 },
+  dayText: { color: t.textoSecundario, fontFamily: Fonts.bold, fontSize: 13 },
   actionRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.sm,
   },
-  backText: { color: Colors.textSecondary, fontSize: 12 },
+  backText: { color: t.textoSecundario, fontSize: 12 },
   assignBtn: { minWidth: 120 },
 });

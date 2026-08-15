@@ -240,7 +240,7 @@ export default function AfiliadosDashboardScreen() {
                 <EliteText style={[st.chartCount, secTxt]}>{b.count > 0 ? b.count : ''}</EliteText>
                 <View style={[st.chartBar, {
                   height: Math.max(4, (b.count / maxSerie) * 72),
-                  backgroundColor: b.count > 0 ? ATP_BRAND.lime : '#1a1a1a',
+                  backgroundColor: b.count > 0 ? ATP_BRAND.lime : t.hundido,
                 }]} />
                 <EliteText style={[st.chartMonth, { color: t.textoTenue }]}>{monthLabel(b.month)}</EliteText>
               </View>

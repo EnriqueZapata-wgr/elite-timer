@@ -3,13 +3,18 @@
  *
  * Muestra: qué significa, cómo mejorar, datos necesarios, disclaimer.
  */
+import { useMemo } from 'react';
 import { View, Modal, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { type DomainExplanation, HEALTH_DISCLAIMER } from '@/src/data/domain-explanations';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
+
+/** El tenue del oscuro (#555) no alcanza contraste en claro: ahí sube a secundario. */
+const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
 
 interface ExplanationModalProps {
   visible: boolean;
@@ -19,11 +24,15 @@ interface ExplanationModalProps {
 }
 
 export function ExplanationModal({ visible, onClose, explanation, currentScore }: ExplanationModalProps) {
+  // MB-31B: superficies del scope. El semáforo del score NO se toca: lima /
+  // ámbar / rojo son señal de salud, no decoración de tema.
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   if (!explanation) return null;
 
   const scoreColor = currentScore != null
     ? (currentScore >= 70 ? ATP_BRAND.lime : currentScore >= 40 ? '#EF9F27' : '#E24B4A')
-    : '#555';
+    : tenue(t);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -35,7 +44,7 @@ export function ExplanationModal({ visible, onClose, explanation, currentScore }
               <Ionicons name={explanation.icon as any} size={24} color={explanation.color} />
               <EliteText style={s.modalTitle}>{explanation.name}</EliteText>
               <AnimatedPressable onPress={onClose} style={s.closeBtn}>
-                <Ionicons name="close" size={20} color="#888" />
+                <Ionicons name="close" size={20} color={t.textoSecundario} />
               </AnimatedPressable>
             </View>
 
@@ -80,14 +89,16 @@ export function ExplanationModal({ visible, onClose, explanation, currentScore }
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (t: AppThemeTokens) => {
+  const dark = t.kind === 'dark';
+  return StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: dark ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)',
     justifyContent: 'flex-end',
   },
   modal: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: dark ? t.hundido : t.flotante,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: Spacing.lg,
@@ -102,7 +113,7 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: FontSizes.lg,
     fontFamily: Fonts.bold,
-    color: '#fff',
+    color: t.texto,
   },
   closeBtn: { padding: 4 },
   scoreBadge: {
@@ -119,7 +130,7 @@ const s = StyleSheet.create({
   sectionLabel: {
     fontSize: 10,
     fontFamily: Fonts.semiBold,
-    color: '#555',
+    color: tenue(t),
     letterSpacing: 2,
     marginTop: Spacing.md,
     marginBottom: 8,
@@ -127,7 +138,7 @@ const s = StyleSheet.create({
   explanationText: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.regular,
-    color: '#999',
+    color: t.textoSecundario,
     lineHeight: 20,
   },
   tipRow: {
@@ -139,7 +150,7 @@ const s = StyleSheet.create({
   tipText: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.regular,
-    color: '#ccc',
+    color: t.texto,
     flex: 1,
     lineHeight: 20,
   },
@@ -149,25 +160,27 @@ const s = StyleSheet.create({
     gap: 6,
   },
   dataPill: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: t.hundido,
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderWidth: 0.5,
-    borderColor: '#222',
+    borderColor: t.borde,
   },
   dataPillText: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,
-    color: '#888',
+    color: t.textoSecundario,
   },
+  // El disclaimer es legal: en claro NO puede quedarse en gris fantasma.
   disclaimer: {
     fontSize: 10,
     fontFamily: Fonts.regular,
-    color: '#444',
+    color: dark ? t.sinDatos : t.textoSecundario,
     marginTop: Spacing.md,
     fontStyle: 'italic',
     textAlign: 'center',
     paddingBottom: Spacing.lg,
   },
-});
+  });
+};

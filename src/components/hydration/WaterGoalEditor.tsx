@@ -2,12 +2,17 @@
  * WaterGoalEditor — Modal bottom sheet para editar meta diaria de agua.
  * Usado desde protocol-config, hydration.tsx, nutrition.tsx.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, Text, Modal, Pressable, TextInput, StyleSheet, DeviceEventEmitter } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { getUserWaterGoal, setUserWaterGoal } from '@/src/services/hydration-service';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 const PRESETS_ML = [2000, 2500, 3000, 3500, 4000];
+// Domain color de hidratación (espejo de hydration.tsx). Como relleno/borde
+// se queda en los dos temas; como texto chico en claro cae a t.info (calibrado).
+const WATER_COLOR = '#38bdf8';
 
 interface Props {
   userId: string;
@@ -17,6 +22,9 @@ interface Props {
 }
 
 export function WaterGoalEditor({ userId, visible, onClose, onSaved }: Props) {
+  // Componente compartido (src/components/**): tokens del scope, no del tema global.
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [current, setCurrent] = useState(2500);
   const [custom, setCustom] = useState('');
   const [saving, setSaving] = useState(false);
@@ -70,7 +78,7 @@ export function WaterGoalEditor({ userId, visible, onClose, onSaved }: Props) {
             <TextInput
               style={s.input}
               placeholder="Custom (ml)"
-              placeholderTextColor="#666"
+              placeholderTextColor={t.sinDatos}
               keyboardType="numeric"
               value={custom}
               onChangeText={setCustom}
@@ -96,21 +104,28 @@ export function WaterGoalEditor({ userId, visible, onClose, onSaved }: Props) {
   );
 }
 
-const s = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#0a0a0a', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
-  handle: { width: 40, height: 4, backgroundColor: '#333', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  title: { color: '#fff', fontSize: 18, fontWeight: '800', marginBottom: 4 },
-  subtitle: { color: '#888', fontSize: 13, marginBottom: 20 },
+// MB-31B: tokens del tema (patrón makeStyles). El velo y las superficies
+// siguen la doctrina de color; el azul de hidratación es dominio (rule 5) y
+// solo cambia como TEXTO chico (presetTextActive) para no perder contraste.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: t.kind === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)',
+    justifyContent: 'flex-end',
+  },
+  sheet: { backgroundColor: t.hundido, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  handle: { width: 40, height: 4, backgroundColor: t.bordeMarcado, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  title: { color: t.texto, fontSize: 18, fontWeight: '800', marginBottom: 4 },
+  subtitle: { color: t.textoSecundario, fontSize: 13, marginBottom: 20 },
   presets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  preset: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 12, backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: '#1a1a1a' },
-  presetActive: { backgroundColor: 'rgba(56,189,248,0.15)', borderColor: '#38bdf8' },
-  presetText: { color: '#ccc', fontSize: 14, fontWeight: '700' },
-  presetTextActive: { color: '#38bdf8' },
+  preset: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 12, backgroundColor: t.flotante, borderWidth: 1, borderColor: t.flotante },
+  presetActive: { backgroundColor: 'rgba(56,189,248,0.15)', borderColor: WATER_COLOR },
+  presetText: { color: t.textoSecundario, fontSize: 14, fontWeight: '700' },
+  presetTextActive: { color: t.kind === 'dark' ? WATER_COLOR : t.info },
   customRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  input: { flex: 1, backgroundColor: '#1a1a1a', borderRadius: 12, paddingHorizontal: 16, color: '#fff', fontSize: 14 },
-  saveBtn: { backgroundColor: '#a8e02a', borderRadius: 12, paddingHorizontal: 20, justifyContent: 'center' },
-  saveBtnText: { color: '#000', fontWeight: '800', fontSize: 13 },
+  input: { flex: 1, backgroundColor: t.flotante, borderRadius: 12, paddingHorizontal: 16, color: t.texto, fontSize: 14 },
+  saveBtn: { backgroundColor: ATP_BRAND.lime, borderRadius: 12, paddingHorizontal: 20, justifyContent: 'center' },
+  saveBtnText: { color: t.textoSobreLima, fontWeight: '800', fontSize: 13 },
   cancelBtn: { padding: 12, alignItems: 'center' },
-  cancelText: { color: '#666', fontSize: 13 },
+  cancelText: { color: t.textoSecundario, fontSize: 13 },
 });

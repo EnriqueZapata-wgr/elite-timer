@@ -27,7 +27,7 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
-import { useAppTheme } from '@/src/contexts/theme-context';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { GeneradorArgos } from './GeneradorArgos';
 
@@ -53,12 +53,14 @@ interface Props {
 export function RecetasTab({ onIrALista }: Props) {
   const { user } = useAuth();
   // MB-31B3: lima y ámbar iban como TEXTO (ilegibles en claro); en claro caen
-  // al teal calibrado / texto según rol. En oscuro nada cambia.
-  const { kind, tokens: t } = useAppTheme();
+  // al teal calibrado / texto según rol. En oscuro nada cambia. Componente
+  // compartido → useSurfaceTokens (oscuro fuera de <ThemeReady>).
+  const t = useSurfaceTokens();
+  const kind = t.kind;
   const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const ambarTx = kind === 'dark' ? ATP_BRAND.amber : t.tealTexto;
   const azulTx = kind === 'dark' ? '#38bdf8' : t.info;
-  const suave = kind === 'dark' ? '#ccc' : t.texto;
+  const suave = t.texto;
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   // T5 (#56): filtro de favoritas

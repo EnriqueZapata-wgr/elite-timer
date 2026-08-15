@@ -15,7 +15,7 @@
  * lectura informativa del escaneo; el ATP Functional Score de la ficha solo
  * sale del scanner dedicado (BhaScanSheet), que sí evalúa por atributos.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, TextInput, Image, Alert, Modal, Platform,
 } from 'react-native';
@@ -35,7 +35,8 @@ import { analyzeSupplementPhoto } from '@/src/services/nutrition-service';
 import { addSupplementToPlan } from '@/src/services/supplements-plan-service';
 import { ScoreRing, getTagColor, scoreToColor } from '@/src/components/nutrition/scan-visuals';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SURFACES, TEXT_COLORS, SEMANTIC, ATP_BRAND } from '@/src/constants/brand';
+import { SEMANTIC, ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 // La palanca de costo del escaneo: bajar la foto a 1024px antes de la IA.
 // Módulo nativo lazy (gotcha ExpoPrint): sin él, va el base64 del picker.
@@ -115,6 +116,14 @@ function LoadingDots({ color }: { color: string }) {
 
 export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }: Props) {
   const insets = useSafeAreaInsets();
+  // Componente compartido: tokens del scope (oscuro fuera de <ThemeReady>).
+  const t = useSurfaceTokens();
+  const dark = t.kind === 'dark';
+  // El teal y el lima son marca; como TEXTO/ÍCONO en claro caen a sus
+  // versiones calibradas (doctrina 3). Como relleno se quedan intactos.
+  const tealTx = dark ? TEAL : t.tealTexto;
+  const acento = dark ? ATP_BRAND.lime : t.tealTexto;
+  const s = useMemo(() => makeStyles(t), [t]);
 
   const [step, setStep] = useState<Step>('capture');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -232,7 +241,7 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
         <View style={s.headerRow}>
           <EliteText style={s.headerTitle}>Escanear suplemento</EliteText>
           <Pressable onPress={cerrar} hitSlop={12} style={s.closeBtn}>
-            <Ionicons name="close" size={22} color={TEXT_COLORS.secondary} />
+            <Ionicons name="close" size={22} color={t.textoSecundario} />
           </Pressable>
         </View>
 
@@ -246,7 +255,7 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
             <Animated.View entering={FadeIn.duration(400)} style={{ alignItems: 'center', paddingTop: Spacing.xl }}>
               <View style={[s.captureRing, { borderColor: TEAL + '18' }]}>
                 <View style={[s.captureRingInner, { borderColor: TEAL + '35' }]}>
-                  <Ionicons name="scan-outline" size={38} color={TEAL} />
+                  <Ionicons name="scan-outline" size={38} color={tealTx} />
                 </View>
               </View>
               <EliteText style={s.heroTitle}>Foto de la etiqueta</EliteText>
@@ -256,11 +265,11 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.lg, marginTop: Spacing.xl }}>
                 <Pressable onPress={openGallery} hitSlop={10} style={s.galleryBtn}>
-                  <Ionicons name="images-outline" size={20} color={TEXT_COLORS.secondary} />
+                  <Ionicons name="images-outline" size={20} color={t.textoSecundario} />
                 </Pressable>
                 <AnimatedPressable onPress={openCamera} scaleDown={0.92} style={[s.shutterOuter, { borderColor: TEAL }]}>
                   <View style={[s.shutterInner, { backgroundColor: TEAL }]}>
-                    <Ionicons name="camera" size={28} color={TEXT_COLORS.onAccent} />
+                    <Ionicons name="camera" size={28} color={t.textoSobreLima} />
                   </View>
                 </AnimatedPressable>
                 <View style={{ width: 44 }} />
@@ -285,8 +294,8 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
                 </View>
               ) : (
                 <Pressable onPress={openCamera} style={s.noPhoto}>
-                  <Ionicons name="camera-outline" size={36} color={TEXT_COLORS.muted} />
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 4 }}>
+                  <Ionicons name="camera-outline" size={36} color={t.textoTenue} />
+                  <EliteText variant="caption" style={{ color: t.textoTenue, marginTop: 4 }}>
                     Toca para tomar foto
                   </EliteText>
                 </Pressable>
@@ -300,7 +309,7 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
                 value={productName}
                 onChangeText={setProductName}
                 placeholder="Ej: Omega 3 Nordic Naturals"
-                placeholderTextColor={TEXT_COLORS.muted}
+                placeholderTextColor={t.textoTenue}
                 returnKeyType="done"
               />
 
@@ -317,7 +326,7 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
                       <EliteText style={{ fontSize: FontSizes.md }}>{c.emoji}</EliteText>
                       <EliteText style={{
                         fontSize: FontSizes.sm, fontFamily: active ? Fonts.bold : Fonts.regular,
-                        color: active ? TEAL : TEXT_COLORS.secondary,
+                        color: active ? tealTx : t.textoSecundario,
                       }}>
                         {c.label}
                       </EliteText>
@@ -328,8 +337,8 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
 
               {error && (
                 <View style={s.errorCard}>
-                  <Ionicons name="alert-circle" size={18} color={SEMANTIC.error} />
-                  <EliteText style={{ color: SEMANTIC.error, fontSize: FontSizes.md, flex: 1 }}>{error}</EliteText>
+                  <Ionicons name="alert-circle" size={18} color={t.error} />
+                  <EliteText style={{ color: t.error, fontSize: FontSizes.md, flex: 1 }}>{error}</EliteText>
                 </View>
               )}
 
@@ -337,10 +346,10 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
                 onPress={analizar}
                 disabled={!photoBase64}
                 scaleDown={0.96}
-                style={[s.ctaBtn, { marginTop: Spacing.xl, backgroundColor: photoBase64 ? TEAL : SURFACES.cardLight }]}>
-                <Ionicons name="sparkles" size={20} color={photoBase64 ? TEXT_COLORS.onAccent : TEXT_COLORS.muted} />
+                style={[s.ctaBtn, { marginTop: Spacing.xl, backgroundColor: photoBase64 ? TEAL : t.flotante }]}>
+                <Ionicons name="sparkles" size={20} color={photoBase64 ? t.textoSobreLima : t.textoTenue} />
                 <EliteText style={{
-                  color: photoBase64 ? TEXT_COLORS.onAccent : TEXT_COLORS.muted,
+                  color: photoBase64 ? t.textoSobreLima : t.textoTenue,
                   fontFamily: Fonts.bold, fontSize: FontSizes.xl,
                 }}>
                   Analizar con IA
@@ -348,7 +357,7 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
               </AnimatedPressable>
 
               <Pressable onPress={reset} style={{ alignSelf: 'center', paddingVertical: Spacing.md }}>
-                <EliteText style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.md }}>Empezar de nuevo</EliteText>
+                <EliteText style={{ color: t.textoTenue, fontSize: FontSizes.md }}>Empezar de nuevo</EliteText>
               </Pressable>
             </Animated.View>
           )}
@@ -365,12 +374,12 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
                 </Svg>
               </Animated.View>
               <View style={{ position: 'absolute' }}>
-                <Ionicons name="sparkles" size={32} color={TEAL} />
+                <Ionicons name="sparkles" size={32} color={tealTx} />
               </View>
-              <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xxl, marginTop: Spacing.xl }}>
+              <EliteText style={{ color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.xxl, marginTop: Spacing.xl }}>
                 Analizando
               </EliteText>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 6, fontSize: FontSizes.md, textAlign: 'center' }}>
+              <EliteText variant="caption" style={{ color: t.textoTenue, marginTop: 6, fontSize: FontSizes.md, textAlign: 'center' }}>
                 Evaluando calidad y biodisponibilidad
               </EliteText>
               <LoadingDots color={TEAL} />
@@ -386,7 +395,7 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
                   {scoreLabel}
                 </EliteText>
                 <EliteText style={{
-                  color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xxl,
+                  color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.xxl,
                   textAlign: 'center', marginTop: Spacing.xs,
                 }}>
                   {result.supplement_name ?? 'Suplemento'}
@@ -395,25 +404,25 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
 
               {result.active_ingredients?.length > 0 && (
                 <Animated.View entering={FadeInDown.delay(400).springify().damping(18)}>
-                  <EliteText variant="caption" style={[s.sectionLabel, { color: TEAL, marginTop: Spacing.xl }]}>
+                  <EliteText variant="caption" style={[s.sectionLabel, { color: tealTx, marginTop: Spacing.xl }]}>
                     Ingredientes activos
                   </EliteText>
                   {result.active_ingredients.map((ing: any, i: number) => (
                     <Animated.View key={i} entering={SlideInRight.delay(500 + i * 80).springify().damping(18)}>
                       <View style={s.ingredientRow}>
                         <View style={{ flex: 1 }}>
-                          <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>
+                          <EliteText style={{ color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>
                             {ing.name}
                           </EliteText>
                           <View style={{ flexDirection: 'row', gap: 10, marginTop: 3 }}>
                             {ing.form && (
-                              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.sm }}>
+                              <EliteText variant="caption" style={{ color: t.textoTenue, fontSize: FontSizes.sm }}>
                                 {ing.form}
                               </EliteText>
                             )}
                             {ing.bioavailability && (
                               <EliteText variant="caption" style={{
-                                color: ing.bioavailability === 'alta' ? ATP_BRAND.lime : ing.bioavailability === 'media' ? SEMANTIC.warning : SEMANTIC.error,
+                                color: ing.bioavailability === 'alta' ? acento : ing.bioavailability === 'media' ? SEMANTIC.warning : t.error,
                                 fontSize: FontSizes.sm, fontFamily: Fonts.bold,
                               }}>
                                 Bio: {ing.bioavailability}
@@ -421,7 +430,7 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
                             )}
                           </View>
                         </View>
-                        <EliteText style={{ color: TEAL, fontFamily: Fonts.bold, fontSize: FontSizes.md }}>
+                        <EliteText style={{ color: tealTx, fontFamily: Fonts.bold, fontSize: FontSizes.md }}>
                           {ing.amount}
                         </EliteText>
                       </View>
@@ -432,13 +441,13 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
 
               {result.inactive_ingredients?.length > 0 && (
                 <Animated.View entering={FadeInDown.delay(700).springify()}>
-                  <EliteText variant="caption" style={[s.sectionLabel, { color: TEXT_COLORS.muted, marginTop: Spacing.lg }]}>
+                  <EliteText variant="caption" style={[s.sectionLabel, { color: t.textoTenue, marginTop: Spacing.lg }]}>
                     Excipientes
                   </EliteText>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     {result.inactive_ingredients.map((ing: string, i: number) => (
                       <View key={i} style={s.excipientChip}>
-                        <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.sm }}>{ing}</EliteText>
+                        <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: FontSizes.sm }}>{ing}</EliteText>
                       </View>
                     ))}
                   </View>
@@ -451,7 +460,7 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
                     <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontFamily: Fonts.bold, fontSize: FontSizes.sm, letterSpacing: 1 }}>
                       PRECAUCIONES
                     </EliteText>
-                    <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.md, marginTop: 4 }}>
+                    <EliteText style={{ color: t.textoSecundario, fontSize: FontSizes.md, marginTop: 4 }}>
                       {result.interactions}
                     </EliteText>
                   </View>
@@ -461,7 +470,7 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
               {result.feedback && (
                 <Animated.View entering={FadeInDown.delay(900).springify().damping(18)}>
                   <View style={[s.card, { borderLeftColor: TEAL, borderLeftWidth: 3, marginTop: Spacing.lg }]}>
-                    <EliteText style={{ color: TEXT_COLORS.primary, fontSize: FontSizes.lg, lineHeight: 22 }}>
+                    <EliteText style={{ color: t.texto, fontSize: FontSizes.lg, lineHeight: 22 }}>
                       {result.feedback}
                     </EliteText>
                   </View>
@@ -473,7 +482,7 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: Spacing.md }}>
                     {result.red_flags.map((f: string, i: number) => (
                       <View key={i} style={s.flagChip}>
-                        <EliteText style={{ color: SEMANTIC.error, fontSize: FontSizes.sm }}>{'⚠️'} {f}</EliteText>
+                        <EliteText style={{ color: t.error, fontSize: FontSizes.sm }}>{'⚠️'} {f}</EliteText>
                       </View>
                     ))}
                   </View>
@@ -483,8 +492,8 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
               {(result.suggestions || result.better_alternative) && (
                 <Animated.View entering={FadeInDown.delay(1050).springify()}>
                   <View style={s.tipCard}>
-                    <Ionicons name="bulb-outline" size={18} color={ATP_BRAND.teal2} />
-                    <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.md, flex: 1, lineHeight: 20 }}>
+                    <Ionicons name="bulb-outline" size={18} color={tealTx} />
+                    <EliteText style={{ color: t.textoSecundario, fontSize: FontSizes.md, flex: 1, lineHeight: 20 }}>
                       {result.suggestions || result.better_alternative}
                     </EliteText>
                   </View>
@@ -513,31 +522,31 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
                   {!addedToPlan ? (
                     <AnimatedPressable onPress={agregarAlPlan} disabled={addingToPlan} scaleDown={0.96}
                       style={[s.ctaBtn, { backgroundColor: TEAL }]}>
-                      <Ionicons name="add-circle" size={20} color={TEXT_COLORS.onAccent} />
-                      <EliteText style={{ color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
+                      <Ionicons name="add-circle" size={20} color={t.textoSobreLima} />
+                      <EliteText style={{ color: t.textoSobreLima, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
                         {addingToPlan ? 'Agregando...' : 'Agregar a mi plan'}
                       </EliteText>
                     </AnimatedPressable>
                   ) : (
                     <View style={s.savedRow}>
                       <View style={s.savedCheck}>
-                        <Ionicons name="checkmark" size={20} color={TEXT_COLORS.onAccent} />
+                        <Ionicons name="checkmark" size={20} color={t.textoSobreLima} />
                       </View>
-                      <EliteText style={{ color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
+                      <EliteText style={{ color: acento, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
                         En tu plan
                       </EliteText>
                     </View>
                   )}
 
                   <AnimatedPressable onPress={reset} scaleDown={0.96} style={s.outlineBtn}>
-                    <Ionicons name="camera-outline" size={18} color={TEAL} />
-                    <EliteText style={{ color: TEAL, fontFamily: Fonts.semiBold, fontSize: FontSizes.lg }}>
+                    <Ionicons name="camera-outline" size={18} color={tealTx} />
+                    <EliteText style={{ color: tealTx, fontFamily: Fonts.semiBold, fontSize: FontSizes.lg }}>
                       Escanear otro
                     </EliteText>
                   </AnimatedPressable>
 
                   <Pressable onPress={cerrar} style={{ alignSelf: 'center', paddingVertical: Spacing.md }}>
-                    <EliteText style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.md }}>Volver a mi plan</EliteText>
+                    <EliteText style={{ color: t.textoTenue, fontSize: FontSizes.md }}>Volver a mi plan</EliteText>
                   </Pressable>
                 </View>
                 <MedicalDisclaimer feature="supplements" />
@@ -550,16 +559,18 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
   );
 }
 
-const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#000' },
+// MB-31B: tokens del tema (patrón makeStyles). Fondo/superficies siguen la
+// doctrina de color; TEAL/lima como relleno se quedan intactos en los dos temas.
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: t.fondo },
   headerRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
   },
-  headerTitle: { color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xl },
+  headerTitle: { color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.xl },
   closeBtn: {
     width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: SURFACES.card,
+    backgroundColor: t.card,
   },
   content: { paddingHorizontal: Spacing.lg },
 
@@ -572,16 +583,16 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   heroTitle: {
-    color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xxl,
+    color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.xxl,
     marginTop: Spacing.lg, textAlign: 'center',
   },
   heroSub: {
-    color: TEXT_COLORS.muted, fontSize: FontSizes.md, textAlign: 'center',
+    color: t.textoTenue, fontSize: FontSizes.md, textAlign: 'center',
     marginTop: 6, lineHeight: 20, paddingHorizontal: Spacing.md,
   },
   galleryBtn: {
-    width: 44, height: 44, borderRadius: Radius.lg, backgroundColor: SURFACES.card,
-    borderWidth: 1, borderColor: SURFACES.border, alignItems: 'center', justifyContent: 'center',
+    width: 44, height: 44, borderRadius: Radius.lg, backgroundColor: t.card,
+    borderWidth: 1, borderColor: t.borde, alignItems: 'center', justifyContent: 'center',
   },
   shutterOuter: {
     width: 80, height: 80, borderRadius: Radius.pill, borderWidth: 3,
@@ -592,7 +603,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 
-  photoWrap: { borderRadius: Radius.lg, overflow: 'hidden', backgroundColor: SURFACES.card, marginTop: Spacing.md },
+  photoWrap: { borderRadius: Radius.lg, overflow: 'hidden', backgroundColor: t.card, marginTop: Spacing.md },
   photo: { width: '100%', aspectRatio: 4 / 3 },
   photoControls: { position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', gap: 8 },
   photoCtrlBtn: {
@@ -601,27 +612,27 @@ const s = StyleSheet.create({
     backgroundColor: Platform.OS === 'ios' ? 'rgba(0,0,0,0.45)' : 'rgba(30,30,30,0.85)',
   },
   noPhoto: {
-    height: 200, borderRadius: Radius.lg, backgroundColor: SURFACES.card, marginTop: Spacing.md,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: SURFACES.border,
+    height: 200, borderRadius: Radius.lg, backgroundColor: t.card, marginTop: Spacing.md,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: t.borde,
     borderStyle: 'dashed',
   },
   sectionLabel: {
-    color: TEXT_COLORS.secondary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold,
+    color: t.textoSecundario, fontSize: FontSizes.md, fontFamily: Fonts.semiBold,
     marginBottom: 10, letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 1, borderColor: SURFACES.border,
-    paddingHorizontal: 16, paddingVertical: 14, color: TEXT_COLORS.primary,
+    backgroundColor: t.card, borderRadius: Radius.card, borderWidth: 1, borderColor: t.borde,
+    paddingHorizontal: 16, paddingVertical: 14, color: t.texto,
     fontSize: FontSizes.lg, fontFamily: Fonts.regular,
   },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 10, borderRadius: Radius.card,
-    backgroundColor: SURFACES.card, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: t.card, borderWidth: 1, borderColor: t.borde,
   },
   errorCard: {
     flexDirection: 'row', gap: 10, alignItems: 'center',
-    backgroundColor: SEMANTIC.error + '10', borderRadius: Radius.card, padding: 14, marginTop: Spacing.md,
+    backgroundColor: t.error + '10', borderRadius: Radius.card, padding: 14, marginTop: Spacing.md,
   },
   ctaBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
@@ -629,32 +640,32 @@ const s = StyleSheet.create({
   },
   outlineBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    paddingVertical: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: SURFACES.border,
+    paddingVertical: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: t.borde,
   },
   analyzingCenter: {
     justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.xl, minHeight: 420,
   },
   card: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.lg, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: t.card, borderRadius: Radius.lg, borderWidth: 1, borderColor: t.borde,
     padding: 16,
   },
   ingredientRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: SURFACES.card, borderRadius: Radius.md, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: t.card, borderRadius: Radius.md, borderWidth: 1, borderColor: t.borde,
     padding: 14, marginBottom: 8,
   },
   excipientChip: {
-    backgroundColor: SURFACES.cardLight, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.card,
+    backgroundColor: t.flotante, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.card,
   },
   flagChip: {
-    backgroundColor: SEMANTIC.error + '10', paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.card,
+    backgroundColor: t.error + '10', paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.card,
   },
   tipCard: {
     flexDirection: 'row', gap: 10, alignItems: 'flex-start',
     backgroundColor: 'rgba(26,188,156,0.08)', borderRadius: Radius.lg, padding: 14, marginTop: Spacing.md,
   },
   tagChip: {
-    backgroundColor: SURFACES.card, paddingHorizontal: 12, paddingVertical: 5, borderRadius: Radius.card,
+    backgroundColor: t.card, paddingHorizontal: 12, paddingVertical: 5, borderRadius: Radius.card,
     borderWidth: 1,
   },
   savedRow: {
