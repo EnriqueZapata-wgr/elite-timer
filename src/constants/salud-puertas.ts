@@ -67,7 +67,9 @@ export const PUERTAS: Puerta[] = [
     key: 'expediente',
     icon: 'salud-expediente',
     title: 'MI EXPEDIENTE',
-    subtitle: 'Historia clínica, cuestionarios y evaluaciones',
+    // NOCHE-3: el subtítulo lidera con la LECTURA, no con el archivero. Lo que
+    // el usuario paga es la interpretación; los cuestionarios son el insumo.
+    subtitle: 'Tu lectura, tu historia y lo que la alimenta',
     route: '/salud/expediente',
     gradient: ['#38BDF8', '#3B82F6'],
   },
@@ -120,8 +122,20 @@ export const DESTINOS_EVOLUCION: Destino[] = [
   { key: 'cronotipo', title: 'Mi cronotipo', subtitle: 'A qué hora rinde tu cuerpo', icon: 'cronotipo', color: '#7F77DD', route: '/my-chronotype' },
 ];
 
-/** MI EXPEDIENTE — lo archivístico: se llena una vez, se consulta poco. */
+/**
+ * MI EXPEDIENTE — la lectura primero, el archivo después.
+ *
+ * NOCHE-3: la puerta era puro archivero (se llena una vez, se consulta poco) y
+ * eso la dejaba muerta. Arriba de todo entra LA LECTURA: lo único de esta
+ * sección que la persona abre más de una vez, porque cambia cuando cambian sus
+ * datos. Lo demás sigue igual: es el insumo que la alimenta.
+ *
+ * El glifo `diagnostico` se comparte a propósito con "Mi mapa funcional": son
+ * la misma familia (leer lo que ya se midió), y el set de iconos no tiene una
+ * pieza propia todavía. El día que llegue, cambian las dos juntas.
+ */
 export const DESTINOS_EXPEDIENTE: Destino[] = [
+  { key: 'lectura', title: 'Cómo te leo', subtitle: 'Qué significan tus datos juntos y cuál manda', icon: 'diagnostico', color: '#1D9E75', route: '/salud/mi-lectura' },
   { key: 'timeline', title: 'Mi expediente', subtitle: 'Tu línea de tiempo: síntomas, labs, hitos', icon: 'salud-expediente', color: '#38BDF8', route: '/salud/mi-expediente' },
   { key: 'historia', title: 'Historia clínica', subtitle: 'Antecedentes por categoría', icon: 'historia-clinica', color: '#3B82F6', route: '/historia-clinica' },
   { key: 'cuestionario', title: 'Cuestionario maestro', subtitle: 'La evaluación que alimenta tu mapa', icon: 'cuestionario', color: '#C084FC', route: '/salud/cuestionario-maestro' },
