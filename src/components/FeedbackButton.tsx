@@ -11,6 +11,7 @@ import Constants from 'expo-constants';
 import { captureScreen } from 'react-native-view-shot';
 import { supabase } from '../lib/supabase';
 import { usePathname } from 'expo-router';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 const SEVERITIES = [
   { id: 'red', label: 'Roto / Crashea', color: '#ef4444', emoji: '🔴' },
@@ -27,6 +28,7 @@ const CATEGORIES = [
 ];
 
 export function FeedbackButton() {
+  const t = useSurfaceTokens();
   const pathname = usePathname();
   const [visible, setVisible] = useState(false);
   const [severity, setSeverity] = useState('yellow');
@@ -150,37 +152,37 @@ export function FeedbackButton() {
           bottom: 100,
           left: 16,
           width: 40, height: 40, borderRadius: 20,
-          backgroundColor: 'rgba(255,255,255,0.08)',
+          backgroundColor: t.kind === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.55)',
           justifyContent: 'center', alignItems: 'center',
-          borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1, borderColor: t.kind === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(15,21,24,0.08)',
           zIndex: 90,
         }}
       >
-        <Ionicons name="chatbox-ellipses-outline" size={18} color="#999" />
+        <Ionicons name="chatbox-ellipses-outline" size={18} color={t.textoSecundario} />
       </Pressable>
 
       {/* Modal de feedback */}
       <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
         <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' }}
+          style={{ flex: 1, backgroundColor: t.kind === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)', justifyContent: 'flex-end' }}
           onPress={() => setVisible(false)}
         >
           <Pressable onPress={() => {}} style={{
-            backgroundColor: '#0a0a0a', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+            backgroundColor: t.flotante, borderTopLeftRadius: 24, borderTopRightRadius: 24,
             padding: 24, paddingBottom: 40, maxHeight: '85%',
           }}>
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#333', alignSelf: 'center', marginBottom: 16 }} />
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: t.bordeMarcado, alignSelf: 'center', marginBottom: 16 }} />
 
-              <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800', marginBottom: 4 }}>
+              <Text style={{ color: t.texto, fontSize: 20, fontWeight: '800', marginBottom: 4 }}>
                 Reportar feedback
               </Text>
-              <Text style={{ color: '#666', fontSize: 12, marginBottom: 20 }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 12, marginBottom: 20 }}>
                 Pantalla: {pathname || 'desconocida'}
               </Text>
 
               {/* Severidad */}
-              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 8 }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 8 }}>
                 ¿QUÉ TAN GRAVE ES?
               </Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
@@ -190,14 +192,16 @@ export function FeedbackButton() {
                     onPress={() => { setSeverity(s.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                     style={{
                       flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 14,
-                      backgroundColor: severity === s.id ? `${s.color}15` : '#111',
+                      backgroundColor: severity === s.id ? `${s.color}15` : t.hundido,
                       borderWidth: 1.5,
-                      borderColor: severity === s.id ? s.color : '#1a1a1a',
+                      borderColor: severity === s.id ? s.color : t.borde,
                     }}
                   >
                     <Text style={{ fontSize: 18 }}>{s.emoji}</Text>
+                    {/* El color de severidad ya viaja en el emoji, el borde y el tinte;
+                        como letra en claro varios no alcanzan contraste (amber sobre todo). */}
                     <Text style={{
-                      color: severity === s.id ? s.color : '#666',
+                      color: severity === s.id ? (t.kind === 'dark' ? s.color : t.texto) : t.textoSecundario,
                       fontSize: 10, fontWeight: '600', marginTop: 4, textAlign: 'center',
                     }}>
                       {s.label}
@@ -207,7 +211,7 @@ export function FeedbackButton() {
               </View>
 
               {/* Categoría */}
-              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 8 }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 8 }}>
                 CATEGORÍA
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
@@ -217,13 +221,14 @@ export function FeedbackButton() {
                     onPress={() => setCategory(c.id)}
                     style={{
                       paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8,
-                      backgroundColor: category === c.id ? 'rgba(168,224,42,0.15)' : '#111',
+                      backgroundColor: category === c.id ? 'rgba(168,224,42,0.15)' : t.hundido,
                       borderWidth: 1,
-                      borderColor: category === c.id ? '#a8e02a' : '#1a1a1a',
+                      borderColor: category === c.id ? '#a8e02a' : t.borde,
                     }}
                   >
                     <Text style={{
-                      color: category === c.id ? '#a8e02a' : '#999',
+                      // Regla 3 del claro: el lima jamás es letra en claro.
+                      color: category === c.id ? (t.kind === 'dark' ? '#a8e02a' : t.tealTexto) : t.textoSecundario,
                       fontSize: 12, fontWeight: '600',
                     }}>
                       {c.label}
@@ -233,53 +238,53 @@ export function FeedbackButton() {
               </ScrollView>
 
               {/* Descripción */}
-              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 6 }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 6 }}>
                 ¿QUÉ PASÓ? *
               </Text>
               <TextInput
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Describe el problema o sugerencia..."
-                placeholderTextColor="#444"
+                placeholderTextColor={t.sinDatos}
                 multiline
                 numberOfLines={4}
                 style={{
-                  backgroundColor: '#111', color: '#fff', fontSize: 15, borderRadius: 14,
+                  backgroundColor: t.hundido, color: t.texto, fontSize: 15, borderRadius: 14,
                   padding: 14, marginBottom: 14, minHeight: 100, textAlignVertical: 'top',
-                  borderWidth: 1, borderColor: '#1a1a1a',
+                  borderWidth: 1, borderColor: t.borde,
                 }}
               />
 
               {/* Esperado (opcional) */}
-              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 6 }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 6 }}>
                 ¿QUÉ ESPERABAS? (opcional)
               </Text>
               <TextInput
                 value={expected}
                 onChangeText={setExpected}
                 placeholder="Qué debería haber pasado..."
-                placeholderTextColor="#444"
+                placeholderTextColor={t.sinDatos}
                 multiline
                 numberOfLines={2}
                 style={{
-                  backgroundColor: '#111', color: '#fff', fontSize: 15, borderRadius: 14,
+                  backgroundColor: t.hundido, color: t.texto, fontSize: 15, borderRadius: 14,
                   padding: 14, marginBottom: 14, minHeight: 60, textAlignVertical: 'top',
-                  borderWidth: 1, borderColor: '#1a1a1a',
+                  borderWidth: 1, borderColor: t.borde,
                 }}
               />
 
               {/* Screenshot */}
               <Pressable onPress={pickScreenshot} style={{
                 flexDirection: 'row', alignItems: 'center', gap: 10,
-                backgroundColor: '#111', borderRadius: 14, padding: 14, marginBottom: 20,
-                borderWidth: 1, borderColor: screenshotUri ? '#a8e02a' : '#1a1a1a',
+                backgroundColor: t.hundido, borderRadius: 14, padding: 14, marginBottom: 20,
+                borderWidth: 1, borderColor: screenshotUri ? '#a8e02a' : t.borde,
               }}>
                 <Ionicons
                   name={screenshotUri ? 'checkmark-circle' : 'image-outline'}
                   size={20}
-                  color={screenshotUri ? '#a8e02a' : '#666'}
+                  color={screenshotUri ? '#a8e02a' : t.textoSecundario}
                 />
-                <Text style={{ color: screenshotUri ? '#a8e02a' : '#999', fontSize: 13 }}>
+                <Text style={{ color: screenshotUri ? (t.kind === 'dark' ? '#a8e02a' : t.tealTexto) : t.textoSecundario, fontSize: 13 }}>
                   {screenshotUri ? 'Screenshot capturado (toca para cambiar)' : 'Adjuntar screenshot (opcional)'}
                 </Text>
               </Pressable>
@@ -289,12 +294,12 @@ export function FeedbackButton() {
                 onPress={submit}
                 disabled={!description.trim() || sending}
                 style={{
-                  backgroundColor: description.trim() && !sending ? '#a8e02a' : '#333',
+                  backgroundColor: description.trim() && !sending ? '#a8e02a' : t.bordeMarcado,
                   borderRadius: 16, padding: 16, alignItems: 'center',
                 }}
               >
                 <Text style={{
-                  color: description.trim() && !sending ? '#000' : '#666',
+                  color: description.trim() && !sending ? t.textoSobreLima : t.textoSecundario,
                   fontSize: 16, fontWeight: '800',
                 }}>
                   {sending ? 'ENVIANDO...' : 'ENVIAR FEEDBACK'}

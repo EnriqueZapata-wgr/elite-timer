@@ -147,7 +147,7 @@ export default function Solar() {
             onPress={() => { setShowSkinPicker(!showSkinPicker); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
             style={{ backgroundColor: dark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.55)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: t.bordeMarcado }}
           >
-            <Text style={{ color: dark ? 'rgba(255,255,255,0.7)' : t.texto, fontSize: 12, fontWeight: '700' }}>Piel tipo {skinType}</Text>
+            <Text style={{ color: t.texto, fontSize: 12, fontWeight: '700' }}>Piel tipo {skinType}</Text>
           </Pressable>
         </View>
         {/* Sprint 1.5 A: CTA SIEMPRE visible al tipo de piel (antes el selector vivía
@@ -162,7 +162,7 @@ export default function Solar() {
               borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14,
             }}
           >
-            <Text style={{ color: dark ? 'rgba(255,255,255,0.7)' : t.texto, fontSize: 12, fontWeight: '700', flex: 1 }}>Actualizar tipo de piel</Text>
+            <Text style={{ color: t.texto, fontSize: 12, fontWeight: '700', flex: 1 }}>Actualizar tipo de piel</Text>
             <Text style={{ color: t.textoTenue, fontSize: 11 }}>cuestionario o manual</Text>
             <Ionicons name="chevron-down" size={14} color={t.textoTenue} />
           </Pressable>
