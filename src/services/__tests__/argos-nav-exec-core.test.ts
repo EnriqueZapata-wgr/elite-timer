@@ -3,9 +3,15 @@
  *
  * Se prueba `ejecutarResultado` con un navegador inyectado: lo que importa es
  * CUÁNDO se mueve la app y cuándo no, no que expo-router funcione.
+ *
+ * FIX-NOCHE: apunta al core, no al service. Antes importaba argos-nav-service,
+ * que importa `router` de expo-router, y eso arrastraba el JSX de expo-router a
+ * la suite: vitest no transforma node_modules y el archivo entero dejaba de
+ * coleccionar (`SyntaxError: Unexpected token '<'`). Ningún caso de aquí usaba
+ * el router de verdad, así que el arrastre no compraba nada.
  */
 import { describe, it, expect } from 'vitest';
-import { ejecutarResultado, navegarPorTexto, navegarPorPropuestaDelModelo } from '../argos-nav-service';
+import { ejecutarResultado, navegarPorTexto, navegarPorPropuestaDelModelo } from '../argos-nav-exec-core';
 
 /** Navegador de mentiras que apunta a dónde lo mandaron. */
 function espia() {
