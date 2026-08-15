@@ -28,6 +28,16 @@ import { findMatrizParam, findMatrizDomain } from '@/src/constants/edad-atp-matr
 import { CANONICAL_PCT_KEYS, decimalToPct } from '@/src/constants/lab-canonical-map';
 import { isClinicalOnlyParam } from '@/src/constants/lab-clinical-ranges';
 import { score9Bands } from '@/src/services/edad-atp/sf-9band-service';
+// NOCHE-3: el resumen del panel, el filtro a lo que pide atención y el delta
+// contra la medición anterior. Todo el criterio vive en el núcleo puro.
+import {
+  resumirPanel, fraseResumen, estadoDeParametro, deltaVsAnterior, SIN_COMPARACION,
+  type EstadoLab,
+} from '@/src/services/edad-atp/labs-premium-core';
+// Doctrina de la casa: los labs de mujeres SIEMPRE se leen con la fase del
+// ciclo. Vivía solo en la captura; aquí es donde de verdad se leen.
+import { deriveLabCycleContext, isCycleSensitiveMarker } from '@/src/services/salud/lab-cycle-context-core';
+import { getCycleInfo } from '@/src/services/cycle-service';
 import { EDAD_STATUS, EDAD_PENDING_COLOR } from '@/src/components/edad-atp/tokens';
 import { LabInfoPopup } from '@/src/components/edad-atp/LabInfoPopup';
 import { ParameterChart } from '@/src/components/edad-atp/ParameterChart';
@@ -52,6 +62,8 @@ type Row = {
   clinical_only: boolean;
   /** F4.1: tendencia de las últimas mediciones (null con <2 datos). */
   trend: Trend | null;
+  /** NOCHE-3: estado contra la banda funcional, para el resumen y el filtro. */
+  estado: EstadoLab;
 };
 
 const TREND_ICON: Record<Trend, { icon: 'trending-up' | 'trending-down' | 'remove'; label: string }> = {
@@ -103,6 +115,10 @@ function AtpLabsScreen() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [series, setSeries] = useState<Record<string, SeriePoint[]>>({});
   const [showAllRanges, setShowAllRanges] = useState(false);
+  // NOCHE-3: el gesto que toda persona hace de todos modos es ir directo a lo
+  // que está fuera. Si ese es el flujo real, se le da un botón.
+  const [soloAtencion, setSoloAtencion] = useState(false);
+  const [fase, setFase] = useState<string | null>(null);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -114,9 +130,12 @@ function AtpLabsScreen() {
       // #labs-desmadre: colapsar duplicados por idioma SOLO para display (no afecta al motor v2,
       // que lee por su propio bridge). Funde `testosterone` en `testosterona_total`, etc.
       // F4: series completas en UNA query — tendencias en cards + gráficas sin round-trip.
-      const [canonRaw, allSeries] = await Promise.all([
+      const [canonRaw, allSeries, ciclo] = await Promise.all([
         loadCanonicalLabValues(user.id),
         loadAllSeries(user.id),
+        // Fail-soft: el gate del ciclo ya devuelve null cuando no aplica, y un
+        // fallo aquí no puede tumbar la lista de labs.
+        getCycleInfo(user.id).catch(() => null),
       ]);
       const canon = collapseLanguageDuplicates(canonRaw);
       if (!alive) return;
@@ -142,8 +161,10 @@ function AtpLabsScreen() {
           domain_key: dom?.domain_key ?? 'otros',
           clinical_only: isClinicalOnlyParam(key),
           trend: trendFromSeries(seriesMap[key] ?? []),
+          estado: estadoDeParametro(sx, key, cv.value),
         };
       });
+      setFase((ciclo as { currentPhase?: string } | null)?.currentPhase ?? null);
       setSex(sx);
       setSeries(seriesMap);
       setRows(built);
@@ -164,7 +185,11 @@ function AtpLabsScreen() {
     setExpanded((prev) => (prev === key ? null : key));
   }, []);
 
-  const sorted = sortRows(rows, sort);
+  // El resumen cuenta SOBRE TODO el panel, no sobre lo filtrado: si contara lo
+  // visible, activar el filtro dejaría el encabezado diciendo que todo está mal.
+  const resumen = useMemo(() => resumirPanel(rows.map((r) => r.estado)), [rows]);
+  const visibles = soloAtencion ? rows.filter((r) => r.estado === 'atencion') : rows;
+  const sorted = sortRows(visibles, sort);
   const grouped = groupForRender(sorted, sort);
 
   return (
@@ -175,6 +200,43 @@ function AtpLabsScreen() {
         <EliteText variant="caption" style={styles.subtitle}>
           Tus laboratorios: el último valor de cada parámetro. Mantén apretado para saber qué es.
         </EliteText>
+
+        {/* NOCHE-3: el conteo como titular. Lo primero que se quiere saber no
+            es la lista de 40 renglones, es cuántos están fuera. Tocar el bloque
+            rojo filtra a eso mismo. Los que no tienen banda funcional se
+            reportan aparte: no inflan el conteo ni para bien ni para mal. */}
+        {!loading && rows.length > 0 ? (
+          <View style={styles.resumenBox}>
+            <EliteText variant="caption" style={styles.resumenFrase}>{fraseResumen(resumen)}</EliteText>
+            <View style={styles.resumenRow}>
+              <Pressable
+                onPress={() => { haptic.light(); setSoloAtencion((v) => !v); }}
+                style={[styles.resumenChip, soloAtencion && styles.resumenChipActive]}
+              >
+                <EliteText style={[styles.resumenNum, { color: EDAD_STATUS.bad }]}>{resumen.atencion}</EliteText>
+                <EliteText variant="caption" style={styles.resumenLabel}>piden atención</EliteText>
+              </Pressable>
+              <View style={styles.resumenChip}>
+                <EliteText style={[styles.resumenNum, { color: EDAD_STATUS.neutral }]}>{resumen.aceptable}</EliteText>
+                <EliteText variant="caption" style={styles.resumenLabel}>aceptables</EliteText>
+              </View>
+              <View style={styles.resumenChip}>
+                <EliteText style={[styles.resumenNum, { color: EDAD_STATUS.good }]}>{resumen.optimo}</EliteText>
+                <EliteText variant="caption" style={styles.resumenLabel}>en tu ventana</EliteText>
+              </View>
+            </View>
+            {resumen.sinBanda > 0 ? (
+              <EliteText variant="caption" style={styles.resumenNota}>
+                {resumen.sinBanda} más sin rango funcional todavía: se muestran, no se califican.
+              </EliteText>
+            ) : null}
+            {soloAtencion ? (
+              <Pressable onPress={() => { haptic.light(); setSoloAtencion(false); }}>
+                <EliteText variant="caption" style={styles.resumenVerTodo}>Ver todos los parámetros</EliteText>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
 
         {/* OLA6 PIEZA C: aterrizaje desde la confirmación. El usuario acaba de
             guardar y esto es lo primero que ve: cuántos entraron y cuáles. */}
@@ -221,6 +283,12 @@ function AtpLabsScreen() {
           <EliteText variant="caption" style={styles.empty}>
             Aún no hay laboratorios. Sube un PDF o captura biomarcadores para verlos aquí.
           </EliteText>
+        ) : visibles.length === 0 ? (
+          // Filtro activo sin resultados: es la MEJOR noticia posible, y hay
+          // que decirla así. Dejarlo en blanco parecería un error de la app.
+          <EliteText variant="caption" style={styles.empty}>
+            Nada pide atención hoy. Todos tus parámetros con rango funcional están dentro o aceptables.
+          </EliteText>
         ) : (
           grouped.map((g) => (
             <View key={g.title} style={styles.group}>
@@ -254,7 +322,7 @@ function AtpLabsScreen() {
                   </Pressable>
                   {expanded === r.key ? (
                     <View style={styles.chartBox}>
-                      {renderRangeSummary(sex, r, styles)}
+                      {renderRangeSummary(sex, r, styles, series[r.key] ?? [], fase)}
                       <ParameterChart
                         series={series[r.key] ?? []}
                         bandLimits={pctAdjustedBandLimits(sex, r.key)}
@@ -314,13 +382,47 @@ function pctAdjustedBandLimits(sex: Sex, key: string): (number | null)[] | null 
  * Verde = rango funcional ATP ([3]-[4]); gris = rango amplio aceptable ([1]-[6]).
  * MB-31B remate: recibe los estilos ya tematizados del componente.
  */
-function renderRangeSummary(sex: Sex, r: Row, styles: ReturnType<typeof makeStyles>) {
+function renderRangeSummary(
+  sex: Sex,
+  r: Row,
+  styles: ReturnType<typeof makeStyles>,
+  serie: SeriePoint[],
+  fase: string | null,
+) {
   const limits = pctAdjustedBandLimits(sex, r.key);
+  // NOCHE-3: el delta contra la medición anterior, leído contra TU ventana.
+  // No dice "subió 12": dice si se acercó o se alejó de donde debe estar.
+  const delta = deltaVsAnterior(serie, limits);
+  // Doctrina: un hormonal de mujer sin fase registrada se puede leer al revés.
+  const ciclo = isCycleSensitiveMarker(r.key)
+    ? deriveLabCycleContext(r.key, sex === 'female', fase)
+    : null;
+  const extras = (
+    <>
+      {delta ? (
+        <EliteText
+          variant="caption"
+          style={[styles.deltaLinea, delta.rumbo === 'acerca' ? { color: EDAD_STATUS.good } : delta.rumbo === 'aleja' ? { color: EDAD_STATUS.bad } : null]}
+        >
+          {delta.texto}
+        </EliteText>
+      ) : (
+        <EliteText variant="caption" style={styles.rangeInfoMuted}>{SIN_COMPARACION}</EliteText>
+      )}
+      {ciclo?.show ? (
+        <EliteText variant="caption" style={styles.cicloNota}>{ciclo.note}</EliteText>
+      ) : null}
+    </>
+  );
+
   if (!limits) {
     return (
-      <EliteText variant="caption" style={styles.rangeInfoMuted}>
-        Sin banda funcional en la matriz: se muestra solo el historial.
-      </EliteText>
+      <View style={styles.rangeInfoBox}>
+        <EliteText variant="caption" style={styles.rangeInfoMuted}>
+          Sin banda funcional en la matriz: se muestra solo el historial.
+        </EliteText>
+        {extras}
+      </View>
     );
   }
   const fnLo = limits[3];
@@ -352,6 +454,7 @@ function renderRangeSummary(sex: Sex, r: Row, styles: ReturnType<typeof makeStyl
           {interp}
         </EliteText>
       ) : null}
+      {extras}
     </View>
   );
 }
@@ -426,6 +529,24 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   rangeInfoOuter: { color: t.textoSecundario, fontSize: FontSizes.xs },
   rangeInfoMuted: { color: t.textoTenue, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
   rangeInterp: { fontSize: FontSizes.xs, marginTop: 3, lineHeight: 15 },
+  // NOCHE-3: resumen del panel, delta y contexto de ciclo.
+  resumenBox: {
+    backgroundColor: t.card, borderRadius: Radius.card, borderWidth: 1, borderColor: t.borde,
+    padding: Spacing.md, marginBottom: Spacing.xs, gap: Spacing.xs,
+  },
+  resumenFrase: { color: t.texto, fontFamily: Fonts.semiBold, lineHeight: 18 },
+  resumenRow: { flexDirection: 'row', gap: Spacing.xs },
+  resumenChip: {
+    flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: Radius.md,
+    backgroundColor: t.hundido, borderWidth: 1, borderColor: t.borde,
+  },
+  resumenChipActive: { borderColor: 'rgba(168,224,42,0.45)', backgroundColor: 'rgba(168,224,42,0.10)' },
+  resumenNum: { fontFamily: Fonts.bold, fontSize: FontSizes.lg },
+  resumenLabel: { color: t.textoTenue, fontSize: FontSizes.xs, textAlign: 'center', marginTop: 1 },
+  resumenNota: { color: t.textoTenue, fontSize: FontSizes.xs, lineHeight: 15 },
+  resumenVerTodo: { color: t.tealTexto, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  deltaLinea: { color: t.textoSecundario, fontSize: FontSizes.xs, marginTop: 3, lineHeight: 15 },
+  cicloNota: { color: '#D4537E', fontSize: FontSizes.xs, marginTop: 3, lineHeight: 15 },
   rangeToggleRow: { flexDirection: 'row', gap: Spacing.xs, marginTop: Spacing.xs },
   rangeToggle: { paddingHorizontal: Spacing.sm, paddingVertical: 5, borderRadius: Radius.md, backgroundColor: t.hundido, borderWidth: 1, borderColor: t.borde },
   rangeToggleActive: { backgroundColor: 'rgba(168,224,42,0.14)', borderColor: 'rgba(168,224,42,0.4)' },
