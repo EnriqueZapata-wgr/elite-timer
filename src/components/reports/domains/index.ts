@@ -20,6 +20,7 @@ import { nbackDomain } from './nback';
 import { adherenciaDomain } from './adherencia';
 import { entrenamientoDomain } from './entrenamiento';
 import { glucosaDomain } from './glucosa';
+import { labsDomain } from './labs';
 
 /**
  * Cada definición fija su propio tipo de datos puertas adentro; el mapa las
@@ -40,6 +41,7 @@ export const DOMAIN_DEFINITIONS: Partial<Record<ReportDomainKey, AnyReportDomain
   adherencia: adherenciaDomain,
   entrenamiento: entrenamientoDomain,
   glucosa: glucosaDomain,
+  labs: labsDomain,
 };
 
 export function getDomainDefinition(key: string | null | undefined): AnyReportDomainDefinition | null {
