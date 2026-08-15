@@ -41,6 +41,9 @@ const RUTAS_QUE_NO_SE_PUEDEN_PERDER = [
   '/historia-clinica',
   '/salud/cuestionario-maestro',
   '/cycle',
+  // NOCHE-3: la lectura del expediente. Se reapunta el candado en lugar de
+  // debilitarlo: si alguien reorganiza SALUD y se la lleva, este test lo dice.
+  '/salud/mi-lectura',
 ];
 
 const rutasAlcanzables = new Set<string>([
