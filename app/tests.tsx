@@ -52,7 +52,10 @@ export default function TestsHub() {
   const s = useMemo(() => makeStyles(t), [t]);
   const router = useRouter();
   const { user } = useAuth();
-  const { completion } = useAssessmentCompletion(user?.id);
+  // FIX-215: loading y failed se descartaban. Con el mapa vacío countDone da 0,
+  // así que "todavía no llega", "tronó la consulta" y "no has hecho nada"
+  // colapsaban en el mismo pixel: un 0/7 que el usuario leía como dato.
+  const { completion, loading, failed, refresh } = useAssessmentCompletion(user?.id);
 
   // Funcional abierta de entrada: es donde casi todos empiezan.
   const [open, setOpen] = useState<Record<string, boolean>>({ funcional: true });
@@ -71,6 +74,9 @@ export default function TestsHub() {
   const hero = heroAssessment();
   const master = masterAssessment();
   const heroDone = hero ? completion[hero.id]?.done : false;
+  // Mientras no haya lectura buena, el contador no se pinta: un hueco es honesto,
+  // un cero es una afirmación.
+  const contadorListo = !loading && !failed;
 
   return (
     <Screen themed>
@@ -123,6 +129,22 @@ export default function TestsHub() {
           </Animated.View>
         )}
 
+        {/* FIX-215: si la lectura falló, se dice y se ofrece salida. Antes el
+            hub se pintaba idéntico a un usuario sin nada hecho. */}
+        {failed && (
+          <AnimatedPressable onPress={refresh} style={s.avisoCard}>
+            <Ionicons name="cloud-offline-outline" size={18} color={t.error} />
+            <View style={{ flex: 1 }}>
+              <EliteText style={[s.avisoTitulo, { color: t.error }]}>
+                No pudimos leer tu avance
+              </EliteText>
+              <EliteText variant="caption" style={s.blurb}>
+                Revisa tu conexión y toca aquí para volver a intentarlo.
+              </EliteText>
+            </View>
+          </AnimatedPressable>
+        )}
+
         {SECTION_META.map((meta, idx) => (
           <SectionBlock
             key={meta.id}
@@ -133,6 +155,7 @@ export default function TestsHub() {
             expanded={!!open[meta.id]}
             onToggle={() => toggle(meta.id)}
             completion={completion}
+            contadorListo={contadorListo}
             onPick={go}
           />
         ))}
@@ -146,7 +169,7 @@ export default function TestsHub() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function SectionBlock({
-  s, t, meta, delay, expanded, onToggle, completion, onPick,
+  s, t, meta, delay, expanded, onToggle, completion, contadorListo, onPick,
 }: {
   s: ReturnType<typeof makeStyles>;
   t: AppThemeTokens;
@@ -155,6 +178,8 @@ function SectionBlock({
   expanded: boolean;
   onToggle: () => void;
   completion: Record<string, { done: boolean; date?: string }>;
+  /** FIX-215: falso mientras la lectura no haya terminado bien. */
+  contadorListo: boolean;
   onPick: (a: Assessment) => void;
 }) {
   const rows = useMemo(() => assessmentsBySection(meta.id), [meta.id]);
@@ -167,7 +192,7 @@ function SectionBlock({
           <EliteText style={s.sectionTitle}>{meta.title}</EliteText>
           <EliteText variant="caption" style={s.blurb}>{meta.blurb}</EliteText>
         </View>
-        <EliteText style={s.counter}>{done}/{rows.length}</EliteText>
+        <EliteText style={s.counter}>{contadorListo ? `${done}/${rows.length}` : ' '}</EliteText>
         <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={t.textoSecundario} />
       </AnimatedPressable>
 
@@ -214,6 +239,13 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.md,
   },
   masterTitle: { fontSize: FontSizes.md, fontFamily: Fonts.extraBold, color: t.kind === 'dark' ? MASTER_COLOR : t.tealTexto, marginBottom: 2 },
+
+  avisoCard: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: withOpacity(t.error, 0.08), borderWidth: 1, borderColor: withOpacity(t.error, 0.3),
+    borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.md,
+  },
+  avisoTitulo: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, marginBottom: 2 },
 
   section: { marginBottom: Spacing.sm },
   sectionHeader: {
