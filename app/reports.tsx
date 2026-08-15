@@ -41,6 +41,7 @@ import { CicloResumen } from '@/src/components/reports/domains/ciclo';
 import { NbackResumen } from '@/src/components/reports/domains/nback';
 import { AdherenciaResumen } from '@/src/components/reports/domains/adherencia';
 import { EntrenamientoResumen } from '@/src/components/reports/domains/entrenamiento';
+import { GlucosaResumen } from '@/src/components/reports/domains/glucosa';
 import { REPORT_DOMAINS, type ReportDomainKey } from '@/src/services/reports/report-domain-core';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
@@ -288,16 +289,18 @@ export default function ReportsScreen() {
         />
       </DomainCard>
     ),
+    // NOCHE-REP: la glucosa tenía barras aquí y nada más. Ahora es la puerta
+    // del dominio, donde además viven las cetonas y el índice que sale de las
+    // dos. Sigue escondida en cero: quien nunca se ha picado el dedo no
+    // necesita una tarjeta de guiones, y desde la bitácora se llega igual.
     glucosa: () => glucose.readings > 0 ? (
-      <GradientCard gradient={{ start: 'rgba(251,146,60,0.10)', end: 'rgba(251,146,60,0.02)' }}>
-        <SectionHeader icon="analytics-outline" color={ORANGE} title="GLUCOSA" />
-        <StatsRow>
-          <Stat value={glucose.avgFasting > 0 ? `${glucose.avgFasting}` : '—'} label="ayuno mg/dL" />
-          <Stat value={glucose.avgPostMeal > 0 ? `${glucose.avgPostMeal}` : '—'} label="post-comida" />
-          <Stat value={`${glucose.readings}`} label="lecturas" />
-        </StatsRow>
-        {glucose.daily.length > 0 && <SimpleBarChart data={glucose.daily} color={ORANGE} />}
-      </GradientCard>
+      <DomainCard domain="glucosa" gradient={{ start: 'rgba(251,146,60,0.10)', end: 'rgba(251,146,60,0.02)' }} period={period}>
+        <GlucosaResumen
+          avgFasting={glucose.avgFasting}
+          avgPostMeal={glucose.avgPostMeal}
+          readings={glucose.readings}
+        />
+      </DomainCard>
     ) : null,
     // OLA1 R-5: compliance era la cifra sin casa. Ahora es la puerta del
     // dominio adherencia, donde ademas viven las rachas y las medallas. La
