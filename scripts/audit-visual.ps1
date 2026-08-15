@@ -59,6 +59,15 @@ if (-not (Test-Path $mapaPath)) {
 }
 $mapa = Get-Content $mapaPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $rutas = $mapa.rutas
+
+# Rutas que ABREN LA CAMARA sola al montarse. Visitarlas de paso truena la app:
+# el barrido ya se movio a la siguiente ruta cuando el picker responde, y sale
+# "ExponentImagePicker.launchCameraAsync has been rejected". Paso el 12-ago-2026
+# tres veces. No son bugs de la app: son pantallas que no se pueden visitar de
+# paso. Se capturan a mano si hace falta.
+$SALTAR = @('/food-scan', '/food-barcode', '/food-log', '/edad-atp/tests/reaction-time')
+$rutas = $rutas | Where-Object { $SALTAR -notcontains $_.ruta }
+
 if ($Solo) { $rutas = $rutas | Where-Object { $_.ruta -like "*$Solo*" } }
 
 $destino = Join-Path $raiz ".maestro\capturas\$Tema"

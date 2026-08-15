@@ -1,0 +1,955 @@
+{
+  "scheme": "atp",
+  "rutas": [
+    {
+      "ruta": "/",
+      "slug": "hoy",
+      "archivo": "app/(tabs)/index.tsx"
+    },
+    {
+      "ruta": "/afiliados/aplicar",
+      "slug": "afiliados-aplicar",
+      "archivo": "app/afiliados/aplicar.tsx"
+    },
+    {
+      "ruta": "/afiliados/dashboard",
+      "slug": "afiliados-dashboard",
+      "archivo": "app/afiliados/dashboard.tsx"
+    },
+    {
+      "ruta": "/afiliados/mi-codigo",
+      "slug": "afiliados-mi-codigo",
+      "archivo": "app/afiliados/mi-codigo.tsx"
+    },
+    {
+      "ruta": "/agenda",
+      "slug": "agenda",
+      "archivo": "app/agenda.tsx"
+    },
+    {
+      "ruta": "/argos",
+      "slug": "argos",
+      "archivo": "app/(tabs)/argos.tsx"
+    },
+    {
+      "ruta": "/argos-chat",
+      "slug": "argos-chat",
+      "archivo": "app/argos-chat.tsx"
+    },
+    {
+      "ruta": "/argos-recipes",
+      "slug": "argos-recipes",
+      "archivo": "app/argos-recipes.tsx"
+    },
+    {
+      "ruta": "/argos/conversations",
+      "slug": "argos-conversations",
+      "archivo": "app/argos/conversations.tsx"
+    },
+    {
+      "ruta": "/argos/meet",
+      "slug": "argos-meet",
+      "archivo": "app/argos/meet.tsx"
+    },
+    {
+      "ruta": "/atp-orden",
+      "slug": "atp-orden",
+      "archivo": "app/atp-orden.tsx"
+    },
+    {
+      "ruta": "/biblioteca",
+      "slug": "biblioteca",
+      "archivo": "app/(tabs)/biblioteca.tsx"
+    },
+    {
+      "ruta": "/braverman",
+      "slug": "braverman",
+      "archivo": "app/braverman.tsx"
+    },
+    {
+      "ruta": "/braverman-premium",
+      "slug": "braverman-premium",
+      "archivo": "app/braverman-premium.tsx"
+    },
+    {
+      "ruta": "/breathing",
+      "slug": "breathing",
+      "archivo": "app/breathing.tsx"
+    },
+    {
+      "ruta": "/builder",
+      "slug": "builder",
+      "archivo": "app/builder.tsx"
+    },
+    {
+      "ruta": "/cardio-import",
+      "slug": "cardio-import",
+      "archivo": "app/cardio-import.tsx"
+    },
+    {
+      "ruta": "/centro",
+      "slug": "centro",
+      "archivo": "app/centro/index.tsx"
+    },
+    {
+      "ruta": "/checkin",
+      "slug": "checkin",
+      "archivo": "app/checkin.tsx"
+    },
+    {
+      "ruta": "/clinical-system",
+      "slug": "clinical-system",
+      "archivo": "app/clinical-system.tsx"
+    },
+    {
+      "ruta": "/cocina",
+      "slug": "cocina",
+      "archivo": "app/cocina.tsx"
+    },
+    {
+      "ruta": "/comunidad/amigos",
+      "slug": "comunidad-amigos",
+      "archivo": "app/comunidad/amigos.tsx"
+    },
+    {
+      "ruta": "/comunidad/animo",
+      "slug": "comunidad-animo",
+      "archivo": "app/comunidad/animo.tsx"
+    },
+    {
+      "ruta": "/comunidad/buscar",
+      "slug": "comunidad-buscar",
+      "archivo": "app/comunidad/buscar.tsx"
+    },
+    {
+      "ruta": "/comunidad/ranking",
+      "slug": "comunidad-ranking",
+      "archivo": "app/comunidad/ranking.tsx"
+    },
+    {
+      "ruta": "/cycle",
+      "slug": "cycle",
+      "archivo": "app/cycle.tsx"
+    },
+    {
+      "ruta": "/cycle-charts",
+      "slug": "cycle-charts",
+      "archivo": "app/cycle-charts.tsx"
+    },
+    {
+      "ruta": "/cycle-history",
+      "slug": "cycle-history",
+      "archivo": "app/cycle-history.tsx"
+    },
+    {
+      "ruta": "/cycle-settings",
+      "slug": "cycle-settings",
+      "archivo": "app/cycle-settings.tsx"
+    },
+    {
+      "ruta": "/dev",
+      "slug": "dev",
+      "archivo": "app/dev/index.tsx"
+    },
+    {
+      "ruta": "/dev/goal-tree-smoke",
+      "slug": "dev-goal-tree-smoke",
+      "archivo": "app/dev/goal-tree-smoke.tsx"
+    },
+    {
+      "ruta": "/economy/admin",
+      "slug": "economy-admin",
+      "archivo": "app/economy/admin.tsx"
+    },
+    {
+      "ruta": "/economy/convert",
+      "slug": "economy-convert",
+      "archivo": "app/economy/convert.tsx"
+    },
+    {
+      "ruta": "/economy/history",
+      "slug": "economy-history",
+      "archivo": "app/economy/history.tsx"
+    },
+    {
+      "ruta": "/economy/how-to-earn",
+      "slug": "economy-how-to-earn",
+      "archivo": "app/economy/how-to-earn.tsx"
+    },
+    {
+      "ruta": "/economy/shop",
+      "slug": "economy-shop",
+      "archivo": "app/economy/shop.tsx"
+    },
+    {
+      "ruta": "/edad-atp",
+      "slug": "edad-atp",
+      "archivo": "app/edad-atp/index.tsx"
+    },
+    {
+      "ruta": "/edad-atp/biomarkers",
+      "slug": "edad-atp-biomarkers",
+      "archivo": "app/edad-atp/biomarkers.tsx"
+    },
+    {
+      "ruta": "/edad-atp/cinematic-tests-index",
+      "slug": "edad-atp-cinematic-tests-index",
+      "archivo": "app/edad-atp/cinematic-tests-index.tsx"
+    },
+    {
+      "ruta": "/edad-atp/cognitive",
+      "slug": "edad-atp-cognitive",
+      "archivo": "app/edad-atp/cognitive.tsx"
+    },
+    {
+      "ruta": "/edad-atp/composition",
+      "slug": "edad-atp-composition",
+      "archivo": "app/edad-atp/composition.tsx"
+    },
+    {
+      "ruta": "/edad-atp/lab-confirmation",
+      "slug": "edad-atp-lab-confirmation",
+      "archivo": "app/edad-atp/lab-confirmation.tsx"
+    },
+    {
+      "ruta": "/edad-atp/labs",
+      "slug": "edad-atp-labs",
+      "archivo": "app/edad-atp/labs.tsx"
+    },
+    {
+      "ruta": "/edad-atp/questionnaires",
+      "slug": "edad-atp-questionnaires",
+      "archivo": "app/edad-atp/questionnaires/index.tsx"
+    },
+    {
+      "ruta": "/edad-atp/questionnaires/cardiovascular",
+      "slug": "edad-atp-questionnaires-cardiovascular",
+      "archivo": "app/edad-atp/questionnaires/cardiovascular.tsx"
+    },
+    {
+      "ruta": "/edad-atp/questionnaires/habitos",
+      "slug": "edad-atp-questionnaires-habitos",
+      "archivo": "app/edad-atp/questionnaires/habitos.tsx"
+    },
+    {
+      "ruta": "/edad-atp/questionnaires/inflamacion",
+      "slug": "edad-atp-questionnaires-inflamacion",
+      "archivo": "app/edad-atp/questionnaires/inflamacion.tsx"
+    },
+    {
+      "ruta": "/edad-atp/questionnaires/inmunidad",
+      "slug": "edad-atp-questionnaires-inmunidad",
+      "archivo": "app/edad-atp/questionnaires/inmunidad.tsx"
+    },
+    {
+      "ruta": "/edad-atp/questionnaires/metabolismo",
+      "slug": "edad-atp-questionnaires-metabolismo",
+      "archivo": "app/edad-atp/questionnaires/metabolismo.tsx"
+    },
+    {
+      "ruta": "/edad-atp/questionnaires/renal-micronutrientes",
+      "slug": "edad-atp-questionnaires-renal-micronutrientes",
+      "archivo": "app/edad-atp/questionnaires/renal-micronutrientes.tsx"
+    },
+    {
+      "ruta": "/edad-atp/questionnaires/sistema-hormonal",
+      "slug": "edad-atp-questionnaires-sistema-hormonal",
+      "archivo": "app/edad-atp/questionnaires/sistema-hormonal.tsx"
+    },
+    {
+      "ruta": "/edad-atp/questionnaires/sueno",
+      "slug": "edad-atp-questionnaires-sueno",
+      "archivo": "app/edad-atp/questionnaires/sueno.tsx"
+    },
+    {
+      "ruta": "/edad-atp/questionnaires/vitalidad",
+      "slug": "edad-atp-questionnaires-vitalidad",
+      "archivo": "app/edad-atp/questionnaires/vitalidad.tsx"
+    },
+    {
+      "ruta": "/edad-atp/result-preview",
+      "slug": "edad-atp-result-preview",
+      "archivo": "app/edad-atp/result-preview.tsx"
+    },
+    {
+      "ruta": "/edad-atp/test-bolt",
+      "slug": "edad-atp-test-bolt",
+      "archivo": "app/edad-atp/test-bolt.tsx"
+    },
+    {
+      "ruta": "/edad-atp/test-old-man",
+      "slug": "edad-atp-test-old-man",
+      "archivo": "app/edad-atp/test-old-man.tsx"
+    },
+    {
+      "ruta": "/edad-atp/test-plank",
+      "slug": "edad-atp-test-plank",
+      "archivo": "app/edad-atp/test-plank.tsx"
+    },
+    {
+      "ruta": "/edad-atp/test-recovery-hr",
+      "slug": "edad-atp-test-recovery-hr",
+      "archivo": "app/edad-atp/test-recovery-hr.tsx"
+    },
+    {
+      "ruta": "/edad-atp/tests",
+      "slug": "edad-atp-tests",
+      "archivo": "app/edad-atp/tests/index.tsx"
+    },
+    {
+      "ruta": "/edad-atp/tests/balance",
+      "slug": "edad-atp-tests-balance",
+      "archivo": "app/edad-atp/tests/balance.tsx"
+    },
+    {
+      "ruta": "/edad-atp/tests/chronotype",
+      "slug": "edad-atp-tests-chronotype",
+      "archivo": "app/edad-atp/tests/chronotype.tsx"
+    },
+    {
+      "ruta": "/edad-atp/tests/cooper",
+      "slug": "edad-atp-tests-cooper",
+      "archivo": "app/edad-atp/tests/cooper.tsx"
+    },
+    {
+      "ruta": "/edad-atp/tests/push-ups",
+      "slug": "edad-atp-tests-push-ups",
+      "archivo": "app/edad-atp/tests/push-ups.tsx"
+    },
+    {
+      "ruta": "/edad-atp/tests/reaction-time",
+      "slug": "edad-atp-tests-reaction-time",
+      "archivo": "app/edad-atp/tests/reaction-time.tsx"
+    },
+    {
+      "ruta": "/edad-atp/vitals",
+      "slug": "edad-atp-vitals",
+      "archivo": "app/edad-atp/vitals.tsx"
+    },
+    {
+      "ruta": "/emotion-exploration",
+      "slug": "emotion-exploration",
+      "archivo": "app/emotion-exploration.tsx"
+    },
+    {
+      "ruta": "/emotion-history",
+      "slug": "emotion-history",
+      "archivo": "app/emotion-history.tsx"
+    },
+    {
+      "ruta": "/emotion-navigation",
+      "slug": "emotion-navigation",
+      "archivo": "app/emotion-navigation.tsx"
+    },
+    {
+      "ruta": "/emotion-profile",
+      "slug": "emotion-profile",
+      "archivo": "app/emotion-profile.tsx"
+    },
+    {
+      "ruta": "/emotions",
+      "slug": "emotions",
+      "archivo": "app/emotions.tsx"
+    },
+    {
+      "ruta": "/execution",
+      "slug": "execution",
+      "archivo": "app/execution.tsx"
+    },
+    {
+      "ruta": "/exercise-detail",
+      "slug": "exercise-detail",
+      "archivo": "app/exercise-detail.tsx"
+    },
+    {
+      "ruta": "/exercise-library",
+      "slug": "exercise-library",
+      "archivo": "app/exercise-library.tsx"
+    },
+    {
+      "ruta": "/fasting",
+      "slug": "fasting",
+      "archivo": "app/fasting.tsx"
+    },
+    {
+      "ruta": "/feedback-dashboard",
+      "slug": "feedback-dashboard",
+      "archivo": "app/feedback-dashboard.tsx"
+    },
+    {
+      "ruta": "/ficha-emergencia",
+      "slug": "ficha-emergencia",
+      "archivo": "app/ficha-emergencia.tsx"
+    },
+    {
+      "ruta": "/fitness-cardio",
+      "slug": "fitness-cardio",
+      "archivo": "app/fitness-cardio.tsx"
+    },
+    {
+      "ruta": "/fitness-hiit",
+      "slug": "fitness-hiit",
+      "archivo": "app/fitness-hiit.tsx"
+    },
+    {
+      "ruta": "/fitness-hub",
+      "slug": "fitness-hub",
+      "archivo": "app/fitness-hub.tsx"
+    },
+    {
+      "ruta": "/fitness-my",
+      "slug": "fitness-my",
+      "archivo": "app/fitness-my.tsx"
+    },
+    {
+      "ruta": "/fitness-strength",
+      "slug": "fitness-strength",
+      "archivo": "app/fitness-strength.tsx"
+    },
+    {
+      "ruta": "/fitness-train",
+      "slug": "fitness-train",
+      "archivo": "app/fitness-train.tsx"
+    },
+    {
+      "ruta": "/food-barcode",
+      "slug": "food-barcode",
+      "archivo": "app/food-barcode.tsx"
+    },
+    {
+      "ruta": "/food-log",
+      "slug": "food-log",
+      "archivo": "app/food-log.tsx"
+    },
+    {
+      "ruta": "/food-preferences",
+      "slug": "food-preferences",
+      "archivo": "app/food-preferences.tsx"
+    },
+    {
+      "ruta": "/food-register",
+      "slug": "food-register",
+      "archivo": "app/food-register.tsx"
+    },
+    {
+      "ruta": "/food-scan",
+      "slug": "food-scan",
+      "archivo": "app/food-scan.tsx"
+    },
+    {
+      "ruta": "/food-text",
+      "slug": "food-text",
+      "archivo": "app/food-text.tsx"
+    },
+    {
+      "ruta": "/forgot-password",
+      "slug": "forgot-password",
+      "archivo": "app/forgot-password.tsx"
+    },
+    {
+      "ruta": "/functional-quiz",
+      "slug": "functional-quiz",
+      "archivo": "app/functional-quiz.tsx"
+    },
+    {
+      "ruta": "/glucose-log",
+      "slug": "glucose-log",
+      "archivo": "app/glucose-log.tsx"
+    },
+    {
+      "ruta": "/health-hub",
+      "slug": "health-hub",
+      "archivo": "app/health-hub.tsx"
+    },
+    {
+      "ruta": "/health-input",
+      "slug": "health-input",
+      "archivo": "app/health-input.tsx"
+    },
+    {
+      "ruta": "/historia-clinica",
+      "slug": "historia-clinica",
+      "archivo": "app/historia-clinica/index.tsx"
+    },
+    {
+      "ruta": "/history",
+      "slug": "history",
+      "archivo": "app/history.tsx"
+    },
+    {
+      "ruta": "/hoy-habitos",
+      "slug": "hoy-habitos",
+      "archivo": "app/hoy-habitos.tsx"
+    },
+    {
+      "ruta": "/hydration",
+      "slug": "hydration",
+      "archivo": "app/hydration.tsx"
+    },
+    {
+      "ruta": "/journal",
+      "slug": "journal",
+      "archivo": "app/journal.tsx"
+    },
+    {
+      "ruta": "/journal-history",
+      "slug": "journal-history",
+      "archivo": "app/journal-history.tsx"
+    },
+    {
+      "ruta": "/ketones-log",
+      "slug": "ketones-log",
+      "archivo": "app/ketones-log.tsx"
+    },
+    {
+      "ruta": "/kit",
+      "slug": "kit",
+      "archivo": "app/(tabs)/kit.tsx"
+    },
+    {
+      "ruta": "/labs-guide",
+      "slug": "labs-guide",
+      "archivo": "app/labs-guide.tsx"
+    },
+    {
+      "ruta": "/legal/aviso",
+      "slug": "legal-aviso",
+      "archivo": "app/legal/aviso.tsx"
+    },
+    {
+      "ruta": "/legal/terminos",
+      "slug": "legal-terminos",
+      "archivo": "app/legal/terminos.tsx"
+    },
+    {
+      "ruta": "/lista-compra",
+      "slug": "lista-compra",
+      "archivo": "app/lista-compra.tsx"
+    },
+    {
+      "ruta": "/log-cardio",
+      "slug": "log-cardio",
+      "archivo": "app/log-cardio.tsx"
+    },
+    {
+      "ruta": "/log-exercise",
+      "slug": "log-exercise",
+      "archivo": "app/log-exercise.tsx"
+    },
+    {
+      "ruta": "/log-strength",
+      "slug": "log-strength",
+      "archivo": "app/log-strength.tsx"
+    },
+    {
+      "ruta": "/login",
+      "slug": "login",
+      "archivo": "app/login.tsx"
+    },
+    {
+      "ruta": "/medidas",
+      "slug": "medidas",
+      "archivo": "app/medidas.tsx"
+    },
+    {
+      "ruta": "/meditation",
+      "slug": "meditation",
+      "archivo": "app/meditation.tsx"
+    },
+    {
+      "ruta": "/mente/nback",
+      "slug": "mente-nback",
+      "archivo": "app/mente/nback/index.tsx"
+    },
+    {
+      "ruta": "/mente/nback/como-jugar",
+      "slug": "mente-nback-como-jugar",
+      "archivo": "app/mente/nback/como-jugar.tsx"
+    },
+    {
+      "ruta": "/mente/nback/personalizar",
+      "slug": "mente-nback-personalizar",
+      "archivo": "app/mente/nback/personalizar.tsx"
+    },
+    {
+      "ruta": "/mente/nback/saber-mas",
+      "slug": "mente-nback-saber-mas",
+      "archivo": "app/mente/nback/saber-mas.tsx"
+    },
+    {
+      "ruta": "/mente/nback/sesion",
+      "slug": "mente-nback-sesion",
+      "archivo": "app/mente/nback/sesion.tsx"
+    },
+    {
+      "ruta": "/mente/nback/stats",
+      "slug": "mente-nback-stats",
+      "archivo": "app/mente/nback/stats.tsx"
+    },
+    {
+      "ruta": "/mente/player",
+      "slug": "mente-player",
+      "archivo": "app/mente/player.tsx"
+    },
+    {
+      "ruta": "/mente/progreso",
+      "slug": "mente-progreso",
+      "archivo": "app/mente/progreso.tsx"
+    },
+    {
+      "ruta": "/mobility-assessment",
+      "slug": "mobility-assessment",
+      "archivo": "app/mobility-assessment.tsx"
+    },
+    {
+      "ruta": "/my-chronotype",
+      "slug": "my-chronotype",
+      "archivo": "app/my-chronotype.tsx"
+    },
+    {
+      "ruta": "/my-health",
+      "slug": "my-health",
+      "archivo": "app/my-health.tsx"
+    },
+    {
+      "ruta": "/my-recipes",
+      "slug": "my-recipes",
+      "archivo": "app/my-recipes.tsx"
+    },
+    {
+      "ruta": "/my-routines",
+      "slug": "my-routines",
+      "archivo": "app/my-routines.tsx"
+    },
+    {
+      "ruta": "/night-filter",
+      "slug": "night-filter",
+      "archivo": "app/night-filter.tsx"
+    },
+    {
+      "ruta": "/notifications",
+      "slug": "notifications",
+      "archivo": "app/notifications.tsx"
+    },
+    {
+      "ruta": "/nutrition",
+      "slug": "nutrition",
+      "archivo": "app/nutrition.tsx"
+    },
+    {
+      "ruta": "/onboarding/v2/chronotype",
+      "slug": "onboarding-v2-chronotype",
+      "archivo": "app/onboarding/v2/chronotype.tsx"
+    },
+    {
+      "ruta": "/onboarding/v2/consent",
+      "slug": "onboarding-v2-consent",
+      "archivo": "app/onboarding/v2/consent.tsx"
+    },
+    {
+      "ruta": "/onboarding/v2/cycle",
+      "slug": "onboarding-v2-cycle",
+      "archivo": "app/onboarding/v2/cycle.tsx"
+    },
+    {
+      "ruta": "/onboarding/v2/goal",
+      "slug": "onboarding-v2-goal",
+      "archivo": "app/onboarding/v2/goal.tsx"
+    },
+    {
+      "ruta": "/onboarding/v2/notifications",
+      "slug": "onboarding-v2-notifications",
+      "archivo": "app/onboarding/v2/notifications.tsx"
+    },
+    {
+      "ruta": "/onboarding/v2/positioning",
+      "slug": "onboarding-v2-positioning",
+      "archivo": "app/onboarding/v2/positioning.tsx"
+    },
+    {
+      "ruta": "/onboarding/v2/privacy",
+      "slug": "onboarding-v2-privacy",
+      "archivo": "app/onboarding/v2/privacy.tsx"
+    },
+    {
+      "ruta": "/onboarding/v2/profile",
+      "slug": "onboarding-v2-profile",
+      "archivo": "app/onboarding/v2/profile.tsx"
+    },
+    {
+      "ruta": "/onboarding/v2/welcome",
+      "slug": "onboarding-v2-welcome",
+      "archivo": "app/onboarding/v2/welcome.tsx"
+    },
+    {
+      "ruta": "/onboarding/voice-config",
+      "slug": "onboarding-voice-config",
+      "archivo": "app/onboarding/voice-config.tsx"
+    },
+    {
+      "ruta": "/ordenar-dia",
+      "slug": "ordenar-dia",
+      "archivo": "app/ordenar-dia.tsx"
+    },
+    {
+      "ruta": "/packs/armar",
+      "slug": "packs-armar",
+      "archivo": "app/packs/armar.tsx"
+    },
+    {
+      "ruta": "/paywall",
+      "slug": "paywall",
+      "archivo": "app/paywall.tsx"
+    },
+    {
+      "ruta": "/perfil",
+      "slug": "perfil",
+      "archivo": "app/(tabs)/perfil.tsx"
+    },
+    {
+      "ruta": "/plan-entrenamiento",
+      "slug": "plan-entrenamiento",
+      "archivo": "app/plan-entrenamiento.tsx"
+    },
+    {
+      "ruta": "/profile",
+      "slug": "profile",
+      "archivo": "app/profile.tsx"
+    },
+    {
+      "ruta": "/progreso",
+      "slug": "progreso",
+      "archivo": "app/(tabs)/progreso.tsx"
+    },
+    {
+      "ruta": "/progress",
+      "slug": "progress",
+      "archivo": "app/progress.tsx"
+    },
+    {
+      "ruta": "/protocol-explorer",
+      "slug": "protocol-explorer",
+      "archivo": "app/protocol-explorer.tsx"
+    },
+    {
+      "ruta": "/quiz-take",
+      "slug": "quiz-take",
+      "archivo": "app/quiz-take.tsx"
+    },
+    {
+      "ruta": "/quiz/chronotype",
+      "slug": "quiz-chronotype",
+      "archivo": "app/quiz/chronotype.tsx"
+    },
+    {
+      "ruta": "/quizzes",
+      "slug": "quizzes",
+      "archivo": "app/quizzes.tsx"
+    },
+    {
+      "ruta": "/redeem-code",
+      "slug": "redeem-code",
+      "archivo": "app/redeem-code.tsx"
+    },
+    {
+      "ruta": "/register",
+      "slug": "register",
+      "archivo": "app/register.tsx"
+    },
+    {
+      "ruta": "/reports",
+      "slug": "reports",
+      "archivo": "app/reports.tsx"
+    },
+    {
+      "ruta": "/reset-password",
+      "slug": "reset-password",
+      "archivo": "app/reset-password.tsx"
+    },
+    {
+      "ruta": "/routine-generator",
+      "slug": "routine-generator",
+      "archivo": "app/routine-generator.tsx"
+    },
+    {
+      "ruta": "/salud",
+      "slug": "salud",
+      "archivo": "app/(tabs)/salud.tsx"
+    },
+    {
+      "ruta": "/salud/cuestionario-maestro",
+      "slug": "salud-cuestionario-maestro",
+      "archivo": "app/salud/cuestionario-maestro/index.tsx"
+    },
+    {
+      "ruta": "/salud/diagnostico",
+      "slug": "salud-diagnostico",
+      "archivo": "app/salud/diagnostico/index.tsx"
+    },
+    {
+      "ruta": "/salud/evolucion",
+      "slug": "salud-evolucion",
+      "archivo": "app/salud/evolucion.tsx"
+    },
+    {
+      "ruta": "/salud/expediente",
+      "slug": "salud-expediente",
+      "archivo": "app/salud/expediente.tsx"
+    },
+    {
+      "ruta": "/salud/ficha-emergencia",
+      "slug": "salud-ficha-emergencia",
+      "archivo": "app/salud/ficha-emergencia.tsx"
+    },
+    {
+      "ruta": "/salud/hoy",
+      "slug": "salud-hoy",
+      "archivo": "app/salud/hoy.tsx"
+    },
+    {
+      "ruta": "/salud/intervenciones",
+      "slug": "salud-intervenciones",
+      "archivo": "app/salud/intervenciones/index.tsx"
+    },
+    {
+      "ruta": "/salud/intervenciones/rationale",
+      "slug": "salud-intervenciones-rationale",
+      "archivo": "app/salud/intervenciones/rationale.tsx"
+    },
+    {
+      "ruta": "/salud/mi-expediente",
+      "slug": "salud-mi-expediente",
+      "archivo": "app/salud/mi-expediente/index.tsx"
+    },
+    {
+      "ruta": "/salud/mis-datos",
+      "slug": "salud-mis-datos",
+      "archivo": "app/salud/mis-datos/index.tsx"
+    },
+    {
+      "ruta": "/salud/mis-evaluaciones",
+      "slug": "salud-mis-evaluaciones",
+      "archivo": "app/salud/mis-evaluaciones/index.tsx"
+    },
+    {
+      "ruta": "/salud/mis-sintomas",
+      "slug": "salud-mis-sintomas",
+      "archivo": "app/salud/mis-sintomas/index.tsx"
+    },
+    {
+      "ruta": "/salud/padecimientos",
+      "slug": "salud-padecimientos",
+      "archivo": "app/salud/padecimientos.tsx"
+    },
+    {
+      "ruta": "/salud/sintomas",
+      "slug": "salud-sintomas",
+      "archivo": "app/salud/sintomas.tsx"
+    },
+    {
+      "ruta": "/session",
+      "slug": "session",
+      "archivo": "app/session.tsx"
+    },
+    {
+      "ruta": "/settings",
+      "slug": "settings",
+      "archivo": "app/settings.tsx"
+    },
+    {
+      "ruta": "/settings/comunidad",
+      "slug": "settings-comunidad",
+      "archivo": "app/settings/comunidad.tsx"
+    },
+    {
+      "ruta": "/settings/conexiones",
+      "slug": "settings-conexiones",
+      "archivo": "app/settings/conexiones.tsx"
+    },
+    {
+      "ruta": "/settings/cuenta",
+      "slug": "settings-cuenta",
+      "archivo": "app/settings/cuenta.tsx"
+    },
+    {
+      "ruta": "/settings/dev",
+      "slug": "settings-dev",
+      "archivo": "app/settings/dev.tsx"
+    },
+    {
+      "ruta": "/settings/experiencia",
+      "slug": "settings-experiencia",
+      "archivo": "app/settings/experiencia.tsx"
+    },
+    {
+      "ruta": "/settings/legal",
+      "slug": "settings-legal",
+      "archivo": "app/settings/legal.tsx"
+    },
+    {
+      "ruta": "/settings/notifications",
+      "slug": "settings-notifications",
+      "archivo": "app/settings/notifications.tsx"
+    },
+    {
+      "ruta": "/settings/privacy",
+      "slug": "settings-privacy",
+      "archivo": "app/settings/privacy.tsx"
+    },
+    {
+      "ruta": "/settings/salud",
+      "slug": "settings-salud",
+      "archivo": "app/settings/salud.tsx"
+    },
+    {
+      "ruta": "/settings/subscription",
+      "slug": "settings-subscription",
+      "archivo": "app/settings/subscription.tsx"
+    },
+    {
+      "ruta": "/shared-routine",
+      "slug": "shared-routine",
+      "archivo": "app/shared-routine.tsx"
+    },
+    {
+      "ruta": "/sleep",
+      "slug": "sleep",
+      "archivo": "app/sleep.tsx"
+    },
+    {
+      "ruta": "/sleep-session",
+      "slug": "sleep-session",
+      "archivo": "app/sleep-session.tsx"
+    },
+    {
+      "ruta": "/solar",
+      "slug": "solar",
+      "archivo": "app/solar.tsx"
+    },
+    {
+      "ruta": "/strength-session",
+      "slug": "strength-session",
+      "archivo": "app/strength-session.tsx"
+    },
+    {
+      "ruta": "/supplements",
+      "slug": "supplements",
+      "archivo": "app/supplements.tsx"
+    },
+    {
+      "ruta": "/tests",
+      "slug": "tests",
+      "archivo": "app/tests.tsx"
+    },
+    {
+      "ruta": "/tests/resultado/cronotipo",
+      "slug": "tests-resultado-cronotipo",
+      "archivo": "app/tests/resultado/cronotipo.tsx"
+    },
+    {
+      "ruta": "/tribu",
+      "slug": "tribu",
+      "archivo": "app/(tabs)/tribu.tsx"
+    }
+  ]
+}

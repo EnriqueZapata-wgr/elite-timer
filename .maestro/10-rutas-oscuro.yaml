@@ -2,7 +2,7 @@
 #
 # Recorre TODAS las rutas estáticas con deep link y dispara una captura por
 # pantalla. No navega menús: salta directo, que es lo que hace viable pasar
-# por ~187 pantallas sin que nadie toque el teléfono.
+# por ~190 pantallas sin que nadie toque el teléfono.
 #
 # Antes de correr esto, deja la app en tema OSCURO.
 appId: com.atpperformance.app
@@ -13,10 +13,6 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/oscuro/hoy
-- openLink: atp://admin/reports
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: capturas/oscuro/admin-reports
 - openLink: atp://afiliados/aplicar
 - waitForAnimationToEnd:
     timeout: 4000
@@ -93,6 +89,10 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/oscuro/clinical-system
+- openLink: atp://cocina
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/oscuro/cocina
 - openLink: atp://comunidad/amigos
 - waitForAnimationToEnd:
     timeout: 4000
@@ -137,10 +137,6 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/oscuro/economy-admin
-- openLink: atp://economy/challenges
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: capturas/oscuro/economy-challenges
 - openLink: atp://economy/convert
 - waitForAnimationToEnd:
     timeout: 4000
@@ -153,10 +149,6 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/oscuro/economy-how-to-earn
-- openLink: atp://economy/referrals
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: capturas/oscuro/economy-referrals
 - openLink: atp://economy/shop
 - waitForAnimationToEnd:
     timeout: 4000
@@ -317,6 +309,10 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/oscuro/feedback-dashboard
+- openLink: atp://ficha-emergencia
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/oscuro/ficha-emergencia
 - openLink: atp://fitness-cardio
 - waitForAnimationToEnd:
     timeout: 4000
@@ -345,6 +341,10 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/oscuro/food-barcode
+- openLink: atp://food-log
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/oscuro/food-log
 - openLink: atp://food-preferences
 - waitForAnimationToEnd:
     timeout: 4000
@@ -437,6 +437,10 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/oscuro/log-exercise
+- openLink: atp://log-strength
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/oscuro/log-strength
 - openLink: atp://login
 - waitForAnimationToEnd:
     timeout: 4000
@@ -641,6 +645,10 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/oscuro/salud-expediente
+- openLink: atp://salud/ficha-emergencia
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/oscuro/salud-ficha-emergencia
 - openLink: atp://salud/hoy
 - waitForAnimationToEnd:
     timeout: 4000
@@ -677,10 +685,10 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/oscuro/salud-sintomas
-- openLink: atp://session-summary
+- openLink: atp://session
 - waitForAnimationToEnd:
     timeout: 4000
-- takeScreenshot: capturas/oscuro/session-summary
+- takeScreenshot: capturas/oscuro/session
 - openLink: atp://settings
 - waitForAnimationToEnd:
     timeout: 4000
@@ -749,11 +757,15 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/oscuro/supplements
+- openLink: atp://tests
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/oscuro/tests
+- openLink: atp://tests/resultado/cronotipo
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/oscuro/tests-resultado-cronotipo
 - openLink: atp://tribu
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/oscuro/tribu
-- openLink: atp://yo
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: capturas/oscuro/yo
