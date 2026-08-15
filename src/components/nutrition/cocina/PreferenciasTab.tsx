@@ -23,7 +23,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { userErrorMessage } from '@/src/utils/user-error';
-import { useAppTheme } from '@/src/contexts/theme-context';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 const DIET_TYPES = [
   { id: 'omnivore', name: 'Omnívoro', icon: 'restaurant-outline' },
@@ -44,7 +44,7 @@ const COOKING_STYLES = [
 
 export function PreferenciasTab() {
   const { user } = useAuth();
-  const { tokens: t } = useAppTheme();
+  const t = useSurfaceTokens();
   const [diet, setDiet] = useState('omnivore');
   const [allergies, setAllergies] = useState<string[]>([]);
   const [dislikes, setDislikes] = useState('');
