@@ -43,6 +43,9 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { generateDailyInsight, invalidateDailyInsight, ARGOS_INSIGHT_CHANGED_EVENT } from '@/src/services/argos-service';
+import { leerInsightDeHoy } from '@/src/services/argos-insight-cache';
+import { decidirRegeneracionInsight } from '@/src/services/argos-insight-window-core';
+import { INSIGHT_EN_VENTANA } from '@/src/constants/flags';
 import { getWeeklyInsight, isWeeklyInsightTime, type WeeklyInsightData } from '@/src/services/weekly-insight-service';
 import { syncAppAvisos } from '@/src/services/app-avisos-service';
 import { syncWidgetsFromCompiled } from '@/src/services/widgets/widget-sync-service';
@@ -226,32 +229,50 @@ export default function TodayScreen() {
     if (!user?.id) return;
     (async () => {
       const today = getLocalToday();
-      // Cache en Supabase — válido por 6 horas
+      // CIERRE-4: la guarda ya no es "cache de 6h" sino UNA generación por
+      // ventana de 4h, y solo si el día cambió (stale). La decisión es pura y
+      // vive en argos-insight-window-core; aquí solo se lee y se escribe.
       try {
-        const { data: cached, error: cacheErr } = await supabase
-          .from('argos_daily_insights')
-          .select('insight, created_at')
-          .eq('user_id', user.id)
-          .eq('date', today)
-          .maybeSingle();
-        // MB-11 A: un fallo aquí no es "sin cache" — sin este log, cada visita
-        // regeneraría el insight (LLM) sin que nadie se entere del porqué.
-        if (cacheErr) logWarn('[HOY] argos_daily_insights cache query failed', cacheErr);
-        if (cached?.insight) {
-          const cacheAge = cached.created_at
-            ? (Date.now() - new Date(cached.created_at).getTime()) / (1000 * 60 * 60)
+        const cache = await leerInsightDeHoy(user.id);
+        if (INSIGHT_EN_VENTANA) {
+          const { regenerar } = decidirRegeneracionInsight({
+            hayInsight: !!cache?.insight,
+            createdAtMs: cache?.createdAtMs ?? null,
+            stale: cache?.stale ?? true,
+            ahoraMs: Date.now(),
+          });
+          if (!regenerar) return;
+        } else if (cache?.insight) {
+          const cacheAge = cache.createdAtMs !== null
+            ? (Date.now() - cache.createdAtMs) / (1000 * 60 * 60)
             : Infinity;
           if (cacheAge < 6) return; // Cache fresco, no regenerar
         }
-      } catch (_) { /* sin cache */ }
+      } catch (cacheErr) {
+        // MB-11 A: un fallo aquí no es "sin cache" — sin este log, cada visita
+        // regeneraría el insight (LLM) sin que nadie se entere del porqué.
+        logWarn('[HOY] argos_daily_insights cache query failed', cacheErr);
+      }
       // Generar nuevo
       try {
         const insight = await generateDailyInsight(user.id);
         if (insight) {
-          const { error: upsertErr } = await supabase.from('argos_daily_insights').upsert(
-            { user_id: user.id, date: today, insight, created_at: new Date().toISOString() },
+          // `stale: false` cierra la ventana: las invalidaciones acumuladas
+          // hasta aquí quedan atendidas por ESTA generación. Eso es el batching.
+          const fila = { user_id: user.id, date: today, insight, created_at: new Date().toISOString() };
+          let { error: upsertErr } = await supabase.from('argos_daily_insights').upsert(
+            INSIGHT_EN_VENTANA ? { ...fila, stale: false } : fila,
             { onConflict: 'user_id,date' },
           );
+          // Si la 275 aún no está en el remoto, la columna `stale` no existe y
+          // el upsert falla entero. Sin este reintento el insight NO se
+          // persistiría y se regeneraría (y cobraría) en cada visita: justo el
+          // leak que este trabajo viene a cerrar.
+          if (upsertErr && INSIGHT_EN_VENTANA) {
+            ({ error: upsertErr } = await supabase.from('argos_daily_insights').upsert(
+              fila, { onConflict: 'user_id,date' },
+            ));
+          }
           // MB-11 A: si el upsert falla, el insight se regenera (y se cobra) en
           // cada visita — el log es la única evidencia del leak.
           if (upsertErr) logWarn('[HOY] argos_daily_insights upsert failed', upsertErr);

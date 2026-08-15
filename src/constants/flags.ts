@@ -222,3 +222,40 @@ export const SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA = true;
  *  Sin migración: esto solo cambia de dónde se leen números para pintar.
  */
 export const RANGOS_UNA_SOLA_FUENTE = true;
+
+/**
+ * INSIGHT_EN_VENTANA — el insight diario deja de ser una llave abierta (CIERRE-4).
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → la generación del insight diario se decide con
+ *    `decidirRegeneracionInsight` (argos-insight-window-core): el día se parte
+ *    en ventanas fijas de 4 horas y dentro de una ventana se genera UNO solo,
+ *    sin importar cuántas veces se invalide el cache ni cuántas veces se abra
+ *    la app. `invalidateDailyInsight` marca `argos_daily_insights.stale = true`
+ *    en vez de falsear `created_at`.
+ *  · OFF → comportamiento previo byte por byte: guarda por antigüedad de 6h e
+ *    invalidación escribiendo `created_at = epoch 0`.
+ *
+ * POR QUÉ EXISTE
+ *  La guarda nunca fue "uno al día", era un cache de 6 horas, y la invalidación
+ *  lo anulaba por completo. `day_changed` se emite desde 36 lugares del código,
+ *  así que cualquier comida o tramo de ayuno dejaba el insight invalidado y el
+ *  siguiente arranque en frío pagaba una llamada nueva a Sonnet. Medido en
+ *  argos_logs a 30 días: 193 llamadas de `insight` contra un diseño de una por
+ *  usuario por día, y el 62% del costo de cada una es una escritura de caché de
+ *  5 minutos que en 30 días se leyó UNA vez (103 escrituras, 1 lectura).
+ *
+ * LO QUE NO LE PUEDE QUITAR A NADIE
+ *  El primer insight del día siempre se genera: la fila es por fecha, al
+ *  amanecer no existe y gana el motivo 'sin_insight'. El techo pasa de "sin
+ *  límite" a 6 al día; lo normal queda en 1 a 3. Nadie pierde el insight que paga.
+ *
+ * DEPENDE DE LA MIGRACIÓN 275 (columna `stale`), pero NO se rompe sin ella:
+ *  `leerInsightDeHoy` reintenta sin la columna y asume `stale = true`, o sea
+ *  cae del lado generoso (regenera al cruzar ventana) en vez de callarse.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración inversa: la columna `stale` sobrante es inerte con el flag OFF.
+ */
+export const INSIGHT_EN_VENTANA = true;
