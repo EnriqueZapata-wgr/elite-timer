@@ -238,10 +238,54 @@ describe('diffPuertas (--cambiadas)', () => {
     expect(diffPuertas(a, b)).toEqual([]);
   });
 
-  it('puertasMap traduce las salas y limpia rutas de archivo', () => {
+  it('puertasMap traduce las salas y limpia rutas de archivo (5 salas)', () => {
     const m = puertasMap([
       { withGroups: '/solar', sources: ['app/(tabs)/kit.tsx', 'app/supplements.tsx'] },
     ]);
     expect(m['/solar']).toEqual(['ATP', 'supplements']);
+  });
+});
+
+/**
+ * DEUDA · la lista blanca también necesita quien la guarde.
+ *
+ * `/economy/challenges`, `/economy/referrals` y `/admin/reports` siguieron
+ * listadas con el motivo "la pantalla se conserva" semanas después de que
+ * `ba42730` las borrara. El censo daba verde: una entrada cuyo archivo no
+ * existe no es una huérfana, y las huérfanas eran lo único que miraba.
+ */
+describe('entradasFantasma · la lista blanca no puede citar pantallas borradas', () => {
+  const { entradasFantasma } = censo;
+
+  // El shape que devuelve collectRoutes(), reducido a lo que mira la función.
+  const ruta = (noGroups: string, withGroups = noGroups) => ({ noGroups, withGroups });
+
+  it('caza la entrada cuyo archivo ya no existe', () => {
+    const allowed = { '/legal/aviso': 'motivo real', '/economy/challenges': 'la pantalla se conserva' };
+    expect(entradasFantasma(allowed, [ruta('/legal/aviso')])).toEqual(['/economy/challenges']);
+  });
+
+  it('una entrada con archivo vivo NO es fantasma, tenga o no puerta', () => {
+    // /health-hub existe en app/ y es un redirect legacy a propósito.
+    expect(entradasFantasma({ '/health-hub': 'redirect legacy' }, [ruta('/health-hub')])).toEqual([]);
+  });
+
+  it('acepta la entrada escrita sin el grupo aunque el archivo lo tenga', () => {
+    // app/(tabs)/kit.tsx se puede citar como '/kit' o '/(tabs)/kit'.
+    expect(entradasFantasma({ '/kit': 'x' }, [ruta('/kit', '/(tabs)/kit')])).toEqual([]);
+  });
+
+  it('normaliza antes de comparar: la diagonal final no inventa un fantasma', () => {
+    expect(entradasFantasma({ '/salud/': 'x' }, [ruta('/salud')])).toEqual([]);
+  });
+
+  it('la lista blanca de HOY no tiene ni un fantasma', () => {
+    // El candado de verdad: corre contra el disco real. Si alguien borra una
+    // pantalla y olvida podar su motivo, este test truena antes que el censo.
+    const { collectRoutes } = censo;
+    const permitidas = require_(
+      resolve(here, '..', '..', 'scripts', 'censo-permitidas.json')
+    ).permitidas;
+    expect(entradasFantasma(permitidas, collectRoutes())).toEqual([]);
   });
 });

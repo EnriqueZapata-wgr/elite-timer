@@ -525,6 +525,28 @@ function danglingDoors(routes) {
 // 5 · Reporte
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Las entradas de la lista blanca que ya no corresponden a ninguna pantalla.
+ *
+ * Una lista blanca que arrastra muertos deja de ser candado: dice "esta
+ * pantalla se conserva a propósito" de algo que se borró hace semanas, y el
+ * siguiente que la lea le va a creer. Pasó con `/economy/challenges`,
+ * `/economy/referrals` y `/admin/reports`, borradas en `ba42730` y todavía
+ * listadas con su motivo intacto. El censo no las veía porque solo miraba
+ * huérfanas NUEVAS; una entrada fantasma no es huérfana, es un archivo que
+ * no existe, y así se quedaba callado para siempre.
+ *
+ * Pura y exportada a propósito: se testea sin tocar el disco.
+ */
+function entradasFantasma(allowed, routes) {
+  const enDisco = new Set();
+  for (const r of routes) {
+    enDisco.add(r.noGroups);
+    enDisco.add(r.withGroups);
+  }
+  return Object.keys(allowed).filter((k) => !enDisco.has(normalizeRoute(k))).sort();
+}
+
 function loadAllowlist() {
   try {
     const json = JSON.parse(fs.readFileSync(ALLOWLIST_FILE, 'utf8'));
@@ -687,12 +709,17 @@ function main() {
 
   const orphans = routes.filter((r) => !r.reached);
   const nuevas = orphans.filter((r) => !allowed[r.noGroups]);
-  const resueltas = Object.keys(allowed).filter((k) => !orphans.some((o) => o.noGroups === k));
+  const fantasmas = entradasFantasma(allowed, routes);
+  // Una entrada fantasma tampoco es huérfana (su archivo no existe), así que
+  // caía aquí y se anunciaba como "ya tiene puerta". Justo al revés.
+  const resueltas = Object.keys(allowed).filter(
+    (k) => !orphans.some((o) => o.noGroups === k) && !fantasmas.includes(k)
+  );
   const dangling = danglingDoors(routes);
 
   if (wantJson) {
-    console.log(JSON.stringify({ total: routes.length, orphans: orphans.map((o) => o.noGroups), nuevas: nuevas.map((o) => o.noGroups), resueltas, dangling, routes }, null, 2));
-    process.exit(nuevas.length > 0 ? 1 : 0);
+    console.log(JSON.stringify({ total: routes.length, orphans: orphans.map((o) => o.noGroups), nuevas: nuevas.map((o) => o.noGroups), resueltas, fantasmas, dangling, routes }, null, 2));
+    process.exit(nuevas.length > 0 || fantasmas.length > 0 ? 1 : 0);
   }
 
   console.log('');
@@ -733,14 +760,24 @@ function main() {
     console.log('');
   }
 
+  if (fantasmas.length > 0) {
+    console.log(`  ENTRADAS FANTASMA EN LA LISTA BLANCA: ${fantasmas.length}`);
+    for (const f of fantasmas) console.log(`    ✗ ${f}   (no existe ningún archivo en app/ para esta ruta)`);
+    console.log('');
+    console.log('  La pantalla se borró y su motivo sigue escrito como si viviera.');
+    console.log('  Bórrala de scripts/censo-permitidas.json.');
+    console.log('');
+  }
+
   if (nuevas.length > 0) {
     console.log(`  HUÉRFANAS NUEVAS: ${nuevas.length}`);
     for (const o of nuevas) console.log(`    ✗ ${o.noGroups}   (app/${o.file})`);
     console.log('');
     console.log('  Dale una puerta, o agrégala a scripts/censo-permitidas.json con su motivo.');
     console.log('');
-    process.exit(1);
   }
+
+  if (nuevas.length > 0 || fantasmas.length > 0) process.exit(1);
 
   console.log('  CENSO EN VERDE. Ninguna huérfana nueva.');
   console.log('');
@@ -756,7 +793,7 @@ module.exports = {
   extractStrings, normalizeRoute, fileToRoute,
   resolveImport, importedFiles,
   audit, collectRoutes, collectReferences,
-  puertasMap, diffPuertas,
+  puertasMap, diffPuertas, entradasFantasma,
 };
 
 if (require.main === module) main();
