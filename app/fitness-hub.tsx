@@ -459,16 +459,17 @@ export default function FitnessHubScreen() {
               <EliteText style={[s.statValue, { color: t.texto }]}>{stats ? stats.sessions : '–'}</EliteText>
               <EliteText style={[s.statLabel, { color: t.textoSecundario }]}>Sesiones</EliteText>
             </View>
-            <View style={s.statDivider} />
+            <View style={[s.statDivider, { backgroundColor: t.borde }]} />
             <View style={s.statItem}>
               <EliteText style={[s.statValue, { color: t.texto }]}>
                 {stats ? (stats.volume > 1000 ? `${(stats.volume / 1000).toFixed(1)}k` : stats.volume) : '–'}
               </EliteText>
               <EliteText style={[s.statLabel, { color: t.textoSecundario }]}>Kg movidos</EliteText>
             </View>
-            <View style={s.statDivider} />
+            <View style={[s.statDivider, { backgroundColor: t.borde }]} />
             <View style={s.statItem}>
-              <EliteText style={[s.statValue, { color: SEMANTIC.acceptable }]}>{stats ? stats.prs : '–'}</EliteText>
+              {/* MB-31B: ámbar de marca ilegible como texto chico en claro (1.27:1) — se oscurece solo aquí. */}
+              <EliteText style={[s.statValue, { color: kind === 'dark' ? SEMANTIC.acceptable : '#7A5D14' }]}>{stats ? stats.prs : '–'}</EliteText>
               <EliteText style={[s.statLabel, { color: t.textoSecundario }]}>PRs nuevos</EliteText>
             </View>
           </View>
