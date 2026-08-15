@@ -21,6 +21,7 @@ import { adherenciaDomain } from './adherencia';
 import { entrenamientoDomain } from './entrenamiento';
 import { glucosaDomain } from './glucosa';
 import { labsDomain } from './labs';
+import { expedienteDomain } from './expediente';
 
 /**
  * Cada definición fija su propio tipo de datos puertas adentro; el mapa las
@@ -42,6 +43,7 @@ export const DOMAIN_DEFINITIONS: Partial<Record<ReportDomainKey, AnyReportDomain
   entrenamiento: entrenamientoDomain,
   glucosa: glucosaDomain,
   labs: labsDomain,
+  expediente: expedienteDomain,
 };
 
 export function getDomainDefinition(key: string | null | undefined): AnyReportDomainDefinition | null {
