@@ -140,3 +140,42 @@ export const LOGIN_PASA_POR_GATE = true;
  *  deja de sembrar a los siguientes.
  */
 export const DIA_1_SIEMBRA_SUAVE = true;
+
+/**
+ * SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA — la tabla deja de ser un cul-de-sac (CIERRE-3).
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → `compileDay` lee la salud del día (health_measurements +
+ *    sleep_nights + health_os_daily, resueltas por health-read-core) y con eso:
+ *    (a) los electrones cuantitativos `steps` y `sleep` dejan de estar vetados y
+ *    vuelven al renglón del día si el usuario los tiene activos;
+ *    (b) se pagan los premios de tier wearable (`steps_wearable`,
+ *    `sleep_wearable`), que existían en award-rules desde el día uno y nunca se
+ *    dispararon; (c) corre la sync automática si la persona la activó.
+ *  · OFF → el filtro `k !== 'steps' && k !== 'sleep'` vuelve a aplicarse, no se
+ *    consulta ninguna de las tres tablas, no se paga ningún premio y no se
+ *    sincroniza nada. Byte por byte el comportamiento previo.
+ *
+ * POR QUÉ EXISTE
+ *  NOCHE-1 encendió HealthKit y Health Connect, y la tabla `health_os_daily` se
+ *  quedó llenándose sin un solo lector: exactamente 2 archivos del repo la
+ *  mencionaban, la migración y el que escribe. La persona conectaba su teléfono,
+ *  veía "sincronizado" y en la app no cambiaba absolutamente nada. Eso es peor
+ *  que no tener la función, porque promete y no cumple.
+ *
+ * LO QUE ESTE FLAG NO PUEDE ROMPER
+ *  No escribe en ninguna tabla de la persona. La separación de la migración 264
+ *  (máquina y persona en tablas distintas) se conserva: aquí solo se LEE, y
+ *  quien gana lo decide health-read-core, donde el candado "lo manual nunca se
+ *  pisa" es un test rojo y no un comentario.
+ *
+ * EL RIESGO REAL AL APAGARLO
+ *  Los premios de wearable ya pagados NO se devuelven (son historial del
+ *  usuario, y el historial no se toca). Apagarlo solo deja de pagar los
+ *  siguientes y vuelve a esconder los dos renglones del día.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración, sin build nativo, sin tocar datos.
+ */
+export const SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA = true;

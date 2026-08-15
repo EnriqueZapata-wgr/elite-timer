@@ -14,7 +14,7 @@
  * todavía no se pide, permiso negado, y plataforma que no soporta nada.
  */
 import { useCallback, useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet, Switch, ActivityIndicator, Alert } from 'react-native';
+import { View, ScrollView, Pressable, StyleSheet, Switch, ActivityIndicator, Alert, DeviceEventEmitter } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
@@ -29,6 +29,7 @@ import { ATP_BRAND, CATEGORY_COLORS } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { useAuth } from '@/src/contexts/auth-context';
 import { formatLocalDate } from '@/src/utils/date-helpers';
+import { invalidarSaludDelDia } from '@/src/hooks/useWearableToday';
 import {
   DEFINICIONES,
   abrirAjustesPlataforma,
@@ -124,6 +125,12 @@ export default function SaludConexionScreen() {
           : (r.error ?? 'Intenta de nuevo.'),
       );
       setDias(await leerDias(7));
+      // CIERRE-3: cerrar el lazo. Antes, sincronizar escribía en
+      // health_os_daily y ahí moría: la persona veía "se guardaron 7 días" y
+      // volvía a HOY exactamente igual que antes. Invalidar el vuelo cacheado
+      // y pedir un recompile es lo que convierte el mensaje en algo visible.
+      invalidarSaludDelDia();
+      DeviceEventEmitter.emit('day_changed');
     } finally {
       setOcupado(false);
     }
