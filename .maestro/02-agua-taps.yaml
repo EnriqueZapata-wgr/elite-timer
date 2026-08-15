@@ -1,0 +1,46 @@
+# Cuatro taps seguidos de agua: el caso que se sentía lento y se regresaba.
+#
+# QUÉ PERSEGUIMOS
+# Antes del fix del 11-ago-2026, cuatro taps rápidos calculaban el optimista
+# sobre el MISMO valor viejo, así que la barra casi no se movía, y un fallo
+# tardío revertía a una foto anterior (el "subí a 3.5 L y se regresó a 1.8 L").
+#
+# Con el fix, la secuencia de capturas debe subir de forma monótona: cada una
+# igual o mayor que la anterior. Si alguna baja, el bug sigue vivo.
+appId: com.atpperformance.app
+---
+- launchApp:
+    clearState: false
+- openLink: atp://hydration
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: capturas/agua/00-inicial
+
+- tapOn:
+    text: "+250ml"
+- takeScreenshot: capturas/agua/01-tap1
+- tapOn:
+    text: "+250ml"
+- takeScreenshot: capturas/agua/02-tap2
+- tapOn:
+    text: "+250ml"
+- takeScreenshot: capturas/agua/03-tap3
+- tapOn:
+    text: "+250ml"
+- takeScreenshot: capturas/agua/04-tap4
+
+# La prueba de fuego: esperar a que las escrituras aterricen y confirmar que
+# el total NO se regresa.
+- waitForAnimationToEnd:
+    timeout: 8000
+- takeScreenshot: capturas/agua/05-tras-esperar
+
+# Salir y volver: el total debe seguir ahí. Si aquí baja, la persistencia
+# está perdiendo taps y el problema es del servicio, no de la pantalla.
+- openLink: atp://
+- waitForAnimationToEnd:
+    timeout: 3000
+- openLink: atp://hydration
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: capturas/agua/06-tras-volver

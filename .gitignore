@@ -80,3 +80,12 @@ supabase/.temp/
 
 expo-env.d.ts
 # @end expo-cli
+
+# Respaldo local de Expo: se regenera, no se versiona.
+.expo-backup/
+
+# Logs de herramientas de navegador: ruido, no fuente.
+.playwright-mcp/
+
+# Capturas del audit visual: se regeneran con npm run audit-visual.
+.maestro/capturas/

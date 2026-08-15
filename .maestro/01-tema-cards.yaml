@@ -1,0 +1,83 @@
+# Reproduce el colapso de las cards de Tareas al cambiar de tema.
+#
+# QUÉ PERSEGUIMOS
+# En la pestaña Tareas los pendientes se pintan como TareaCard (card editorial
+# con imagen de fondo); en Agenda se pintan como TareaRow (renglón compacto).
+# Enrique vio, el 11-ago-2026, que tras cambiar el tema a oscuro las cards de
+# Tareas quedaron ocupando su espacio pero sin contenido, y que reabrir la app
+# lo arreglaba. O sea: es transitorio y del cambio de tema, no del tema en sí.
+#
+# Este flujo hace el cambio EN VIVO, sin reiniciar, que es la condición donde
+# aparece. Las capturas 03 y 05 son las que hay que comparar.
+appId: com.atpperformance.app
+---
+- launchApp:
+    clearState: false
+
+# Estado de partida: HOY en la pestaña Tareas.
+- openLink: atp://
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Tareas"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: capturas/tema/01-tareas-antes
+
+- tapOn:
+    text: "Agenda"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: capturas/tema/02-agenda-antes
+
+# Cambiar el tema SIN matar la app. Aquí es donde se rompe.
+- openLink: atp://settings/experiencia
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/tema/03-ajustes-tema
+
+# El texto del selector puede variar; los tres intentos son opcionales para
+# que el flujo no truene si el copy cambió.
+- tapOn:
+    text: "Oscuro"
+    optional: true
+- tapOn:
+    text: "oscuro"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Volver a HOY sin reiniciar: el estado sucio es el punto del ejercicio.
+- openLink: atp://
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    text: "Tareas"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: capturas/tema/04-tareas-despues-de-cambiar
+
+- scroll
+- takeScreenshot: capturas/tema/05-tareas-scroll
+
+- tapOn:
+    text: "Agenda"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: capturas/tema/06-agenda-despues
+
+# Control: reiniciar debería devolver las cards a la normalidad. Si 07 se ve
+# bien y 04 se ve vacía, queda confirmado que es del cambio en caliente.
+- stopApp
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd:
+    timeout: 6000
+- tapOn:
+    text: "Tareas"
+    optional: true
+- takeScreenshot: capturas/tema/07-tareas-tras-reiniciar

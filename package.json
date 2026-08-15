@@ -13,7 +13,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "optimize-images": "node scripts/optimize-images.js",
-    "sourcemaps:ota": "node scripts/upload-ota-sourcemaps.mjs"
+    "sourcemaps:ota": "node scripts/upload-ota-sourcemaps.mjs",
+    "mapa:rutas": "node scripts/gen-mapa-rutas.js --maestro",
+    "audit-colores": "node scripts/audit-colores.js",
+    "audit-visual": "powershell -ExecutionPolicy Bypass -File scripts/audit-visual.ps1",
+    "mapa": "node scripts/mapa-app.js && python scripts/mapa-xlsx.py && node scripts/mapa-html.js"
   },
   "dependencies": {
     "@expo-google-fonts/poppins": "^0.4.1",

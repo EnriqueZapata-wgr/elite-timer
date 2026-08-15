@@ -1,0 +1,759 @@
+# GENERADO por scripts/gen-mapa-rutas.js. NO editar a mano.
+#
+# Recorre TODAS las rutas estáticas con deep link y dispara una captura por
+# pantalla. No navega menús: salta directo, que es lo que hace viable pasar
+# por ~187 pantallas sin que nadie toque el teléfono.
+#
+# Antes de correr esto, deja la app en tema CLARO.
+appId: com.atpperformance.app
+---
+- launchApp:
+    clearState: false
+- openLink: atp://
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/hoy
+- openLink: atp://admin/reports
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/admin-reports
+- openLink: atp://afiliados/aplicar
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/afiliados-aplicar
+- openLink: atp://afiliados/dashboard
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/afiliados-dashboard
+- openLink: atp://afiliados/mi-codigo
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/afiliados-mi-codigo
+- openLink: atp://agenda
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/agenda
+- openLink: atp://argos
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/argos
+- openLink: atp://argos-chat
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/argos-chat
+- openLink: atp://argos-recipes
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/argos-recipes
+- openLink: atp://argos/conversations
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/argos-conversations
+- openLink: atp://argos/meet
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/argos-meet
+- openLink: atp://atp-orden
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/atp-orden
+- openLink: atp://biblioteca
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/biblioteca
+- openLink: atp://braverman
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/braverman
+- openLink: atp://braverman-premium
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/braverman-premium
+- openLink: atp://breathing
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/breathing
+- openLink: atp://builder
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/builder
+- openLink: atp://cardio-import
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/cardio-import
+- openLink: atp://centro
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro
+- openLink: atp://checkin
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/checkin
+- openLink: atp://clinical-system
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/clinical-system
+- openLink: atp://comunidad/amigos
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/comunidad-amigos
+- openLink: atp://comunidad/animo
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/comunidad-animo
+- openLink: atp://comunidad/buscar
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/comunidad-buscar
+- openLink: atp://comunidad/ranking
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/comunidad-ranking
+- openLink: atp://cycle
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/cycle
+- openLink: atp://cycle-charts
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/cycle-charts
+- openLink: atp://cycle-history
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/cycle-history
+- openLink: atp://cycle-settings
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/cycle-settings
+- openLink: atp://dev
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/dev
+- openLink: atp://dev/goal-tree-smoke
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/dev-goal-tree-smoke
+- openLink: atp://economy/admin
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/economy-admin
+- openLink: atp://economy/challenges
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/economy-challenges
+- openLink: atp://economy/convert
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/economy-convert
+- openLink: atp://economy/history
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/economy-history
+- openLink: atp://economy/how-to-earn
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/economy-how-to-earn
+- openLink: atp://economy/referrals
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/economy-referrals
+- openLink: atp://economy/shop
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/economy-shop
+- openLink: atp://edad-atp
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp
+- openLink: atp://edad-atp/biomarkers
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-biomarkers
+- openLink: atp://edad-atp/cinematic-tests-index
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-cinematic-tests-index
+- openLink: atp://edad-atp/cognitive
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-cognitive
+- openLink: atp://edad-atp/composition
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-composition
+- openLink: atp://edad-atp/lab-confirmation
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-lab-confirmation
+- openLink: atp://edad-atp/labs
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-labs
+- openLink: atp://edad-atp/questionnaires
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-questionnaires
+- openLink: atp://edad-atp/questionnaires/cardiovascular
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-questionnaires-cardiovascular
+- openLink: atp://edad-atp/questionnaires/habitos
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-questionnaires-habitos
+- openLink: atp://edad-atp/questionnaires/inflamacion
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-questionnaires-inflamacion
+- openLink: atp://edad-atp/questionnaires/inmunidad
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-questionnaires-inmunidad
+- openLink: atp://edad-atp/questionnaires/metabolismo
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-questionnaires-metabolismo
+- openLink: atp://edad-atp/questionnaires/renal-micronutrientes
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-questionnaires-renal-micronutrientes
+- openLink: atp://edad-atp/questionnaires/sistema-hormonal
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-questionnaires-sistema-hormonal
+- openLink: atp://edad-atp/questionnaires/sueno
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-questionnaires-sueno
+- openLink: atp://edad-atp/questionnaires/vitalidad
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-questionnaires-vitalidad
+- openLink: atp://edad-atp/result-preview
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-result-preview
+- openLink: atp://edad-atp/test-bolt
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-test-bolt
+- openLink: atp://edad-atp/test-old-man
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-test-old-man
+- openLink: atp://edad-atp/test-plank
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-test-plank
+- openLink: atp://edad-atp/test-recovery-hr
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-test-recovery-hr
+- openLink: atp://edad-atp/tests
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-tests
+- openLink: atp://edad-atp/tests/balance
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-tests-balance
+- openLink: atp://edad-atp/tests/chronotype
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-tests-chronotype
+- openLink: atp://edad-atp/tests/cooper
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-tests-cooper
+- openLink: atp://edad-atp/tests/push-ups
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-tests-push-ups
+- openLink: atp://edad-atp/tests/reaction-time
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-tests-reaction-time
+- openLink: atp://edad-atp/vitals
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-vitals
+- openLink: atp://emotion-exploration
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/emotion-exploration
+- openLink: atp://emotion-history
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/emotion-history
+- openLink: atp://emotion-navigation
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/emotion-navigation
+- openLink: atp://emotion-profile
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/emotion-profile
+- openLink: atp://emotions
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/emotions
+- openLink: atp://execution
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/execution
+- openLink: atp://exercise-detail
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/exercise-detail
+- openLink: atp://exercise-library
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/exercise-library
+- openLink: atp://fasting
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/fasting
+- openLink: atp://feedback-dashboard
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/feedback-dashboard
+- openLink: atp://fitness-cardio
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/fitness-cardio
+- openLink: atp://fitness-hiit
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/fitness-hiit
+- openLink: atp://fitness-hub
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/fitness-hub
+- openLink: atp://fitness-my
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/fitness-my
+- openLink: atp://fitness-strength
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/fitness-strength
+- openLink: atp://fitness-train
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/fitness-train
+- openLink: atp://food-barcode
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/food-barcode
+- openLink: atp://food-preferences
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/food-preferences
+- openLink: atp://food-register
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/food-register
+- openLink: atp://food-scan
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/food-scan
+- openLink: atp://food-text
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/food-text
+- openLink: atp://forgot-password
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/forgot-password
+- openLink: atp://functional-quiz
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/functional-quiz
+- openLink: atp://glucose-log
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/glucose-log
+- openLink: atp://health-hub
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/health-hub
+- openLink: atp://health-input
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/health-input
+- openLink: atp://historia-clinica
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/historia-clinica
+- openLink: atp://history
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/history
+- openLink: atp://hoy-habitos
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/hoy-habitos
+- openLink: atp://hydration
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/hydration
+- openLink: atp://journal
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/journal
+- openLink: atp://journal-history
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/journal-history
+- openLink: atp://ketones-log
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/ketones-log
+- openLink: atp://kit
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/kit
+- openLink: atp://labs-guide
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/labs-guide
+- openLink: atp://legal/aviso
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/legal-aviso
+- openLink: atp://legal/terminos
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/legal-terminos
+- openLink: atp://lista-compra
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/lista-compra
+- openLink: atp://log-cardio
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/log-cardio
+- openLink: atp://log-exercise
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/log-exercise
+- openLink: atp://login
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/login
+- openLink: atp://medidas
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/medidas
+- openLink: atp://meditation
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/meditation
+- openLink: atp://mente/nback
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/mente-nback
+- openLink: atp://mente/nback/como-jugar
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/mente-nback-como-jugar
+- openLink: atp://mente/nback/personalizar
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/mente-nback-personalizar
+- openLink: atp://mente/nback/saber-mas
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/mente-nback-saber-mas
+- openLink: atp://mente/nback/sesion
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/mente-nback-sesion
+- openLink: atp://mente/nback/stats
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/mente-nback-stats
+- openLink: atp://mente/player
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/mente-player
+- openLink: atp://mente/progreso
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/mente-progreso
+- openLink: atp://mobility-assessment
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/mobility-assessment
+- openLink: atp://my-chronotype
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/my-chronotype
+- openLink: atp://my-health
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/my-health
+- openLink: atp://my-recipes
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/my-recipes
+- openLink: atp://my-routines
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/my-routines
+- openLink: atp://night-filter
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/night-filter
+- openLink: atp://notifications
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/notifications
+- openLink: atp://nutrition
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/nutrition
+- openLink: atp://onboarding/v2/chronotype
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/onboarding-v2-chronotype
+- openLink: atp://onboarding/v2/consent
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/onboarding-v2-consent
+- openLink: atp://onboarding/v2/cycle
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/onboarding-v2-cycle
+- openLink: atp://onboarding/v2/goal
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/onboarding-v2-goal
+- openLink: atp://onboarding/v2/notifications
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/onboarding-v2-notifications
+- openLink: atp://onboarding/v2/positioning
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/onboarding-v2-positioning
+- openLink: atp://onboarding/v2/privacy
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/onboarding-v2-privacy
+- openLink: atp://onboarding/v2/profile
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/onboarding-v2-profile
+- openLink: atp://onboarding/v2/welcome
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/onboarding-v2-welcome
+- openLink: atp://onboarding/voice-config
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/onboarding-voice-config
+- openLink: atp://ordenar-dia
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/ordenar-dia
+- openLink: atp://packs/armar
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/packs-armar
+- openLink: atp://paywall
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/paywall
+- openLink: atp://perfil
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/perfil
+- openLink: atp://plan-entrenamiento
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/plan-entrenamiento
+- openLink: atp://profile
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/profile
+- openLink: atp://progreso
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/progreso
+- openLink: atp://progress
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/progress
+- openLink: atp://protocol-explorer
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/protocol-explorer
+- openLink: atp://quiz-take
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/quiz-take
+- openLink: atp://quiz/chronotype
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/quiz-chronotype
+- openLink: atp://quizzes
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/quizzes
+- openLink: atp://redeem-code
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/redeem-code
+- openLink: atp://register
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/register
+- openLink: atp://reports
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports
+- openLink: atp://reset-password
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reset-password
+- openLink: atp://routine-generator
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/routine-generator
+- openLink: atp://salud
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud
+- openLink: atp://salud/cuestionario-maestro
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-cuestionario-maestro
+- openLink: atp://salud/diagnostico
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-diagnostico
+- openLink: atp://salud/evolucion
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-evolucion
+- openLink: atp://salud/expediente
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-expediente
+- openLink: atp://salud/hoy
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-hoy
+- openLink: atp://salud/intervenciones
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-intervenciones
+- openLink: atp://salud/intervenciones/rationale
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-intervenciones-rationale
+- openLink: atp://salud/mi-expediente
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-mi-expediente
+- openLink: atp://salud/mis-datos
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-mis-datos
+- openLink: atp://salud/mis-evaluaciones
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-mis-evaluaciones
+- openLink: atp://salud/mis-sintomas
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-mis-sintomas
+- openLink: atp://salud/padecimientos
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-padecimientos
+- openLink: atp://salud/sintomas
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-sintomas
+- openLink: atp://session-summary
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/session-summary
+- openLink: atp://settings
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/settings
+- openLink: atp://settings/comunidad
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/settings-comunidad
+- openLink: atp://settings/conexiones
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/settings-conexiones
+- openLink: atp://settings/cuenta
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/settings-cuenta
+- openLink: atp://settings/dev
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/settings-dev
+- openLink: atp://settings/experiencia
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/settings-experiencia
+- openLink: atp://settings/legal
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/settings-legal
+- openLink: atp://settings/notifications
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/settings-notifications
+- openLink: atp://settings/privacy
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/settings-privacy
+- openLink: atp://settings/salud
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/settings-salud
+- openLink: atp://settings/subscription
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/settings-subscription
+- openLink: atp://shared-routine
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/shared-routine
+- openLink: atp://sleep
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/sleep
+- openLink: atp://sleep-session
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/sleep-session
+- openLink: atp://solar
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/solar
+- openLink: atp://strength-session
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/strength-session
+- openLink: atp://supplements
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/supplements
+- openLink: atp://tribu
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tribu
+- openLink: atp://yo
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/yo
