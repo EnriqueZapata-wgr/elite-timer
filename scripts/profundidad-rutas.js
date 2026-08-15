@@ -27,7 +27,10 @@ const fs = require('fs');
 const path = require('path');
 
 const RAIZ = path.resolve(__dirname, '..');
-const TABS = ['/', '/salud', '/yo', '/tribu', '/kit'];
+// Las cinco salas del tab bar (ver `app/(tabs)/_layout.tsx`). La profundidad se
+// mide DESDE aquí: una frontera con una ruta muerta (`/yo`, borrada en
+// `ba42730`) mide desde una puerta que ya no abre nadie.
+const TABS = ['/', '/kit', '/argos', '/salud', '/tribu'];
 
 const mapa = JSON.parse(fs.readFileSync(path.join(RAIZ, '.maestro', 'rutas.json'), 'utf8'));
 const rutas = mapa.rutas.map((r) => r.ruta);

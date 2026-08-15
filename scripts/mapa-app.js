@@ -28,7 +28,13 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const RAIZ = path.resolve(__dirname, '..');
-const TABS = ['/', '/salud', '/yo', '/tribu', '/kit'];
+// Las cinco salas del tab bar, en el orden en que se ven. Tienen que ser las
+// mismas de `app/(tabs)/_layout.tsx`: si aquí sobra una ruta muerta, el grafo
+// arranca desde una frontera que no existe y la profundidad sale mal. `/yo`
+// estuvo aquí meses después de que su pantalla se borrara en `ba42730`.
+// `biblioteca`, `progreso` y `perfil` son `<Tabs.Screen href={null}>`: rutas
+// vivas, pero NO son puertas de entrada.
+const TABS = ['/', '/kit', '/argos', '/salud', '/tribu'];
 const CAPTURAS = path.join(RAIZ, '.maestro', 'capturas');
 
 const mapa = JSON.parse(fs.readFileSync(path.join(RAIZ, '.maestro', 'rutas.json'), 'utf8'));

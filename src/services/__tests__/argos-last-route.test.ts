@@ -23,18 +23,18 @@ describe('registrarRuta', () => {
 
   it('recuerda la última pantalla real', () => {
     _resetUltimaRuta();
-    registrarRuta('/labs');
-    expect(ultimaRutaVisitada()).toBe('/labs');
+    registrarRuta('/edad-atp/labs');
+    expect(ultimaRutaVisitada()).toBe('/edad-atp/labs');
     registrarRuta('/fasting');
     expect(ultimaRutaVisitada()).toBe('/fasting');
   });
 
   it('abrir el chat NO borra de dónde venías', () => {
     _resetUltimaRuta();
-    registrarRuta('/labs');
+    registrarRuta('/edad-atp/labs');
     registrarRuta('/argos-chat');
     registrarRuta('/argos/conversations');
-    expect(ultimaRutaVisitada()).toBe('/labs');
+    expect(ultimaRutaVisitada()).toBe('/edad-atp/labs');
   });
 
   it('ignora vacíos sin romper el rastro', () => {
@@ -50,7 +50,7 @@ describe('registrarRuta', () => {
     expect(esRutaDeArgos('/argos-chat')).toBe(true);
     expect(esRutaDeArgos('/argos')).toBe(true);
     expect(esRutaDeArgos('/argos/conversations')).toBe(true);
-    expect(esRutaDeArgos('/labs')).toBe(false);
+    expect(esRutaDeArgos('/edad-atp/labs')).toBe(false);
   });
 });
 

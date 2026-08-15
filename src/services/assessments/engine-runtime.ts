@@ -44,6 +44,17 @@ import {
   scoreFunctional, scoreAvgClamp, scoreSumMax,
   type UnifiedQuestion, type DbQuizQuestion, type ChronoQuestion,
 } from './adapters';
+import {
+  parEnDisputa, bancoDesempate, resolverCronotipo, ORDEN_DESEMPATE,
+} from './cronotipo-core';
+import type { Chronotype3 } from '@/src/services/interventions/intervention-agenda-core';
+
+/**
+ * El desempate declarado del cronotipo, en un solo lugar. Estaba escrito a mano
+ * en dos puntos de este archivo y el registry tiene una tercera copia en
+ * `score.tieBreak`: tres listas que tenían que decir lo mismo por buena fe.
+ */
+const TIE_BREAK_CRONOTIPO = ORDEN_DESEMPATE as string[];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Qué familia de motor le toca a cada evaluación
@@ -245,10 +256,41 @@ async function loadMaster(assessment: Assessment, userId: string): Promise<Engin
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * El cronotipo también ramifica (DEUDA 2026-08-15): si al terminar el banco
+ * base los dos primeros quedan pegados, se abre la rama corta de ESE par en vez
+ * de cerrar de volado. Es puro: la decisión vive en `cronotipo-core`, aquí solo
+ * se pega la cola de preguntas.
+ */
+function chronoQuestions(session: EngineSession, answers: Record<string, unknown>): UnifiedQuestion[] {
+  const base = session.questions;
+  const codigosBase = new Set(base.map((q) => q.code));
+  // Mientras falte contestar el banco base no se decide nada: los scores
+  // parciales de una persona a medio quiz no son una disputa, son ruido.
+  const baseCompleto = base.every((q) => answers[q.code] !== undefined);
+  if (!baseCompleto) return base;
+
+  const template = session.raw.chrono;
+  if (!template) return base;
+  const preguntas = template.questions as unknown as ChronoQuestion[];
+  const { scores } = scoreSumMax(preguntas, answers as Record<string, string>, TIE_BREAK_CRONOTIPO);
+  const par = parEnDisputa(scores);
+  if (par === null) return base;
+
+  return [
+    ...base,
+    ...fromChronotypeQuiz(bancoDesempate(par) as unknown as ChronoQuestion[])
+      // Blindaje: si alguna vez un código de rama chocara con uno del banco de
+      // la DB, se descarta antes de duplicar una pregunta en pantalla.
+      .filter((q) => !codigosBase.has(q.code)),
+  ];
+}
+
+/**
  * El maestro ramifica: una respuesta puede insertar sub-preguntas. Por eso la
  * lista visible se recalcula con el core en vez de congelarse al cargar.
  */
 export function visibleQuestions(session: EngineSession, answers: Record<string, unknown>): UnifiedQuestion[] {
+  if (session.family === 'chronotype') return chronoQuestions(session, answers);
   if (session.family !== 'master') return session.questions;
   return fromMasterQuiz(orderedVisible(answers as QuizAnswers, session.ctx));
 }
@@ -266,7 +308,9 @@ export function nextCode(
   if (session.family === 'master') {
     return nextQuestion(answers as QuizAnswers, current, session.ctx, skipped)?.code ?? null;
   }
-  const list = session.questions;
+  // El cronotipo camina sobre la lista VISIBLE, no sobre el banco congelado:
+  // es lo que hace que la rama de desempate aparezca al terminar las diez.
+  const list = visibleQuestions(session, answers);
   const i = list.findIndex((q) => q.code === current);
   return list[i + 1]?.code ?? null;
 }
@@ -291,7 +335,9 @@ export function progressOf(
       label: `Sección ${p.sectionIndex + 1} de ${p.sectionTotal} · Pregunta ${p.questionInSection} de ${p.questionsInSection}`,
     };
   }
-  const list = session.questions;
+  // Con la lista visible, el contador crece de "10 de 10" a "11 de 13" cuando
+  // se abre la rama. Es honesto: hay tres preguntas más y se ven.
+  const list = visibleQuestions(session, answers);
   const i = Math.max(0, list.findIndex((q) => q.code === current));
   return { ratio: list.length ? (i + 1) / list.length : 0, label: `${i + 1} de ${list.length}` };
 }
@@ -353,7 +399,16 @@ export async function saveProgress(
 export type EngineOutcome =
   | { kind: 'functional'; quiz: FunctionalQuiz; domainScores: Record<string, number>; activeInsights: ResultInsight[] }
   | { kind: 'db-quiz'; quiz: QuizData; domainScores: Record<string, number>; recommendations: QuizRecommendation[] }
-  | { kind: 'chronotype'; template: QuizTemplate; scores: Record<string, number>; result: Chronotype; schedule?: ChronotypeInfo }
+  /**
+   * `madre` y `esEstadoTemporal` viajan SIEMPRE con el resultado (DEUDA
+   * 2026-08-15). Doctrina: el Delfín es un estado, no una identidad, y nunca se
+   * comunica solo. Para León, Oso y Lobo el madre es él mismo.
+   */
+  | {
+      kind: 'chronotype'; template: QuizTemplate; scores: Record<string, number>;
+      result: Chronotype; schedule?: ChronotypeInfo;
+      madre: Chronotype3; esEstadoTemporal: boolean;
+    }
   | { kind: 'master' };
 
 /**
@@ -408,10 +463,22 @@ export async function finish(
       const questions = template.questions as unknown as ChronoQuestion[];
       const tieBreak = session.assessment.score.kind === 'sum-max'
         ? session.assessment.score.tieBreak
-        : ['bear', 'lion', 'wolf', 'dolphin'];
-      const { scores, result } = scoreSumMax(questions, answers as Record<string, string>, tieBreak);
-      const schedule = template.scoring_logic?.chronotype_schedules?.[result] as ChronotypeInfo | undefined;
-      return { kind: 'chronotype', template, scores, result: result as Chronotype, schedule };
+        : TIE_BREAK_CRONOTIPO;
+      const { scores: base } = scoreSumMax(questions, answers as Record<string, string>, tieBreak);
+      // El árbol (DEUDA 2026-08-15): suma la rama de desempate si se contestó y
+      // resuelve el Delfín junto a su cronotipo madre. Antes, un empate lo
+      // cerraba el orden de esta lista sin preguntarle nada a la persona.
+      const arbol = resolverCronotipo(base, answers);
+      const schedule = template.scoring_logic?.chronotype_schedules?.[arbol.cronotipo] as ChronotypeInfo | undefined;
+      return {
+        kind: 'chronotype',
+        template,
+        scores: arbol.scores,
+        result: arbol.cronotipo as Chronotype,
+        schedule,
+        madre: arbol.madre,
+        esEstadoTemporal: arbol.esEstadoTemporal,
+      };
     }
 
     case 'master':

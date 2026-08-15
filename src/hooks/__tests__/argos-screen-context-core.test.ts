@@ -17,8 +17,14 @@ describe('screenFromPath — mapea ruta → pantalla canónica', () => {
     ['/food-scan', 'nutrition'],
     ['/fasting', 'nutrition'],
     ['/fitness-hub', 'fitness'],
-    ['/routine-execution', 'fitness'],
-    ['/timer', 'fitness'],
+    // DEUDA 2026-08-15: aquí decía '/routine-execution' y '/timer', dos
+    // pantallas borradas hace meses. El clasificador va por substring, así que
+    // el test pasaba igual y de paso documentaba como caso canónico algo que ya
+    // no existe. Se reapunta a rutas VIVAS que ejercen las mismas reglas
+    // ('routine' y 'execution') en vez de borrar la cobertura.
+    ['/routine-generator', 'fitness'],
+    ['/my-routines', 'fitness'],
+    ['/execution', 'fitness'],
     ['/journal', 'mind'],
     ['/breathing', 'mind'],
     ['/meditation', 'mind'],

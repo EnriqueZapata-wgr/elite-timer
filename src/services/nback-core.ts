@@ -225,12 +225,35 @@ function daysBetween(a: string, b: string): number {
 /**
  * Racha en días con ≥1 round: mismo día → igual; ayer → +1; hueco → reinicia
  * en 1. `lastSessionDate` null (primera vez) → 1.
+ *
+ * ÚNICA definición de racha de N-Back en el repo (DEUDA, 2026-08-15). Vivía
+ * duplicada en `src/services/mente/nback-core.ts`, el primer borrador que nadie
+ * llegó a cablear (commit 7070714) y que solo abría su propio test. Las dos
+ * copias NO daban lo mismo, y la diferencia le costaba días al usuario:
+ *
+ *   · Fecha guardada en el FUTURO (gap < 0). Pasa de verdad: se practica en
+ *     Tokio el día 16 y se aterriza en México, donde todavía es 15. La copia
+ *     muerta comparaba `lastSessionDate === today` y, al no casar, caía en el
+ *     `return 1`: le borraba la racha entera a alguien por cruzar un meridiano.
+ *     Aquí `gap <= 0` la conserva. Se queda esta.
+ *
+ *   · `streakDays` en 0 con sesión AYER (estado imposible salvo dato corrupto).
+ *     Esta copia devolvía 1 y se comía el día de ayer; la muerta devolvía 2.
+ *     Se adopta la de la muerta: si hay sesión ayer y hay sesión hoy, son dos
+ *     días, y ante la duda la racha no se recorta.
+ *
+ * La regla de oro al unificar: entre dos reglas que discrepan sobre datos
+ * reales, gana la que NO le quita nada a quien ya tenía la racha.
+ *
+ * Las otras dos rachas del repo (`computeStreak` de adherencia, con día de
+ * gracia; `computeJournalStreak`, que ancla en hoy-o-ayer) NO son duplicados:
+ * son dominios distintos con reglas distintas a propósito.
  */
 export function nextStreak(lastSessionDate: string | null, today: string, streakDays: number): number {
   if (!lastSessionDate) return 1;
   const gap = daysBetween(lastSessionDate, today);
   if (gap <= 0) return Math.max(1, streakDays);
-  if (gap === 1) return streakDays + 1;
+  if (gap === 1) return Math.max(1, streakDays) + 1;
   return 1;
 }
 

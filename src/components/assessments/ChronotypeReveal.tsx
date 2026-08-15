@@ -76,7 +76,10 @@ export function ChronotypeReveal({
       <Animated.View entering={FadeInUp.delay(600).springify()} style={s.scores}>
         {ANIMALS.map((animal) => {
           const value = scores[animal] ?? 0;
-          const pct = maxScore > 0 ? Math.round((value / maxScore) * 100) : 0;
+          // Se acota a 100: con la rama de desempate contestada, el animal que
+          // ganó puede pasar del máximo del banco base (10 preguntas x 3) y la
+          // barra se salía de su carril.
+          const pct = maxScore > 0 ? Math.min(100, Math.round((value / maxScore) * 100)) : 0;
           const winner = animal === result;
           return (
             <View key={animal} style={s.scoreRow}>
