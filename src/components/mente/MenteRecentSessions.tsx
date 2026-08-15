@@ -7,15 +7,20 @@
  *
  * Si no hay sesiones no pinta nada (cero estado vacío ruidoso).
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { formatRelativeTime } from '@/src/components/mente/mente-hub-core';
 import { supabase } from '@/src/lib/supabase';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Spacing } from '@/constants/theme';
+
+// MB-31B: tenue del oscuro (#555 equivalente) no alcanza contraste chico en
+// claro — mismo criterio que SaludHub/centro/[appKey].
+const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
 
 interface SessionRow {
   id: string;
@@ -32,6 +37,9 @@ interface Props {
 }
 
 export function MenteRecentSessions({ type, fallbackLabel }: Props) {
+  // Cuerpo compartido: lee el SCOPE (nunca el tema global).
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [rows, setRows] = useState<SessionRow[]>([]);
 
   useFocusEffect(useCallback(() => {
@@ -75,20 +83,20 @@ export function MenteRecentSessions({ type, fallbackLabel }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   wrap: { marginTop: Spacing.lg },
   label: {
     fontSize: 11, letterSpacing: 2, fontFamily: Fonts.semiBold,
-    color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', marginBottom: Spacing.sm,
+    color: t.textoSecundario, textTransform: 'uppercase', marginBottom: Spacing.sm,
   },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.borde,
   },
-  name: { color: '#fff', fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
-  meta: { color: 'rgba(255,255,255,0.45)', fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 1 },
-  when: { color: 'rgba(255,255,255,0.45)', fontSize: FontSizes.xs, fontFamily: Fonts.regular },
+  name: { color: t.texto, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+  meta: { color: tenue(t), fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 1 },
+  when: { color: tenue(t), fontSize: FontSizes.xs, fontFamily: Fonts.regular },
 });
 
 export default MenteRecentSessions;

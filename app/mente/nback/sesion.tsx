@@ -499,7 +499,7 @@ export default function NBackSessionScreen() {
             <EliteText style={[s.coachBody, secTxt]}>{coach.body}</EliteText>
             <AnimatedPressable style={s.coachBtn} onPress={dismissCoach}>
               <LinearGradient colors={ATP_BRAND.moleculeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.coachBtnInner}>
-                <EliteText style={s.coachBtnText}>ENTENDIDO</EliteText>
+                <EliteText style={[s.coachBtnText, { color: t.textoSobreLima }]}>ENTENDIDO</EliteText>
               </LinearGradient>
             </AnimatedPressable>
           </Animated.View>
@@ -516,7 +516,7 @@ export default function NBackSessionScreen() {
             </EliteText>
             <AnimatedPressable style={s.coachBtn} onPress={resumeFromPause}>
               <LinearGradient colors={ATP_BRAND.moleculeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.coachBtnInner}>
-                <EliteText style={s.coachBtnText}>REANUDAR</EliteText>
+                <EliteText style={[s.coachBtnText, { color: t.textoSobreLima }]}>REANUDAR</EliteText>
               </LinearGradient>
             </AnimatedPressable>
             <AnimatedPressable style={s.endBtn} onPress={() => { haptic.light(); clearTimers(); router.back(); }}>
@@ -568,7 +568,7 @@ export default function NBackSessionScreen() {
 
           <AnimatedPressable style={s.continueBtn} onPress={continueNextRound}>
             <LinearGradient colors={ATP_BRAND.moleculeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.continueBtnInner}>
-              <EliteText style={s.continueText}>CONTINUAR</EliteText>
+              <EliteText style={[s.continueText, { color: t.textoSobreLima }]}>CONTINUAR</EliteText>
             </LinearGradient>
           </AnimatedPressable>
           <AnimatedPressable style={s.endBtn} onPress={() => { haptic.light(); router.back(); }}>
@@ -687,7 +687,8 @@ const s = StyleSheet.create({
   // superficies, lime sólido solo botones compactos).
   coachBtn: { borderRadius: Radius.pill, overflow: 'hidden', marginTop: Spacing.lg },
   coachBtnInner: { alignItems: 'center', paddingVertical: 13 },
-  coachBtnText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
+  // El color se aplica inline con t.textoSobreLima (texto sobre relleno lima).
+  coachBtnText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
 
   resultsWrap: { flex: 1, justifyContent: 'center' },
   resultsTitle: {
@@ -718,7 +719,8 @@ const s = StyleSheet.create({
 
   continueBtn: { borderRadius: Radius.pill, overflow: 'hidden', marginTop: Spacing.lg },
   continueBtnInner: { alignItems: 'center', paddingVertical: 14 },
-  continueText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
+  // El color se aplica inline con t.textoSobreLima (texto sobre relleno lima).
+  continueText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
   breakdownRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
   breakdownText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
   breakdownBad: { color: '#f8a5a5' },
