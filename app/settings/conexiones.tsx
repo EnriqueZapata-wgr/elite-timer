@@ -245,26 +245,32 @@ export default function SettingsConexionesScreen() {
               <Ionicons name="watch-outline" size={22} color={CATEGORY_COLORS.metrics} />
               <View style={{ flex: 1 }}>
                 <EliteText variant="body" style={styles.wearableTitle}>
-                  Wearables y dispositivos
+                  Salud del teléfono
                 </EliteText>
-                {/* E-9 (MB-12): promesa alineada con lo que existe — la
-                    conexión aún no está disponible. */}
+                {/* NOCHE-1: esto decía "Próximamente" mientras el import ya
+                    funcionaba en otras pantallas. La promesa vuelve a
+                    coincidir con lo que la app hace. */}
                 <EliteText variant="caption" style={styles.wearableDesc}>
-                  La conexión con Apple Health y Google Health está en
-                  desarrollo. Cuando llegue, sueño, pasos, FC y HRV entrarán
-                  solos.
+                  Conecta ATP con la plataforma de salud de tu teléfono y tus
+                  pasos, tu sueño, tu frecuencia cardiaca, tu peso y tu energía
+                  activa entran solos.
                 </EliteText>
               </View>
             </View>
-            {/* Wearables desactivados temporalmente */}
-            <View style={[styles.wearableConnectBtn, { opacity: 0.5 }]}>
-              <Ionicons name="bluetooth-outline" size={18} color={tokens.textoSecundario} />
-              <EliteText variant="body" style={[styles.wearableConnectBtnText, { color: tokens.textoSecundario }]}>
-                Próximamente
+            <Pressable
+              onPress={() => { haptic.medium(); router.push('/settings/salud-conexion'); }}
+              style={styles.wearableConnectBtn}
+            >
+              <Ionicons name="pulse-outline" size={18} color={CATEGORY_COLORS.metrics} />
+              <EliteText variant="body" style={styles.wearableConnectBtnText}>
+                Conectar mis datos de salud
               </EliteText>
-            </View>
+            </Pressable>
+            {/* Una integración, todas las fuentes: cualquier app o reloj que
+                escriba en la plataforma de salud del sistema llega por aquí,
+                sin integrar cada marca por separado. */}
             <EliteText variant="caption" style={[styles.wearableCompatible, { color: dark ? tokens.sinDatos : tokens.textoSecundario }]}>
-              Apple Health · Google Health · Oura · Garmin · Samsung · Whoop
+              Llega lo que escriban ahí tu reloj y tus apps de salud
             </EliteText>
           </View>
           <Divider />
