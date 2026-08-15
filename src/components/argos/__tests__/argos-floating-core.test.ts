@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   isMentePillarPath,
   isOnboardingPath,
+  isPublicEmergencyPath,
   isTabRootPath,
   shouldHideFloatingButton,
 } from '@/src/components/argos/argos-floating-core';
@@ -25,6 +26,22 @@ describe('isOnboardingPath', () => {
     expect(isOnboardingPath('/nutrition')).toBe(false);
     expect(isOnboardingPath('/')).toBe(false);
     expect(isOnboardingPath(null)).toBe(false);
+  });
+});
+
+describe('isPublicEmergencyPath (FIX-215)', () => {
+  it('la ficha pública de la raíz', () => {
+    expect(isPublicEmergencyPath('/ficha-emergencia')).toBe(true);
+    expect(isPublicEmergencyPath('/ficha-emergencia/')).toBe(true);
+    expect(isPublicEmergencyPath('/Ficha-Emergencia')).toBe(true);
+  });
+
+  it('el editor detrás de la sesión NO es la ficha pública', () => {
+    // /salud/ficha-emergencia es donde el dueño captura sus datos: vive dentro
+    // de la app y conserva la navegación normal.
+    expect(isPublicEmergencyPath('/salud/ficha-emergencia')).toBe(false);
+    expect(isPublicEmergencyPath('/settings/salud')).toBe(false);
+    expect(isPublicEmergencyPath(null)).toBe(false);
   });
 });
 
@@ -109,6 +126,11 @@ describe('shouldHideFloatingButton', () => {
   it('oculto en el propio chat ARGOS (redundante)', () => {
     expect(shouldHideFloatingButton({ ...base, pathname: '/argos-chat' })).toBe(true);
     expect(shouldHideFloatingButton({ ...base, pathname: '/argos/conversations' })).toBe(true);
+  });
+
+  it('oculto en la ficha de emergencia pública (FIX-215), visible en el editor', () => {
+    expect(shouldHideFloatingButton({ ...base, pathname: '/ficha-emergencia' })).toBe(true);
+    expect(shouldHideFloatingButton({ ...base, pathname: '/salud/ficha-emergencia' })).toBe(false);
   });
 
   it('oculto con el teclado abierto (no tapar inputs)', () => {

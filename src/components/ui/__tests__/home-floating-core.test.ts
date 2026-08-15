@@ -43,6 +43,14 @@ describe('shouldHideHomeButton (#26)', () => {
     expect(visible('/meet')).toBe(false);
   });
 
+  it('FIX-215: oculto en la ficha de emergencia pública, visible en el editor', () => {
+    // La casita se pintaba encima de la primera letra del nombre y el nombre es
+    // el dato número uno de esa pantalla. El editor /salud/ficha-emergencia
+    // vive detrás de la sesión y conserva la navegación normal.
+    expect(visible('/ficha-emergencia')).toBe(false);
+    expect(visible('/salud/ficha-emergencia')).toBe(true);
+  });
+
   it('oculto en el chat ARGOS (input abajo) y con teclado abierto', () => {
     expect(visible('/argos-chat')).toBe(false);
     expect(shouldHideHomeButton({ pathname: '/reports', keyboardVisible: true })).toBe(true);

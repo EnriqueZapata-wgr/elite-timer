@@ -55,6 +55,26 @@ export function isTabRootPath(pathname: string | null | undefined): boolean {
   return RUTAS_DE_TAB.has(p);
 }
 
+/**
+ * ¿La ruta es la ficha de emergencia PÚBLICA? (FIX-215 · bloqueante 2).
+ *
+ * `/ficha-emergencia` es la única superficie de ATP escrita para que la lea un
+ * extraño: se abre sin sesión y sin red, con fondo blanco fijo, y el dato
+ * número uno es el nombre. Los dos flotantes globales están diseñados para el
+ * tema oscuro y se pintan arriba a la izquierda, justo encima de ese nombre
+ * (en la captura del device se leía "…nrique"). Además no lleva navegación de
+ * la app: quien la abre no es el dueño del teléfono. Su única salida es el
+ * botón "Cerrar" que la propia pantalla pinta abajo.
+ *
+ * OJO: `/salud/ficha-emergencia` es otra cosa — es el editor, vive detrás de la
+ * sesión y sí conserva la navegación normal. Por eso la comparación es exacta.
+ */
+export function isPublicEmergencyPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  const p = pathname.toLowerCase().replace(/\/$/, '');
+  return p === '/ficha-emergencia';
+}
+
 /** ¿La ruta es parte del onboarding? (ahí el floating no debe aparecer). */
 export function isOnboardingPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
@@ -77,6 +97,8 @@ export interface FloatingVisibilityInput {
  *  1. No presentado aún (antes de Meet ARGOS) → oculto.
  *  2. Ocultado manualmente por la pantalla → oculto.
  *  3. Onboarding/auth → oculto.
+ *  3b. Ficha de emergencia pública → oculto (FIX-215): no es una pantalla de
+ *      la app, es un papel que lee un tercero.
  *  4. Pilar Mente (banner fijo propio + player full-focus) → oculto (A3/A4).
  *  5. Una de las cinco salas del tab bar → oculto: la orbe ya está ahí (MB-19).
  *  6. En el chat ARGOS mismo → oculto (redundante).
@@ -86,6 +108,7 @@ export function shouldHideFloatingButton(input: FloatingVisibilityInput): boolea
   if (!input.introduced) return true;
   if (input.manualHidden) return true;
   if (isOnboardingPath(input.pathname)) return true;
+  if (isPublicEmergencyPath(input.pathname)) return true;
   if (isMentePillarPath(input.pathname)) return true;
   if (isTabRootPath(input.pathname)) return true;
   const screen: ArgosScreen = screenFromPath(input.pathname);
