@@ -29,7 +29,13 @@ secas. El script hace las dos cosas: publica y sube los sourcemaps. Correrlos
 por separado publica dos actualizaciones con mapas que no corresponden, y
 entonces los stacktraces de Sentry mienten.
 
-**Migración pendiente de aplicar: `275_insight_ventana_y_cuota_ponderada.sql`.**
+**Migraciones pendientes de aplicar: `275_insight_ventana_y_cuota_ponderada.sql`
+y `276_drop_admin_reports_rpcs.sql`.**
+
+La 276 solo da de baja tres funciones muertas del panel de admin, cuya pantalla
+se borró en una ola de consolidación. NO toca `admin_users`, ni el estado de los
+reportes, ni ningún dato de usuario. Si hiciera falta revertirla, se reaplica la
+migración 191, que usa `CREATE OR REPLACE` y es segura de re-ejecutar.
 
 ---
 
