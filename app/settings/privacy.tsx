@@ -384,7 +384,7 @@ export default function SettingsPrivacyScreen() {
 
       {/* Modal export solicitado */}
       <Modal visible={exportModal} transparent animationType="fade" onRequestClose={() => setExportModal(false)}>
-        <View style={s.modalOverlay}>
+        <View style={[s.modalOverlay, { backgroundColor: dark ? 'rgba(0,0,0,0.85)' : 'rgba(15,21,24,0.35)' }]}>
           <View style={[s.modalCard, { backgroundColor: tokens.flotante, borderColor: tokens.bordeMarcado }]}>
             <Ionicons name="checkmark-circle-outline" size={40} color={ATP_BRAND.lime} />
             <EliteText style={[s.modalTitle, { color: tokens.texto }]}>Estamos preparando tu archivo</EliteText>
@@ -401,7 +401,10 @@ export default function SettingsPrivacyScreen() {
 
       {/* Modal eliminar cuenta */}
       <Modal visible={deleteModal} transparent animationType="fade" onRequestClose={() => setDeleteModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={[s.modalOverlay, { backgroundColor: dark ? 'rgba(0,0,0,0.85)' : 'rgba(15,21,24,0.35)' }]}
+        >
           <View style={[s.modalCard, { backgroundColor: tokens.flotante, borderColor: tokens.bordeMarcado }]}>
             <Ionicons name="warning-outline" size={40} color={tokens.error} />
             <EliteText style={[s.modalTitle, { color: tokens.texto }]}>¿Eliminar tu cuenta?</EliteText>
@@ -502,8 +505,9 @@ const s = StyleSheet.create({
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
   },
   cancelChipText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold },
+  // El velo entra inline: el negro al 85% deja la pantalla clara en penumbra.
   modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.85)',
+    flex: 1,
     justifyContent: 'center', paddingHorizontal: Spacing.md,
   },
   modalCard: {

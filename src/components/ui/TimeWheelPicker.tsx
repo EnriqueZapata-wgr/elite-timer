@@ -155,7 +155,10 @@ export function TimeWheelPicker({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
-      <Pressable style={styles.backdrop} onPress={onCancel}>
+      <Pressable
+        style={[styles.backdrop, { backgroundColor: dark ? 'rgba(0,0,0,0.65)' : 'rgba(15,21,24,0.35)' }]}
+        onPress={onCancel}
+      >
         <Pressable style={[styles.sheet, { backgroundColor: dark ? t.hundido : t.flotante }]} onPress={() => {}}>
           <Text style={[styles.title, { color: dark ? ATP_BRAND.lime : t.tealTexto }]}>{title}</Text>
 
@@ -291,7 +294,8 @@ Wheel.displayName = 'Wheel';
 
 // MB-31B: solo layout + acentos de marca; superficies/texto entran inline.
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
+  // El velo entra inline: en claro el negro al 65% apaga la pantalla entera.
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32, gap: 16 },
   title: { fontSize: 13, fontWeight: '700', letterSpacing: 1, textAlign: 'center' },
   presetsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },

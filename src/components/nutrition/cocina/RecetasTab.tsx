@@ -26,7 +26,7 @@ import { defaultMealTypeByHour } from '@/src/services/meal-times-core';
 import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { GeneradorArgos } from './GeneradorArgos';
@@ -351,7 +351,7 @@ export function RecetasTab({ onIrALista }: Props) {
 
       {/* P2 (MB-28B): modal de registros recientes → receta con un toque */}
       <Modal visible={showFromLogs} transparent animationType="slide" onRequestClose={() => setShowFromLogs(false)}>
-        <Pressable style={s.modalOverlay} onPress={() => setShowFromLogs(false)}>
+        <Pressable style={[s.modalOverlay, { backgroundColor: velo(t) }]} onPress={() => setShowFromLogs(false)}>
           <Pressable style={[s.modalContent, { backgroundColor: t.card }]} onPress={() => {}}>
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: t.bordeMarcado, alignSelf: 'center', marginBottom: 20 }} />
             <EliteText style={[s.modalTitle, { color: t.texto }]}>Desde mis registros</EliteText>
@@ -405,7 +405,7 @@ export function RecetasTab({ onIrALista }: Props) {
 
       {/* Modal crear receta */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
-        <Pressable style={s.modalOverlay} onPress={() => setShowCreate(false)}>
+        <Pressable style={[s.modalOverlay, { backgroundColor: velo(t) }]} onPress={() => setShowCreate(false)}>
           <Pressable style={[s.modalContent, { backgroundColor: t.card }]} onPress={() => {}}>
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: t.bordeMarcado, alignSelf: 'center', marginBottom: 20 }} />
             <EliteText style={[s.modalTitle, { color: t.texto }]}>Nueva receta</EliteText>
@@ -450,6 +450,14 @@ export function RecetasTab({ onIrALista }: Props) {
     </View>
   );
 }
+
+/**
+ * Velo del modal. El negro al 85% es correcto en oscuro, pero en claro apaga
+ * toda la pantalla; ahí se usa la tinta del texto a baja opacidad, igual que
+ * el resto de las hojas de la app.
+ */
+const velo = (t: AppThemeTokens) =>
+  (t.kind === 'dark' ? 'rgba(0,0,0,0.85)' : 'rgba(15,21,24,0.35)');
 
 const s = StyleSheet.create({
   subtitle: { fontSize: FontSizes.sm, marginBottom: Spacing.md },
@@ -504,7 +512,8 @@ const s = StyleSheet.create({
   // Hallazgo MB-31B3: ámbar como TEXTO (ilegible en claro) — color inline.
   createBtnText: { fontFamily: Fonts.semiBold },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
+  // El velo entra inline: el negro al 85% apaga la pantalla en claro.
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: Spacing.lg, paddingBottom: 40 },
   modalTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, textAlign: 'center', marginBottom: Spacing.lg },
   inputLabel: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, marginBottom: 4 },

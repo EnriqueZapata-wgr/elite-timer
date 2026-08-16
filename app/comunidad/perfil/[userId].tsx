@@ -38,7 +38,7 @@ import {
 import { rankTierLabel } from '@/src/services/economy/rank';
 import { REPORT_REASONS, type ReportReasonKey } from '@/src/constants/community';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
@@ -295,19 +295,19 @@ export default function CommunityPublicProfileScreen() {
 
       {/* ── Menú overflow: Reportar / Bloquear ── */}
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
-        <Pressable style={s.backdrop} onPress={() => setMenuOpen(false)}>
-          <View style={[s.menu, { marginTop: insets.top + 48 }]}>
+        <Pressable style={[s.backdrop, { backgroundColor: velo(kind) }]} onPress={() => setMenuOpen(false)}>
+          <View style={[s.menu, { marginTop: insets.top + 48, backgroundColor: t.flotante, borderColor: t.bordeMarcado }]}>
             <Pressable
               style={s.menuItem}
               onPress={() => { setMenuOpen(false); setReportOpen(true); }}
             >
-              <Ionicons name="flag-outline" size={18} color={TEXT.primary} />
-              <EliteText style={s.menuItemText}>Reportar</EliteText>
+              <Ionicons name="flag-outline" size={18} color={t.texto} />
+              <EliteText style={[s.menuItemText, { color: t.texto }]}>Reportar</EliteText>
             </Pressable>
             {relation.state !== 'blocked' && (
               <Pressable style={s.menuItem} onPress={onBlock}>
-                <Ionicons name="hand-left-outline" size={18} color="#ef4444" />
-                <EliteText style={[s.menuItemText, { color: '#ef4444' }]}>Bloquear</EliteText>
+                <Ionicons name="hand-left-outline" size={18} color={t.error} />
+                <EliteText style={[s.menuItemText, { color: t.error }]}>Bloquear</EliteText>
               </Pressable>
             )}
           </View>
@@ -316,7 +316,7 @@ export default function CommunityPublicProfileScreen() {
 
       {/* ── Sheet de razones de report ── */}
       <Modal visible={reportOpen} transparent animationType="slide" onRequestClose={() => setReportOpen(false)}>
-        <Pressable style={s.backdrop} onPress={() => setReportOpen(false)}>
+        <Pressable style={[s.backdrop, { backgroundColor: velo(kind) }]} onPress={() => setReportOpen(false)}>
           <View style={[s.sheet, { backgroundColor: t.flotante, borderColor: t.bordeMarcado }]}>
             <EliteText style={[s.sheetTitle, { color: t.texto }]}>¿Por qué reportas este perfil?</EliteText>
             {REPORT_REASONS.map((r) => (
@@ -335,6 +335,15 @@ export default function CommunityPublicProfileScreen() {
     </ThemeReady>
   );
 }
+
+/**
+ * Velo del modal. En oscuro es el negro de siempre; en claro un negro al 60%
+ * deja la pantalla en penumbra y el menú flotante se ve como un parche. Se usa
+ * la tinta del texto claro (#0F1518) a baja opacidad, que es lo que ya hacen
+ * las otras hojas de la app.
+ */
+const velo = (kind: 'dark' | 'light') =>
+  (kind === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(15,21,24,0.35)');
 
 const s = StyleSheet.create({
   screen: { flex: 1 },
@@ -377,17 +386,17 @@ const s = StyleSheet.create({
     fontSize: FontSizes.sm, fontFamily: Fonts.regular,
     textAlign: 'center', paddingVertical: Spacing.xl,
   },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
   menu: {
     position: 'absolute', right: Spacing.md, top: 0,
-    backgroundColor: ELEVATION[3].bg, borderWidth: 1, borderColor: ELEVATION[3].border,
+    borderWidth: 1,
     borderRadius: Radius.md, paddingVertical: 4, minWidth: 170,
   },
   menuItem: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: Spacing.md, paddingVertical: 12,
   },
-  menuItemText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.primary },
+  menuItemText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
   sheet: {
     borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg,
     borderWidth: 1,
