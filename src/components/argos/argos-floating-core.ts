@@ -44,8 +44,9 @@ export const RUTAS_DE_TAB: ReadonlySet<string> = new Set([
   '/tribu',
   // Retiradas del tab bar pero vivas como ruta (href: null)
   // OJO: `/yo` vivió aquí hasta NOCHE-ARGOS. Ya no existe como ruta (no hay
-  // app/yo.tsx ni app/(tabs)/yo.tsx; lo que queda es el componente
-  // YoEditorialSection). Una entrada de más en este Set no rompe nada visible,
+  // app/yo.tsx ni app/(tabs)/yo.tsx) y en CIERRE-6 murió también el último
+  // resto, el componente YoEditorialSection, que ya no lo montaba nadie.
+  // Una entrada de más en este Set no rompe nada visible,
   // y por eso sobrevivió: solo hace que una ruta inexistente se considere tab.
   // Se quita porque este Set es la fuente ÚNICA de "qué es un tab" y una fuente
   // única con datos muertos deja de ser confiable para el que la lee después.

@@ -12,8 +12,10 @@
  * carcasa de tabs, no aquí).
  *
  * MB-20: el hero fotográfico, la card AHORA, la card TU DÍA (ATP Score) y
- * el AgendaPreviewCard salieron de HOY — el motor del score sigue vivo en
+ * la preview de agenda salieron de HOY — el motor del score sigue vivo en
  * compileDay y la agenda completa vive en /agenda (puerta en la lente).
+ * CIERRE-6: los componentes que quedaron sin montar tras ese corte
+ * (AgendaPreviewCard, HoyDayCardEditorial) ya no existen en el árbol.
  */
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -172,8 +174,9 @@ export default function TodayScreen() {
   // local (AppTour) se retiró con el tour viejo.
 
   // MB-11 B: el efecto de Daily Review (3 queries nocturnas vía buildDailyReview)
-  // era código muerto — su card se retiró del render en v13e 3.C y el mini-reporte
-  // vive integrado en HoyDayCardEditorial.
+  // era código muerto — su card se retiró del render en v13e 3.C. El componente
+  // que iba a absorber ese mini-reporte (HoyDayCardEditorial) nunca llegó a
+  // montarse y murió en CIERRE-6.
 
   // --- Weekly Insight: domingo ≥19h. 1 llamada/semana cacheada. ---
   useEffect(() => {
@@ -442,7 +445,7 @@ export default function TodayScreen() {
         )}
 
         {/* #v13e 3.C: "Cierre del día" (DAILY REVIEW) eliminado del HOY — su mini-reporte (score,
-            electrones, racha) ahora vive integrado en la card TU DÍA (HoyDayCardEditorial). */}
+            electrones, racha) se resolvió en la lente del día, no en una card aparte. */}
 
         {/* H8: card de acceso directo "Check-in emocional" eliminada — el acceso queda solo
             en el hábito de Check-in (que navega a /checkin, ver H1). */}

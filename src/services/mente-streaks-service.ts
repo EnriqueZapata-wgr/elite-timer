@@ -7,7 +7,7 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
-import { computeJournalStreak } from './journal-logic';
+import { computeJournalStreak } from './journal-core';
 import { toLocalDateString } from '@/src/utils/date-helpers';
 import {
   MENTE_CATEGORIES,

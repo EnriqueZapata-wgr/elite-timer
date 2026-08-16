@@ -1,32 +1,20 @@
 /**
- * Journal service (#39, marathon F3) — historial con filtros + streak.
- * La escritura vive en app/journal.tsx (composer con 4 tipos); esto es
- * la capa de lectura/edición para la pantalla de historial.
+ * journal-service (#39, marathon F3) — SOLO I/O del historial de Journal.
+ * La escritura del composer vive en app/journal.tsx; esto es la capa de
+ * lectura/edición de la pantalla de historial.
+ *
+ * CIERRE-6: la lógica pura y los tipos se mudaron a journal-core.ts (antes
+ * journal-logic.ts). Aquí no queda ninguna decisión, solo consultas.
+ * Se re-exportan tipos y helpers para no romper a los que ya importaban
+ * desde aquí, pero lo nuevo debe importar del core.
  */
 import { supabase } from '@/src/lib/supabase';
-import { dateNDaysAgo } from './journal-logic';
+import { dateNDaysAgo, escapeSearchTerm, normalizeJournalEntry } from './journal-core';
 
-export { computeJournalStreak, dateNDaysAgo } from './journal-logic';
+export { computeJournalStreak, dateNDaysAgo } from './journal-core';
+export type { JournalEntry, JournalFilter } from './journal-core';
 
-export interface JournalEntry {
-  id: string;
-  date: string;          // YYYY-MM-DD
-  journal_type: string;  // free | gratitude | vision | stoic | work_dump
-  prompt: string | null;
-  content: string;
-  tags: string[] | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface JournalFilter {
-  /** días hacia atrás desde hoy (null = todo) */
-  rangeDays: number | null;
-  /** journal_type exacto (null = todos) */
-  type: string | null;
-  /** búsqueda por contenido, case-insensitive (null = sin búsqueda) */
-  search: string | null;
-}
+import type { JournalEntry, JournalFilter } from './journal-core';
 
 export async function fetchJournalEntries(
   userId: string,
@@ -47,18 +35,14 @@ export async function fetchJournalEntries(
   if (filter.type) {
     query = query.eq('journal_type', filter.type);
   }
-  if (filter.search && filter.search.trim().length > 0) {
-    // escape de % y _ para que el usuario busque literales
-    const term = filter.search.trim().replace(/[%_]/g, '\\$&');
+  const term = escapeSearchTerm(filter.search);
+  if (term) {
     query = query.ilike('content', `%${term}%`);
   }
 
   const { data, error } = await query;
   if (error || !data) return [];
-  return (data as any[]).map((row) => ({
-    ...row,
-    journal_type: row.journal_type ?? 'free',
-  })) as JournalEntry[];
+  return (data as Partial<JournalEntry>[]).map(normalizeJournalEntry);
 }
 
 /** Fechas con entrada (para el streak) — barato: solo columna date. */

@@ -7,7 +7,7 @@
  * mismas entradas que ya estás viendo, y por eso el resultado no puede
  * contradecir a la lista.
  */
-import type { JournalEntry } from '@/src/services/journal-service';
+import type { JournalEntry } from '@/src/services/journal-core';
 import type { ExportRow } from './report-domain-core';
 
 /** Milisegundos de espera antes de aplicar lo que se escribió. */

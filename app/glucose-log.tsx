@@ -20,7 +20,6 @@ import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { haptic } from '@/src/utils/haptics';
 import { warn as logWarn } from '@/src/lib/logger';
-import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
@@ -28,28 +27,39 @@ import { useAppTheme } from '@/src/contexts/theme-context';
 import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { userErrorMessage } from '@/src/utils/user-error';
-import { resumenVentana, gki, inicioVentana, type ResumenVentana } from '@/src/services/salud/metabolic-stats-core';
+import { resumenVentana, gki, type ResumenVentana } from '@/src/services/salud/metabolic-stats-core';
+import {
+  classifyGlucose, glucoseContextName, parseGlucoseInput,
+  GLUCOSE_MIN_MG_DL, GLUCOSE_MAX_MG_DL, type GlucoseEstado, type GlucoseContextId,
+} from '@/src/services/salud/glucose-core';
+import {
+  fetchGlucoseLogsForDate, fetchGlucoseWindowPoints, fetchBloodKetoneForDate,
+  insertGlucoseLog, type GlucoseLogRow,
+} from '@/src/services/salud/glucose-service';
 
-const CONTEXTS = [
-  { id: 'fasting',       name: 'Ayuno',         icon: 'moon-outline' as const },
-  { id: 'pre_meal',      name: 'Pre-comida',    icon: 'restaurant-outline' as const },
-  { id: 'post_meal_1h',  name: '1h post',       icon: 'timer-outline' as const },
-  { id: 'post_meal_2h',  name: '2h post',       icon: 'time-outline' as const },
-  { id: 'random',        name: 'Random',        icon: 'shuffle-outline' as const },
-  { id: 'bedtime',       name: 'Antes dormir',  icon: 'bed-outline' as const },
+// Solo el icono es presentación: el nombre visible de cada contexto vive en
+// glucose-core (GLUCOSE_CONTEXT_NAMES), que es la fuente única.
+const CONTEXT_ICONS: { id: GlucoseContextId; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
+  { id: 'fasting',       icon: 'moon-outline' },
+  { id: 'pre_meal',      icon: 'restaurant-outline' },
+  { id: 'post_meal_1h',  icon: 'timer-outline' },
+  { id: 'post_meal_2h',  icon: 'time-outline' },
+  { id: 'random',        icon: 'shuffle-outline' },
+  { id: 'bedtime',       icon: 'bed-outline' },
 ];
 
+// El criterio clínico vive en glucose-core; aquí solo se le pone color.
+// Mismos hexes de siempre: bajo/alto en rojo, elevado en ámbar, normal en lima.
+const ESTADO_COLOR: Record<GlucoseEstado, string> = {
+  bajo:    '#ef4444',
+  normal:  '#a8e02a',
+  elevado: '#fbbf24',
+  alto:    '#ef4444',
+};
+
 function getGlucoseStatus(value: number, context: string) {
-  if (context === 'fasting') {
-    if (value < 70)  return { label: 'Bajo',    color: '#ef4444' };
-    if (value <= 99) return { label: 'Normal',  color: '#a8e02a' };
-    if (value <= 125) return { label: 'Elevado', color: '#fbbf24' };
-    return { label: 'Alto', color: '#ef4444' };
-  }
-  // Post-comida u otro
-  if (value < 140) return { label: 'Normal',  color: '#a8e02a' };
-  if (value <= 199) return { label: 'Elevado', color: '#fbbf24' };
-  return { label: 'Alto', color: '#ef4444' };
+  const { estado, label } = classifyGlucose(value, context);
+  return { label, color: ESTADO_COLOR[estado] };
 }
 
 export default function GlucoseLogScreen() {
@@ -63,7 +73,7 @@ export default function GlucoseLogScreen() {
   const [context, setContext] = useState('fasting');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const [todayLogs, setTodayLogs] = useState<any[]>([]);
+  const [todayLogs, setTodayLogs] = useState<GlucoseLogRow[]>([]);
   // MB-29 P5: la bitácora devuelve — ventanas de 7/30 días + GKI del día.
   const [stats7, setStats7] = useState<ResumenVentana | null>(null);
   const [stats30, setStats30] = useState<ResumenVentana | null>(null);
@@ -72,75 +82,52 @@ export default function GlucoseLogScreen() {
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
     const today = getLocalToday();
-    supabase.from('glucose_logs').select('*')
-      .eq('user_id', user.id).eq('date', today)
-      .order('time', { ascending: false })
-      .then(({ data, error }) => {
-        // MB-8 Track B: un 400 no es "sin mediciones".
-        if (error) logWarn('[glucose-log] load failed:', error.message);
-        else setTodayLogs(data ?? []);
-      });
-    // MB-29 P5: 30 días para las ventanas; fail-soft (sin stats ≠ sin registro).
-    supabase.from('glucose_logs').select('date, value_mg_dl')
-      .eq('user_id', user.id).gte('date', inicioVentana(today, 30))
-      .then(({ data, error }) => {
-        if (error) { logWarn('[glucose-log] stats load failed:', error.message); return; }
-        const puntos = ((data ?? []) as { date: string; value_mg_dl: number }[])
-          .map((r) => ({ date: r.date, value: r.value_mg_dl }));
-        setStats7(resumenVentana(puntos, 7, today));
-        setStats30(resumenVentana(puntos, 30, today));
-      });
+    const uid = user.id;
+    // MB-8 Track B: un 400 no es "sin mediciones" — el fail-soft vive en el servicio.
+    fetchGlucoseLogsForDate(uid, today).then(setTodayLogs);
+    // MB-29 P5: 30 días para las ventanas; sin stats ≠ sin registro.
+    fetchGlucoseWindowPoints(uid, today, 30).then((puntos) => {
+      setStats7(resumenVentana(puntos, 7, today));
+      setStats30(resumenVentana(puntos, 30, today));
+    });
     // GKI del día: la última cetona en SANGRE de hoy (la glucosa sale de
     // todayLogs al render). Sin cetonas de hoy, el GKI no se inventa.
-    supabase.from('ketones_logs').select('value_mmol, time')
-      .eq('user_id', user.id).eq('date', today).eq('source', 'blood')
-      .not('value_mmol', 'is', null)
-      .order('time', { ascending: false }).limit(1).maybeSingle()
-      .then(({ data, error }) => {
-        if (error) { setKetoneHoy(null); return; }
-        setKetoneHoy((data as any)?.value_mmol ?? null);
-      });
+    fetchBloodKetoneForDate(uid, today).then(setKetoneHoy);
   }, [user?.id]));
 
   const handleSave = async () => {
-    const numValue = parseInt(value, 10);
-    if (!numValue || numValue < 20 || numValue > 600) {
-      Alert.alert('Valor inválido', 'Ingresa un valor entre 20 y 600 mg/dL');
+    const numValue = parseGlucoseInput(value);
+    if (numValue === null) {
+      Alert.alert('Valor inválido', `Ingresa un valor entre ${GLUCOSE_MIN_MG_DL} y ${GLUCOSE_MAX_MG_DL} mg/dL`);
       return;
     }
     if (!user?.id) return;
+    const uid = user.id;
 
     setSaving(true);
     try {
-      const now = new Date();
       // REG-7: fecha local (regla técnica #3). `now.toISOString().split('T')[0]`
       // devuelve la fecha en UTC — en zonas horarias negativas un registro
       // de la noche se persiste como el día siguiente. La hora SÍ se deriva
-      // de la hora local del dispositivo.
+      // de la hora local del dispositivo (localTimeHHMMSS en el core).
       const today = getLocalToday();
-      const { error } = await supabase.from('glucose_logs').insert({
-        user_id: user.id,
+      await insertGlucoseLog({
+        userId: uid,
         date: today,
-        time: now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        value_mg_dl: numValue,
+        value: numValue,
         context,
         notes: notes || null,
       });
-      if (error) throw error;
 
       haptic.success();
       setValue('');
       setNotes('');
 
       // Electrón
-      try { await awardBooleanElectron(user.id, 'glucose_log'); DeviceEventEmitter.emit('electrons_changed'); } catch (e) { logWarn('[glucose-log] award electron failed', e); }
+      try { await awardBooleanElectron(uid, 'glucose_log'); DeviceEventEmitter.emit('electrons_changed'); } catch (e) { logWarn('[glucose-log] award electron failed', e); }
 
       // Refresh (misma fecha local).
-      const { data, error: refreshErr } = await supabase.from('glucose_logs').select('*')
-        .eq('user_id', user.id).eq('date', today)
-        .order('time', { ascending: false });
-      if (refreshErr) logWarn('[glucose-log] refresh failed:', refreshErr.message);
-      else setTodayLogs(data ?? []);
+      setTodayLogs(await fetchGlucoseLogsForDate(uid, today));
     } catch (err: any) {
       Alert.alert('Error', userErrorMessage(err, 'No se pudo guardar'));
     } finally {
@@ -186,14 +173,14 @@ export default function GlucoseLogScreen() {
         <Animated.View entering={FadeInUp.delay(100).springify()} style={s.card}>
           <EliteText style={s.label}>CONTEXTO</EliteText>
           <View style={s.contextRow}>
-            {CONTEXTS.map(c => (
+            {CONTEXT_ICONS.map(c => (
               <AnimatedPressable
                 key={c.id}
                 onPress={() => { haptic.light(); setContext(c.id); }}
                 style={[s.contextPill, context === c.id && s.contextPillActive]}
               >
                 <Ionicons name={c.icon} size={14} color={context === c.id ? TEXT_COLORS.onAccent : t.textoSecundario} />
-                <EliteText style={[s.contextText, context === c.id && s.contextTextActive]}>{c.name}</EliteText>
+                <EliteText style={[s.contextText, context === c.id && s.contextTextActive]}>{glucoseContextName(c.id)}</EliteText>
               </AnimatedPressable>
             ))}
           </View>
@@ -221,9 +208,9 @@ export default function GlucoseLogScreen() {
         {todayLogs.length > 0 && (
           <Animated.View entering={FadeInUp.delay(200).springify()} style={{ marginTop: Spacing.lg }}>
             <SectionTitle>HISTORIAL DE HOY</SectionTitle>
-            {todayLogs.map((log: any) => {
+            {todayLogs.map((log) => {
               const st = getGlucoseStatus(log.value_mg_dl, log.context ?? 'random');
-              const ctxName = CONTEXTS.find(c => c.id === log.context)?.name ?? log.context;
+              const ctxName = glucoseContextName(log.context);
               return (
                 <View key={log.id} style={s.logRow}>
                   <EliteText style={s.logTime}>{log.time?.substring(0, 5)}</EliteText>

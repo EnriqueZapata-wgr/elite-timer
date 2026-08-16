@@ -114,7 +114,7 @@ const MISSING_ROUTES: Partial<Record<DxMissingKey, Href>> = {
 
 describe('atajos locales de navegación', () => {
   it('encuentra el helper que envuelve a router.push', () => {
-    // src/components/yo/YoEditorialSection.tsx y HoyEditorialSection.tsx
+    // src/components/hoy/HoyEditorialSection.tsx (el gemelo de YO murió en CIERRE-6)
     expect(navAliases(`const go = (route: Href) => router.push(route);`)).toEqual(['go']);
   });
 

@@ -3,8 +3,14 @@
  * "Estado temporal · ancla Oso" hardcodeado para todo Delfín. Debe reflejar el
  * cronotipo MADRE real (raw_scores) — un Delfín con madre Lobo no puede leer Oso.
  *
- * Se testea la MISMA derivación que usa YoEditorialSection (motherChronotype),
+ * Se testea la derivación canónica del cronotipo madre (motherChronotype),
  * espejo de agenda/motor/Mi Cronotipo.
+ *
+ * CIERRE-6: el consumidor de UI que motivó este candado (YoEditorialSection)
+ * murió por falta de consumidores. El candado SE QUEDA: lo que protege no es
+ * ese componente sino la doctrina de que el Delfín es un estado temporal y
+ * siempre se nombra su cronotipo madre real. El día que vuelva una card de
+ * cronotipo, tiene que nacer cumpliendo esto.
  */
 import { describe, it, expect } from 'vitest';
 import { motherChronotype } from '@/src/services/interventions/intervention-agenda-core';

@@ -55,7 +55,7 @@ import { saveCheckin, getRecentCheckins, type CheckinRecord, type CheckinEntryGa
 import { deriveCheckinAxes } from '@/src/services/checkin-axes-core';
 import { shouldShowTribeBridge, TRIBE_BRIDGE_COPY, BRIDGE_WINDOW_DAYS } from '@/src/services/checkin-bridge-core';
 import { promptForDate, buildCheckinJournalEntry } from '@/src/data/checkin-prompts';
-import { computeJournalStreak } from '@/src/services/journal-logic';
+import { computeJournalStreak } from '@/src/services/journal-core';
 import { toLocalDateString } from '@/src/utils/date-helpers';
 import { toggleCompletion } from '@/src/services/protocol-service';
 import { awardBooleanElectron } from '@/src/services/electron-service';

@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   normalizeSearch, entryMatchesSearch, filterJournalEntries, hasActiveFilter, journalRows,
 } from '../journal-report-core';
-import type { JournalEntry } from '@/src/services/journal-service';
+import type { JournalEntry } from '@/src/services/journal-core';
 
 function entry(over: Partial<JournalEntry>): JournalEntry {
   return {
