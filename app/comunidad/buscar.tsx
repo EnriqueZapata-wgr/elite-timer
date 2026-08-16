@@ -171,7 +171,9 @@ export default function CommunitySearchScreen() {
       </Animated.View>
 
       {rateLimited && (
-        <EliteText style={s.rateLimit}>Demasiadas búsquedas, espera un momento.</EliteText>
+        <EliteText style={[s.rateLimit, { color: kind === 'dark' ? '#fbbf24' : t.error }]}>
+          Demasiadas búsquedas, espera un momento.
+        </EliteText>
       )}
       {showMinHint && (
         <EliteText style={[s.hint, { color: t.textoTenue }]}>Escribe al menos {MIN_CHARS} caracteres.</EliteText>
@@ -216,8 +218,10 @@ const s = StyleSheet.create({
     borderRadius: Radius.md, paddingHorizontal: Spacing.md, marginTop: Spacing.lg,
   },
   input: { flex: 1, fontSize: FontSizes.md, fontFamily: Fonts.regular, paddingVertical: 12 },
+  // El ámbar avisa bien en oscuro; sobre la card clara no se lee (1.7), y ahí
+  // el aviso pasa al token de error, que es el único de atención legible.
   rateLimit: {
-    fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#fbbf24',
+    fontSize: FontSizes.xs, fontFamily: Fonts.regular,
     marginTop: 8, marginLeft: 4,
   },
   hint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 8, marginLeft: 4 },

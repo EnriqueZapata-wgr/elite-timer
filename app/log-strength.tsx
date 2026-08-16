@@ -893,7 +893,7 @@ export default function LogStrengthScreen() {
         onRequestClose={() => setVariantModalVisible(false)}
       >
         <Pressable
-          style={s.modalOverlay}
+          style={[s.modalOverlay, { backgroundColor: kind === 'dark' ? 'rgba(0,0,0,0.8)' : 'rgba(15,21,24,0.35)' }]}
           onPress={() => setVariantModalVisible(false)}
         >
           <Pressable style={[s.modalContent, { backgroundColor: tk.card }]} onPress={() => {}}>
@@ -1217,9 +1217,9 @@ const s = StyleSheet.create({
   },
 
   // --- Modal ---
+  // El velo entra inline: en claro un negro al 80% apaga toda la pantalla.
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
     justifyContent: 'flex-end',
   },
   modalContent: {

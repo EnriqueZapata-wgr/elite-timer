@@ -49,9 +49,12 @@ export function MessageActionsMenu({ visible, canEdit, onCopy, onEdit, onClose }
 
 const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   backdrop: {
-    // Scrim del modal: negro atenuado a propósito en los dos modos (estándar
-    // de overlay; no hay token de scrim y no se inventa).
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+    // Velo del modal. El comentario anterior decía que no había convención de
+    // scrim; sí la hay, y son las otras ~40 hojas de la app: en claro el negro
+    // se cambia por la tinta del texto (#0F1518) a baja opacidad, para que la
+    // pantalla no quede en penumbra detrás de la hoja.
+    flex: 1,
+    backgroundColor: t.kind === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(15,21,24,0.35)',
     justifyContent: 'flex-end', paddingHorizontal: Spacing.md, paddingBottom: 32,
   },
   sheet: {

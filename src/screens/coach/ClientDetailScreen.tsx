@@ -64,6 +64,23 @@ const TEAL = CATEGORY_COLORS.metrics;
 // MB-31B: textoTenue del oscuro no alcanza contraste en claro para letra
 // chica (reemplaza el tenue(t) de siempre) — regla 4 del remate.
 const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
+// CIERRE-5: los tres acentos de esta pantalla como LETRA. El lima da 1.34
+// sobre la card clara y el teal de categoría 2.84: ninguno de los dos se lee,
+// y en claro los dos bajan al teal calibrado del tema. Como relleno o borde
+// siguen siendo los de siempre, ahí sí funcionan.
+const acento = (t: AppThemeTokens) => (t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto);
+const acentoTeal = (t: AppThemeTokens) => (t.kind === 'dark' ? TEAL : t.tealTexto);
+// Fondo de la caja "resumen para paciente": el verde casi negro dejaba el
+// texto del tema encima con contraste 1.0, o sea invisible.
+const verdeTenue = (t: AppThemeTokens) => (t.kind === 'dark' ? '#0a1a15' : t.hundido);
+// Fila de uploads fallidos: mismo problema con el rojo casi negro.
+const rojoTenue = (t: AppThemeTokens) => (t.kind === 'dark' ? '#1a0a0a' : t.hundido);
+// Velo de modal: en claro el negro al 70% apaga la pantalla entera.
+const velo = (t: AppThemeTokens) => (t.kind === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(15,21,24,0.35)');
+// Texto de pista de los campos. Se venía pintando con colores de BORDE
+// (bordeMarcado 1.7, sinDatos 1.9): en claro la pista se borra y el campo se
+// ve vacío. En claro sube al tenue del tema, que es el token de letra apagada.
+const pista = (t: AppThemeTokens) => (t.kind === 'dark' ? t.bordeMarcado : t.textoTenue);
 const DAY_LABELS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 // Mapeo: PostgreSQL DOW (0=Dom) → columna del grid (0=Lun)
 const DOW_TO_COL = [6, 0, 1, 2, 3, 4, 5]; // Dom=6, Lun=0...Sáb=5
@@ -345,7 +362,7 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
                       value={aiQuestion}
                       onChangeText={setAiQuestion}
                       placeholder="Pregunta específica (opcional)"
-                      placeholderTextColor={t.sinDatos}
+                      placeholderTextColor={pista(t)}
                     />
                     <Pressable onPress={() => handleAskAI(aiQuestion)} style={s.aiGenerateBtn}>
                       <Ionicons name="sparkles-outline" size={16} color={ATP_BRAND.black} />
@@ -1042,7 +1059,7 @@ function AddModal({ visible, type, clientId, onClose, onSaved }: {
         <View key={k} style={s.modalField}>
           <EliteText variant="caption" style={s.modalFieldLabel}>{label}</EliteText>
           <TextInput style={s.modalInput} value={form[k] ?? ''} onChangeText={v => set(k, v)}
-            keyboardType="numeric" placeholderTextColor={t.sinDatos} placeholder="0" />
+            keyboardType="numeric" placeholderTextColor={pista(t)} placeholder="0" />
         </View>
       ));
     }
@@ -1051,7 +1068,7 @@ function AddModal({ visible, type, clientId, onClose, onSaved }: {
         <View key={k} style={s.modalField}>
           <EliteText variant="caption" style={s.modalFieldLabel}>{k === 'name' ? 'Nombre *' : k}</EliteText>
           <TextInput style={s.modalInput} value={form[k] ?? ''} onChangeText={v => set(k, v)}
-            placeholderTextColor={t.sinDatos} placeholder={k === 'name' ? 'Nombre del medicamento' : ''} />
+            placeholderTextColor={pista(t)} placeholder={k === 'name' ? 'Nombre del medicamento' : ''} />
         </View>
       ));
     }
@@ -1060,7 +1077,7 @@ function AddModal({ visible, type, clientId, onClose, onSaved }: {
         <View key={k} style={s.modalField}>
           <EliteText variant="caption" style={s.modalFieldLabel}>{k === 'name' ? 'Nombre *' : k}</EliteText>
           <TextInput style={s.modalInput} value={form[k] ?? ''} onChangeText={v => set(k, v)}
-            placeholderTextColor={t.sinDatos} placeholder={k === 'name' ? 'Nombre del suplemento' : ''} />
+            placeholderTextColor={pista(t)} placeholder={k === 'name' ? 'Nombre del suplemento' : ''} />
         </View>
       ));
     }
@@ -1081,12 +1098,12 @@ function AddModal({ visible, type, clientId, onClose, onSaved }: {
           <View style={s.modalField}>
             <EliteText variant="caption" style={s.modalFieldLabel}>Condición *</EliteText>
             <TextInput style={s.modalInput} value={form.condition ?? ''} onChangeText={v => set('condition', v)}
-              placeholderTextColor={t.sinDatos} placeholder="Ej: Diabetes tipo 2" />
+              placeholderTextColor={pista(t)} placeholder="Ej: Diabetes tipo 2" />
           </View>
           <View style={s.modalField}>
             <EliteText variant="caption" style={s.modalFieldLabel}>Notas</EliteText>
             <TextInput style={[s.modalInput, { height: 60 }]} value={form.notes ?? ''} onChangeText={v => set('notes', v)}
-              placeholderTextColor={t.sinDatos} placeholder="Opcional" multiline />
+              placeholderTextColor={pista(t)} placeholder="Opcional" multiline />
           </View>
         </>
       );
@@ -1204,7 +1221,7 @@ function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, p
               <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: 2 }}>Nombre</EliteText>
               <TextInput style={s.editableInput} value={form.full_name}
                 onChangeText={v => setF('full_name', v)}
-                placeholder="Nombre completo" placeholderTextColor={t.bordeMarcado} />
+                placeholder="Nombre completo" placeholderTextColor={pista(t)} />
             </View>
             <ProfileRow label="Email" value={clientEmail} />
             {profileLoaded && (
@@ -1213,7 +1230,7 @@ function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, p
                   <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: 2 }}>Fecha de nacimiento</EliteText>
                   <TextInput style={s.editableInput} value={form.date_of_birth}
                     onChangeText={v => setF('date_of_birth', v)}
-                    placeholder="AAAA-MM-DD" placeholderTextColor={t.bordeMarcado} />
+                    placeholder="AAAA-MM-DD" placeholderTextColor={pista(t)} />
                 </View>
                 <View>
                   <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: 2 }}>Sexo biológico</EliteText>
@@ -1232,19 +1249,19 @@ function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, p
                   <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: 2 }}>Teléfono</EliteText>
                   <TextInput style={s.editableInput} value={form.phone}
                     onChangeText={v => setF('phone', v)}
-                    placeholder="Tel." placeholderTextColor={t.bordeMarcado} keyboardType="phone-pad" />
+                    placeholder="Tel." placeholderTextColor={pista(t)} keyboardType="phone-pad" />
                 </View>
                 <View>
                   <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: 2 }}>Ocupación</EliteText>
                   <TextInput style={s.editableInput} value={form.occupation}
                     onChangeText={v => setF('occupation', v)}
-                    placeholder="Ocupación" placeholderTextColor={t.bordeMarcado} />
+                    placeholder="Ocupación" placeholderTextColor={pista(t)} />
                 </View>
                 <View>
                   <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: 2 }}>Ciudad</EliteText>
                   <TextInput style={s.editableInput} value={form.city}
                     onChangeText={v => setF('city', v)}
-                    placeholder="Ciudad" placeholderTextColor={t.bordeMarcado} />
+                    placeholder="Ciudad" placeholderTextColor={pista(t)} />
                 </View>
                 <View>
                   <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginBottom: 2 }}>¿Cómo nos conoció?</EliteText>
@@ -1262,7 +1279,7 @@ function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, p
                     <TextInput style={[s.editableInput, { marginTop: 4 }]} value={form.referral_detail}
                       onChangeText={v => setF('referral_detail', v)}
                       placeholder={form.referral_source === 'Otro' ? 'Especifica' : '¿Quién te refirió?'}
-                      placeholderTextColor={t.bordeMarcado} />
+                      placeholderTextColor={pista(t)} />
                   )}
                 </View>
               </>
@@ -1339,7 +1356,7 @@ function TimedGoals({ goals, onChange, editable }: {
             value={newWeeks}
             onChangeText={setNewWeeks}
             placeholder="Sem"
-            placeholderTextColor={t.bordeMarcado}
+            placeholderTextColor={pista(t)}
             keyboardType="numeric"
           />
           <TextInput
@@ -1347,7 +1364,7 @@ function TimedGoals({ goals, onChange, editable }: {
             value={newTarget}
             onChangeText={setNewTarget}
             placeholder="Ej: Hemoglobina 15-18, grasa visceral <9"
-            placeholderTextColor={t.bordeMarcado}
+            placeholderTextColor={pista(t)}
           />
           <Pressable onPress={handleAdd} style={s.goalAddBtn}>
             <Ionicons name="add" size={18} color={Colors.neonGreen} />
@@ -1422,7 +1439,7 @@ function BioField({ label, unit, color, value, onSave, rating, saved }: {
           onChangeText={handleChange}
           keyboardType="numeric"
           placeholder="—"
-          placeholderTextColor={t.bordeMarcado}
+          placeholderTextColor={pista(t)}
         />
         <EliteText variant="caption" style={{ color: tenue(t), fontSize: 9 }}>{unit}</EliteText>
         {hasRating && (
@@ -1468,11 +1485,11 @@ function DebouncedBPField({ sysValue, diaValue, onSaveSys, onSaveDia, bpColor, b
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
         <TextInput style={[s.bioInput, { width: 44, color: bpColor }]}
           value={sys} onChangeText={handleSys}
-          keyboardType="numeric" placeholder="120" placeholderTextColor={t.bordeMarcado} />
+          keyboardType="numeric" placeholder="120" placeholderTextColor={pista(t)} />
         <EliteText style={{ color: tenue(t), fontSize: 16 }}>/</EliteText>
         <TextInput style={[s.bioInput, { width: 44, color: bpColor }]}
           value={dia} onChangeText={handleDia}
-          keyboardType="numeric" placeholder="80" placeholderTextColor={t.bordeMarcado} />
+          keyboardType="numeric" placeholder="80" placeholderTextColor={pista(t)} />
         {hasRating && (
           <View style={{ backgroundColor: bpRating.bgColor, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10, marginLeft: 2 }}>
             <EliteText variant="caption" style={{ color: bpRating.color, fontSize: 8, fontFamily: Fonts.bold }}>{bpRating.label}</EliteText>
@@ -1507,7 +1524,7 @@ function EditableField({ label, value, placeholder, onSave, multiline, isRed }: 
         onChangeText={handleChange}
         onEndEditing={() => onSave(text)}
         placeholder={placeholder}
-        placeholderTextColor={t.bordeMarcado}
+        placeholderTextColor={pista(t)}
         multiline={multiline}
       />
     </View>
@@ -2094,7 +2111,7 @@ function LabsTab({ clientId }: { clientId: string }) {
             UPLOADS PENDIENTES / FALLIDOS
           </EliteText>
           {failedUploads.map(u => (
-            <View key={u.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a0a0a', borderRadius: 8, padding: Spacing.sm, marginBottom: 4 }}>
+            <View key={u.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: rojoTenue(t), borderRadius: 8, padding: Spacing.sm, marginBottom: 4 }}>
               <Ionicons name={u.status === 'failed' ? 'alert-circle' : 'hourglass-outline'} size={14} color={u.status === 'failed' ? t.error : SEMANTIC.warning} />
               <View style={{ flex: 1, marginLeft: Spacing.sm }}>
                 <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 11 }}>
@@ -2256,7 +2273,7 @@ function DayDescriptionSaveSection({ consultation, isDraft, onSaved }: {
         value={text}
         onChangeText={v => { setText(v); setStatus('idle'); }}
         placeholder="Ej: Se levanta a las 6, desayuna cereal, maneja 1hr al trabajo..."
-        placeholderTextColor={t.bordeMarcado}
+        placeholderTextColor={pista(t)}
         multiline editable={isDraft}
       />
     </SaveableSection>
@@ -2318,23 +2335,23 @@ function WeightContextSaveSection({ profile, clientId, onSaved }: {
         <View style={s.weightCtxRow}>
           <EliteText variant="caption" style={s.weightCtxLabel}>Más alto</EliteText>
           <TextInput style={[s.weightCtxInput, { flex: 1 }]} value={form.weight_highest_kg}
-            onChangeText={v => setF('weight_highest_kg', v)} placeholder="kg" placeholderTextColor={t.bordeMarcado} keyboardType="numeric" />
+            onChangeText={v => setF('weight_highest_kg', v)} placeholder="kg" placeholderTextColor={pista(t)} keyboardType="numeric" />
           <TextInput style={[s.weightCtxInput, { flex: 1 }]} value={form.weight_highest_year}
-            onChangeText={v => setF('weight_highest_year', v)} placeholder="año o edad" placeholderTextColor={t.bordeMarcado} />
+            onChangeText={v => setF('weight_highest_year', v)} placeholder="año o edad" placeholderTextColor={pista(t)} />
         </View>
         <View style={s.weightCtxRow}>
           <EliteText variant="caption" style={s.weightCtxLabel}>Más bajo</EliteText>
           <TextInput style={[s.weightCtxInput, { flex: 1 }]} value={form.weight_lowest_kg}
-            onChangeText={v => setF('weight_lowest_kg', v)} placeholder="kg" placeholderTextColor={t.bordeMarcado} keyboardType="numeric" />
+            onChangeText={v => setF('weight_lowest_kg', v)} placeholder="kg" placeholderTextColor={pista(t)} keyboardType="numeric" />
           <TextInput style={[s.weightCtxInput, { flex: 1 }]} value={form.weight_lowest_year}
-            onChangeText={v => setF('weight_lowest_year', v)} placeholder="año o edad" placeholderTextColor={t.bordeMarcado} />
+            onChangeText={v => setF('weight_lowest_year', v)} placeholder="año o edad" placeholderTextColor={pista(t)} />
         </View>
         <View style={s.weightCtxRow}>
           <EliteText variant="caption" style={[s.weightCtxLabel, { color: TEAL }]}>Ideal</EliteText>
           <TextInput style={[s.weightCtxInput, { flex: 1 }]} value={form.weight_ideal_kg}
-            onChangeText={v => setF('weight_ideal_kg', v)} placeholder="kg" placeholderTextColor={t.bordeMarcado} keyboardType="numeric" />
+            onChangeText={v => setF('weight_ideal_kg', v)} placeholder="kg" placeholderTextColor={pista(t)} keyboardType="numeric" />
           <TextInput style={[s.weightCtxInput, { flex: 2 }]} value={form.weight_ideal_notes}
-            onChangeText={v => setF('weight_ideal_notes', v)} placeholder="notas (frame, estilo vida)" placeholderTextColor={t.bordeMarcado} />
+            onChangeText={v => setF('weight_ideal_notes', v)} placeholder="notas (frame, estilo vida)" placeholderTextColor={pista(t)} />
         </View>
       </View>
     </SaveableSection>
@@ -2401,7 +2418,7 @@ function ObjectivesSaveSection({ profile, isDraft, clientId, onSaved }: {
             style={[s.editableInput, f.key === 'red_flags' && { borderColor: t.error + '30' }]}
             value={form[f.key as keyof typeof form]}
             onChangeText={v => { setForm(prev => ({ ...prev, [f.key]: v })); setStatus('idle'); }}
-            placeholder={f.ph} placeholderTextColor={t.bordeMarcado} editable={isDraft}
+            placeholder={f.ph} placeholderTextColor={pista(t)} editable={isDraft}
           />
         </View>
       ))}
@@ -2466,7 +2483,7 @@ function SoapNotesSaveSection({ consultation, isDraft, onSaved }: {
             style={[s.editableInput, f.multi && { minHeight: 60 }]}
             value={form[f.key]}
             onChangeText={v => { setForm(prev => ({ ...prev, [f.key]: v })); setStatus('idle'); }}
-            placeholder={f.ph} placeholderTextColor={t.bordeMarcado} multiline={f.multi} editable={isDraft}
+            placeholder={f.ph} placeholderTextColor={pista(t)} multiline={f.multi} editable={isDraft}
           />
         </View>
       ))}
@@ -2769,7 +2786,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
     <View style={{ flex: 1 }}>
       <EliteText variant="caption" style={{ color: tenue(t), fontSize: 9, marginBottom: 2 }}>{label}</EliteText>
       <TextInput style={s.editableInput} value={planForm[field as keyof typeof planForm]}
-        onChangeText={v => setF(field, v)} placeholder={placeholder} placeholderTextColor={t.bordeMarcado}
+        onChangeText={v => setF(field, v)} placeholder={placeholder} placeholderTextColor={pista(t)}
         keyboardType={kb as any ?? 'default'} />
     </View>
   );
@@ -3117,9 +3134,9 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
             ))}
           </View>
           <TextInput style={s.editableInput} value={newFoodDesc} onChangeText={setNewFoodDesc}
-            placeholder="Describe la comida" placeholderTextColor={t.bordeMarcado} />
+            placeholder="Describe la comida" placeholderTextColor={pista(t)} />
           <TextInput style={[s.editableInput, { marginTop: Spacing.xs }]} value={newFoodTime} onChangeText={setNewFoodTime}
-            placeholder="Hora (ej: 14:30)" placeholderTextColor={t.bordeMarcado} />
+            placeholder="Hora (ej: 14:30)" placeholderTextColor={pista(t)} />
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.sm }}>
             <Pressable onPress={() => setAddingFood(false)}>
               <EliteText variant="caption" style={{ color: tenue(t) }}>Cancelar</EliteText>
@@ -3271,11 +3288,11 @@ function StudySummaryField({ studyId, initial, onSave }: { studyId: string; init
   };
 
   return (
-    <View style={{ backgroundColor: '#0a1a15', borderRadius: 8, padding: Spacing.sm, borderLeftWidth: 2, borderLeftColor: CATEGORY_COLORS.metrics }}>
+    <View style={{ backgroundColor: verdeTenue(t), borderRadius: 8, padding: Spacing.sm, borderLeftWidth: 2, borderLeftColor: acentoTeal(t) }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-        <Ionicons name="eye-outline" size={12} color={CATEGORY_COLORS.metrics} />
-        <EliteText variant="caption" style={{ color: CATEGORY_COLORS.metrics, fontSize: 10, fontFamily: Fonts.bold }}>RESUMEN PARA PACIENTE</EliteText>
-        {saved && <EliteText variant="caption" style={{ color: ATP_BRAND.lime, fontSize: 9 }}>✓ Guardado</EliteText>}
+        <Ionicons name="eye-outline" size={12} color={acentoTeal(t)} />
+        <EliteText variant="caption" style={{ color: acentoTeal(t), fontSize: 10, fontFamily: Fonts.bold }}>RESUMEN PARA PACIENTE</EliteText>
+        {saved && <EliteText variant="caption" style={{ color: acento(t), fontSize: 9 }}>✓ Guardado</EliteText>}
       </View>
       <TextInput
         style={{ color: t.texto, fontSize: 12, lineHeight: 18, minHeight: 40 }}
@@ -3798,7 +3815,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     width: 60, height: 60, borderRadius: 30, backgroundColor: TEAL + '20',
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarLgText: { color: TEAL, fontFamily: Fonts.bold, fontSize: 24 },
+  avatarLgText: { color: acentoTeal(t), fontFamily: Fonts.bold, fontSize: 24 },
   headerInfo: { flex: 1 },
   headerName: { fontSize: 24, letterSpacing: 1 },
   headerSince: { color: t.textoSecundario, marginTop: 2 },
@@ -3808,7 +3825,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     paddingVertical: Spacing.xs, borderRadius: Radius.pill,
   },
   activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.neonGreen },
-  activeText: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: 11 },
+  activeText: { color: acento(t), fontFamily: Fonts.bold, fontSize: 11 },
 
   // Stats
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: Spacing.lg },
@@ -3864,7 +3881,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     backgroundColor: TEAL + '10', borderRadius: Radius.md, borderWidth: 1,
     borderColor: TEAL + '30', padding: Spacing.md, marginBottom: Spacing.md,
   },
-  assignBtnText: { color: TEAL, fontFamily: Fonts.semiBold },
+  assignBtnText: { color: acentoTeal(t), fontFamily: Fonts.semiBold },
   routineRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     paddingVertical: Spacing.sm + 2, borderBottomWidth: 1, borderBottomColor: t.card,
@@ -3886,7 +3903,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     paddingVertical: Spacing.xs, alignItems: 'center', minWidth: 60,
   },
   prChipLabel: { color: tenue(t), fontSize: 10, fontFamily: Fonts.bold },
-  prChipValue: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: 14, fontVariant: ['tabular-nums'] },
+  prChipValue: { color: acento(t), fontFamily: Fonts.bold, fontSize: 14, fontVariant: ['tabular-nums'] },
 
   // History
   historyRow: {
@@ -3934,9 +3951,9 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     alignItems: 'center',
   },
   profilePlaceholderLabel: { color: tenue(t), fontSize: 10, marginBottom: 4 },
-  profilePlaceholderValue: { color: t.sinDatos, fontSize: 18, fontFamily: Fonts.bold },
+  profilePlaceholderValue: { color: tenue(t), fontSize: 18, fontFamily: Fonts.bold },
   profileComingSoon: {
-    color: t.sinDatos,
+    color: tenue(t),
     fontSize: 11,
     fontStyle: 'italic',
     textAlign: 'center',
@@ -4047,7 +4064,10 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   },
   weightBarPointLg: {
     position: 'absolute', width: 14, height: 14, borderRadius: 7, top: -5.5,
-    marginLeft: -7, backgroundColor: ATP_BRAND.white, borderWidth: 2, borderColor: ATP_BRAND.white,
+    // El punto marca el peso actual sobre una barra del color del borde: en
+    // blanco fijo se perdía sobre el gris claro. La tinta del texto contrasta
+    // en los dos temas (blanco en oscuro, casi negro en claro).
+    marginLeft: -7, backgroundColor: t.texto, borderWidth: 2, borderColor: t.texto,
   },
   weightBarLabels: {
     flexDirection: 'row', justifyContent: 'space-between',
@@ -4063,7 +4083,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     color: t.texto, fontSize: 13, fontFamily: Fonts.semiBold, borderWidth: 0.5, borderColor: t.borde,
     minWidth: 110, textAlign: 'center',
   },
-  dobAge: { color: TEAL, fontFamily: Fonts.bold, fontSize: 12 },
+  dobAge: { color: acentoTeal(t), fontFamily: Fonts.bold, fontSize: 12 },
 
   // Editable fields
   editableInput: {
@@ -4106,7 +4126,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill,
     backgroundColor: 'rgba(168,224,42,0.1)', borderWidth: 1, borderColor: 'rgba(168,224,42,0.3)',
   },
-  activePillText: { color: Colors.neonGreen, fontSize: 10, fontFamily: Fonts.bold },
+  activePillText: { color: acento(t), fontSize: 10, fontFamily: Fonts.bold },
   relationPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill },
 
   // Add button
@@ -4115,17 +4135,17 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     paddingVertical: Spacing.sm, marginTop: Spacing.sm,
     borderWidth: 1, borderColor: TEAL + '30', borderRadius: Radius.sm, borderStyle: 'dashed',
   },
-  addBtnText: { color: TEAL, fontFamily: Fonts.semiBold, fontSize: 12 },
+  addBtnText: { color: acentoTeal(t), fontFamily: Fonts.semiBold, fontSize: 12 },
 
   // Modal
   modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg,
+    flex: 1, backgroundColor: velo(t), justifyContent: 'center', alignItems: 'center', padding: Spacing.lg,
   },
   modalContent: {
     backgroundColor: t.card, borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 420, maxHeight: '70%',
     borderWidth: 1, borderColor: t.borde,
   },
-  modalTitle: { color: TEAL, letterSpacing: 3, fontSize: 13, marginBottom: Spacing.md },
+  modalTitle: { color: acentoTeal(t), letterSpacing: 3, fontSize: 13, marginBottom: Spacing.md },
   modalField: { marginBottom: Spacing.sm },
   modalFieldLabel: { color: t.textoSecundario, fontSize: 11, marginBottom: 4, textTransform: 'capitalize' },
   modalInput: {
@@ -4149,9 +4169,9 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     backgroundColor: Colors.neonGreen + '10', borderWidth: 1, borderColor: Colors.neonGreen + '30',
     paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: 8,
   },
-  aiBtnText: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 1 },
+  aiBtnText: { color: acento(t), fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 1 },
   aiOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg,
+    flex: 1, backgroundColor: velo(t), justifyContent: 'center', alignItems: 'center', padding: Spacing.lg,
   },
   aiModal: {
     backgroundColor: t.card, borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 600, maxHeight: '80%',
@@ -4184,7 +4204,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     backgroundColor: Colors.neonGreen + '10', borderWidth: 1, borderColor: Colors.neonGreen + '30',
     borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.md,
   },
-  newConsultBtnText: { color: Colors.neonGreen, fontFamily: Fonts.bold },
+  newConsultBtnText: { color: acento(t), fontFamily: Fonts.bold },
   consultCard: {
     backgroundColor: t.card, borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.sm,
     borderWidth: 0.5, borderColor: t.borde,
@@ -4209,7 +4229,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     backgroundColor: Colors.neonGreen + '15', paddingHorizontal: 8, paddingVertical: 3,
     borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.neonGreen + '30', minWidth: 55, alignItems: 'center',
   },
-  goalWeeksText: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: 11 },
+  goalWeeksText: { color: acento(t), fontFamily: Fonts.bold, fontSize: 11 },
   goalTarget: { flex: 1, fontSize: 13, color: t.texto },
   goalAddRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs,
