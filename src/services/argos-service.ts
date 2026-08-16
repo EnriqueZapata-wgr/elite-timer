@@ -13,7 +13,12 @@ import { ATP_LLM } from '@/src/constants/llm-config';
 import { getHydrationStats } from './hydration-service';
 import { getCycleInfo } from './cycle-service';
 import { VoiceModulator, runCoachEngineGate, buildCoachGateInjection, EvidenceTag, type CoachGateResult } from '@/src/lib/coach-engine';
-import { error as logError } from '@/src/lib/logger';
+import { error as logError, warn as logWarn } from '@/src/lib/logger';
+import { ARGOS_LEE_LABS_DE_VERDAD } from '@/src/constants/flags';
+import { resolveRange } from './reports/report-domain-core';
+import { loadLabsReport } from './reports/labs-report-service';
+import { construirHistorias, resumirLabs } from './reports/labs-report-core';
+import { construirBloqueLabs } from './argos-labs-core';
 import { persistTurnAudit } from './coach-audit-service';
 import { generateUUID } from '@/src/utils/uuid';
 import { buildPersonalityInjection, buildTimeContextInjection } from './argos-personality';
@@ -696,6 +701,69 @@ async function fetchUserPRs(userId: string): Promise<PersonalRecord[]> {
 }
 
 /**
+ * El contexto de ARGOS se arma con ~26 bloques independientes, cada uno en su
+ * propio `try`. Todos se tragaban su error con `catch (_) { /* opcional *\/ }`.
+ *
+ * Eso convirtió una falla de datos en una falla de conocimiento invisible: el
+ * bloque no se arma, nadie se entera, y el usuario recibe un ARGOS que no sabe
+ * lo que debería saber y contesta con toda seguridad que no tiene el dato. Es
+ * exactamente lo que pasó con los labs, y por eso tardó en detectarse: sin
+ * error, sin log, sin nada.
+ *
+ * Un "no sé" es recuperable; un dato incompleto dicho con confianza no. Como
+ * mínimo tiene que quedar rastro.
+ */
+export function registrarBloqueDeContexto(
+  bloque: string,
+  motivo: 'error' | 'vacio',
+  detalle: unknown,
+): void {
+  if (motivo === 'vacio') {
+    logWarn(`[argos-contexto] bloque "${bloque}" quedó fuera del cerebro: ${String(detalle)}`);
+    return;
+  }
+  // Un error de lectura NO es lo mismo que un dato ausente: aquí sí había algo
+  // que decir y no se pudo. Va a Sentry vía logError, que es lo que se mira.
+  logError(`[argos-contexto] bloque "${bloque}" falló al armarse`, detalle);
+}
+
+/**
+ * El camino viejo de labs: `lab_results`, once columnas fijas, un solo estudio.
+ * Se conserva íntegro para que apagar ARGOS_LEE_LABS_DE_VERDAD devuelva el
+ * comportamiento previo byte por byte, sin migración y por OTA.
+ */
+async function cargarLabsLegacy(userId: string, context: UserContext): Promise<void> {
+  const { data: labs } = await supabase
+    .from('lab_results')
+    .select('lab_date, vitamin_d, hba1c, ferritin, tsh, cholesterol_total, hdl, ldl, triglycerides, testosterone, estradiol, cortisol')
+    .eq('user_id', userId)
+    .order('lab_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!labs) return;
+  const l = labs as any;
+  const candidates: { name: string; value: any; unit: string }[] = [
+    { name: 'Vitamina D', value: l.vitamin_d, unit: 'ng/mL' },
+    { name: 'HbA1c', value: l.hba1c, unit: '%' },
+    { name: 'Ferritina', value: l.ferritin, unit: 'ng/mL' },
+    { name: 'TSH', value: l.tsh, unit: 'mUI/L' },
+    { name: 'Colesterol total', value: l.cholesterol_total, unit: 'mg/dL' },
+    { name: 'HDL', value: l.hdl, unit: 'mg/dL' },
+    { name: 'LDL', value: l.ldl, unit: 'mg/dL' },
+    { name: 'Triglicéridos', value: l.triglycerides, unit: 'mg/dL' },
+    { name: 'Testosterona', value: l.testosterone, unit: 'ng/dL' },
+    { name: 'Estradiol', value: l.estradiol, unit: 'pg/mL' },
+    { name: 'Cortisol', value: l.cortisol, unit: 'µg/dL' },
+  ];
+  const keyMarkers = candidates
+    .filter(c => typeof c.value === 'number')
+    .map(c => ({ name: c.name, value: c.value as number, unit: c.unit }));
+  if (keyMarkers.length > 0 && l.lab_date) {
+    context.recentLabs = { keyMarkers, lastUpdated: l.lab_date };
+  }
+}
+
+/**
  * Carga el contexto rico del usuario. Exportada para el test raíz del gate
  * de consentimiento (MB-21 P7) — la UI no la llama directo.
  */
@@ -1084,37 +1152,32 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
   } catch (_) { /* opcional */ }
 
   try {
-    // Labs — último set
-    const { data: labs } = await supabase
-      .from('lab_results')
-      .select('lab_date, vitamin_d, hba1c, ferritin, tsh, cholesterol_total, hdl, ldl, triglycerides, testosterone, estradiol, cortisol')
-      .eq('user_id', userId)
-      .order('lab_date', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (labs) {
-      const l = labs as any;
-      const candidates: { name: string; value: any; unit: string }[] = [
-        { name: 'Vitamina D', value: l.vitamin_d, unit: 'ng/mL' },
-        { name: 'HbA1c', value: l.hba1c, unit: '%' },
-        { name: 'Ferritina', value: l.ferritin, unit: 'ng/mL' },
-        { name: 'TSH', value: l.tsh, unit: 'mUI/L' },
-        { name: 'Colesterol total', value: l.cholesterol_total, unit: 'mg/dL' },
-        { name: 'HDL', value: l.hdl, unit: 'mg/dL' },
-        { name: 'LDL', value: l.ldl, unit: 'mg/dL' },
-        { name: 'Triglicéridos', value: l.triglycerides, unit: 'mg/dL' },
-        { name: 'Testosterona', value: l.testosterone, unit: 'ng/dL' },
-        { name: 'Estradiol', value: l.estradiol, unit: 'pg/mL' },
-        { name: 'Cortisol', value: l.cortisol, unit: 'µg/dL' },
-      ];
-      const keyMarkers = candidates
-        .filter(c => typeof c.value === 'number')
-        .map(c => ({ name: c.name, value: c.value as number, unit: c.unit }));
-      if (keyMarkers.length > 0 && l.lab_date) {
-        context.recentLabs = { keyMarkers, lastUpdated: l.lab_date };
+    // Labs — el expediente COMPLETO desde `lab_values` (la tabla canónica
+    // time-series). Se reusa la lectura de reportes tal cual: misma consulta,
+    // mismo sexo, misma fase del ciclo, mismas ventanas de la matriz V7/V6.
+    // Rango 'all' a propósito: la pregunta que originó esto era sobre una
+    // tendencia de años, y con un solo estudio no hay respuesta posible.
+    if (ARGOS_LEE_LABS_DE_VERDAD) {
+      const rango = resolveRange('all', new Date());
+      const { mediciones, sexo, faseCiclo } = await loadLabsReport(rango, userId);
+      const historias = construirHistorias(mediciones, sexo, faseCiclo);
+      const bloque = construirBloqueLabs(historias, resumirLabs(historias));
+      if (bloque) {
+        const ultima = historias
+          .map((h) => h.ultimo.measured_at)
+          .sort()
+          .pop()!;
+        context.labsExpediente = { lineas: bloque.lineas, ultimaMedicion: ultima };
+      } else {
+        // Sin biomarcadores no es una falla: es un expediente vacío.
+        registrarBloqueDeContexto('labs', 'vacio', 'el usuario no tiene biomarcadores cargados');
       }
+    } else {
+      await cargarLabsLegacy(userId, context);
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) {
+    registrarBloqueDeContexto('labs', 'error', e);
+  }
 
   try {
     // Suplementos: activos + tomados hoy

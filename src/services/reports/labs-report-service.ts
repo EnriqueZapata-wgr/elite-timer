@@ -29,9 +29,20 @@ export interface LabsReportData {
   faseCiclo: string | null;
 }
 
-export async function loadLabsReport(range: ResolvedRange): Promise<LabsReportData> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const userId = sessionData.session?.user?.id;
+/**
+ * `userIdExplicito` existe para que el contexto de ARGOS pueda reusar esta
+ * lectura tal cual: allá el userId ya viene resuelto y volver a pedir la sesión
+ * sería una llamada de más. Sin él se comporta igual que siempre.
+ */
+export async function loadLabsReport(
+  range: ResolvedRange,
+  userIdExplicito?: string,
+): Promise<LabsReportData> {
+  let userId = userIdExplicito;
+  if (!userId) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    userId = sessionData.session?.user?.id;
+  }
   if (!userId) throw new Error('sin sesión');
 
   let q = supabase
