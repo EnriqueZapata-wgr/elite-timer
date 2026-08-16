@@ -259,3 +259,52 @@ export const RANGOS_UNA_SOLA_FUENTE = true;
  *  Sin migración inversa: la columna `stale` sobrante es inerte con el flag OFF.
  */
 export const INSIGHT_EN_VENTANA = true;
+
+/**
+ * ARGOS_LEE_LABS_DE_VERDAD — el asistente deja de estar ciego a los labs.
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → el contexto de ARGOS arma su bloque de labs desde
+ *    `lab_values` (la tabla canónica time-series) vía `loadLabsReport` +
+ *    `construirHistorias` + `construirBloqueLabs`: todos los parámetros del
+ *    expediente, con ventana funcional de la matriz V7/V6, serie por parámetro
+ *    y fase del ciclo donde aplica.
+ *  · OFF → vuelve el bloque previo, que leía `lab_results` con `.limit(1)`.
+ *
+ * POR QUÉ EXISTE
+ *  El dueño preguntó, usando su propia app, qué hacer con un magnesio que
+ *  lleva años saliendo bajo. ARGOS respondió que no podía ver ni un valor ni
+ *  un histórico. Tenía 244 mediciones en 60 parámetros en la base.
+ *
+ *  La causa no era un filtro roto: era que el contexto miraba `lab_results`,
+ *  una tabla ancha de once columnas fijas escritas a mano (vitamin_d, hba1c,
+ *  ferritin, tsh, cholesterol_total, hdl, ldl, triglycerides, testosterone,
+ *  estradiol, cortisol). Magnesio no es una de las once, así que la pregunta
+ *  era literalmente incontestable. Y `.limit(1)` trae un solo estudio, o sea
+ *  cero historia, cuando la pregunta era sobre una tendencia de años.
+ *
+ *  Medido con su expediente real: magnesio 1.97 contra una ventana funcional
+ *  de 2.2 a 2.6, con cuatro mediciones desde 2023-09. Tenía razón, y el dato
+ *  para dársela ya estaba guardado.
+ *
+ * LO QUE CUESTA
+ *  1,740 tokens sobre un cerebro de ~26,000, o sea +6.7%, medido con los 244
+ *  valores reales. Volcar la serie cruda habrían sido 5,610 (+21.6%). El
+ *  recorte NO es "solo lo que está fuera de rango": eso reintroduce el bug con
+ *  otra cara, porque un parámetro dentro de ventana volvería a ser invisible.
+ *  Todos los parámetros aparecen por nombre; los 40 primeros traen serie.
+ *
+ * LO QUE ESTE FLAG NO ARREGLA
+ *  Los rangos de la matriz que no cuadran de unidad con lo guardado en
+ *  `lab_values` siguen igual de torcidos que en la pantalla de ATP Labs: la
+ *  testosterona total del dueño está en ng/dL (993) contra una ventana de la
+ *  matriz en ng/mL (7-12), así que se reporta "pide atención" sin serlo. Eso
+ *  es un problema de conversión en el borde de escritura, es previo a este
+ *  cambio y se arregla en otro lado. Aquí solo se hizo visible.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración y sin build nativo: esto solo cambia de dónde se leen datos
+ *  para armar un prompt. No escribe una sola fila.
+ */
+export const ARGOS_LEE_LABS_DE_VERDAD = true;

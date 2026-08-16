@@ -101,6 +101,16 @@ export interface UserContext {
     keyMarkers: { name: string; value: number; unit: string }[];
     lastUpdated: string;
   };
+  /**
+   * El expediente de labs COMPLETO, ya comprimido por `argos-labs-core` desde
+   * `lab_values`. Cuando está presente sustituye a `recentLabs`, que solo veía
+   * once columnas fijas de la tabla ancha vieja y un único estudio.
+   */
+  labsExpediente?: {
+    lineas: string[];
+    /** Fecha de la medición más reciente del expediente, para el sello. */
+    ultimaMedicion: string;
+  };
   todaySupplements?: {
     taken: string[];
     pending: string[];
@@ -392,7 +402,26 @@ export function buildContextPrompt(ctx: UserContext): string {
       { verbo: 'medido', reevaluar: 'volver a pesarse y medirse' },
     ));
   }
-  if (ctx.recentLabs) {
+  // El expediente completo gana sobre el resumen viejo de once columnas: si
+  // ambos vinieran, mostrar los dos sería contradecirse a sí mismo.
+  if (ctx.labsExpediente) {
+    // El sello de vigencia va en el ENCABEZADO, no al final del bloque: pegado
+    // abajo quedaría después de la regla dura y se leería como parte de ella.
+    const [encabezado, ...resto] = ctx.labsExpediente.lineas;
+    parts.push(sellar(encabezado, ctx.labsExpediente.ultimaMedicion, {
+      verbo: 'muestra más reciente tomada',
+      reevaluar: 'repetir el laboratorio',
+    }));
+    if (resto.length > 0) parts.push(resto.join('\n'));
+    if (ctx.cycleInfo) {
+      parts.push(
+        'REGLA LABS + CICLO (obligatoria): en mujeres con ciclo activo, interpreta los labs EN CONTEXTO de la fase ' +
+        `del ciclo indicada arriba (fase ${ctx.cycleInfo.currentPhase}): hormonas (estradiol, progesterona, LH/FSH), ` +
+        'ferritina/hierro y marcadores inflamatorios varían por fase. Si la fase hace ambiguo un valor, dilo y ' +
+        'sugiere repetir la medición en la fase adecuada; no concluyas con un dato fuera de contexto.',
+      );
+    }
+  } else if (ctx.recentLabs) {
     const markers = ctx.recentLabs.keyMarkers.map(m => `${m.name} ${m.value}${m.unit}`).join(', ');
     parts.push(sellar(`Labs: ${markers}`, ctx.recentLabs.lastUpdated, {
       verbo: 'muestra tomada',
