@@ -90,8 +90,8 @@ queda sin arreglar (regla de la Pieza 2):
   colores a mano, pilar TESTS — nadie lo tuvo nunca), `feedback-dashboard`,
   `dev/index`, y en `afiliados/` dos rezagos que B3 dejó (`dashboard` barra de
   chart, `aplicar` submitBtnDisabled). `SplashLoader` (#1A1A1A, marco global).
-  `components/dashboard-card.tsx` es código muerto (cero consumidores) — al
-  run de limpieza junto con los de B1.
+  `components/dashboard-card.tsx` era código muerto (cero consumidores) —
+  BORRADO en CIERRE-6 junto con SetLogModal y ExerciseHistory.
 - **El flujo auth es frontera entera:** login/register quedan OSCUROS en ambos
   temas a propósito — su cuerpo es `AuthScreen` (gradiente editorial fijo) +
   `EliteInput`/`EliteButton`/`AuthLinksFooter` + logo oscuro. Tematizarlo es un
