@@ -356,6 +356,51 @@ Labs reapuntada a MIS laboratorios con la guía como destino (#21, la parte
 
 ---
 
+# 🧹 CIERRE-6 · lo que el barrido de huérfanos DESTAPÓ y NO se borró
+
+CIERRE-6 borró los 11 archivos que el dueño aprobó uno por uno. Al terminar se
+pasó un detector de huérfanos sobre todo el árbol (import por ruta, contando
+barriles) y salieron **41 candidatos más**. **No se borró ninguno**: la
+aprobación era para una lista nombrada, y borrar 41 archivos sin auditar a
+días del lanzamiento, sin builds de reserva, es justo el tipo de barrido que
+rompe algo por una vía que nadie revisó.
+
+Quedan fichados para un run propio. Verificados a mano (cero imports, solo se
+nombran en comentarios o en el censo de iconos):
+
+- `src/components/hoy/ActionContentRenderer.tsx` — **8 entradas en el censo de
+  iconos**; quien lo borre tiene que podarlas o el ratchet truena.
+- `src/components/economy/ChallengeCard.tsx` — 1 entrada en el censo.
+- `src/components/hoy/HeroAgendaCard.tsx`, `src/components/nutrition/NutritionGapsCard.tsx`,
+  `src/components/ScheduleModal.tsx` (2 entradas en el censo), `src/components/ExercisePicker.tsx`,
+  `src/components/tests/TestInputScreen.tsx`
+- UI sin montar: `src/components/ui/` → `AnimatedScoreRing`, `AppCard`,
+  `ExplanationModal`, `InfoTipModal`
+- Restos del ELITE Timer viejo en `components/`: `block-badge`, `controls`,
+  `duration-picker`, `elite-card`, `empty-state`, `interval-selector`,
+  `session-stat`
+- Servicios y datos: `daily-health-score.ts`, `mind-audio-service.ts`,
+  `supplements-adherence-service.ts`, `edad-atp/sub-edad-common.ts`,
+  `constants/edad-atp-model.ts` (¡ojo: la matriz viva es la V7/V6, este es el
+  modelo viejo), `data/seed-protocols.ts`, `data/starter-recipes.ts`,
+  `hooks/useArgosScreenContext.ts`, `utils/gender-text.ts`,
+  `utils/nutrition-scoring.ts`, `utils/security.ts`
+- **Solo los importa su propio test** (el caso admin-core otra vez: el par
+  entero está muerto, no el archivo suelto) — `argos-nav-exec-core`,
+  `economy/challenge-service`, `economy/challenge-progress-writer`,
+  `economy/referral-service`, `hoy/local-recommendation`,
+  `hoy/notifications-service`, `hoy/visibility-service`, `lab-chunked-parser`,
+  `lab-pdf-splitter`, `safety/fever-screening-core`, `utils/agenda-now`,
+  `engine/testData`
+  ⚠️ Estos NO son borrado automático: varios son motores que se llaman por
+  otra vía o que están a medio cablear. `fever-screening-core` además carga
+  doctrina (la fiebre se acompaña, no se corta): si se borra el archivo, el
+  candado se REAPUNTA, no se tira.
+
+Suelto aparte: `getExerciseHistory` y `getExercisePRs` en `exercise-service.ts`
+se quedaron sin llamador cuando CIERRE-6 borró `ExerciseHistory.tsx`. Borrarlas
+es decisión de dominio (fitness), no de higiene.
+
 # 📌 DÓNDE ENTRA CADA COSA
 
 - **A1 y A2** → ✅ cerrados en MB-28A (pieza 0). **A3** → ✅ cerrado en MB-28C;
