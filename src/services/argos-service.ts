@@ -712,6 +712,13 @@ async function fetchUserPRs(userId: string): Promise<PersonalRecord[]> {
  *
  * Un "no sé" es recuperable; un dato incompleto dicho con confianza no. Como
  * mínimo tiene que quedar rastro.
+ *
+ * RIESGO CONOCIDO: como estos 26 bloques nunca reportaron nada, no hay forma de
+ * saber de antemano cuántos truenan en un arranque normal. Si esto resulta
+ * ruidoso en Sentry, el volumen se baja AQUÍ y en ningún otro lado — ese es
+ * justamente el motivo de que la decisión viva en una sola función y no
+ * repartida en 26 catch. Bajar el ruido es cambiar una línea; volver a callar
+ * todo es lo que no se debe hacer.
  */
 export function registrarBloqueDeContexto(
   bloque: string,
@@ -796,7 +803,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
       .eq('id', userId)
       .single();
     if (profile) context.name = profile.full_name || '';
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('perfil', 'error', e); }
 
   try {
     // Datos extendidos (client_profiles: date_of_birth, biological_sex)
@@ -816,7 +823,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         }
       }
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('perfil-extendido', 'error', e); }
 
   try {
     // Cronotipo (user_chronotype). updated_at es la ÚNICA fecha que tiene la
@@ -830,7 +837,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
       context.chronotype = chrono.chronotype;
       context.chronotypeUpdatedAt = (chrono as any).updated_at || undefined;
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('cronotipo', 'error', e); }
 
   try {
     // Protocolo activo (más reciente — defensa ante múltiples activos)
@@ -843,7 +850,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
       .limit(1)
       .maybeSingle();
     if (protocol) context.activeProtocol = protocol.name;
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('protocolo-activo', 'error', e); }
 
   try {
     // Electrones de hoy
@@ -854,7 +861,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
       .eq('date', today);
     const earned = (electrons || []).reduce((s, e) => s + Number(e.electrons), 0);
     context.todayElectrons = { earned: Math.round(earned * 10) / 10, total: 20 };
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('electrones-hoy', 'error', e); }
 
   try {
     // Nutrición reciente (últimos 3 días)
@@ -877,7 +884,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         avgCalories3d: Math.round(foods.reduce((s, f) => s + (f.calories || 0), 0) / 3),
       };
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('nutricion-3d', 'error', e); }
 
   try {
     // Ejercicio reciente (última semana)
@@ -891,13 +898,13 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
       .gte('date', weekAgo);
     const uniqueDays = new Set((exercises || []).map(e => e.date)).size;
     context.recentExercise = { sessionsThisWeek: uniqueDays };
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('ejercicio-semana', 'error', e); }
 
   try {
     // Récords personales (top por 1RM estimado)
     const prs = await fetchUserPRs(userId);
     if (prs.length > 0) context.personalRecords = prs;
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('records-personales', 'error', e); }
 
   try {
     // Glucosa reciente
@@ -914,7 +921,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         readings: glucose.length,
       };
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('glucosa', 'error', e); }
 
   try {
     // Ayuno actual (fasting_logs: fast_start, target_hours, status)
@@ -943,7 +950,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         };
       }
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('ayuno-actual', 'error', e); }
 
   try {
     // Rango de electrones
@@ -958,7 +965,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
     else if (total >= 201) context.rank = 'Molécula';
     else if (total >= 51) context.rank = 'Átomo';
     else context.rank = 'Partícula';
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('rango-electrones', 'error', e); }
 
   try {
     // Braverman (perfil de neurotransmisores)
@@ -980,7 +987,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         completedAt: (braverman as any).completed_at || undefined,
       };
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('braverman', 'error', e); }
 
   try {
     // Resultados de quizzes funcionales
@@ -998,7 +1005,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         completedAt: (r as any).completed_at || undefined,
       }));
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('quizzes-funcionales', 'error', e); }
 
   // UV actual (ATP SOL)
   try {
@@ -1017,7 +1024,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         };
       }
     }
-  } catch (e) { /* UV opcional */ }
+  } catch (e) { registrarBloqueDeContexto('uv-atp-sol', 'error', e); }
 
   // Rango 7 días para fuentes recientes (computado una vez)
   const sevenDaysAgoCursor = parseLocalDate(today);
@@ -1041,7 +1048,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         avgMinutes: Math.round(avgSec / 60),
       };
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('sesiones-mente-7d', 'error', e); }
 
   try {
     // Journal (últimos 7 días)
@@ -1063,7 +1070,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         dominantTag,
       };
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('journal-7d', 'error', e); }
 
   try {
     // Mood check-ins (últimos 7 días, usa created_at — no hay col `date`)
@@ -1104,7 +1111,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         checkInsLast7: checkins.length,
       };
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('mood-7d', 'error', e); }
 
   // Ciclo menstrual — solo si gender indica femenino. Usa cycle-service
   // (única fuente de derivación de fase, fórmula proporcional al cycleLen).
@@ -1119,7 +1126,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
           nextPeriodEstimate: toLocalDateString(info.prediction.date),
         };
       }
-    } catch (_) { /* opcional */ }
+    } catch (e) { registrarBloqueDeContexto('ciclo-menstrual', 'error', e); }
   }
 
   try {
@@ -1149,7 +1156,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         lastMeasuredAt: last.measured_at,
       };
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('medidas-corporales', 'error', e); }
 
   try {
     // Labs — el expediente COMPLETO desde `lab_values` (la tabla canónica
@@ -1196,13 +1203,13 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
       }
       context.todaySupplements = { taken, pending };
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('suplementos-hoy', 'error', e); }
 
   try {
     // Hidratación (reusar helper de hydration-service)
     const hydro = await getHydrationStats(userId);
     if (hydro) context.hydrationStats = hydro;
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('hidratacion', 'error', e); }
 
   try {
     // Health score más reciente
@@ -1219,7 +1226,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         calculatedAt: (hs as any).calculated_at,
       };
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('health-score', 'error', e); }
 
   // === IMPL-03 · los cuatro bloques nuevos ===
   // Mismo patrón que el resto: queries en paralelo, fail-soft por bloque, y
@@ -1262,7 +1269,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         source: rows[0].source || 'externo',
       };
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('sueno-7n', 'error', e); }
 
   try {
     // Edad ATP — último cálculo. OJO: NO vive en functional_dx (esa tabla no
@@ -1292,7 +1299,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         calculatedAt: e.calculated_at,
       };
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('edad-atp', 'error', e); }
 
   try {
     // Agenda de hoy — agenda_events es la plantilla recurrente (sin columna
@@ -1343,7 +1350,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         nextTime: null,
       };
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('agenda-hoy', 'error', e); }
 
   try {
     // Adherencia 7d + racha.
@@ -1386,7 +1393,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         currentStreak: computeStreak(((streakPlansRes.data as any[]) || [])),
       };
     }
-  } catch (_) { /* opcional */ }
+  } catch (e) { registrarBloqueDeContexto('adherencia-racha', 'error', e); }
 
   return context;
 }
