@@ -20,6 +20,7 @@ import { getLabParamMeta } from '@/src/components/edad-atp/component-meta';
 import {
   deriveLabCycleContext, isCycleSensitiveMarker, type LabCycleContext,
 } from '@/src/services/salud/lab-cycle-context-core';
+import { numeroDePg } from '@/src/utils/pg-number';
 import type { Sex } from '@/src/types/edad-atp-v2';
 
 // ── Entradas ─────────────────────────────────────────────────────────────
@@ -113,9 +114,14 @@ export function construirHistorias(
 ): HistoriaLab[] {
   const porKey = new Map<string, MedicionLab[]>();
   for (const m of mediciones) {
-    if (!m.parameter_key || !Number.isFinite(m.value)) continue;
+    if (!m.parameter_key) continue;
+    // Cuello de botella #1 de los labs: si aquí se descarta de más, el
+    // expediente entero desaparece del reporte y de ARGOS sin un solo error.
+    // La coerción vive en un solo lugar (pg-number), no en un filtro suelto.
+    const value = numeroDePg(m.value);
+    if (value === null) continue;
     const lista = porKey.get(m.parameter_key) ?? [];
-    lista.push(m);
+    lista.push({ ...m, value });
     porKey.set(m.parameter_key, lista);
   }
 

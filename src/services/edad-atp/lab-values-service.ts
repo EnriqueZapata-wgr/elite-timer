@@ -18,6 +18,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
+import { numeroDePg } from '@/src/utils/pg-number';
 import {
   STALE_DAYS,
   toCanonicalEntries,
@@ -68,12 +69,16 @@ export function dedupeLatestByKey(
   const out: CanonicalMap = {};
   for (const r of rows) {
     if (r.is_voided) continue;
-    if (r.value == null || !Number.isFinite(r.value)) continue;
+    // Cuello de botella #2 de los labs: este descarte alimenta al motor de Edad
+    // ATP. Descartar de más aquí no degrada el motor, lo mata entero y en
+    // silencio. La coerción vive en un solo lugar (pg-number).
+    const value = numeroDePg(r.value);
+    if (value === null) continue;
     const prev = out[r.parameter_key];
     // Más reciente gana. Empate por fecha → la fila que llegó primero (orden de entrada).
     if (prev && prev.measured_at >= r.measured_at) continue;
     out[r.parameter_key] = {
-      value: r.value,
+      value,
       measured_at: r.measured_at,
       source: r.source,
       is_stale: daysBetween(todayISO, r.measured_at) > staleDays,
