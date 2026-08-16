@@ -144,6 +144,45 @@ function resolveRoute(requestType: string | undefined, clientModel?: string): Mo
 // mínimo privilegio, NUNCA service_role (la read_key filtrada solo expone
 // el cerebro, jamás la base). La app SOLO pide product='atp'; 'dx' es IP
 // clínica que no debe tocar la app.
+// ─── QUÉ ACCIONES NO RECIBEN EL CEREBRO (CIERRE-4 · Audit-4) ─────
+// El cerebro son 26,296 tokens. La pregunta era si el insight diario lo
+// necesita. Se midió contra argos_logs (30 días) y la respuesta es NO:
+//
+//  · El insight produce 165 tokens de salida en promedio sobre un prompt de
+//    ~919. Anteponerle el cerebro multiplica su entrada por 29.
+//  · En el mejor escenario imaginable (caché siempre tibia, TTL de 1h) son
+//    26,296 × $0.20/M = $0.00526 por llamada, sobre un costo medido de
+//    $0.00585: casi DUPLICA la factura del insight sin cambiar el producto.
+//  · En el escenario que de verdad mide la telemetría (el insight escribe
+//    caché en el 53% de sus llamadas y la lee en el 0.5%) cada llamada fría
+//    escribe el cerebro completo: 26,296 × $4/M = $0.105, o sea 18 veces el
+//    costo actual. El insight es una acción por persona por día repartida en
+//    las horas que la gente está despierta, así que la ráfaga que mantiene
+//    tibia la caché del chat NO existe aquí. No se cura con volumen: empeora.
+//  · Y sobre todo, el contenido no lo pide. El cerebro es doctrina de
+//    CONVERSACIÓN: preguntas en cascada, acelerador y freno, formato canónico,
+//    creer en el proceso. Nada de eso tiene superficie en dos oraciones. Los
+//    candados que SÍ aplican a un insight ya viajan en su prompt y por usuario:
+//    el guard de género (que prohíbe atribuir ciclo menstrual), el de protocolo
+//    activo, las reglas de aritmética del ayuno, de vigencia del dato, de labs
+//    con fase de ciclo y de semántica de Edad ATP, más la voz del usuario.
+//
+// QUÉ HARÍA CAMBIAR ESTA DECISIÓN: que aparezcan violaciones de doctrina
+// medibles en los insights. La respuesta entonces NO es meterle los 26K, es el
+// núcleo de seguridad y lenguaje (~2-3K tokens) de la partición del cerebro,
+// que hoy está congelada como trabajo aparte.
+//
+// El gate es server-side a propósito: hoy ningún cliente manda dynamicSystem en
+// el insight, pero esto impide que un bundle futuro lo encienda por accidente y
+// multiplique la factura sin que nadie lo note hasta el corte del mes.
+// Reversible SIN redeploy: BRAIN_DENY_TYPES="" en las env vars del function.
+const BRAIN_DENY_TYPES_DEFAULT = "insight,weekly_insight";
+function brainDeniedFor(requestType?: string): boolean {
+  if (!requestType) return false;
+  const raw = Deno.env.get("BRAIN_DENY_TYPES") ?? BRAIN_DENY_TYPES_DEFAULT;
+  return raw.split(",").map((s) => s.trim()).filter(Boolean).includes(requestType);
+}
+
 const BRAIN_TTL_MS = 5 * 60 * 1000;
 let _brainCache: { text: string; version: string; source: "store" | "embedded"; expires: number } | null = null;
 
@@ -239,6 +278,48 @@ async function logArgosCall(supabase: any, params: {
 
 // ─── PROVIDERS ──────────────────────────────────────────────────
 
+// ─── CACHÉ DE LOS LLAMADORES QUE NO SON CHAT (CIERRE-4 · IMPL-02) ─
+// Aquí el diagnóstico salió al revés de lo que se esperaba, así que vale la
+// pena dejarlo escrito: los llamadores no-chat no es que "no aprovechen" la
+// caché, es que NO PUEDEN aprovecharla, y mientras tanto la estaban pagando.
+//
+// El código anterior envolvía TODO `system` string en un bloque con
+// cache_control. Escribir caché cuesta 1.25x lo que cuesta la entrada normal;
+// solo sale a cuenta si alguien vuelve a leer ese bloque idéntico antes de que
+// expire (5 minutos). Lo medido en argos_logs (30 días), sumando todos los
+// tipos que no son chat: 108 escrituras de caché y 2 lecturas. 1.8% de acierto.
+// El insight solo: 103 escrituras, 1 lectura.
+//
+// Y no es mala suerte, es estructural, por dos razones distintas:
+//  · El system del insight lleva el nombre y los datos de UNA persona. Dos
+//    usuarios nunca generan el mismo bloque, así que jamás habrá una segunda
+//    lectura. Pagar la escritura es tirar el 25% del costo de entrada.
+//  · Los que sí tienen system constante entre usuarios (dx_generation,
+//    bha_scan, intervention_rationale, braverman_premium_report) miden entre 1
+//    y 5 llamadas al MES. Con una ventana de 5 minutos, la segunda lectura no
+//    llega nunca. A ese volumen, cachear también es pérdida pura.
+//
+// Por eso el default se invierte: un `system` string NO se cachea. El cerebro
+// (que llega como array de bloques y sí es idéntico para todos, con 84% de
+// acierto medido en chat) no se toca en absoluto.
+//
+// EFECTO SECUNDARIO QUE IMPORTA: la tabla PRICING cobra cache_write a $4/M,
+// que es el multiplicador 2.0x del TTL de 1 hora que usa el cerebro. Las
+// escrituras legacy eran de 5 minutos (1.25x = $2.50/M), así que la telemetría
+// de costos venía inflando esas llamadas ~60%. Al dejar de existir, PRICING
+// pasa a describir la realidad: el único que escribe caché es el cerebro, a 1h.
+//
+// CUÁNDO REVISAR ESTO: cuando algún tipo de system constante pase de ~1 llamada
+// cada 5 minutos sostenida. Entonces se enciende por tipo, sin redeploy:
+// NONCHAT_PROMPT_CACHE="bha_scan,dx_generation" (o "*" para todos).
+function shouldCacheStringSystem(requestType?: string): boolean {
+  const raw = (Deno.env.get("NONCHAT_PROMPT_CACHE") ?? "").trim();
+  if (!raw) return false;
+  if (raw === "*") return true;
+  if (!requestType) return false;
+  return raw.split(",").map((s) => s.trim()).filter(Boolean).includes(requestType);
+}
+
 // 🟡 Anthropic prompt caching ya es GA en mayo 2026 — sin header beta requerido.
 // Si Anthropic vuelve a exigir beta, agregar: "anthropic-beta": "prompt-caching-2024-07-31".
 //
@@ -250,6 +331,8 @@ function buildAnthropicHttp(args: {
   system?: string | any[];
   max_tokens: number;
   stream?: boolean;
+  /** Ver shouldCacheStringSystem: por default un `system` string NO se cachea. */
+  cacheSystem?: boolean;
 }): { requestBody: Record<string, unknown>; headers: Record<string, string> } {
   const requestBody: Record<string, unknown> = {
     model: args.model,
@@ -260,14 +343,13 @@ function buildAnthropicHttp(args: {
   if (args.system) {
     // Array = bloques ya armados (cerebro cacheado + dinámico sin cache) →
     // passthrough con sus cache_control (máx 4 breakpoints; usamos 1).
-    // String = legacy: un solo bloque con cache_control ephemeral.
+    // String = un solo bloque. El cache_control ya NO va por default: ver
+    // shouldCacheStringSystem para el porqué (medido, no supuesto).
     requestBody.system = Array.isArray(args.system)
       ? args.system
-      : [{
-        type: "text",
-        text: args.system,
-        cache_control: { type: "ephemeral" },
-      }];
+      : [args.cacheSystem
+        ? { type: "text", text: args.system, cache_control: { type: "ephemeral" } }
+        : { type: "text", text: args.system }];
   }
 
   // Capa 5: si el documento referencia un file_id (Files API), añadir su beta header.
@@ -295,6 +377,7 @@ async function callAnthropicProvider(args: {
   messages: any[];
   system?: string | any[];
   max_tokens: number;
+  cacheSystem?: boolean;
 }): Promise<{
   ok: boolean;
   data: any;
@@ -304,7 +387,7 @@ async function callAnthropicProvider(args: {
   cache_read_tokens: number;
   cache_write_tokens: number;
 }> {
-  const { requestBody, headers } = buildAnthropicHttp(args);
+  const { requestBody, headers } = buildAnthropicHttp({ ...args, cacheSystem: args.cacheSystem });
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
@@ -413,6 +496,81 @@ const TIER_DAILY_LIMITS: Record<string, number> = {
   clinician: 100,
 };
 
+// ─── CUOTA PONDERADA POR COSTO REAL (CIERRE-4 · Audit-5) ─────────
+// El circuit breaker cobraba UNA unidad por petición sin mirar el requestType.
+// Medido en argos_logs (30 días), el costo por llamada NO se parece entre sí:
+//
+//   chat                  $0.03837   ← la referencia, peso 1
+//   dx_generation         $0.07196
+//   insight               $0.00585
+//   food_estimate_text    $0.00338   ← 11 veces más barata que un chat
+//   weekly_insight        $0.00278
+//
+// Y eso todavía con food_estimate corriendo en Sonnet. Con el router mandándolo
+// a Gemini la brecha se abre otro orden de magnitud.
+//
+// El daño real no era el dinero, era el bloqueo: un usuario Base (25 al día)
+// que registraba 20 comidas por foto se quedaba sin ARGOS habiendo consumido
+// siete centavos de dólar. Pagó, registró su comida como debe, y se quedó sin
+// poder preguntar nada. Ese es exactamente el modo de falla que mata la app.
+//
+// EL CANDADO: todos los pesos son <= 1, y la saturación está también dentro de
+// consume_argos_usage_weighted. La cuota ponderada NUNCA puede ser más estricta
+// que la de hoy, solo más holgada. Nadie puede perder acceso por este cambio.
+// Por eso las acciones que miden MÁS que el chat (dx_generation, $0.072) se
+// quedan en 1 y no suben: ya se cobran aparte en H+ y son de una vez al año.
+// Un requestType desconocido pesa 1: nunca se abarata algo que no medimos.
+const QUOTA_WEIGHTS: Record<string, number> = {
+  // Extracción: el usuario está registrando su vida, no consultando a ARGOS.
+  // Cobrarle su cuota de consultas por fotografiar su comida es cobrarle por
+  // usar la app.
+  food_estimate_photo: 0.1,
+  food_estimate_text: 0.1,
+  food_reanalysis: 0.1,
+  label_scan: 0.1,
+  supplement_scan: 0.1,
+  // Navegación: un lookup contra un catálogo de rutas, y la mayoría ni llega
+  // aquí porque el resolvedor local las contesta sin red.
+  nav_intent: 0.05,
+  // Automáticas: las dispara la app, no la persona. Que un insight que el
+  // usuario no pidió le coma la cuota de lo que sí quiere preguntar es
+  // cobrarle por algo que no hizo.
+  insight: 0.25,
+  weekly_insight: 0.25,
+  daily_summary: 0.25,
+  title: 0.1,
+  // Conversación y análisis: la referencia.
+  chat: 1,
+  voice_turn: 1,
+  dx_generation: 1,
+  dx_generation_first: 1,
+  braverman_premium_report: 1,
+  lab_interpretation: 1,
+  clinical_interpretation: 1,
+  intervention_rationale: 1,
+  bha_scan: 1,
+  recipe: 1,
+  routine: 1,
+  meal_suggestion: 1,
+  goal_decomposition: 1,
+};
+
+/** Overrides sin redeploy: {"food_estimate_photo":0.2}. Saturado a [0,1]. */
+function quotaWeightFor(requestType?: string): number {
+  if (!requestType) return 1;
+  let w = QUOTA_WEIGHTS[requestType] ?? 1;
+  try {
+    const raw = Deno.env.get("QUOTA_WEIGHT_OVERRIDES");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.[requestType] === "number") w = parsed[requestType];
+    }
+  } catch (e) {
+    console.error("[quota] QUOTA_WEIGHT_OVERRIDES no es JSON válido, se ignora:", e);
+  }
+  return Math.min(Math.max(w, 0), 1);
+}
+
 // Detecta el tier real del user (profiles.tier + boost activo).
 // Cache 30s in-memory sencillo — evita golpear DB en cada request.
 const tierCache = new Map<string, { effectiveTier: string; expiresAt: number }>();
@@ -462,7 +620,7 @@ async function detectEffectiveTier(supabase: any, userId: string): Promise<strin
   }
 }
 
-async function checkAndIncrementUsage(supabase: any, userId: string | undefined, effectiveTier: string): Promise<{
+async function checkAndIncrementUsage(supabase: any, userId: string | undefined, effectiveTier: string, requestType?: string): Promise<{
   blocked: boolean;
   count: number;
   limit: number;
@@ -470,6 +628,21 @@ async function checkAndIncrementUsage(supabase: any, userId: string | undefined,
   const limit = TIER_DAILY_LIMITS[effectiveTier] ?? HARD_CAP_DAILY;
   if (!userId) return { blocked: false, count: 0, limit };
   try {
+    // CIERRE-4: cuota ponderada por costo real, gated. Sin la env var el
+    // proxy usa la ruta de siempre y se comporta EXACTAMENTE igual que hoy.
+    if (Deno.env.get("QUOTA_WEIGHTS_ENABLED") === "true") {
+      const weight = quotaWeightFor(requestType);
+      const { data: w, error: wErr } = await supabase.rpc("consume_argos_usage_weighted", {
+        p_user_id: userId, p_limit: limit, p_weight: weight,
+      });
+      if (!wErr && w && typeof w === "object") {
+        return { blocked: w.blocked === true, count: Number(w.count ?? 0), limit };
+      }
+      // La 275 aún no está en el remoto (o falló): se cae a la cuota plana de
+      // hoy, que es más estricta pero es la que el usuario ya conocía. Nunca
+      // se deja pasar sin contar.
+      console.error("consume_argos_usage_weighted no disponible, cae a plana:", wErr);
+    }
     // ECO-2: el contador SOLO cuenta acciones servidas. consume_argos_usage
     // (mig 262) bloquea SIN incrementar cuando count >= limit — antes cada
     // intento bloqueado sumaba, y quien insistió 200 veces compraba boost y
@@ -652,7 +825,7 @@ serve(async (req) => {
     }
 
     // Circuit breaker per tier (server-side)
-    const usage = await checkAndIncrementUsage(supabase, userId, effectiveTier);
+    const usage = await checkAndIncrementUsage(supabase, userId, effectiveTier, requestType);
     if (usage.blocked) {
       const latencyMs = Date.now() - startTime;
       await logArgosCall(supabase, {
@@ -782,7 +955,8 @@ serve(async (req) => {
     let systemForCall: string | any[] | undefined = system;
     let brainVersion: string | null = null;
     let brainSource: "store" | "embedded" | null = null;
-    if (BRAIN_ON && typeof body.dynamicSystem === "string" && body.dynamicSystem.length > 0) {
+    if (BRAIN_ON && !brainDeniedFor(requestType)
+        && typeof body.dynamicSystem === "string" && body.dynamicSystem.length > 0) {
       const brain = await getSharedBrain();
       brainVersion = brain.version;
       brainSource = brain.source;
@@ -795,8 +969,20 @@ serve(async (req) => {
         { type: "text", text: brain.text, cache_control: { type: "ephemeral", ttl: "1h" } },
         { type: "text", text: body.dynamicSystem },                               // DINÁMICO → sin cache
       ];
+    } else if (typeof body.dynamicSystem === "string" && body.dynamicSystem.length > 0 && !system) {
+      // Red de seguridad del gate de arriba: un cliente que mande SOLO
+      // dynamicSystem (esperando que el proxy le anteponga el cerebro) se
+      // quedaría sin system entero si su acción está en la lista de negados.
+      // Perder los guards de género y protocolo es un problema de doctrina, no
+      // de costo, así que el dinámico se usa tal cual.
+      systemForCall = body.dynamicSystem;
     }
     const brainEcho = brainVersion ? { _brain: brainVersion, _brain_source: brainSource } : {};
+
+    // CIERRE-4: solo aplica cuando systemForCall quedó como STRING (ruta
+    // legacy). Si es array, los cache_control ya vienen puestos por el bloque
+    // del cerebro y esto no lo toca.
+    const cacheStringSystem = shouldCacheStringSystem(requestType);
 
     // Detectar si el request incluye PDFs. Para PDFs grandes evitamos el
     // fallback Gemini porque (a) Gemini no soporta type:"document" tipo Anthropic
@@ -816,6 +1002,7 @@ serve(async (req) => {
       try {
         const { requestBody, headers } = buildAnthropicHttp({
           model: finalModel, messages, system: systemForCall, max_tokens: finalMaxTokens, stream: true,
+          cacheSystem: cacheStringSystem,
         });
         const upstream = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST", headers, body: JSON.stringify(requestBody),
@@ -950,6 +1137,7 @@ serve(async (req) => {
         messages,
         system: systemForCall,
         max_tokens: finalMaxTokens,
+        cacheSystem: cacheStringSystem,
       });
       const latencyMs = Date.now() - startTime;
 
