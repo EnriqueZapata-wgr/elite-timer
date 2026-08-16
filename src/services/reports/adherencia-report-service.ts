@@ -7,7 +7,7 @@
  * En el código NO hay tres cálculos de racha, hay DOS reglas y un servicio que
  * ya reusa una de ellas:
  *
- *  1. `computeJournalStreak` (journal-logic): días seguidos con un registro,
+ *  1. `computeJournalStreak` (journal-core): días seguidos con un registro,
  *     anclados a hoy o ayer, SIN gracia. mente-streaks-service la usa tal cual
  *     para las cuatro categorías de Mente, y el dominio journal para su racha
  *     de escritura. Un hueco corta.

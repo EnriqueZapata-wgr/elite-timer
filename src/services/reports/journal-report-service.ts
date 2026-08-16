@@ -11,8 +11,8 @@
  * semana.
  */
 import { supabase } from '@/src/lib/supabase';
-import { computeJournalStreak, dateNDaysAgo } from '@/src/services/journal-logic';
-import type { JournalEntry } from '@/src/services/journal-service';
+import { computeJournalStreak, dateNDaysAgo } from '@/src/services/journal-core';
+import type { JournalEntry } from '@/src/services/journal-core';
 import type { ResolvedRange } from './report-domain-core';
 
 /** Techo de filas de la lista. Arriba de esto ya nadie desplaza, y el rango existe. */

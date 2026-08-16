@@ -1,7 +1,7 @@
 /**
  * MENTE streaks + medallas — lógica pura (T5 Sprint MENTE Ecosystem).
  *
- * La racha por categoría se calcula con computeJournalStreak (journal-logic,
+ * La racha por categoría se calcula con computeJournalStreak (journal-core,
  * genérica sobre fechas YYYY-MM-DD, ancla hoy/ayer). Aquí vive el mapeo
  * racha → medallas y el copy editorial.
  */

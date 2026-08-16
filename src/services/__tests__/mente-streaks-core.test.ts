@@ -8,7 +8,7 @@ import {
   medalsToAward,
   streakCopy,
 } from '@/src/services/mente-streaks-core';
-import { computeJournalStreak } from '@/src/services/journal-logic';
+import { computeJournalStreak } from '@/src/services/journal-core';
 
 describe('medalTiersForStreak — medallas por racha (T5)', () => {
   it('umbrales exactos: 7 / 30 / 90 / 365', () => {
