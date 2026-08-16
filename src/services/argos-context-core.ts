@@ -405,10 +405,14 @@ export function buildContextPrompt(ctx: UserContext): string {
   // El expediente completo gana sobre el resumen viejo de once columnas: si
   // ambos vinieran, mostrar los dos sería contradecirse a sí mismo.
   if (ctx.labsExpediente) {
-    parts.push(sellar(ctx.labsExpediente.lineas.join('\n'), ctx.labsExpediente.ultimaMedicion, {
+    // El sello de vigencia va en el ENCABEZADO, no al final del bloque: pegado
+    // abajo quedaría después de la regla dura y se leería como parte de ella.
+    const [encabezado, ...resto] = ctx.labsExpediente.lineas;
+    parts.push(sellar(encabezado, ctx.labsExpediente.ultimaMedicion, {
       verbo: 'muestra más reciente tomada',
       reevaluar: 'repetir el laboratorio',
     }));
+    if (resto.length > 0) parts.push(resto.join('\n'));
     if (ctx.cycleInfo) {
       parts.push(
         'REGLA LABS + CICLO (obligatoria): en mujeres con ciclo activo, interpreta los labs EN CONTEXTO de la fase ' +
