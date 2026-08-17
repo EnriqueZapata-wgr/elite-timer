@@ -20,6 +20,7 @@ import type {
 } from 'react-native-purchases';
 
 import { useAuth } from '@/src/contexts/auth-context';
+import { warn as logWarn } from '@/src/lib/logger';
 import { configureRevenueCat, getPurchases } from '@/src/services/revenuecat';
 import {
   activateProBoost,
@@ -54,6 +55,14 @@ export interface UseSubscriptionResult {
   offerings: PurchasesOfferings | null;
   /** E-2 (MB-12): true si getOfferings FALLÓ — distinto de "no disponible". */
   offeringsError: boolean;
+  /**
+   * BLOQ-1: el motivo textual del fallo de getOfferings. El catch era ciego y
+   * la pantalla que cobra quedaba muda sin dejar rastro de por qué: "productos
+   * no aprobados en la tienda", "ninguna offering marcada como current" y "sin
+   * red" se veían exactamente igual. Se guarda para poder diagnosticarlo en
+   * device sin adivinar; NO se pinta al usuario.
+   */
+  offeringsErrorDetail: string | null;
   customerInfo: CustomerInfo | null;
   isLoading: boolean;
   /** Semántica "al menos": clinician también es isPro; base/pro/clinician son isBase */
@@ -79,6 +88,7 @@ export function useSubscription(): UseSubscriptionResult {
   // E-2 (MB-12): el error de offerings se distingue de "aún no hay" — el
   // paywall necesita ofrecer reintento, no un botón muerto.
   const [offeringsError, setOfferingsError] = useState(false);
+  const [offeringsErrorDetail, setOfferingsErrorDetail] = useState<string | null>(null);
   const [boost, setBoost] = useState<BoostStatus>({ active: false, expiresAt: null });
   const [isLoading, setIsLoading] = useState(true);
   const mounted = useRef(true);
@@ -119,10 +129,15 @@ export function useSubscription(): UseSubscriptionResult {
       } catch { /* sin red — Supabase manda */ }
       try {
         const offs = await Purchases.getOfferings();
-        if (mounted.current) { setOfferings(offs); setOfferingsError(false); }
-      } catch {
+        if (mounted.current) { setOfferings(offs); setOfferingsError(false); setOfferingsErrorDetail(null); }
+      } catch (e: unknown) {
         // E-2 (MB-12): antes se descartaba y el paywall quedaba mudo.
-        if (mounted.current) setOfferingsError(true);
+        // BLOQ-1: además el catch era ciego. Sin el motivo no hay forma de
+        // distinguir "sin red" de "la offering current no existe en la tienda",
+        // y son arreglos opuestos. Se manda a Sentry como breadcrumb.
+        const detalle = e instanceof Error ? e.message : String(e);
+        logWarn('[paywall] getOfferings falló:', detalle);
+        if (mounted.current) { setOfferingsError(true); setOfferingsErrorDetail(detalle); }
       }
     }
     if (mounted.current) setIsLoading(false);
@@ -227,6 +242,7 @@ export function useSubscription(): UseSubscriptionResult {
     entitlements,
     offerings,
     offeringsError,
+    offeringsErrorDetail,
     customerInfo,
     isLoading,
     isPro: isTierAtLeast(effectiveTier, 'pro'),

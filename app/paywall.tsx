@@ -6,6 +6,16 @@
  * aún no trae el SDK nativo (pre-build) los CTAs quedan deshabilitados con
  * copy honesto — nunca placeholder roto.
  *
+ * BLOQ-1 (auditoría visual 16-ago): la pantalla salía sin un solo precio y con
+ * el CTA muerto. Dos cosas se arreglaron aquí, ninguna cosmética:
+ *  1. El fallo dejó de ser terminal. Sin precio y con error, el CTA ES el
+ *     reintento; deshabilitado, además, se ve deshabilitado.
+ *  2. Deja de exigir que el product id diga "base" o "pro". Cuando el catálogo
+ *     colapse a una sola membresía premium, un solo paquete por periodo basta
+ *     para resolver el plan y se pinta UNA tarjeta, no dos iguales.
+ * El precio sigue saliendo siempre del producto real: jamás una constante
+ * nuestra (3.1.2 — el precio anunciado es el que se cobra).
+ *
  * Disciplina de lima: CTA Pro + badge RECOMENDADO. Glow: solo card Pro.
  */
 import { useMemo, useState } from 'react';
@@ -46,6 +56,21 @@ const PLAN_FEATURES: Record<PlanKey, string[]> = {
   ],
 };
 
+/**
+ * BLOQ-1: el catálogo va camino a UNA sola membresía premium. Mientras el
+ * reparto de tiers se desmonta, esta lista es la que se pinta cuando la tienda
+ * ya no distingue Base de Pro: es la unión de las dos, sin la línea "Todo lo de
+ * ATP Base" que solo tenía sentido habiendo dos planes.
+ */
+const PLAN_UNICO_FEATURES: string[] = [
+  'Los 7 pilares completos: HOY, Fitness, Nutrición, Mente, Salud, Ciclo y Tests',
+  'ARGOS sin límites, tu IA de rendimiento',
+  'Análisis de comida por foto',
+  'Protocolos y biomarcadores avanzados',
+  'Economía H+ · retos y recompensas',
+  'Acceso anticipado a nuevas funciones',
+];
+
 const LEGAL_LINKS = [
   { label: 'Privacidad', url: 'https://somosatp.com/privacidad' },
   { label: 'Términos', url: 'https://somosatp.com/terminos' },
@@ -57,6 +82,7 @@ export default function PaywallScreen() {
   const { kind, tokens: t } = useAppTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
   const { offerings, offeringsError, isLoading, refresh, purchase, restore, sdkReady, tier } = useSubscription();
+  const [reintentando, setReintentando] = useState(false);
   const analytics = useAnalytics();
   const [period, setPeriod] = useState<Period>('yearly');
   const [busy, setBusy] = useState<PlanKey | 'restore' | null>(null);
@@ -66,14 +92,31 @@ export default function PaywallScreen() {
     [offerings],
   );
 
+  function nombraPlan(pkg: PurchasesPackage, plan: PlanKey): boolean {
+    return `${pkg.identifier} ${pkg.product.identifier}`.toLowerCase().includes(plan);
+  }
+
+  /**
+   * BLOQ-1: ¿la tienda todavía distingue Base de Pro por el nombre del producto?
+   * Si NINGÚN paquete menciona "base" ni "pro", el catálogo ya es de membresía
+   * única. Antes eso dejaba el paywall mudo con una tienda perfectamente sana:
+   * la búsqueda por substring era el único criterio, no encontraba nada, y la
+   * pantalla que cobra se rendía como si no hubiera precios.
+   */
+  const modoPlanUnico = useMemo(
+    () => packages.length > 0 && !packages.some((pkg) => nombraPlan(pkg, 'base') || nombraPlan(pkg, 'pro')),
+    [packages],
+  );
+
   function findPackage(plan: PlanKey, p: Period): PurchasesPackage | null {
     const wantedType = p === 'monthly' ? 'MONTHLY' : 'ANNUAL';
-    return (
-      packages.find((pkg) => {
-        const haystack = `${pkg.identifier} ${pkg.product.identifier}`.toLowerCase();
-        return haystack.includes(plan) && pkg.packageType === wantedType;
-      }) ?? null
-    );
+    const delPeriodo = packages.filter((pkg) => pkg.packageType === wantedType);
+    const porNombre = delPeriodo.find((pkg) => nombraPlan(pkg, plan));
+    if (porNombre) return porNombre;
+    // Membresía única: si el periodo trae un solo paquete, ese ES el plan, se
+    // llame como se llame. El precio sale del producto real, nunca de una
+    // constante nuestra (3.1.2: el precio que se anuncia es el que se cobra).
+    return modoPlanUnico && delPeriodo.length === 1 ? delPeriodo[0] : null;
   }
 
   // E-2 (MB-12): el trial sale del PRODUCTO real (introPrice gratis) o no se
@@ -92,9 +135,18 @@ export default function PaywallScreen() {
   // E-2 (MB-12): el % de ahorro se CALCULA de los precios reales; si no se
   // puede calcular, el badge no existe.
   const savingsPct = useMemo(() => {
-    for (const plan of ['pro', 'base'] as PlanKey[]) {
-      const m = packages.find((pkg) => `${pkg.identifier} ${pkg.product.identifier}`.toLowerCase().includes(plan) && pkg.packageType === 'MONTHLY');
-      const y = packages.find((pkg) => `${pkg.identifier} ${pkg.product.identifier}`.toLowerCase().includes(plan) && pkg.packageType === 'ANNUAL');
+    // BLOQ-1: con membresía única no hay "pro"/"base" que filtrar — el par a
+    // comparar es simplemente el mensual contra el anual del catálogo.
+    const pares: Array<[PurchasesPackage | undefined, PurchasesPackage | undefined]> = modoPlanUnico
+      ? [[
+          packages.find((pkg) => pkg.packageType === 'MONTHLY'),
+          packages.find((pkg) => pkg.packageType === 'ANNUAL'),
+        ]]
+      : (['pro', 'base'] as PlanKey[]).map((plan) => [
+          packages.find((pkg) => nombraPlan(pkg, plan) && pkg.packageType === 'MONTHLY'),
+          packages.find((pkg) => nombraPlan(pkg, plan) && pkg.packageType === 'ANNUAL'),
+        ]);
+    for (const [m, y] of pares) {
       const monthly12 = (m?.product.price ?? 0) * 12;
       const yearly = y?.product.price ?? 0;
       if (monthly12 > 0 && yearly > 0 && yearly < monthly12) {
@@ -102,7 +154,16 @@ export default function PaywallScreen() {
       }
     }
     return null;
-  }, [packages]);
+  }, [packages, modoPlanUnico]);
+
+  /** BLOQ-1: reintento explícito, usable desde el CTA y desde la nota. */
+  async function onReintentar() {
+    if (reintentando) return;
+    haptic.light();
+    setReintentando(true);
+    await refresh();
+    setReintentando(false);
+  }
 
   async function onSubscribe(plan: PlanKey) {
     const pkg = findPackage(plan, period);
@@ -143,27 +204,39 @@ export default function PaywallScreen() {
   function renderPlanCard(plan: PlanKey, delay: number) {
     const pkg = findPackage(plan, period);
     const isPro = plan === 'pro';
+    const cargando = isLoading || reintentando;
+    /**
+     * BLOQ-1: sin precio y con error, el CTA se convierte en el reintento en vez
+     * de quedarse muerto. Antes decía "Sin conexión", estaba `disabled` y no
+     * pintaba estado deshabilitado: parecía pulsable, no hacía nada, y la única
+     * salida real era una línea de texto tenue al final del scroll que no se
+     * lee como botón. Una pantalla de cobro sin salida es rechazo en review.
+     */
+    const puedeReintentar = !pkg && !cargando && sdkReady && offeringsError;
     // E-2 (MB-12): tres estados reales — cargando / error / no disponible.
     const priceLabel = pkg
       ? `${pkg.product.priceString} / ${period === 'monthly' ? 'mes' : 'año'}`
-      : isLoading
+      : cargando
         ? 'Cargando precios…'
         : offeringsError
-          ? 'Precios sin conexión'
+          ? 'No pudimos cargar los precios'
           : 'Disponible pronto';
-    const ctaDisabled = !pkg || busy !== null;
+    const ctaDisabled = busy !== null || (!pkg && !puedeReintentar);
 
     return (
       <Animated.View
         entering={FadeInDown.delay(delay).springify()}
         style={[styles.planCard, isPro && styles.planCardPro]}
       >
-        {isPro && (
+        {/* Sin dos planes que comparar, "RECOMENDADO" no recomienda nada. */}
+        {isPro && !modoPlanUnico && (
           <View style={styles.recommendedBadge}>
             <EliteText style={styles.recommendedText}>RECOMENDADO</EliteText>
           </View>
         )}
-        <EliteText style={styles.planName}>{isPro ? 'ATP Pro' : 'ATP Base'}</EliteText>
+        <EliteText style={styles.planName}>
+          {modoPlanUnico ? 'ATP Premium' : isPro ? 'ATP Pro' : 'ATP Base'}
+        </EliteText>
         {/* Regla 1 del manual: el lima nunca es letra en claro — teal calibrado. */}
         <EliteText style={[styles.planPrice, isPro && { color: kind === 'dark' ? ATP_BRAND.lime : t.tealTexto }]}>
           {priceLabel}
@@ -173,7 +246,7 @@ export default function PaywallScreen() {
         </EliteText>
 
         <View style={styles.featureList}>
-          {PLAN_FEATURES[plan].map((feature) => (
+          {(modoPlanUnico ? PLAN_UNICO_FEATURES : PLAN_FEATURES[plan]).map((feature) => (
             <View key={feature} style={styles.featureRow}>
               <Ionicons
                 name="checkmark-circle"
@@ -187,12 +260,12 @@ export default function PaywallScreen() {
         </View>
 
         <AnimatedPressable
-          onPress={() => onSubscribe(plan)}
+          onPress={() => (puedeReintentar ? onReintentar() : onSubscribe(plan))}
           disabled={ctaDisabled}
-          style={[styles.cta, isPro ? styles.ctaPro : styles.ctaBase]}
+          style={[styles.cta, isPro ? styles.ctaPro : styles.ctaBase, ctaDisabled && styles.ctaMuerto]}
         >
           <EliteText style={[styles.ctaText, isPro ? styles.ctaTextPro : styles.ctaTextBase]}>
-            {busy === plan ? 'Procesando…' : pkg ? 'Suscribirme' : isLoading ? 'Cargando…' : offeringsError ? 'Sin conexión' : 'Muy pronto'}
+            {busy === plan ? 'Procesando…' : pkg ? 'Suscribirme' : cargando ? 'Cargando…' : puedeReintentar ? 'REINTENTAR' : 'Muy pronto'}
           </EliteText>
         </AnimatedPressable>
       </Animated.View>
@@ -235,15 +308,16 @@ export default function PaywallScreen() {
         </Animated.View>
 
         {renderPlanCard('pro', 140)}
-        {renderPlanCard('base', 190)}
+        {!modoPlanUnico && renderPlanCard('base', 190)}
 
-        {/* E-2 (MB-12): error ≠ "no disponible" — con reintento */}
+        {/* E-2 (MB-12): error ≠ "no disponible". BLOQ-1: el reintento ya vive
+            en el CTA de la tarjeta; aquí queda solo la explicación de por qué
+            no hay precio, para que el usuario no crea que la app está rota. */}
         {sdkReady && offeringsError && packages.length === 0 && (
-          <AnimatedPressable onPress={() => { haptic.light(); refresh(); }} style={styles.restoreBtn}>
-            <EliteText style={styles.sdkNote}>
-              No pudimos cargar los precios. Toca para reintentar.
-            </EliteText>
-          </AnimatedPressable>
+          <EliteText style={styles.sdkNote}>
+            No pudimos contactar a la tienda para traer los precios. Revisa tu
+            conexión y toca REINTENTAR.
+          </EliteText>
         )}
         {!sdkReady && (
           <EliteText style={styles.sdkNote}>
@@ -399,6 +473,9 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   },
   ctaPro: { backgroundColor: ATP_BRAND.lime },
   ctaBase: { borderWidth: 1, borderColor: ATP_BRAND.lime },
+  // BLOQ-1: un CTA que no responde tiene que VERSE que no responde. Antes
+  // quedaba en lima sólido, idéntico al vivo, y el usuario tocaba en vano.
+  ctaMuerto: { opacity: 0.4 },
   ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, letterSpacing: 0.5 },
   ctaTextPro: { color: t.textoSobreLima },
   // Regla 1 del manual: el lima nunca es letra en claro — teal calibrado.
