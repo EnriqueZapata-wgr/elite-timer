@@ -2,6 +2,17 @@
  * MB-SEC-1 · Superficie de datos — tests estáticos sobre las migraciones.
  * Patrón del guard estático de 184/190-193 (leen el SQL y fijan invariantes,
  * node-only, sin DB). Blindan que la superficie no se re-abra en un futuro edit.
+ *
+ * PREMIUM (16-ago-2026): estos tests SIGUEN VIVOS y no se tocaron a propósito,
+ * aunque nombren cosas que la app ya no usa (spend_protons, join_challenge,
+ * activate_pro_boost, claim_nback_protons).
+ *
+ * La razón: no verifican el producto, verifican la BASE. Esas funciones siguen
+ * existiendo en el servidor con el saldo y el historial de personas reales, y
+ * el día que alguien vuelva a tocar esas migraciones el guard tiene que seguir
+ * exigiendo lo mismo: anon revocado y usuario derivado del token, no del
+ * parámetro. Borrarlos porque el cliente dejó de llamarlas sería dejar sin
+ * candado una superficie que sigue expuesta.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';

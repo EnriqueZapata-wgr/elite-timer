@@ -83,11 +83,22 @@ describe('confirmar contra aplicar', () => {
     expect(planearAjuste('habito_estado', 'reposo').tipo).toBe('confirmar');
   });
 
-  it('lo que consume protones SIEMPRE se confirma y lo dice', () => {
-    // Regla dura: nada gasta protones sin avisar.
-    const p = planearAjuste('insights_nutricion', true);
-    expect(p.tipo).toBe('confirmar');
-    if (p.tipo === 'confirmar') expect(p.pregunta).toMatch(/protones/i);
+  // PREMIUM (16-ago-2026): este test exigía que el ajuste de comentarios de
+  // ARGOS AVISARA que gasta protones. Ya no gasta nada, así que la regla dura
+  // pasa a ser la contraria: ningún ajuste puede volver a hablar de gasto.
+  it('ningún ajuste operable menciona costo, saldo ni protones', () => {
+    for (const clave of ['tema', 'insights_nutricion', 'habito_estado']) {
+      const p = planearAjuste(clave, true);
+      if (p.tipo !== 'confirmar') continue;
+      const pregunta = p.pregunta.toLowerCase();
+      for (const palabra of ['proton', 'h+', 'cuesta', 'consume', 'saldo']) {
+        expect(pregunta, `"${clave}" menciona "${palabra}"`).not.toContain(palabra);
+      }
+    }
+  });
+
+  it('el ajuste de comentarios al comer se sigue confirmando (cambia el comportamiento de ARGOS)', () => {
+    expect(planearAjuste('insights_nutricion', true).tipo).toBe('confirmar');
   });
 
   it('la pregunta es copy de usuario, no jerga', () => {

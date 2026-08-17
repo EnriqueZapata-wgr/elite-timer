@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /**
- * #71 — Idempotency doble cobro ARGOS. Tests del lado CLIENTE: que la idempotency_key sea un
- * uuid v4 estable (generateUUID) y que se transporte en el body del proxy (callAnthropic) sólo
- * cuando existe (bw compat). La atomicidad del cobro (spend_protons v2) vive en SQL (migración
- * 094) y la generación por intent en getArgosCallMetadata; el transporte real es este body.
+ * #71 — Idempotency de las llamadas a ARGOS. Tests del lado CLIENTE: que la
+ * idempotency_key sea un uuid v4 estable (generateUUID) y que se transporte en
+ * el body del proxy (callAnthropic) sólo cuando existe (bw compat).
+ *
+ * PREMIUM (16-ago-2026): esto nació como "idempotency doble COBRO": la clave
+ * existía para que el server no debitara dos veces la misma pregunta. Ya no
+ * cobra nada, y estos tests se quedan tal cual porque el mecanismo sigue siendo
+ * necesario por otra razón igual de buena: sin él, un doble tap dispara dos
+ * llamadas al modelo por la misma pregunta.
  */
 
 vi.mock('expo-constants', () => ({

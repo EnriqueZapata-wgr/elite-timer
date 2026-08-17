@@ -8,7 +8,7 @@
  *
  * Timing: 3.3s por trial a 1x (V1.5.1 #3), speed divide. Primera sesión:
  * N=1 forzado (tutorial, #44-1); después resume_mode. Al completar round:
- * nback_sessions + estado + e- (1er round del día) + claim H+ (mig 218).
+ * nback_sessions + estado + e- (1er round del día).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, StyleSheet, View } from 'react-native';
@@ -551,18 +551,13 @@ export default function NBackSessionScreen() {
                 {Math.max(0, NBACK_CONFIG.ROUNDS_PER_DAY - results.outcome.roundsToday)} rounds restantes hoy
               </EliteText>
             )}
-            {/* Economía: e- del día + H+ (decisión #44-5) */}
+            {/* PREMIUM (16-ago-2026): junto al electrón salían chips de H+ por
+                sesión, récord y racha. Se fueron con la moneda; el electrón del
+                día se queda porque es el que marca la card de HOY. */}
             <View style={s.rewardsRow}>
               {results.outcome?.electronAwarded && (
                 <View style={s.rewardChip}><EliteText style={[s.rewardText, { color: acento }]}>+2.5 e- · HOY ✓</EliteText></View>
               )}
-              {(results.outcome?.protons ?? []).map((p, i) => (
-                <View key={i} style={s.rewardChip}>
-                  <EliteText style={[s.rewardText, { color: acento }]}>
-                    +{p.amount} H+ {p.kind === 'daily' ? '· sesión completa' : p.kind === 'pr' ? `· récord N=${p.n ?? ''}` : p.kind === 'streak7' ? '· racha 7 días' : '· racha 30 días'}
-                  </EliteText>
-                </View>
-              ))}
             </View>
           </View>
 

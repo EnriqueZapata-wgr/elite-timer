@@ -1,8 +1,8 @@
 {
   "scheme": "atp",
-  "generado": "2026-08-17T00:55:06.892Z",
+  "generado": "2026-08-17T05:47:11.615Z",
   "resumen": {
-    "estaticas": 192,
+    "estaticas": 189,
     "dinamicas": 112,
     "variantes": 8
   },
@@ -472,28 +472,10 @@
       "slug": "economy-admin"
     },
     {
-      "ruta": "/economy/convert",
-      "archivo": "app/economy/convert.tsx",
-      "tipo": "estatica",
-      "slug": "economy-convert"
-    },
-    {
       "ruta": "/economy/history",
       "archivo": "app/economy/history.tsx",
       "tipo": "estatica",
       "slug": "economy-history"
-    },
-    {
-      "ruta": "/economy/how-to-earn",
-      "archivo": "app/economy/how-to-earn.tsx",
-      "tipo": "estatica",
-      "slug": "economy-how-to-earn"
-    },
-    {
-      "ruta": "/economy/shop",
-      "archivo": "app/economy/shop.tsx",
-      "tipo": "estatica",
-      "slug": "economy-shop"
     },
     {
       "ruta": "/edad-atp",

@@ -45,7 +45,6 @@ import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, TEXT_COLORS, SEMANTIC, withOpacity, ATP_BRAND } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
-import { argosRateLimitMessage } from '@/src/services/argos-stream-core';
 import type { SensorPanelProps } from './types';
 
 const BLUE = CATEGORY_COLORS.nutrition;
@@ -507,13 +506,10 @@ export function TextSensor({ mealType, mealTime, onTakeover, onSaved }: SensorPa
                 } else {
                   Alert.alert('Sin resultado', 'No se pudo estimar. Intenta con otra descripción.');
                 }
-              } catch (err: any) {
-                // D-4 (MB-12): el rate limit NO es una falla de red.
-                if (err?.name === 'ArgosRateLimitError') {
-                  Alert.alert('Límite de ARGOS', argosRateLimitMessage(err?.payload));
-                } else {
-                  Alert.alert('Error', 'No se pudo conectar con IA. Intenta de nuevo.');
-                }
+              } catch {
+                // PREMIUM (16-ago-2026): había una rama para el límite diario
+                // del plan. Ya no existe ese límite; queda el fallo de red.
+                Alert.alert('Error', 'No se pudo conectar con IA. Intenta de nuevo.');
               } finally {
                 setAiLoading(false);
               }

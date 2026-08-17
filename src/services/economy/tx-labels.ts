@@ -7,23 +7,13 @@
  * y dos copias acabarían nombrando distinto el mismo movimiento.
  *
  * Módulo puro: sin react-native y sin supabase.
+ *
+ * PREMIUM (16-ago-2026): se cayeron las etiquetas de movimientos H+ (gasto,
+ * conversión, boost, recarga). Ya no hay moneda que mover, así que el único
+ * movimiento que se le muestra a la persona es el de electrones ganados.
  */
 
 export const KEY_LABELS: Record<string, string> = {
-  // Tipos de movimiento H+
-  action_spent: 'Uso de ARGOS',
-  conversion: 'Conversión E- → H+',
-  boost: 'Boost Pro',
-  purchase: 'Recarga',
-  grant: 'Regalo ATP',
-  refund: 'Reembolso',
-  // Acciones de ARGOS
-  food_estimate_photo: 'Análisis de comida por foto',
-  food_estimate_text: 'Comida por texto',
-  recipe_generate: 'Receta ARGOS',
-  chat_message: 'Chat con ARGOS',
-  braverman_premium: 'Reporte Premium Braverman',
-  intervention_rationale: 'Explicación de protocolo',
   // Razones E-
   checkin: 'Check-in emocional',
   checkin_emotional: 'Check-in emocional',

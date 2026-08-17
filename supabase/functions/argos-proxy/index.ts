@@ -20,7 +20,6 @@ const corsHeaders = {
 // de Supabase es 60s, dejamos 5s de margen para procesamiento post.
 const ANTHROPIC_TIMEOUT_MS = 58000;
 const GEMINI_TIMEOUT_MS = 25000;
-const HARD_CAP_DAILY = 50;
 const FALLBACK_MODEL = "gemini-2.5-flash"; // Gemini 2.5 Flash — string confirmado mayo 2026
 const PRIMARY_MODEL_DEFAULT = "claude-sonnet-5"; // 2026-07-06: upgrade Sonnet 4.6 → 5 (cost-neutral, mejor razonamiento clínico)
 
@@ -487,14 +486,30 @@ async function callGeminiProvider(args: {
 
 // ─── CIRCUIT BREAKER ────────────────────────────────────────────
 
-// Rate limits per tier (task #40 + #133).
-// El effectiveTier considera boost H+ activo (Base con boost = Pro por 24h).
-const TIER_DAILY_LIMITS: Record<string, number> = {
-  free: 5,
-  base: 25,
-  pro: 150,
-  clinician: 100,
-};
+// PREMIUM (16-ago-2026): aquí vivía TIER_DAILY_LIMITS (free 5, base 25, pro
+// 150, clinician 100). Se fue completo. Con una sola membresía no hay tope
+// diario que corte el acceso a nadie: quien pagó pregunta lo que quiera.
+//
+// El razonamiento, para que no vuelva por la puerta de atrás: el activo más
+// valioso de ATP es la IA. Racionarla hace que se use menos, y quien la usa
+// menos desinstala. Un usuario que registró 20 comidas y se quedó sin poder
+// preguntar nada habiendo gastado siete centavos de dólar es el modo de falla
+// que mata la app, y ya pasó.
+//
+// El conteo diario NO se quita, solo deja de bloquear. Se sigue registrando en
+// argos_daily_usage porque es el insumo de los LÍMITES SUAVES que vienen
+// después: cuando alguien pase cierto volumen, se le baja el NIVEL DE MODELO
+// (Gemini en vez de Sonnet), nunca se le corta. Ese cambio va en `routeModel`,
+// que ya decide proveedor por requestType, no aquí.
+//
+// ⚠️ TECHO ANTIABUSO — esto NO es un límite de producto, es una defensa contra
+// una llave filtrada o un script. Está deliberadamente absurdo: 13 veces el
+// tope que tenía el plan más caro. Ninguna persona real lo toca; un bucle
+// automatizado lo revienta en minutos. Sin esto, un solo token robado puede
+// facturar miles de dólares en una noche y no hay forma de enterarse hasta el
+// corte. Si se decide que ni esto va, se pone en Infinity y se acepta el
+// riesgo a ojos abiertos.
+const TECHO_ANTIABUSO_DIARIO = 2000;
 
 // ─── CUOTA PONDERADA POR COSTO REAL (CIERRE-4 · Audit-5) ─────────
 // El circuit breaker cobraba UNA unidad por petición sin mirar el requestType.
@@ -509,16 +524,15 @@ const TIER_DAILY_LIMITS: Record<string, number> = {
 // Y eso todavía con food_estimate corriendo en Sonnet. Con el router mandándolo
 // a Gemini la brecha se abre otro orden de magnitud.
 //
-// El daño real no era el dinero, era el bloqueo: un usuario Base (25 al día)
-// que registraba 20 comidas por foto se quedaba sin ARGOS habiendo consumido
-// siete centavos de dólar. Pagó, registró su comida como debe, y se quedó sin
-// poder preguntar nada. Ese es exactamente el modo de falla que mata la app.
+// PREMIUM: los pesos siguen vivos aunque ya nadie se bloquee, y no es
+// contradicción. El conteo ponderado es la MEDICIÓN sobre la que se van a
+// decidir los límites suaves (bajar el modelo, no cortar). Contar una foto de
+// comida como si fuera una consulta a ARGOS deformaría esa medición desde el
+// primer día.
 //
 // EL CANDADO: todos los pesos son <= 1, y la saturación está también dentro de
 // consume_argos_usage_weighted. La cuota ponderada NUNCA puede ser más estricta
-// que la de hoy, solo más holgada. Nadie puede perder acceso por este cambio.
-// Por eso las acciones que miden MÁS que el chat (dx_generation, $0.072) se
-// quedan en 1 y no suben: ya se cobran aparte en H+ y son de una vez al año.
+// que la de hoy, solo más holgada.
 // Un requestType desconocido pesa 1: nunca se abarata algo que no medimos.
 const QUOTA_WEIGHTS: Record<string, number> = {
   // Extracción: el usuario está registrando su vida, no consultando a ARGOS.
@@ -571,61 +585,59 @@ function quotaWeightFor(requestType?: string): number {
   return Math.min(Math.max(w, 0), 1);
 }
 
-// Detecta el tier real del user (profiles.tier + boost activo).
+// PREMIUM: la membresía ya NO abre ni cierra funciones, así que esto dejó de
+// ser un portero. Se conserva porque `argos_logs.tier` alimenta la telemetría
+// de costo por tipo de usuario, que sigue siendo cómo se decide el ruteo de
+// modelos. Se fue la consulta a pro_boosts: los boosts ya no existen.
 // Cache 30s in-memory sencillo — evita golpear DB en cada request.
 const tierCache = new Map<string, { effectiveTier: string; expiresAt: number }>();
+
+/** Valores de profiles.tier que significan "pagó" (espejo de tier-logic.ts). */
+const VALORES_PAGADOS = new Set(["base", "pro", "clinician", "premium", "founder"]);
 
 async function detectEffectiveTier(supabase: any, userId: string): Promise<string> {
   const cached = tierCache.get(userId);
   if (cached && cached.expiresAt > Date.now()) return cached.effectiveTier;
 
   try {
-    // 1) ECO-6: MISMO árbitro que el cliente. get_effective_tier (mig 262)
-    // resuelve tier_grants + profiles honrando tier_expires_at — el proxy
-    // deja de leer profiles.tier crudo (antes un tier vencido seguía siendo
-    // pro aquí, y un pro por grant era free).
-    let baseTier = "free";
+    // ECO-6: MISMO árbitro que el cliente. get_effective_tier (mig 262)
+    // resuelve tier_grants + profiles honrando tier_expires_at.
+    // PREMIUM: cualquier etiqueta pagada histórica se traduce a 'premium'.
+    let crudo = "free";
+    let venceEn: string | null = null;
     const { data: resolved, error: tierErr } = await supabase
       .rpc("get_effective_tier", { p_user_id: userId });
     if (!tierErr && resolved && typeof resolved === "object" && typeof resolved.tier === "string") {
-      baseTier = resolved.tier;
+      crudo = resolved.tier;
+      venceEn = typeof resolved.expires_at === "string" ? resolved.expires_at : null;
     } else {
       if (tierErr) console.error("get_effective_tier rpc error (fallback a profiles):", tierErr);
-      // Fallback (RPC aún no en el remoto): profiles, pero HONRANDO expiry.
       const { data: profile } = await supabase
         .from("profiles").select("tier, tier_expires_at").eq("id", userId).maybeSingle();
-      const expired = profile?.tier_expires_at &&
-        new Date(profile.tier_expires_at).getTime() <= Date.now();
-      baseTier = expired ? "free" : (profile?.tier ?? "free");
+      crudo = profile?.tier ?? "free";
+      venceEn = profile?.tier_expires_at ?? null;
     }
+    const vencido = venceEn && new Date(venceEn).getTime() <= Date.now();
+    const tier = !vencido && VALORES_PAGADOS.has(String(crudo).toLowerCase()) ? "premium" : "free";
 
-    // 2) Check boost H+ activo (task #133 + MAGIA 2.0 T5)
-    // T5: el boost también aplica a tier free — antes solo se consultaba para
-    // base, así que un free con boost activo seguía limitado a 5/día (bug real
-    // que golpeó a Enrique 2026-07-09). El RPC activate_pro_boost no restringe
-    // tier; la doctrina es "ofrece transacción H+, no fuerces upgrade".
-    if (baseTier === "base" || baseTier === "free") {
-      const { data: boost } = await supabase.rpc("has_active_pro_boost", { p_user_id: userId });
-      if (boost === true) {
-        tierCache.set(userId, { effectiveTier: "pro", expiresAt: Date.now() + 30000 });
-        return "pro";
-      }
-    }
-
-    tierCache.set(userId, { effectiveTier: baseTier, expiresAt: Date.now() + 30000 });
-    return baseTier;
+    tierCache.set(userId, { effectiveTier: tier, expiresAt: Date.now() + 30000 });
+    return tier;
   } catch (e) {
     console.error("detectEffectiveTier error:", e);
-    return "free"; // fail-safe
+    // PREMIUM: el fail-safe cambió de bando. Antes caía a 'free' porque 'free'
+    // era el más restringido; hoy la etiqueta no restringe nada, así que en
+    // duda se registra como miembro y jamás se le niega nada a quien pagó por
+    // culpa de un error nuestro de lectura.
+    return "premium";
   }
 }
 
-async function checkAndIncrementUsage(supabase: any, userId: string | undefined, effectiveTier: string, requestType?: string): Promise<{
+async function checkAndIncrementUsage(supabase: any, userId: string | undefined, requestType?: string): Promise<{
   blocked: boolean;
   count: number;
   limit: number;
 }> {
-  const limit = TIER_DAILY_LIMITS[effectiveTier] ?? HARD_CAP_DAILY;
+  const limit = TECHO_ANTIABUSO_DIARIO;
   if (!userId) return { blocked: false, count: 0, limit };
   try {
     // CIERRE-4: cuota ponderada por costo real, gated. Sin la env var el
@@ -682,26 +694,10 @@ serve(async (req) => {
   const startTime = Date.now();
   let body: any = {};
 
-  // ─── Economía H+ (gated). OFF por default (LAB_ECONOMY_ENABLED no seteado) → el proxy se
-  // comporta EXACTAMENTE igual que antes. Enrique activa con la env var tras validar. ───
-  const ECONOMY_ON = Deno.env.get("LAB_ECONOMY_ENABLED") === "true";
-  let economyCost = 0;
-  let economyDebited = false;
-  let economyIdemKey: string | null = null; // idempotency_key del gasto, para trazar el refund
-  async function refundEconomy(uid?: string) {
-    if (!economyDebited || !uid || economyCost <= 0) return;
-    economyDebited = false; // idempotente: solo reembolsa una vez por instancia de request
-    try {
-      await supabase.rpc("award_protons", {
-        p_user_id: uid, p_amount: economyCost, p_type: "refund",
-        p_action_key: null,
-        // La key del gasto viaja en metadata (no en la columna idempotency_key) → el refund
-        // queda ligado a su cobro sin chocar con el UNIQUE index del gasto. La atomicidad del
-        // refund la garantiza el flag economyDebited (un solo refund por request).
-        p_metadata: { reason: "llm_failed", idempotency_key: economyIdemKey },
-      });
-    } catch (e) { console.error("economy refund failed:", e); }
-  }
+  // PREMIUM (16-ago-2026): se fue el bloque de economía H+ (cobro, idempotencia
+  // del cobro y reembolso por fallo del LLM). Sin cobro no hay nada que
+  // devolver, así que refundEconomy tampoco tiene sentido. Los RPC siguen
+  // existiendo en la base con todo el historial; ya nadie los llama desde aquí.
 
   try {
     body = await req.json();
@@ -795,37 +791,15 @@ serve(async (req) => {
     // El clientTier es informativo — el server es la fuente de verdad.
     const effectiveTier = userId ? await detectEffectiveTier(supabase, userId) : (clientTier ?? "free");
 
-    // ─── ECO-8: insight SOLO Pro/Clínico o boost activo (decisión 5b 12-ago-2026).
-    // Sin cobro, sin contar contra el límite diario, sin LLM. El cliente nuevo ni
-    // dispara la llamada (canReceiveArgosInsights); esto ataja bundles viejos.
-    // effectiveTier ya es 'pro' para boosteados (detectEffectiveTier). ───
-    if (requestType === "insight" && effectiveTier !== "pro" && effectiveTier !== "clinician") {
-      // Audit: NO es un error (el gate funcionó como se diseñó) — success:false
-      // ensuciaba la tasa de errores. Se distingue por request_type propio:
-      // SELECT count(*) FROM argos_logs WHERE request_type='insight_gated'.
-      await logArgosCall(supabase, {
-        user_id: userId,
-        tier: effectiveTier,
-        provider: "anthropic",
-        model: finalModel,
-        request_type: "insight_gated",
-        latency_ms: Date.now() - startTime,
-        success: true,
-        target_user_id: targetUserId ?? null,
-        target_profile_id: targetProfileId ?? null,
-      });
-      return new Response(JSON.stringify({
-        content: [{
-          type: "text",
-          text: "Los insights diarios de ARGOS son parte de ATP Pro. Activa Pro o enciende un Boost con tus H+ para recibir el tuyo.",
-        }],
-        model: finalModel,
-        _insight_gated: true,
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    // PREMIUM (16-ago-2026): aquí estaba el gate ECO-8, que reservaba el insight
+    // diario a Pro y Clínico. Se fue. Reservar la IA para el plan caro es
+    // exactamente lo que este cambio deja de hacer: es el activo más valioso
+    // del producto y ahora viene completo con la membresía.
 
-    // Circuit breaker per tier (server-side)
-    const usage = await checkAndIncrementUsage(supabase, userId, effectiveTier, requestType);
+    // Conteo diario. PREMIUM: cuenta, ya no corta. El único caso en que
+    // `blocked` puede volver true es el techo antiabuso (2000/día), que ninguna
+    // persona real toca y que existe contra llaves filtradas, no contra usuarios.
+    const usage = await checkAndIncrementUsage(supabase, userId, requestType);
     if (usage.blocked) {
       const latencyMs = Date.now() - startTime;
       await logArgosCall(supabase, {
@@ -836,112 +810,36 @@ serve(async (req) => {
         request_type: requestType,
         latency_ms: latencyMs,
         success: false,
-        error_message: `rate_limited:tier=${effectiveTier}:limit=${usage.limit}`,
+        error_message: `abuso_sospechado:limite=${usage.limit}`,
         fallback_used: false,
         target_user_id: targetUserId ?? null,
         target_profile_id: targetProfileId ?? null,
       });
-      // MAGIA 2.0 T5: payload enriquecido para el RateLimitCard del cliente.
-      // Se mantiene `content` + `_rate_limited` para bundles viejos (el campo
-      // top-level `error` NO se usa aquí — callAnthropic legacy lanza al verlo
-      // y degradaría el mensaje en apps sin OTA).
-      // COPY tentativo — revisar con Enrique post-sprint.
-      // ECO-1: el boost NO es "sin límite" — sube el tope al de Pro (150/día).
-      const canBoost = effectiveTier === "free" || effectiveTier === "base";
-      const upgradeMsg = canBoost
-        ? `Llegaste al máximo de hoy (${usage.limit}/${usage.limit}). Activa Boost Pro por 500 H+ y sube tu límite a 150 al día por 24h. O espera hasta mañana.`
-        : `Alcanzaste el límite (${usage.limit}/día). Se renueva mañana.`;
-      const resetsAt = new Date(new Date().setUTCHours(24, 0, 0, 0)).toISOString();
+      // Se conserva `_rate_limited` en el payload por los binarios viejos que
+      // todavía lo leen: sin él, un bundle sin OTA mostraría "problema de red".
       return new Response(JSON.stringify({
-        content: [{ type: "text", text: upgradeMsg }],
+        content: [{
+          type: "text",
+          text: "Detectamos un volumen de uso fuera de lo normal en esta cuenta y pausamos ARGOS por hoy. Si fuiste tú y necesitas seguir, escríbenos y lo destrabamos.",
+        }],
         model: finalModel,
         _rate_limited: true,
-        _tier: effectiveTier,
         _limit: usage.limit,
-        rate_limit: {
-          tier: effectiveTier,
-          limit_daily: usage.limit,
-          used_today: Math.min(usage.count, usage.limit),
-          resets_at: resetsAt,
-          boost_option: canBoost ? { cost_h_plus: 500, duration_hours: 24 } : null,
-        },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ─── Economía H+: descontar ANTES del LLM (atomicidad). Gated por ECONOMY_ON. ───
-    // Sin H+ suficientes → 402, NO llamamos al LLM (el cliente hace pre-flight y guía a la
-    // tienda). Si el LLM falla luego, refundEconomy() reembolsa. Costo desde la tabla.
-    if (ECONOMY_ON && userId) {
-      const actionKey = requestType || "chat";
-      let { data: costRow } = await supabase
-        .from("proton_action_costs").select("cost_h_plus, enabled")
-        .eq("action_key", actionKey).maybeSingle();
-      // Auditoría MB-4 (H1 parcial): un action_key DESCONOCIDO ya no cuesta 0 —
-      // cae al costo de 'chat' en vez de regalar el LLM a un requestType inventado.
-      // Pendiente como hardening aparte del proxy (NO de este batch): whitelist
-      // completa de action_keys + verificar userId contra el JWT (hoy viene del
-      // body sin verificar) + requestType client-declarado (un cliente modificado
-      // puede mandar 'chat' en un turno de voz para evadir la prima de voice_turn).
-      if (!costRow && actionKey !== "chat") {
-        const { data: chatRow } = await supabase
-          .from("proton_action_costs").select("cost_h_plus, enabled")
-          .eq("action_key", "chat").maybeSingle();
-        costRow = chatRow;
-      }
-      economyCost = costRow && costRow.enabled !== false ? Number(costRow.cost_h_plus) : 0;
-      // B.4 (megabuzón 2da pasada, spec Enrique): intervention_rationale es
-      // GRATIS para tier Pro efectivo (all-you-can-eat) — Base/free pagan el
-      // costo de la tabla (280 H+, seed 175). Server-side: el tier lo resuelve
-      // detectEffectiveTier (incluye boost H+ activo), no el cliente.
-      if (requestType === "intervention_rationale" && effectiveTier === "pro") {
-        economyCost = 0;
-      }
-      if (economyCost > 0) {
-        // Idempotencia (094 + M1 re-auditoría MB-4): la key se deriva SERVER-SIDE
-        // y la del body se IGNORA — una key client-declarada permitía replay
-        // infinito (misma key → idempotent:true → Claude gratis; el índice de
-        // proton_transactions es global y sin caducidad). userId + acción +
-        // hash(messages) + ventana de 10 min: el doble tap / retry / re-render
-        // manda los MISMOS messages → un solo cobro; el mismo payload fuera de
-        // la ventana SÍ cobra. Se hashea SOLO messages (no system: el retry
-        // stream→no-stream lo reconstruye con contexto volátil — hora del día,
-        // stats — y rompería la idempotencia del retry legítimo).
-        // (body.idempotency_key se sigue ecoando en el evento SSE "start" por
-        // compat de UI, pero ya no es autoridad de cobro.)
-        const idemBucket = Math.floor(Date.now() / 600_000);
-        const idemDigest = new Uint8Array(await crypto.subtle.digest(
-          "SHA-256",
-          new TextEncoder().encode(`${idemBucket}|${requestType || "chat"}|${JSON.stringify(messages)}`),
-        ));
-        economyIdemKey = `${userId}:${requestType || "chat"}:` +
-          Array.from(idemDigest, (b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
-        const { data: debit } = await supabase.rpc("spend_protons", {
-          p_user_id: userId, p_amount: economyCost,
-          p_action_key: requestType || "chat",
-          p_metadata: { idempotency_key: economyIdemKey },
-        });
-        if (debit?.idempotent) {
-          console.log("[economy] idempotent retry — sin doble cobro", economyIdemKey);
-        }
-        if (!debit || debit.success !== true) {
-          await logArgosCall(supabase, {
-            user_id: userId, tier: effectiveTier, provider: "anthropic", model: finalModel,
-            request_type: requestType, latency_ms: Date.now() - startTime, success: false,
-            error_message: "insufficient_protons",
-            target_user_id: targetUserId ?? null, target_profile_id: targetProfileId ?? null,
-          });
-          return new Response(JSON.stringify({
-            error: { type: "insufficient_protons", message: "No tienes suficientes H+ para esta acción" },
-            h_plus_required: economyCost,
-            h_plus_current: debit?.new_balance ?? 0,
-          }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-        // Solo este request "es dueño" del cobro si REALMENTE debitó. En un retry idempotente
-        // el cobro pertenece al request original → NO marcamos economyDebited aquí, así este
-        // request no dispara un refund que acreditaría el cobro legítimo del otro.
-        economyDebited = !debit.idempotent;
-      }
-    }
+    // PREMIUM (16-ago-2026): aquí se descontaban H+ antes de llamar al LLM y se
+    // devolvía un 402 "insufficient_protons" que dejaba la acción sin hacer.
+    // Todo ese bloque se fue: ninguna función se paga por transacción.
+    //
+    // Vale registrar el defecto que se lleva consigo, porque explica por qué
+    // no se "arregló" en vez de retirarse: cuando un action_key no tenía fila
+    // en proton_action_costs, el proxy le cobraba el precio de 'chat' mientras
+    // el cliente lo cotizaba en cero. La app decía "gratis" y el servidor
+    // cobraba. Ese desfase no se puede tapar, solo eliminar.
+    //
+    // Los RPC spend_protons y award_protons NO se tocaron: siguen en la base
+    // con el saldo y el historial de todos. Solo dejaron de llamarse.
 
     // ─── Cerebro ARGOS servido (gated por BRAIN_ENABLED) ─────────────
     // Split estático/dinámico para que el prompt-cache de Anthropic pegue:
@@ -1064,7 +962,6 @@ serve(async (req) => {
                   error_message: `stream_failed:${e?.message || String(e)}`,
                   target_user_id: targetUserId ?? null, target_profile_id: targetProfileId ?? null,
                 });
-                await refundEconomy(userId);
               } finally {
                 controller.close();
               }
@@ -1183,7 +1080,6 @@ serve(async (req) => {
         target_user_id: targetUserId ?? null,
         target_profile_id: targetProfileId ?? null,
       });
-      await refundEconomy(userId); // LLM falló → devolver H+
       return new Response(JSON.stringify({
         error: { type: "anthropic_pdf_error", message: anthropicErr || "anthropic_timeout" },
       }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -1258,7 +1154,6 @@ serve(async (req) => {
     }
 
     // 3) Respuesta degradada (status 200 — el cliente lee _degraded)
-    await refundEconomy(userId); // ambos proveedores fallaron → devolver H+
     return new Response(JSON.stringify({
       content: [{
         type: "text",
@@ -1282,7 +1177,6 @@ serve(async (req) => {
       target_user_id: body.targetUserId ?? null,
       target_profile_id: body.targetProfileId ?? null,
     });
-    await refundEconomy(body.userId); // excepción → devolver H+ si se debitó
     // MB-SEC-1 §6: el detalle ya quedó en logArgosCall (error_message). Al
     // cliente, mensaje genérico — nada de rutas/tablas/stack.
     return new Response(JSON.stringify({ error: "Error interno del servicio." }), {

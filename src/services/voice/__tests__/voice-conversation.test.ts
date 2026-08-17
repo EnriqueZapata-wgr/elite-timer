@@ -204,22 +204,32 @@ describe('B4 — cola de playback secuencial (fin real, no timers)', () => {
   });
 });
 
-describe('H4 — sin H+ en modo voz: mensaje honesto', () => {
-  it('proxy_402 → onNoProtons, NO onFallbackToText', async () => {
+/**
+ * PREMIUM (16-ago-2026): este describe se llamaba "H4 — sin H+ en modo voz" y
+ * comprobaba que un 402 del proxy disparara onNoProtons (mensaje honesto + CTA
+ * a la tienda) en vez del fallback a texto. Ese callback se borró: el modo voz
+ * viene incluido y no se acaba.
+ *
+ * Se reapunta a la garantía nueva: pase lo que pase con el stream, la persona
+ * termina con el texto que alcanzó a llegar y con UN solo aviso, nunca con un
+ * turno mudo ni con una invitación a pagar.
+ */
+describe('PREMIUM — el modo voz ya no puede terminar en "te falta saldo"', () => {
+  it('un 402 del proxy cae al fallback de texto como cualquier otro fallo', async () => {
     mocks.generateResponseStream.mockImplementation(async function* () {
-      yield* []; // generator tipado
-      throw new Error('proxy_402: {"error":{"type":"insufficient_protons"}}');
+      yield FRASE_1;
+      throw new Error('proxy_402: {"error":{"type":"whatever"}}');
     });
-    const onNoProtons = vi.fn();
+    mocks.synthesizeSpeech.mockResolvedValue(null); // voz no disponible
     const onFallbackToText = vi.fn();
 
-    await runVoiceTurn({
+    const result = await runVoiceTurn({
       userId: 'u1', history: [], userText: 'hola',
-      callbacks: { onNoProtons, onFallbackToText },
+      callbacks: { onFallbackToText },
     }).done;
 
-    expect(onNoProtons).toHaveBeenCalledTimes(1);
-    expect(onFallbackToText).not.toHaveBeenCalled();
+    expect(onFallbackToText).toHaveBeenCalledTimes(1);
+    expect(result.argosText).toBe(FRASE_1);
   });
 
   it('error genérico del stream sin audio → onFallbackToText (una sola vez)', async () => {
@@ -229,15 +239,13 @@ describe('H4 — sin H+ en modo voz: mensaje honesto', () => {
     });
     mocks.synthesizeSpeech.mockResolvedValue(null); // voz no disponible
     const onFallbackToText = vi.fn();
-    const onNoProtons = vi.fn();
 
     const result = await runVoiceTurn({
       userId: 'u1', history: [], userText: 'hola',
-      callbacks: { onFallbackToText, onNoProtons },
+      callbacks: { onFallbackToText },
     }).done;
 
     expect(onFallbackToText).toHaveBeenCalledTimes(1);
-    expect(onNoProtons).not.toHaveBeenCalled();
     expect(result.argosText).toBe(FRASE_1); // el texto acumulado se conserva
   });
 });

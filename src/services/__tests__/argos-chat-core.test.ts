@@ -7,7 +7,6 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   TIMESTAMP_GAP_MS,
   CLIENT_ERROR_COPY,
-  INSUFFICIENT_HPLUS_COPY,
   TIMEOUT_COPY,
   filterForLLM,
   filterForSave,
@@ -16,11 +15,8 @@ import {
   buildChatListItems,
   createSendGuard,
   runTurnWithFallback,
-  isInsufficientProtonsError,
   chatFailureOutcome,
 } from '@/src/services/argos-chat-core';
-import { ArgosRateLimitError } from '@/src/services/argos-stream-core';
-import type { RateLimitInfo } from '@/src/services/argos-rate-limit-core';
 import type { ArgosMessage } from '@/src/services/argos-service';
 
 const NOW = 1_800_000_000_000;
@@ -74,13 +70,6 @@ describe('resolveTurn — el desenlace de un turno', () => {
     expect(a.degraded).toBe(true);
     // Y el filtro los excluye del próximo turno:
     expect(filterForLLM(r.messages)).toHaveLength(2);
-  });
-
-  it('rate limit → el turno del usuario queda visible pero degradado, sin burbuja de respuesta', () => {
-    const r = resolveTurn(base, turn, { kind: 'rate_limited' }, NOW);
-    expect(r.wasDegraded).toBe(true);
-    expect(r.messages).toHaveLength(3);
-    expect(r.messages[2]).toMatchObject({ role: 'user', degraded: true });
   });
 
   it('excepción de cliente → ambos degradados + copy aprobado', () => {
@@ -171,12 +160,8 @@ describe('createSendGuard — guard de re-entrada (#71)', () => {
   });
 });
 
-describe('runTurnWithFallback — la caída de streaming a no-streaming (T2/T5)', () => {
-  const RL_INFO: RateLimitInfo = {
-    tier: 'free', limitDaily: 10, usedToday: 10, resetsAt: null, boostOption: null,
-  };
-
-  it('stream completo → streamed, y el no-stream NI SE LLAMA (sería doble cobro)', async () => {
+describe('runTurnWithFallback — la caída de streaming a no-streaming (T2)', () => {
+  it('stream completo → streamed, y el no-stream NI SE LLAMA (sería una 2a llamada al modelo)', async () => {
     const reply = vi.fn();
     const run = await runTurnWithFallback({
       stream: async () => 'texto completo',
@@ -206,22 +191,17 @@ describe('runTurnWithFallback — la caída de streaming a no-streaming (T2/T5)'
     expect(run).toEqual({ kind: 'reply', text: 'caído', degraded: true });
   });
 
-  it('rate limit durante el stream → rate_limited con el payload, sin llamar no-stream', async () => {
-    const reply = vi.fn();
-    const run = await runTurnWithFallback({
-      stream: async () => { throw new ArgosRateLimitError({ _rate_limited: true }); },
-      reply,
-    });
-    expect(run).toMatchObject({ kind: 'rate_limited', payload: { _rate_limited: true } });
-    expect(reply).not.toHaveBeenCalled();
-  });
-
-  it('rate limit en el no-stream → rate_limited con la info ya parseada', async () => {
+  // PREMIUM (16-ago-2026): aquí vivían dos casos de rate limit (durante el
+  // stream y en el no-stream) que comprobaban que el turno terminara en
+  // 'rate_limited'. Ese desenlace ya no existe: nadie se queda sin ARGOS por
+  // haberlo usado. El test que lo reemplaza es el de abajo: un fallo del
+  // proxy, venga como venga, termina degradado y NUNCA cortando el acceso.
+  it('un 429 del proxy ya NO corta el acceso: se degrada como cualquier fallo', async () => {
     const run = await runTurnWithFallback({
       stream: async () => null,
-      reply: async () => ({ text: '', degraded: true, rateLimit: RL_INFO }),
+      reply: replyThroughRealCatch(new Error('Proxy error 429: rate limited')),
     });
-    expect(run).toEqual({ kind: 'rate_limited', info: RL_INFO });
+    expect(run).toEqual({ kind: 'reply', text: CLIENT_ERROR_COPY, degraded: true });
   });
 
   it('excepción real del no-stream → client_error con el error original', async () => {
@@ -233,38 +213,26 @@ describe('runTurnWithFallback — la caída de streaming a no-streaming (T2/T5)'
     expect(run).toEqual({ kind: 'client_error', error: boom });
   });
 
-  // El CAMINO REAL (audit Cowork): callAnthropic lanza → el catch de
-  // chatWithArgosEx decide con chatFailureOutcome (propagar o degradar) →
-  // runTurnWithFallback clasifica lo propagado. Este helper reproduce ese
-  // catch EXACTO — no un throw inyectado que se salte el swallow.
+  // El CAMINO REAL: callAnthropic lanza → el catch de chatWithArgosEx decide
+  // con chatFailureOutcome → runTurnWithFallback clasifica. Este helper
+  // reproduce ese catch EXACTO, no un throw inyectado que se salte el swallow.
   const replyThroughRealCatch = (boom: unknown) => async () => {
     try {
       throw boom; // callAnthropic falla
     } catch (e) {
-      const outcome = chatFailureOutcome(e);
-      if (outcome === 'propagate') throw e;
-      return outcome;
+      return chatFailureOutcome(e);
     }
   };
 
-  it('ECO-1: 402 del proxy ATRAVIESA el catch de chatWithArgosEx → insufficient_protons', async () => {
+  it('un 402 del proxy tampoco corta: sin cobro, es un fallo más', async () => {
     const run = await runTurnWithFallback({
       stream: async () => null,
-      reply: replyThroughRealCatch(new Error('Proxy error 402: {"error":{"type":"insufficient_protons"}}')),
+      reply: replyThroughRealCatch(new Error('Proxy error 402: {"error":{"type":"whatever"}}')),
     });
-    expect(run).toEqual({ kind: 'insufficient_protons' });
+    expect(run).toEqual({ kind: 'reply', text: CLIENT_ERROR_COPY, degraded: true });
   });
 
-  it('rate limit no-stream ATRAVIESA el catch → rate_limited con payload (antes se degradaba)', async () => {
-    const payload = { _rate_limited: true, rate_limit: { tier: 'base' } };
-    const run = await runTurnWithFallback({
-      stream: async () => null,
-      reply: replyThroughRealCatch(new ArgosRateLimitError(payload)),
-    });
-    expect(run).toMatchObject({ kind: 'rate_limited', payload });
-  });
-
-  it('un error genérico NO se propaga: el catch lo degrada con el copy aprobado', async () => {
+  it('un error genérico se degrada con el copy aprobado', async () => {
     const run = await runTurnWithFallback({
       stream: async () => null,
       reply: replyThroughRealCatch(new Error('red rota')),
@@ -274,10 +242,14 @@ describe('runTurnWithFallback — la caída de streaming a no-streaming (T2/T5)'
 });
 
 describe('chatFailureOutcome — la decisión del catch de chatWithArgosEx', () => {
-  it('402 de saldo y rate limit se PROPAGAN (tienen UI propia)', () => {
-    expect(chatFailureOutcome(new Error('Proxy error 402: {...}'))).toBe('propagate');
-    expect(chatFailureOutcome(new Error('proxy_402: x'))).toBe('propagate');
-    expect(chatFailureOutcome(new ArgosRateLimitError({ _rate_limited: true }))).toBe('propagate');
+  // PREMIUM (16-ago-2026): este describe comprobaba que el 402 de saldo y el
+  // rate limit se PROPAGARAN, porque cada uno tenía pantalla propia (alerta de
+  // recarga y card del límite). Ahora se comprueba lo contrario, que es la
+  // garantía nueva: NADA se propaga, o sea que ningún fallo puede volver a
+  // convertirse en un muro.
+  it('ya NADA se propaga: el 402 y el 429 se degradan como cualquier otro fallo', () => {
+    expect(chatFailureOutcome(new Error('Proxy error 402: {...}'))).toEqual({ text: CLIENT_ERROR_COPY, degraded: true });
+    expect(chatFailureOutcome(new Error('Proxy error 429: rate limited'))).toEqual({ text: CLIENT_ERROR_COPY, degraded: true });
   });
 
   it('timeout y errores genéricos se degradan in-place con su copy', () => {
@@ -287,30 +259,30 @@ describe('chatFailureOutcome — la decisión del catch de chatWithArgosEx', () 
   });
 });
 
-describe('ECO-1 — bloqueo por saldo (402) vs bloqueo por límite', () => {
-  it('detecta las tres formas del 402 (no-stream, stream, tipo del server)', () => {
-    expect(isInsufficientProtonsError(new Error('Proxy error 402: {...}'))).toBe(true);
-    expect(isInsufficientProtonsError(new Error('proxy_402: insuficiente'))).toBe(true);
-    expect(isInsufficientProtonsError(new Error('x insufficient_protons y'))).toBe(true);
+/**
+ * PREMIUM (16-ago-2026): este describe se llamaba "ECO-1 — bloqueo por saldo
+ * (402) vs bloqueo por límite" y verificaba que el chat supiera distinguir las
+ * dos formas de quedarse sin ARGOS. Se reapunta a la regla nueva, que es la que
+ * de verdad hay que cuidar: NINGUNA respuesta del chat puede volver a hablar de
+ * saldo, de recargar ni de un tope alcanzado.
+ */
+describe('PREMIUM — ningún desenlace del chat vuelve a hablar de saldo ni de límites', () => {
+  const prohibidas = ['h+', 'proton', 'recarga', 'saldo', 'boost', 'límite', 'cuota', 'plan'];
+
+  it('el copy de error de cliente no menciona dinero ni topes', () => {
+    const texto = CLIENT_ERROR_COPY.toLowerCase();
+    for (const palabra of prohibidas) expect(texto).not.toContain(palabra);
   });
 
-  it('NO confunde errores de red ni rate limits con falta de saldo', () => {
-    expect(isInsufficientProtonsError(new Error('red rota'))).toBe(false);
-    expect(isInsufficientProtonsError(new Error('Proxy error 500: kaput'))).toBe(false);
-    expect(isInsufficientProtonsError(null)).toBe(false);
+  it('el copy de timeout tampoco', () => {
+    const texto = TIMEOUT_COPY.toLowerCase();
+    for (const palabra of prohibidas) expect(texto).not.toContain(palabra);
   });
 
-  it('resolveTurn: insufficient_protons degrada ambos turnos con su copy propio (sin boost)', () => {
-    const { messages, wasDegraded } = resolveTurn(
-      [], user('hola'), { kind: 'insufficient_protons' }, NOW,
-    );
-    expect(wasDegraded).toBe(true);
-    expect(messages).toHaveLength(2);
-    expect(messages[0]).toMatchObject({ role: 'user', degraded: true });
-    expect(messages[1]).toMatchObject({
-      role: 'assistant', degraded: true, content: INSUFFICIENT_HPLUS_COPY,
-    });
-    // El remedio del copy es la tienda/conversión — jamás menciona el boost.
-    expect(INSUFFICIENT_HPLUS_COPY.toLowerCase()).not.toContain('boost');
+  it('un fallo cualquiera termina en burbuja degradada, nunca en turno sin respuesta', () => {
+    const r = resolveTurn([], user('hola'), { kind: 'client_error' }, NOW);
+    // Dos mensajes = la pregunta sigue visible Y ARGOS contestó algo.
+    expect(r.messages).toHaveLength(2);
+    expect(r.messages[1]).toMatchObject({ role: 'assistant', content: CLIENT_ERROR_COPY });
   });
 });

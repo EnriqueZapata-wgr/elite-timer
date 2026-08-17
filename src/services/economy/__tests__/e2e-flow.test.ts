@@ -1,6 +1,13 @@
 /**
  * E2E economía con flag simulado. Compone los helpers reales mockeando solo los bordes
- * (supabase, react-native, expo-router). Cubre los 5 flujos del handoff.
+ * (supabase, react-native, expo-router).
+ *
+ * PREMIUM (16-ago-2026): eran 5 flujos y quedan 3. Se fueron el flujo 2 (chat
+ * con H+ insuficiente → alerta y salto a la tienda) y el flujo 3 (conversión
+ * E- → H+ con campaña ×2): sus módulos ya no existen.
+ *
+ * Los que quedan son justamente los que hay que cuidar, porque son la prueba de
+ * que los ELECTRONES sobrevivieron intactos al apagón de la moneda.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -43,9 +50,7 @@ vi.mock('@/src/lib/supabase', () => ({
 }));
 
 import { requestElectronAward } from '@/src/services/economy/electron-award-client';
-import { withPreflight, wasAborted } from '@/src/services/economy/with-preflight';
 import { writeChallengeProgress } from '@/src/services/economy/challenge-progress-writer';
-import { previewProtons } from '@/src/services/economy/electron-to-proton-converter';
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
@@ -66,24 +71,15 @@ describe('E2E — Flujo 1: hábito → award → balance', () => {
   });
 });
 
-describe('E2E — Flujo 2: chat con H+ insuficiente', () => {
-  it('flag ON + balance bajo → Alert con opción tienda, aborta', async () => {
+describe('E2E — Flujo 2: el electrón nunca se gasta', () => {
+  it('ganar electrones no manda a ninguna tienda ni abre alertas de saldo', async () => {
     flagOn = true;
-    // Mismo objeto sirve a getActionCost (cost_h_plus) y getProtonBalance (current_protons).
-    sb.single = { data: { cost_h_plus: 280, enabled: true, current_protons: 50, lifetime_earned: 0, lifetime_spent: 0 } };
-    alert.mockImplementation((_t: string, _m: string, btns: any[]) => btns[1].onPress()); // "Ir a la Tienda"
-    const proceed = vi.fn();
-    const r = await withPreflight('chat', proceed);
-    expect(proceed).not.toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith('/economy/shop');
-    expect(wasAborted(r)).toBe(true);
-  });
-});
-
-describe('E2E — Flujo 3: conversión con campaña activa (×2)', () => {
-  it('100 E- con multiplier 2 → 600 H+ (no 300)', () => {
-    expect(previewProtons(100, 1)).toBe(300);
-    expect(previewProtons(100, 2)).toBe(600);
+    sb.invokeResult = { data: { success: true, electrons_awarded: 2, new_balance: 102 }, error: null };
+    await requestElectronAward({ habit_type: 'hydration_tap', evidence_tier: 'self', idempotency_key: 'k2' });
+    // PREMIUM (16-ago-2026): el flujo viejo aquí abría un Alert "te faltan H+"
+    // con botón a /economy/shop. Esa ruta ya no existe y nada debe empujar ahí.
+    expect(alert).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
   });
 });
 
@@ -99,14 +95,10 @@ describe('E2E — Flujo 4: reto cumplido dispara settle', () => {
 });
 
 describe('E2E — Flujo 5: flag OFF byte-idéntico (todo no-op)', () => {
-  it('award/preflight/challenge no tocan red ni UI', async () => {
+  it('award/challenge no tocan red ni UI', async () => {
     flagOn = false;
     const award = await requestElectronAward({ habit_type: 'hydration_tap', evidence_tier: 'self', idempotency_key: 'k' });
     expect(award.reason).toBe('feature_disabled');
-
-    const proceed = vi.fn().mockResolvedValue('ok');
-    const r = await withPreflight('chat', proceed);
-    expect(r).toBe('ok'); // proceed directo
 
     await writeChallengeProgress({ userId: 'u1', type: 'daily_steps', value: 21000, date: '2026-06-20' });
 

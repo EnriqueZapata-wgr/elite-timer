@@ -14,8 +14,10 @@
  *  - Eliminar cuenta y exportar datos. La primera ya exige contraseña, o sea que
  *    el diseño asume una persona presente; un asistente no pasa ni debe pasar
  *    ese gate. La segunda materializa el expediente completo en un enlace.
- *  - Todo lo que gasta dinero: comprar H+, canjear código, activar boost. Un
- *    protón gastado no se devuelve desde el cliente.
+ *  - Todo lo que gasta dinero: contratar la membresía, canjear código. Una
+ *    compra no se deshace desde el cliente.
+ *    PREMIUM (16-ago-2026): antes decía "comprar H+ y activar boost"; se fue la
+ *    moneda interna, pero la regla no cambia y por eso el punto se queda.
  *  - Los consentimientos. Son legales, quedan en bitácora inmutable y revocar
  *    los del core apaga la app. Que los mueva la persona, no el asistente.
  *  - Desconectar coach o cliente. Es una relación clínica y reconectar exige
@@ -136,7 +138,10 @@ export const AJUSTES_ARGOS: readonly AjusteArgos[] = [
   {
     clave: 'insights_nutricion',
     etiqueta: 'Comentarios de ARGOS al comer',
-    explicacion: 'ARGOS comenta tus comidas al registrarlas. Cada comentario consume protones.',
+    // PREMIUM (16-ago-2026): la explicación advertía del costo en protones. Ya
+    // no se cobra nada por comentario; el ajuste sigue con riesgo 'confirmar'
+    // porque cambia cómo se comporta ARGOS, no porque cueste.
+    explicacion: 'ARGOS comenta tus comidas al registrarlas.',
     riesgo: 'confirmar',
     tipo: 'booleano',
     alias: ['insights de comida', 'comentarios al comer', 'que argos opine de mi comida'],

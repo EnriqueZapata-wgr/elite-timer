@@ -1,3 +1,16 @@
+/**
+ * Economía — lo que queda viva después de apagar los protones.
+ *
+ * PREMIUM (16-ago-2026): este archivo probaba tres cosas que ya no existen:
+ * gastar protones (spendProtons), acreditarlos (awardProtons), leer su precio
+ * (getActionCost) y convertir electrones en protones. Sus módulos se borraron,
+ * así que esos describe se fueron con ellos: no es que dejaran de importar, es
+ * que dejaron de existir.
+ *
+ * Lo que se conserva y se refuerza es el ELECTRÓN, que sigue vivo entero, más
+ * las dos piezas que sobreviven apagadas (retos y referidos): sus tests ahora
+ * comprueban que NO mueven saldo.
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const rpcMock = vi.fn();
@@ -9,10 +22,8 @@ vi.mock('@/src/lib/supabase', () => ({
   },
 }));
 
-import { spendProtons, awardProtons, getActionCost } from '@/src/services/economy/proton-service';
-import { previewProtons, convertElectronsToProtons } from '@/src/services/economy/electron-to-proton-converter';
-import { joinChallenge, evaluateCriteria } from '@/src/services/economy/challenge-service';
-import { generateReferralCode } from '@/src/services/economy/referral-service';
+import { joinChallenge, settleChallenge, evaluateCriteria } from '@/src/services/economy/challenge-service';
+import { generateReferralCode, markReferralPaid } from '@/src/services/economy/referral-service';
 import { awardElectrons } from '@/src/services/economy/electron-service';
 
 /** Chain de Supabase configurable: cada método encadena; los terminales resuelven `result`. */
@@ -27,69 +38,30 @@ function chain(result: any) {
 
 beforeEach(() => { rpcMock.mockReset(); fromMock.mockReset(); });
 
-describe('proton-service — spendProtons', () => {
-  it('éxito → success + newBalance', async () => {
-    rpcMock.mockResolvedValue({ data: { success: true, new_balance: 100 }, error: null });
-    const r = await spendProtons('u1', 280, 'chat');
-    expect(r).toEqual({ success: true, newBalance: 100, error: undefined });
-  });
-  it('insuficiente → success false', async () => {
-    rpcMock.mockResolvedValue({ data: { success: false, new_balance: 5, error: 'insufficient_protons' }, error: null });
-    const r = await spendProtons('u1', 280, 'chat');
-    expect(r.success).toBe(false);
-    expect(r.error).toBe('insufficient_protons');
-  });
-});
-
-describe('proton-service — awardProtons (refund)', () => {
-  it('llama award_protons con el tipo', async () => {
-    rpcMock.mockResolvedValue({ data: null, error: null });
-    const r = await awardProtons('u1', 280, 'refund', 'chat', { reason: 'llm_failed' });
-    expect(r.success).toBe(true);
-    expect(rpcMock).toHaveBeenCalledWith('award_protons', expect.objectContaining({ p_type: 'refund', p_amount: 280 }));
-  });
-});
-
-describe('proton-service — getActionCost', () => {
-  it('usa la tabla cuando responde', async () => {
-    fromMock.mockReturnValue(chain({ data: { cost_h_plus: 1234, enabled: true }, error: null }));
-    expect(await getActionCost('chat')).toBe(1234);
-  });
-  it('cae al fallback del seed si no hay fila', async () => {
-    fromMock.mockReturnValue(chain({ data: null, error: { message: 'x' } }));
-    expect(await getActionCost('chat')).toBe(280);
-  });
-});
-
-describe('converter — preview + convert', () => {
-  it('previewProtons base y con multiplier', () => {
-    expect(previewProtons(100)).toBe(300);
-    expect(previewProtons(100, 2)).toBe(600);
-    expect(previewProtons(300)).toBe(900);
-  });
-  it('convert dispara RPC con electrones', async () => {
-    rpcMock.mockResolvedValue({ data: { success: true, protons_gained: 300, multiplier: 1 }, error: null });
-    const r = await convertElectronsToProtons('u1', 100);
-    expect(r.success).toBe(true);
-    expect(r.protonsGained).toBe(300);
-    expect(rpcMock).toHaveBeenCalledWith('convert_electrons_to_protons', { p_user_id: 'u1', p_electrons: 100 });
-  });
-});
-
-describe('challenge-service', () => {
-  it('evaluateCriteria: completo cuando current >= target', () => {
+describe('challenge-service — apagado en su parte económica', () => {
+  it('evaluateCriteria sigue midiendo el avance (eso no era cobro)', () => {
     expect(evaluateCriteria({ days_required: 21 }, { days_completed: 21 }).completed).toBe(true);
     expect(evaluateCriteria({ days_required: 21 }, { days_completed: 10 }).completed).toBe(false);
     expect(evaluateCriteria({ days_required: 21 }, null).completed).toBe(false);
   });
-  it('joinChallenge mapea el resultado del RPC', async () => {
-    rpcMock.mockResolvedValue({ data: { success: true, cost: 50000 }, error: null });
+
+  it('joinChallenge YA NO cobra entrada: no toca ninguna RPC', async () => {
     const r = await joinChallenge('u1', 'c1');
-    expect(r).toEqual({ success: true, cost: 50000, error: undefined });
+    expect(r.success).toBe(false);
+    expect(r.error).toBe('retos_en_rediseno');
+    // Lo importante no es el string: es que no se llamó a join_challenge.
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it('settleChallenge evalúa pero NO paga premio ni llama a settle_challenge', async () => {
+    fromMock.mockReturnValue(chain({ data: null, error: null }));
+    const r = await settleChallenge('u1', 'c1');
+    expect(r.prize).toBe(0);
+    expect(rpcMock).not.toHaveBeenCalled();
   });
 });
 
-describe('referral-service — generateReferralCode', () => {
+describe('referral-service — el código vive, la recompensa no', () => {
   it('genera código con formato ATPxxxxxx', async () => {
     fromMock.mockReturnValue(chain({ data: null, error: null })); // sin código previo + insert ok
     const code = await generateReferralCode('u1');
@@ -98,6 +70,13 @@ describe('referral-service — generateReferralCode', () => {
   it('devuelve el código existente sin recrear', async () => {
     fromMock.mockReturnValue(chain({ data: { referral_code: 'ATPABC234' }, error: null }));
     expect(await generateReferralCode('u1')).toBe('ATPABC234');
+  });
+
+  it('markReferralPaid deja constancia del pago pero NO acredita nada', async () => {
+    fromMock.mockReturnValue(chain({ data: null, error: null }));
+    await markReferralPaid('nuevo-user');
+    // Antes acreditaba 200,000 H+ al que invita y 50,000 al invitado.
+    expect(rpcMock).not.toHaveBeenCalled();
   });
 });
 

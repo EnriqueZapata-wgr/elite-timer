@@ -5,10 +5,15 @@
  * invariantes de seguridad/copy que no se pueden testear en runtime node-only
  * (el proxy es Deno; el system prompt vive en un servicio con imports RN).
  *
- * 1.1 — argos-proxy valida server-side que 'dx_generation_first' (0 H+) solo
- *       aplique a users sin functional_dx previo (task #23).
- * 1.2 — las 3 frases canónicas de error de Mariana (doc 06, >>) viven VERBATIM
- *       en el system prompt de ARGOS (task #24).
+ * 1.2 — las 3 frases canónicas de error (doc 06, >>) viven VERBATIM en el
+ *       system prompt de ARGOS (task #24).
+ *
+ * PREMIUM (16-ago-2026): se cayó el guard 1.1. Verificaba que el proxy validara
+ * server-side que el requestType 'dx_generation_first' (el mapa funcional de
+ * regalo, a 0 H+) solo se aplicara a quien nunca había generado uno, para que
+ * nadie se generara mapas infinitos gratis. Sin cobro no hay nada que colar por
+ * la puerta de atrás: el mapa es gratis siempre y para todos los miembros. El
+ * requestType 'dx_generation_first' ya no lo manda el cliente.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -21,24 +26,16 @@ const proxySrc = readFileSync(
 );
 const argosServiceSrc = readFileSync(join(ROOT, 'src', 'services', 'argos-service.ts'), 'utf8');
 
-describe('hardening 1.1 · dx_generation_first server-side (argos-proxy)', () => {
-  it('el proxy contiene la validación contra functional_dx', () => {
-    expect(proxySrc).toContain('dx_generation_first');
-    expect(proxySrc).toContain('from("functional_dx")');
+describe('PREMIUM · el cliente ya no pide el mapa funcional "de regalo"', () => {
+  it('dx-engine no manda el requestType gratuito', () => {
+    // Guard barato pero real: si alguien reintroduce el reparto, el cliente
+    // volvería a mandar dos requestTypes distintos según el historial.
+    const dxEngineSrc = readFileSync(join(ROOT, 'src', 'services', 'dx', 'dx-engine.ts'), 'utf8');
+    expect(dxEngineSrc).not.toContain('dx_generation_first');
   });
 
-  it('con DX previo, el requestType se fuerza a dx_generation regular', () => {
-    // El bloque de hardening debe reasignar requestType = "dx_generation".
-    const block = proxySrc.slice(proxySrc.indexOf('HARDENING 1.1'));
-    expect(block.length).toBeGreaterThan(0);
-    expect(block).toContain('requestType = "dx_generation"');
-  });
-
-  it('requestType es reasignable (let), no const destructurado', () => {
-    // Si alguien revierte a destructurar requestType como const, el forzado
-    // del hardening deja de compilar/aplicar — este guard lo detecta antes.
-    expect(proxySrc).toContain('let requestType');
-    expect(proxySrc).not.toMatch(/const \{[^}]*\brequestType\b[^}]*\} = body/);
+  it('el proxy sigue existiendo y sigue siendo el que decide (no el cliente)', () => {
+    expect(proxySrc.length).toBeGreaterThan(0);
   });
 });
 

@@ -37,7 +37,18 @@ describe('guion del tour', () => {
   it('las siglas se explican la primera vez', () => {
     const electrones = ORB_TOUR_STEPS.find((s) => s.id === 'electrones')!;
     expect(electrones.copy).toContain('electrones (e-)');
-    expect(electrones.copy).toContain('protones (H+)');
+  });
+
+  // PREMIUM (16-ago-2026): el paso prometía que la constancia "desbloquea
+  // extras" con protones. El tour es lo primero que ve una persona nueva y no
+  // puede abrirle una puerta que no existe.
+  it('el tour NO promete moneda interna ni desbloqueos', () => {
+    for (const paso of ORB_TOUR_STEPS) {
+      const copy = `${paso.kicker} ${paso.copy}`.toLowerCase();
+      for (const palabra of ['proton', 'h+', 'desbloquea', 'boost']) {
+        expect(copy, `${paso.id} menciona "${palabra}"`).not.toContain(palabra);
+      }
+    }
   });
 
   it('empieza en el día y termina con la orbe', () => {

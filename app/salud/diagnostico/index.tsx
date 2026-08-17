@@ -4,9 +4,10 @@
  * Documento VIVO y versionado: nivel de calidad 1-5, "qué te falta" para subir,
  * raíces detectadas por ARGOS, timeline de versiones y botón para actualizar.
  *
- * Doctrina H+: actualizar cuesta H+ (precio server-side) para usuarios Base; Pro
- * lo tiene incluido. El cobro real es server-side (argos-proxy); aquí sólo se
- * comunica el precio y se maneja el 402 (insufficient).
+ * PREMIUM (16-ago-2026): esta pantalla era medio catálogo. Traía precio en H+,
+ * balance, alerta de "te faltan H+" con botón a la tienda y un copy de regalo
+ * para el primer mapa. Todo eso se fue: con membresía única el mapa se genera y
+ * ya. El CTA dice lo que hace, no lo que cuesta.
  */
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { ActivityIndicator, Alert, DeviceEventEmitter, ImageBackground, ScrollView, StyleSheet, View } from 'react-native';
@@ -23,10 +24,8 @@ import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerG
 import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
-import { useSubscription } from '@/src/hooks/useSubscription';
-import { formatFull } from '@/src/services/economy/format';
 import { haptic } from '@/src/utils/haptics';
-import { getCurrentDX, getDXHistory, getDXQuote, type FunctionalDxRow, type DxQuote } from '@/src/services/dx/dx-service';
+import { getCurrentDX, getDXHistory, type FunctionalDxRow } from '@/src/services/dx/dx-service';
 import { generateDX, type GenerateDxResult } from '@/src/services/dx/dx-engine';
 import { presenceFromSnapshot } from '@/src/services/dx/dx-engine-core';
 import { computeDxQuality, DX_LEVEL_LABELS, type DxMissingKey } from '@/src/services/dx/dx-quality-core';
@@ -87,12 +86,10 @@ export default function DiagnosticoScreen() {
   const t = useAppTheme().tokens;
   const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
-  const { isPro } = useSubscription();
   const [dx, setDx] = useState<FunctionalDxRow | null>(null);
   const [history, setHistory] = useState<FunctionalDxRow[]>([]);
   // Edad ATP como métrica (B2.3): edad biológica + delta + CE. null = sin datos suficientes.
   const [edadAtp, setEdadAtp] = useState<{ edad: number; delta: number; ce: number } | null>(null);
-  const [quote, setQuote] = useState<DxQuote | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -102,14 +99,16 @@ export default function DiagnosticoScreen() {
 
   const load = useCallback(async () => {
     if (!user?.id) return;
-    const [current, hist, q] = await Promise.all([
+    // PREMIUM (16-ago-2026): aquí iba una tercera consulta, getDXQuote, para
+    // saber el precio y el saldo antes de pintar el botón. Sin precio no hay
+    // cotización que pedir: la versión vigente ya dice todo lo que el CTA
+    // necesita saber (¿genero el primero o actualizo el que hay?).
+    const [current, hist] = await Promise.all([
       getCurrentDX(user.id),
       getDXHistory(user.id),
-      getDXQuote(user.id),
     ]);
     setDx(current);
     setHistory(hist);
-    setQuote(q);
     setLoading(false);
     // Edad ATP como métrica (fail-soft · gate CE≥30 = evaluación suficiente).
     try {
@@ -157,7 +156,9 @@ export default function DiagnosticoScreen() {
 
     if (result.status === 'ok') {
       haptic.success();
-      DeviceEventEmitter.emit('balance_changed');
+      // PREMIUM (16-ago-2026): aquí se emitía 'balance_changed' para que la pill
+      // repintara el saldo recién descontado. Generar el mapa ya no mueve ningún
+      // saldo, y ese evento hoy solo habla de electrones.
       load().catch(() => {});
       // Doctrina Enrique: "Actualizar" regenera el análisis Y produce el
       // entregable — el PDF se genera de la versión recién persistida.
@@ -169,36 +170,26 @@ export default function DiagnosticoScreen() {
       Alert.alert('Sin cambios', 'Tu mapa funcional ya está al día: no hay datos nuevos que sintetizar.');
       return;
     }
-    if (result.status === 'insufficient_h_plus') {
-      haptic.warning();
-      Alert.alert(
-        'Te faltan H+',
-        `Actualizar tu mapa funcional usa ${formatFull(quote?.cost ?? 0)} H+. Recarga o gánalos completando tu día.`,
-        [
-          { text: 'Ahora no', style: 'cancel' },
-          { text: 'Conseguir H+', onPress: () => router.push('/economy/shop') },
-        ],
-      );
-      return;
-    }
+    // PREMIUM (16-ago-2026): aquí caía el desenlace 'insufficient_h_plus' con
+    // su alerta "Te faltan H+" y su botón a la tienda. Se fue con la moneda;
+    // lo único que puede fallar ahora es la red, y para eso ya estaba este
+    // mensaje.
     haptic.warning();
     Alert.alert('Algo no salió', 'ARGOS no pudo actualizar tu mapa funcional. Suele ser cosa de red: intenta de nuevo.');
-  }, [user?.id, generating, quote?.cost, load, sharePdf]);
+  }, [user?.id, generating, load, sharePdf]);
 
   const quality = dx ? computeDxQuality(presenceFromSnapshot(dx.sources_snapshot)) : null;
   const roots = (dx?.roots_detected ?? []) as { root_key: InterventionRoot; severity: number; confidence: number }[];
   const activeSources = dx ? activeSourcesFromSnapshot(dx.sources_snapshot) : [];
 
-  // DX F4 / bug #6: el regalo del 1er DX (isFirstFree) va PRIMERO — antes el
-  // branch isPro tenía precedencia y un usuario Pro/clinician sin DX nunca veía
-  // el copy "Regalo" aunque el server sí aplicara costo 0.
+  // PREMIUM (16-ago-2026): el CTA tenía cuatro variantes según plan, precio y
+  // si era el primer mapa. Sin cobro solo queda la distinción que le importa a
+  // la persona: si ya tiene mapa lo actualiza, si no, lo genera.
   const ctaLabel = generating
     ? 'ARGOS sintetizando…'
-    : quote?.isFirstFree
-      ? 'Generar mi Mapa Funcional · Regalo'
-      : isPro
-        ? (dx ? 'Actualizar mi Mapa Funcional' : 'Generar mi Mapa Funcional')
-        : `Actualizar · ${formatFull(quote?.cost ?? 1000)} H+`;
+    : dx
+      ? 'Actualizar mi Mapa Funcional'
+      : 'Generar mi Mapa Funcional';
 
   return (
     <MedicalDisclaimerGate>
@@ -387,14 +378,12 @@ export default function DiagnosticoScreen() {
                   </EliteText>
                 </AnimatedPressable>
               )}
-              {(quote?.isFirstFree || !isPro) && (
-                <EliteText style={styles.ctaHint}>
-                  {quote?.isFirstFree
-                    // Bug #6: hint visible también para Pro cuando es el 1er DX.
-                    ? 'Regalo: tu primer mapa funcional es sin costo de H+.'
-                    : `${quote?.balance == null ? '' : `Tu balance: ${formatFull(quote.balance)} H+ · `}Se cobra sólo si hay datos nuevos.`}
-                </EliteText>
-              )}
+              {/* PREMIUM (16-ago-2026): el hint decía tu saldo y cuándo se te
+                  iba a cobrar. Ya no cobra nada, pero sí conviene decir por qué
+                  a veces el botón no genera nada nuevo. */}
+              <EliteText style={styles.ctaHint}>
+                ARGOS sólo vuelve a sintetizar si hay datos nuevos desde la última versión.
+              </EliteText>
             </Animated.View>
             {/* Compliance S4: footer de resultados (posicionamiento §2) */}
             <ResultDisclaimerFooter />

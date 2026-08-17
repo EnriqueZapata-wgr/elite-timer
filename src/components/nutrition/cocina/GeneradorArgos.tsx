@@ -22,7 +22,6 @@ import { buildRecipeAdvancedContext } from '@/src/services/recipe-context-servic
 import { sendRecipeToList } from '@/src/services/shopping-list-service';
 import { EliteToggle } from '@/components/elite-toggle';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
-import { argosRateLimitMessage } from '@/src/services/argos-stream-core';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
@@ -98,13 +97,11 @@ export function GeneradorArgos({ onRecipeSaved, onClose }: Props) {
         Alert.alert('Error', 'No se pudo generar la receta.');
         setMode('menu');
       }
-    } catch (err: any) {
-      // D-4 (MB-12): el rate limit NO es "problema de conexión".
-      if (err?.name === 'ArgosRateLimitError') {
-        Alert.alert('Límite de ARGOS', argosRateLimitMessage(err?.payload));
-      } else {
-        Alert.alert('Error', 'Problema de conexión.');
-      }
+    } catch {
+      // PREMIUM (16-ago-2026): aquí se separaba el límite diario del plan ("no
+      // es tu conexión, es tu cuota") del fallo de red. Sin cuota, lo único que
+      // queda es el fallo de red.
+      Alert.alert('Error', 'Problema de conexión.');
       setMode('menu');
     }
   }

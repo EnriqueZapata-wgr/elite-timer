@@ -2,7 +2,7 @@
  * BhaScanSheet — flujo del scanner ATP Functional Score (Sprint Compliance 4;
  * antes sello BHA binario).
  *
- * Fases: quote (pre-flight H+) → picking foto → scanning (LLM) → result
+ * Fases: intro → picking foto → scanning (LLM) → result
  * (score numérico 0-100 + desglose por atributos + summary objetivo). Si viene
  * con `supplement`, persiste el score en la ficha (functional_score +
  * bha_scan_summary); standalone (entrada de sección) muestra el resultado y
@@ -11,10 +11,15 @@
  *
  * Doctrina: registro, no recomendación — el score evalúa formulación (cero
  * marcas, cero adjetivos, privado al usuario); nunca sugiere comprar/tomar nada.
+ *
+ * PREMIUM (16-ago-2026): la primera fase se llamaba 'quote' y era literalmente
+ * una cotización: precio del escaneo, saldo disponible y un pre-flight que
+ * frenaba antes de tomar la foto si no alcanzaba. Ya no cuesta nada, así que la
+ * hoja se queda con lo único que la persona necesitaba saber ahí: qué hace el
+ * escaneo y qué NO hace.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
-import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +27,7 @@ import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, getScoreColor, getScoreLabel } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
-import { getBhaScanQuote, persistFunctionalScore, runBhaScan } from '@/src/services/bha-service';
+import { persistFunctionalScore, runBhaScan } from '@/src/services/bha-service';
 import { addSupplementToPlan } from '@/src/services/supplements-plan-service';
 import type { FunctionalScoreResult } from '@/src/services/bha-core';
 
@@ -46,7 +51,7 @@ interface Props {
   onSealPersisted?: () => void;
 }
 
-type Phase = 'quote' | 'scanning' | 'result';
+type Phase = 'intro' | 'scanning' | 'result';
 
 export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersisted }: Props) {
   const insets = useSafeAreaInsets();
@@ -57,8 +62,7 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
   const tealTx = dark ? '#1D9E75' : t.tealTexto;
   const errorTx = dark ? RED : t.error;
   const { track } = useAnalytics();
-  const [phase, setPhase] = useState<Phase>('quote');
-  const [quote, setQuote] = useState<{ cost: number; balance: number } | null>(null);
+  const [phase, setPhase] = useState<Phase>('intro');
   const [result, setResult] = useState<FunctionalScoreResult | null>(null);
   // MB-2 standalone: alta al plan desde el resultado (evalúa + agrega en uno)
   const [addingToPlan, setAddingToPlan] = useState(false);
@@ -66,24 +70,11 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
 
   useEffect(() => {
     if (!visible) return;
-    setPhase('quote');
+    setPhase('intro');
     setResult(null);
-    setQuote(null);
     setAddingToPlan(false);
     setAddedName(null);
-    getBhaScanQuote(userId).then(setQuote).catch(() => setQuote(null));
-  }, [visible, userId]);
-
-  const insufficientAlert = useCallback((required: number, balance: number) => {
-    Alert.alert(
-      'Te faltan H+',
-      `El ATP Functional Score usa ${required} H+ y tienes ${balance}. Recarga o gana más completando tu día.`,
-      [
-        { text: 'Ahora no', style: 'cancel' },
-        { text: 'Conseguir H+', onPress: () => { onClose(); router.push('/economy/shop'); } },
-      ],
-    );
-  }, [onClose]);
+  }, [visible]);
 
   const scan = useCallback(async (photoBase64: string) => {
     setPhase('scanning');
@@ -91,15 +82,9 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
       productName: supplement?.name,
       brand: supplement?.brand,
     });
-    if (outcome.status === 'insufficient_h_plus') {
-      haptic.warning();
-      setPhase('quote');
-      insufficientAlert(quote?.cost ?? 500, quote?.balance ?? 0);
-      return;
-    }
     if (outcome.status === 'illegible' || outcome.status === 'error') {
       haptic.warning();
-      setPhase('quote');
+      setPhase('intro');
       Alert.alert('No se pudo escanear', 'La etiqueta no se pudo interpretar. Intenta con una foto más clara y con buena luz.');
       return;
     }
@@ -115,7 +100,7 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
       const persisted = await persistFunctionalScore(supplement.id, outcome.result);
       if (persisted.success) onSealPersisted?.();
     }
-  }, [userId, supplement, quote, insufficientAlert, track, onSealPersisted]);
+  }, [userId, supplement, track, onSealPersisted]);
 
   /** MB-2: "Agregar al plan" desde el scan standalone — crea la ficha con su
    * functional_score de una; si ya existe (dedupe por nombre normalizado)
@@ -160,12 +145,9 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
   }, [result, addingToPlan, userId, onSealPersisted]);
 
   const pick = useCallback(async (source: 'camera' | 'library') => {
-    // Pre-flight H+ (patrón DX): no dejar llegar al 402 con foto ya tomada.
-    if (quote && quote.balance < quote.cost) {
-      haptic.warning();
-      insufficientAlert(quote.cost, quote.balance);
-      return;
-    }
+    // PREMIUM (16-ago-2026): aquí iba el pre-flight de saldo, para no dejar que
+    // alguien tomara la foto y hasta entonces se enterara de que no le
+    // alcanzaba. Sin costo no hay nada que revisar antes de abrir la cámara.
     haptic.light();
     if (source === 'camera') {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -184,7 +166,7 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
       const res = await ImagePicker.launchImageLibraryAsync({ quality: 0.6, base64: true, mediaTypes: ['images'] });
       if (!res.canceled && res.assets[0]?.base64) scan(res.assets[0].base64);
     }
-  }, [quote, insufficientAlert, scan]);
+  }, [scan]);
 
   const scoreColor = result ? getScoreColor(result.score) : t.textoSecundario;
 
@@ -199,8 +181,8 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
         }}>
           <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: t.bordeMarcado, alignSelf: 'center', marginBottom: 16 }} />
 
-          {/* ── Fase 1: quote + tomar foto ── */}
-          {phase === 'quote' && (
+          {/* ── Fase 1: qué hace el escaneo + tomar foto ── */}
+          {phase === 'intro' && (
             <View>
               <Text style={{ color: t.texto, fontSize: 18, fontWeight: '800' }}>
                 ATP Functional Score
@@ -215,21 +197,8 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
                 no es recomendación de compra ni consejo médico.
               </Text>
 
-              <View style={{
-                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                backgroundColor: t.hundido, borderRadius: 12, padding: 14, marginTop: 16,
-                borderWidth: 1, borderColor: t.borde,
-              }}>
-                <Text style={{ color: t.textoSecundario, fontSize: 12, fontWeight: '600' }}>Costo del escaneo</Text>
-                <Text style={{ color: '#EF9F27', fontSize: 14, fontWeight: '800' }}>
-                  {quote ? `${quote.cost} H+` : '…'}
-                </Text>
-              </View>
-              {quote && (
-                <Text style={{ color: quote.balance >= quote.cost ? t.textoTenue : '#f97316', fontSize: 11, marginTop: 6 }}>
-                  Tu balance: {quote.balance} H+
-                </Text>
-              )}
+              {/* PREMIUM (16-ago-2026): aquí iba la caja de "Costo del escaneo"
+                  con su precio en H+ y el renglón del balance debajo. */}
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
                 <Pressable

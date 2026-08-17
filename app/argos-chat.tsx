@@ -21,10 +21,8 @@ import {
   chatWithArgosEx, generateResponseStream, saveConversation, loadConversations,
   loadConversation, type ArgosMessage,
 } from '../src/services/argos-service';
-import { ArgosRateLimitError } from '../src/services/argos-stream-core';
 import { speakArgos, stopSpeaking, getIsSpeaking } from '../src/services/argos-voice';
 import { stopPlayback } from '../src/services/argos-tts';
-import { withPreflight, wasAborted } from '../src/services/economy/with-preflight';
 import { isOnline } from '../src/services/connectivity';
 import { buildOfflineArgosMessage } from '../src/services/argos-offline-core';
 import { generateUUID } from '../src/utils/uuid';
@@ -36,8 +34,6 @@ import { ArgosVoiceMode } from '@/src/components/argos/ArgosVoiceMode';
 import { getArgosVoice } from '@/src/services/argos-voice-service';
 import { ContextualConsentModal } from '@/src/components/legal/ContextualConsentModal';
 import { logConsent, getConsentStatus } from '@/src/services/consent-log-service';
-import { RateLimitCard } from '@/src/components/argos/RateLimitCard';
-import { parseRateLimitInfo, type RateLimitInfo } from '@/src/services/argos-rate-limit-core';
 import { coerceScreen } from '@/src/hooks/argos-screen-context-core';
 import { getArgosSessionId, startNewArgosSession } from '@/src/services/argos-session';
 import { shouldAttemptResume, resumeTarget, sessionRotatedAway } from '@/src/services/argos-session-core';
@@ -83,10 +79,10 @@ function ArgosChat() {
   // N1: solo mostrar back-arrow si hay a dónde volver (deep link / push).
   const canGoBack = navigation.canGoBack();
   // CIERRE-1: `q` prellena el campo con una pregunta, SIN enviarla. Es lo que
-  // usa el "¿qué es esto?" del encabezado. Deliberadamente no auto-envía: un
-  // turno de chat cuesta H+ y consume cuota, y disparar ese gasto desde un
-  // botón que el usuario tocó para "ver qué es" sería cobrarle por curiosear.
-  // Así ve la pregunta escrita, la puede editar, y decide él si la manda.
+  // usa el "¿qué es esto?" del encabezado. Deliberadamente no auto-envía:
+  // mandar una pregunta que la persona no escribió, desde un botón que tocó
+  // para "ver qué es", es ponerle palabras en la boca. Así la ve escrita, la
+  // puede editar, y decide ella si la manda.
   const params = useLocalSearchParams<{ conversationId?: string; new?: string; from?: string; q?: string }>();
   // Guard de re-entrada (#71) — la lógica vive en argos-chat-core (con tests);
   // aquí solo la instancia por pantalla.
@@ -102,9 +98,9 @@ function ArgosChat() {
   const [userId, setUserId] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [autoSpeak, setAutoSpeak] = useState(false);
-  // T5 MAGIA 2.0: rate limit contextual — card con boost H+ + orbe apagada.
-  const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
-  const [boostJustActivated, setBoostJustActivated] = useState(false);
+  // PREMIUM (16-ago-2026): aquí vivía el estado del rate limit y del boost
+  // recién activado, que apagaban la orbe y metían la card del límite diario
+  // encima de la conversación. Ya no hay límite que alcanzar.
   // T2 MAGIA 2.0: true mientras llegan chunks del stream — orbe 'hablando'.
   const [streaming, setStreaming] = useState(false);
   // Bug #8: estado offline detectado en el último submit.
@@ -238,7 +234,7 @@ function ArgosChat() {
   /**
    * T2: corre el turno en modo STREAMING (typing effect real, orbe hablando).
    * Devuelve el texto completo, o null si el stream no está disponible —
-   * el caller cae al modo no-stream. ArgosRateLimitError se propaga (T5).
+   * el caller cae al modo no-stream.
    */
   async function tryStreamingTurn(
     cleanForLLM: ArgosMessage[],
@@ -276,7 +272,6 @@ function ArgosChat() {
     } catch (e) {
       // Limpiar el parcial (si hubo) — el turno se resuelve por otra vía.
       if (appended) setMessages(prev => prev.slice(0, -1));
-      if (e instanceof ArgosRateLimitError) throw e;
       console.warn('[ARGOS] stream no disponible, fallback no-stream:', (e as Error)?.message);
       return null;
     } finally {
@@ -296,11 +291,9 @@ function ArgosChat() {
   /**
    * NOCHE-ARGOS P5: turno resuelto SIN red y SIN modelo.
    *
-   * Cuesta 0 H+ y NO consume la cuota diaria de ARGOS, porque nunca llega al
-   * proxy: el catálogo de 192 rutas ya viaja en el bundle y la resolución es un
-   * índice invertido local. Ese es todo el punto. En el tier gratis son 5
-   * consultas al día; que preguntar cinco veces dónde está algo te deje sin
-   * ARGOS hasta mañana es exactamente el error que ya nos costó una usuaria.
+   * No llega al proxy: el catálogo de rutas ya viaja en el bundle y la
+   * resolución es un índice invertido local. Contesta al instante y funciona
+   * sin conexión, que es justo cuando más se pierde uno dentro de la app.
    *
    * El turno se persiste como cualquier otro: para el usuario esto ES una
    * conversación, y al volver al chat tiene que seguir ahí.
@@ -309,7 +302,6 @@ function ArgosChat() {
     if (nav.accion === 'chat') return;
     setInput('');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setRateLimit(null);
 
     const resolved = pintarTurnoLocal(messageText, nav.mensaje);
     setNavOpciones(nav.accion === 'preguntar' ? nav.opciones : null);
@@ -410,9 +402,9 @@ function ArgosChat() {
    * NOCHE-ARGOS P8: el respaldo con modelo. Devuelve true si atendió el turno.
    *
    * Falla hacia el chat en TODO lo que no sea una ruta válida: si no hay red,
-   * si no hay H+, si el modelo se equivoca o si simplemente no encuentra. El
-   * chat es peor negocio pero es la respuesta que el usuario espera, y dejarlo
-   * con un error de navegación cuando quizá preguntaba otra cosa es peor.
+   * si el modelo se equivoca o si simplemente no encuentra. El chat es más caro
+   * de servir pero es la respuesta que el usuario espera, y dejarlo con un
+   * error de navegación cuando quizá preguntaba otra cosa es peor.
    */
   async function escalarNavegacion(messageText: string): Promise<boolean> {
     try {
@@ -420,10 +412,10 @@ function ArgosChat() {
       // Sí hay espera de red: sin indicador el chat se ve congelado. Si el turno
       // acaba cayendo al chat, sendMessage lo vuelve a encender y no parpadea.
       setLoading(true);
-      // El preflight avisa del saldo ANTES de gastar. 20 H+, no 280.
-      const gate = await withPreflight('nav_intent', () => resolverConModelo(messageText));
-      if (wasAborted(gate)) { setLoading(false); return true; } // sin saldo: ya se ofreció la tienda.
-      const turno: TurnoNav = gate;
+      // PREMIUM (16-ago-2026): antes se pasaba por withPreflight, que avisaba
+      // del saldo y podía abortar la llamada. Sin saldo que consultar, la
+      // acción se llama directo.
+      const turno: TurnoNav = await resolverConModelo(messageText);
       if (turno.accion === 'chat') return false;
       setLoading(false);
       responderSinModelo(messageText, turno);
@@ -453,11 +445,11 @@ function ArgosChat() {
       if (manejado) { sendGuard.release(); return; }
     }
 
-    // NOCHE-ARGOS P5: ¿esto era "llévame a"? Se pregunta ANTES de la red, del
-    // preflight de H+ y del gate offline, porque un turno de navegación no
-    // necesita ninguna de las tres: se resuelve contra el bundle. Ponerlo
-    // después convertiría en llamada de red algo que no lo es, y dejaría sin
-    // navegación al usuario sin conexión, que es justo cuando más se pierde.
+    // NOCHE-ARGOS P5: ¿esto era "llévame a"? Se pregunta ANTES de la red y del
+    // gate offline, porque un turno de navegación no necesita ninguna de las
+    // dos: se resuelve contra el bundle. Ponerlo después convertiría en llamada
+    // de red algo que no lo es, y dejaría sin navegación al usuario sin
+    // conexión, que es justo cuando más se pierde.
     const nav = decidirTurnoNav(messageText);
     if (nav.accion !== 'chat') {
       responderSinModelo(messageText, nav);
@@ -465,27 +457,23 @@ function ArgosChat() {
       return;
     }
     // NOCHE-ARGOS P8: el usuario SÍ pidió que lo llevaran pero el índice local
-    // no encontró. Antes de mandarlo al chat completo (280 H+, cerebro entero,
-    // Sonnet) se intenta el respaldo barato: 20 H+ y Gemini sin cerebro. Es el
-    // único camino de navegación que cuesta, y solo se toma cuando el gratis
-    // ya falló.
+    // no encontró. Antes de mandarlo al chat completo (cerebro entero, Sonnet)
+    // se intenta el respaldo barato: Gemini sin cerebro. Es el único camino de
+    // navegación que llama al modelo, y solo se toma cuando el local ya falló.
     if (nav.escalable) {
       const escalado = await escalarNavegacion(messageText);
       if (escalado) { sendGuard.release(); return; }
     }
-    // A partir de aquí, turno normal: sí cuesta y sí necesita red.
+    // A partir de aquí, turno normal: sí necesita red.
     setNavOpciones(null);
     // Una sola idempotency_key para TODO este turno (incluye retries internos).
     const idempotencyKey = generateUUID();
 
-    // Bug #8: submit sin conexión no daba NINGÚN feedback. Ping fail-fast en
-    // paralelo con el preflight de economía.
-    const [online, gate] = await Promise.all([
-      isOnline(),
-      // Economía: pre-flight H+ (no-op si LAB_ECONOMY_ENABLED=false). El proxy
-      // igual responde 402 como guard real server-side.
-      withPreflight('chat', async () => true),
-    ]);
+    // Bug #8: submit sin conexión no daba NINGÚN feedback. Ping fail-fast.
+    // PREMIUM (16-ago-2026): esto era un Promise.all con el preflight de H+,
+    // que podía abortar el turno antes de mandarlo. Sin saldo que revisar solo
+    // queda el ping.
+    const online = await isOnline();
     // MB-21: si la sesión rotó con la pantalla abierta (el listener de AppState
     // pudo no alcanzar a limpiar), este turno arranca conversación NUEVA — no
     // adopta la vieja en la sesión nueva.
@@ -512,7 +500,9 @@ function ArgosChat() {
       return;
     }
     if (offline) setOffline(false);
-    if (wasAborted(gate)) { sendGuard.release(); return; }
+    // PREMIUM (16-ago-2026): aquí se abortaba el turno si el preflight de H+
+    // había cancelado (saldo insuficiente y la persona no quiso recargar). Sin
+    // saldo, el turno ya no tiene por qué frenarse antes de salir.
 
     // Detener si ARGOS estaba hablando
     if (getIsSpeaking()) await stopSpeaking();
@@ -525,16 +515,13 @@ function ArgosChat() {
     // T5 HARDENING: funnel core — mensaje enviado (sin contenido, solo metadata).
     analytics.track(ATP_EVENTS.ARGOS_MESSAGE_SENT, { turn_index: newMessages.length });
     setLoading(true);
-    // T5: nuevo intento limpia el estado de rate limit anterior
-    setRateLimit(null);
-    setBoostJustActivated(false);
 
     // ARG-1/ARG-8: turnos degradados fuera del contexto del modelo.
     const cleanForLLM = filterForLLM(newMessages);
 
     let resolved: ReturnType<typeof resolveTurn> | null = null;
     try {
-      // T2/T5: la orquestación stream→no-stream vive en argos-chat-core (con
+      // T2: la orquestación stream→no-stream vive en argos-chat-core (con
       // tests); aquí solo los efectos de pantalla por desenlace.
       const run = await runTurnWithFallback({
         stream: () => tryStreamingTurn(cleanForLLM, idempotencyKey, turnConversationId),
@@ -560,30 +547,10 @@ function ArgosChat() {
           setMessages(resolved.messages);
           if (!run.degraded && autoSpeak) speakArgos(run.text);
           break;
-        case 'rate_limited': {
-          // T5: rate limit → RateLimitCard (boost H+) en vez de burbuja genérica.
-          resolved = resolveTurn(base, userTurn, { kind: 'rate_limited' }, Date.now());
-          setMessages(resolved.messages);
-          const info = run.info ?? parseRateLimitInfo(run.payload);
-          if (info) setRateLimit(info);
-          break;
-        }
-        case 'insufficient_protons': {
-          // ECO-1: bloqueo por SALDO, no por límite diario. El remedio es
-          // recargar H+ en la tienda — el boost NO aplica (sube el tope, no
-          // regala H+) y por eso aquí jamás se ofrece.
-          resolved = resolveTurn(base, userTurn, { kind: 'insufficient_protons' }, Date.now());
-          setMessages(resolved.messages);
-          Alert.alert(
-            'Te quedaste sin H+',
-            'Esta consulta necesita más H+ de los que tienes. Recarga en la tienda o convierte tus E-.',
-            [
-              { text: 'Ahora no', style: 'cancel' },
-              { text: 'Recargar H+', onPress: () => router.push('/economy/shop') },
-            ],
-          );
-          break;
-        }
+        // PREMIUM (16-ago-2026): había dos desenlaces más, 'rate_limited' e
+        // 'insufficient_protons'. El primero pintaba la card del límite diario
+        // con su oferta de boost; el segundo, una alerta "Te quedaste sin H+"
+        // con botón a la tienda. Ninguno de los dos puede volver a ocurrir.
         case 'client_error':
           console.error('ARGOS chat error:', run.error);
           resolved = resolveTurn(base, userTurn, { kind: 'client_error' }, Date.now());
@@ -593,7 +560,7 @@ function ArgosChat() {
     } finally {
       setLoading(false);
       sendGuard.release(); // #71: liberar el guard al terminar el turno
-      // T5 HARDENING: respuesta recibida (degraded=true si fue rate limit/error).
+      // T5 HARDENING: respuesta recibida (degraded=true si hubo error).
       analytics.track(ATP_EVENTS.ARGOS_MESSAGE_RECEIVED, { degraded: resolved?.wasDegraded ?? true });
       // F2.3: feedback háptico sutil al terminar de "pensar"
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -665,7 +632,6 @@ function ArgosChat() {
         canGoBack={canGoBack}
         onBack={() => { stopSpeaking(); router.back(); }}
         orbState={streaming ? 'hablando' : loading ? 'pensando' : 'idle'}
-        orbDimmed={!!rateLimit && !boostJustActivated}
         onVoiceMode={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           stopSpeaking();
@@ -700,9 +666,6 @@ function ArgosChat() {
           <View style={{ flex: 1 }}>
             <ChatEmptyState suggestions={suggestions} onPick={(label) => sendMessage(label)} />
             <View style={{ paddingHorizontal: 20 }}>
-              {rateLimit && (
-                <RateLimitCard info={rateLimit} onBoostActivated={() => setBoostJustActivated(true)} />
-              )}
               {/* B-5 (MB-12): disclaimer ARGOS — copy de fuente única */}
               <MedicalDisclaimer feature="argos" compact />
             </View>
@@ -734,9 +697,6 @@ function ArgosChat() {
                     aparecen justo debajo de la pregunta de ARGOS. */}
                 {navOpciones && !loading && (
                   <NavOptionsRow opciones={navOpciones} onPick={elegirOpcionNav} />
-                )}
-                {rateLimit && (
-                  <RateLimitCard info={rateLimit} onBoostActivated={() => setBoostJustActivated(true)} />
                 )}
                 {loading && <TypingIndicator />}
                 <MedicalDisclaimer feature="argos" compact />

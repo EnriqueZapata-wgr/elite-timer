@@ -341,7 +341,7 @@ export default function TodayScreen() {
     <ThemeReady>
     <View style={[s.root, { backgroundColor: tokens.fondo }]}>
       <StatusBar style={dark ? 'light' : 'dark'} />
-      {/* #23: banner contextual flotante (racha / protones / notifs / insight) */}
+      {/* #23: banner contextual flotante (racha / notifs / insight) */}
       <TopBanner offset={44} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
 
@@ -359,7 +359,7 @@ export default function TodayScreen() {
                 <NotificationBellIcon />
               </View>
             </View>
-            {/* P6: pill E-/H+/Rank (self-gated por LAB_ECONOMY_ENABLED; null si OFF) */}
+            {/* P6: pill E-/Rank (self-gated por LAB_ECONOMY_ENABLED; null si OFF) */}
             <EconomyHeaderPill />
           </Animated.View>
 

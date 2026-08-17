@@ -1,7 +1,10 @@
 /**
  * Dominio economía (OLA1 R-0). La serie de electrones que ya pintaba el hub,
- * más los movimientos de E- y H+ que hoy viven en /economy/history, recortados
- * al rango visible.
+ * más los movimientos que hoy viven en /economy/history, recortados al rango
+ * visible.
+ *
+ * PREMIUM (16-ago-2026): cada renglón traía su unidad (E- o H+) porque la lista
+ * mezclaba dos monedas. Sin protones sobra la marca: aquí todo es electrón.
  */
 import { View, StyleSheet } from 'react-native';
 import { useMemo } from 'react';
@@ -50,10 +53,10 @@ export function EconomiaContent({ data, variant }: { data: EconomiaReport; varia
         <View style={s.movesBox}>
           <EliteText style={s.movesTitle}>MOVIMIENTOS</EliteText>
           {movements.slice(0, VISIBLE_MOVEMENTS).map((m) => (
-            <View key={`${m.moneda}-${m.id}`} style={s.moveRow}>
+            <View key={m.id} style={s.moveRow}>
               <View style={s.moveMain}>
                 <EliteText style={s.moveConcept} numberOfLines={1}>{m.concepto}</EliteText>
-                <EliteText style={s.moveMeta}>{m.fecha} · {m.moneda}</EliteText>
+                <EliteText style={s.moveMeta}>{m.fecha} · E-</EliteText>
               </View>
               <EliteText
                 style={[s.moveAmount, { color: m.monto >= 0 ? ATP_BRAND.lime : t.error }]}
@@ -78,7 +81,7 @@ export const economiaDomain: ReportDomainDefinition<EconomiaReport> = {
   load: (period, range) => getEconomiaReport(period, range),
   isEmpty: (d) => d.electrons.total === 0 && d.movements.length === 0,
   toRows: (d): ExportRow[] => d.movements.map((m) => ({
-    fecha: m.fecha, moneda: m.moneda, concepto: m.concepto, monto: m.monto,
+    fecha: m.fecha, concepto: m.concepto, electrones: m.monto,
   })),
   render: (d) => (
     <GradientCard gradient={GRADIENT}>

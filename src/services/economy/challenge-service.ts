@@ -1,10 +1,22 @@
 /**
  * challenge-service — retos.
  *
- * Client-callable: listActiveChallenges, joinChallenge (RPC cobra entry cost atómico),
- * getMyActiveChallenges, checkChallengeCriteria (lectura).
- * ⚠️ SERVER-SIDE: settleChallenge (premio = crédito, RPC service_role) → ejecutar desde
- * cron/edge fn tras validar criterio. Ver COWORK_REPORT.
+ * PREMIUM (16-ago-2026): LOS RETOS QUEDAN APAGADOS EN SU PARTE ECONÓMICA.
+ *
+ * El reto era una apuesta: pagabas una entrada en H+ y si cumplías te llevabas
+ * un premio en H+. Sin moneda, ni la entrada ni el premio existen, y un reto
+ * sin ninguna de las dos cosas no es el mismo producto: hay que rediseñarlo
+ * (¿premio en electrones? ¿en rango?) antes de volver a encenderlo.
+ *
+ * Se apagan joinChallenge y settleChallenge, que eran las que movían saldo.
+ * Se conserva todo lo demás (listar, leer criterios, evaluar progreso) porque
+ * no cobra nada y es la base sobre la que se rediseñe.
+ *
+ * Las tablas `challenges` y `challenge_participants` NO se tocan, ni las RPC
+ * join_challenge / settle_challenge: siguen en la base con el historial.
+ *
+ * Client-callable: listActiveChallenges, getMyActiveChallenges,
+ * checkChallengeCriteria (lectura). Ver COWORK_REPORT.
  */
 import { supabase } from '@/src/lib/supabase';
 import type { Challenge, ChallengeParticipant } from './economy-types';
@@ -22,17 +34,18 @@ export async function listActiveChallenges(): Promise<Challenge[]> {
   return (data ?? []) as Challenge[];
 }
 
+/**
+ * APAGADO. Cobraba la entrada del reto en H+ vía RPC atómica.
+ *
+ * PREMIUM (16-ago-2026): se deja la firma para no romper a quien la importe,
+ * pero devuelve el motivo en vez de llamar a la RPC. Llamarla hoy cobraría una
+ * entrada de una moneda que ya no se puede recuperar de ninguna forma.
+ */
 export async function joinChallenge(
-  userId: string,
-  challengeId: string,
+  _userId: string,
+  _challengeId: string,
 ): Promise<{ success: boolean; cost?: number; error?: string }> {
-  const { data, error } = await supabase.rpc('join_challenge', {
-    p_user_id: userId,
-    p_challenge_id: challengeId,
-  });
-  if (error) return { success: false, error: error.message };
-  const r = (data ?? {}) as { success?: boolean; cost?: number; error?: string };
-  return { success: !!r.success, cost: r.cost, error: r.error };
+  return { success: false, error: 'retos_en_rediseno' };
 }
 
 export async function getMyActiveChallenges(userId: string): Promise<ChallengeParticipant[]> {
@@ -81,18 +94,17 @@ export async function checkChallengeCriteria(
   return evaluateCriteria((ch as any)?.criteria ?? {}, (part as any)?.progress);
 }
 
-/** SERVER-SIDE. Liquida el reto (premio si ganó). RPC settle es service_role. */
+/**
+ * APAGADO. Liquidaba el reto pagando el premio en H+.
+ *
+ * PREMIUM (16-ago-2026): se sigue evaluando el criterio, porque saber si la
+ * persona cumplió es información suya y sirve para liquidar hacia atrás cuando
+ * se defina el premio nuevo. Lo que no ocurre es el pago.
+ */
 export async function settleChallenge(
   userId: string,
   challengeId: string,
 ): Promise<{ won: boolean; prize: number; error?: string }> {
   const criteria = await checkChallengeCriteria(userId, challengeId);
-  const { data, error } = await supabase.rpc('settle_challenge', {
-    p_user_id: userId,
-    p_challenge_id: challengeId,
-    p_won: criteria.completed,
-  });
-  if (error) return { won: false, prize: 0, error: error.message };
-  const r = (data ?? {}) as { won?: boolean; prize?: number; error?: string };
-  return { won: !!r.won, prize: r.prize ?? 0, error: r.error };
+  return { won: criteria.completed, prize: 0, error: 'retos_en_rediseno' };
 }

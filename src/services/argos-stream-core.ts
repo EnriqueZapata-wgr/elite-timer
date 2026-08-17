@@ -23,29 +23,15 @@ export interface ArgosStreamEvent {
   model?: string;
 }
 
-/** El proxy respondió rate_limited — el caller muestra RateLimitCard (T5). */
-export class ArgosRateLimitError extends Error {
-  constructor(public payload: unknown) {
-    super('rate_limited');
-    this.name = 'ArgosRateLimitError';
-  }
-}
-
-/**
- * D-4 (MB-12): mensaje PROPIO de rate limit. Mostrarlo como "problema de
- * conexión" hacía que el usuario reintentara contra un límite. Dice qué pasó
- * y cuándo se libera (si el proxy lo manda).
- */
-export function argosRateLimitMessage(payload?: unknown): string {
-  const p = payload as any;
-  const mins = typeof p?.retry_after_minutes === 'number'
-    ? Math.max(1, Math.ceil(p.retry_after_minutes))
-    : typeof p?.retry_after === 'number'
-      ? Math.max(1, Math.ceil(p.retry_after / 60))
-      : null;
-  const cuando = mins ? `Se libera en ~${mins} min.` : 'Se libera en unos minutos.';
-  return `Alcanzaste tu límite de ARGOS por ahora; no es tu conexión. ${cuando} Reintentar antes no ayuda.`;
-}
+// PREMIUM (16-ago-2026): aquí vivían ArgosRateLimitError y
+// argosRateLimitMessage ("Alcanzaste tu límite de ARGOS por ahora"). Existían
+// porque el proxy cortaba el acceso al llegar a la cuota diaria del plan y
+// había que decirlo con palabras propias, distintas de "se cayó la red".
+//
+// Con una sola membresía no hay cuota que alcanzar: nadie se queda sin ARGOS
+// por haberlo usado mucho. El tipo de error se fue completo, y con él la card
+// que ofrecía comprar más acceso. Lo que quede del proxy que huela a límite se
+// trata como fallo de transporte, que es lo único que puede ser.
 
 /**
  * El stream no está disponible (proxy viejo sin SSE, respuesta degradada,

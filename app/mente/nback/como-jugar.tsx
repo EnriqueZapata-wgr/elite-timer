@@ -44,9 +44,12 @@ const STEPS: { icon: string; title: string; body: string }[] = [
     body: 'Usa auriculares o pon el altavoz claro: necesitas distinguir las letras con precisión. Si tu teléfono está en silencio, reactiva el sonido antes de empezar.',
   },
   {
+    // PREMIUM (16-ago-2026): "Tu constancia paga" prometía H+ por récord y por
+    // racha. Sin moneda no hay pago, así que la promesa se cambia por lo que sí
+    // ocurre: el electrón del día y el nivel que sube.
     icon: 'flash-outline',
-    title: 'Tu constancia paga',
-    body: `${NBACK_CONFIG.ROUNDS_PER_DAY} rounds al día (~20 min) por ${NBACK_CONFIG.CHALLENGE_DAYS} días. El primer round del día suma tu electrón en HOY; completar la sesión diaria, romper tu récord de N y sostener la racha suman H+.`,
+    title: 'Tu constancia se nota',
+    body: `${NBACK_CONFIG.ROUNDS_PER_DAY} rounds al día (~20 min) por ${NBACK_CONFIG.CHALLENGE_DAYS} días. El primer round del día suma tu electrón en HOY; romper tu récord de N y sostener la racha suben tu nivel.`,
   },
 ];
 

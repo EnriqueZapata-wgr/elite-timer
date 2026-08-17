@@ -1,6 +1,6 @@
 /**
  * TopBannerPersistent (#v13c 2.6) — franja superior persistente: botón Home (vuelve a HOY) +
- * EconomyHeaderPill (⚡ Electrones · 💎 Protones · Rank). Se inyecta vía TabScreen → aparece en
+ * EconomyHeaderPill (⚡ Electrones · Rank). Se inyecta vía TabScreen → aparece en
  * YO y MI ATP. El botón Home solo se muestra fuera de la raíz HOY (en HOY no hace falta).
  *
  * Reusa EconomyHeaderPill (self-gated por LAB_ECONOMY_ENABLED, datos reales) e isHomePath — sin

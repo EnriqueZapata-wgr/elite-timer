@@ -10,8 +10,8 @@
  * de 190 entradas que YA está en el bundle (app-routes.generated.ts, con 189
  * descripciones cosechadas de los docblocks). Mandar eso a un modelo por cada
  * "dónde veo mis análisis" es pagar tokens por un problema de índice invertido.
- * Este core resuelve la mayoría sin red, sin latencia y sin H+. El modelo entra
- * solo cuando el puntaje local no alcanza (ver argos-nav-service).
+ * Este core resuelve la mayoría sin red y sin latencia. El modelo entra solo
+ * cuando el puntaje local no alcanza (ver argos-nav-service).
  *
  * POR QUÉ TF-IDF Y NO `includes()`: la palabra "salud" aparece en decenas de
  * descripciones y no discrimina nada; "ayuno" aparece en dos y lo discrimina
@@ -117,10 +117,10 @@ export const TITULOS_RUTA: Readonly<Record<string, string>> = {
   '/cycle-charts': 'Gráficas del ciclo',
   '/cycle-history': 'Historial del ciclo',
   '/cycle-settings': 'Ajustes del ciclo',
-  '/economy/convert': 'Convertir electrones a protones',
-  '/economy/history': 'Historial de protones',
-  '/economy/how-to-earn': 'Cómo ganar protones',
-  '/economy/shop': 'Tienda de protones',
+  // PREMIUM (16-ago-2026): salieron /economy/convert, /economy/shop y
+  // /economy/how-to-earn. Sus pantallas ya no existen y ARGOS mandaba a la
+  // nada. Historial se queda, ahora de electrones.
+  '/economy/history': 'Historial de electrones',
   '/edad-atp': 'Mi Edad ATP',
   '/edad-atp/biomarkers': 'Biomarcadores',
   '/edad-atp/labs': 'Mis análisis de laboratorio',
@@ -273,10 +273,10 @@ export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = {
   '/tribu': ['tribu', 'comunidad'],
   '/comunidad/ranking': ['ranking', 'tabla de posiciones', 'leaderboard'],
   '/comunidad/amigos': ['amigos', 'seguir'],
-  '/economy/shop': ['tienda', 'comprar protones', 'comprar h mas'],
-  '/economy/how-to-earn': ['como gano protones', 'ganar protones'],
-  '/economy/convert': ['convertir electrones', 'cambiar electrones'],
-  '/economy/history': ['historial de protones', 'en que gaste'],
+  // PREMIUM (16-ago-2026): se fueron los sinónimos de tienda, conversión y
+  // "cómo gano protones". Reconocerlos sin destino que ofrecer era peor que no
+  // reconocerlos: ARGOS entendía y luego no podía llevarte a ningún lado.
+  '/economy/history': ['historial de electrones', 'que he ganado'],
   '/settings': ['ajustes', 'configuracion', 'opciones', 'preferencias'],
   '/settings/notifications': ['notificaciones', 'avisos', 'recordatorios', 'alertas', 'configurar notificaciones', 'silenciar'],
   '/settings/privacy': ['privacidad', 'mis datos personales', 'consentimiento', 'borrar cuenta', 'exportar datos'],

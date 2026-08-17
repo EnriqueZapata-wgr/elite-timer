@@ -60,7 +60,7 @@ describe('normalizacion y tokenizado', () => {
   it('singulariza para que habito y habitos sean el mismo token', () => {
     expect(singularizar('habitos')).toBe('habito');
     expect(singularizar('sintomas')).toBe('sintoma');
-    expect(singularizar('protones')).toBe('proton');
+    expect(singularizar('electrones')).toBe('electron');
   });
 
   it('NO le corta la s a las palabras invariables en -is', () => {
@@ -124,7 +124,10 @@ describe('intentos reales en es-MX', () => {
     ['configurar notificaciones', '/settings/notifications'],
     ['quiero cambiar el tema a modo oscuro', '/settings/experiencia'],
     ['dónde está mi suscripción', '/settings/subscription'],
-    ['cómo gano protones', '/economy/how-to-earn'],
+    // PREMIUM (16-ago-2026): aquí iba ['cómo gano protones', '/economy/how-to-earn'].
+    // La pantalla se borró y con ella su sinónimo: reconocer la frase para no
+    // poder llevar a nadie a ningún lado es peor que no reconocerla.
+    ['mi historial de electrones', '/economy/history'],
     ['quiero instalar más funciones', '/centro'],
     ['ver mis hábitos', '/hoy-habitos'],
     ['el ranking de la comunidad', '/comunidad/ranking'],

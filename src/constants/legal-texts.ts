@@ -10,6 +10,19 @@
  * Fuente: Business development/Legal/AVISO_DE_PRIVACIDAD_v1_2026-07-21.md (Parte 1)
  *         Business development/Legal/TERMINOS_Y_CONDICIONES_v1_2026-07-21.md
  * Si Legal cambia el texto, actualizar aquí + subir versión en consent-copy.ts.
+ *
+ * PREMIUM (16-ago-2026): se eliminó la cláusula 7, "Créditos digitales H+", y
+ * se renumeraron las siguientes. No se puede tener una cláusula que regule la
+ * vigencia, la no transferibilidad y el reembolso de una moneda que ya no se
+ * vende: prometía derechos sobre algo inexistente. La cláusula de suscripciones
+ * dejó de hablar de "planes" porque solo hay una membresía.
+ *
+ * ⚠️ PENDIENTE LEGAL, NO ES OLVIDO: la cláusula del Programa Founders conserva
+ * el placeholder [10] años de vida esperada de referencia. Es una cifra con
+ * consecuencia jurídica (define el prorrateo del reembolso si ATP cierra) y no
+ * se inventa desde aquí. También hay que decidir si a quien haya comprado H+ se
+ * le devuelve algo o se le convierte en tiempo de membresía; mientras eso no se
+ * defina, el saldo sigue intacto en la base y visible en la exportación.
  */
 
 export interface LegalSection {
@@ -92,55 +105,51 @@ export const TERMS_SECTIONS: LegalSection[] = [
     body: 'Eres responsable de la veracidad de la información que aportas y de mantener la confidencialidad de tus credenciales. La calidad de tus estimaciones y contenido depende de la exactitud de los datos que ingresas.',
   },
   {
-    heading: '5. Suscripciones, planes y pagos',
-    body: 'ATP ofrece planes de suscripción (mensuales o anuales) y, por tiempo limitado, el Programa Founders (sección 6). Los precios vigentes se muestran en la app y en somosatp.com/precios, en pesos mexicanos (MXN).\n\nLos pagos se procesan mediante App Store (Apple), Google Play, o pasarelas web (Stripe/Conekta). Al suscribirte autorizas el cargo recurrente correspondiente al plan elegido.\n\nPeriodo de prueba: si contratas con periodo de prueba de 14 días, podrás cancelar sin costo durante ese periodo. El primer cargo se realizará al término de la prueba, salvo que canceles antes.\n\nRenovación automática: las suscripciones se renuevan automáticamente al final de cada periodo, al precio vigente. Te notificaremos al menos 5 días naturales antes de cada renovación, indicando monto y fecha. Puedes cancelar la renovación en cualquier momento, con un solo toque, desde la app (Ajustes → Suscripción, para compras web) o desde la gestión de suscripciones de App Store / Google Play. La cancelación surte efecto al final del periodo ya pagado; conservas el acceso hasta entonces.\n\nReembolsos: durante los 14 días de prueba, la cancelación no genera cargo. Una vez transcurridos, los pagos no son reembolsables, salvo obligación legal expresa. Los reembolsos de compras realizadas en App Store o Google Play se rigen adicionalmente por las políticas de dichas tiendas.',
+    heading: '5. Membresía y pagos',
+    body: 'ATP ofrece UNA sola membresía, sin niveles ni versiones distintas: todas las funciones están incluidas para toda persona miembro. Por tiempo limitado existe además el Programa Founders (sección 6). Los precios y periodos de cobro vigentes se muestran en la app y en somosatp.com/precios, en pesos mexicanos (MXN).\n\nLos pagos se procesan mediante App Store (Apple), Google Play, o pasarelas web (Stripe/Conekta). Al suscribirte autorizas el cargo recurrente correspondiente.\n\nPeriodo de prueba: si contratas con periodo de prueba de 14 días, podrás cancelar sin costo durante ese periodo. El primer cargo se realizará al término de la prueba, salvo que canceles antes.\n\nRenovación automática: la membresía se renueva automáticamente al final de cada periodo, al precio vigente. Te notificaremos al menos 5 días naturales antes de cada renovación, indicando monto y fecha. Puedes cancelar la renovación en cualquier momento, con un solo toque, desde la app (Ajustes → Suscripción, para compras web) o desde la gestión de suscripciones de App Store / Google Play. La cancelación surte efecto al final del periodo ya pagado; conservas el acceso hasta entonces.\n\nReembolsos: durante los 14 días de prueba, la cancelación no genera cargo. Una vez transcurridos, los pagos no son reembolsables, salvo obligación legal expresa. Los reembolsos de compras realizadas en App Store o Google Play se rigen adicionalmente por las políticas de dichas tiendas.',
   },
   {
     heading: '6. Programa Founders',
-    body: 'El Plan Founders es una oferta por tiempo limitado que otorga acceso al Plan Pro de ATP sin costo mensual adicional durante toda la vigencia operativa de la plataforma ATP, más los beneficios descritos al momento de la compra, mediante un pago único.\n\nContinuidad y cese de operaciones: en caso de que ATP cese operaciones comerciales por cualquier causa, cada Founder recibirá: (i) la exportación completa de sus datos personales de salud en formato estándar; y (ii) un reembolso prorrateado calculado sobre una vida esperada de referencia de [10] años a partir de su fecha de compra. ATP se compromete a notificar cualquier cese de operaciones con al menos 90 días de anticipación.\n\nEl Plan Founders es personal e intransferible. El número de plazas es limitado.',
+    body: 'El Plan Founders es una oferta por tiempo limitado que otorga acceso a la membresía completa de ATP sin costo mensual adicional durante toda la vigencia operativa de la plataforma ATP, más los beneficios descritos al momento de la compra, mediante un pago único.\n\nContinuidad y cese de operaciones: en caso de que ATP cese operaciones comerciales por cualquier causa, cada Founder recibirá: (i) la exportación completa de sus datos personales de salud en formato estándar; y (ii) un reembolso prorrateado calculado sobre una vida esperada de referencia de [10] años a partir de su fecha de compra. ATP se compromete a notificar cualquier cese de operaciones con al menos 90 días de anticipación.\n\nEl Plan Founders es personal e intransferible. El número de plazas es limitado.',
   },
   {
-    heading: '7. Créditos digitales "H+"',
-    body: 'Los H+ son créditos digitales internos de uso exclusivo dentro de ATP para consumir funciones de inteligencia artificial. Los H+: se adquieren mediante pago dentro de la aplicación (vía la tienda correspondiente); no constituyen moneda de curso legal, no son un activo virtual en términos de la Ley para Regular las Instituciones de Tecnología Financiera, no son transferibles entre cuentas, no son convertibles a dinero ni a otros activos, y no generan intereses; tienen una vigencia de 24 meses desde su compra (te avisaremos 60 días antes de su expiración); al cancelar tu suscripción, los H+ no consumidos permanecen disponibles hasta su fecha de expiración. Los reembolsos de H+ adquiridos vía App Store o Google Play se sujetan a las políticas de dichas plataformas.',
-  },
-  {
-    heading: '8. Uso aceptable',
+    heading: '7. Uso aceptable',
     body: 'No debes: usar ATP para fines ilícitos; suplantar identidad; extraer datos masivamente (scraping); intentar vulnerar la seguridad; ni revender o redistribuir el contenido sin autorización. Podemos suspender cuentas que violen estos Términos.',
   },
   {
-    heading: '9. Propiedad intelectual',
+    heading: '8. Propiedad intelectual',
     body: 'Todo el contenido, marcas ("ATP", "ARGOS", "Edad ATP", "ATP Functional Score"), algoritmos, textos, diseños y software son propiedad de ATP o de sus licenciantes. Se te otorga una licencia limitada, personal, no exclusiva e intransferible para usar el servicio conforme a estos Términos. Conservas la titularidad de los datos que tú aportas.',
   },
   {
-    heading: '10. Contenido de terceros y evaluaciones de productos',
+    heading: '9. Contenido de terceros y evaluaciones de productos',
     body: 'El ATP Functional Score es una evaluación educativa y propietaria basada en criterios objetivos y públicos sobre las características y fórmula de un producto. No constituye recomendación médica ni juicio sobre marcas comerciales específicas. La metodología está disponible públicamente. Las referencias científicas citadas en el contenido educativo remiten a estudios de terceros; ATP no es responsable de la disponibilidad ni exactitud de fuentes externas.',
   },
   {
-    heading: '11. Limitación de responsabilidad',
+    heading: '10. Limitación de responsabilidad',
     body: 'En la máxima medida permitida por la legislación mexicana, la responsabilidad de ATP frente al usuario por cualquier reclamación relacionada con el servicio se limita al monto pagado por el usuario en los 12 meses previos al hecho que origine la reclamación.\n\nNada en estos Términos limita la responsabilidad de ATP por dolo o negligencia grave, ni los derechos irrenunciables que la Ley Federal de Protección al Consumidor otorga al consumidor.\n\nEl usuario reconoce que las intervenciones de estilo de vida (ayuno, ejercicio, exposición a frío/calor, respiración, suplementación) conllevan riesgos inherentes, que ha sido advertido de consultarlas con su médico, y que las realiza bajo su propia decisión y responsabilidad.',
   },
   {
-    heading: '11-bis. Prácticas de bienestar de mayor exigencia y asunción de riesgo',
+    heading: '10-bis. Prácticas de bienestar de mayor exigencia y asunción de riesgo',
     body: 'ATP pone a tu disposición prácticas de bienestar que, por su naturaleza, requieren precauciones especiales, incluyendo entre otras: respiración intensa (hiperventilación controlada), apneas, exposición a frío (inmersión, duchas frías), exposición a calor (sauna) y ayuno prolongado. Estas prácticas conllevan riesgos inherentes que pueden incluir mareo, pérdida de conciencia, y en circunstancias extremas, lesiones graves.\n\nAntes de iniciar cualquiera de estas prácticas, ATP te solicita confirmar de manera expresa y por escrito, cada vez que aplica, que te encuentras en condiciones seguras y sin contraindicaciones. Al confirmar dichas afirmaciones, reconoces que la información es veraz, que comprendes los riesgos, que realizas la práctica por tu propia decisión y bajo tu responsabilidad, y que asumes voluntariamente los riesgos inherentes.\n\nEstas prácticas son de carácter educativo y de bienestar; no constituyen tratamiento médico ni prescripción. No las inicies sin consultar a tu médico si tienes condiciones preexistentes. En caso de embarazo, lactancia u otras condiciones de riesgo declaradas, ATP bloquea automáticamente el acceso a determinadas prácticas por tu seguridad.',
   },
   {
-    heading: '12. Indemnización',
+    heading: '11. Indemnización',
     body: 'Te obligas a mantener en paz y a salvo a ATP frente a reclamaciones de terceros derivadas de: (i) información falsa o inexacta que aportes; (ii) uso indebido del servicio; o (iii) incumplimiento de estos Términos.',
   },
   {
-    heading: '13. Modificaciones a los Términos',
+    heading: '12. Modificaciones a los Términos',
     body: 'Podemos modificar estos Términos notificándote con al menos 30 días de anticipación por correo y/o dentro de la app. Si no aceptas los cambios, puedes cancelar sin penalización antes de su entrada en vigor y solicitar el reembolso proporcional del periodo no utilizado, cuando aplique.',
   },
   {
-    heading: '14. Terminación',
+    heading: '13. Terminación',
     body: 'Puedes cancelar tu cuenta en cualquier momento desde Perfil → Privacidad. Podemos suspender o terminar tu acceso si violas estos Términos, notificándote cuando sea legalmente posible.',
   },
   {
-    heading: '15. Ley aplicable y jurisdicción',
+    heading: '14. Ley aplicable y jurisdicción',
     body: 'Estos Términos se rigen por las leyes de los Estados Unidos Mexicanos. Para cualquier controversia, el consumidor podrá acudir, a su elección, ante la Procuraduría Federal del Consumidor (PROFECO) —incluida la plataforma Concilianet— o ante los tribunales competentes de [Querétaro / Ciudad de México].',
   },
   {
-    heading: '16. Contacto',
+    heading: '15. Contacto',
     body: 'Dudas sobre estos Términos: hola@somosatp.com · Privacidad y datos: privacidad@somosatp.com',
   },
 ];

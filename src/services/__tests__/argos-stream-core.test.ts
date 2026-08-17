@@ -3,7 +3,6 @@ import {
   splitSSEBuffer,
   parseStreamEvent,
   isEventStreamResponse,
-  ArgosRateLimitError,
   ArgosStreamUnavailableError,
 } from '@/src/services/argos-stream-core';
 
@@ -78,17 +77,17 @@ describe('isEventStreamResponse', () => {
   });
 });
 
+/**
+ * PREMIUM (16-ago-2026): aquí se probaba ArgosRateLimitError, el error tipado
+ * del tope diario del plan, y que fuera distinguible del error de stream. Ese
+ * tipo se borró con la cuota. Queda el único error tipado que sigue teniendo
+ * sentido: el que dispara el fallback a no-stream.
+ */
 describe('errores tipados', () => {
-  it('ArgosRateLimitError conserva el payload del proxy', () => {
-    const payload = { _rate_limited: true, rate_limit: { tier: 'free' } };
-    const err = new ArgosRateLimitError(payload);
-    expect(err.name).toBe('ArgosRateLimitError');
-    expect(err.payload).toBe(payload);
-    expect(err instanceof Error).toBe(true);
-  });
-  it('ArgosStreamUnavailableError es distinguible del rate limit', () => {
+  it('ArgosStreamUnavailableError conserva su nombre y su mensaje', () => {
     const err = new ArgosStreamUnavailableError('proxy_500');
     expect(err.name).toBe('ArgosStreamUnavailableError');
-    expect(err instanceof ArgosRateLimitError).toBe(false);
+    expect(err.message).toBe('proxy_500');
+    expect(err instanceof Error).toBe(true);
   });
 });
