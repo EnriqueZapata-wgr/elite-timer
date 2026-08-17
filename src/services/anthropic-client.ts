@@ -10,6 +10,7 @@
  */
 import Constants from 'expo-constants';
 import { ATP_LLM } from '@/src/constants/llm-config';
+import { ARGOS_MANDA_JWT_DEL_USUARIO } from '@/src/constants/flags';
 import { extractResponseText } from './anthropic-response-core';
 import {
   ArgosStreamUnavailableError,
@@ -33,6 +34,35 @@ export type SystemBlock = { type: 'text'; text: string; cache_control?: { type: 
 const SUPABASE_URL = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 const PROXY_URL = `${SUPABASE_URL}/functions/v1/argos-proxy`;
+
+/**
+ * SEG-1: qué va en el header `Authorization`.
+ *
+ * Hasta hoy iba la anon key, que es pública (viaja en el bundle) y no identifica
+ * a nadie. La identidad viajaba en el CUERPO, donde el cliente escribe lo que
+ * quiere. Ahora va el access token de la sesión, que el proxy verifica contra
+ * Auth. Es el mismo patrón que `argos-tts` ya usa con argos-voice.
+ *
+ * FALLA HACIA "SIGUE FUNCIONANDO", A PROPÓSITO. Si no hay sesión legible o el
+ * import truena, se manda la anon key y el proxy atiende por su camino de
+ * gracia. Preferimos una petición atribuida por el cuerpo a un usuario legítimo
+ * sin ARGOS. El día que la gracia se apague (env var `ARGOS_EXIGE_JWT`), esta
+ * misma petición recibirá un 401 honesto en vez de un cobro mal atribuido.
+ *
+ * IMPORT PEREZOSO: `@/src/lib/supabase` arrastra dependencias nativas que no
+ * resuelven en el harness de node. Mismo motivo que el `import('expo/fetch')`
+ * de más abajo.
+ */
+async function tokenDeAutorizacion(): Promise<string> {
+  if (!ARGOS_MANDA_JWT_DEL_USUARIO) return SUPABASE_ANON_KEY;
+  try {
+    const { supabase } = await import('@/src/lib/supabase');
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token || SUPABASE_ANON_KEY;
+  } catch {
+    return SUPABASE_ANON_KEY;
+  }
+}
 
 export async function callAnthropic(
   messages: any[],
@@ -69,13 +99,15 @@ export async function callAnthropic(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ATP_LLM.TIMEOUT_MS);
 
+  const autorizacion = await tokenDeAutorizacion();
+
   let response: Response;
   try {
     response = await fetch(PROXY_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${autorizacion}`,
       },
       body: JSON.stringify(body),
       signal: controller.signal,
@@ -162,7 +194,7 @@ export async function* callAnthropicStream(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${await tokenDeAutorizacion()}`,
         'X-ATP-Stream': 'true',
       },
       body: JSON.stringify(body),
@@ -238,8 +270,11 @@ export async function invalidateProxyTierCache(userId: string): Promise<void> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${await tokenDeAutorizacion()}`,
       },
+      // SEG-1: el `userId` se sigue mandando por compatibilidad con el camino de
+      // gracia del proxy, pero el que manda es el del JWT. Nadie invalida el
+      // cache de otro.
       body: JSON.stringify({ action: 'invalidate_tier_cache', userId }),
     });
   } catch { /* best-effort — el TTL del cache resuelve solo */ }
@@ -263,7 +298,10 @@ export async function uploadFileToAnthropicViaProxy(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        // SEG-1: esta acción gasta la ANTHROPIC_API_KEY del servidor y hasta hoy
+        // no pedía identidad de ninguna clase. Manda el token del usuario para
+        // que el día del tiempo 2 siga funcionando.
+        'Authorization': `Bearer ${await tokenDeAutorizacion()}`,
       },
       body: JSON.stringify({ action: 'upload_file', fileBase64, fileName, mimeType }),
       signal: controller.signal,

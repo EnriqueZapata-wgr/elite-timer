@@ -6,6 +6,9 @@ import {
   SHARED_BRAIN as BRAIN_FALLBACK,
   BRAIN_VERSION as BRAIN_FALLBACK_VERSION,
 } from "./brain.generated.ts";
+// SEG-1: la identidad ya no se cree, se verifica. Ver el docblock de identidad.ts
+// para el por qué del despliegue en dos tiempos.
+import { renglonIdentidad, resolverIdentidad } from "../_shared/identidad.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -881,6 +884,9 @@ serve(async (req) => {
 
   const startTime = Date.now();
   let body: any = {};
+  // SEG-1: el catch de abajo también tiene que loggear contra la identidad
+  // verificada, no contra lo que dijo el cuerpo. Vive aquí para alcanzarlo.
+  let userIdVerificado: string | undefined;
 
   // PREMIUM (16-ago-2026): se fue el bloque de economía H+ (cobro, idempotencia
   // del cobro y reembolso por fallo del LLM). Sin cobro no hay nada que
@@ -890,12 +896,36 @@ serve(async (req) => {
   try {
     body = await req.json();
 
+    // ─── SEG-1: IDENTIDAD ANTES QUE CUALQUIER OTRA COSA ──────────────
+    // Va arriba de los `action` a propósito: `upload_file` gasta la
+    // ANTHROPIC_API_KEY y hasta hoy no pedía identidad de ningún tipo.
+    // El tiempo 2 se prende con la env var, sin redeploy de código:
+    //   npx supabase secrets set ARGOS_EXIGE_JWT=true
+    // y se apaga igual de rápido si algo sale mal. Ver _shared/identidad.ts.
+    const identidad = await resolverIdentidad({
+      authorization: req.headers.get("authorization"),
+      bodyUserId: body?.userId,
+      anonKey: Deno.env.get("SUPABASE_ANON_KEY"),
+      exigirJwt: Deno.env.get("ARGOS_EXIGE_JWT") === "true",
+      verificar: async (jwt) => {
+        const { data, error } = await supabase.auth.getUser(jwt);
+        return !error && data?.user?.id ? data.user.id : null;
+      },
+    });
+    userIdVerificado = identidad.userId ?? undefined;
+    const renglon = renglonIdentidad(identidad, "argos-proxy");
+    if (renglon) console.warn(renglon);
+    if (identidad.rechazar) {
+      return new Response(JSON.stringify({ error: { type: "unauthorized", message: "Vuelve a iniciar sesión para usar ARGOS." } }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // ─── ECO-3: invalidar tierCache por userId (el cliente lo llama tras
     // activate_pro_boost). Best-effort: con varios isolates solo se limpia el
     // que atiende este request; el TTL de 30s es el backstop. Inofensivo si
     // alguien lo abusa: solo fuerza una lectura fresca de DB. ───
     if (body.action === "invalidate_tier_cache") {
-      if (typeof body.userId === "string" && body.userId) tierCache.delete(body.userId);
+      if (identidad.userId) tierCache.delete(identidad.userId);
       return new Response(JSON.stringify({ ok: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -935,7 +965,12 @@ serve(async (req) => {
       }
     }
 
-    const { messages, max_tokens, model, system, userId, tier: clientTier, targetUserId, targetProfileId, idempotency_key } = body;
+    const { messages, max_tokens, model, system, tier: clientTier, targetUserId, targetProfileId, idempotency_key } = body;
+    // SEG-1: `userId` YA NO se saca del cuerpo. Sale de la identidad resuelta
+    // arriba, que prefiere el JWT verificado y solo cae al cuerpo mientras el
+    // tiempo 2 esté apagado. Todo lo que cuelga de aquí abajo (tier, cuota,
+    // techo de gasto, atribución del gasto y de los logs) hereda esa decisión.
+    const userId: string | undefined = identidad.userId ?? undefined;
     let requestType: string | undefined = body.requestType;
     const finalMaxTokens = max_tokens || 4000;
 
@@ -1380,7 +1415,7 @@ serve(async (req) => {
   } catch (error: any) {
     const latencyMs = Date.now() - startTime;
     await logArgosCall(supabase, {
-      user_id: body.userId,
+      user_id: userIdVerificado,
       tier: body.tier,
       provider: "anthropic",
       model: body.model || "unknown",

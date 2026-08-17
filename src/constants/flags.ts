@@ -537,3 +537,40 @@ export const UMBRALES_FEMENINOS_EN_EL_SCORE = true;
  *  Sin migración, sin build nativo, sin tocar datos.
  */
 export const SEXO_NO_SE_ADIVINA = true;
+
+/**
+ * ARGOS_MANDA_JWT_DEL_USUARIO — el proxy deja de creerle al cuerpo (SEG-1).
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → `anthropic-client` manda en `Authorization` el access token
+ *    de la sesión del usuario, igual que ya hacía `argos-tts` con argos-voice.
+ *    Si no hay sesión legible, cae a la anon key y la petición sigue viva.
+ *  · OFF → comportamiento anterior: la anon key en el header y el `userId` en el
+ *    cuerpo como única identidad.
+ *
+ * POR QUÉ, SIN ADORNOS
+ *  `argos-proxy` decidía tier, cuota, techo de gasto y a quién se le carga cada
+ *  llamada con el `userId` que venía en el CUERPO. El cuerpo lo escribe el
+ *  cliente. La anon key viaja en el bundle y es pública por diseño. O sea que
+ *  cualquiera podía mandar el identificador de otra persona y quemarle el techo
+ *  antiabuso de 500 MXN diarios hasta dejarla sin ARGOS, o rotar
+ *  identificadores inventados para que el techo nunca se alcance y la factura
+ *  la pague ATP. Omitir el campo era todavía mejor: sin userId el conteo y el
+ *  techo devuelven abierto.
+ *
+ * LO QUE NO ROMPE
+ *  Nada del servidor depende de este flag. El proxy ya acepta las dos formas y
+ *  PREFIERE el JWT (ver `supabase/functions/_shared/identidad.ts`). Con el flag
+ *  apagado, el servidor cae solo a su camino de gracia.
+ *
+ * ⚠️ DEPENDENCIA DE ORDEN, LA ÚNICA QUE IMPORTA
+ *  El cierre definitivo del hueco es la env var `ARGOS_EXIGE_JWT=true` del
+ *  function. NO se prende hasta que este flag esté ON y el OTA haya llegado a
+ *  todos. Con esta bandera en `false` y esa env var en `true`, nadie puede usar
+ *  ARGOS.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración, sin build nativo, sin tocar datos.
+ */
+export const ARGOS_MANDA_JWT_DEL_USUARIO = true;
