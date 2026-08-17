@@ -308,3 +308,46 @@ export const INSIGHT_EN_VENTANA = true;
  *  para armar un prompt. No escribe una sola fila.
  */
 export const ARGOS_LEE_LABS_DE_VERDAD = true;
+
+/**
+ * LABS_UNIDADES_ALINEADAS — dejar de calificar un biomarcador contra una ventana
+ * escrita en otra unidad.
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → antes de comparar un valor de `lab_values` contra la ventana
+ *    de la matriz V7/V6, el valor se lleva a la unidad de esa ventana (o la
+ *    ventana se trae a la unidad del valor, según lo que se vaya a pintar). El
+ *    registro de unidades y los factores viven en `lab-unidades-core.ts`.
+ *  · OFF → se compara crudo, como antes de este cambio.
+ *
+ * POR QUÉ EXISTE
+ *  `lab_values` guarda la testosterona total en ng/dL, que es como la reporta el
+ *  laboratorio. El dueño tiene 993. La matriz escribe esa ventana en ng/mL: 7 a
+ *  12 en hombres. Factor 100. El sistema calificaba una testosterona sana como
+ *  "pide atención" en las tres superficies que leen labs (la pantalla de ATP
+ *  Labs, el motor de Edad ATP y, desde ARGOS_LEE_LABS_DE_VERDAD, el contexto del
+ *  asistente) y lo decía sin matices.
+ *
+ *  Un "no sé" se recupera. Un dato mal interpretado dicho con confianza manda a
+ *  una persona a un consultorio, a un tratamiento o a preocuparse sin motivo.
+ *
+ * LO QUE NO ROMPE
+ *  No escribe ni migra un solo valor guardado: lo que reportó el laboratorio se
+ *  queda como está. No modifica la matriz. La conversión mira la magnitud además
+ *  de la clave, así que es idempotente y respeta el histórico mezclado (hay
+ *  filas viejas de captura manual que ya venían en ng/mL). Los fixtures de
+ *  regresión del motor viven en unidad de matriz y no cruzan este borde: sus
+ *  números no se mueven.
+ *
+ * LO QUE NO ALCANZA
+ *  Las ventanas de la matriz que están mal por dentro (LDH con cuatro ventanas
+ *  distintas, ácido úrico contradictorio entre dominios, ApoB con cortes fuera
+ *  de orden, T3 libre etiquetada en ng/dL con bandas de pg/mL). Eso NO se toca
+ *  desde código: está documentado en `PENDIENTES_MATRIZ` para quien firma la
+ *  matriz.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración y sin build nativo: solo cambia cómo se compara, no qué se guarda.
+ */
+export const LABS_UNIDADES_ALINEADAS = true;

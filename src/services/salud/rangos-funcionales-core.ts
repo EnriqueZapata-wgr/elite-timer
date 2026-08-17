@@ -36,6 +36,7 @@ import {
 } from '@/src/constants/edad-atp-source-map';
 import { findMatrizParam } from '@/src/constants/edad-atp-matriz-lookup';
 import { score9Bands } from '@/src/services/edad-atp/sf-9band-service';
+import { aUnidadDeMatriz } from '@/src/constants/lab-unidades-core';
 import type { Sex } from '@/src/types/edad-atp-v2';
 
 // ── Vocabulario ──
@@ -166,7 +167,11 @@ export function evaluarPorClaveDeMatriz(
 ): LecturaFuncional {
   const param = findMatrizParam(sex, matrizKey);
   if (!param) return SIN_BANDA;
-  return evaluarContraMatriz(value, param.bandLimits);
+  // Aquí sí se conoce la clave, así que el valor guardado se puede llevar a la
+  // unidad de la ventana antes de compararlo. `evaluarContraMatriz` recibe solo
+  // bandLimits y no puede hacerlo por su cuenta.
+  const v = value == null || !Number.isFinite(value) ? value : aUnidadDeMatriz(matrizKey, value);
+  return evaluarContraMatriz(v, param.bandLimits);
 }
 
 /**

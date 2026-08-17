@@ -41,6 +41,31 @@ export const LAB_UNIT_CANONICAL: Record<string, string> = {
   ferritin: 'ng/mL',
   iron: 'µg/dL',
   tsh: 'µUI/mL',
+
+  // --- LABS-UNIDADES: biomarcadores que SÍ alimentan la matriz V7/V6 pero que no
+  // tenían unidad canónica declarada. Sin ella `normalizeLabValue` caía a identity
+  // y guardaba lo que dijera el PDF: un magnesio reportado en mmol/L (0.85) se
+  // guardaba tal cual y se comparaba contra una ventana de 2.2 a 2.6 mg/dL, o sea
+  // "pide atención" sobre un magnesio normal. Es el mismo error que la testosterona
+  // con otra cara, y estaba latente en once parámetros más.
+  //
+  // Esto es ADITIVO: una clave que antes no estaba devolvía el valor intacto, y
+  // sigue devolviéndolo intacto cuando el PDF no trae unidad o trae una que no está
+  // en el catálogo. Lo único que cambia es que ahora una unidad SI reconocida se
+  // convierte en vez de colarse.
+  magnesium: 'mg/dL',
+  folate: 'ng/mL',
+  insulin: 'µUI/mL',
+  uric_acid: 'mg/dL',
+  bilirubin: 'mg/dL',
+  hemoglobin: 'g/dL',
+  t3_free: 'pg/mL',
+  prolactin: 'ng/mL',
+  transferrin: 'mg/dL',
+  iron_binding: 'µg/dL',
+  calcium: 'mg/dL',
+  phosphorus: 'mg/dL',
+  apo_b: 'mg/dL',
 };
 
 export const LAB_UNIT_CONVERTERS: Record<string, Record<string, UnitConverter>> = {
@@ -134,6 +159,72 @@ export const LAB_UNIT_CONVERTERS: Record<string, Record<string, UnitConverter>> 
     'ng/mL': (v) => v,
     'µg/L': (v) => v,                // equivalentes
     'pmol/L': (v) => v / 2.247,
+  },
+
+  // --- LABS-UNIDADES: los conversores de los doce de arriba. Cada unidad se
+  // escribe en sus dos grafías (µ y u) porque cleanUnit solo baja a minúsculas:
+  // 'µmol/L' y 'umol/L' no son la misma cadena.
+  magnesium: {
+    'mg/dL': (v) => v,
+    'mmol/L': (v) => v * 2.43,       // 0.85 mmol/L → 2.07 mg/dL
+    'mEq/L': (v) => v * 1.215,
+  },
+  folate: {
+    'ng/mL': (v) => v,
+    'nmol/L': (v) => v / 2.266,      // 30 nmol/L → 13.2 ng/mL
+  },
+  insulin: {
+    'µUI/mL': (v) => v,
+    'uUI/mL': (v) => v,
+    'µU/mL': (v) => v,
+    'mUI/L': (v) => v,               // equivalentes
+    'pmol/L': (v) => v / 6.945,      // 54 pmol/L → 7.8 µUI/mL
+  },
+  uric_acid: {
+    'mg/dL': (v) => v,
+    'µmol/L': (v) => v / 59.48,      // 369 µmol/L → 6.2 mg/dL
+    'umol/L': (v) => v / 59.48,
+  },
+  bilirubin: {
+    'mg/dL': (v) => v,
+    'µmol/L': (v) => v / 17.1,       // 9.7 µmol/L → 0.57 mg/dL
+    'umol/L': (v) => v / 17.1,
+  },
+  hemoglobin: {
+    'g/dL': (v) => v,
+    'g/L': (v) => v / 10,            // 152 g/L → 15.2 g/dL
+  },
+  t3_free: {
+    'pg/mL': (v) => v,
+    'pmol/L': (v) => v / 1.536,      // 5.4 pmol/L → 3.5 pg/mL
+    'ng/dL': (v) => v * 10,          // 0.35 ng/dL → 3.5 pg/mL
+  },
+  prolactin: {
+    'ng/mL': (v) => v,
+    'µg/L': (v) => v,                // equivalentes
+    'mUI/L': (v) => v / 21.2,        // 142 mUI/L → 6.7 ng/mL
+  },
+  transferrin: {
+    'mg/dL': (v) => v,
+    'g/L': (v) => v * 100,           // 2.97 g/L → 297 mg/dL
+  },
+  iron_binding: {
+    'µg/dL': (v) => v,
+    'ug/dL': (v) => v,
+    'µmol/L': (v) => v * 5.587,      // 63 µmol/L → 352 µg/dL
+    'umol/L': (v) => v * 5.587,
+  },
+  calcium: {
+    'mg/dL': (v) => v,
+    'mmol/L': (v) => v * 4.008,      // 2.35 mmol/L → 9.4 mg/dL
+  },
+  phosphorus: {
+    'mg/dL': (v) => v,
+    'mmol/L': (v) => v * 3.097,      // 1.1 mmol/L → 3.4 mg/dL
+  },
+  apo_b: {
+    'mg/dL': (v) => v,
+    'g/L': (v) => v * 100,           // 1.047 g/L → 104.7 mg/dL
   },
 };
 

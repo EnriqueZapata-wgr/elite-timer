@@ -15,6 +15,7 @@
  * ciegas. Eso lo resuelve lab-cycle-context-core, que ya existe y se importa.
  */
 import { findMatrizParam, functionalBand } from '@/src/constants/edad-atp-matriz-lookup';
+import { aUnidadDeMatriz, ventanaEnEspacioDe, unidadParaMostrar } from '@/src/constants/lab-unidades-core';
 import { estadoDeParametro, ESTADO_LABEL, type EstadoLab } from '@/src/services/edad-atp/labs-premium-core';
 import { getLabParamMeta } from '@/src/components/edad-atp/component-meta';
 import {
@@ -131,8 +132,14 @@ export function construirHistorias(
   for (const [key, lista] of porKey) {
     const orden = [...lista].sort((a, b) => a.measured_at.localeCompare(b.measured_at));
     const param = findMatrizParam(sexo, key);
-    const ventana = param ? functionalBand(param) : null;
     const meta = getLabParamMeta(key);
+    // La ventana de la matriz puede estar escrita en otra unidad que la guardada
+    // (testosterona total: ventana en ng/mL, expediente en ng/dL). Se trae al
+    // espacio del último valor para que lo que se lee sea coherente: 993 contra
+    // 700 a 1200, no 993 contra 7 a 12. El valor NO se toca; se toca la ventana.
+    const ultimoValor = orden[orden.length - 1].value;
+    const ventanaMatriz = param ? functionalBand(param) : null;
+    const ventana = ventanaEnEspacioDe(key, ventanaMatriz, ultimoValor);
 
     const puntos: PuntoLab[] = orden.map((m) => ({
       value: m.value,
@@ -147,13 +154,24 @@ export function construirHistorias(
     salida.push({
       key,
       nombre: param?.name || meta.display_name || key,
-      unidad: param?.unit ?? orden[orden.length - 1].unit ?? meta.unit ?? null,
+      // La etiqueta sigue al número, no a la matriz: escribir "993 ng/mL" es peor
+      // que no escribir unidad.
+      unidad:
+        unidadParaMostrar(key, param?.unit ?? null, ultimoValor)
+        ?? orden[orden.length - 1].unit ?? meta.unit ?? null,
       ventana,
       puntos,
       ultimo,
       anterior,
       delta: anterior ? redondear(ultimo.value - anterior.value) : null,
-      rumbo: rumboDe(ultimo.value, anterior?.value ?? null, ventana),
+      // El rumbo se decide en el espacio de la matriz, no en el del último valor.
+      // Así aguanta un expediente con historia mezclada (una captura vieja en
+      // ng/mL junto a un PDF nuevo en ng/dL): cada punto se ubica por su cuenta.
+      rumbo: rumboDe(
+        aUnidadDeMatriz(key, ultimo.value),
+        anterior ? aUnidadDeMatriz(key, anterior.value) : null,
+        ventanaMatriz,
+      ),
       estadoLabel: ESTADO_LABEL[ultimo.estado],
       ciclo: deriveLabCycleContext(key, esFemenino, faseCiclo),
     });

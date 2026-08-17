@@ -131,10 +131,34 @@ deseleccionables y existen para tapar un bug del toggle silencioso. Quitarlos
 dejaría al usuario sin forma de reencenderlos. Ocho sigue siendo el techo que la
 doctrina ya fijaba.
 
-**Tres errores en la matriz funcional, que necesitan firma clínica y no la mía:**
-`ldh` está en unidades distintas para hombres y mujeres, `acido_urico` se
-contradice entre dominios, y `apolipoproteinas_b` tiene sus cortes fuera de
-orden. La matriz es la fuente de verdad del algoritmo y no se toca sin revisión.
+**Diez errores en la matriz funcional, que necesitan firma clínica y no la mía.**
+Eran tres y al cruzar sistemáticamente las unidades salieron siete más. La lista
+completa, cada una con su explicación, vive en `PENDIENTES_MATRIZ` dentro de
+`src/constants/lab-unidades-core.ts`, y hay un test que impide agregar una sin
+justificarla. Esta es la versión corta:
+
+- `ldh` es el más grave. Cuatro ventanas distintas para el mismo parámetro, todas
+  etiquetadas "Ratio" cuando LDH se mide en U/L. En mujeres, el dominio
+  inflamación trae la banda de NLR copiada (0.1 a 1.5), así que un LDH normal de
+  180 U/L puntúa 0.
+- `acido_urico` se contradice entre dominios en hombres: inflamación dice 4 a 6,
+  renal dice 3.5 a 5.5. El motor puntúa las dos y la pantalla se queda con la
+  primera.
+- `apolipoproteinas_b` tiene sus cortes fuera de orden: el segundo es 0, lo que
+  deja una banda inalcanzable.
+- `t3_libre` está etiquetada "ng/dl" con bandas 3.2 a 4.2, que son magnitudes de
+  pg/mL. Un estudio reportado en pmol/L cae dentro de la ventana por coincidencia,
+  no porque esté bien. Es un falso negativo silencioso.
+- `testosterona_total` tiene, además del desajuste de unidad que ya se corrigió en
+  la lectura, dos ventanas incompatibles dentro del mismo sexo: en mujeres,
+  sistema hormonal dice 0.2 a 0.55 y sueño repite la masculina 7 a 13.
+- `hba1c`, `hematocrito`, `rdw_cv`, `homocisteina` e `insulina` traen etiquetas de
+  unidad que no corresponden con sus propias bandas (`%` donde hay fracción,
+  `mcmol/ml` y `mgUI/ml` que no existen como unidad). Los números sí coinciden con
+  lo guardado, así que no rompen nada: solo confunden a quien los lee.
+
+La matriz es la fuente de verdad del algoritmo y no se toca sin revisión. Nada de
+esto se corrigió desde código.
 
 **`calculateHealthScore` sigue en el motor legacy.** Es el score que se
 persiste, con sus propios pesos. Cambiarlo mueve un número ya guardado en base y
