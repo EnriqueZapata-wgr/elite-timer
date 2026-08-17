@@ -396,36 +396,38 @@ export const LABS_FICHA_POR_BIOMARCADOR = true;
  *    abre <ThemeReady>, así que login, registro y recuperar-contraseña salen
  *    claros para quien eligió claro. EliteInput y EliteButton, que son el kit
  *    de esas tres pantallas, leen tokens en vez de constantes oscuras.
- *  · OFF (default HOY) → vuelve el gradiente fijo #0A0E14→#000, el StatusBar
+ *  · OFF → vuelve el gradiente fijo #0A0E14→#000, el StatusBar
  *    claro y el kit oscuro, byte por byte. Sin ThemeReady, `useSurfaceTokens`
  *    entrega THEME_DARK y los componentes rinden exactamente lo de hoy.
  *
- * POR QUÉ NACE APAGADA, QUE ES LO IMPORTANTE
- *  La implementación está COMPLETA y verificada. Lo que falta no es código: es
- *  un archivo de imagen.
+ * POR QUÉ NACIÓ APAGADA Y POR QUÉ YA ESTÁ ENCENDIDA
+ *  La implementación siempre estuvo completa. Lo que faltaba no era código: era
+ *  que la marca se leyera en claro.
  *
  *  `assets/images/logo-horizontal-dark.png` es el único logo horizontal del
  *  repo, y su nombre no miente: está hecho para fondo oscuro. Medido pixel a
  *  pixel, la molécula es lima/teal (se vería bien sobre acero) pero el
  *  logotipo "ATP" son ~1,959 píxeles opacos en RGB 224+, o sea blanco. Sobre
- *  el fondo claro (#DBE2E7) eso da ~1.1 de contraste: la marca DESAPARECE, y
+ *  el fondo claro (#DBE2E7) eso da ~1.1 de contraste: la marca DESAPARECÍA, y
  *  ocupa el 22% del alto de la primera pantalla que ve quien acaba de pagar.
  *
- *  No hay salida por código. El `_N` (negro) de assets es vertical y además es
- *  SVG, y metro.config.js no tiene transformer de SVG, así que no se puede
- *  requerir como componente; agregar la dependencia está prohibido en este run.
- *  Teñir el PNG con `tintColor` aplanaría la molécula a un solo color y mata el
- *  degradado de marca. Y ponerle una placa oscura detrás al logo sobre una
- *  pantalla clara es justamente el parche que la doctrina del repo prohíbe.
+ *  El diagnóstico viejo decía que no había salida por código porque los logos
+ *  verticales son SVG y metro no tiene transformer. Era un diagnóstico
+ *  incompleto: el repo YA tiene un canal para SVG sin transformer, el mismo del
+ *  set de iconos — la geometría del asset se copia a un módulo de datos puros y
+ *  `react-native-svg` (15.12.1, ya instalado) la monta. Eso es lo que hace
+ *  `src/components/ui/brand/LogoVerticalATP.tsx`: un solo dibujo, el logotipo
+ *  "ATP" por parámetro de color (#1d1d1b en claro, #fff en oscuro, los dos
+ *  tomados de los assets oficiales `_N` y `_B`) y la molécula con sus cuatro
+ *  degradados intactos. Ni tintColor aplanando la marca, ni placa oscura de
+ *  parche, ni dependencia nueva.
  *
- *  Un login oscuro es un salto feo. Un login claro con la marca invisible es
- *  peor, y permanente. Por eso la bandera existe y nace en false.
- *
- * PARA ENCENDERLA
- *  Hace falta UNA cosa: un logo horizontal con el logotipo en oscuro (el mismo
- *  arte, wordmark en `texto` #0F1518, molécula intacta), por ejemplo
- *  `logo-horizontal-light.png`. Con eso, en `app/login.tsx` se elige el asset
- *  por `t.kind` y se pone esta bandera en true. Nada más.
+ * LO QUE QUEDÓ FUERA A PROPÓSITO
+ *  El logo vertical trae vectorizado "ACTIVA TU ENERGÍA Y SALUD", que
+ *  `docs/DESIGN_SYSTEM.md` declara firma de otra época con instrucción expresa
+ *  de usar el logo sin firma hasta resolverlo con la autora del manual. Esos 21
+ *  paths no se montan; la bajada sigue viviendo como TEXTO en la pantalla, que
+ *  es donde se puede corregir con un commit.
  *
  * POR QUÉ LA DECISIÓN VIEJA YA NO SE SOSTIENE
  *  Había una decisión escrita en el encabezado de `app/login.tsx`: el flujo de
@@ -456,4 +458,4 @@ export const LABS_FICHA_POR_BIOMARCADOR = true;
  *  Cambiar el booleano → `npx tsc --noEmit` → `eas update --branch preview`.
  *  Sin migración y sin build nativo, en los dos sentidos.
  */
-export const AUTH_RESPETA_EL_TEMA = false;
+export const AUTH_RESPETA_EL_TEMA = true;

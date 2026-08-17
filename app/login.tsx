@@ -9,18 +9,22 @@
  * INMEDIATAMENTE después está terminado en claro. Los colores de esta pantalla
  * ya salen de tokens (`useAuthTheme`), y el scope lo abre AuthScreen.
  *
- * Sigue viéndose oscura porque AUTH_RESPETA_EL_TEMA nace en false, y por un
- * motivo que no es de código: el único logo horizontal del repo trae el
- * logotipo en blanco y sobre acero desaparece. Ver el docblock de la bandera.
+ * MARCA: lo que faltaba para encender la bandera era un logo que se leyera en
+ * claro. El horizontal (PNG) trae el logotipo en blanco y sobre acero daba ~1.1
+ * de contraste. Ahora la marca la dibuja <LogoVerticalATP>, montado con
+ * react-native-svg desde la geometría del logo vertical oficial: el logotipo
+ * "ATP" entra por color (#1d1d1b en claro, #fff en oscuro, los dos de los
+ * assets `_N` y `_B`) y la molécula conserva sus degradados intactos.
  */
 import { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image, Dimensions } from 'react-native';
+import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Dimensions } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthScreen } from '@/src/components/auth/AuthScreen';
 import { useAuthTheme } from '@/src/components/auth/auth-theme';
 import { AuthLinksFooter } from '@/src/components/auth/AuthLinksFooter';
+import { LogoVerticalATP } from '@/src/components/ui/brand/LogoVerticalATP';
 import { EliteText } from '@/components/elite-text';
 import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
@@ -32,6 +36,9 @@ import { LOGIN_PASA_POR_GATE } from '@/src/constants/flags';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 
 // Logo grande en login (~22% del alto de pantalla, como el splash nativo).
+// Es el MISMO alto que ocupaba el PNG horizontal: ese archivo era cuadrado
+// (600×600) y con resizeMode="contain" acababa limitado por el alto, así que la
+// huella en pantalla no se mueve al cambiar de asset.
 const LOGO_HEIGHT = Math.round(Dimensions.get('window').height * 0.22);
 
 export default function LoginScreen() {
@@ -101,7 +108,7 @@ export default function LoginScreen() {
         >
           {/* Branding ATP */}
           <Animated.View entering={FadeInUp.delay(50).springify()} style={styles.brand}>
-            <Image source={require('@/assets/images/logo-horizontal-dark.png')} style={styles.logoImg} resizeMode="contain" />
+            <LogoVerticalATP height={LOGO_HEIGHT} tema={t.kind === 'light' ? 'claro' : 'oscuro'} />
             <EliteText variant="caption" style={styles.tagline}>ACTIVA TU ENERGÍA Y SALUD</EliteText>
           </Animated.View>
 
@@ -203,10 +210,6 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   brand: {
     alignItems: 'center',
     marginBottom: Spacing.xl,
-  },
-  logoImg: {
-    width: '85%',
-    height: LOGO_HEIGHT,
   },
   tagline: {
     color: t.tealTexto,
