@@ -3,21 +3,26 @@
  *
  * Envía un email con enlace de reset vía Supabase Auth.
  */
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthScreen } from '@/src/components/auth/AuthScreen';
+import { useAuthTheme } from '@/src/components/auth/auth-theme';
 import { EliteText } from '@/components/elite-text';
 import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
-import { ATP_BRAND } from '@/src/constants/brand';
-import { Colors, Spacing } from '@/constants/theme';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { Spacing } from '@/constants/theme';
 import { haptic } from '@/src/utils/haptics';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 export default function ForgotPasswordScreen() {
+  // BLOQ-3: los colores salen de tokens; el scope lo abre AuthScreen.
+  const t = useAuthTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+  const acento = t.kind === 'light' ? t.tealTexto : ATP_BRAND.lime;
   // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
   // casita flotante global se retira sola (ver useOwnNavPresence).
   useRegisterOwnNav();
@@ -63,7 +68,7 @@ export default function ForgotPasswordScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={28} color={ATP_BRAND.teal} />
+          <Ionicons name="chevron-back" size={28} color={t.tealTexto} />
         </Pressable>
         <EliteText variant="title" style={styles.title}>RECUPERAR</EliteText>
       </View>
@@ -72,7 +77,7 @@ export default function ForgotPasswordScreen() {
         {sent ? (
           // Mensaje de confirmación
           <View style={styles.sentContainer}>
-            <Ionicons name="mail-outline" size={64} color={Colors.neonGreen} />
+            <Ionicons name="mail-outline" size={64} color={acento} />
             <EliteText variant="subtitle" style={styles.sentTitle}>
               ENLACE ENVIADO
             </EliteText>
@@ -101,7 +106,7 @@ export default function ForgotPasswordScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
-              accentColor={ATP_BRAND.teal}
+              accentColor={t.tealTexto}
             />
 
             {error && (
@@ -111,7 +116,7 @@ export default function ForgotPasswordScreen() {
             )}
 
             {loading ? (
-              <ActivityIndicator size="large" color={Colors.neonGreen} style={styles.loader} />
+              <ActivityIndicator size="large" color={acento} style={styles.loader} />
             ) : (
               <EliteButton
                 label="ENVIAR ENLACE"
@@ -126,7 +131,7 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -144,11 +149,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   description: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     marginBottom: Spacing.lg,
   },
   error: {
-    color: Colors.error,
+    color: t.error,
     textAlign: 'center',
     marginBottom: Spacing.md,
   },
@@ -168,12 +173,14 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   sentTitle: {
-    color: Colors.neonGreen,
+    // El lima como letra SÍ vale en oscuro (la regla 1 lo prohíbe en claro):
+    // aquí se conserva tal cual y solo se calibra a teal cuando hay acero.
+    color: t.kind === 'light' ? t.tealTexto : ATP_BRAND.lime,
     letterSpacing: 3,
     marginTop: Spacing.md,
   },
   sentMessage: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     textAlign: 'center',
     paddingHorizontal: Spacing.lg,
   },

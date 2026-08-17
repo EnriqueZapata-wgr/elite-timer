@@ -9,11 +9,12 @@
  * en user_consent_log; si la sesión aún no está lista, queda encolada y se
  * reintenta en el muro de consentimiento del onboarding.
  */
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthScreen } from '@/src/components/auth/AuthScreen';
+import { useAuthTheme } from '@/src/components/auth/auth-theme';
 import { EliteText } from '@/components/elite-text';
 import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
@@ -26,12 +27,16 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 // oscuro #0A0E14→#000 constante + StatusBar light fija) — frontera del tema: el
 // interior queda oscuro en los dos modos (como la card editorial), por eso los
 // neutros van anclados a THEME_DARK y no al tema efectivo.
-import { ATP_BRAND, THEME_DARK } from '@/src/constants/brand';
-import { Colors, Spacing, Fonts } from '@/constants/theme';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { Spacing, Fonts } from '@/constants/theme';
 import { BackButton } from '@/src/components/ui/BackButton';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  // BLOQ-3: los colores salen de tokens; el scope lo abre AuthScreen.
+  const t = useAuthTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+  const acento = t.kind === 'light' ? t.tealTexto : ATP_BRAND.lime;
   const { signUp } = useAuth();
   const analytics = useAnalytics();
 
@@ -105,7 +110,7 @@ export default function RegisterScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <BackButton color={ATP_BRAND.teal} />
+            <BackButton color={t.tealTexto} />
             <EliteText variant="title" style={styles.title}>CREAR CUENTA</EliteText>
           </View>
 
@@ -118,7 +123,7 @@ export default function RegisterScreen() {
               onChangeText={setFullName}
               autoCapitalize="words"
               autoComplete="name"
-              accentColor={ATP_BRAND.teal}
+              accentColor={t.tealTexto}
             />
 
             <EliteInput
@@ -129,7 +134,7 @@ export default function RegisterScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
-              accentColor={ATP_BRAND.teal}
+              accentColor={t.tealTexto}
             />
 
             <View style={styles.passwordContainer}>
@@ -140,7 +145,7 @@ export default function RegisterScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
-                accentColor={ATP_BRAND.teal}
+                accentColor={t.tealTexto}
               />
               <Pressable
                 onPress={() => setShowPassword(!showPassword)}
@@ -149,7 +154,7 @@ export default function RegisterScreen() {
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={22}
-                  color={Colors.textSecondary}
+                  color={t.textoSecundario}
                 />
               </Pressable>
             </View>
@@ -161,7 +166,7 @@ export default function RegisterScreen() {
               onChangeText={setConfirmPassword}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
-              accentColor={ATP_BRAND.teal}
+              accentColor={t.tealTexto}
             />
 
             {/* CB-1 · Términos + Aviso de Privacidad (obligatorio, NO pre-marcado).
@@ -175,7 +180,7 @@ export default function RegisterScreen() {
               accessibilityState={{ checked: termsAccepted }}
             >
               <View style={[styles.checkbox, termsAccepted && styles.checkboxOn]}>
-                {termsAccepted && <Ionicons name="checkmark" size={14} color={THEME_DARK.textoSobreLima} />}
+                {termsAccepted && <Ionicons name="checkmark" size={14} color={t.textoSobreLima} />}
               </View>
               <EliteText variant="caption" style={styles.consentText}>
                 He leído y acepto los{' '}
@@ -205,7 +210,7 @@ export default function RegisterScreen() {
             )}
 
             {loading ? (
-              <ActivityIndicator size="large" color={Colors.neonGreen} style={styles.loader} />
+              <ActivityIndicator size="large" color={acento} style={styles.loader} />
             ) : (
               <EliteButton
                 label="CREAR CUENTA"
@@ -226,7 +231,7 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -273,7 +278,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: THEME_DARK.bordeMarcado,
+    borderColor: t.bordeMarcado,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 1,
@@ -284,15 +289,15 @@ const styles = StyleSheet.create({
   },
   consentText: {
     flex: 1,
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     lineHeight: 18,
   },
   consentLink: {
-    color: ATP_BRAND.teal,
+    color: t.tealTexto,
     fontFamily: Fonts.semiBold,
   },
   error: {
-    color: Colors.error,
+    color: t.error,
     textAlign: 'center',
     marginBottom: Spacing.md,
   },
@@ -304,11 +309,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   link: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     textAlign: 'center',
   },
   linkHighlight: {
-    color: ATP_BRAND.teal,
+    color: t.tealTexto,
     fontFamily: Fonts.semiBold,
   },
 });

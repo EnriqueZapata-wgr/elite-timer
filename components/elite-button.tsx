@@ -1,6 +1,8 @@
 import { Pressable, Text, StyleSheet, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { Colors, Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { ATP_BRAND } from '@/src/constants/brand';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -42,6 +44,23 @@ export function EliteButton({
 }: EliteButtonProps) {
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const t = useSurfaceTokens();
+
+  /**
+   * BLOQ-3: el lima como RELLENO es identidad y no se mueve — `textoSobreLima`
+   * es negro en los dos temas, así que `primary` rinde igual en claro y oscuro.
+   * Lo que sí se calibra es el lima como LETRA y como borde de contorno: sobre
+   * acero claro tiene 1.34 de contraste y se lee como deshabilitado. Esa es la
+   * regla 1 del manual 3.6, y ya estaba mal en el único consumidor no-auth vivo
+   * (AssignRoutineModal, que pinta sobre `t.card`).
+   */
+  const acento = t.kind === 'light' ? t.tealTexto : ATP_BRAND.lime;
+
+  const contenedorPorVariante: Record<ButtonVariant, ViewStyle> = {
+    primary: { backgroundColor: ATP_BRAND.lime },
+    outline: { backgroundColor: 'transparent', borderWidth: 2, borderColor: acento },
+    ghost: { backgroundColor: 'transparent' },
+  };
 
   return (
     <AnimatedPressable
@@ -52,12 +71,18 @@ export function EliteButton({
       style={[
         animatedStyle,
         styles.base,
-        variantStyles[variant],
+        contenedorPorVariante[variant],
         disabled && styles.disabled,
         style,
       ]}
     >
-      <Text style={[styles.textBase, textVariantStyles[variant]]}>
+      <Text
+        style={[
+          styles.textBase,
+          textVariantStyles[variant],
+          { color: variant === 'primary' ? t.textoSobreLima : acento },
+        ]}
+      >
         {label}
       </Text>
     </AnimatedPressable>
@@ -85,33 +110,15 @@ const styles = StyleSheet.create({
   },
 });
 
-// Estilos específicos del contenedor por variante
-const variantStyles = StyleSheet.create({
-  primary: {
-    backgroundColor: Colors.neonGreen,
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: Colors.neonGreen,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-});
-
-// Estilos específicos del texto por variante
+// Estilos específicos del texto por variante (el COLOR viaja inline: depende
+// del scope de tema, ver `acento` arriba).
 const textVariantStyles = StyleSheet.create({
-  primary: {
-    color: Colors.textOnGreen,
-  },
+  primary: {},
   outline: {
-    color: Colors.neonGreen,
     fontSize: FontSizes.md,
     fontFamily: Fonts.bold,
   },
   ghost: {
-    color: Colors.neonGreen,
     fontSize: FontSizes.md,
     fontFamily: Fonts.bold,
   },
