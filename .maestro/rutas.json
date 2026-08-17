@@ -1,15 +1,16 @@
 {
   "scheme": "atp",
-  "generado": "2026-08-15T14:28:06.177Z",
+  "generado": "2026-08-17T00:55:06.892Z",
   "resumen": {
     "estaticas": 192,
-    "dinamicas": 109,
+    "dinamicas": 112,
     "variantes": 8
   },
   "fuera": {
     "/comunidad/perfil/[userId]": "el id es un UUID de un usuario real de Supabase: no hay lista en el código",
     "/historia-clinica/[category]": "14 de 16 omitidas: redirige al motor de cuestionarios; con dos se ve que la redirección vive",
-    "/salud/intervenciones/[key]": "85 de 88 omitidas: la pantalla lee lo asignado al usuario, no el catálogo; el resto es el mismo estado vacío"
+    "/salud/intervenciones/[key]": "85 de 88 omitidas: la pantalla lee lo asignado al usuario, no el catálogo; el resto es el mismo estado vacío",
+    "/edad-atp/lab/[key]": "36 de 39 omitidas: la pantalla depende de que el usuario tenga ese valor medido; sin él las 39 pintan el mismo estado honesto"
   },
   "rutas": [
     {
@@ -529,6 +530,27 @@
       "archivo": "app/edad-atp/lab-confirmation.tsx",
       "tipo": "estatica",
       "slug": "edad-atp-lab-confirmation"
+    },
+    {
+      "ruta": "/edad-atp/lab/homocisteina",
+      "archivo": "app/edad-atp/lab/[key].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/edad-atp/lab/[key]",
+      "slug": "edad-atp-lab-homocisteina"
+    },
+    {
+      "ruta": "/edad-atp/lab/proteina_c_reactiva_cuantitativa_pcr",
+      "archivo": "app/edad-atp/lab/[key].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/edad-atp/lab/[key]",
+      "slug": "edad-atp-lab-proteina-c-reactiva-cuantitativa-pcr"
+    },
+    {
+      "ruta": "/edad-atp/lab/relacion_neutrofilos_linfocitos_nlr",
+      "archivo": "app/edad-atp/lab/[key].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/edad-atp/lab/[key]",
+      "slug": "edad-atp-lab-relacion-neutrofilos-linfocitos-nlr"
     },
     {
       "ruta": "/edad-atp/labs",

@@ -38,6 +38,7 @@ import {
 // Doctrina de la casa: los labs de mujeres SIEMPRE se leen con la fase del
 // ciclo. Vivía solo en la captura; aquí es donde de verdad se leen.
 import { deriveLabCycleContext, isCycleSensitiveMarker } from '@/src/services/salud/lab-cycle-context-core';
+import { LABS_FICHA_POR_BIOMARCADOR } from '@/src/constants/flags';
 import { getCycleInfo } from '@/src/services/cycle-service';
 import { EDAD_STATUS, EDAD_PENDING_COLOR } from '@/src/components/edad-atp/tokens';
 import { LabInfoPopup } from '@/src/components/edad-atp/LabInfoPopup';
@@ -186,8 +187,24 @@ function AtpLabsScreen() {
     if (keys.length) setNuevasKeys(new Set(keys));
   }, [nuevoCount]);
 
+  /**
+   * NOCHE-3 remate: el tap del renglón.
+   *
+   * Con LABS_FICHA_POR_BIOMARCADOR en ON entra a la ficha del marcador, que es
+   * donde ahora vive todo lo suyo (número contra ventana, qué significa, qué lo
+   * mueve, con qué se lee, historia y gráfica). El acordeón en línea contestaba
+   * "cuánto" y nunca "qué significa el mío".
+   *
+   * En OFF se queda el acordeón exactamente como estaba. La bandera existe
+   * porque esto cambia el gesto principal de la pantalla y no quedan builds:
+   * una regresión de navegación se revierte por OTA en un minuto.
+   */
   const onToggleChart = useCallback((key: string) => {
     haptic.medium();
+    if (LABS_FICHA_POR_BIOMARCADOR) {
+      router.push({ pathname: '/edad-atp/lab/[key]', params: { key } });
+      return;
+    }
     setExpanded((prev) => (prev === key ? null : key));
   }, []);
 
@@ -204,7 +221,9 @@ function AtpLabsScreen() {
       <GlobalTopBar title="ATP Labs" />
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.subtitle}>
-          Tus laboratorios: el último valor de cada parámetro. Mantén apretado para saber qué es.
+          {LABS_FICHA_POR_BIOMARCADOR
+            ? 'Tus laboratorios: el último valor de cada parámetro. Toca uno para entender el tuyo.'
+            : 'Tus laboratorios: el último valor de cada parámetro. Mantén apretado para saber qué es.'}
         </EliteText>
 
         {/* NOCHE-3: el conteo como titular. Lo primero que se quiere saber no
@@ -324,7 +343,13 @@ function AtpLabsScreen() {
                     <EliteText style={[styles.rowValue, { color: r.is_stale ? EDAD_PENDING_COLOR : r.color }]}>
                       {r.displayValue}{r.unit ? ` ${r.unit}` : ''}
                     </EliteText>
-                    <Ionicons name={expanded === r.key ? 'chevron-up' : 'chevron-down'} size={16} color={t.textoSecundario} />
+                    {/* El chevron dice a dónde lleva el tap: hacia adelante si
+                        entra a la ficha, hacia abajo si despliega el acordeón. */}
+                    <Ionicons
+                      name={LABS_FICHA_POR_BIOMARCADOR ? 'chevron-forward' : expanded === r.key ? 'chevron-up' : 'chevron-down'}
+                      size={16}
+                      color={t.textoSecundario}
+                    />
                   </Pressable>
                   {expanded === r.key ? (
                     <View style={styles.chartBox}>

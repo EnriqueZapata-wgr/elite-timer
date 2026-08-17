@@ -145,6 +145,17 @@ const FUENTES = [
     tope: 3,
     porQue: 'la pantalla lee lo asignado al usuario, no el catálogo; el resto es el mismo estado vacío',
   },
+  {
+    // La ficha por biomarcador. Las claves que valen para el barrido son las
+    // que tienen ficha escrita: son las únicas que pintan las secciones
+    // completas. Una clave sin ficha rinde el estado honesto, que ya se ve con
+    // cualquiera de las tres.
+    plantilla: '/edad-atp/lab/[key]',
+    archivo: 'src/constants/biomarcador-contenido.ts',
+    patron: /^ {2}([a-z0-9_]+): \{$/gm,
+    tope: 3,
+    porQue: 'la pantalla depende de que el usuario tenga ese valor medido; sin él las 39 pintan el mismo estado honesto',
+  },
 ];
 
 /**

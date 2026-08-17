@@ -351,3 +351,39 @@ export const ARGOS_LEE_LABS_DE_VERDAD = true;
  *  Sin migración y sin build nativo: solo cambia cómo se compara, no qué se guarda.
  */
 export const LABS_UNIDADES_ALINEADAS = true;
+
+/**
+ * LABS_FICHA_POR_BIOMARCADOR — tocar un marcador entra a su ficha.
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → en ATP Labs, tocar un renglón navega a `/edad-atp/lab/[key]`:
+ *    tu número contra tu ventana, qué es el marcador, qué significa que TU valor
+ *    haya caído donde cayó, qué altera la lectura del estudio, con qué otros
+ *    marcadores se lee, tu historia y qué lo mueve.
+ *  · OFF → vuelve el acordeón en línea de antes (gráfica + rangos + delta
+ *    dentro de la lista), byte por byte. La ruta sigue existiendo pero nadie
+ *    llega a ella desde la lista.
+ *
+ * POR QUÉ EXISTE
+ *  El panel ya sabía cuántos marcadores piden atención. Lo que no existía era
+ *  el lugar donde entender uno: la lista contestaba "cuántos" y nunca "qué
+ *  significa el mío". Un acordeón con una gráfica no es una ficha.
+ *
+ *  Va detrás de bandera porque cambia el gesto principal de la pantalla, y una
+ *  regresión de navegación en una app sin builds pendientes se paga cara. Con
+ *  el flag en false se vuelve al comportamiento anterior sin tocar una línea de
+ *  la pantalla.
+ *
+ * LO QUE NO HACE
+ *  No escribe nada, no migra nada y no llama a ningún modelo. El contenido
+ *  explicativo está escrito en el repo (`biomarcador-contenido.ts`) y todo lo
+ *  personal se calcula con datos que ya estaban guardados. Abrir una ficha
+ *  cuesta cero protones. Lo único que puede llamar a un modelo es el botón
+ *  explícito de preguntarle a ARGOS, que es el chat de siempre con su costo de
+ *  siempre y solo si la persona lo toca.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración y sin build nativo.
+ */
+export const LABS_FICHA_POR_BIOMARCADOR = true;
