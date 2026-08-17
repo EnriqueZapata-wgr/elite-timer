@@ -153,7 +153,7 @@ export function SaludHub() {
           ))}
           <FichaEmergenciaRow />
           <EliteText style={s.densoHint}>
-            Modo completo encendido. Se apaga en Ajustes › Salud y protocolo.
+            Modo completo de Salud encendido. Se apaga en Ajustes › Salud y protocolo.
           </EliteText>
         </>
       ) : (

@@ -270,6 +270,25 @@ async function logArgosCall(supabase: any, params: {
       target_profile_id: params.target_profile_id ?? null,
       brain_version: params.brain_version ?? null,
     });
+
+    // NOCHE-3: cerrar la llamada en el acumulado de gasto. Vive aquí y no en el
+    // handler porque `cost` ya está calculado en esta línea y porque los caminos
+    // terminales del proxy son varios (stream, Anthropic, Gemini, error): tener
+    // el mismo número en dos lugares es como se desincronizan.
+    //
+    // `cost > 0` filtra los caminos que nunca reservaron nada (el propio corte
+    // por fraude loguea con cero tokens): sin ese filtro le restaríamos al día
+    // una reserva que jamás se apuntó.
+    if (params.user_id && cost > 0) {
+      const { error: gastoErr } = await supabase.rpc("record_argos_spend", {
+        p_user_id: params.user_id,
+        p_cost_usd: cost,
+        p_reserve_usd: RESERVA_POR_LLAMADA_USD,
+      });
+      // No se propaga: la respuesta del usuario ya salió y el gasto real queda
+      // igual en argos_logs, que es la fuente de verdad reconstruible.
+      if (gastoErr) console.error("record_argos_spend falló:", gastoErr);
+    }
   } catch (e) {
     console.error("argos_logs insert failed:", e);
   }
@@ -502,14 +521,118 @@ async function callGeminiProvider(args: {
 // (Gemini en vez de Sonnet), nunca se le corta. Ese cambio va en `routeModel`,
 // que ya decide proveedor por requestType, no aquí.
 //
-// ⚠️ TECHO ANTIABUSO — esto NO es un límite de producto, es una defensa contra
-// una llave filtrada o un script. Está deliberadamente absurdo: 13 veces el
-// tope que tenía el plan más caro. Ninguna persona real lo toca; un bucle
-// automatizado lo revienta en minutos. Sin esto, un solo token robado puede
-// facturar miles de dólares en una noche y no hay forma de enterarse hasta el
-// corte. Si se decide que ni esto va, se pone en Infinity y se acepta el
-// riesgo a ojos abiertos.
-const TECHO_ANTIABUSO_DIARIO = 2000;
+// ─── EL TECHO ANTIABUSO SE MIDE EN DINERO, NO EN LLAMADAS ─────────
+// Aquí vivía `TECHO_ANTIABUSO_DIARIO = 2000` llamadas al día. Se fue porque la
+// unidad estaba mal elegida, y eso lo dijo la medición, no una opinión.
+//
+// Medido en argos_logs a 30 días (813 llamadas, 62 días-usuario):
+//
+//   día promedio de un usuario      13.1 llamadas    0.080 USD
+//   día más pesado registrado         110 llamadas    2.51 USD
+//   costo por llamada               0.006 USD prom.  0.023 USD pico
+//   promedio mensual por usuario      ~45 MXN
+//
+// EL HALLAZGO QUE MANDA EL DISEÑO: el costo por llamada varía DIEZ VECES. Las
+// mismas 2000 llamadas cuestan 12 pesos o 800 pesos según cuáles sean. Un techo
+// de llamadas no acota el gasto, acota una unidad que no significa nada: deja
+// pasar 2000 chats caros y bloquea 2000 fotos de comida baratas con el mismo
+// número. Se cambia por gasto acumulado, que es lo que de verdad se factura.
+//
+// ── LOS DOS UMBRALES, Y CUÁL ES CUÁL ─────────────────────────────
+// Están separados a propósito porque responden preguntas distintas, y confundirlos
+// es como se llega a cortarle el acceso a alguien que paga:
+//
+//   NEGOCIO  → avisa y registra. NUNCA corta.
+//   FRAUDE   → corta.
+//
+// La tensión es real y se resuelve así: el dueño no quiere cortarle a quien paga
+// (es la razón entera del pivote a membresía única), pero un token filtrado no
+// puede facturar miles de dólares en una noche. Entonces el número de negocio
+// deja constancia y sigue sirviendo, y el número que corta está tan arriba que
+// solo lo alcanza un abuso evidente.
+
+/**
+ * Tipo de cambio USD→MXN. Constante NOMBRADA y no incrustada porque es el único
+ * número de aquí que se mueve por causas ajenas al producto, y cuando se mueva
+ * hay que poder tocarlo en un solo lugar sin releer la lógica.
+ *
+ * 18.75 no es una cotización de mercado: es el tipo de cambio IMPLÍCITO en la
+ * medición que calibró estos umbrales (2.4 USD/mes medidos ≈ 45 MXN/mes
+ * reportados). Usarlo mantiene los pesos y los dólares hablando del mismo mes de
+ * datos. Si el peso se mueve de forma sostenida, se actualiza aquí y los dos
+ * umbrales se recalculan solos.
+ */
+const TIPO_DE_CAMBIO_USD_MXN = 18.75;
+
+/**
+ * UMBRAL DE NEGOCIO — 150 MXN por usuario por MES. AVISA Y REGISTRA. NO CORTA.
+ *
+ * Es la condición con la que el dueño aceptó tener un techo: que el uso quepa en
+ * un rango de gasto de 150 pesos. Contra la medición son 3.3 veces lo que gasta
+ * un usuario promedio al mes (45 MXN), así que un usuario normal no lo ve nunca.
+ *
+ * Pero un usuario intenso SÍ lo va a ver: el día más pesado registrado costó
+ * 2.51 USD, y tres o cuatro días así en un mes cruzan los 150. Por eso este
+ * umbral no puede cortar. Que un profesional que usa ARGOS todos los días se
+ * quede sin ARGOS el día 20 es el modo de falla que mata la app, y ya pasó una
+ * vez con los protones. Lo que hace es dejar un renglón en argos_spend_notices
+ * con un humano del otro lado: ese renglón es el insumo para decidir el ruteo de
+ * modelos con datos, no la sentencia del usuario.
+ */
+const AVISO_GASTO_MENSUAL_MXN = 150;
+const AVISO_GASTO_MENSUAL_USD = AVISO_GASTO_MENSUAL_MXN / TIPO_DE_CAMBIO_USD_MXN; // ≈ 8.00 USD
+
+/**
+ * UMBRAL DE FRAUDE — 500 MXN por usuario por DÍA. ESTE SÍ CORTA.
+ *
+ * No es un límite de producto y no se calibra contra el presupuesto: se calibra
+ * contra lo que un ser humano es capaz de gastar. El día más pesado que existe en
+ * argos_logs costó 2.51 USD ≈ 47 MXN. Esto es DIEZ VECES ese día, y más de tres
+ * veces el presupuesto mensual completo quemado en 24 horas. Para alcanzarlo hay
+ * que sostener unas 700 consultas de chat en un día.
+ *
+ * Ninguna persona real llega. Una llave filtrada en un bucle llega en minutos, y
+ * ese es el único escenario que esto ataja: acota la noche mala a 500 pesos en
+ * vez de a la factura entera.
+ *
+ * Es DIARIO y a propósito no hay gemelo mensual. Un techo mensual de fraude
+ * tendría que ponerse en un número que un usuario intenso de verdad puede tocar,
+ * y ahí estaríamos reinventando el muro que este pivote acaba de tirar. La
+ * exposición mensual la acota el corte diario, y el aviso de negocio suena desde
+ * el día 1: si una cuenta comprometida llega a chocar dos días seguidos con este
+ * corte, ya hubo un renglón en la bitácora pidiendo que alguien mire.
+ *
+ * Si algún día se decide que ni esto va, se pone en Infinity y se acepta el
+ * riesgo a ojos abiertos.
+ */
+const CORTE_FRAUDE_DIARIO_MXN = 500;
+const CORTE_FRAUDE_DIARIO_USD = CORTE_FRAUDE_DIARIO_MXN / TIPO_DE_CAMBIO_USD_MXN; // ≈ 26.67 USD
+
+/**
+ * Reserva que la compuerta apunta ANTES de conocer el costo real, porque el costo
+ * de una llamada solo se sabe cuando ya se pagó. Sin reserva, un script en
+ * paralelo mete mil peticiones dentro de la ventana de latencia y las mil pasan
+ * porque ninguna ha cobrado todavía: el techo por gasto no serviría contra el
+ * único escenario para el que existe.
+ *
+ * Es el costo PROMEDIO medido (0.006 USD), no el pico, y la diferencia importa:
+ * con el pico sobreestimaríamos el gasto del usuario normal como cuatro veces y
+ * el aviso de 150 MXN sonaría a los 37 pesos reales. record_argos_spend cambia
+ * esta reserva por el costo real en cuanto la llamada cierra, así que el sesgo
+ * solo vive durante los segundos que la llamada está en vuelo.
+ */
+const RESERVA_POR_LLAMADA_USD = 0.006;
+
+/**
+ * El conteo de LLAMADAS no se quita, deja de decidir. Se le pasa un tope
+ * inalcanzable a los RPC de cuota para que sigan escribiendo message_count y
+ * weighted_units, que son el insumo de los LÍMITES SUAVES que vienen después
+ * (bajar el nivel de modelo, nunca cortar). Ese cambio va en `resolveRoute`, que
+ * ya decide proveedor por requestType; el camino queda preparado ahí y en el
+ * campo `nivel` que devuelve `evaluarGasto`, y deliberadamente NO se implementa
+ * aquí todavía.
+ */
+const CONTEO_DIARIO_SIN_CORTE = 1_000_000;
 
 // ─── CUOTA PONDERADA POR COSTO REAL (CIERRE-4 · Audit-5) ─────────
 // El circuit breaker cobraba UNA unidad por petición sin mirar el requestType.
@@ -637,7 +760,9 @@ async function checkAndIncrementUsage(supabase: any, userId: string | undefined,
   count: number;
   limit: number;
 }> {
-  const limit = TECHO_ANTIABUSO_DIARIO;
+  // NOCHE-3: el tope que se le pasa a los RPC es inalcanzable a propósito. Este
+  // contador MIDE, ya no decide: quien decide cortar es evaluarGasto, en dinero.
+  const limit = CONTEO_DIARIO_SIN_CORTE;
   if (!userId) return { blocked: false, count: 0, limit };
   try {
     // CIERRE-4: cuota ponderada por costo real, gated. Sin la env var el
@@ -678,6 +803,69 @@ async function checkAndIncrementUsage(supabase: any, userId: string | undefined,
   } catch (e) {
     console.error("consume_argos_usage exception:", e);
     return { blocked: false, count: 0, limit };
+  }
+}
+
+/** Resultado de la compuerta de gasto. `nivel` es el gancho de los límites suaves. */
+interface EvaluacionGasto {
+  /** true SOLO por el umbral de FRAUDE. El umbral de negocio nunca pone esto en true. */
+  bloqueado: boolean;
+  /** 'normal' | 'aviso' (cruzó los 150 MXN del mes) | 'fraude' (cruzó el corte diario). */
+  nivel: "normal" | "aviso" | "fraude";
+  gastoHoyUsd: number;
+  gastoMesUsd: number;
+  /** El aviso se acaba de escribir por primera vez este mes (para no repetir el log). */
+  avisoNuevo: boolean;
+}
+
+/**
+ * Compuerta del techo antiabuso. Corre antes del LLM, igual que corría el conteo.
+ *
+ * Fail-open a propósito, en las dos ramas de error: si la 295 todavía no está en
+ * el remoto o el RPC truena, se sirve la petición. El riesgo de dejar pasar unas
+ * llamadas mientras una migración aterriza es de centavos; el riesgo de cortarle
+ * ARGOS a todos los que pagan por un hiccup de base es el producto entero. Queda
+ * en el log del function para que no pase inadvertido.
+ */
+async function evaluarGasto(supabase: any, userId: string | undefined): Promise<EvaluacionGasto> {
+  const abierto: EvaluacionGasto = {
+    bloqueado: false, nivel: "normal", gastoHoyUsd: 0, gastoMesUsd: 0, avisoNuevo: false,
+  };
+  if (!userId) return abierto;
+  try {
+    const { data, error } = await supabase.rpc("consume_argos_spend", {
+      p_user_id: userId,
+      p_fraud_daily_usd: CORTE_FRAUDE_DIARIO_USD,
+      p_notice_monthly_usd: AVISO_GASTO_MENSUAL_USD,
+      p_reserve_usd: RESERVA_POR_LLAMADA_USD,
+      p_fx_usd_mxn: TIPO_DE_CAMBIO_USD_MXN,
+    });
+    if (error || !data || typeof data !== "object") {
+      console.error("[gasto] consume_argos_spend no disponible, se sirve la petición:", error);
+      return abierto;
+    }
+    const bloqueado = data.blocked === true;
+    const aviso = data.notice === true;
+    const ev: EvaluacionGasto = {
+      bloqueado,
+      nivel: bloqueado ? "fraude" : (aviso ? "aviso" : "normal"),
+      gastoHoyUsd: Number(data.spend_today_usd ?? 0),
+      gastoMesUsd: Number(data.spend_month_usd ?? 0),
+      avisoNuevo: data.notice_fresh === true,
+    };
+    // El aviso NO corta. Lo único que hace es hablar, una vez por mes, para que
+    // exista un rastro antes de que el corte de Anthropic sea la primera noticia.
+    if (ev.avisoNuevo) {
+      console.warn(
+        `[gasto] AVISO DE PRESUPUESTO (no se corta nada) user=${userId} ` +
+        `mes=${(ev.gastoMesUsd * TIPO_DE_CAMBIO_USD_MXN).toFixed(2)} MXN ` +
+        `umbral=${AVISO_GASTO_MENSUAL_MXN} MXN`,
+      );
+    }
+    return ev;
+  } catch (e) {
+    console.error("[gasto] consume_argos_spend exception, se sirve la petición:", e);
+    return abierto;
   }
 }
 
@@ -796,12 +984,22 @@ serve(async (req) => {
     // exactamente lo que este cambio deja de hacer: es el activo más valioso
     // del producto y ahora viene completo con la membresía.
 
-    // Conteo diario. PREMIUM: cuenta, ya no corta. El único caso en que
-    // `blocked` puede volver true es el techo antiabuso (2000/día), que ninguna
-    // persona real toca y que existe contra llaves filtradas, no contra usuarios.
+    // Conteo diario. NOCHE-3: MIDE, ya no decide. Se le pasa un tope
+    // inalcanzable para que siga alimentando message_count y weighted_units, que
+    // son el insumo de los límites suaves (bajar el modelo, no cortar).
     const usage = await checkAndIncrementUsage(supabase, userId, requestType);
-    if (usage.blocked) {
+
+    // Techo antiabuso, ahora en DINERO. Solo el umbral de FRAUDE (500 MXN en un
+    // día) devuelve bloqueado. El de NEGOCIO (150 MXN al mes) ya dejó su renglón
+    // en argos_spend_notices adentro del RPC y esta petición sigue su camino
+    // completo: quien paga no se queda sin ARGOS por gastar lo que gasta.
+    const gasto = await evaluarGasto(supabase, userId);
+    if (gasto.bloqueado || usage.blocked) {
       const latencyMs = Date.now() - startTime;
+      const motivo = gasto.bloqueado
+        ? `fraude_gasto_diario:mxn=${(gasto.gastoHoyUsd * TIPO_DE_CAMBIO_USD_MXN).toFixed(2)}:umbral=${CORTE_FRAUDE_DIARIO_MXN}`
+        : `abuso_sospechado:conteo=${usage.count}:limite=${usage.limit}`;
+      console.error(`[gasto] CORTE POR FRAUDE user=${userId} motivo=${motivo}`);
       await logArgosCall(supabase, {
         user_id: userId,
         tier: effectiveTier,
@@ -810,7 +1008,7 @@ serve(async (req) => {
         request_type: requestType,
         latency_ms: latencyMs,
         success: false,
-        error_message: `abuso_sospechado:limite=${usage.limit}`,
+        error_message: motivo,
         fallback_used: false,
         target_user_id: targetUserId ?? null,
         target_profile_id: targetProfileId ?? null,
@@ -827,6 +1025,22 @@ serve(async (req) => {
         _limit: usage.limit,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    // ─── CAMINO PREPARADO PARA LOS LÍMITES SUAVES (NO IMPLEMENTADO) ──
+    // Aquí engancha el límite suave de verdad, el que baja el NIVEL DE MODELO en
+    // vez de cortar: cuando `gasto.nivel === 'aviso'`, una acción ruteada a
+    // Sonnet cuyo requestType tolere degradación se manda a ROUTE_GEMINI y el
+    // usuario sigue trabajando, más barato, sin enterarse de un muro.
+    //
+    // Falta a propósito y falta lo mínimo. Dos condiciones antes de escribirlo:
+    //   1. `route` se resuelve ARRIBA de este bloque (línea del resolveRoute).
+    //      Para degradar hay que moverlo abajo de `gasto`, o recalcularlo aquí.
+    //   2. Hay que decidir CUÁLES requestType aceptan degradar. Bajar un
+    //      lab_interpretation o un dx_generation a Gemini no es ahorrar, es
+    //      empeorar el producto en la parte clínica. La lista tolerable
+    //      probablemente sea chat casual, title y las automáticas.
+    // Sin esas dos decisiones tomadas, degradar a ciegas sería un ahorro que se
+    // paga en calidad y nadie lo mediría.
 
     // PREMIUM (16-ago-2026): aquí se descontaban H+ antes de llamar al LLM y se
     // devolvía un 402 "insufficient_protons" que dejaba la acción sin hacer.
