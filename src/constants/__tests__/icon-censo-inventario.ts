@@ -135,7 +135,8 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/salud/mis-datos/index.tsx::flask-outline',
   'app/salud/mis-datos/index.tsx::pulse-outline',
   'app/salud/mis-datos/index.tsx::water-outline',
-  'app/settings.tsx::document-text-outline',
+  // NOCHE3-B (simplificar Ajustes): document-text-outline salió — la fila
+  // "Legal y soporte" se fusionó en "Privacidad y legal", que ya existía.
   'app/settings.tsx::pulse-outline',
   // NOCHE-1 · HealthKit / Health Connect. Los dos usos son de la CONEXIÓN con
   // la plataforma de salud del teléfono, que no es una función del registro (no
@@ -155,19 +156,22 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/salud/ficha-emergencia.tsx::document-text-outline',
   'app/salud/ficha-emergencia.tsx::eye-outline',
   'app/salud/ficha-emergencia.tsx::phone-portrait-outline',
-  'app/settings/salud.tsx::medkit-outline::x2',
+  'app/settings/salud.tsx::medkit-outline',
   'src/components/salud/FichaEmergenciaRow.tsx::medkit',
   'app/settings/legal.tsx::document-text-outline',
   'app/settings/legal.tsx::medkit-outline',
-  // Ola 0 QW-5: las filas nuevas de Términos y Aviso (antes no había NINGUNA
-  // puerta a /legal/* en la app, era bloqueante de revisión de tiendas).
-  'app/settings/legal.tsx::reader-outline',
+  // Ola 0 QW-5 había abierto las filas de Términos y Aviso (antes no había
+  // NINGUNA puerta a /legal/* en la app, era bloqueante de revisión de
+  // tiendas). NOCHE3-B las dejó en una sola fila por documento, así que
+  // reader-outline salió de esta pantalla.
   'app/settings/privacy.tsx::document-text-outline',
   'app/settings/salud.tsx::calendar-outline',
-  'app/settings/salud.tsx::flask-outline',
-  // OLA6 D: medkit-outline pasó de un uso a dos (se sumó el acceso a la ficha
-  // de emergencia), así que la entrada vive arriba como ::x2.
-  'app/settings/salud.tsx::sunny-outline',
+  // NOCHE3-B (simplificar Ajustes) se llevó tres filas de esta pantalla, que
+  // ya vivían idénticas en el hub de SALUD o en Tests: cronotipo
+  // (sunny-outline), catálogo de protocolos (flask-outline) y ficha de
+  // emergencia (uno de los dos medkit-outline). Por eso aquí quedan podadas y
+  // la entrada de medkit de arriba perdió el sufijo ::x2: el inventario se
+  // reapunta al árbol real, el candado sigue igual de estricto.
   'app/sleep.tsx::moon-outline',
   'app/sleep.tsx::sunny-outline',
   'app/solar.tsx::bar-chart-outline',

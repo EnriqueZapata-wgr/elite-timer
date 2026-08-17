@@ -26,12 +26,30 @@ const proxySrc = readFileSync(
 );
 const argosServiceSrc = readFileSync(join(ROOT, 'src', 'services', 'argos-service.ts'), 'utf8');
 
+/**
+ * Quita comentarios de línea y de bloque (mismo patrón que mb31b-remate y
+ * camara-por-gesto).
+ *
+ * POR QUÉ ES NECESARIO AQUÍ: el guard de abajo mira `dx-engine.ts` como texto,
+ * y ese archivo DOCUMENTA en un comentario que la bifurcación de cobro se
+ * eliminó al pasar a membresía única. Sin este filtro el candado cazaba su
+ * propia documentación: el código estaba bien y el test rojo. La salida fácil
+ * era borrar el comentario, pero ese comentario explica una decisión de
+ * negocio y vale más que la comodidad del test. Lo que se corrige es la
+ * mirada, no la evidencia: se verifica el CÓDIGO.
+ */
+function sinComentarios(src: string): string {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1');
+}
+
 describe('PREMIUM · el cliente ya no pide el mapa funcional "de regalo"', () => {
   it('dx-engine no manda el requestType gratuito', () => {
     // Guard barato pero real: si alguien reintroduce el reparto, el cliente
     // volvería a mandar dos requestTypes distintos según el historial.
     const dxEngineSrc = readFileSync(join(ROOT, 'src', 'services', 'dx', 'dx-engine.ts'), 'utf8');
-    expect(dxEngineSrc).not.toContain('dx_generation_first');
+    expect(sinComentarios(dxEngineSrc)).not.toContain('dx_generation_first');
   });
 
   it('el proxy sigue existiendo y sigue siendo el que decide (no el cliente)', () => {
