@@ -21,7 +21,7 @@ beforeEach(() => { state.tables = {}; });
 describe('buildInputsFromUnified — mapea UnifiedUserData → EdadAtpV2Inputs', () => {
   it('rellena PhenoAge faltantes con defaults y conserva los presentes', () => {
     const data: UnifiedUserData = {
-      chronological_age: 45, sex: 'female',
+      chronological_age: 45, sex: 'female', perfil_legible: true,
       glucose_mg_dl: 92, albumin_g_dl: 4.7,
       sf_scores_by_domain: { metabolismo: 50 },
       data_sources_used: ['lab_results', 'edad_atp_biomarkers'],
@@ -41,7 +41,7 @@ describe('buildInputsFromUnified — mapea UnifiedUserData → EdadAtpV2Inputs',
   });
 
   it('deriva has_diabetes desde HbA1c ≥ 6.5 o glucosa ≥ 126', () => {
-    const base: UnifiedUserData = { chronological_age: 50, sex: 'male', data_sources_used: [] };
+    const base: UnifiedUserData = { chronological_age: 50, sex: 'male', perfil_legible: true, data_sources_used: [] };
     expect(buildInputsFromUnified(base).cardiovascular.has_diabetes).toBe(false);
     expect(buildInputsFromUnified({ ...base, hba1c_pct: 6.7 }).cardiovascular.has_diabetes).toBe(true);
     expect(buildInputsFromUnified({ ...base, glucose_mg_dl: 130 }).cardiovascular.has_diabetes).toBe(true);
@@ -49,7 +49,7 @@ describe('buildInputsFromUnified — mapea UnifiedUserData → EdadAtpV2Inputs',
   });
 
   it('arma reaction_time solo si ambos RT están presentes', () => {
-    const base: UnifiedUserData = { chronological_age: 40, sex: 'male', data_sources_used: [] };
+    const base: UnifiedUserData = { chronological_age: 40, sex: 'male', perfil_legible: true, data_sources_used: [] };
     expect(buildInputsFromUnified({ ...base, reaction_time_simple_ms: 280 }).reaction_time).toBeUndefined();
     const both = buildInputsFromUnified({ ...base, reaction_time_simple_ms: 280, reaction_time_choice_ms: 420 });
     expect(both.reaction_time).toEqual({ rt_simple_ms: 280, rt_choice_ms: 420 });

@@ -48,7 +48,7 @@ describe('CE — computeCEFromData', () => {
 describe('CE — unifiedToCEData (lectura desde fuentes existentes)', () => {
   it('labs (glucose/creatinine/pcr/wbc) cuentan como biomarkers presentes', () => {
     const data: UnifiedUserData = {
-      chronological_age: 45, sex: 'male',
+      chronological_age: 45, sex: 'male', perfil_legible: true,
       glucose_mg_dl: 90, creatinine_mg_dl: 0.9, pcr_mg_dl: 0.2, wbc_per_ul: 6000,
       data_sources_used: ['lab_results'],
     };
@@ -59,7 +59,7 @@ describe('CE — unifiedToCEData (lectura desde fuentes existentes)', () => {
   });
 
   it('composición requiere weight+height+bodyfat; cognitivo requiere ambos RT', () => {
-    const base: UnifiedUserData = { chronological_age: 40, sex: 'male', data_sources_used: [] };
+    const base: UnifiedUserData = { chronological_age: 40, sex: 'male', perfil_legible: true, data_sources_used: [] };
     expect(unifiedToCEData({ ...base, weight_kg: 80, height_cm: 178 }).hasComposition).toBe(false);
     expect(unifiedToCEData({ ...base, weight_kg: 80, height_cm: 178, body_fat_pct: 18 }).hasComposition).toBe(true);
     expect(unifiedToCEData({ ...base, reaction_time_simple_ms: 280 }).hasCognitive).toBe(false);
@@ -68,7 +68,7 @@ describe('CE — unifiedToCEData (lectura desde fuentes existentes)', () => {
 
   it('dominios contestados se reflejan en presentDomains', () => {
     const data: UnifiedUserData = {
-      chronological_age: 40, sex: 'male',
+      chronological_age: 40, sex: 'male', perfil_legible: true,
       sf_scores_by_domain: { metabolismo: 50, sueno: 50 },
       data_sources_used: ['edad_atp_questionnaire_responses'],
     };
