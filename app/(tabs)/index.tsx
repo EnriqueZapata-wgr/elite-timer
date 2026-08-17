@@ -20,7 +20,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, Text,
-  DeviceEventEmitter,
+  DeviceEventEmitter, AppState,
   Platform, UIManager,
 } from 'react-native';
 import { warn as logWarn } from '@/src/lib/logger';
@@ -41,7 +41,8 @@ import { ProBoostCard } from '@/src/components/economy/ProBoostCard';
 import { HPlusExplainerCard } from '@/src/components/economy/HPlusExplainerCard';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
-import { getLocalToday } from '@/src/utils/date-helpers';
+import { getLocalToday, getLocalHour } from '@/src/utils/date-helpers';
+import { saludoPorHora } from '@/src/services/saludo-core';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { generateDailyInsight, invalidateDailyInsight, ARGOS_INSIGHT_CHANGED_EVENT } from '@/src/services/argos-service';
@@ -150,8 +151,22 @@ export default function TodayScreen() {
   const [, setMinuteTick] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setMinuteTick((n) => n + 1), 60 * 1000);
-    return () => clearInterval(t);
+    // BLOQ-5: los timers de JS se suspenden con la app en background. Sin esto,
+    // el teléfono que pasó la noche con HOY abierto vuelve por la mañana con el
+    // reloj de anoche hasta que el intervalo reanude. AppState es la única
+    // señal de "volví al frente": useFocusEffect es foco de NAVEGACIÓN y no
+    // dispara si HOY ya era la pantalla activa.
+    const sub = AppState.addEventListener('change', (estado) => {
+      if (estado === 'active') setMinuteTick((n) => n + 1);
+    });
+    return () => { clearInterval(t); sub.remove(); };
   }, []);
+
+  // BLOQ-5: el saludo se DERIVA del reloj en cada render, no se lee de `day`.
+  // Como campo materializado en CompiledDay se añejaba: compilado a las 21:xx
+  // seguía diciendo "Buenas noches" a las 8:43 de la mañana siguiente. Ahora el
+  // tick de 60s y el retorno a foreground lo mantienen fresco.
+  const saludo = saludoPorHora(getLocalHour());
 
   // MB-11 B.3: el fetch de wearable que vivía aquí era estado muerto (las cards
   // Actividad se retiraron en v13e). YO y Sueño comparten useWearableToday.
@@ -353,7 +368,7 @@ export default function TodayScreen() {
           {/* Saludo */}
           <Animated.View entering={FadeInUp.delay(80).springify()} style={s.heroGreetingWrap}>
             {/* En claro no hay foto detrás: texto del tema y sin sombra. */}
-            <Text style={[s.heroGreeting, !dark && { color: tokens.texto, textShadowColor: 'transparent' }]}>{day.greeting}</Text>
+            <Text style={[s.heroGreeting, !dark && { color: tokens.texto, textShadowColor: 'transparent' }]}>{saludo}</Text>
             <Text style={[s.heroName, !dark && { color: tokens.texto, textShadowColor: 'transparent' }]}>{day.userName}</Text>
             <Text style={[s.heroDate, !dark && { color: tokens.textoSecundario }]}>{day.date}</Text>
             <View style={{ marginTop: 10 }}>

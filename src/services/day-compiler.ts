@@ -6,6 +6,7 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday, getLocalHour, toLocalDateString } from '@/src/utils/date-helpers';
+import { saludoPorHora } from '@/src/services/saludo-core';
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
 import { generateDailyPlan } from '@/src/services/protocol-builder-service';
 import { getUserWaterGoal, HYDRATION_DEFAULTS } from '@/src/services/hydration-service';
@@ -606,7 +607,11 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   onProgress?.(95, 'Generando agenda');
 
   // Greeting
-  const greeting = hour < 12 ? 'Buenos días,' : hour < 18 ? 'Buenas tardes,' : 'Buenas noches,';
+  // BLOQ-5: mismo criterio de siempre, ahora en un núcleo puro compartido. Lo
+  // que se guarda aquí es el saludo del MOMENTO DEL COMPILE; HOY lo vuelve a
+  // derivar del reloj en cada render porque este valor se añeja (ver
+  // saludo-core.ts). Se mantiene en CompiledDay para no romper el contrato.
+  const greeting = saludoPorHora(hour);
   const date = formatDisplayDate(today);
 
   onProgress?.(100, 'Listo');
