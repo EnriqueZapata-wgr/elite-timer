@@ -32,6 +32,7 @@ import {
   type MisDatosSummary,
 } from '@/src/services/salud/mis-datos-core';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 import { ELEVATION, TEXT, TEXT_COLORS, ATP_BRAND, SEMANTIC, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme, useSurfaceTokens } from '@/src/contexts/theme-context';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
@@ -212,7 +213,9 @@ function Section({ idx, icon, color, title, value, meta, metaColor, onPress, onC
 
 // MB-31B2: los estilos leen los tokens del tema.
 const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
-  scroll: { paddingHorizontal: Spacing.md },
+  // BLOQ-4: las últimas filas (Glucosa, Cetonas) quedaban bajo la orbe con
+  // solo 48 px de colchón, y con ellas su chevron de entrada.
+  scroll: { paddingHorizontal: Spacing.md, paddingBottom: ORB_SAFE_BOTTOM },
   // Batch 3 (#10): hero editorial
   hero: { height: 120, justifyContent: 'flex-end', borderRadius: Radius.lg, overflow: 'hidden', marginBottom: Spacing.md },
   heroImg: { resizeMode: 'cover' },

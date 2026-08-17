@@ -46,6 +46,7 @@ import {
 } from '@/src/services/hoy/ordenar-core';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 
@@ -418,7 +419,10 @@ export default function OrdenarDiaScreen() {
 
 // MB-31B remate: los estilos leen los tokens del tema.
 const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
-  scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
+  // BLOQ-4: "Volver a activar" cierra la sección EN REPOSO, al final del
+  // scroll y pegado al borde derecho. Este estilo lo comparten los 5
+  // ScrollViews de la pantalla, así que un solo cambio los despeja todos.
+  scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: ORB_SAFE_BOTTOM },
 
   intro: {
     color: t.textoSecundario,

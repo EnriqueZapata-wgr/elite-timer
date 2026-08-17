@@ -48,6 +48,7 @@ import {
 } from '@/src/services/app-avisos-service';
 import type { AppAvisoPref } from '@/src/services/notification-prefs-core';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 import { APP_SECTION_COLORS, ATP_BRAND, ELEVATION, withOpacity } from '@/src/constants/brand';
 import { useAppTheme, useSurfaceTokens } from '@/src/contexts/theme-context';
 import type { AppThemeTokens } from '@/src/constants/brand';
@@ -736,7 +737,9 @@ function ConfigLinkRow({ label, hint, onPress }: { label: string; hint: string; 
 }
 
 const s = StyleSheet.create({
-  scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
+  // BLOQ-4: ConfigAviso es el último bloque, y ahí viven la fila "Hora" y el
+  // switch "Solo si no lo has hecho". Aplica a las 36 fichas del Centro.
+  scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: ORB_SAFE_BOTTOM },
 
   hero: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: Spacing.md },
   heroIcon: {

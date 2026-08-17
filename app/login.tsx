@@ -3,21 +3,23 @@
  *
  * Branding ELITE + campos de email/password + links a registro y recuperación.
  *
- * MB-31B remate: esta pantalla NO se envuelve en <ThemeReady> a propósito.
- * Toda su superficie la pone AuthScreen (componente compartido de auth con
- * gradiente oscuro fijo #0A0E14→#000 y logo dark), y EliteInput/EliteButton
- * son kit oscuro hardcodeado. El flujo de auth completo (login/register/
- * forgot/reset) queda OSCURO en los dos modos —como la card editorial— hasta
- * que se tematice AuthScreen + kit en su propio run. Aquí no hay ningún hex
- * neutro a mano: los grises salen de Colors.* y el scope sin ThemeReady
- * entrega el oscuro canónico, que es exactamente lo que este fondo necesita.
+ * BLOQ-3: la comparación con la card editorial ya no aplica. La card es oscura
+ * por doctrina (lleva foto y su velo es constante, hay tests que lo exigen);
+ * este flujo era oscuro por alcance pendiente, y el onboarding v2 que viene
+ * INMEDIATAMENTE después está terminado en claro. Los colores de esta pantalla
+ * ya salen de tokens (`useAuthTheme`), y el scope lo abre AuthScreen.
+ *
+ * Sigue viéndose oscura porque AUTH_RESPETA_EL_TEMA nace en false, y por un
+ * motivo que no es de código: el único logo horizontal del repo trae el
+ * logotipo en blanco y sobre acero desaparece. Ver el docblock de la bandera.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image, Dimensions } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthScreen } from '@/src/components/auth/AuthScreen';
+import { useAuthTheme } from '@/src/components/auth/auth-theme';
 import { AuthLinksFooter } from '@/src/components/auth/AuthLinksFooter';
 import { EliteText } from '@/components/elite-text';
 import { EliteInput } from '@/components/elite-input';
@@ -25,9 +27,9 @@ import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
 import { hasLocalCard, loadFichaPrelogin } from '@/src/services/salud/emergency-card-store';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { LOGIN_PASA_POR_GATE } from '@/src/constants/flags';
-import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
+import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 
 // Logo grande en login (~22% del alto de pantalla, como el splash nativo).
 const LOGO_HEIGHT = Math.round(Dimensions.get('window').height * 0.22);
@@ -35,6 +37,11 @@ const LOGO_HEIGHT = Math.round(Dimensions.get('window').height * 0.22);
 export default function LoginScreen() {
   const router = useRouter();
   const { signIn } = useAuth();
+  const t = useAuthTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+  // El lima como letra tiene 1.34 sobre acero: en claro el acento es teal
+  // calibrado. En oscuro `tealTexto` YA es #1ABC9C, el mismo de siempre.
+  const acento = t.kind === 'light' ? t.tealTexto : ATP_BRAND.lime;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -108,7 +115,7 @@ export default function LoginScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
-              accentColor={ATP_BRAND.teal}
+              accentColor={t.tealTexto}
             />
 
             <View style={styles.passwordContainer}>
@@ -119,7 +126,7 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
-                accentColor={ATP_BRAND.teal}
+                accentColor={t.tealTexto}
               />
               <Pressable
                 onPress={() => setShowPassword(!showPassword)}
@@ -129,7 +136,7 @@ export default function LoginScreen() {
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={22}
-                  color={Colors.textSecondary}
+                  color={t.textoSecundario}
                 />
               </Pressable>
             </View>
@@ -141,7 +148,7 @@ export default function LoginScreen() {
             )}
 
             {loading ? (
-              <ActivityIndicator size="large" color={Colors.neonGreen} style={styles.loader} />
+              <ActivityIndicator size="large" color={acento} style={styles.loader} />
             ) : (
               <EliteButton
                 label="INICIAR SESIÓN"
@@ -183,7 +190,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -202,7 +209,7 @@ const styles = StyleSheet.create({
     height: LOGO_HEIGHT,
   },
   tagline: {
-    color: ATP_BRAND.teal,
+    color: t.tealTexto,
     letterSpacing: 2,
     marginTop: Spacing.sm,
   },
@@ -227,7 +234,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   error: {
-    color: Colors.error,
+    color: t.error,
     textAlign: 'center',
     marginBottom: Spacing.md,
   },
@@ -239,16 +246,16 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   link: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     textAlign: 'center',
     marginBottom: Spacing.md,
   },
   linkHighlight: {
-    color: ATP_BRAND.teal,
+    color: t.tealTexto,
     fontFamily: Fonts.semiBold,
   },
   forgotLink: {
-    color: ATP_BRAND.teal,
+    color: t.tealTexto,
     textAlign: 'center',
   },
   // OLA6 D: discreto pero presente. No compite con el acceso, y el día que
@@ -261,7 +268,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
   },
   fichaLinkTexto: {
-    color: Colors.textSecondary,
+    color: t.textoSecundario,
     fontFamily: Fonts.semiBold,
   },
 });

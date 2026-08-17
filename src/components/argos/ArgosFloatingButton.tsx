@@ -21,11 +21,21 @@ import { openArgosChat } from '@/src/services/argos-nav';
 import { ATP_BRAND } from '@/src/constants/brand';
 
 /**
- * OLA0 QW-1: espacio que la orbe ocupa sobre el borde inferior (56 de orbe
- * + margen de respiro). Las pantallas cuyo contenido interactivo queda bajo
- * la orbe lo suman a su paddingBottom de scroll para poder despejarla.
+ * OLA0 QW-1: espacio que la orbe ocupa sobre el borde inferior. Las pantallas
+ * cuyo contenido interactivo queda bajo la orbe lo suman a su paddingBottom de
+ * scroll para poder despejarla.
+ *
+ * BLOQ-4: valía 96 y NO alcanzaba. La orbe se dibuja con `marginBottom:
+ * insets.bottom + 78` y mide 56 de alto, así que su borde SUPERIOR queda a
+ * insets.bottom + 134 del fondo de la ventana. Con 96 de colchón, los últimos
+ * ~38 px de la orbe seguían cayendo sobre el contenido: bastaba para no tapar
+ * texto de relleno, pero un control en el último renglón quedaba igual de
+ * pisado. Las ocho pantallas que ya lo sumaban creían estar despejadas y no lo
+ * estaban. 140 = 78 + 56 + 6 de respiro.
+ *
+ * Si el valor de `marginBottom` de la orbe cambia, este número cambia con él.
  */
-export const ORB_SAFE_BOTTOM = 96;
+export const ORB_SAFE_BOTTOM = 140;
 
 export function ArgosFloatingButton() {
   const pathname = usePathname();

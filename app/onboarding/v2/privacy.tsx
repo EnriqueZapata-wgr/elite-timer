@@ -1,5 +1,6 @@
 /**
- * Onboarding v2 — Paso 2: Muro de consentimiento (Sprint Compliance 2).
+ * Onboarding v2 — Paso 3: Muro de consentimiento (Sprint Compliance 2).
+ * (Decía "Paso 2": V2_STEPS lo mueve a 3 desde que entró `positioning`.)
  *
  * Aviso de Privacidad Simplificado (Parte 2) arriba + checkboxes de la
  * Parte 3: CB-2 (datos sensibles), CB-3 (transferencia internacional) y
@@ -111,7 +112,12 @@ export default function V2PrivacyScreen() {
         </Animated.View>
       </ScrollView>
 
-      <View style={s.bottomBar}>
+      {/* BLOQ-2: ver consent.tsx. La barra es hermana del ScrollView, no flota
+          encima: los checkboxes CB-2/3/4 nunca estuvieron tapados. Y como son
+          obligatorios y viven DEBAJO del aviso, es imposible aceptar sin haber
+          scrolleado hasta ellos. Lo que faltaba era el filo que marca donde
+          termina el contenido. */}
+      <View style={[s.bottomBar, { borderTopColor: th.tokens.borde }]}>
         <AnimatedPressable
           style={[s.continueBtn, !allRequired && th.ctaDisabled]}
           onPress={handleContinue}
@@ -128,7 +134,7 @@ export default function V2PrivacyScreen() {
 }
 
 const s = StyleSheet.create({
-  scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
+  scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl + Spacing.md },
   title: { fontSize: 28, fontFamily: Fonts.bold, marginTop: 24 },
   subtitle: {
     fontSize: FontSizes.md, fontFamily: Fonts.regular,
@@ -143,7 +149,10 @@ const s = StyleSheet.create({
   linkBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   linkText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: ATP_BRAND.teal },
   requiredHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: withOpacity(ATP_BRAND.white, 0.4), lineHeight: 17 },
-  bottomBar: { paddingHorizontal: Spacing.md, paddingBottom: 40 },
+  bottomBar: {
+    paddingHorizontal: Spacing.md, paddingBottom: 40,
+    paddingTop: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth,
+  },
   continueBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,

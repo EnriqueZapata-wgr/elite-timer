@@ -5,11 +5,13 @@
  * (misma fuente que el paywall); las pantallas /legal/* quedan de respaldo
  * mientras el texto in-app tenga corchetes de razón social.
  */
+import { useMemo } from 'react';
 import { View, StyleSheet, Pressable, Linking } from 'react-native';
 import { EliteText } from '@/components/elite-text';
-import { ATP_BRAND, TEXT, SKOOL_URL } from '@/src/constants/brand';
+import { SKOOL_URL, type AppThemeTokens } from '@/src/constants/brand';
 import { Spacing, FontSizes } from '@/constants/theme';
 import { haptic } from '@/src/utils/haptics';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 const URLS = {
   web: 'https://www.somosatp.com',
@@ -24,6 +26,13 @@ function open(url: string) {
 }
 
 export function AuthLinksFooter() {
+  // BLOQ-3: `TEXT.tertiary` era el gris fijo del set oscuro y el teal de marca
+  // tiene 2.06 de contraste en claro. La fila legal es copy legal: es la que
+  // MENOS puede quedar tenue. Fuera de <ThemeReady> esto entrega THEME_DARK,
+  // donde `tealTexto` ya es #1ABC9C: idéntico a antes.
+  const t = useSurfaceTokens();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   return (
     <View style={styles.wrap}>
       <View style={styles.row}>
@@ -48,11 +57,14 @@ export function AuthLinksFooter() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   wrap: { alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.xl },
   row: { flexDirection: 'row', alignItems: 'center' },
-  brandLink: { color: ATP_BRAND.teal, fontSize: FontSizes.sm },
-  brandSep: { color: ATP_BRAND.teal, fontSize: FontSizes.sm, opacity: 0.5 },
-  legalLink: { color: TEXT.tertiary, fontSize: FontSizes.xs },
-  legalSep: { color: TEXT.tertiary, fontSize: FontSizes.xs },
+  brandLink: { color: t.tealTexto, fontSize: FontSizes.sm },
+  brandSep: { color: t.tealTexto, fontSize: FontSizes.sm, opacity: 0.5 },
+  // Sube de `TEXT.tertiary` (#555) a secundario A PROPÓSITO, aun en oscuro:
+  // la auditoría marcó este renglón por ilegible ("gris oscuro sobre negro a
+  // ~13 px, y es copy legal"). El tenue está pensado para texto grande.
+  legalLink: { color: t.textoSecundario, fontSize: FontSizes.xs },
+  legalSep: { color: t.textoSecundario, fontSize: FontSizes.xs },
 });

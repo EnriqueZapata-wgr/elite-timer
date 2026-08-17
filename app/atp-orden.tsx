@@ -31,6 +31,7 @@ import { getInstallPrefs } from '@/src/services/hoy/install-service';
 import { gridApps } from '@/src/services/hoy/install-core';
 import { getCycleAppMode } from '@/src/services/app-mode-service';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
@@ -156,7 +157,10 @@ export default function AtpOrdenScreen() {
 
 // MB-31B remate: los estilos leen los tokens del tema.
 const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
-  scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
+  // BLOQ-4: las flechas de subir/bajar van pegadas al borde derecho de cada
+  // fila, o sea en el mismo eje que la orbe, en la pantalla cuya única función
+  // es reordenar. Las de la última fila quedaban debajo.
+  scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: ORB_SAFE_BOTTOM },
   hint: {
     color: t.textoSecundario,
     fontFamily: Fonts.regular,

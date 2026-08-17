@@ -1,5 +1,6 @@
 /**
- * Onboarding v2 — Paso 6: Consentimiento médico + disclaimers.
+ * Onboarding v2 — Paso 8: Consentimiento médico + disclaimers.
+ * (Decía "Paso 6": el número real lo manda V2_STEPS, no este comentario.)
  * El usuario acepta explícitamente antes de recibir cualquier recomendación.
  * Persiste profiles.medical_consent_at (migración 153). Copy alineado con
  * Business development/Legal/04_Disclaimers_Medicos_por_Pantalla.md.
@@ -83,7 +84,13 @@ export default function V2ConsentScreen() {
         </Animated.View>
       </ScrollView>
 
-      <View style={s.bottomBar}>
+      {/* BLOQ-2: la barra NO flota sobre el scroll (es hermana del ScrollView,
+          que en RN lleva flexShrink:1 y se encoge), asi que nunca tapo nada.
+          Lo que si pasaba es que el contenido se cortaba a ras del boton lima,
+          sin ninguna linea que dijera "aqui termina lo scrolleable": en una
+          captura eso se lee identico a un texto legal tapado. El filo hace
+          visible el borde y el aire evita que la ultima tarjeta quede pegada. */}
+      <View style={[s.bottomBar, { borderTopColor: th.tokens.borde }]}>
         <AnimatedPressable
           style={[s.continueBtn, !accepted && th.ctaDisabled]}
           onPress={handleContinue}
@@ -100,7 +107,7 @@ export default function V2ConsentScreen() {
 }
 
 const s = StyleSheet.create({
-  scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
+  scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl + Spacing.md },
   title: { fontSize: 28, fontFamily: Fonts.bold, marginTop: 24 },
   subtitle: {
     fontSize: FontSizes.md, fontFamily: Fonts.regular,
@@ -123,7 +130,10 @@ const s = StyleSheet.create({
     fontSize: FontSizes.xs, fontFamily: Fonts.semiBold,
     color: 'rgba(255,255,255,0.8)', textDecorationLine: 'underline',
   },
-  bottomBar: { paddingHorizontal: Spacing.md, paddingBottom: 40 },
+  bottomBar: {
+    paddingHorizontal: Spacing.md, paddingBottom: 40,
+    paddingTop: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth,
+  },
   continueBtn: {
     backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,

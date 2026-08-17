@@ -387,3 +387,73 @@ export const LABS_UNIDADES_ALINEADAS = true;
  *  Sin migración y sin build nativo.
  */
 export const LABS_FICHA_POR_BIOMARCADOR = true;
+
+/**
+ * AUTH_RESPETA_EL_TEMA — el stack de auth deja de ser oscuro a la fuerza.
+ *
+ * QUÉ CONTROLA
+ *  · ON → AuthScreen pinta su gradiente con los tokens del tema y
+ *    abre <ThemeReady>, así que login, registro y recuperar-contraseña salen
+ *    claros para quien eligió claro. EliteInput y EliteButton, que son el kit
+ *    de esas tres pantallas, leen tokens en vez de constantes oscuras.
+ *  · OFF (default HOY) → vuelve el gradiente fijo #0A0E14→#000, el StatusBar
+ *    claro y el kit oscuro, byte por byte. Sin ThemeReady, `useSurfaceTokens`
+ *    entrega THEME_DARK y los componentes rinden exactamente lo de hoy.
+ *
+ * POR QUÉ NACE APAGADA, QUE ES LO IMPORTANTE
+ *  La implementación está COMPLETA y verificada. Lo que falta no es código: es
+ *  un archivo de imagen.
+ *
+ *  `assets/images/logo-horizontal-dark.png` es el único logo horizontal del
+ *  repo, y su nombre no miente: está hecho para fondo oscuro. Medido pixel a
+ *  pixel, la molécula es lima/teal (se vería bien sobre acero) pero el
+ *  logotipo "ATP" son ~1,959 píxeles opacos en RGB 224+, o sea blanco. Sobre
+ *  el fondo claro (#DBE2E7) eso da ~1.1 de contraste: la marca DESAPARECE, y
+ *  ocupa el 22% del alto de la primera pantalla que ve quien acaba de pagar.
+ *
+ *  No hay salida por código. El `_N` (negro) de assets es vertical y además es
+ *  SVG, y metro.config.js no tiene transformer de SVG, así que no se puede
+ *  requerir como componente; agregar la dependencia está prohibido en este run.
+ *  Teñir el PNG con `tintColor` aplanaría la molécula a un solo color y mata el
+ *  degradado de marca. Y ponerle una placa oscura detrás al logo sobre una
+ *  pantalla clara es justamente el parche que la doctrina del repo prohíbe.
+ *
+ *  Un login oscuro es un salto feo. Un login claro con la marca invisible es
+ *  peor, y permanente. Por eso la bandera existe y nace en false.
+ *
+ * PARA ENCENDERLA
+ *  Hace falta UNA cosa: un logo horizontal con el logotipo en oscuro (el mismo
+ *  arte, wordmark en `texto` #0F1518, molécula intacta), por ejemplo
+ *  `logo-horizontal-light.png`. Con eso, en `app/login.tsx` se elige el asset
+ *  por `t.kind` y se pone esta bandera en true. Nada más.
+ *
+ * POR QUÉ LA DECISIÓN VIEJA YA NO SE SOSTIENE
+ *  Había una decisión escrita en el encabezado de `app/login.tsx`: el flujo de
+ *  auth quedaba oscuro en los dos modos "como la card editorial", hasta
+ *  tematizarlo en su propio run. Esa decisión dejó de sostenerse, y no por
+ *  gusto: el onboarding v2, sus nueve pasos, está terminado en tema claro sin
+ *  un solo salto, y va INMEDIATAMENTE DESPUÉS del registro. Quien elige claro
+ *  y acaba de pagar ve una pantalla negra, escribe su correo, y en el siguiente
+ *  toque la app se vuelve clara. El salto cae justo en el peor momento del
+ *  producto.
+ *
+ *  La comparación con la card editorial tampoco aplicaba. La card es oscura a
+ *  propósito porque lleva foto de fondo y su velo es constante — hay tests que
+ *  lo exigen. El stack de auth no lleva foto: era oscuro por alcance pendiente,
+ *  no por doctrina. Ningún test protege AuthScreen, EliteInput ni EliteButton.
+ *
+ * RIESGO REAL, MEDIDO
+ *  EliteInput tiene 3 consumidores y los 3 son de auth. EliteButton tiene 7:
+ *  3 de auth y 4 fuera, de los cuales `components/empty-state.tsx`,
+ *  `ExercisePicker` y `ScheduleModal` no los importa nadie. El único vivo,
+ *  AssignRoutineModal, ya vive dentro de <ThemeReady> sobre `t.card`, que en
+ *  claro ya es claro: ahí el cambio corrige un lima sobre acero que hoy está
+ *  mal. El lima como RELLENO no se toca (identidad, y `textoSobreLima` es
+ *  negro en los dos temas); el lima y el teal como LETRA sí se calibran, que
+ *  es la regla 1 del manual 3.6.
+ *
+ * CÓMO MOVERLA EN CALIENTE
+ *  Cambiar el booleano → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración y sin build nativo, en los dos sentidos.
+ */
+export const AUTH_RESPETA_EL_TEMA = false;
