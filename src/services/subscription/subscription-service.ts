@@ -1,31 +1,17 @@
 /**
- * Subscription service — IO contra Supabase para tier + Boost H+.
+ * Subscription service — IO contra Supabase para la membresía.
  * La lógica pura vive en tier-logic.ts (testeable en node).
+ *
+ * PREMIUM (16-ago-2026): una sola membresía. Se fue el Boost H+ completo
+ * (comprar 24h de "Pro" con protones dejó de tener sentido cuando no hay Pro
+ * que comprar ni protones que gastar). La tabla `pro_boosts` y el RPC
+ * `activate_pro_boost` siguen EN PIE en la base: son historial de gente que
+ * pagó y no se tocan. Simplemente ya nadie los llama.
  */
 import { supabase } from '@/src/lib/supabase';
-import {
-  boostStatusFromRow,
-  tierFromProfile,
-  type BoostStatus,
-  type Tier,
-} from './tier-logic';
+import { tierFromProfile, type Tier } from './tier-logic';
 
-/** Costo/duración del Boost H+ (Task #133). El backend usa estos defaults. */
-export const PRO_BOOST_COST_H_PLUS = 500;
-export const PRO_BOOST_DURATION_HOURS = 24;
-/** #101: Boost Pro Semanal — 7 días de Pro por 3,000 H+ (mismo RPC atómico). */
-export const PRO_BOOST_WEEKLY_COST_H_PLUS = 3000;
-export const PRO_BOOST_WEEKLY_DURATION_HOURS = 168;
-
-export interface ActivateBoostResult {
-  success: boolean;
-  hPlusRemaining: number;
-  expiresAt: Date | null;
-  error?: string;
-  message?: string;
-}
-
-/** Tier según profiles (lo mantiene el webhook RevenueCat de Cowork). */
+/** Membresía según profiles (lo mantiene el webhook RevenueCat). */
 export async function fetchProfileTier(userId: string): Promise<Tier> {
   const { data, error } = await supabase
     .from('profiles')
@@ -36,37 +22,28 @@ export async function fetchProfileTier(userId: string): Promise<Tier> {
   return tierFromProfile(data.tier, data.tier_expires_at);
 }
 
-const VALID_TIERS: readonly Tier[] = ['free', 'base', 'pro', 'clinician'];
-
 /**
- * MB-13 · PIEZA 2 — el tier efectivo lo decide el SERVIDOR
+ * MB-13 · PIEZA 2 — la vigencia la decide el SERVIDOR
  * (get_my_effective_tier: RevenueCat vigente > código/webhook > free).
  * El cliente no calcula vigencias. Si el RPC aún no está desplegado o no
  * hay red, cae al lector directo de profiles como respaldo.
+ *
+ * PREMIUM: el RPC todavía devuelve las etiquetas viejas ('base'/'pro'/
+ * 'clinician') mientras no se despliegue la migración 290. `tierFromProfile`
+ * las traduce todas a `premium`, así que el cliente ya no distingue niveles
+ * y nadie que pagó se queda fuera por el nombre de su etiqueta vieja.
  */
 export async function fetchEffectiveTier(userId: string): Promise<Tier> {
   const { data, error } = await supabase.rpc('get_my_effective_tier');
   if (!error && data && typeof data === 'object') {
-    const tier = (data as Record<string, unknown>).tier;
-    if (typeof tier === 'string' && (VALID_TIERS as string[]).includes(tier)) {
-      return tier as Tier;
+    const fila = data as Record<string, unknown>;
+    const tier = fila.tier;
+    if (typeof tier === 'string') {
+      const expira = typeof fila.expires_at === 'string' ? fila.expires_at : null;
+      return tierFromProfile(tier, expira);
     }
   }
   return fetchProfileTier(userId);
-}
-
-/** Boost activo más reciente del usuario (RLS: solo filas propias). */
-export async function fetchActiveBoost(userId: string): Promise<BoostStatus> {
-  const { data, error } = await supabase
-    .from('pro_boosts')
-    .select('expires_at')
-    .eq('user_id', userId)
-    .gt('expires_at', new Date().toISOString())
-    .order('expires_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) return { active: false, expiresAt: null };
-  return boostStatusFromRow(data);
 }
 
 export interface SubscriptionEvent {
@@ -130,49 +107,16 @@ export async function redeemActivationCode(code: string): Promise<RedeemCodeResu
 }
 
 /**
- * ECO-8: ¿el usuario recibe insights de ARGOS? Doctrina 5b (12-ago-2026):
- * el insight es SOLO para Pro/Clínico o con boost activo. El proxy tiene el
- * mismo gate server-side; este check evita el roundtrip ("ahorro doble").
+ * ¿Esta persona recibe insights de ARGOS?
+ *
+ * PREMIUM: sí, siempre que sea miembro. El gate ECO-8 reservaba el insight a
+ * Pro/Clínico, y era exactamente el tipo de reparto que este cambio elimina:
+ * la IA es el activo más valioso de ATP y racionarla hace que se use menos.
+ * Se conserva la función (y no se vuelve un `true` pelón en los llamadores)
+ * porque sigue siendo el punto donde, más adelante, entrarán los límites
+ * SUAVES: bajar el nivel de modelo, nunca cortar el acceso.
  */
 export async function canReceiveArgosInsights(userId: string): Promise<boolean> {
-  const [tier, boost] = await Promise.all([
-    fetchEffectiveTier(userId),
-    fetchActiveBoost(userId),
-  ]);
-  return tier === 'pro' || tier === 'clinician' || boost.active;
-}
-
-/**
- * Activa el Boost Pro 24h descontando H+ (RPC atómico, rate limit 3/semana).
- * Errores posibles: rate_limit_exceeded · already_active · insufficient_h_plus
- * · tier_already_pro (ECO-1: el boost no aplica a Pro/Clínico).
- */
-export async function activateProBoost(
-  userId: string,
-  costHPlus: number = PRO_BOOST_COST_H_PLUS,
-  durationHours: number = PRO_BOOST_DURATION_HOURS,
-): Promise<ActivateBoostResult> {
-  const { data, error } = await supabase.rpc('activate_pro_boost', {
-    p_user_id: userId,
-    p_cost_h_plus: costHPlus,
-    p_duration_hours: durationHours,
-  });
-  if (error) {
-    return { success: false, hPlusRemaining: 0, expiresAt: null, error: error.message };
-  }
-  const result = (data ?? {}) as Record<string, unknown>;
-  const success = result.success === true;
-  if (success) {
-    // ECO-3: sin esto el proxy sigue viendo el tier viejo hasta 30s+ y el
-    // usuario reintenta contra un límite que ya pagó por subir.
-    const { invalidateProxyTierCache } = await import('../anthropic-client');
-    void invalidateProxyTierCache(userId);
-  }
-  return {
-    success,
-    hPlusRemaining: Number(result.h_plus_remaining ?? result.current ?? 0),
-    expiresAt: typeof result.expires_at === 'string' ? new Date(result.expires_at) : null,
-    error: typeof result.error === 'string' ? result.error : undefined,
-    message: typeof result.message === 'string' ? result.message : undefined,
-  };
+  const tier = await fetchEffectiveTier(userId);
+  return tier === 'premium';
 }

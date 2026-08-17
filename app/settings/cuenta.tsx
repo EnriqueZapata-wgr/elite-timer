@@ -18,19 +18,12 @@ import { haptic } from '@/src/utils/haptics';
 import { Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
-import type { Tier } from '@/src/services/subscription/tier-logic';
-
-const TIER_LABELS: Record<Tier, string> = {
-  free: 'ATP Free',
-  base: 'ATP Base',
-  pro: 'ATP Pro',
-  clinician: 'ATP Clínico',
-};
+import { etiquetaMembresia } from '@/src/services/subscription/tier-logic';
 
 export default function SettingsCuentaScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const { effectiveTier, isLoading } = useSubscription();
+  const { tier, isLoading } = useSubscription();
   // MB-31B: pantalla migrada — superficies del tema; el error de sesión usa
   // el token (coral en oscuro, #B03A2E en claro: el coral no se lee).
   const { kind, tokens } = useAppTheme();
@@ -58,7 +51,7 @@ export default function SettingsCuentaScreen() {
       <ScreenHeader title="Perfil y cuenta" onBack={() => router.back()} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* Identidad: foto + nombre + email + tier */}
+        {/* Identidad: foto + nombre + email + membresía */}
         <Animated.View entering={FadeInUp.delay(80).springify()} style={[styles.identityCard, { backgroundColor: tokens.card }]}>
           <UserAvatar uri={user?.user_metadata?.avatar_url} name={displayName} size={64} />
           <EliteText variant="body" style={styles.identityName}>{displayName}</EliteText>
@@ -66,7 +59,7 @@ export default function SettingsCuentaScreen() {
           {/* En claro el lima no es texto: el badge pasa a relleno sólido. */}
           <View style={[styles.tierBadge, !dark && { backgroundColor: ATP_BRAND.lime }]}>
             <EliteText style={[styles.tierBadgeText, !dark && { color: tokens.textoSobreLima }]}>
-              {isLoading ? '…' : TIER_LABELS[effectiveTier]}
+              {isLoading ? '…' : etiquetaMembresia(tier)}
             </EliteText>
           </View>
         </Animated.View>

@@ -1,114 +1,86 @@
+/**
+ * Candado de la membresía única (PREMIUM, 16-ago-2026).
+ *
+ * Este archivo probaba el reparto de tiers: que 'pro' ganara a 'base', que el
+ * boost subiera a quien no pagó, que 'clinician' estuviera arriba de todos.
+ * Ese modelo se acabó, así que las pruebas no se borran: se REAPUNTAN a la
+ * regla nueva, que es más estricta de vigilar, no menos.
+ *
+ * La regla que estos tests protegen es una sola y es la razón del cambio:
+ * NADIE QUE PAGÓ SE QUEDA FUERA. Ni por tener una etiqueta vieja en la base,
+ * ni por un entitlement con nombre que no reconocemos.
+ */
 import { describe, expect, it } from 'vitest';
-
 import {
-  boostStatusFromRow,
-  formatBoostRemaining,
+  esMiembro,
+  etiquetaMembresia,
   highestTier,
-  isTierAtLeast,
-  resolveEffectiveTier,
   tierFromEntitlements,
   tierFromProfile,
 } from '../tier-logic';
 
 describe('tierFromEntitlements', () => {
-  it('devuelve free sin entitlements', () => {
+  it('sin entitlements no hay membresía', () => {
     expect(tierFromEntitlements([])).toBe('free');
   });
 
-  it('mapea cada entitlement a su tier', () => {
-    expect(tierFromEntitlements(['atp_base'])).toBe('base');
-    expect(tierFromEntitlements(['atp_pro'])).toBe('pro');
-    expect(tierFromEntitlements(['atp_clinician'])).toBe('clinician');
+  it('los entitlements históricos siguen dando acceso', () => {
+    // Regla antiencierro: quien compró Base o Clínico ANTES del cambio no
+    // puede perder nada. Ahora todos valen exactamente lo mismo: todo.
+    expect(tierFromEntitlements(['atp_base'])).toBe('premium');
+    expect(tierFromEntitlements(['atp_pro'])).toBe('premium');
+    expect(tierFromEntitlements(['atp_clinician'])).toBe('premium');
   });
 
-  it('con múltiples entitlements gana el más alto', () => {
-    expect(tierFromEntitlements(['atp_base', 'atp_pro'])).toBe('pro');
-    expect(tierFromEntitlements(['atp_pro', 'atp_clinician'])).toBe('clinician');
+  it('un entitlement nuevo o desconocido también da acceso', () => {
+    // El incidente que originó el cambio: una lista blanca de ids dejó fuera
+    // a alguien que sí había pagado. Ya no hay lista blanca. Si RevenueCat
+    // reporta algo activo, esa persona entra.
+    expect(tierFromEntitlements(['atp_premium'])).toBe('premium');
+    expect(tierFromEntitlements(['id_que_nadie_ha_visto'])).toBe('premium');
   });
 
-  it('ignora entitlements desconocidos', () => {
-    expect(tierFromEntitlements(['otra_cosa'])).toBe('free');
-    expect(tierFromEntitlements(['otra_cosa', 'atp_base'])).toBe('base');
+  it('varios entitlements activos siguen siendo una sola membresía', () => {
+    expect(tierFromEntitlements(['atp_base', 'atp_pro'])).toBe('premium');
   });
 });
 
 describe('tierFromProfile', () => {
-  const now = new Date('2026-07-07T12:00:00Z');
+  const now = new Date('2026-08-16T12:00:00Z');
 
-  it('devuelve el tier del profile si es válido', () => {
-    expect(tierFromProfile('pro', null, now)).toBe('pro');
-    expect(tierFromProfile('base', '2026-08-01T00:00:00Z', now)).toBe('base');
+  it('cualquier valor pagado histórico se lee como membresía', () => {
+    expect(tierFromProfile('base', null, now)).toBe('premium');
+    expect(tierFromProfile('pro', null, now)).toBe('premium');
+    expect(tierFromProfile('clinician', null, now)).toBe('premium');
+    expect(tierFromProfile('premium', null, now)).toBe('premium');
+    expect(tierFromProfile('founder', null, now)).toBe('premium');
   });
 
-  it('degrada a free si tier_expires_at ya pasó', () => {
+  it('respeta la vigencia: caducada es caducada', () => {
     expect(tierFromProfile('pro', '2026-07-01T00:00:00Z', now)).toBe('free');
+    expect(tierFromProfile('base', '2026-09-01T00:00:00Z', now)).toBe('premium');
   });
 
-  it('devuelve free ante valores nulos o corruptos', () => {
+  it('sin valor o con basura, no hay membresía', () => {
     expect(tierFromProfile(null, null, now)).toBe('free');
-    expect(tierFromProfile('premium_legacy', null, now)).toBe('free');
+    expect(tierFromProfile('free', null, now)).toBe('free');
+    expect(tierFromProfile('lo_que_sea', null, now)).toBe('free');
   });
 });
 
-describe('highestTier + resolveEffectiveTier', () => {
-  it('combina DB y SDK tomando el mayor (lag del webhook)', () => {
-    expect(highestTier('free', 'pro')).toBe('pro');
-    expect(highestTier('clinician', 'base')).toBe('clinician');
-    expect(highestTier('base', 'base')).toBe('base');
-  });
-
-  it('el boost eleva free/base a pro', () => {
-    expect(resolveEffectiveTier('free', true)).toBe('pro');
-    expect(resolveEffectiveTier('base', true)).toBe('pro');
-  });
-
-  it('el boost NO degrada pro/clinician', () => {
-    expect(resolveEffectiveTier('pro', true)).toBe('pro');
-    expect(resolveEffectiveTier('clinician', true)).toBe('clinician');
-  });
-
-  it('sin boost el tier queda igual', () => {
-    expect(resolveEffectiveTier('base', false)).toBe('base');
+describe('highestTier', () => {
+  it('gana la lectura más generosa (cubre el lag del webhook)', () => {
+    expect(highestTier('free', 'premium')).toBe('premium');
+    expect(highestTier('premium', 'free')).toBe('premium');
+    expect(highestTier('free', 'free')).toBe('free');
   });
 });
 
-describe('isTierAtLeast', () => {
-  it('semántica "al menos"', () => {
-    expect(isTierAtLeast('clinician', 'pro')).toBe(true);
-    expect(isTierAtLeast('pro', 'pro')).toBe(true);
-    expect(isTierAtLeast('base', 'pro')).toBe(false);
-    expect(isTierAtLeast('free', 'base')).toBe(false);
-  });
-});
-
-describe('boostStatusFromRow', () => {
-  const now = new Date('2026-07-07T12:00:00Z');
-
-  it('boost vigente → active con expiresAt', () => {
-    const status = boostStatusFromRow({ expires_at: '2026-07-08T11:00:00Z' }, now);
-    expect(status.active).toBe(true);
-    expect(status.expiresAt?.toISOString()).toBe('2026-07-08T11:00:00.000Z');
-  });
-
-  it('boost expirado o inexistente → inactive', () => {
-    expect(boostStatusFromRow({ expires_at: '2026-07-07T11:59:00Z' }, now).active).toBe(false);
-    expect(boostStatusFromRow(null, now).active).toBe(false);
-  });
-});
-
-describe('formatBoostRemaining', () => {
-  const now = new Date('2026-07-07T12:00:00Z');
-
-  it('horas y minutos', () => {
-    expect(formatBoostRemaining(new Date('2026-07-08T11:15:30Z'), now)).toBe('23h 15m');
-  });
-
-  it('solo minutos bajo la hora', () => {
-    expect(formatBoostRemaining(new Date('2026-07-07T12:45:00Z'), now)).toBe('45m');
-  });
-
-  it('bordes: <1m y expirado', () => {
-    expect(formatBoostRemaining(new Date('2026-07-07T12:00:30Z'), now)).toBe('<1m');
-    expect(formatBoostRemaining(new Date('2026-07-07T11:00:00Z'), now)).toBe('0m');
+describe('esMiembro y etiquetaMembresia', () => {
+  it('solo hay dos estados y se nombran en español', () => {
+    expect(esMiembro('premium')).toBe(true);
+    expect(esMiembro('free')).toBe(false);
+    expect(etiquetaMembresia('premium')).toBe('ATP Premium');
+    expect(etiquetaMembresia('free')).toBe('Sin membresía');
   });
 });
