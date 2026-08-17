@@ -21,6 +21,7 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
 import { HOME_METRIC_THRESHOLDS } from '@/src/constants/lab-clinical-ranges';
 
@@ -352,7 +353,9 @@ const st = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.black },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, gap: Spacing.xs },
   title: { fontSize: FontSizes.hero, fontFamily: Fonts.extraBold, color: TEAL, letterSpacing: 3 },
-  content: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
+  // BLOQ-4: el <MedicalDisclaimer> va DESPUÉS del spacer, o sea pegado al
+  // borde inferior. Es exactamente el texto que revisa la tienda.
+  content: { paddingHorizontal: Spacing.md, paddingBottom: ORB_SAFE_BOTTOM },
 
   // Progreso
   progressCard: { backgroundColor: withOpacity(TEAL, 0.08), borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.md, borderWidth: 1, borderColor: withOpacity(TEAL, 0.2) },

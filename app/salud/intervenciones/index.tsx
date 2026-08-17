@@ -51,6 +51,7 @@ import { ROOT_LABELS, type InterventionRoot } from '@/src/constants/intervention
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 
 export default function IntervencionesScreen() {
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
@@ -462,7 +463,8 @@ export default function IntervencionesScreen() {
 // MB-31B2: los estilos leen los tokens del tema.
 const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: Spacing.md, paddingBottom: 60 },
+  // BLOQ-4: 60 no alcanzaba para despejar la orbe (necesita 134).
+  content: { padding: Spacing.md, paddingBottom: ORB_SAFE_BOTTOM },
   emptyBox: {
     backgroundColor: t.card, borderWidth: 0.5, borderColor: t.borde,
     borderRadius: Radius.md, padding: Spacing.md,

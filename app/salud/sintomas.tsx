@@ -43,6 +43,7 @@ import {
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 
 function localYesterday(): string {
   const d = new Date();
@@ -262,7 +263,9 @@ export default function SintomasScreen() {
 // MB-31B2: los estilos leen los tokens del tema.
 const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: Spacing.md, paddingBottom: 60 },
+  // BLOQ-4: la orbe caía sobre las últimas filas del timeline y su botón de
+  // borrar, que es destructivo.
+  content: { padding: Spacing.md, paddingBottom: ORB_SAFE_BOTTOM },
 
   // Formulario
   formLabel: { fontFamily: Fonts.bold, fontSize: 10, color: t.textoTenue, letterSpacing: 2, marginBottom: Spacing.sm },

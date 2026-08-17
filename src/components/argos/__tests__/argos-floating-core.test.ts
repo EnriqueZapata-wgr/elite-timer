@@ -5,6 +5,8 @@ import {
   isPublicEmergencyPath,
   isTabRootPath,
   shouldHideFloatingButton,
+  tieneAccionAnclada,
+  RUTAS_CON_ACCION_ANCLADA,
 } from '@/src/components/argos/argos-floating-core';
 
 const base = {
@@ -105,6 +107,36 @@ describe('isTabRootPath (MB-19: la orbe vive en el tab bar)', () => {
     expect(isTabRootPath('/kit/')).toBe(true);
     expect(isTabRootPath('/SALUD')).toBe(true);
     expect(isTabRootPath(null)).toBe(false);
+  });
+});
+
+describe('tieneAccionAnclada (BLOQ-4)', () => {
+  it('las rutas cuya acción primaria NO scrollea', () => {
+    // profile: GUARDAR vive en un bottomBar hermano del ScrollView.
+    // sleep-session: no tiene ScrollView, y en modo noche la orbe es el único
+    // objeto luminoso, justo encima del CTA.
+    expect(tieneAccionAnclada('/profile')).toBe(true);
+    expect(tieneAccionAnclada('/sleep-session')).toBe(true);
+    expect(tieneAccionAnclada('/Profile/')).toBe(true);
+  });
+
+  it('una pantalla con el control DENTRO del scroll no entra: ahí basta el padding', () => {
+    // El criterio protege contra la tentación de esconder la orbe en todas
+    // partes. Estas se arreglaron sumando ORB_SAFE_BOTTOM, no ocultándola.
+    for (const p of ['/settings/privacy', '/atp-orden', '/ordenar-dia', '/salud/sintomas', '/health-input']) {
+      expect(tieneAccionAnclada(p), p).toBe(false);
+    }
+    expect(tieneAccionAnclada(null)).toBe(false);
+  });
+
+  it('la orbe se aparta ahí, pero la casita NO se entera', async () => {
+    // home-floating-core a propósito no llama a tieneAccionAnclada: la casita
+    // se pinta arriba a la izquierda y no compite con estos controles.
+    const { shouldHideHomeButton } = await import('@/src/components/ui/home-floating-core');
+    for (const p of RUTAS_CON_ACCION_ANCLADA) {
+      expect(shouldHideFloatingButton({ ...base, pathname: p }), p).toBe(true);
+      expect(shouldHideHomeButton({ pathname: p, keyboardVisible: false }), p).toBe(false);
+    }
   });
 });
 

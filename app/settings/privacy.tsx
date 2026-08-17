@@ -28,6 +28,7 @@ import {
 import { logConsent, getConsentStatus, type ConsentStatus } from '@/src/services/consent-log-service';
 import { CONSENT_SHORT_TITLES, REVOKE_CORE_WARNING, type ConsentCheckboxId } from '@/src/constants/consent-copy';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 import { ATP_BRAND, ELEVATION, PILL, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { StatusBar } from 'expo-status-bar';
@@ -220,7 +221,9 @@ export default function SettingsPrivacyScreen() {
     <ThemeReady>
     <ScrollView
       style={[s.screen, { backgroundColor: tokens.fondo }]}
-      contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: 60 }}
+      // BLOQ-4: la orbe caía sobre los chips "Otorgar"/"Revocar" y sobre la
+      // zona de peligro. Son consentimientos legales y un borrado de cuenta.
+      contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: ORB_SAFE_BOTTOM }}
     >
       <StatusBar style={dark ? 'light' : 'dark'} />
       <View style={{ paddingTop: insets.top + 8 }}>

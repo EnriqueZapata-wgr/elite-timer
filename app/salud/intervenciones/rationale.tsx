@@ -29,6 +29,7 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 
 const LOADING_PHRASES = [
   'ARGOS está leyendo tu mapa funcional…',
@@ -324,7 +325,9 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     paddingVertical: 4,
   },
   ownedBadgeText: { fontFamily: Fonts.semiBold, fontSize: 10, color: t.textoSecundario, letterSpacing: 0.5 },
-  reportContent: { padding: Spacing.md, paddingBottom: 60 },
+  // BLOQ-4: el disclaimer médico es el ÚLTIMO nodo del scroll, así que con 60
+  // quedaba tapado siempre, no de paso. Texto de cumplimiento cortado.
+  reportContent: { padding: Spacing.md, paddingBottom: ORB_SAFE_BOTTOM },
   reportBadge: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.12),
     borderRadius: Radius.xs,

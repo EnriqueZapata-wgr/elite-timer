@@ -42,6 +42,7 @@ import { CATEGORY_LABELS } from '@/src/constants/intervention-vocab';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 import { AttestationGateModal } from '@/src/components/safety/AttestationGateModal';
 import {
   familyForInterventionKey, gateDecisionForFamily, type GateDecision,
@@ -348,7 +349,9 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoTenue,
     textAlign: 'center', lineHeight: 20,
   },
-  content: { padding: Spacing.md, paddingBottom: 60 },
+  // BLOQ-4: abajo del todo viven HORA CUSTOM y los botones Activar/Pausar/
+  // Descartar. Con 60 la orbe se sentaba encima de los tres.
+  content: { padding: Spacing.md, paddingBottom: ORB_SAFE_BOTTOM },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   statusBadge: {
     backgroundColor: t.flotante, borderRadius: Radius.xs,
