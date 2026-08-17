@@ -614,3 +614,34 @@ Lo digo en vez de rellenar.
   confirmé que existen y su tamaño.
 - **Nada de esta lista se ha visto en un teléfono**, que es la advertencia con la
   que abre y cierra este documento.
+
+---
+
+# AGREGADO A LA COLA · 17-ago-2026
+
+## N-Back: la calificación deja fuera con un solo error
+
+Reporte del dueño jugando el dual N-Back: **es dificilísimo subir de nivel, un
+solo error te deja parado.** Su sospecha, que es una buena hipótesis y hay que
+verificarla antes de tocar nada: que el porcentaje se está contando por separado
+para el canal auditivo y el visual, cada uno contra el total de reactivos, en
+vez de sobre los reactivos que le corresponden a cada canal. Con pocos reactivos
+totales, eso hace que un fallo pese muchísimo más de lo que debería.
+
+Dos causas posibles y no son excluyentes:
+1. **La fórmula está mal**: el denominador de cada canal no es el que debe ser.
+2. **Son muy pocos reactivos**: aunque la fórmula esté bien, con una serie corta
+   un error mueve el porcentaje demasiado y el umbral de avance queda inalcanzable.
+
+Dónde mirar: `src/services/mente/nback-core.ts` y `src/services/__tests__/nback-core.test.ts`
+(hubo dos núcleos de N-Back y se unificaron, así que verificar que el vivo sea el
+que califica). El umbral de avance y el conteo por canal se revisan juntos.
+
+**No es urgente.** Va a la cola, no bloquea el lanzamiento. Pero ojo con una
+cosa: es una de las pocas piezas de la app con las que el usuario mide su propio
+progreso cognitivo, así que un umbral mal calibrado se siente como que la app
+está rota o como que él no mejora. Ninguna de las dos es cierta.
+
+Tamaño: chico si es la fórmula, mediano si hay que recalibrar la longitud de la
+serie, porque eso cambia la duración de la sesión y el diseño del ejercicio.
+Es OTA.
