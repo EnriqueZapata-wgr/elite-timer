@@ -28,6 +28,7 @@
  */
 import { findMatrizParam, functionalBand } from '@/src/constants/edad-atp-matriz-lookup';
 import { score9Bands } from '@/src/services/edad-atp/sf-9band-service';
+import { aUnidadDeMatriz } from '@/src/constants/lab-unidades-core';
 import { getLabParamMeta } from '@/src/components/edad-atp/component-meta';
 import type { Sex } from '@/src/types/edad-atp-v2';
 
@@ -150,13 +151,18 @@ export function leerParametro(
 ): Señal | null {
   const param = findMatrizParam(sexo, key);
   if (!param) return null;
-  const score = score9Bands(value, param.bandLimits);
+  // El valor viene en la unidad en que se guardó, que puede no ser la de la
+  // ventana (testosterona total: ng/dL guardado contra ng/mL en la matriz). Se
+  // puntúa y se decide la dirección en el espacio de la matriz; lo que se
+  // devuelve para pintar sigue siendo el valor tal como lo reportó el estudio.
+  const valorEnMatriz = aUnidadDeMatriz(key, value);
+  const score = score9Bands(valorEnMatriz, param.bandLimits);
   if (score == null) return null;
   const banda = functionalBand(param);
   let direccion: Direccion = 'dentro';
   if (banda) {
-    if (value < banda.lo) direccion = 'bajo';
-    else if (value > banda.hi) direccion = 'alto';
+    if (valorEnMatriz < banda.lo) direccion = 'bajo';
+    else if (valorEnMatriz > banda.hi) direccion = 'alto';
   }
   // El nombre bonito sale del catálogo clínico; cuando ese catálogo no conoce
   // la clave devuelve un fallback auto-generado (se delata con descripción

@@ -26,6 +26,7 @@ import { loadUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { getLabParamMeta } from '@/src/components/edad-atp/component-meta';
 import { findMatrizParam, findMatrizDomain } from '@/src/constants/edad-atp-matriz-lookup';
 import { CANONICAL_PCT_KEYS, decimalToPct } from '@/src/constants/lab-canonical-map';
+import { aUnidadDeMatriz, bandLimitsEnEspacioDe } from '@/src/constants/lab-unidades-core';
 import { isClinicalOnlyParam } from '@/src/constants/lab-clinical-ranges';
 import { score9Bands } from '@/src/services/edad-atp/sf-9band-service';
 // NOCHE-3: el resumen del panel, el filtro a lo que pide atención y el delta
@@ -84,11 +85,16 @@ function toDisplay(key: string, value: number): number {
   return Math.round(v * 100) / 100;
 }
 
-/** Color de estado por banda de la matriz (óptimo/aceptable/atención) o gris si no hay banda. */
+/**
+ * Color de estado por banda de la matriz (óptimo/aceptable/atención) o gris si no
+ * hay banda. El valor se lleva antes a la unidad de la ventana: la testosterona
+ * total se guarda en ng/dL y la matriz la puntúa en ng/mL, así que sin esto una
+ * testosterona sana se pintaba roja.
+ */
 function statusColor(sex: Sex, key: string, value: number): string {
   const p = findMatrizParam(sex, key);
   if (!p) return EDAD_PENDING_COLOR;
-  const s = score9Bands(value, p.bandLimits);
+  const s = score9Bands(aUnidadDeMatriz(key, value), p.bandLimits);
   if (s == null) return EDAD_PENDING_COLOR;
   if (s >= 80) return EDAD_STATUS.good;
   if (s >= 50) return EDAD_STATUS.neutral;
@@ -325,7 +331,7 @@ function AtpLabsScreen() {
                       {renderRangeSummary(sex, r, styles, series[r.key] ?? [], fase)}
                       <ParameterChart
                         series={series[r.key] ?? []}
-                        bandLimits={pctAdjustedBandLimits(sex, r.key)}
+                        bandLimits={pctAdjustedBandLimits(sex, r.key, r.displayValue)}
                         todayISO={getLocalToday()}
                         unit={r.unit}
                         width={width - Spacing.md * 2 - Spacing.md * 2}
@@ -369,12 +375,19 @@ function AtpLabsScreen() {
   );
 }
 
-/** bandLimits de la matriz, convertidos a % para las claves pct (coherente con la serie). */
-function pctAdjustedBandLimits(sex: Sex, key: string): (number | null)[] | null {
+/**
+ * bandLimits de la matriz llevados al espacio en que se PINTA el valor: a % para
+ * las claves pct (coherente con la serie) y a la unidad del propio valor cuando la
+ * matriz escribió su ventana en otra. Sin esto la gráfica dibujaba la banda de la
+ * testosterona en 7 a 12 mientras los puntos de la serie valían 993, y la banda
+ * quedaba aplastada contra el piso del eje.
+ */
+function pctAdjustedBandLimits(sex: Sex, key: string, valorMostrado: number): (number | null)[] | null {
   const p = findMatrizParam(sex, key);
   if (!p) return null;
-  if (!CANONICAL_PCT_KEYS.has(key)) return p.bandLimits;
-  return p.bandLimits.map((b) => (b == null ? null : decimalToPct(b)));
+  const enUnidadDelValor = bandLimitsEnEspacioDe(key, p.bandLimits, valorMostrado);
+  if (!CANONICAL_PCT_KEYS.has(key)) return enUnidadDelValor;
+  return enUnidadDelValor.map((b) => (b == null ? null : decimalToPct(b)));
 }
 
 /**
@@ -389,7 +402,7 @@ function renderRangeSummary(
   serie: SeriePoint[],
   fase: string | null,
 ) {
-  const limits = pctAdjustedBandLimits(sex, r.key);
+  const limits = pctAdjustedBandLimits(sex, r.key, r.displayValue);
   // NOCHE-3: el delta contra la medición anterior, leído contra TU ventana.
   // No dice "subió 12": dice si se acercó o se alejó de donde debe estar.
   const delta = deltaVsAnterior(serie, limits);

@@ -27,6 +27,7 @@ import {
   PHENOAGE_FIELD_TO_CANONICAL,
   decimalToPct,
 } from '@/src/constants/lab-canonical-map';
+import { aUnidadDeMatriz } from '@/src/constants/lab-unidades-core';
 
 export type LabValueSource = 'lab_pdf' | 'manual' | 'upload_extract' | 'wearable' | 'form';
 
@@ -127,10 +128,23 @@ export function collapseLanguageDuplicates(map: CanonicalMap): CanonicalMap {
   return out;
 }
 
-/** Aplana el mapa canónico a { parameter_key: value } (para el motor de matriz). */
+/**
+ * Aplana el mapa canónico a { parameter_key: value } PARA EL MOTOR DE MATRIZ.
+ *
+ * Este es el único borde por el que los valores guardados entran al motor, y por
+ * eso es aquí donde se llevan a la unidad en que la matriz escribe sus ventanas.
+ * `lab_values` guarda la testosterona total en ng/dL (993, como la reporta el
+ * laboratorio) y la matriz la puntúa en ng/mL: sin esta conversión el motor le
+ * daba 0 puntos a una testosterona sana y eso bajaba la Edad ATP de la persona.
+ *
+ * Los fixtures de regresión contra el Excel NO pasan por aquí: alimentan
+ * `computeSFGlobalReal` directo con valores que ya vienen en unidad de matriz.
+ * Sus números no se mueven. Y aunque pasaran, tampoco: la conversión mira la
+ * magnitud, y el 3.32 del fixture se lee como ng/mL y sale intacto.
+ */
 export function canonicalToValueDict(map: CanonicalMap): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const [k, v] of Object.entries(map)) out[k] = v.value;
+  for (const [k, v] of Object.entries(map)) out[k] = aUnidadDeMatriz(k, v.value);
   return out;
 }
 

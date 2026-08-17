@@ -30,6 +30,7 @@
  */
 import { findMatrizParam, functionalBand } from '@/src/constants/edad-atp-matriz-lookup';
 import { score9Bands } from '@/src/services/edad-atp/sf-9band-service';
+import { aUnidadDeMatriz } from '@/src/constants/lab-unidades-core';
 import type { Sex } from '@/src/types/edad-atp-v2';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -46,10 +47,17 @@ export const ESTADO_LABEL: Record<EstadoLab, string> = {
   sin_banda: 'Pendiente de rango',
 };
 
+/**
+ * `value` llega en la unidad en que `lab_values` lo guardó, que no siempre es la
+ * unidad en que la matriz escribió su ventana (la testosterona total se guarda en
+ * ng/dL y la ventana está en ng/mL). Por eso el valor se lleva al espacio de la
+ * ventana ANTES de puntuarlo. La conversión mira la magnitud, así que un valor
+ * que ya venía en unidad de matriz pasa de largo.
+ */
 export function estadoDeParametro(sex: Sex, key: string, value: number): EstadoLab {
   const p = findMatrizParam(sex, key);
   if (!p) return 'sin_banda';
-  const s = score9Bands(value, p.bandLimits);
+  const s = score9Bands(aUnidadDeMatriz(key, value), p.bandLimits);
   if (s == null) return 'sin_banda';
   if (s >= 100) return 'optimo';
   if (s >= 50) return 'aceptable';
