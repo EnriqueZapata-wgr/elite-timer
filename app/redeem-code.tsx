@@ -21,18 +21,14 @@ import {
   redeemActivationCode,
   type RedeemCodeResult,
 } from '@/src/services/subscription/subscription-service';
-import type { Tier } from '@/src/services/subscription/tier-logic';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
-const TIER_LABELS: Record<Tier, string> = {
-  free: 'ATP Free',
-  base: 'ATP Base',
-  pro: 'ATP Pro',
-  clinician: 'ATP Clínico',
-};
+// PREMIUM (16-ago-2026): el código ya no otorga un plan entre varios, otorga
+// LA membresía. El servidor sigue devolviendo la etiqueta vieja en su
+// respuesta y no pasa nada: aquí ya no se nombra ningún nivel.
 
 /** Copy por resultado del RPC. Cada caso dice algo distinto a propósito. */
 const ERROR_COPY: Record<string, string> = {
@@ -74,7 +70,7 @@ export default function RedeemCodeScreen() {
     if (res.status === 'ok') {
       // Éxito confirmado por el servidor: solo entonces celebra.
       haptic.success();
-      // Refresca tier en memoria en toda la app, sin reiniciar.
+      // Refresca la membresía en memoria en toda la app, sin reiniciar.
       DeviceEventEmitter.emit(SUBSCRIPTION_CHANGED_EVENT);
       DeviceEventEmitter.emit('day_changed');
       refresh();
@@ -138,7 +134,7 @@ export default function RedeemCodeScreen() {
           <Animated.View entering={FadeInUp.springify()} style={styles.successCard}>
             <Ionicons name="checkmark-circle" size={28} color={ATP_BRAND.lime} />
             <EliteText style={styles.successTitle}>
-              Listo. Tu plan {result.tier ? TIER_LABELS[result.tier] : 'nuevo'} ya está activo.
+              Listo. Tu membresía ATP Premium ya está activa.
             </EliteText>
             <EliteText style={styles.successDetail}>
               {result.expiresAt

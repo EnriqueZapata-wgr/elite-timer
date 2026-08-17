@@ -1,22 +1,22 @@
 /**
  * PAYWALL — editorial ATP (negro + lima).
  *
- * 2 planes (Base con 14 días trial · Pro sin trial, RECOMENDADO) con toggle
- * mensual/anual. Los precios vienen de RevenueCat offerings; si el binario
- * aún no trae el SDK nativo (pre-build) los CTAs quedan deshabilitados con
- * copy honesto — nunca placeholder roto.
+ * PREMIUM (16-ago-2026): UNA membresía. Se acabaron Base y Pro, se acabó el
+ * badge RECOMENDADO (con un solo plan no recomienda nada) y se acabó la
+ * comparación de tarjetas. Queda una tarjeta, un precio y el toggle de
+ * periodo, que sí es una decisión real del usuario.
  *
- * BLOQ-1 (auditoría visual 16-ago): la pantalla salía sin un solo precio y con
- * el CTA muerto. Dos cosas se arreglaron aquí, ninguna cosmética:
- *  1. El fallo dejó de ser terminal. Sin precio y con error, el CTA ES el
- *     reintento; deshabilitado, además, se ve deshabilitado.
- *  2. Deja de exigir que el product id diga "base" o "pro". Cuando el catálogo
- *     colapse a una sola membresía premium, un solo paquete por periodo basta
- *     para resolver el plan y se pinta UNA tarjeta, no dos iguales.
- * El precio sigue saliendo siempre del producto real: jamás una constante
- * nuestra (3.1.2 — el precio anunciado es el que se cobra).
+ * EL PRECIO NUNCA SE ESCRIBE AQUÍ. Sale siempre del producto real de
+ * RevenueCat (3.1.2: el precio anunciado es el que se cobra). La referencia
+ * comercial son $890 MXN al mes, pero esa cifra vive en la tienda, no en el
+ * bundle: si alguien la cambia allá y aquí hubiera una constante, la app
+ * mentiría. Por eso sin catálogo esta pantalla no inventa un número, avisa.
  *
- * Disciplina de lima: CTA Pro + badge RECOMENDADO. Glow: solo card Pro.
+ * BLOQ-1 (16-ago) sigue vigente y es lo que sostiene esto: el fallo de
+ * offerings dejó de ser terminal (el CTA se convierte en reintento y se ve
+ * deshabilitado cuando lo está), y findPackage dejó de exigir que el id del
+ * producto dijera "base" o "pro". Sin ese arreglo, la membresía única habría
+ * dejado la pantalla muda con una tienda perfectamente sana.
  */
 import { useMemo, useState } from 'react';
 import { Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
@@ -38,37 +38,23 @@ import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 type Period = 'monthly' | 'yearly';
-type PlanKey = 'base' | 'pro';
-
-const PLAN_FEATURES: Record<PlanKey, string[]> = {
-  base: [
-    'Los 7 pilares completos: HOY, Fitness, Nutrición, Mente, Salud, Ciclo y Tests',
-    'ARGOS, tu IA de rendimiento (límite mensual)',
-    'Economía H+ · retos y recompensas',
-    'Registro de nutrición, ayuno e hidratación',
-  ],
-  pro: [
-    'Todo lo de ATP Base',
-    'ARGOS proactivo y sin límites',
-    'Análisis de comida por foto',
-    'Protocolos y biomarcadores avanzados',
-    'Acceso anticipado a nuevas funciones',
-  ],
-};
 
 /**
- * BLOQ-1: el catálogo va camino a UNA sola membresía premium. Mientras el
- * reparto de tiers se desmonta, esta lista es la que se pinta cuando la tienda
- * ya no distingue Base de Pro: es la unión de las dos, sin la línea "Todo lo de
- * ATP Base" que solo tenía sentido habiendo dos planes.
+ * Lo que incluye la membresía. Cada línea dice algo que ANTES no era cierto o
+ * estaba repartido; nada de aquí es adorno.
+ *
+ * "Sin límites" se puede escribir porque hoy es literal: se retiraron las
+ * cuotas diarias que cortaban el acceso. Si algún día vuelve un límite suave
+ * (bajar el nivel de modelo en horas de uso extremo), esta línea se cambia el
+ * mismo día. Prometer lo que el servidor no cumple es como empezó el problema.
  */
-const PLAN_UNICO_FEATURES: string[] = [
-  'Los 7 pilares completos: HOY, Fitness, Nutrición, Mente, Salud, Ciclo y Tests',
-  'ARGOS sin límites, tu IA de rendimiento',
-  'Análisis de comida por foto',
-  'Protocolos y biomarcadores avanzados',
-  'Economía H+ · retos y recompensas',
-  'Acceso anticipado a nuevas funciones',
+const INCLUYE: string[] = [
+  'Todo ATP completo: HOY, Fitness, Nutrición, Mente, Salud, Ciclo y Tests',
+  'ARGOS sin límites, tu IA de rendimiento, todos los días',
+  'Análisis de comida por foto y por texto',
+  'Tu mapa funcional, protocolos y biomarcadores',
+  'Reportes profundos, sin costo extra por cada uno',
+  'La comunidad: no compras una app, entras a la tribu',
 ];
 
 const LEGAL_LINKS = [
@@ -85,38 +71,29 @@ export default function PaywallScreen() {
   const [reintentando, setReintentando] = useState(false);
   const analytics = useAnalytics();
   const [period, setPeriod] = useState<Period>('yearly');
-  const [busy, setBusy] = useState<PlanKey | 'restore' | null>(null);
+  const [busy, setBusy] = useState<'membresia' | 'restore' | null>(null);
 
   const packages = useMemo(
     () => offerings?.current?.availablePackages ?? [],
     [offerings],
   );
 
-  function nombraPlan(pkg: PurchasesPackage, plan: PlanKey): boolean {
-    return `${pkg.identifier} ${pkg.product.identifier}`.toLowerCase().includes(plan);
-  }
-
   /**
-   * BLOQ-1: ¿la tienda todavía distingue Base de Pro por el nombre del producto?
-   * Si NINGÚN paquete menciona "base" ni "pro", el catálogo ya es de membresía
-   * única. Antes eso dejaba el paywall mudo con una tienda perfectamente sana:
-   * la búsqueda por substring era el único criterio, no encontraba nada, y la
-   * pantalla que cobra se rendía como si no hubiera precios.
+   * El paquete de este periodo, se llame como se llame en la tienda.
+   *
+   * Aquí estaba el bug que dejó la pantalla muda: se exigía que el id del
+   * producto contuviera "base" o "pro" y, si ninguno lo decía, la búsqueda
+   * devolvía nada y el paywall se rendía con un catálogo sano. Con membresía
+   * única ningún producto va a decir eso nunca. Ahora el criterio es el
+   * PERIODO, que es lo único que de verdad distingue un paquete de otro.
+   *
+   * Si un periodo trae más de un paquete (catálogo a medio migrar), se toma el
+   * primero en vez de rendirse: mejor cobrar el precio real de algo que
+   * mostrar una pantalla vacía a quien quiere pagar.
    */
-  const modoPlanUnico = useMemo(
-    () => packages.length > 0 && !packages.some((pkg) => nombraPlan(pkg, 'base') || nombraPlan(pkg, 'pro')),
-    [packages],
-  );
-
-  function findPackage(plan: PlanKey, p: Period): PurchasesPackage | null {
+  function findPackage(p: Period): PurchasesPackage | null {
     const wantedType = p === 'monthly' ? 'MONTHLY' : 'ANNUAL';
-    const delPeriodo = packages.filter((pkg) => pkg.packageType === wantedType);
-    const porNombre = delPeriodo.find((pkg) => nombraPlan(pkg, plan));
-    if (porNombre) return porNombre;
-    // Membresía única: si el periodo trae un solo paquete, ese ES el plan, se
-    // llame como se llame. El precio sale del producto real, nunca de una
-    // constante nuestra (3.1.2: el precio que se anuncia es el que se cobra).
-    return modoPlanUnico && delPeriodo.length === 1 ? delPeriodo[0] : null;
+    return packages.find((pkg) => pkg.packageType === wantedType) ?? null;
   }
 
   // E-2 (MB-12): el trial sale del PRODUCTO real (introPrice gratis) o no se
@@ -135,26 +112,16 @@ export default function PaywallScreen() {
   // E-2 (MB-12): el % de ahorro se CALCULA de los precios reales; si no se
   // puede calcular, el badge no existe.
   const savingsPct = useMemo(() => {
-    // BLOQ-1: con membresía única no hay "pro"/"base" que filtrar — el par a
-    // comparar es simplemente el mensual contra el anual del catálogo.
-    const pares: Array<[PurchasesPackage | undefined, PurchasesPackage | undefined]> = modoPlanUnico
-      ? [[
-          packages.find((pkg) => pkg.packageType === 'MONTHLY'),
-          packages.find((pkg) => pkg.packageType === 'ANNUAL'),
-        ]]
-      : (['pro', 'base'] as PlanKey[]).map((plan) => [
-          packages.find((pkg) => nombraPlan(pkg, plan) && pkg.packageType === 'MONTHLY'),
-          packages.find((pkg) => nombraPlan(pkg, plan) && pkg.packageType === 'ANNUAL'),
-        ]);
-    for (const [m, y] of pares) {
-      const monthly12 = (m?.product.price ?? 0) * 12;
-      const yearly = y?.product.price ?? 0;
-      if (monthly12 > 0 && yearly > 0 && yearly < monthly12) {
-        return Math.round((1 - yearly / monthly12) * 100);
-      }
+    // El par a comparar es el mensual contra el anual del catálogo.
+    const m = findPackage('monthly');
+    const y = findPackage('yearly');
+    const monthly12 = (m?.product.price ?? 0) * 12;
+    const yearly = y?.product.price ?? 0;
+    if (monthly12 > 0 && yearly > 0 && yearly < monthly12) {
+      return Math.round((1 - yearly / monthly12) * 100);
     }
     return null;
-  }, [packages, modoPlanUnico]);
+  }, [packages]);
 
   /** BLOQ-1: reintento explícito, usable desde el CTA y desde la nota. */
   async function onReintentar() {
@@ -165,20 +132,20 @@ export default function PaywallScreen() {
     setReintentando(false);
   }
 
-  async function onSubscribe(plan: PlanKey) {
-    const pkg = findPackage(plan, period);
+  async function onSubscribe() {
+    const pkg = findPackage(period);
     if (!pkg || busy) return;
     haptic.medium();
-    setBusy(plan);
+    setBusy('membresia');
     const result = await purchase(pkg);
     setBusy(null);
     if (result.success) {
-      // T5 HARDENING: funnel core — suscripción iniciada.
-      analytics.track(ATP_EVENTS.SUBSCRIPTION_STARTED, { plan, period });
+      // T5 HARDENING: funnel core — membresía iniciada.
+      analytics.track(ATP_EVENTS.SUBSCRIPTION_STARTED, { plan: 'premium', period });
       haptic.success();
       Alert.alert(
-        plan === 'pro' ? 'Bienvenido a ATP Pro' : 'Bienvenido a ATP Base',
-        'Tu suscripción está activa. A romperla. 🚀',
+        'Bienvenido a ATP',
+        'Tu membresía está activa. Todo abierto, sin límites. A romperla.',
         [{ text: 'Vamos', onPress: () => router.back() }],
       );
     } else if (result.error !== 'cancelled') {
@@ -201,9 +168,8 @@ export default function PaywallScreen() {
     }
   }
 
-  function renderPlanCard(plan: PlanKey, delay: number) {
-    const pkg = findPackage(plan, period);
-    const isPro = plan === 'pro';
+  function renderTarjetaMembresia() {
+    const pkg = findPackage(period);
     const cargando = isLoading || reintentando;
     /**
      * BLOQ-1: sin precio y con error, el CTA se convierte en el reintento en vez
@@ -225,20 +191,12 @@ export default function PaywallScreen() {
 
     return (
       <Animated.View
-        entering={FadeInDown.delay(delay).springify()}
-        style={[styles.planCard, isPro && styles.planCardPro]}
+        entering={FadeInDown.delay(140).springify()}
+        style={[styles.planCard, styles.planCardPro]}
       >
-        {/* Sin dos planes que comparar, "RECOMENDADO" no recomienda nada. */}
-        {isPro && !modoPlanUnico && (
-          <View style={styles.recommendedBadge}>
-            <EliteText style={styles.recommendedText}>RECOMENDADO</EliteText>
-          </View>
-        )}
-        <EliteText style={styles.planName}>
-          {modoPlanUnico ? 'ATP Premium' : isPro ? 'ATP Pro' : 'ATP Base'}
-        </EliteText>
+        <EliteText style={styles.planName}>ATP Premium</EliteText>
         {/* Regla 1 del manual: el lima nunca es letra en claro — teal calibrado. */}
-        <EliteText style={[styles.planPrice, isPro && { color: kind === 'dark' ? ATP_BRAND.lime : t.tealTexto }]}>
+        <EliteText style={[styles.planPrice, { color: kind === 'dark' ? ATP_BRAND.lime : t.tealTexto }]}>
           {priceLabel}
         </EliteText>
         <EliteText style={styles.trialNote}>
@@ -246,26 +204,26 @@ export default function PaywallScreen() {
         </EliteText>
 
         <View style={styles.featureList}>
-          {(modoPlanUnico ? PLAN_UNICO_FEATURES : PLAN_FEATURES[plan]).map((feature) => (
-            <View key={feature} style={styles.featureRow}>
+          {INCLUYE.map((linea) => (
+            <View key={linea} style={styles.featureRow}>
               <Ionicons
                 name="checkmark-circle"
                 size={16}
-                color={isPro ? ATP_BRAND.lime : t.textoSecundario}
+                color={ATP_BRAND.lime}
                 style={{ marginTop: 2 }}
               />
-              <EliteText style={styles.featureText}>{feature}</EliteText>
+              <EliteText style={styles.featureText}>{linea}</EliteText>
             </View>
           ))}
         </View>
 
         <AnimatedPressable
-          onPress={() => (puedeReintentar ? onReintentar() : onSubscribe(plan))}
+          onPress={() => (puedeReintentar ? onReintentar() : onSubscribe())}
           disabled={ctaDisabled}
-          style={[styles.cta, isPro ? styles.ctaPro : styles.ctaBase, ctaDisabled && styles.ctaMuerto]}
+          style={[styles.cta, styles.ctaPro, ctaDisabled && styles.ctaMuerto]}
         >
-          <EliteText style={[styles.ctaText, isPro ? styles.ctaTextPro : styles.ctaTextBase]}>
-            {busy === plan ? 'Procesando…' : pkg ? 'Suscribirme' : cargando ? 'Cargando…' : puedeReintentar ? 'REINTENTAR' : 'Muy pronto'}
+          <EliteText style={[styles.ctaText, styles.ctaTextPro]}>
+            {busy === 'membresia' ? 'Procesando…' : pkg ? 'Activar mi membresía' : cargando ? 'Cargando…' : puedeReintentar ? 'REINTENTAR' : 'Muy pronto'}
           </EliteText>
         </AnimatedPressable>
       </Animated.View>
@@ -275,12 +233,14 @@ export default function PaywallScreen() {
   return (
     <Screen themed edges={[]}>
       <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
-      <ScreenHeader title="Suscripción" onBack={() => router.back()} />
+      <ScreenHeader title="Membresía" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(40).springify()}>
-          <EliteText style={styles.heroTitle}>Desbloquea tu potencial</EliteText>
+          <EliteText style={styles.heroTitle}>Una sola membresía</EliteText>
           <EliteText style={styles.heroSubtitle}>
-            Un solo sistema para tu rendimiento: cuerpo, mente y datos trabajando juntos.
+            Todo abierto desde el primer día: sin niveles, sin límites de uso y
+            sin pagar por función. Un solo sistema para tu rendimiento, y la
+            comunidad que lo sostiene.
           </EliteText>
         </Animated.View>
 
@@ -307,8 +267,7 @@ export default function PaywallScreen() {
           })}
         </Animated.View>
 
-        {renderPlanCard('pro', 140)}
-        {!modoPlanUnico && renderPlanCard('base', 190)}
+        {renderTarjetaMembresia()}
 
         {/* E-2 (MB-12): error ≠ "no disponible". BLOQ-1: el reintento ya vive
             en el CTA de la tarjeta; aquí queda solo la explicación de por qué
@@ -324,19 +283,19 @@ export default function PaywallScreen() {
             Las compras se habilitan con la próxima actualización de la app.
           </EliteText>
         )}
-        {tier !== 'free' && (
+        {tier === 'premium' && (
           <EliteText style={styles.sdkNote}>
-            Ya tienes un plan activo ({tier}). Puedes gestionarlo en Ajustes → Suscripción.
+            Tu membresía ya está activa. Puedes gestionarla en Ajustes, Membresía.
           </EliteText>
         )}
 
         <AnimatedPressable onPress={onRestore} disabled={busy !== null} style={styles.restoreBtn}>
           <EliteText style={styles.restoreText}>
-            {busy === 'restore' ? 'Restaurando…' : '¿Ya eres suscriptor? Restaurar compras'}
+            {busy === 'restore' ? 'Restaurando…' : '¿Ya eres miembro? Restaurar compras'}
           </EliteText>
         </AnimatedPressable>
 
-        {/* MB-13: quien pagó en la web o recibió invitación activa aquí su plan */}
+        {/* MB-13: quien pagó en la web o recibió invitación activa aquí su membresía */}
         <AnimatedPressable
           onPress={() => { haptic.light(); router.push('/redeem-code'); }}
           disabled={busy !== null}
@@ -349,7 +308,7 @@ export default function PaywallScreen() {
 
         {/* E-2 (MB-12): disclosure obligatoria de suscripción auto-renovable */}
         <EliteText style={styles.sdkNote}>
-          Suscripciones auto-renovables: el precio mostrado se cobra por{' '}
+          Membresía auto-renovable: el precio mostrado se cobra por{' '}
           {period === 'monthly' ? 'mes' : 'año'} y se renueva automáticamente al
           final de cada periodo, salvo que canceles al menos 24 horas antes en
           tu cuenta de App Store o Google Play. Puedes gestionarla o cancelarla
@@ -429,20 +388,6 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     borderWidth: 1,
     ...GLOW.accent,
   },
-  recommendedBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: ATP_BRAND.lime,
-    borderRadius: Radius.xs,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginBottom: Spacing.sm,
-  },
-  recommendedText: {
-    fontFamily: Fonts.bold,
-    fontSize: 10,
-    color: t.textoSobreLima,
-    letterSpacing: 1,
-  },
   planName: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, color: t.texto },
   planPrice: {
     fontFamily: Fonts.bold,
@@ -472,14 +417,11 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     alignItems: 'center',
   },
   ctaPro: { backgroundColor: ATP_BRAND.lime },
-  ctaBase: { borderWidth: 1, borderColor: ATP_BRAND.lime },
   // BLOQ-1: un CTA que no responde tiene que VERSE que no responde. Antes
   // quedaba en lima sólido, idéntico al vivo, y el usuario tocaba en vano.
   ctaMuerto: { opacity: 0.4 },
   ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, letterSpacing: 0.5 },
   ctaTextPro: { color: t.textoSobreLima },
-  // Regla 1 del manual: el lima nunca es letra en claro — teal calibrado.
-  ctaTextBase: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   sdkNote: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
