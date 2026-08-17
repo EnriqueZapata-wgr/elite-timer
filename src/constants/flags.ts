@@ -459,3 +459,81 @@ export const LABS_FICHA_POR_BIOMARCADOR = true;
  *  Sin migración y sin build nativo, en los dos sentidos.
  */
 export const AUTH_RESPETA_EL_TEMA = true;
+
+/**
+ * UMBRALES_FEMENINOS_EN_EL_SCORE — se acaba la vara de hombre para las mujeres.
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → `calculateHealthScore`, el score funcional que se PERSISTE en
+ *    `health_scores`, califica a las mujeres con los umbrales femeninos de la
+ *    matriz V6 en los 15 parámetros donde la matriz declara un umbral propio.
+ *  · OFF → vuelve exactamente al comportamiento anterior, umbral masculino para
+ *    todos.
+ *
+ * POR QUÉ
+ *  El motor legacy define 98 parámetros y en 95 el arreglo femenino es idéntico
+ *  al masculino, carácter por carácter. El caso que duele es testosterona total:
+ *  el legacy pone la ventana óptima de una mujer en 7 a 12 ng/ml, que es rango de
+ *  hombre. La matriz V6 la pone en 0.2 a 0.55. Una mujer con 0.4 ng/ml, que está
+ *  perfectamente en su ventana, puntuaba 0 de 100 y arrastraba el dominio
+ *  hormonal completo hacia abajo. Lo mismo, en menor grado, con ferritina, TSH,
+ *  FSH, prolactina, HDL, hemoglobina, ácido úrico, B12 y leucocitos.
+ *
+ * DE DÓNDE SALEN LOS NÚMEROS
+ *  De ningún lado nuevo. `src/services/salud/umbrales-femeninos-core.ts` no
+ *  escribe un solo umbral a mano: los lee de `MATRIZ_MUJERES` al cargar el
+ *  módulo. No es una decisión clínica nueva, es dejar de leer el arreglo
+ *  equivocado.
+ *
+ * QUÉ NO ALCANZA ESTE FLAG
+ *  · No toca la Edad ATP que ve el usuario. Esa sale del motor v2
+ *    (`edad_atp_calculations`), no de aquí.
+ *  · No toca la edad biológica de este mismo motor: PhenoAge de Levine trabaja
+ *    sobre valores crudos y no lee bandas, así que `biological_age` no se mueve
+ *    ni un decimal.
+ *  · No reescribe NADA de lo ya guardado. Los scores viejos se quedan como
+ *    están. El arreglo va en el cálculo de aquí en adelante.
+ *  · Tres parámetros se quedan fuera a propósito y están listados con motivo en
+ *    `PENDIENTES_DE_FIRMA_CLINICA` del core: LDH, hematocrito y grasa corporal.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración, sin build nativo, sin tocar datos.
+ */
+export const UMBRALES_FEMENINOS_EN_EL_SCORE = true;
+
+/**
+ * SEXO_NO_SE_ADIVINA — un fallo de red no convierte a una mujer en hombre.
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → si la lectura de `client_profiles` falla o no devuelve
+ *    perfil, la Edad ATP se calcula igual pero NO se persiste en
+ *    `edad_atp_calculations`, y el resultado queda marcado como derivado de un
+ *    perfil que no se pudo leer.
+ *  · OFF → comportamiento anterior: se asume hombre de 40 años y se guarda.
+ *
+ * POR QUÉ, CON EL NÚMERO
+ *  `loadUserData` mete las siete queries en un solo `Promise.all` dentro de un
+ *  `try`, y el `catch` solo escribe una advertencia y sigue. Si esa llamada
+ *  falla, `profile` se queda en null y la línea que resuelve el sexo dice
+ *  `=== 'female' ? 'female' : 'male'`, así que cualquier cosa que no sea
+ *  exactamente 'female' cae a hombre en silencio, y de paso la edad cae al
+ *  default de 40 años. Ese número se guarda.
+ *
+ *  Cuánto cuesta, medido sobre las dos pacientes del Excel: correr el motor v2
+ *  con sexo 'male' en vez de 'female' le suma 3.20 años de Edad ATP a la
+ *  paciente de 28 y 1.64 años a la de 65. Casi todo viene de composición
+ *  corporal, cuya edad ciega se mueve 21.2 y 15.0 años respectivamente, y de
+ *  fitness. No es un redondeo: es el número que la persona ve primero.
+ *
+ * LO QUE ESTE FLAG NO PRETENDE
+ *  No decide qué hacer con quien no se identifica en el binario del algoritmo.
+ *  Eso es criterio clínico y de producto, y está levantado para firma. Aquí solo
+ *  se deja de guardar un número que sabemos que se calculó con el perfil
+ *  equivocado.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración, sin build nativo, sin tocar datos.
+ */
+export const SEXO_NO_SE_ADIVINA = true;

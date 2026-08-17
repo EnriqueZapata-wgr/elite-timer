@@ -17,16 +17,27 @@
  * la matriz la firma quien la firma.
  *
  * Deudas conocidas de este archivo (medidas, no estimadas): el encabezado
- * declaraba 144 parámetros y define 98; copia los umbrales masculinos al array
- * femenino en casi todos los parámetros, incluida la testosterona; y no tiene
- * un solo test automatizado (el `health-engine-validation.ts` que parece uno es
- * un script suelto que reimplementa `rateValue` por su cuenta, o sea valida una
- * copia y no este código).
+ * declaraba 144 parámetros y define 98; y el `health-engine-validation.ts` que
+ * parece un test es un script suelto que reimplementa `rateValue` por su
+ * cuenta, o sea valida una copia y no este código.
+ *
+ * LA COPIA DE UMBRALES MASCULINOS: CERRADA EN PARTE. De los 98 parámetros, 95
+ * traían el arreglo femenino idéntico al masculino carácter por carácter. Los
+ * 15 en los que la matriz V6 declara un umbral femenino propio ya se leen de
+ * ahí, en `src/services/salud/umbrales-femeninos-core.ts`, detrás de la bandera
+ * UMBRALES_FEMENINOS_EN_EL_SCORE. Los arreglos literales de abajo se dejan tal
+ * cual a propósito: son el camino de regreso si la bandera se apaga.
+ *
+ * Lo que sigue abierto son tres parámetros que no se pueden corregir leyendo la
+ * matriz (LDH, hematocrito y grasa corporal) y que esperan firma clínica, con el
+ * motivo escrito en `PENDIENTES_DE_FIRMA_CLINICA` de ese mismo core.
  *
  * Original: 144 parámetros declarados, 10 dominios, PhenoAge de Levine.
  * Rangos funcionales por sexo, ajustes por composición corporal.
  */
 import { SEMANTIC } from '../constants/brand';
+import { UMBRALES_FEMENINOS_EN_EL_SCORE } from '@/src/constants/flags';
+import { rangoFemeninoV6 } from '@/src/services/salud/umbrales-femeninos-core';
 
 export type Sex = 'male' | 'female';
 export type RatingLevel = 'out_of_range' | 'critical' | 'risk' | 'acceptable' | 'optimal';
@@ -365,7 +376,13 @@ export function calculateHealthScore(
         continue;
       }
 
-      const ranges = sex === 'male' ? param.ranges.male : param.ranges.female;
+      // Las mujeres se califican con los umbrales femeninos de la matriz V6 donde la
+      // matriz declara uno propio. No es un rango nuevo: es dejar de leer el arreglo
+      // masculino, que en 95 de 98 parámetros era literalmente el mismo. Ver
+      // `umbrales-femeninos-core.ts` y la bandera UMBRALES_FEMENINOS_EN_EL_SCORE.
+      const ranges = sex === 'male'
+        ? param.ranges.male
+        : (UMBRALES_FEMENINOS_EN_EL_SCORE ? rangoFemeninoV6(param.key, param.ranges.female) : param.ranges.female);
       const { rating, score } = rateValue(value, ranges);
       sumWS += score * param.weight;
       sumUW += param.weight;

@@ -198,9 +198,30 @@ export const BODY_COMP_RULES_FEMALE: Record<keyof import('@/src/types/edad-atp-v
 };
 
 // ============================================================
-// PENDIENTE (no están en los docs maestros — ver COWORK_REPORT):
-//   - SF_DOMAIN_WEIGHTS reales (arriba es placeholder igual) → bloquea SF=0.6083 exacto.
-//   - SF_PARAMETER_RANGES: rangos de 9 bandas por parámetro (los 140 inputs, sprint 5).
-//   - Tablas norma score→edad de las sub-edades (solo hay pesos + "lookup públicos").
+// ESTADO REAL DE LOS PENDIENTES (revisado 2026-08-17 contra el código, no
+// contra la memoria). El bloque anterior decía que los pesos de dominio eran
+// placeholder y llevaba dos meses siendo falso: se escribió el 8 de junio a las
+// 09:40 en el commit que creó este archivo, y los pesos REALES entraron a las
+// 11:15 del mismo día en el commit "real SF domain weights -> SF=0.6083
+// verified". Nadie volvió a bajar a corregir el comentario, y desde entonces el
+// archivo confesaba un problema que ya no tenía. Se corrige aquí porque un
+// comentario que miente cuesta lo mismo que un número que miente.
+//
+// CERRADO
+//   - SF_DOMAIN_WEIGHTS: son los reales. Reproducen el SF=0.6083 del paciente
+//     HOMBRES V7 y hay test de regresión que lo exige.
+//   - Rangos de 9 bandas por parámetro: existen desde el 9 de junio en
+//     `edad-atp-matriz-v7-v6.ts`, 138 parámetros por sexo, con archivo Excel
+//     fuente, autoría y fecha de extracción citados.
+//
+// SIGUE ABIERTO, Y ES MÁS SERIO QUE LO ANTERIOR
+//   - `computeSFGlobalReal`, la ÚNICA función que aplica las bandas de la matriz
+//     por sexo al scoring, NO está en la ruta que corre en producción: solo la
+//     llaman tests. La Edad ATP que ve la persona sale de `motor-v2-service`,
+//     que puntúa con umbrales escritos dentro de cada `area-*-service`. O sea
+//     que la matriz firmada y el número que se muestra son dos cosas distintas.
+//   - `area-labs-service` y `area-cognicion-service` no leen el sexo en absoluto.
+//     Ferritina, B12 y cortisol se puntúan con un umbral único para todos.
+//   - Tablas norma score→edad de las sub-edades (solo hay pesos + lookup públicos).
 //   - RT norms Deary-Liewald (cognitivo) — aproximadas en su servicio.
 // ============================================================

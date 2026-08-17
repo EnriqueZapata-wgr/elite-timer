@@ -33,6 +33,7 @@ import { coalesceHealthRows, HEALTH_COALESCE_ROWS } from './capture-service';
 import { loadCanonicalLabValues, bridgeToPhenoAge } from './lab-values-service';
 import { SF_DOMAIN_WEIGHTS } from '@/src/constants/edad-atp-v2-model';
 import { MOTOR_V2_VERSION } from '@/src/constants/edad-atp-motor-v2-config';
+import { SEXO_NO_SE_ADIVINA } from '@/src/constants/flags';
 
 export type EdadAtpV2Inputs = {
   chronological_age: number;
@@ -217,6 +218,14 @@ export async function computeEdadAtpV2(userId: string): Promise<EdadAtpV2Result>
   const motorInput = buildMotorV2Input(data, paramValues);
   const motor = computeMotorV2(motorInput);
   const result = motorResultToView(motor);
+  if (SEXO_NO_SE_ADIVINA && !data.perfil_legible) {
+    // Sin perfil no sabemos ni el sexo ni la edad, y el default es hombre de 40.
+    // El número se devuelve para que la pantalla no se quede vacía, pero no se
+    // guarda: una fila mal calculada en el histórico contamina tendencias y
+    // señales para siempre, y el dato del usuario no se reescribe.
+    logWarn('[edad-atp-v2] perfil ilegible: se calcula pero no se persiste');
+    return result;
+  }
   try {
     // algoritmo_excel NO se manda: es del motor v1 (matriz V7/V6) y el v2 no lo
     // produce — la mig 234 la volvió nullable (fantasma MB-6: era NOT NULL sin
@@ -276,6 +285,14 @@ export type DataSource =
 export interface UnifiedUserData {
   chronological_age: number;
   sex: Sex;
+  /**
+   * `false` cuando `client_profiles` no se pudo leer, ya sea porque la consulta
+   * falló o porque no hay fila. En ese caso `sex` y `chronological_age` de arriba
+   * NO son del usuario: son el default del orquestador, hombre de 40 años. El
+   * cálculo se hace igual para no dejar la pantalla en blanco, pero un resultado
+   * así no se persiste. Ver la bandera SEXO_NO_SE_ADIVINA.
+   */
+  perfil_legible: boolean;
   // PhenoAge biomarkers
   albumin_g_dl?: number;
   creatinine_mg_dl?: number;
@@ -414,7 +431,16 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
   return {
     chronological_age: ageFromDob(profile?.date_of_birth) ?? DEFAULT_AGE,
     // Sex type no soporta 'intersex' → mapea a 'male' (default del orquestador).
+    //
+    // OJO CON ESTA LÍNEA: cualquier cosa que no sea exactamente 'female' cae a
+    // hombre en silencio, y eso incluye el caso en que la consulta de arriba
+    // falló y `profile` se quedó en null, porque el catch solo advierte y sigue.
+    // Cuánto cuesta, medido sobre las dos pacientes del Excel: correr el motor
+    // con 'male' en vez de 'female' le suma 3.20 años de Edad ATP a la de 28 y
+    // 1.64 a la de 65. Por eso se marca `perfil_legible` y el orquestador no
+    // guarda un resultado que salió de un perfil que no se pudo leer.
     sex: profile?.biological_sex === 'female' ? 'female' : 'male',
+    perfil_legible: profile != null,
     // Labs PhenoAge/metabólicos: fuente ÚNICA `lab_values` (canonBridge). Fallback a bio
     // (edad_atp_biomarkers) solo por compat de capturas no-lab previas a la migración.
     albumin_g_dl: firstNum(canonBridge.albumin_g_dl, bio.albumin),
