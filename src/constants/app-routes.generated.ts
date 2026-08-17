@@ -209,6 +209,7 @@ export const APP_ROUTES: readonly string[] = [
 export const APP_ROUTES_DYNAMIC: readonly string[] = [
   "/centro/[appKey]",
   "/comunidad/perfil/[userId]",
+  "/edad-atp/lab/[key]",
   "/edad-atp/sub-edad/[key]",
   "/historia-clinica/[category]",
   "/packs/[packKey]",
