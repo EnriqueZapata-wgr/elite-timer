@@ -10,9 +10,16 @@
  * que ya está gateado a 'female') y devuelve la anotación a pintar junto al valor.
  */
 
-/** Marcadores cuyo valor depende de la fase del ciclo (claves canónicas de lab_values). */
+/**
+ * Marcadores cuyo valor depende de la fase del ciclo (claves canónicas de lab_values).
+ *
+ * `progesterona` va junto a `progesterone`: la matriz V7/V6 escribe la clave en
+ * español y el catálogo de nomenclatura la escribe en inglés. Con solo la
+ * inglesa, la progesterona de una usuaria pasaba de largo sin su nota de fase,
+ * que es justo el dato sin el cual ese valor se puede leer al revés.
+ */
 export const CYCLE_SENSITIVE_MARKERS = new Set<string>([
-  'estradiol', 'progesterone', 'lh', 'fsh',
+  'estradiol', 'progesterone', 'progesterona', 'lh', 'fsh',
 ]);
 
 export type CyclePhase = 'menstrual' | 'follicular' | 'ovulation' | 'luteal';

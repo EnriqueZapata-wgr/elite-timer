@@ -272,8 +272,16 @@ interface ReglaCruce {
   extra?: (snap: LecturaSnapshot) => { label: string; fuente: FuenteTag }[];
 }
 
-/** ¿La señal cumple la dirección que la regla espera? */
-function cumple(s: Señal | undefined, dir: Direccion | 'fuera'): boolean {
+/**
+ * ¿La señal cumple la dirección que la regla espera?
+ *
+ * Se exporta porque la ficha por biomarcador decide con ESTE mismo predicado si
+ * un marcador fuera de ventana tiene compañía o está solo. Reimplementarlo allá
+ * sería tener dos criterios de convergencia que con el tiempo se separan, y la
+ * regla de "nunca alarmar por un marcador solo" dejaría de significar lo mismo
+ * en dos pantallas de la misma app.
+ */
+export function cumple(s: Señal | undefined, dir: Direccion | 'fuera'): boolean {
   if (!s) return false;
   if (s.estado === 'optimo') return false;
   if (dir === 'fuera') return s.estado === 'atencion' || s.direccion !== 'dentro';
