@@ -69,6 +69,16 @@ export function ejecutarResultado(resultado: ResultadoNav, navegar: Navegar): Re
       };
 
     case 'requiere_dato':
+      // NAV-2: si la plantilla se pudo expandir, esto se comporta como cualquier
+      // otra ambigüedad y se PREGUNTA. Antes era un callejón: ARGOS avisaba que
+      // le faltaba un dato, no ofrecía ninguno y el turno se acababa ahí.
+      if (resultado.opciones && resultado.opciones.length > 0) {
+        return {
+          mensaje: `¿Te refieres a ${listar(resultado.opciones)}?`,
+          opciones: resultado.opciones,
+          escalarAlModelo: false,
+        };
+      }
       return {
         mensaje: `Para abrir ${resultado.titulo} necesito saber cuál en específico.`,
         escalarAlModelo: false,

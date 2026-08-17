@@ -48,7 +48,11 @@ export async function resolverConModelo(consulta: string): Promise<TurnoNav> {
   const propuesta = extraerRutaDeRespuesta(extractResponseText(data));
   // El modelo alucina rutas plausibles que no existen. Se valida SIEMPRE contra
   // el catálogo antes de mover la app.
-  const resultado = validarRutaPropuesta(propuesta);
+  // NAV-2: la consulta viaja a la validación. Si el modelo contesta una
+  // plantilla (`/reports/[dominio]`), el parámetro se resuelve con lo que el
+  // usuario dijo: "llévame a mi reporte de ayuno" aterriza en /reports/ayuno en
+  // vez de morir en "necesito saber cuál en específico".
+  const resultado = validarRutaPropuesta(propuesta, consulta);
   if (resultado.tipo === 'sin_resultado') return { accion: 'chat', escalable: false };
   return turnoDesdeResultado(resultado);
 }

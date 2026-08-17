@@ -26,6 +26,14 @@ import {
   ALIAS_RUTA,
 } from '../argos-nav-resolver-core';
 import { APP_ROUTES, APP_ROUTES_DYNAMIC } from '@/src/constants/app-routes.generated';
+import {
+  esPlantilla,
+  expandirPlantilla,
+  expandirTodas,
+  plantillasHuerfanas,
+  PLANTILLAS_SIN_EXPANSION,
+} from '../argos-nav-dinamicas-core';
+import { ASSESSMENTS } from '@/src/constants/assessments';
 
 /** Atajo: exige que una frase resuelva a una ruta exacta, sin preguntar. */
 function esperarRuta(frase: string, ruta: string) {
@@ -185,7 +193,10 @@ describe('el contrato: preguntar en vez de adivinar', () => {
       expect(r.candidatos.length).toBeGreaterThan(1);
       expect(r.candidatos.length).toBeLessThanOrEqual(3);
       for (const c of r.candidatos) {
-        expect(APP_ROUTES.includes(c.ruta) || APP_ROUTES_DYNAMIC.includes(c.ruta)).toBe(true);
+        // NAV-2: el catálogo de candidatos válidos son las estáticas MÁS las
+        // expandidas. Las plantillas con corchetes ya NO cuentan como destino.
+        const expandidas = new Set(expandirTodas().map((e) => e.ruta));
+        expect(APP_ROUTES.includes(c.ruta) || expandidas.has(c.ruta)).toBe(true);
         expect(c.titulo.length).toBeGreaterThan(0);
       }
     } else {
@@ -299,8 +310,123 @@ describe('integridad del catalogo (candado)', () => {
   });
 
   it('el indice cubre practicamente toda la app', () => {
-    const vetadas = APP_ROUTES.filter((r) => rutaVetada(r)).length +
-      APP_ROUTES_DYNAMIC.filter((r) => rutaVetada(r)).length;
-    expect(obtenerIndice().length).toBe(APP_ROUTES.length + APP_ROUTES_DYNAMIC.length - vetadas);
+    // NAV-2: la cuenta cambió de forma. Antes eran las estáticas más los 10
+    // MOLDES; ahora son las estáticas más las rutas RESUELTAS. Un molde no es un
+    // destino y ya no ocupa un renglón del catálogo.
+    const estaticas = APP_ROUTES.filter((r) => !rutaVetada(r)).length;
+    const expandidas = expandirTodas().filter((e) => !rutaVetada(e.ruta)).length;
+    expect(obtenerIndice().length).toBe(estaticas + expandidas);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// NAV-2 · el bug: ARGOS ofrecía moldes de ruta
+// ---------------------------------------------------------------------------
+
+describe('NAV-2 · ninguna plantilla llega nunca al usuario', () => {
+  it('el indice no contiene una sola ruta con corchetes', () => {
+    for (const e of obtenerIndice()) {
+      expect(esPlantilla(e.ruta), `${e.ruta} entró al índice con corchetes`).toBe(false);
+    }
+  });
+
+  it('ninguna entrada del indice queda marcada como dinamica', () => {
+    expect(obtenerIndice().filter((e) => e.dinamica)).toEqual([]);
+  });
+
+  it('ninguna consulta, por rara que sea, devuelve una ruta con corchetes', () => {
+    const frases = [
+      'reporte', 'reportes', 'mi reporte', 'pack', 'packs', 'paquete',
+      'test', 'tests', 'evaluacion', 'cuestionario', 'perfil', 'centro',
+      'intervencion', 'lab', 'historia clinica', 'sub edad', 'id', 'dato',
+      'llevame a mi reporte', 'abre un pack', 'quiero un test',
+    ];
+    for (const f of frases) {
+      const r = resolverDestino(f);
+      if (r.tipo === 'resuelta') expect(esPlantilla(r.ruta), f).toBe(false);
+      if (r.tipo === 'ambigua') for (const c of r.candidatos) expect(esPlantilla(c.ruta), f).toBe(false);
+      if (r.tipo === 'sin_resultado') for (const s of r.sugerencias) expect(esPlantilla(s.ruta), f).toBe(false);
+      // `requiere_dato` ya no puede salir del camino local: no hay moldes indexados.
+      expect(r.tipo).not.toBe('requiere_dato');
+    }
+  });
+
+  it('toda plantilla esta decidida: o se expande o esta declarada como excluida', () => {
+    expect(plantillasHuerfanas(), 'plantillas sin decisión, se colarían al índice').toEqual([]);
+  });
+
+  it('cada exclusion trae su motivo escrito, no un TODO', () => {
+    for (const [plantilla, motivo] of PLANTILLAS_SIN_EXPANSION) {
+      expect(typeof motivo, plantilla).toBe('string');
+      expect(motivo.length, `${plantilla} sin motivo de verdad`).toBeGreaterThan(30);
+    }
+  });
+});
+
+describe('NAV-2 · las rutas resueltas son destinos de verdad', () => {
+  it('todas las expansiones existen sin corchetes y con titulo', () => {
+    const todas = expandirTodas();
+    expect(todas.length).toBeGreaterThan(40);
+    for (const e of todas) {
+      expect(esPlantilla(e.ruta), e.ruta).toBe(false);
+      expect(e.titulo.trim().length, e.ruta).toBeGreaterThan(0);
+      expect(e.titulo, `${e.ruta} muestra el nombre del parámetro como título`).not.toMatch(/^(PackKey|Id|Key|Dominio|Category|AppKey|UserId)$/);
+    }
+  });
+
+  it('no se duplica una ruta que ya era estatica', () => {
+    for (const e of expandirTodas()) {
+      expect(APP_ROUTES.includes(e.ruta.split('?')[0]), `${e.ruta} duplica una estática`).toBe(false);
+    }
+  });
+
+  it('los 14 dominios de reportes son navegables por nombre', () => {
+    const rutas = expandirPlantilla('/reports/[dominio]').map((e) => e.ruta);
+    expect(rutas).toHaveLength(14);
+    expect(rutas).toContain('/reports/ayuno');
+    expect(rutas).toContain('/reports/glucosa');
+  });
+
+  it('llevame a mi reporte de ayuno aterriza en el reporte de ayuno', () => {
+    esperarRuta('llévame a mi reporte de ayuno', '/reports/ayuno');
+  });
+
+  it('el modelo puede proponer la ruta concreta y ya no se rechaza', () => {
+    const r = validarRutaPropuesta('/reports/ayuno');
+    expect(r.tipo).toBe('resuelta');
+  });
+
+  it('el modelo propone el molde y la consulta resuelve el parametro', () => {
+    const r = validarRutaPropuesta('/reports/[dominio]', 'llévame a mi reporte de ayuno');
+    expect(r.tipo).toBe('resuelta');
+    if (r.tipo === 'resuelta') expect(r.ruta).toBe('/reports/ayuno');
+  });
+
+  it('el molde sin consulta ya no es un callejon: trae opciones', () => {
+    const r = validarRutaPropuesta('/packs/[packKey]');
+    expect(r.tipo).toBe('requiere_dato');
+    if (r.tipo === 'requiere_dato') {
+      expect(r.opciones?.length).toBeGreaterThan(0);
+      for (const o of r.opciones ?? []) expect(esPlantilla(o.ruta)).toBe(false);
+    }
+  });
+
+  it('ninguna evaluacion se ofrece por una ruta del motor que no este viva', () => {
+    const noVivas = ASSESSMENTS.filter((a) => !a.live).map((a) => a.route);
+    const ofrecidas = new Set(expandirTodas().map((e) => e.ruta));
+    for (const r of noVivas) {
+      expect(ofrecidas.has(r), `${r} no está viva y se estaba ofreciendo`).toBe(false);
+    }
+  });
+
+  it('las evaluaciones que no estan vivas se ofrecen por su pantalla original', () => {
+    const ofrecidas = new Set(expandirTodas().map((e) => e.ruta.split('?')[0]));
+    const hc = ASSESSMENTS.filter((a) => a.section === 'clinico' && !a.live);
+    expect(hc.length).toBeGreaterThan(0);
+    for (const a of hc) {
+      const legacy = a.legacyRoutes?.[0]?.split('?')[0];
+      expect(legacy, a.id).toBeTruthy();
+      expect(ofrecidas.has(legacy!) || APP_ROUTES.includes(legacy!), `${a.id} sin destino vivo`).toBe(true);
+    }
   });
 });
