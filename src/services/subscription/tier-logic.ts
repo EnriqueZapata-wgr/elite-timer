@@ -1,87 +1,73 @@
 /**
- * Lógica pura de tiers y boosts — sin imports de RN/Supabase para
+ * Lógica pura de la membresía — sin imports de RN/Supabase para
  * que sea testeable en vitest (environment: node).
  *
- * Fuentes de verdad del tier:
- *  - profiles.tier (Supabase, lo escribe el webhook RevenueCat de Cowork)
+ * PREMIUM (16-ago-2026): ATP dejó de tener planes. Hay UNA membresía y punto.
+ * Ya no existe "Base", ni "Pro", ni "Clínico" como niveles de acceso: solo
+ * `free` (todavía no paga) y `premium` (paga). Ninguna función se desbloquea
+ * por plan, porque ya no hay plan que elegir.
+ *
+ * Fuentes de verdad de la membresía:
+ *  - profiles.tier (Supabase, lo escribe el webhook RevenueCat)
  *  - entitlements activos del SDK RevenueCat (tiempo real en el device)
- * Se toma el MAYOR de ambos para cubrir lag del webhook en ambas direcciones.
+ * Se toma la MÁS generosa de ambas para cubrir lag del webhook en ambas
+ * direcciones.
+ *
+ * ⚠️ REGLA ANTIENCIERRO — la razón de fondo de todo este cambio.
+ * Hubo un incidente real: alguien pagó y la app lo dejó fuera de una función.
+ * Por eso aquí:
+ *  1. CUALQUIER entitlement activo cuenta como membresía, se llame como se
+ *     llame. No hay lista blanca de ids. Si RevenueCat dice que esta persona
+ *     tiene algo vigente, tiene acceso. Un id nuevo en el dashboard no puede
+ *     volver a dejar a nadie afuera.
+ *  2. CUALQUIER valor pagado histórico de profiles.tier ('base', 'pro',
+ *     'clinician', 'premium') se lee como membresía. Los datos viejos siguen
+ *     en la base intactos; lo único que cambia es cómo se interpretan.
+ * En caso de duda, se concede el acceso. Cobrar de más y dar de menos es el
+ * único error que no se puede deshacer con una disculpa.
  */
 
-export type Tier = 'free' | 'base' | 'pro' | 'clinician';
+/** Solo dos estados posibles: o eres miembro o todavía no. */
+export type Tier = 'free' | 'premium';
 
-export interface BoostStatus {
-  active: boolean;
-  expiresAt: Date | null;
-}
+/**
+ * Valores de `profiles.tier` que significan "pagó". Incluye los tres tiers
+ * históricos porque en la base HAY filas con esos valores y esa gente pagó.
+ * No se migran, se reinterpretan.
+ */
+const VALORES_PAGADOS = new Set(['base', 'pro', 'clinician', 'premium', 'founder']);
 
-/** Entitlement ids configurados en el dashboard RevenueCat */
-export const ENTITLEMENT_TIER_MAP: Record<string, Tier> = {
-  atp_base: 'base',
-  atp_pro: 'pro',
-  atp_clinician: 'clinician',
-};
-
-const TIER_RANK: Record<Tier, number> = { free: 0, base: 1, pro: 2, clinician: 3 };
-
-/** Tier más alto implicado por los entitlements activos del SDK. */
+/**
+ * Membresía implicada por los entitlements activos del SDK.
+ * Regla antiencierro: cualquier entitlement activo basta.
+ */
 export function tierFromEntitlements(activeEntitlementIds: string[]): Tier {
-  let best: Tier = 'free';
-  for (const id of activeEntitlementIds) {
-    const tier = ENTITLEMENT_TIER_MAP[id];
-    if (tier && TIER_RANK[tier] > TIER_RANK[best]) best = tier;
-  }
-  return best;
+  return activeEntitlementIds.length > 0 ? 'premium' : 'free';
 }
 
-/** Tier según profiles.tier, degradado a free si tier_expires_at ya pasó. */
+/** Membresía según profiles.tier, degradada a free si tier_expires_at ya pasó. */
 export function tierFromProfile(
   tier: string | null | undefined,
   tierExpiresAt: string | null | undefined,
   now: Date = new Date(),
 ): Tier {
-  const valid: Tier[] = ['free', 'base', 'pro', 'clinician'];
-  const t = valid.includes(tier as Tier) ? (tier as Tier) : 'free';
-  if (t !== 'free' && tierExpiresAt && new Date(tierExpiresAt).getTime() <= now.getTime()) {
-    return 'free';
-  }
-  return t;
+  const pagado = typeof tier === 'string' && VALORES_PAGADOS.has(tier.toLowerCase());
+  if (!pagado) return 'free';
+  if (tierExpiresAt && new Date(tierExpiresAt).getTime() <= now.getTime()) return 'free';
+  return 'premium';
 }
 
+/** La más generosa de dos lecturas (cubre el lag del webhook). */
 export function highestTier(a: Tier, b: Tier): Tier {
-  return TIER_RANK[a] >= TIER_RANK[b] ? a : b;
+  return a === 'premium' || b === 'premium' ? 'premium' : 'free';
 }
 
-/** El boost H+ eleva a 'pro' cualquier tier inferior mientras está activo. */
-export function resolveEffectiveTier(tier: Tier, boostActive: boolean): Tier {
-  if (boostActive && TIER_RANK[tier] < TIER_RANK.pro) return 'pro';
-  return tier;
+/** ¿Esta persona tiene la membresía activa? Único gate que queda en la app. */
+export function esMiembro(tier: Tier): boolean {
+  return tier === 'premium';
 }
 
-/** Semántica "al menos": isTierAtLeast('clinician', 'pro') === true */
-export function isTierAtLeast(tier: Tier, min: Tier): boolean {
-  return TIER_RANK[tier] >= TIER_RANK[min];
-}
-
-/** Row de pro_boosts (o null) → BoostStatus. */
-export function boostStatusFromRow(
-  row: { expires_at: string } | null | undefined,
-  now: Date = new Date(),
-): BoostStatus {
-  if (!row?.expires_at) return { active: false, expiresAt: null };
-  const expiresAt = new Date(row.expires_at);
-  if (expiresAt.getTime() <= now.getTime()) return { active: false, expiresAt: null };
-  return { active: true, expiresAt };
-}
-
-/** "23h 15m" / "45m" / "<1m" — countdown editorial del boost. */
-export function formatBoostRemaining(expiresAt: Date, now: Date = new Date()): string {
-  const ms = expiresAt.getTime() - now.getTime();
-  if (ms <= 0) return '0m';
-  const totalMinutes = Math.floor(ms / 60_000);
-  if (totalMinutes < 1) return '<1m';
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return `${minutes}m`;
-  return `${hours}h ${minutes}m`;
+/** Etiqueta de la membresía para pantallas de cuenta y suscripción. */
+export function etiquetaMembresia(tier: Tier): string {
+  return tier === 'premium' ? 'ATP Premium' : 'Sin membresía';
 }

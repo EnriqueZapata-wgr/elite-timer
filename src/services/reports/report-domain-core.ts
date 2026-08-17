@@ -226,7 +226,10 @@ export const REPORT_DOMAINS: Record<ReportDomainKey, ReportDomainMeta> = {
     // llegue su glifo, cambia aquí y en un solo lugar.
     icon: 'reportes',
     accent: '#a8e02a',
-    subtitle: 'Tus electrones y tus protones: qué entró y qué se fue.',
+    // PREMIUM (16-ago-2026): el subtítulo mezclaba electrones y protones. Sin
+    // moneda solo queda una serie, y el copy tenía que dejar de sugerir que
+    // hay dos cosas distintas que cuadrar.
+    subtitle: 'Tus electrones: qué ganaste y cuándo.',
     emptyCopy: 'Todavía no hay movimientos en este rango. Tus electrones se ganan cumpliendo, no comprando.',
   },
   entrenamiento: {

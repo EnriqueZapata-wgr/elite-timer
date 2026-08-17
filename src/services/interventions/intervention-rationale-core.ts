@@ -20,7 +20,12 @@ import { displayLabel, legibilizeKeysInText } from '@/src/constants/display-labe
 import { ROOT_LABELS } from '@/src/constants/intervention-vocab';
 import type { InterventionRoot } from '@/src/constants/intervention-vocab';
 
-/** action_key registrado en proton_action_costs (migración 175, 280 H+). */
+/**
+ * action_key de la llamada.
+ * PREMIUM (16-ago-2026): era la clave con la que el proxy buscaba el precio en
+ * H+ (280). Ya no tarifica; sigue viva porque con ella el proxy elige el modelo
+ * y deja rastro del tipo de llamada.
+ */
 export const INTERVENTION_RATIONALE_ACTION_KEY = 'intervention_rationale';
 
 /** FNV-1a 32-bit → hex (mismo patrón que edad-atp/dataset-hash: puro, sin crypto). */

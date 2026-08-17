@@ -5,7 +5,7 @@
  * 1. Header: saludo + fecha + campana + pill de economía
  * 2. TareasView: dos lentes (Tareas por momento / Agenda por hora),
  *    card de la orbe colapsable, progreso global y por bloque
- * 3. Economía self-gated (ProBoostCard + HPlusExplainerCard)
+ * 3. (libre — aquí vivían las cards de protones, retiradas con la membresía única)
  * 4. Lectura de la semana (domingo ≥19h, cacheada)
  * 5. CTAs quiet: Mi Protocolo · Mis hábitos
  * Overlays: TopBanner · ArgosReactionToast (el tour de la orbe vive en la
@@ -37,8 +37,6 @@ import { ArgosMark } from '@/src/components/argos/ArgosMark';
 import { CommunityPresence } from '@/src/components/community/CommunityPresence';
 import { TareasView } from '@/src/components/hoy/TareasView';
 import { GraduacionCard } from '@/src/components/hoy/GraduacionCard';
-import { ProBoostCard } from '@/src/components/economy/ProBoostCard';
-import { HPlusExplainerCard } from '@/src/components/economy/HPlusExplainerCard';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { getLocalToday, getLocalHour } from '@/src/utils/date-helpers';
@@ -343,7 +341,7 @@ export default function TodayScreen() {
     <ThemeReady>
     <View style={[s.root, { backgroundColor: tokens.fondo }]}>
       <StatusBar style={dark ? 'light' : 'dark'} />
-      {/* #23: banner contextual flotante (racha / protones / notifs / insight) */}
+      {/* #23: banner contextual flotante (racha / notifs / insight) */}
       <TopBanner offset={44} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
 
@@ -361,7 +359,7 @@ export default function TodayScreen() {
                 <NotificationBellIcon />
               </View>
             </View>
-            {/* P6: pill E-/H+/Rank (self-gated por LAB_ECONOMY_ENABLED; null si OFF) */}
+            {/* P6: pill E-/Rank (self-gated por LAB_ECONOMY_ENABLED; null si OFF) */}
             <EconomyHeaderPill />
           </Animated.View>
 
@@ -387,13 +385,6 @@ export default function TodayScreen() {
         {/* MB-26 P2: la propuesta de graduación (30/35). La app propone,
             el usuario acepta; "Ahora no" la duerme 7 días. */}
         <GraduacionCard userId={user?.id} propuestas={day.graduacionPropuestas} />
-
-        {/* Task #133: Boost H+ — 24h de Pro con Protones (solo tier base / countdown si activo).
-            La card trae su propio wrapper: si no aplica no deja hueco. */}
-        <ProBoostCard />
-
-        {/* #99: nudge one-shot "¿Qué son los H+?" → /economy/how-to-earn */}
-        <HPlusExplainerCard />
 
         {/* ═══════════════════════════════════════
             WEEKLY INSIGHT — Domingo ≥19h (cacheado por semana)

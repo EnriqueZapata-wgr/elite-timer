@@ -1,7 +1,15 @@
 /**
- * MI PROGRESO — pantalla central de balance + rank + logros (E- + H+ + accesos).
- * Nombre antes "Mi Economía" — renombrado 23-jun por Enrique (incluye logros, no solo dinero).
- * Lee balances reales; refresca en 'balance_changed'. Entrada escalonada FadeInDown.
+ * MI PROGRESO — rango, electrones, logros e historial.
+ *
+ * PREMIUM (16-ago-2026): esta pantalla era mitad progreso y mitad cajero. Se
+ * fue la mitad de cajero (saldo H+, tienda, conversión, "cómo gano H+") porque
+ * ya no hay moneda que administrar. Lo que queda es lo que la persona vino a
+ * ver: qué tan lejos ha llegado.
+ *
+ * Los electrones se quedan y son el centro: rango, avance y racha. Nunca fueron
+ * moneda, aunque durante un tiempo se pudieran convertir.
+ *
+ * Lee el balance real; refresca en 'balance_changed'. Entrada escalonada FadeInDown.
  * Las secciones aún no construidas se muestran como "Próximamente" (nav honesta).
  */
 import { useState, useCallback } from 'react';
@@ -15,12 +23,10 @@ import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { RankBadge } from '@/src/components/economy/RankBadge';
-import { BalanceCard } from '@/src/components/economy/BalanceCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { getElectronBalance } from '@/src/services/economy/electron-service';
-import { getProtonBalance } from '@/src/services/economy/proton-service';
-import type { ElectronBalance, ProtonBalance } from '@/src/services/economy/economy-types';
+import type { ElectronBalance } from '@/src/services/economy/economy-types';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -35,12 +41,10 @@ export default function EconomyAdminScreen() {
   const { kind, tokens: t } = useAppTheme();
   const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const [electrons, setElectrons] = useState<ElectronBalance | null>(null);
-  const [protons, setProtons] = useState<ProtonBalance | null>(null);
 
   const load = useCallback(async () => {
     if (!user?.id) return;
-    const [e, p] = await Promise.all([getElectronBalance(user.id), getProtonBalance(user.id)]);
-    setElectrons(e); setProtons(p);
+    setElectrons(await getElectronBalance(user.id));
   }, [user?.id]);
 
   useFocusEffect(useCallback(() => {
@@ -49,18 +53,14 @@ export default function EconomyAdminScreen() {
     return () => sub.remove();
   }, [load]));
 
+  // PREMIUM (16-ago-2026): salieron del menú "Convertir E- → H+", "Tienda H+" y
+  // "¿Cómo gano H+?" — sus tres pantallas ya no existen y dejarlas linkeadas
+  // mandaba a la nada. Retos y Referidos siguen en "Próximamente": no es que se
+  // hayan cancelado, es que su premio era H+ y falta decidir con qué se premia.
   const navItems: NavItem[] = [
-    { icon: 'swap-horizontal', label: 'Convertir E- → H+', sublabel: 'Tasa actual 100 → 300', route: '/economy/convert' },
-    { icon: 'receipt-outline', label: 'Historial de movimientos', sublabel: 'E- y H+', route: '/economy/history' },
-    // E-1 (MB-12): Retos cobra H+ reales pero settleChallenge no se invoca
-    // desde ningún lado — cobrar por un premio inalcanzable no se queda.
-    // Referidos promete H+ sin backend que los otorgue. Ambos ocultos hasta
-    // que exista la liquidación.
+    { icon: 'receipt-outline', label: 'Historial de electrones', sublabel: 'Qué ganaste y cuándo', route: '/economy/history' },
     { icon: 'flag-outline', label: 'Mis Retos', sublabel: 'Próximamente', soon: true },
     { icon: 'people-outline', label: 'Referidos', sublabel: 'Próximamente', soon: true },
-    { icon: 'cart-outline', label: 'Tienda H+', sublabel: 'Paquetes', route: '/economy/shop' },
-    // #99: explicación visual de la economía
-    { icon: 'school-outline', label: '¿Cómo gano H+?', sublabel: 'La economía en 60 segundos', route: '/economy/how-to-earn' },
     { icon: 'trophy-outline', label: 'Mis Logros', sublabel: 'Próximamente', soon: true },
   ];
 
@@ -76,31 +76,24 @@ export default function EconomyAdminScreen() {
           </Animated.View>
         )}
 
-        {protons != null ? (
-          <Animated.View entering={FadeInDown.delay(90).springify()}>
-            <BalanceCard
-              protons={protons.current_protons}
-              onPressShop={() => { haptic.medium(); router.push('/economy/shop'); }}
-            />
+        {electrons != null ? (
+          <Animated.View entering={FadeInDown.delay(90).springify()} style={styles.eRow}>
+            <Ionicons name="flash" size={16} color={ATP_BRAND.lime} />
+            <EliteText variant="caption" style={[styles.eText, { color: t.textoSecundario }]}>
+              {electrons.lifetime_electrons.toLocaleString('en-US')} E- acumulados en total
+            </EliteText>
           </Animated.View>
         ) : (
           <Animated.View entering={FadeInDown.delay(90).springify()} style={styles.eRow}>
             <Ionicons name="cloud-offline-outline" size={16} color={t.textoSecundario} />
             <EliteText variant="caption" style={[styles.eText, { color: t.textoSecundario }]}>
-              Tu balance no se pudo leer.{' '}
+              Tu progreso no se pudo leer.{' '}
               <EliteText variant="caption" style={{ color: acento }} onPress={load}>
                 Reintentar
               </EliteText>
             </EliteText>
           </Animated.View>
         )}
-
-        <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.eRow}>
-          <Ionicons name="flash" size={16} color={ATP_BRAND.lime} />
-          <EliteText variant="caption" style={[styles.eText, { color: t.textoSecundario }]}>
-            {electrons != null ? `${electrons.current_electrons.toLocaleString('en-US')} E- disponibles para convertir` : 'E- sin lectura'}
-          </EliteText>
-        </Animated.View>
 
         {navItems.map((item, i) => (
           <Animated.View key={item.label} entering={FadeInDown.delay(180 + i * 40).springify()}>

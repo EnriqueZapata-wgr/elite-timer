@@ -17,8 +17,6 @@ interface Props {
   canGoBack: boolean;
   onBack: () => void;
   orbState: ArgosOrbState;
-  /** Rate limit sin boost: orbe apagada (estática y atenuada). */
-  orbDimmed: boolean;
   onVoiceMode: () => void;
   autoSpeak: boolean;
   onToggleAutoSpeak: () => void;
@@ -26,8 +24,12 @@ interface Props {
   onNewConversation: () => void;
 }
 
+// PREMIUM (16-ago-2026): el encabezado recibía `orbDimmed` para apagar la orbe
+// cuando la persona había agotado su cuota diaria: quedaba estática y al 35% de
+// opacidad, como diciendo "hasta aquí llegaste hoy". No hay cuota que agotar,
+// así que la orbe está siempre viva.
 export function ChatHeader({
-  topInset, canGoBack, onBack, orbState, orbDimmed,
+  topInset, canGoBack, onBack, orbState,
   onVoiceMode, autoSpeak, onToggleAutoSpeak, onHistory, onNewConversation,
 }: Props) {
   // MB-31B remate: componente compartido — lee el scope, no el tema global
@@ -42,13 +44,7 @@ export function ChatHeader({
             <Ionicons name="arrow-back" size={24} color={t.texto} />
           </Pressable>
         )}
-        <View style={{ opacity: orbDimmed ? 0.35 : 1 }}>
-          <ArgosOrb
-            state={orbState}
-            size={36}
-            reducedMotion={orbDimmed ? true : undefined}
-          />
-        </View>
+        <ArgosOrb state={orbState} size={36} />
         <View>
           <Text style={s.title}>ARGOS</Text>
           <Text style={s.subtitle}>SALUD FUNCIONAL</Text>

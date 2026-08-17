@@ -415,7 +415,10 @@ export default function SettingsPrivacyScreen() {
               Perderás para siempre:{'\n'}
               • Tu expediente e historia clínica{'\n'}
               • Labs, tests y Edad ATP{'\n'}
-              • Rachas, electrones y protones{'\n'}
+              {/* PREMIUM (16-ago-2026): decía "electrones y protones". Nombrar
+                  una moneda que la persona ya no ve, en la pantalla donde
+                  decide borrar su cuenta, solo siembra duda. */}
+              • Rachas, electrones y rango{'\n'}
               • Conversaciones con ARGOS{'\n'}
               • Rutinas, registros y progreso{'\n\n'}
               Tienes 30 días para cancelar antes del borrado definitivo.

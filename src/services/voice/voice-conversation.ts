@@ -2,18 +2,22 @@
  * voice-conversation — orquestador de UN turno de voz de ARGOS (MB-4 J5).
  *
  * Pipeline del "<2s primer audio" (spec §4.2):
- *   audio del user → STT (Gemini) → LLM token-stream (Claude, requestType='voice_turn'
- *   → cobra H+ server-side) → SentenceChunker → TTS por chunk (ElevenLabs) →
- *   cola de reproducción secuencial. NO se espera la respuesta completa: el primer
- *   chunk se sintetiza y suena en cuanto cierra la primera frase.
+ *   audio del user → STT (Gemini) → LLM token-stream (Claude, requestType='voice_turn')
+ *   → SentenceChunker → TTS por chunk (ElevenLabs) → cola de reproducción
+ *   secuencial. NO se espera la respuesta completa: el primer chunk se sintetiza
+ *   y suena en cuanto cierra la primera frase.
  *
  * Interrumpible (barge-in): `abort()` corta stream + TTS + playback y el orb vuelve
  * a idle. Fallback: si la voz no está disponible, devuelve el texto (nunca voz mala).
  *
+ * PREMIUM (16-ago-2026): el modo voz era la función más cara y por eso tenía su
+ * propio desenlace "te quedaste sin H+", distinto del fallback a texto. Ya no
+ * se cobra por turno: lo único que puede fallar es la voz, y para eso ya estaba
+ * el fallback.
+ *
  * No es puro (toca red/audio) → se testea con MOCKS de sus dependencias
- * (voice-conversation.test.ts: roles B2, cola secuencial B4, 402 honesto H4);
- * la lógica de corte pura vive en voice-chunker-core.test. Verificación final =
- * device (gate Enrique).
+ * (voice-conversation.test.ts: roles B2, cola secuencial B4); la lógica de corte
+ * pura vive en voice-chunker-core.test. Verificación final = device.
  */
 import { generateResponseStream } from '@/src/services/argos-service';
 import { synthesizeSpeech, playAudioFileToEnd, stopPlayback, transcribeAudio } from '@/src/services/argos-tts';
@@ -32,9 +36,6 @@ export interface VoiceTurnCallbacks {
   onText?: (fullText: string) => void;
   /** true si el turno cayó a texto (voz no disponible). */
   onFallbackToText?: () => void;
-  /** H4: el proxy rechazó por falta de H+ (402) — el caller dice la verdad
-   *  ("sin H+ para el modo voz"), no "te respondo por texto". */
-  onNoProtons?: () => void;
 }
 
 /** Fix B2: el turno expone AMBOS textos con su rol — el caller arma el historial
@@ -68,7 +69,7 @@ export function runVoiceTurn(params: {
   const voice: ArgosVoice = resolveArgosVoice(params.voice);
   let aborted = false;
   // M4: el barge-in también cancela el fetch de TTS en vuelo (antes el chunk
-  // interrumpido se terminaba de sintetizar —y de cobrar— para tirarse).
+  // interrumpido se terminaba de sintetizar para tirarse).
   const ttsAbort = new AbortController();
 
   const abort = () => {
@@ -143,7 +144,9 @@ export function runVoiceTurn(params: {
     try {
       const idem = generateUUID();
       for await (const piece of generateResponseStream(userId, messages, {
-        requestType: 'voice_turn', // ← cobra H+ como voz (server-side)
+        // 'voice_turn' ya no tarifica: le dice al proxy qué modelo usar y deja
+        // rastro de que el turno vino por voz.
+        requestType: 'voice_turn',
         idempotencyKey: idem,
       })) {
         if (aborted) break;
@@ -154,17 +157,12 @@ export function runVoiceTurn(params: {
       if (!aborted) {
         for (const chunk of chunker.flush()) await speakChunk(chunk);
       }
-    } catch (e: any) {
-      // H4: distinguir "sin H+" (402 del proxy) de "voz no disponible" — antes el
-      // 402 llegaba como "te respondo por texto"… y no llegaba ningún texto.
-      const msg = String(e?.message ?? e);
-      if (msg.includes('proxy_402') || msg.includes('insufficient_protons')) {
-        fellBack = true; // el mensaje honesto de H+ sustituye al de fallback
-        callbacks?.onNoProtons?.();
-      } else if (!spokeAny) {
-        // El stream murió (server ya reembolsó H+). El texto acumulado se muestra.
-        fallbackToText();
-      }
+    } catch {
+      // PREMIUM (16-ago-2026): aquí se separaba el 402 del proxy ("te quedaste
+      // sin H+ para el modo voz") del resto de fallos. Sin cobro, un fallo del
+      // stream solo puede ser eso: un fallo. El texto que alcanzó a acumularse
+      // se muestra en vez de perderse.
+      if (!spokeAny) fallbackToText();
     }
 
     // Fix B4: drenar la cola antes de cerrar el turno — `done` resuelve cuando el

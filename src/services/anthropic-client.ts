@@ -1,12 +1,17 @@
 /**
  * Anthropic Client — Llama a Claude via Supabase Edge Function proxy.
  * Usa fetch directo al endpoint de Edge Functions (más confiable que supabase.functions.invoke).
+ *
+ * PREMIUM (16-ago-2026): este cliente traducía el 429 y el `_rate_limited` del
+ * proxy a un error con tipo propio (ArgosRateLimitError) para que la pantalla
+ * pintara la card del límite diario con su oferta de boost. Ya no hay cuota que
+ * corte el acceso, así que ese tipo desapareció: cualquier fallo del proxy es
+ * ahora un fallo genérico y se maneja como tal.
  */
 import Constants from 'expo-constants';
 import { ATP_LLM } from '@/src/constants/llm-config';
 import { extractResponseText } from './anthropic-response-core';
 import {
-  ArgosRateLimitError,
   ArgosStreamUnavailableError,
   isEventStreamResponse,
   parseStreamEvent,
@@ -82,19 +87,15 @@ export async function callAnthropic(
   }
   clearTimeout(timeoutId);
 
-  // D-4 (MB-12): el rate limit del proxy tiene tipo PROPIO también en el modo
-  // no-stream — antes caía en el error genérico y la UI decía "problema de
-  // conexión" mientras el usuario reintentaba contra un límite.
-  if (response.status === 429) {
-    throw new ArgosRateLimitError(await response.json().catch(() => null));
-  }
+  // PREMIUM (16-ago-2026): el 429 tenía su propio throw tipado para que la UI
+  // distinguiera "alcanzaste tu cuota" de "se cayó la red". Sin cuota que
+  // alcanzar, un 429 vuelve a ser lo que es: un fallo del transporte.
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
     throw new Error(`Proxy error ${response.status}: ${errorText}`);
   }
 
   const data = await response.json();
-  if (data?._rate_limited) throw new ArgosRateLimitError(data);
   if (data?.error) {
     const msg = typeof data.error === 'string' ? data.error : data.error?.message || JSON.stringify(data.error);
     throw new Error(msg);
@@ -108,7 +109,6 @@ export async function callAnthropic(
  * Opt-in por body.stream + header X-ATP-Stream (no rompe callers legacy).
  * Comportamiento según respuesta del proxy:
  *  - text/event-stream → yield de eventos chunk/done conforme llegan.
- *  - JSON con _rate_limited → ArgosRateLimitError (T5: RateLimitCard).
  *  - JSON normal (proxy viejo sin SSE) → yield del texto completo como un
  *    solo chunk (modo actual, sin segundo request).
  *  - JSON degradado / sin texto / error red → ArgosStreamUnavailableError
@@ -178,10 +178,12 @@ export async function* callAnthropicStream(
 
   const contentType = response.headers.get('content-type');
   if (!isEventStreamResponse(contentType)) {
-    // JSON: rate limit, proxy legacy sin SSE, o degradado.
+    // JSON: proxy legacy sin SSE, o degradado.
     const data = await response.json().catch(() => null);
-    if (data?._rate_limited) throw new ArgosRateLimitError(data);
-    if (data?._degraded || data?.error) {
+    // PREMIUM (16-ago-2026): `_rate_limited` ya no existe del lado del proxy.
+    // Se sigue mirando por si un binario viejo habla con uno nuevo (o al revés):
+    // en ese caso vale más caer al modo no-stream que quedarse callado.
+    if (data?._degraded || data?._rate_limited || data?.error) {
       throw new ArgosStreamUnavailableError('proxy_degraded_or_error');
     }
     const text = extractResponseText(data);
@@ -220,10 +222,15 @@ export async function* callAnthropicStream(
 
 /**
  * ECO-3: invalida el tierCache in-memory del proxy para este user (action
- * 'invalidate_tier_cache'). Se llama tras activar un boost — sin esto el
- * proxy tarda hasta 30s+ en enterarse y sigue aplicando el límite viejo.
- * Best-effort: si hay varios isolates solo se invalida el que atiende este
- * request; el TTL de 30s sigue siendo el backstop. Nunca lanza.
+ * 'invalidate_tier_cache'). Best-effort: si hay varios isolates solo se
+ * invalida el que atiende este request; el TTL de 30s sigue siendo el
+ * backstop. Nunca lanza.
+ *
+ * PREMIUM (16-ago-2026): su único caller era la activación del boost H+, que ya
+ * no existe, así que hoy nadie la llama. Se deja porque el problema que resuelve
+ * sigue vivo con la membresía única: al completar la compra el proxy puede
+ * seguir viendo 'free' hasta 30s. Cuando el flujo de compra la necesite, aquí
+ * está; borrarla solo obligaría a reescribirla igual.
  */
 export async function invalidateProxyTierCache(userId: string): Promise<void> {
   try {

@@ -6,16 +6,13 @@
  * persistencia del score en la ficha (user_supplements.functional_score +
  * bha_scan_summary con el desglose por atributos).
  *
- * Doctrina H+: el COBRO es server-side — argos-proxy lee proton_action_costs
- * por requestType ('bha_scan', 500 H+ en migración 189). El action_key se
- * MANTIENE 'bha_scan' (interno, no user-facing) para no tocar el cobro
- * server-side; el rename es solo de superficie. El cliente hace el pre-flight
- * de quote (UX) y maneja el 402 (insufficient) del proxy.
+ * PREMIUM (16-ago-2026): el escaneo costaba 500 H+ y ya no cuesta nada aparte.
+ * El action_key sigue siendo 'bha_scan' (interno, no user-facing) porque el
+ * proxy lo usa para el RUTEO DE MODELO y la telemetría, que sí siguen vivos.
  */
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic, extractResponseText } from '@/src/services/anthropic-client';
 import { getArgosCallMetadata } from '@/src/services/argos-service';
-import { getActionCost, getProtonBalanceOrZero } from '@/src/services/economy/proton-service';
 import { generateUUID } from '@/src/utils/uuid';
 import { ATP_LLM } from '@/src/constants/llm-config';
 import {
@@ -31,19 +28,7 @@ export const BHA_SCAN_ACTION_KEY = 'bha_scan';
 export type BhaScanOutcome =
   | { status: 'ok'; result: FunctionalScoreResult }
   | { status: 'illegible' }
-  | { status: 'insufficient_h_plus' }
   | { status: 'error'; message?: string };
-
-/** Pre-flight de H+ (patrón DX/braverman-premium): costo + balance actual. */
-export async function getBhaScanQuote(
-  userId: string,
-): Promise<{ cost: number; balance: number }> {
-  const [cost, balance] = await Promise.all([
-    getActionCost(BHA_SCAN_ACTION_KEY),
-    getProtonBalanceOrZero(userId),
-  ]);
-  return { cost, balance: balance.current_protons };
-}
 
 /**
  * Escanea una etiqueta (suplemento o comida empaquetada) y devuelve el score.
@@ -79,8 +64,6 @@ export async function runBhaScan(
     );
   } catch (err: any) {
     const msg = String(err?.message ?? err);
-    // El proxy cobra server-side; 402 = balance insuficiente (doctrina H+).
-    if (msg.includes('402')) return { status: 'insufficient_h_plus' };
     return { status: 'error', message: msg };
   }
 

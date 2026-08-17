@@ -1,4 +1,14 @@
-/** Tipos compartidos de la Economía Protones H+. */
+/**
+ * Tipos compartidos de la economía de ATP.
+ *
+ * PREMIUM (16-ago-2026): se fueron los tipos de Protones (H+). No se borran
+ * columnas ni tablas: `proton_balance`, `proton_transactions` y las columnas
+ * `reward_protons` / `entry_cost_protons` / `prize_protons` siguen en la base
+ * con el historial de cada persona. Lo que se quita es la puerta de entrada
+ * desde el cliente, para que nadie vuelva a pintarlas por accidente.
+ *
+ * Los ELECTRONES (E-) se quedan enteros: son logros y avance, no moneda.
+ */
 
 export interface ElectronBalance {
   user_id: string;
@@ -16,35 +26,12 @@ export interface ElectronTransaction {
   created_at: string;
 }
 
-export interface ProtonBalance {
-  user_id: string;
-  current_protons: number;
-  lifetime_earned: number;
-  lifetime_spent: number;
-}
-
-export type ProtonTxType =
-  | 'subscription_bonus' | 'package_purchase' | 'conversion_from_electron'
-  | 'action_spent' | 'reto_entry' | 'reto_prize' | 'referral_bonus'
-  | 'achievement_bonus' | 'refund';
-
-export interface ProtonTransaction {
-  id: string;
-  user_id: string;
-  amount: number;
-  type: ProtonTxType;
-  action_key?: string | null;
-  metadata?: Record<string, unknown> | null;
-  created_at: string;
-}
-
 export interface Referral {
   id: string;
   referrer_id: string;
   referred_id?: string | null;
   referral_code: string;
   status: 'pending' | 'signed_up' | 'paid' | 'rewarded' | 'cancelled';
-  reward_protons?: number | null;
   created_at: string;
 }
 
@@ -53,8 +40,6 @@ export interface Challenge {
   name: string;
   description: string;
   category: 'habits' | 'fitness' | 'mind' | 'labs' | 'community';
-  entry_cost_protons: number;
-  prize_protons: number;
   criteria: Record<string, unknown>;
   start_date: string;
   end_date: string;

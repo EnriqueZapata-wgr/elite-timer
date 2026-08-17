@@ -73,10 +73,14 @@ export const ORB_TOUR_STEPS: readonly OrbTourStep[] = [
     copy: 'La Edad ATP es una ventana educativa a tu estado interno. No es un diagnóstico.',
   },
   {
+    // PREMIUM (16-ago-2026): este paso prometía que la constancia "desbloquea
+    // extras" vía protones. Ya no hay nada bloqueado que desbloquear, y
+    // prometerlo en el tour era la peor forma de arrancar. Los electrones
+    // quedan explicados por lo que siempre fueron: marcador de avance.
     id: 'electrones',
     route: '/',
-    kicker: 'ELECTRONES Y PROTONES',
-    copy: 'Cada hábito cumplido carga electrones (e-), la energía de tu día. Los protones (H+) llegan con la constancia y desbloquean extras.',
+    kicker: 'ELECTRONES',
+    copy: 'Cada hábito cumplido carga electrones (e-), la energía de tu día. Se acumulan, suben tu rango y te muestran qué tan constante has sido.',
   },
   {
     id: 'tribu',

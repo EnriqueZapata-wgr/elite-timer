@@ -1,11 +1,16 @@
 /**
  * REPORTE PREMIUM ARGOS — Braverman (#90, #143).
- * Doctrina H+: se COBRA con Protones (1,000 H+, precio server-side), NO se
- * gatea por tier. Cache por resultado = compra permanente (releer gratis).
- * Precio y balance siempre visibles antes del tap (consentimiento explícito).
+ *
+ * PREMIUM (16-ago-2026): costaba 1,000 H+ y ahora viene incluido. Se cayó la
+ * card de precio y saldo, y con ella el "te faltan H+" que podía dejar a un
+ * miembro mirando un reporte que no podía abrir.
+ *
+ * Se conserva la card previa: el reporte tarda entre 30 y 60 segundos y decir
+ * "esto va a tardar" antes de arrancar sigue siendo la diferencia entre
+ * esperar y creer que la app se trabó.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, DeviceEventEmitter, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import Markdown from 'react-native-markdown-display';
@@ -16,7 +21,6 @@ import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerG
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
-import { formatFull } from '@/src/services/economy/format';
 import {
   generateBravermanPremiumReport,
   getBravermanPremiumQuote,
@@ -58,33 +62,19 @@ export default function BravermanPremiumScreen() {
     const result: PremiumReportResult = await generateBravermanPremiumReport(user.id);
     if (result.status === 'ok') {
       haptic.success();
-      // T5 HARDENING: funnel core — solo cobros reales (cached = re-lectura gratis).
+      // Se sigue midiendo la primera generación (no la relectura del cache):
+      // es la señal de uso real de la función, ya no de una compra.
       if (!result.cached) analytics.track(ATP_EVENTS.BRAVERMAN_PREMIUM_PURCHASED, {});
       setMarkdown(result.markdown);
       setWasCached(result.cached);
       setState('done');
-      // #143: cobro exitoso → refrescar pill de economía (regla CLAUDE.md #5)
-      if (!result.cached) DeviceEventEmitter.emit('balance_changed');
-      return;
-    }
-    if (result.status === 'insufficient_h_plus') {
-      haptic.warning();
-      setState('offer');
-      Alert.alert(
-        'Te faltan H+',
-        `Este reporte usa ${formatFull(result.required)} H+ y tienes ${formatFull(result.balance)}. Recarga o gana más completando tu día.`,
-        [
-          { text: 'Ahora no', style: 'cancel' },
-          { text: 'Conseguir H+', onPress: () => router.push('/economy/shop') },
-        ],
-      );
       return;
     }
     setState(result.status === 'no_test' ? 'no_test' : 'error');
   }, [user?.id]);
 
-  // #143: al entrar carga precio + balance. Si ya lo tiene (cache) lo muestra
-  // directo SIN cobrar ni preguntar; si no, card previa con consentimiento.
+  // Si ya lo tiene (cache) lo muestra directo; si no, card previa que avisa
+  // cuánto tarda antes de arrancar.
   useEffect(() => {
     if (startedRef.current || !user?.id) return;
     startedRef.current = true;
@@ -105,15 +95,13 @@ export default function BravermanPremiumScreen() {
     return () => clearInterval(interval);
   }, [state]);
 
-  const canAfford = quote?.balance == null || quote.balance >= (quote?.cost ?? 0);
-
   // B-5 (MB-12): markdown de LLM sin disclaimer → gate obligatorio.
   return (
     <MedicalDisclaimerGate>
     <Screen edges={[]} themed>
       <ScreenHeader title="Reporte Premium" onBack={() => router.back()} />
 
-      {/* #143: card previa — precio + balance visibles ANTES de generar */}
+      {/* Card previa: qué vas a recibir y que tarda un rato. Sin precio. */}
       {state === 'offer' && quote && (
         <View style={styles.lockContainer}>
           <Animated.View entering={FadeInUp.delay(60).springify()} style={styles.lockCard}>
@@ -124,30 +112,15 @@ export default function BravermanPremiumScreen() {
               exactas, fortalezas, vulnerabilidades y un plan específico de
               nutrientes, suplementos, ejercicio y mente.
             </EliteText>
-            <View style={styles.priceRow}>
-              <EliteText style={styles.priceText}>💎 Usa {formatFull(quote.cost)} H+</EliteText>
-              <EliteText style={styles.balanceText}>
-                Tu balance: {quote.balance == null ? '…' : `${formatFull(quote.balance)} H+`}
-              </EliteText>
-            </View>
             <AnimatedPressable
               onPress={() => { haptic.medium(); generate(); }}
               style={styles.lockCtaPrimary}
             >
-              <EliteText style={styles.lockCtaPrimaryText}>
-                Generar reporte ({formatFull(quote.cost)} H+)
-              </EliteText>
+              <EliteText style={styles.lockCtaPrimaryText}>Generar reporte</EliteText>
             </AnimatedPressable>
-            {!canAfford && (
-              <AnimatedPressable
-                onPress={() => { haptic.light(); router.push('/economy/shop'); }}
-                style={styles.shopLink}
-              >
-                <EliteText style={styles.shopLinkText}>Te faltan H+: conseguir más →</EliteText>
-              </AnimatedPressable>
-            )}
             <EliteText style={styles.lockHint}>
-              Se genera una sola vez: queda tuyo para releer cuando quieras.
+              Tarda cerca de un minuto. Se genera una sola vez y queda tuyo para
+              releer cuando quieras.
             </EliteText>
           </Animated.View>
         </View>
@@ -289,15 +262,6 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     textAlign: 'center',
   },
   loadingHint: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue },
-  priceRow: {
-    alignItems: 'center',
-    gap: 2,
-    marginTop: Spacing.xs,
-  },
-  priceText: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
-  balanceText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoSecundario },
-  shopLink: { paddingVertical: 6 },
-  shopLinkText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

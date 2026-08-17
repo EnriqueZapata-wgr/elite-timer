@@ -5,11 +5,15 @@
  * y los movimientos que lista /economy/history. El rango manda: los servicios
  * de historial no filtran por fecha, así que se recortan aquí contra el rango
  * resuelto en vez de enseñar movimientos de fuera de la ventana.
+ *
+ * PREMIUM (16-ago-2026): el reporte mezclaba dos monedas en una sola lista y
+ * había que marcar cada renglón con su unidad para que se entendiera. Ya no
+ * hay protones, así que se fue la columna 'moneda' y con ella la ambigüedad:
+ * todo lo que aparece aquí es un electrón ganado.
  */
 import { supabase } from '@/src/lib/supabase';
 import { toLocalDateString } from '@/src/utils/date-helpers';
 import { getElectronHistory } from '@/src/services/economy/electron-service';
-import { getProtonHistory } from '@/src/services/economy/proton-service';
 import { humanizeKey } from '@/src/services/economy/tx-labels';
 import { getElectronReport, type ElectronReport } from '@/src/services/reports-service';
 import type { ResolvedRange, ServicePeriod } from './report-domain-core';
@@ -17,11 +21,8 @@ import type { ResolvedRange, ServicePeriod } from './report-domain-core';
 /** Techo de lectura: por encima de esto no es un reporte, es un volcado. */
 const HISTORY_LIMIT = 500;
 
-export type EconomiaCurrency = 'E-' | 'H+';
-
 export interface EconomiaMovement {
   id: string;
-  moneda: EconomiaCurrency;
   /** YYYY-MM-DD local del movimiento. */
   fecha: string;
   concepto: string;
@@ -51,26 +52,17 @@ export async function getEconomiaReport(
   const userId = data.user?.id;
   if (!userId) throw new Error('economia: sin sesión, no se pudo leer');
 
-  const [electrons, electronTx, protonTx] = await Promise.all([
+  const [electrons, electronTx] = await Promise.all([
     getElectronReport(period),
     getElectronHistory(userId, HISTORY_LIMIT),
-    getProtonHistory(userId, HISTORY_LIMIT),
   ]);
 
   const movements: EconomiaMovement[] = [];
   for (const tx of electronTx) {
     const fecha = toLocalDateString(new Date(tx.created_at));
     if (inRange(fecha, range)) {
-      movements.push({ id: tx.id, moneda: 'E-', fecha, concepto: humanizeKey(tx.reason), monto: tx.amount });
+      movements.push({ id: tx.id, fecha, concepto: humanizeKey(tx.reason), monto: tx.amount });
     }
-  }
-  for (const tx of protonTx) {
-    const fecha = toLocalDateString(new Date(tx.created_at));
-    if (!inRange(fecha, range)) continue;
-    const concepto = tx.action_key
-      ? `${humanizeKey(tx.type)} · ${humanizeKey(tx.action_key)}`
-      : humanizeKey(tx.type);
-    movements.push({ id: tx.id, moneda: 'H+', fecha, concepto, monto: tx.amount });
   }
 
   movements.sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
@@ -78,6 +70,6 @@ export async function getEconomiaReport(
   return {
     electrons,
     movements,
-    truncated: electronTx.length >= HISTORY_LIMIT || protonTx.length >= HISTORY_LIMIT,
+    truncated: electronTx.length >= HISTORY_LIMIT,
   };
 }

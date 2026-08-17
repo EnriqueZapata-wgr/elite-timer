@@ -1,38 +1,32 @@
 /**
- * DX F4 — regla del regalo del 1er DX (pura).
- * Quien nunca generó un functional_dx: quote a 0 H+ (isFirstFree para el copy
- * "Tu primer diagnóstico es un regalo") y requestType gratuito en el cobro.
+ * DX — el mapa funcional no cobra, ni la primera vez ni las siguientes.
+ *
+ * PREMIUM (16-ago-2026): este archivo probaba la regla del "regalo del 1er DX":
+ * quien nunca había generado un functional_dx pagaba 0 H+ y la Card A le pintaba
+ * el copy del regalo (applyFirstFreeQuote), y el motor mandaba un requestType
+ * distinto para que el proxy no cobrara esa primera (resolveDxGenerationAction).
+ *
+ * Las tres piezas se borraron: sin cobro no hay regalo posible, y un "gratis la
+ * primera" sobre algo que siempre es gratis solo confunde a quien lo lee.
+ *
+ * El test se reapunta a la garantía nueva, que es la que hay que cuidar para que
+ * nadie reintroduzca el reparto por descuido: el motor tiene UN SOLO camino y el
+ * núcleo puro ya no sabe nada de precios.
  */
 import { describe, it, expect } from 'vitest';
-import {
-  applyFirstFreeQuote,
-  resolveDxGenerationAction,
-  DX_GENERATION_FIRST_ACTION_KEY,
-} from '../dx-engine-core';
+import * as dxCore from '../dx-engine-core';
 
-const PAID_KEY = 'dx_generation';
-
-describe('applyFirstFreeQuote', () => {
-  it('sin DX previo → costo 0 + isFirstFree (regalo)', () => {
-    expect(applyFirstFreeQuote(1000, false)).toEqual({ cost: 0, isFirstFree: true });
+describe('PREMIUM — el núcleo del DX no sabe de precios', () => {
+  it('no vuelven a existir las piezas del cobro diferenciado', () => {
+    const core = dxCore as Record<string, unknown>;
+    expect(core.applyFirstFreeQuote).toBeUndefined();
+    expect(core.resolveDxGenerationAction).toBeUndefined();
+    expect(core.DX_GENERATION_FIRST_ACTION_KEY).toBeUndefined();
   });
 
-  it('con DX previo → costo normal, sin regalo', () => {
-    expect(applyFirstFreeQuote(1000, true)).toEqual({ cost: 1000, isFirstFree: false });
-  });
-
-  it('el regalo aplica aunque el costo base cambie (override en proton_action_costs)', () => {
-    expect(applyFirstFreeQuote(750, false)).toEqual({ cost: 0, isFirstFree: true });
-  });
-});
-
-describe('resolveDxGenerationAction', () => {
-  it('primera generación → action_key gratuito (seed 0 H+, migración 186)', () => {
-    expect(resolveDxGenerationAction(false, PAID_KEY)).toBe(DX_GENERATION_FIRST_ACTION_KEY);
-    expect(DX_GENERATION_FIRST_ACTION_KEY).toBe('dx_generation_first');
-  });
-
-  it('generaciones siguientes → action_key de pago (cobro server-side normal)', () => {
-    expect(resolveDxGenerationAction(true, PAID_KEY)).toBe(PAID_KEY);
+  it('ningún export del núcleo habla de costo, saldo ni protones', () => {
+    const sospechosas = /(cost|price|precio|proton|hplus|h_plus|quote|balance|free)/i;
+    const ofensores = Object.keys(dxCore).filter((k) => sospechosas.test(k));
+    expect(ofensores).toEqual([]);
   });
 });

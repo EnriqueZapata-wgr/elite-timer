@@ -3,22 +3,22 @@
  *
  * Cierra el ciclo que el run anterior dejó abierto: `escalarAlModelo` existía y
  * nadie lo consumía, así que una petición de navegación que el índice local no
- * resolvía terminaba en el chat completo. 280 H+, el cerebro entero y Sonnet
- * para averiguar dónde está un botón.
+ * resolvía terminaba en el chat completo: el cerebro entero y Sonnet para
+ * averiguar dónde está un botón.
  *
- * AQUÍ CUESTA 20 H+ (action_key `nav_intent`, migración 267). El proxy lo rutea
- * a Gemini Flash, no arrastra el cerebro y no lee un solo dato clínico. La IA
- * que acomoda la app no es la IA que interpreta tu salud, y el precio lo dice.
+ * Este camino usa el action_key `nav_intent`: el proxy lo rutea a Gemini Flash,
+ * no arrastra el cerebro y no lee un solo dato clínico. La IA que acomoda la
+ * app no es la IA que interpreta tu salud.
  *
- * SOBRE LA CUOTA DIARIA: esta llamada SÍ gasta una de las 5 del tier gratis,
- * porque el proxy cuenta una unidad por request sin mirar el requestType. Es
- * deliberado que se quede así. Lo que había que proteger era el caso común, y
- * ese ya no toca el proxy: la resolución local atiende la mayoría con 0 H+ y 0
- * cuota. Perdonar además este camino dejaría una llamada a un modelo sin ningún
- * techo de tasa, que es peor que el problema que arregla.
+ * PREMIUM (16-ago-2026): este bloque explicaba el precio (20 H+ aquí contra 280
+ * en el chat) y cómo esta llamada gastaba una de las 5 diarias del plan gratis.
+ * Ya no se cobra ni se raciona, pero la separación se queda intacta: sigue
+ * siendo la diferencia entre una llamada barata y una cara para ATP, y sigue
+ * siendo correcto que el navegador no toque el expediente.
  *
  * NO REINTENTA. Si el modelo tampoco encuentra, ARGOS lo dice y pide otras
- * palabras. Caer al chat después de esto sumaría 300 H+ al mismo turno.
+ * palabras. Caer al chat después de esto sería dos llamadas al modelo por la
+ * misma pregunta.
  */
 import { callAnthropic, extractResponseText } from './anthropic-client';
 import { getArgosCallMetadata } from './argos-service';

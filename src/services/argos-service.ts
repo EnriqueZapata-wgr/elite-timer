@@ -25,7 +25,6 @@ import { buildPersonalityInjection, buildTimeContextInjection } from './argos-pe
 import { buildScreenContextInjection, type ArgosScreen } from '@/src/hooks/argos-screen-context-core';
 import { construirInyeccionPantalla } from './argos-screen-explain-core';
 import { ultimaRutaVisitada } from './argos-last-route';
-import { parseRateLimitInfo, type RateLimitInfo } from './argos-rate-limit-core';
 import { chatFailureOutcome } from './argos-chat-core';
 import { buildHistoryWindow } from './argos-history-core';
 import {
@@ -52,8 +51,11 @@ export interface ArgosCallMetadata {
   requestType: string;
   targetUserId?: string | null;
   targetProfileId?: string | null;
-  /** Idempotency key (#71): el server cobra H+ una sola vez por key. Nace en el intent del
-   *  usuario y se REUSA en todos los retries de esa misma operación. Default: generateUUID. */
+  /** Idempotency key (#71): nace en el intent del usuario y se REUSA en todos los retries
+   *  de esa misma operación. Default: generateUUID.
+   *  PREMIUM (16-ago-2026): servía para que el server no cobrara dos veces la misma
+   *  pregunta. Sin cobro se queda igual: es la clave con la que el proxy deduplica
+   *  el reintento y evita una segunda llamada al modelo. */
   idempotencyKey?: string;
 }
 
@@ -1418,9 +1420,9 @@ export interface ArgosMessage {
 export interface ArgosChatResult {
   text: string;
   degraded: boolean;
-  /** T5 MAGIA 2.0: presente cuando el turno fue bloqueado por rate limit —
-   *  el caller muestra RateLimitCard (con boost H+) en vez del texto genérico. */
-  rateLimit?: RateLimitInfo;
+  // PREMIUM (16-ago-2026): traía además `rateLimit` con el detalle de la cuota
+  // agotada (tier, uso, reset, precio del boost) para que la pantalla pintara
+  // la card del límite. Sin cuota que agotar no hay nada que informar.
 }
 
 /**
@@ -1470,7 +1472,10 @@ interface ArgosChatOptions {
    * sabe más que ambos. Si se omite se usa la última ruta visitada.
    */
   screenPath?: string | null;
-  /** MB-4 J5: action_key de cobro H+ (default 'chat'; el modo voz manda 'voice_turn'). */
+  /** MB-4 J5: tipo de llamada (default 'chat'; el modo voz manda 'voice_turn').
+   *  PREMIUM (16-ago-2026): era la clave con la que el proxy buscaba el precio en H+.
+   *  Ya no tarifica nada; sigue viva porque con ella el proxy elige el modelo y la
+   *  registra en la bitácora de uso. */
   requestType?: string;
 }
 
@@ -1570,22 +1575,21 @@ export async function chatWithArgosEx(
       { ...meta, dynamicSystem },
     );
   } catch (e: any) {
-    // ECO-1 (audit Cowork): la decisión vive en argos-chat-core (pura, con
-    // tests). Bloqueos con UI propia (402 de saldo, rate limit) se PROPAGAN
-    // al turno — este catch se los tragaba como "Se me fue la señal" y el
-    // case 'insufficient_protons' del chat era código muerto.
+    // La decisión vive en argos-chat-core (pura, con tests).
+    // PREMIUM (16-ago-2026): antes había que dejar PASAR dos excepciones (402
+    // de saldo y rate limit) porque tenían pantalla propia. Ya no existen, así
+    // que todo error se degrada aquí mismo y nada se re-lanza.
     const outcome = chatFailureOutcome(e);
-    if (outcome === 'propagate') throw e;
     if (e?.message !== 'ARGOS_TIMEOUT') console.warn('ARGOS chat error:', e);
     return outcome;
   }
 
-  // ARG-3: el Edge Function marca con `_rate_limited` (circuit breaker diario)
-  // o `_degraded` (ambos providers fallaron). `_fallback: true` significa que
-  // Gemini respondió como fallback — eso NO es degradado, es éxito.
+  // ARG-3: `_degraded` = ambos providers fallaron. `_fallback: true` significa
+  // que Gemini respondió como fallback — eso NO es degradado, es éxito.
+  // PREMIUM (16-ago-2026): `_rate_limited` (el circuit breaker diario por plan)
+  // se sigue mirando por si un binario viejo habla con el proxy nuevo: si
+  // llegara, la respuesta no sirve y hay que marcarla como degradada.
   const degraded = !!(data?._degraded || data?._rate_limited);
-  // T5 MAGIA 2.0: payload enriquecido del rate limit → RateLimitCard en el caller.
-  const rateLimit = parseRateLimitInfo(data) ?? undefined;
   const rawText = extractResponseText(data) || undefined;
   const text = rawText || 'Se me fue la señal. Reintenta en unos minutos.';
 
@@ -1613,7 +1617,7 @@ export async function chatWithArgosEx(
     void persistTurnAudit(userId, conversationId, gateResult, finalText);
   }
 
-  return { text: finalText, degraded: degraded || !rawText, rateLimit };
+  return { text: finalText, degraded: degraded || !rawText };
 }
 
 /**
@@ -1649,11 +1653,12 @@ export async function chatWithArgos(
  *
  * Mismo system prompt que chatWithArgosEx (prepareChatTurn compartido).
  * Errores tipados para el caller:
- *  - ArgosRateLimitError        → mostrar RateLimitCard (T5).
  *  - ArgosStreamUnavailableError → fallback graceful a chatWithArgosEx.
  *
- * El rate limit se cuenta al INICIO del stream (server-side, igual que
- * no-stream). Si el stream muere a la mitad, el server reembolsa H+.
+ * PREMIUM (16-ago-2026): había un segundo error tipado, ArgosRateLimitError,
+ * para el tope diario del plan, y una nota sobre el reembolso de H+ si el
+ * stream moría a media respuesta. Sin cuota ni cobro, ninguna de las dos cosas
+ * puede pasar.
  */
 export async function* generateResponseStream(
   userId: string,
@@ -1679,8 +1684,8 @@ export async function* generateResponseStream(
       full += evt.text;
       yield evt.text;
     } else if (evt.type === 'error') {
-      // Murió a mitad del stream (el server ya reembolsó H+). El caller
-      // descarta el parcial y reintenta en modo no-stream.
+      // Murió a mitad del stream. El caller descarta el parcial y reintenta
+      // en modo no-stream.
       throw new ArgosStreamUnavailableError(evt.message || 'stream_error');
     }
   }
@@ -1709,9 +1714,10 @@ export async function* generateResponseStream(
 // === INSIGHT DIARIO ===
 
 export async function generateDailyInsight(userId: string): Promise<string> {
-  // ECO-8: el insight diario es SOLO Pro/Clínico o boost activo (decisión
-  // 5b, 12-ago-2026). El cliente ni dispara la llamada para otros tiers; el
-  // proxy tiene el mismo gate server-side por si un bundle viejo la manda.
+  // PREMIUM (16-ago-2026): el insight estaba reservado a Pro/Clínico o a quien
+  // hubiera comprado un boost (gate ECO-8). Hoy el único requisito es ser
+  // miembro, que es lo que responde canReceiveArgosInsights. La llamada se
+  // conserva para no gastar tokens con quien todavía no paga.
   try {
     const { canReceiveArgosInsights } = await import('./subscription/subscription-service');
     if (!(await canReceiveArgosInsights(userId))) return '';
@@ -1750,7 +1756,7 @@ No uses emojis. No saludes. Ve directo al insight.${cycleGuard}${protocolGuard}$
       insightSystem,
       meta,
     );
-    // ECO-8: si el proxy gateó el insight (tier sin derecho), su texto es un
+    // Si el proxy gateó el insight (persona sin membresía), su texto es un
     // CTA — NO cachearlo como insight del día.
     if ((data as any)?._insight_gated) return '';
     return extractResponseText(data);

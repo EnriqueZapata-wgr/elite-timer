@@ -2,14 +2,18 @@
  * ARGOS Navegador — el respaldo con modelo, lógica pura (NOCHE-ARGOS Pieza 8).
  *
  * Es el segundo camino, y solo corre cuando el índice local YA falló. El primero
- * cuesta 0 y atiende la mayoría; este cuesta 20 H+ y una consulta de la cuota
- * diaria. Invertir el orden convertiría cada "llévame a" en una llamada de red.
+ * no toca la red y atiende la mayoría; este sí llama al modelo. Invertir el
+ * orden convertiría cada "llévame a" en una llamada de red.
  *
  * POR QUÉ VALE LA PENA EXISTIR IGUAL: sin él, una petición de navegación que el
- * índice no resuelve se va al chat completo. Eso son 280 H+, el cerebro entero
- * (~26K tokens) y Sonnet, para contestar dónde está un botón. Aquí son 20 H+,
- * Gemini Flash, cero datos clínicos y un prompt de una página. 14 veces más
- * barato por hacer un trabajo 14 veces más chico.
+ * índice no resuelve se va al chat completo, o sea el cerebro entero (~26K
+ * tokens) y Sonnet, para contestar dónde está un botón. Aquí es Gemini Flash,
+ * cero datos clínicos y un prompt de una página: un trabajo mucho más chico
+ * resuelto con una herramienta mucho más chica.
+ *
+ * PREMIUM (16-ago-2026): la comparación estaba escrita en H+ (20 aquí contra
+ * 280 en el chat) y en consultas de la cuota diaria. Se reescribió en lo que
+ * de verdad se compara ahora: tamaño de contexto y modelo.
  *
  * SE LE MANDA EL CATÁLOGO COMPLETO, no el top-3 del índice. Recortar la lista
  * con el mismo índice que acaba de fallar sería pedirle al modelo que acierte
@@ -79,7 +83,7 @@ export function construirPromptNav(rutas: readonly RutaCatalogada[]): string {
  *
  * Es tolerante porque los modelos adornan aunque se les pida que no: comillas,
  * backticks, "La ruta es: /fasting", un punto final. Ser estricto aquí tiraría
- * respuestas correctas y cobraría 20 H+ por nada.
+ * respuestas correctas y habría quemado la llamada al modelo por nada.
  */
 export function extraerRutaDeRespuesta(texto: string | null | undefined): string | null {
   if (!texto) return null;

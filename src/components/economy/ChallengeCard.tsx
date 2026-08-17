@@ -1,12 +1,16 @@
 /**
- * ChallengeCard — reto estilo Clash Royale: entrada, premio, multiplier, CTA.
+ * ChallengeCard — tarjeta de reto: nombre, descripción, multiplicador, CTA.
+ *
+ * PREMIUM (16-ago-2026): se quitaron las filas de "Entrada" y "Premio" en H+.
+ * Los retos se apagaron en su parte económica (ver challenge-service) y esta
+ * tarjeta no tiene pantalla que la monte hoy; se deja compilando y sin hablar
+ * de moneda para cuando el reto se rediseñe.
  */
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { formatFull } from '@/src/services/economy/format';
 import type { Challenge } from '@/src/services/economy/economy-types';
 import { PILLAR_GRADIENTS, ATP_BRAND, TEXT } from '@/src/constants/brand';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
@@ -29,8 +33,6 @@ export function ChallengeCard({ challenge, cta, onPress, disabled }: Props) {
       <EliteText style={styles.name}>{challenge.name}</EliteText>
       <EliteText variant="caption" style={styles.desc}>{challenge.description}</EliteText>
       <View style={styles.rows}>
-        <Row icon="diamond-outline" text={`Entrada: ${formatFull(challenge.entry_cost_protons)} H+`} />
-        <Row icon="trophy-outline" text={`Premio: ${formatFull(challenge.prize_protons)} H+`} color={ATP_BRAND.lime} />
         {challenge.electron_multiplier > 1 ? (
           <Row icon="flash" text={`E- valen ×${challenge.electron_multiplier} durante el reto`} color="#fbbf24" />
         ) : null}

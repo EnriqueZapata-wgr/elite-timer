@@ -7,12 +7,15 @@
  * (corta y vuelve a idle). "Cerrar" sale del modo voz.
  *
  * Todo fail-soft: sin micrófono/keys/voz → mensaje honesto, nunca crashea.
- * Verificación real (primer audio <2s, interrupción, 5 turnos) = device (gate Enrique).
+ *
+ * PREMIUM (16-ago-2026): el modo voz podía terminar en "te quedaste sin H+" con
+ * un CTA a la tienda. Se fue: hablar con ARGOS viene incluido y no se acaba.
+ *
+ * Verificación real (primer audio <2s, interrupción, 5 turnos) = device.
  */
 import { useState, useCallback, useRef } from 'react';
 import { View, StyleSheet, Modal, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
@@ -40,8 +43,6 @@ export function ArgosVoiceMode({ visible, onClose, userId, voice, history, onTur
   const [orbState, setOrbState] = useState<VoiceTurnState>('idle');
   const [transcript, setTranscript] = useState('');
   const [hint, setHint] = useState('Toca para hablar');
-  // H4: sin H+ para voz → mensaje honesto + CTA a la tienda (no "te respondo por texto").
-  const [noProtons, setNoProtons] = useState(false);
   const turnRef = useRef<VoiceTurnHandle | null>(null);
   const recordingRef = useRef(false);
 
@@ -49,7 +50,6 @@ export function ArgosVoiceMode({ visible, onClose, userId, voice, history, onTur
     setOrbState('idle');
     setTranscript('');
     setHint('Toca para hablar');
-    setNoProtons(false);
   }, []);
 
   const onOrbTap = useCallback(async () => {
@@ -94,10 +94,6 @@ export function ArgosVoiceMode({ visible, onClose, userId, voice, history, onTur
         onUserTranscript: setTranscript,
         onText: setTranscript,
         onFallbackToText: () => setHint('Sin voz ahora: te respondo por texto.'),
-        onNoProtons: () => {
-          setNoProtons(true);
-          setHint('Te quedaste sin H+ para el modo voz.');
-        },
       },
     });
     turnRef.current = handle;
@@ -131,11 +127,6 @@ export function ArgosVoiceMode({ visible, onClose, userId, voice, history, onTur
           <Animated.View entering={FadeIn.duration(400)}>
             <EliteText style={s.hint}>{hint}</EliteText>
           </Animated.View>
-          {noProtons && (
-            <AnimatedPressable onPress={() => { close(); router.push('/economy/shop'); }}>
-              <EliteText style={s.shopCta}>Recargar H+ en la Tienda</EliteText>
-            </AnimatedPressable>
-          )}
           {!!transcript && (
             <Animated.View entering={FadeIn.duration(300)} style={s.transcriptWrap}>
               <EliteText style={s.transcript}>{transcript}</EliteText>
@@ -156,10 +147,6 @@ const s = StyleSheet.create({
   close: { position: 'absolute', top: 54, right: Spacing.lg, zIndex: 2, padding: 6 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.xl },
   hint: { color: TEXT.secondary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold, textAlign: 'center' },
-  shopCta: {
-    color: ATP_BRAND.lime, fontSize: FontSizes.sm, fontFamily: Fonts.bold,
-    textAlign: 'center', paddingVertical: Spacing.sm, letterSpacing: 0.5,
-  },
   transcriptWrap: { maxWidth: '90%', paddingHorizontal: Spacing.md },
   transcript: { color: '#fff', fontSize: FontSizes.lg, fontFamily: Fonts.regular, textAlign: 'center', lineHeight: 28 },
   footer: { color: ATP_BRAND.lime, fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2, textAlign: 'center' },

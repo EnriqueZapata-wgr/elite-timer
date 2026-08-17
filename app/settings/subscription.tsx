@@ -1,5 +1,8 @@
 /**
- * AJUSTES › SUSCRIPCIÓN — estado del plan, renovación, gestión e historial.
+ * AJUSTES › MEMBRESÍA — estado, renovación, gestión e historial.
+ *
+ * PREMIUM (16-ago-2026): una sola membresía. Se fueron el nombre del plan, el
+ * color por nivel y el countdown del Boost H+.
  *
  * La cancelación real vive en Apple/Google (no se puede cancelar in-app por
  * política de stores): el botón confirma y deep-linkea a la gestión de
@@ -21,7 +24,7 @@ import {
   fetchSubscriptionEvents,
   type SubscriptionEvent,
 } from '@/src/services/subscription/subscription-service';
-import { formatBoostRemaining, type Tier } from '@/src/services/subscription/tier-logic';
+import { etiquetaMembresia } from '@/src/services/subscription/tier-logic';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, ELEVATION, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
@@ -29,20 +32,11 @@ import { StatusBar } from 'expo-status-bar';
 import type { AppThemeTokens } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
-const TIER_LABELS: Record<Tier, string> = {
-  free: 'ATP Free',
-  base: 'ATP Base',
-  pro: 'ATP Pro',
-  clinician: 'ATP Clínico',
-};
-
-// MB-31B: el color del tier es TEXTO — en claro ni el lima (1.34) ni el teal
-// de marca llegan como letra; ahí usan el teal calibrado (regla 1/2).
-const tierColor = (tier: Tier, t: AppThemeTokens): string => {
-  if (t.kind === 'dark') {
-    return { free: t.textoSecundario, base: t.texto, pro: ATP_BRAND.lime, clinician: ATP_BRAND.teal1 }[tier];
-  }
-  return { free: t.textoSecundario, base: t.texto, pro: t.tealTexto, clinician: t.tealTexto }[tier];
+// MB-31B: el nombre de la membresía es TEXTO — en claro ni el lima (1.34) ni
+// el teal de marca llegan como letra; ahí usan el teal calibrado (regla 1/2).
+const colorMembresia = (esMiembro: boolean, t: AppThemeTokens): string => {
+  if (!esMiembro) return t.textoSecundario;
+  return t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
 };
 
 const EVENT_LABELS: Record<string, string> = {
@@ -54,7 +48,7 @@ const EVENT_LABELS: Record<string, string> = {
   SUBSCRIPTION_PAUSED: 'Suscripción pausada',
   EXPIRATION: 'Expiración',
   BILLING_ISSUE: 'Problema de cobro',
-  PRODUCT_CHANGE: 'Cambio de plan',
+  PRODUCT_CHANGE: 'Cambio de periodo',
   TRANSFER: 'Transferencia',
   TEMPORARY_ENTITLEMENT_GRANT: 'Acceso temporal',
   TEST: 'Evento de prueba',
@@ -81,7 +75,7 @@ export default function SubscriptionSettingsScreen() {
   const thCard = { backgroundColor: tokens.card, borderColor: tokens.borde };
   const thTenue = { color: dark ? tokens.textoTenue : tokens.textoSecundario };
   const {
-    tier, effectiveTier, boost, customerInfo, offerings, restore, isLoading,
+    tier, esMiembro, customerInfo, offerings, restore, isLoading,
   } = useSubscription();
   const [events, setEvents] = useState<SubscriptionEvent[]>([]);
   const [restoring, setRestoring] = useState(false);
@@ -147,7 +141,7 @@ export default function SubscriptionSettingsScreen() {
     }
   }
 
-  const hasPaidPlan = tier !== 'free';
+  const hasPaidPlan = esMiembro;
 
   return (
     <Screen edges={[]} themed>
@@ -155,11 +149,12 @@ export default function SubscriptionSettingsScreen() {
       <ScreenHeader title="Suscripción" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* ── Tier actual ── */}
+        {/* ── Membresía actual. PREMIUM: no hay planes que comparar, así que
+             tampoco hay "TU PLAN": hay membresía o no la hay. ── */}
         <Animated.View entering={FadeInUp.delay(40).springify()} style={[styles.tierCard, thCard]}>
-          <EliteText style={[styles.tierLabel, thTenue]}>TU PLAN</EliteText>
-          <EliteText style={[styles.tierName, { color: tierColor(effectiveTier, tokens) }]}>
-            {isLoading ? '…' : TIER_LABELS[effectiveTier]}
+          <EliteText style={[styles.tierLabel, thTenue]}>TU MEMBRESÍA</EliteText>
+          <EliteText style={[styles.tierName, { color: colorMembresia(esMiembro, tokens) }]}>
+            {isLoading ? '…' : etiquetaMembresia(tier)}
           </EliteText>
           {inTrial && trialDaysLeft !== null && (
             <View style={[styles.trialBadge, !dark && { backgroundColor: ATP_BRAND.lime }]}>
@@ -168,25 +163,17 @@ export default function SubscriptionSettingsScreen() {
               </EliteText>
             </View>
           )}
-          {boost.active && boost.expiresAt && (
-            <View style={styles.boostRow}>
-              <Ionicons name="flash" size={14} color={dark ? ATP_BRAND.lime : tokens.tealTexto} />
-              <EliteText style={[styles.boostText, !dark && { color: tokens.tealTexto }]}>
-                Boost Pro activo · {formatBoostRemaining(boost.expiresAt)} restantes
-              </EliteText>
-            </View>
-          )}
-          {!hasPaidPlan && !boost.active && (
+          {!hasPaidPlan && (
             <AnimatedPressable
               onPress={() => { haptic.medium(); router.push('/paywall'); }}
               style={styles.upgradeCta}
             >
-              <EliteText style={styles.upgradeCtaText}>Ver planes</EliteText>
+              <EliteText style={styles.upgradeCtaText}>Activar mi membresía</EliteText>
             </AnimatedPressable>
           )}
         </Animated.View>
 
-        {/* ── Renovación y gestión (solo con plan de pago) ── */}
+        {/* ── Renovación y gestión (solo con membresía activa) ── */}
         {hasPaidPlan && (
           <Animated.View entering={FadeInUp.delay(90).springify()}>
             <EliteText style={[styles.sectionTitle, thTenue]}>GESTIÓN</EliteText>
@@ -309,8 +296,6 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   trialText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
-  boostRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-  boostText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: ATP_BRAND.lime },
   upgradeCta: {
     marginTop: Spacing.sm,
     backgroundColor: ATP_BRAND.lime,

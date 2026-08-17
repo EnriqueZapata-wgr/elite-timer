@@ -5,8 +5,15 @@
  * - nback_user_state: N actual/best, racha, totales — actualizado aquí.
  * - e-: 'nback' once/día vía awardBooleanElectron (marca la card de HOY con el
  *   1er round; regla #5/#6: emitir electrons_changed + day_changed).
- * - H+ (decisión #44-5): claim_nback_protons(p_date) — RPC server-derivada e
- *   idempotente (mig 218); el cliente solo muestra lo otorgado.
+ *
+ * PREMIUM (16-ago-2026): además del electrón, el N-Back pagaba H+ por sesión,
+ * por récord y por racha (RPC claim_nback_protons, decisión #44-5). Se dejó de
+ * llamar: sin moneda no hay nada que acreditar. El electrón del día se queda
+ * intacto, que es lo que realmente marca la card de HOY, y la racha y el récord
+ * siguen contándose en nback_user_state — solo que ya no pagan.
+ *
+ * La RPC y la tabla NO se borran: hay historial de reclamos que es de las
+ * personas que lo ganaron.
  */
 import { DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -123,12 +130,9 @@ export async function fetchRoundsByDate(userId: string, fromDate: string): Promi
 
 // ── Completar un round ──────────────────────────────────────────────────────
 
-export interface ProtonAward { kind: 'daily' | 'pr' | 'streak7' | 'streak30'; amount: number; n?: number }
-
 export interface RoundOutcome {
   electronAwarded: boolean;   // 1er round del día → e- 'nback' (card HOY)
   roundsToday: number;
-  protons: ProtonAward[];
 }
 
 export interface CompleteRoundParams {
@@ -205,14 +209,7 @@ export async function completeNBackRound(userId: string, p: CompleteRoundParams)
   DeviceEventEmitter.emit('electrons_changed');
   DeviceEventEmitter.emit('day_changed');
 
-  // H+ (decisión #44-5): la RPC deriva y dedupe server-side.
-  let protons: ProtonAward[] = [];
-  try {
-    const { data } = await supabase.rpc('claim_nback_protons', { p_date: today });
-    if (data?.success && Array.isArray(data.awarded)) protons = data.awarded as ProtonAward[];
-  } catch { /* cosmético: los H+ entran igual en el próximo claim */ }
-
-  return { electronAwarded, roundsToday, protons };
+  return { electronAwarded, roundsToday };
 }
 
 // ── Stats ───────────────────────────────────────────────────────────────────

@@ -1,4 +1,10 @@
-/** Formato compacto de moneda: 23500 → "23.5K", 1247500 → "1.2M". PURO/testeable. */
+/**
+ * Formato compacto de cantidades: 23500 → "23.5K", 1247500 → "1.2M". PURO/testeable.
+ *
+ * PREMIUM (16-ago-2026): nació para pintar saldos de H+; hoy solo formatea
+ * electrones, rangos y conteos. Se queda porque el formato es genérico y lo
+ * usan varias pantallas, pero ya no habla de moneda.
+ */
 function strip(s: string): string {
   return s.replace(/\.0$/, '');
 }

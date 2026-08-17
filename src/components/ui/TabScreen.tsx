@@ -31,7 +31,7 @@ export function TabScreen({ children, themed = false }: TabScreenProps) {
 
   const inner = (
     <>
-      {/* #v13c 2.6: banner persistente (Home + E-/H+/Rank) en las tabs que usan TabScreen (YO, MI ATP). */}
+      {/* #v13c 2.6: banner persistente (Home + E-/Rank) en las tabs que usan TabScreen (YO, MI ATP). */}
       <TopBannerPersistent />
       {children}
     </>

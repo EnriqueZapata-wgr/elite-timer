@@ -125,10 +125,12 @@ describe('el plan que sale del detector pasa por la puerta única', () => {
     if (plan.tipo === 'confirmar') expect(plan.pregunta.length).toBeGreaterThan(0);
   });
 
-  it('los insights de comida avisan que gastan protones', () => {
+  // PREMIUM (16-ago-2026): antes se exigía que la confirmación DIJERA que
+  // gastaba protones. Sin moneda, lo que hay que exigir es que no lo diga.
+  it('los insights de comida se confirman sin hablar de gasto', () => {
     const r = detectarIntencionAjuste('activa los comentarios al comer');
     const plan = planearAjuste(r!.clave, r!.valor);
     expect(plan.tipo).toBe('confirmar');
-    if (plan.tipo === 'confirmar') expect(plan.pregunta.toLowerCase()).toContain('protones');
+    if (plan.tipo === 'confirmar') expect(plan.pregunta.toLowerCase()).not.toContain('proton');
   });
 });

@@ -1,11 +1,12 @@
 /**
- * dx-service — lecturas de "Mi Diagnóstico Funcional" para la UI (Card A).
- * Sólo I/O de lectura + quote de precio H+ (patrón getBravermanPremiumQuote).
+ * dx-service — lecturas de "Mi Mapa Funcional" para la UI (Card A).
+ *
+ * PREMIUM (16-ago-2026): se fue el precio en H+. Generar el mapa venía
+ * costando 1,000 H+ y el primero era "de regalo"; con membresía única no hay
+ * nada que regalar porque no hay nada que cobrar. Solo quedan lecturas.
  */
 import { supabase } from '@/src/lib/supabase';
-import { getActionCost, getProtonBalance } from '@/src/services/economy/proton-service';
-import { DX_GENERATION_ACTION_KEY } from './dx-engine';
-import { applyFirstFreeQuote, type DxRoot } from './dx-engine-core';
+import type { DxRoot } from './dx-engine-core';
 
 export interface FunctionalDxRow {
   id: string;
@@ -43,31 +44,11 @@ export async function getDXHistory(userId: string, limit = 20): Promise<Function
 }
 
 export interface DxQuote {
-  cost: number;
-  /** null = balance aún no disponible (cold start). */
-  balance: number | null;
   hasCurrentDX: boolean;
-  /**
-   * DX F4: el user nunca ha generado un functional_dx → su primera generación
-   * es GRATIS (la UI muestra "Tu primer mapa funcional es un regalo").
-   */
-  isFirstFree: boolean;
 }
 
-/** Precio H+ + balance para el botón "Actualizar mi Mapa Funcional" (usuarios Base). */
+/** Estado para el botón "Actualizar mi Mapa Funcional". Sin precio: va incluido. */
 export async function getDXQuote(userId: string): Promise<DxQuote> {
-  const [cost, balanceRow, current, history] = await Promise.all([
-    getActionCost(DX_GENERATION_ACTION_KEY),
-    getProtonBalance(userId).catch(() => null),
-    getCurrentDX(userId),
-    // Append-only: cualquier fila (vigente o no) = ya generó alguna vez.
-    getDXHistory(userId, 1).catch(() => []),
-  ]);
-  const firstFree = applyFirstFreeQuote(cost, history.length > 0);
-  return {
-    cost: firstFree.cost,
-    balance: balanceRow ? balanceRow.current_protons : null,
-    hasCurrentDX: current !== null,
-    isFirstFree: firstFree.isFirstFree,
-  };
+  const current = await getCurrentDX(userId);
+  return { hasCurrentDX: current !== null };
 }

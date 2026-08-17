@@ -38,15 +38,10 @@ const ELEVENLABS_BASE = "https://api.elevenlabs.io/v1/text-to-speech";
 // Gemini para STT (audio-input). Flash = rápido y barato.
 const GEMINI_STT_MODEL = "gemini-2.5-flash";
 
-// ─── B1: límites diarios per-user (conteo en argos_logs, reset UTC como el proxy).
-// Un turno de voz = 1 STT + ~3-6 chunks TTS → estos caps cubren uso legítimo intenso
-// y cortan el abuso de cliente modificado.
-const STT_DAILY_LIMIT = 200;
-const TTS_DAILY_LIMIT = 1200;
-
-// Costo H+ por acción si la fila no existe en proton_action_costs (seed 206).
-// NUNCA 0: fila ausente NO significa gratis (espejo del fix H1 del proxy).
-const DEFAULT_HPLUS_COST: Record<string, number> = { voice_tts: 5, voice_stt: 15 };
+// PREMIUM (16-ago-2026): aquí vivían STT_DAILY_LIMIT (200), TTS_DAILY_LIMIT
+// (1200) y DEFAULT_HPLUS_COST. Se fueron con el cobro y el corte por cuota.
+// El techo antiabuso del producto vive en argos-proxy y es uno solo; poner
+// otro aquí sería volver a repartir el acceso por la puerta de atrás.
 
 // Estimados USD para telemetría (argos_logs.estimated_cost_usd). Aproximados:
 // ElevenLabs Flash v2.5 ≈ 0.5 créditos/char; Gemini audio-input ≈ 32 tok/s.
@@ -213,89 +208,30 @@ serve(async (req) => {
   const requestType = action === "tts" ? "voice_tts" as const : "voice_stt" as const;
   const startTime = Date.now();
 
-  // ─── B1.2: rate limit per-user diario (conteo en argos_logs; fail-open ante
-  // error de DB, igual doctrina que checkAndIncrementUsage del proxy).
-  try {
-    const todayUTC = new Date().toISOString().slice(0, 10);
-    const { count } = await supabase
-      .from("argos_logs")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("request_type", requestType)
-      .gte("created_at", todayUTC);
-    const limit = action === "tts" ? TTS_DAILY_LIMIT : STT_DAILY_LIMIT;
-    if ((count ?? 0) >= limit) {
-      return json({ error: "rate_limited", fallback: "text" }, 429);
-    }
-  } catch (e) {
-    console.error("voice rate-limit check failed (fail-open):", e);
-  }
-
-  // ─── B1.2b: cobro H+ server-side (gated por LAB_ECONOMY_ENABLED — mismo flag y
-  // mismo spend_protons atómico del proxy). Con economía ON, TTS/STT NUNCA gratis.
-  const ECONOMY_ON = Deno.env.get("LAB_ECONOMY_ENABLED") === "true";
-  let debitedCost = 0;
-  if (ECONOMY_ON) {
-    let cost = DEFAULT_HPLUS_COST[requestType];
-    try {
-      const { data: costRow } = await supabase
-        .from("proton_action_costs").select("cost_h_plus, enabled")
-        .eq("action_key", requestType).maybeSingle();
-      // Fila presente → manda la tabla (enabled=false = gratis EXPLÍCITO de Enrique).
-      if (costRow) cost = costRow.enabled !== false ? Number(costRow.cost_h_plus) : 0;
-    } catch (_) { /* sin lectura → default duro, nunca gratis */ }
-    if (cost > 0) {
-      // M1 (re-auditoría): la idempotency key se deriva SERVER-SIDE y la del body
-      // se IGNORA — una key client-declarada permitía replay infinito (misma key
-      // → idempotent:true → debitedCost 0 → provider gratis, índice global sin
-      // caducidad). userId + acción + hash(payload) + ventana de 10 min: un retry
-      // real manda el mismo payload y no re-cobra; el mismo payload fuera de la
-      // ventana SÍ cobra; el replay deja de existir.
-      const idemPayload = action === "tts"
-        ? `${body.voice ?? ""}|${body.text ?? ""}`
-        : String(body.audio_base64 ?? "");
-      const idemBucket = Math.floor(Date.now() / 600_000);
-      const idemDigest = new Uint8Array(await crypto.subtle.digest(
-        "SHA-256", new TextEncoder().encode(`${idemBucket}|${idemPayload}`),
-      ));
-      const idemKey = `${userId}:${requestType}:` +
-        Array.from(idemDigest, (b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
-      const { data: debit } = await supabase.rpc("spend_protons", {
-        p_user_id: userId, p_amount: cost, p_action_key: requestType,
-        p_metadata: { idempotency_key: idemKey },
-      });
-      if (!debit || debit.success !== true) {
-        return json({
-          error: "insufficient_protons", fallback: "text",
-          h_plus_required: cost, h_plus_current: debit?.new_balance ?? 0,
-        }, 402);
-      }
-      debitedCost = debit.idempotent ? 0 : cost;
-    }
-  }
+  // PREMIUM (16-ago-2026): aquí había dos muros y se fueron los dos.
+  //
+  // 1) El corte diario por conteo (200 STT / 1200 TTS) devolvía un 429 y
+  //    empujaba a texto. Ya no corta: hablarle a ARGOS viene con la membresía.
+  // 2) El cobro en H+ (5 por TTS, 15 por STT) con su 402 y su reembolso.
+  //    Los protones dejaron de existir; spend_protons y award_protons siguen
+  //    en la base con todo el historial, simplemente ya no se llaman.
+  //
+  // Lo que SÍ se queda es logVoiceCall más abajo, con caracteres, latencia y
+  // costo estimado por llamada. Sin esa medición no hay forma de decidir los
+  // límites suaves que vienen después (bajar el nivel de modelo, nunca cortar),
+  // y la voz es la interacción más cara del producto.
 
   try {
     const resp = action === "tts" ? await handleTts(body) : await handleStt(body);
 
-    // M3: un STT 200 con transcripción vacía tampoco se cobra — el user no
-    // recibió nada útil (silencio/ruido). Se detecta sobre un clone para no
-    // consumir el body que va al cliente.
+    // Un STT 200 con transcripción vacía (silencio o ruido) se sigue
+    // detectando: ya no para un cobro, pero marca la llamada como fallida en
+    // la telemetría, que es de donde sale el costo real por turno de voz.
     let sttEmpty = false;
     if (action === "stt" && resp.ok) {
       try {
         sttEmpty = !String((await resp.clone().json())?.text ?? "").trim();
       } catch { /* body ilegible → tratar como éxito normal */ }
-    }
-
-    // Provider falló (o STT vacío) → refund del componente (patrón award_protons del proxy).
-    if ((!resp.ok || sttEmpty) && debitedCost > 0) {
-      try {
-        await supabase.rpc("award_protons", {
-          p_user_id: userId, p_amount: debitedCost, p_type: "refund",
-          p_action_key: null,
-          p_metadata: { reason: sttEmpty ? "voice_stt_empty" : `${requestType}_failed` },
-        });
-      } catch (e) { console.error("voice refund failed:", e); }
     }
 
     const chars = action === "tts"
@@ -319,14 +255,6 @@ serve(async (req) => {
 
     return resp;
   } catch (e) {
-    if (debitedCost > 0) {
-      try {
-        await supabase.rpc("award_protons", {
-          p_user_id: userId, p_amount: debitedCost, p_type: "refund",
-          p_action_key: null, p_metadata: { reason: `${requestType}_exception` },
-        });
-      } catch (err) { console.error("voice refund failed:", err); }
-    }
     return json({ error: "internal", detail: String(e).slice(0, 200), fallback: "text" }, 500);
   }
 });

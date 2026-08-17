@@ -46,7 +46,6 @@ import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
 import { prefetchAudioCovers } from '@/src/components/mente/audio-cover';
 import { MenteRecentSessions } from '@/src/components/mente/MenteRecentSessions';
 import { RegistroManualCard } from '@/src/components/mente/RegistroManualCard';
-import { useSubscription } from '@/src/hooks/useSubscription';
 import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
 import {
   advanceBreathSecond,
@@ -241,7 +240,6 @@ function SelectorScreen({ onSelect, onBack }: {
   // vive en MenteRecentSessions (Ajuste 1).
   const [pieces, setPieces] = useState<AudioPiece[]>([]);
   const [scrolled, setScrolled] = useState(false);
-  const { isPro } = useSubscription();
   // MB-31B3: la pantalla migró a tokens y sigue el tema global.
   const { kind, tokens: t } = useAppTheme();
 
@@ -271,12 +269,9 @@ function SelectorScreen({ onSelect, onBack }: {
     if (navLockRef.current) return;
     navLockRef.current = true;
     haptic.light();
-    if (piece.tier === 'pro' && !isPro) {
-      router.push('/paywall');
-      return;
-    }
+    // PREMIUM: sin planes no hay pieza reservada. Quien es miembro escucha todo.
     router.push({ pathname: '/mente/player', params: { slug: piece.slug } });
-  }, [isPro, router]);
+  }, [router]);
 
   return (
     <ThemeReady>

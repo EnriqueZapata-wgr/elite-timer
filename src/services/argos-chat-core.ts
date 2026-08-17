@@ -4,23 +4,22 @@
  * La pantalla de chat eran 800 líneas con la resolución del turno inline y
  * cero tests. Aquí vive lo que decide QUÉ queda en la conversación después de
  * cada envío: el filtrado de turnos degradados (ARG-1/ARG-2/ARG-8), la
- * resolución por tipo de desenlace (stream, respuesta, rate limit, error de
- * cliente) y los separadores de tiempo. Sin RN, sin supabase — node puro.
+ * resolución por tipo de desenlace (stream, respuesta, error de cliente) y los
+ * separadores de tiempo. Sin RN, sin supabase — node puro.
+ *
+ * PREMIUM (16-ago-2026): el turno tenía dos desenlaces más, y los dos eran
+ * formas de decir "no puedes seguir": 'rate_limited' (llegaste al tope diario
+ * de tu plan) e 'insufficient_protons' (te quedaste sin saldo). Ninguno de los
+ * dos puede volver a ocurrir. Lo que sí puede fallar sigue teniendo su camino:
+ * la red, el proxy, el timeout.
  */
 import type { ArgosMessage } from './argos-service';
-import { ArgosRateLimitError } from './argos-stream-core';
-import type { RateLimitInfo } from './argos-rate-limit-core';
 
 /** F2.3: gap mínimo entre mensajes para pintar separador temporal. */
 export const TIMESTAMP_GAP_MS = 5 * 60 * 1000;
 
-/** Copy aprobado por Mariana (doc 06, errores ARGOS >> "se cayó la red"). */
+/** Copy aprobado (doc 06, errores ARGOS >> "se cayó la red"). */
 export const CLIENT_ERROR_COPY = 'Se me fue la señal. Reintenta en unos minutos.';
-
-/** ECO-1: bloqueo por SALDO (402), no por límite diario. El remedio es
- *  recargar H+, nunca el boost (el boost sube el tope diario, no regala H+). */
-export const INSUFFICIENT_HPLUS_COPY =
-  'Te quedaste sin H+ para esta consulta. Recarga en la tienda o convierte tus E- y reenvía tu pregunta.';
 
 /**
  * ARG-1/ARG-8: lo que viaja al LLM. Un turno degradado (rate-limited, ambos
@@ -39,8 +38,11 @@ export function filterForSave(messages: ArgosMessage[]): ArgosMessage[] {
 /**
  * #71: guard de re-entrada del envío — un solo turno en vuelo por pantalla.
  * Síncrono a propósito: atrapa el doble-tap/re-render ANTES del primer await,
- * cuando `loading` (state, async) todavía no actualizó. Primera línea de
- * defensa del doble cobro H+ (el server además es idempotente).
+ * cuando `loading` (state, async) todavía no actualizó.
+ *
+ * PREMIUM (16-ago-2026): nació para evitar el doble COBRO por doble-tap. Ya no
+ * cobra nada, pero se queda: dos turnos en vuelo se pisan en pantalla y gastan
+ * dos llamadas al modelo. El motivo cambió, la necesidad no.
  */
 export interface SendGuard {
   /** true = turno adquirido; false = ya hay uno en vuelo, no enviar. */
@@ -64,14 +66,8 @@ export function createSendGuard(): SendGuard {
 export type TurnOutcome =
   /** El stream completó (texto ya visible): turno limpio. */
   | { kind: 'streamed'; text: string }
-  /** Respuesta no-stream: degraded refleja _degraded/_rate_limited del proxy. */
+  /** Respuesta no-stream: degraded refleja `_degraded` del proxy. */
   | { kind: 'reply'; text: string; degraded: boolean }
-  /** Rate limit: el turno del usuario queda visible pero degradado; la
-   *  RateLimitCard (boost H+) reemplaza a la burbuja de respuesta. */
-  | { kind: 'rate_limited' }
-  /** ECO-1: 402 del proxy (saldo H+ insuficiente). Degradado con copy propio;
-   *  la pantalla ofrece CTA a la tienda — NUNCA el boost. */
-  | { kind: 'insufficient_protons' }
   /** Excepción real del cliente: ambos turnos degradados + copy aprobado. */
   | { kind: 'client_error' };
 
@@ -114,20 +110,6 @@ export function resolveTurn(
         wasDegraded: true,
       };
     }
-    case 'rate_limited':
-      return {
-        messages: [...base, { ...userTurn, degraded: true }],
-        wasDegraded: true,
-      };
-    case 'insufficient_protons':
-      return {
-        messages: [
-          ...base,
-          { ...userTurn, degraded: true },
-          { role: 'assistant', content: INSUFFICIENT_HPLUS_COPY, degraded: true, ts: nowMs },
-        ],
-        wasDegraded: true,
-      };
     case 'client_error':
       return {
         messages: [
@@ -152,38 +134,25 @@ export function persistPlan(
   return { persist: clean.length > 0 && !wasDegraded, clean };
 }
 
-/** Resultado del turno completo: stream con caída a no-stream (T2/T5). */
+/** Resultado del turno completo: stream con caída a no-stream (T2). */
 export type TurnRun =
   | { kind: 'streamed'; text: string }
   | { kind: 'reply'; text: string; degraded: boolean }
-  /** info si vino parseada del no-stream; payload crudo si el stream lanzó. */
-  | { kind: 'rate_limited'; info?: RateLimitInfo | null; payload?: unknown }
-  | { kind: 'insufficient_protons' }
   | { kind: 'client_error'; error: unknown };
-
-/**
- * ECO-1: ¿la excepción es el 402 'insufficient_protons' del proxy?
- * El no-stream lanza Error('Proxy error 402: {"error":{"type":"insufficient_protons"...}}');
- * el stream lanza ArgosStreamUnavailableError('proxy_402: ...'). Ambos casos
- * traen la marca en el message — se detecta por texto, sin tocar los clientes.
- */
-export function isInsufficientProtonsError(e: unknown): boolean {
-  const msg = e instanceof Error ? e.message : String(e ?? '');
-  return msg.includes('insufficient_protons') || msg.includes('Proxy error 402') || msg.includes('proxy_402');
-}
 
 /** Copy del timeout (chatWithArgosEx) — vive junto a la decisión del catch. */
 export const TIMEOUT_COPY = 'ARGOS está tardando más de lo normal, intenta de nuevo en un momento.';
 
 /**
- * ECO-1 (audit Cowork): la decisión del catch de chatWithArgosEx. Los
- * bloqueos que tienen UI propia NO se degradan a burbuja genérica — se
- * PROPAGAN para que runTurnWithFallback los clasifique (402 saldo → CTA
- * tienda; rate limit → RateLimitCard). El catch original se los tragaba y
- * el case 'insufficient_protons' del chat era código muerto.
+ * La decisión del catch de chatWithArgosEx: con qué burbuja se degrada el turno.
+ *
+ * PREMIUM (16-ago-2026): esta función devolvía además 'propagate' para dos
+ * excepciones que tenían pantalla propia (el 402 de saldo y el rate limit del
+ * plan). Ya no existen, así que no hay nada que propagar: todo fallo se degrada
+ * a burbuja, y el timeout conserva su copy porque sí es una cosa distinta de
+ * "se cayó la señal".
  */
-export function chatFailureOutcome(e: unknown): { text: string; degraded: true } | 'propagate' {
-  if (e instanceof ArgosRateLimitError || isInsufficientProtonsError(e)) return 'propagate';
+export function chatFailureOutcome(e: unknown): { text: string; degraded: true } {
   if ((e as { message?: string } | null)?.message === 'ARGOS_TIMEOUT') {
     return { text: TIMEOUT_COPY, degraded: true };
   }
@@ -194,14 +163,14 @@ export function chatFailureOutcome(e: unknown): { text: string; degraded: true }
  * T2: orquesta el turno — primero STREAMING; si el stream "no está
  * disponible" (null), cae al modo no-stream. Vivía inline en la pantalla y la
  * caída no tenía test. Reglas:
- *  - stream completo → 'streamed' (el no-stream NI SE LLAMA: sería doble cobro).
+ *  - stream completo → 'streamed' (el no-stream NI SE LLAMA: sería una segunda
+ *    llamada al modelo por la misma pregunta).
  *  - stream null → onFallback (la pantalla reenciende "pensando") + reply.
- *  - ArgosRateLimitError (del stream) o reply.rateLimit → 'rate_limited'.
- *  - cualquier otra excepción → 'client_error'.
+ *  - cualquier excepción → 'client_error'.
  */
 export async function runTurnWithFallback(deps: {
   stream: () => Promise<string | null>;
-  reply: () => Promise<{ text: string; degraded: boolean; rateLimit?: RateLimitInfo | null }>;
+  reply: () => Promise<{ text: string; degraded: boolean }>;
   onFallback?: () => void;
 }): Promise<TurnRun> {
   try {
@@ -209,13 +178,8 @@ export async function runTurnWithFallback(deps: {
     if (streamed !== null) return { kind: 'streamed', text: streamed };
     deps.onFallback?.();
     const result = await deps.reply();
-    if (result.rateLimit) return { kind: 'rate_limited', info: result.rateLimit };
     return { kind: 'reply', text: result.text, degraded: result.degraded };
   } catch (e) {
-    if (e instanceof ArgosRateLimitError) return { kind: 'rate_limited', payload: e.payload };
-    // ECO-1: el bloqueo por saldo NO es un error de red ni un rate limit — la
-    // pantalla ofrece recargar H+ (tienda), jamás el boost.
-    if (isInsufficientProtonsError(e)) return { kind: 'insufficient_protons' };
     return { kind: 'client_error', error: e };
   }
 }

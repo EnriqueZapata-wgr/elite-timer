@@ -4,9 +4,10 @@
  * Standalone. Replica el PATRÓN ANCLA de feature de pago (braverman-premium-service):
  *   cache (frescura) → callAnthropic con idempotencyKey → validar → persistir versión.
  *
- * Doctrina H+ (Enrique 2026-07-08): el COBRO es server-side (argos-proxy lee
- * proton_action_costs por requestType 'dx_generation'). El cliente NO gestiona
- * el débito; sólo maneja el 402 (insufficient) que el proxy devuelve.
+ * PREMIUM (16-ago-2026): generar el mapa costaba H+ server-side y el cliente
+ * manejaba el 402 de saldo insuficiente. Ya no se cobra ni se raciona: el mapa
+ * funcional es de quien es miembro, tantas veces como tenga datos nuevos. El
+ * único freno que queda es el cache de frescura, y ese es técnico, no comercial.
  *
  * DX append-only: cada regeneración baja is_current de la vigente y agrega una
  * versión nueva (el índice parcial único exige exactamente 1 vigente → ese orden).
@@ -31,7 +32,6 @@ import {
   isDxFresh,
   maxTimestamp,
   countCompletedAreas,
-  resolveDxGenerationAction,
   type DxRoot,
 } from './dx-engine-core';
 import { buildDxPrompt, type DxPromptContext } from './dx-prompt';
@@ -41,7 +41,6 @@ export const DX_GENERATION_ACTION_KEY = 'dx_generation';
 export type GenerateDxResult =
   | { status: 'ok'; version: number; qualityLevel: number; roots: DxRoot[]; summary: string; cached: boolean }
   | { status: 'cache_hit'; version: number; qualityLevel: number }
-  | { status: 'insufficient_h_plus' }
   | { status: 'error'; message?: string };
 
 interface HarvestedSources {
@@ -62,16 +61,10 @@ async function getCurrentDxRow(userId: string): Promise<{ version: number; creat
   return (data as any) ?? null;
 }
 
-async function getMaxVersion(userId: string): Promise<number> {
-  const { data } = await supabase
-    .from('functional_dx')
-    .select('version')
-    .eq('user_id', userId)
-    .order('version', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (data as any)?.version ?? 0;
-}
+// PREMIUM (16-ago-2026): getMaxVersion existía solo para saber si la persona
+// ya había generado un mapa alguna vez, y con eso decidir si la generación era
+// la gratis o la de pago. Sin cobro no hay dos caminos que elegir, así que la
+// consulta se fue: era un round-trip por generación para nada.
 
 /**
  * Cosecha todas las fuentes (cada query en su try/catch, fail-soft). Deriva la
@@ -253,11 +246,9 @@ export async function generateDX(
 ): Promise<GenerateDxResult> {
   const manual = !!opts?.manual;
 
-  const [current, harvest, priorMaxVersion] = await Promise.all([
+  const [current, harvest] = await Promise.all([
     getCurrentDxRow(userId),
     harvestSources(userId),
-    // DX F4 (regalo 1er DX): ¿ya generó alguna vez? (append-only → cualquier versión cuenta)
-    getMaxVersion(userId),
   ]);
 
   const quality = computeDxQuality(harvest.presence);
@@ -272,12 +263,12 @@ export async function generateDX(
 
   let rawText: string;
   try {
-    // DX F4 — regalo del 1er DX: si el user NUNCA ha generado un functional_dx,
-    // el requestType es 'dx_generation_first' (seed 0 H+ en migración 186) → el
-    // cobro server-side del argos-proxy no descuenta protones en la primera.
+    // PREMIUM (16-ago-2026): el requestType alternaba entre 'dx_generation' y
+    // 'dx_generation_first' según si era la primera vez, para que el proxy no
+    // cobrara la primera. Sin cobro sobra la bifurcación: siempre el mismo.
     const meta = await getArgosCallMetadata({
       callerUserId: userId,
-      requestType: resolveDxGenerationAction(priorMaxVersion > 0, DX_GENERATION_ACTION_KEY),
+      requestType: DX_GENERATION_ACTION_KEY,
       idempotencyKey,
     });
     // 8000 (antes 2000): Sonnet 5 con adaptive thinking consume el budget de
@@ -297,10 +288,11 @@ export async function generateDX(
       return { status: 'error', message: 'respuesta_incompleta_max_tokens' };
     }
   } catch (err: any) {
-    const msg = String(err?.message ?? err);
-    // El proxy cobra server-side; 402 = balance insuficiente (doctrina H+).
-    if (msg.includes('402')) return { status: 'insufficient_h_plus' };
-    return { status: 'error', message: msg };
+    // PREMIUM (16-ago-2026): el 402 del proxy (saldo insuficiente) tenía su
+    // propio desenlace y su propia alerta con botón a la tienda. Ya no se cobra,
+    // así que un 402 dejó de ser "te falta saldo" y cae al error genérico como
+    // cualquier otro fallo de red.
+    return { status: 'error', message: String(err?.message ?? err) };
   }
 
   const parsed = parseArgosDxResponse(rawText);

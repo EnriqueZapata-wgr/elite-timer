@@ -78,12 +78,8 @@ export function AudioPieceCard({ piece, onPress }: Props) {
           locations={[0.35, 1]}
           style={[StyleSheet.absoluteFill, { borderRadius: Radius.lg }]}
         />
-        {piece.tier === 'pro' && (
-          <View style={s.proBadge}>
-            <Ionicons name="diamond-outline" size={9} color="#000" />
-            <EliteText style={s.proBadgeText}>PRO</EliteText>
-          </View>
-        )}
+        {/* PREMIUM: se fue el sello PRO. Marcaba lo que no podías tocar, y con
+            una sola membresía no hay nada reservado: todo lo que se ve, suena. */}
         <View style={s.info}>
           <EliteText style={s.title} numberOfLines={2}>{piece.titulo}</EliteText>
           <View style={s.metaRow}>

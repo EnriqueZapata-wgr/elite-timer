@@ -43,7 +43,6 @@ import { stopActivePlayer } from '@/src/services/mente-player-singleton';
 import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
 import { MenteRecentSessions } from '@/src/components/mente/MenteRecentSessions';
 import { RegistroManualCard } from '@/src/components/mente/RegistroManualCard';
-import { useSubscription } from '@/src/hooks/useSubscription';
 import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
 import { phaseIndexAt } from '@/src/services/meditation-core';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -102,7 +101,6 @@ function LibraryScreen({ onSelect, onBack }: {
   const [pieces, setPieces] = useState<AudioPiece[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { isPro } = useSubscription();
   // MB-31B3: la pantalla migró a tokens y sigue el tema global.
   const { kind, tokens: t } = useAppTheme();
   const secTxt = { color: t.textoSecundario };
@@ -150,13 +148,12 @@ function LibraryScreen({ onSelect, onBack }: {
     if (navLockRef.current) return;
     navLockRef.current = true;
     haptic.light();
-    if (piece.tier === 'pro' && !isPro) {
-      // Upsell: la card se ve, Base no reproduce (espejo del 403 server-side).
-      router.push('/paywall');
-      return;
-    }
+    // PREMIUM: la audioteca dejó de estar repartida. Con una sola membresía
+    // no hay pieza "de Pro" que negarle a nadie; quien es miembro escucha todo.
+    // La columna audio_pieces.tier sigue en la base como metadato de catálogo,
+    // pero ya no decide quién entra.
     router.push({ pathname: '/mente/player', params: { slug: piece.slug } });
-  }, [isPro, router]);
+  }, [router]);
 
   // V1.5.2 (#5): piezas "Silencio 5/10/15/20" RETIRADAS de la audioteca —
   // timers legacy superados por el contenido real. El código (silenceSession en

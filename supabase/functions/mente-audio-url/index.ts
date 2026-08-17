@@ -24,7 +24,14 @@ const corsHeaders = {
 const SIGNED_URL_TTL_SECONDS = 3600;
 const BUCKET = "mente-audio";
 
-const TIER_RANK: Record<string, number> = { free: 0, base: 1, pro: 2, clinician: 3 };
+/**
+ * PREMIUM (16-ago-2026): una sola membresía. Aquí había un rango de tiers y un
+ * 403 "pro_required" que dejaba a un suscriptor de Base sin escuchar piezas que
+ * su plan sí incluía en la app pero no en el bucket. Ese desfase entre el gate
+ * del cliente y el del servidor es justo el incidente que originó el cambio.
+ * Ahora la pregunta es una sola: ¿es miembro? Si pagó, escucha todo.
+ */
+const VALORES_PAGADOS = new Set(["base", "pro", "clinician", "premium", "founder"]);
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -33,13 +40,11 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-/** profiles.tier degradado a free si tier_expires_at ya pasó (espejo tier-logic). */
-function tierFromProfile(tier: string | null, tierExpiresAt: string | null, now: Date): string {
-  const t = tier && tier in TIER_RANK ? tier : "free";
-  if (t !== "free" && tierExpiresAt && new Date(tierExpiresAt).getTime() <= now.getTime()) {
-    return "free";
-  }
-  return t;
+/** ¿profiles.tier vale como membresía vigente? (espejo de tier-logic.ts) */
+function esMiembro(tier: string | null, tierExpiresAt: string | null, now: Date): boolean {
+  if (!tier || !VALORES_PAGADOS.has(tier.toLowerCase())) return false;
+  if (tierExpiresAt && new Date(tierExpiresAt).getTime() <= now.getTime()) return false;
+  return true;
 }
 
 serve(async (req) => {
@@ -76,24 +81,22 @@ serve(async (req) => {
     if (pieceErr) return json({ error: { type: "db_error" } }, 500);
     if (!piece) return json({ error: { type: "not_found" } }, 404);
 
-    // 3. Gate de tier (solo piezas pro).
+    // 3. Gate de membresía. Antes: las piezas marcadas "pro" exigían RANGO pro,
+    // así que un suscriptor de Base pagaba y aun así recibía 403. Ahora basta
+    // con ser miembro, sin importar la etiqueta vieja que traiga su perfil.
+    //
+    // Lo que NO se hizo a propósito: las piezas que hoy son abiertas siguen
+    // abiertas. Este cambio solo AFLOJA el candado; cerrar contenido que ya
+    // estaba libre sería quitarle algo a alguien, y eso no toca aquí.
     if (piece.tier === "pro") {
       const now = new Date();
-      const [{ data: profile }, { data: boost }] = await Promise.all([
-        admin.from("profiles").select("tier, tier_expires_at").eq("id", userId).maybeSingle(),
-        admin
-          .from("pro_boosts")
-          .select("expires_at")
-          .eq("user_id", userId)
-          .gt("expires_at", now.toISOString())
-          .order("expires_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
-      let tier = tierFromProfile(profile?.tier ?? null, profile?.tier_expires_at ?? null, now);
-      if (boost?.expires_at && TIER_RANK[tier] < TIER_RANK.pro) tier = "pro";
-      if (TIER_RANK[tier] < TIER_RANK.pro) {
-        return json({ error: { type: "pro_required" } }, 403);
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("tier, tier_expires_at")
+        .eq("id", userId)
+        .maybeSingle();
+      if (!esMiembro(profile?.tier ?? null, profile?.tier_expires_at ?? null, now)) {
+        return json({ error: { type: "membresia_requerida" } }, 403);
       }
     }
 
