@@ -343,12 +343,10 @@ function RootLayout() {
                 <Stack.Screen name="settings/subscription" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* MB-13: canje de códigos de activación (puente de pago) */}
                 <Stack.Screen name="redeem-code" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
-                {/* Economía Protones H+ (feature gated; pantallas accesibles para QA) */}
+                {/* Progreso y logros por electrones. La tienda, la conversión
+                    y el explicador de H+ se fueron con los protones. */}
                 <Stack.Screen name="economy/admin" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="economy/shop" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
-                <Stack.Screen name="economy/convert" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="economy/history" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="economy/how-to-earn" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
               </Stack>
               {/* Capa 8 — UX async: sheet + banner globales del procesamiento de labs. */}
               <LabProcessingSheet />

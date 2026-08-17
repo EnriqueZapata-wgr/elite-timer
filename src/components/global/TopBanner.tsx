@@ -5,8 +5,10 @@
  * Variantes rotativas (cambia cada 15s):
  *   - 🔔 notificaciones sin leer (≥5 = CRÍTICA: gana y no rota)
  *   - 🔥 racha activa (>3 días)
- *   - +H⁺ protones ganados hoy
  *   - 💡 insight ARGOS del día
+ *
+ * PREMIUM (16-ago-2026): se retiró la variante "+H⁺ ganados hoy". Los
+ * protones dejaron de existir y su CTA iba a una tienda que ya no está.
  *   - [trial countdown: el sistema de trial/subscription NO existe aún —
  *      hook marcado con TODO(#23) para cuando RevenueCat aterrice]
  *
@@ -83,14 +85,9 @@ export function TopBanner({ offset = 0 }: Props) {
     if (dismissedDate === today) { setDismissed(true); return; }
     setDismissed(false);
 
-    const [streakRes, unreadRes, protonsRes, insightRes, labsRes] = await Promise.allSettled([
+    const [streakRes, unreadRes, insightRes, labsRes] = await Promise.allSettled([
       getCurrentStreak(user.id),
       countUnreadInbox(user.id),
-      supabase.from('proton_transactions')
-        .select('amount')
-        .eq('user_id', user.id)
-        .gt('amount', 0)
-        .gte('created_at', `${today}T00:00:00`),
       supabase.from('argos_daily_insights')
         .select('insight')
         .eq('user_id', user.id)
@@ -122,19 +119,6 @@ export function TopBanner({ offset = 0 }: Props) {
     const streak = streakRes.status === 'fulfilled' ? streakRes.value : 0;
     if (streak > 3) {
       next.push({ id: 'streak', icon: 'flame-outline', text: `🔥 Racha de ${streak} días` });
-    }
-
-    if (protonsRes.status === 'fulfilled' && protonsRes.value.data) {
-      const earned = protonsRes.value.data.reduce((a: number, t: any) => a + Number(t.amount), 0);
-      if (earned > 0) {
-        next.push({
-          id: 'protons',
-          icon: 'flash-outline',
-          text: `+${earned} H⁺ hoy`,
-          cta: 'Ver Shop',
-          route: '/economy/shop',
-        });
-      }
     }
 
     if (insightRes.status === 'fulfilled' && insightRes.value?.data?.insight) {

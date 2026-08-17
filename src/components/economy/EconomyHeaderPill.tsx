@@ -1,5 +1,9 @@
 /**
- * EconomyHeaderPill — fila compacta E- · H+ · Rank para el header del HOY.
+ * EconomyHeaderPill — fila compacta E- · Rank para el header del HOY.
+ *
+ * PREMIUM (16-ago-2026): se cayó la columna de H+. Los protones dejaron de
+ * existir; los electrones se quedan y son lo que siempre fueron: avance y
+ * estatus, nunca moneda.
  * Self-contained: se auto-gatea (LAB_ECONOMY_ENABLED) y carga sus propios balances.
  * Si la feature está OFF o no hay usuario → no renderiza nada (cero impacto en el HOY).
  * Tap → /economy/admin. Refresca en 'balance_changed'.
@@ -22,14 +26,13 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { LAB_ECONOMY_ENABLED } from '@/src/services/economy/economy-config';
 import { getElectronBalance } from '@/src/services/economy/electron-service';
-import { getProtonBalance } from '@/src/services/economy/proton-service';
 import { formatCompact } from '@/src/services/economy/format';
 import { ELEVATION, TEXT, ATP_BRAND } from '@/src/constants/brand';
 import { Fonts, FontSizes } from '@/constants/theme';
 
-// ECO-5: saldos AISLADOS — null = "aún sin dato" por saldo. Antes un user sin
-// fila en electron_balance jamás veía sus H+ (el join exigía ambas queries).
-type BalanceData = { e: number | null; h: number | null; rank: number | null };
+// null = "aún sin dato" (cold start con RLS hidratando o sin fila). Nunca se
+// pintan ceros defensivos: un cero inventado se lee como pérdida de progreso.
+type BalanceData = { e: number | null; rank: number | null };
 const CACHE_KEY = (userId: string) => `atp:econ:balance:${userId}`;
 
 export function EconomyHeaderPill() {
@@ -52,16 +55,13 @@ export function EconomyHeaderPill() {
 
   const load = useCallback(async () => {
     if (!LAB_ECONOMY_ENABLED || !user?.id) return;
-    const [e, p] = await Promise.all([getElectronBalance(user.id), getProtonBalance(user.id)]);
-    // ECO-5: cada saldo se actualiza POR SEPARADO. Si una query devuelve null
-    // (cold start con RLS hidratando o sin fila), ese saldo conserva su valor
-    // previo — pero el otro SÍ se pinta. Nunca ceros defensivos.
-    if (!e && !p) return;
+    const e = await getElectronBalance(user.id);
+    // Si la query no trajo dato, se conserva el valor previo en vez de pintar 0.
+    if (!e) return;
     setData((prev) => {
       const next: BalanceData = {
-        e: e ? e.current_electrons : prev?.e ?? null,
-        h: p ? p.current_protons : prev?.h ?? null,
-        rank: e ? e.current_rank : prev?.rank ?? null,
+        e: e.current_electrons,
+        rank: e.current_rank ?? prev?.rank ?? null,
       };
       // Persistir a cache para próxima apertura (fire-and-forget)
       AsyncStorage.setItem(CACHE_KEY(user.id), JSON.stringify(next)).catch(() => {});
@@ -76,15 +76,11 @@ export function EconomyHeaderPill() {
     return () => sub.remove();
   }, [load]));
 
-  // ECO-5: la pill pinta cada saldo que SÍ tiene dato — un user sin fila de
-  // electrones ve sus H+ igual (antes el join los ocultaba a ambos).
-  if (!LAB_ECONOMY_ENABLED || !data || (data.e === null && data.h === null)) return null;
+  if (!LAB_ECONOMY_ENABLED || !data || data.e === null) return null;
 
   return (
     <AnimatedPressable onPress={() => { haptic.light(); router.push('/economy/admin'); }} style={styles.pill}>
-      {data.e !== null && <Stat icon="flash" color={ATP_BRAND.lime} text={formatCompact(data.e)} />}
-      {data.e !== null && data.h !== null && <View style={styles.sep} />}
-      {data.h !== null && <Stat icon="diamond" color="#7fd4ff" text={formatCompact(data.h)} />}
+      <Stat icon="flash" color={ATP_BRAND.lime} text={formatCompact(data.e)} />
       {data.rank !== null && (
         <>
           <View style={styles.sep} />

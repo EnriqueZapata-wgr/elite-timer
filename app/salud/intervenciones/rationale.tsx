@@ -1,12 +1,16 @@
 /**
  * ¿POR QUÉ ESTAS INTERVENCIONES? — narrativa ARGOS (Megabuzón 2da pasada B.4).
- * Doctrina H+: se COBRA con Protones (280 H+, precio server-side; Pro efectivo
- * gratis — lo decide argos-proxy). Cache por set: mismo DX + mismo protocolo =
- * releer gratis. Precio y balance visibles antes del tap (consentimiento).
- * Patrón visual de app/braverman-premium.tsx.
+ *
+ * PREMIUM (16-ago-2026): costaba 280 H+ y era gratis solo para Pro. Esa
+ * asimetría se acabó: viene incluido para todo miembro. Se fueron el precio,
+ * el saldo y la leyenda "incluido en tu plan Pro", que ya no distingue nada.
+ *
+ * Se conserva el cache por set (mismo mapa + mismo protocolo = misma
+ * explicación, sin volver a llamar al modelo): eso es control de costo, no
+ * cobro, y el usuario nunca lo vio.
  */
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { ActivityIndicator, Alert, DeviceEventEmitter, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import Markdown from 'react-native-markdown-display';
@@ -17,7 +21,6 @@ import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerG
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
-import { formatFull } from '@/src/services/economy/format';
 import {
   generateInterventionRationale,
   getRationaleQuote,
@@ -57,36 +60,20 @@ export default function InterventionRationaleScreen() {
     const result: RationaleResult = await generateInterventionRationale(user.id);
     if (result.status === 'ok') {
       haptic.success();
-      if (!result.cached) {
-        analytics.track(ATP_EVENTS.INTERVENTION_RATIONALE_PURCHASED, {});
-        // Cobro exitoso (server-side) → refrescar pill de economía (regla #5).
-        DeviceEventEmitter.emit('balance_changed');
-      }
+      // Se sigue midiendo la primera generación: es uso real, ya no una compra.
+      if (!result.cached) analytics.track(ATP_EVENTS.INTERVENTION_RATIONALE_PURCHASED, {});
       setMarkdown(result.markdown);
       setWasCached(result.cached);
       setState('done');
       return;
     }
-    if (result.status === 'insufficient_h_plus') {
-      haptic.warning();
-      setState('offer');
-      Alert.alert(
-        'Te faltan H+',
-        `Esta explicación usa ${formatFull(quote?.cost ?? 280)} H+. Recarga o gana más completando tu día.`,
-        [
-          { text: 'Ahora no', style: 'cancel' },
-          { text: 'Conseguir H+', onPress: () => router.push('/economy/shop') },
-        ],
-      );
-      return;
-    }
     if (result.status === 'no_dx') { setState('no_dx'); return; }
     if (result.status === 'no_protocol') { setState('no_protocol'); return; }
     setState('error');
-  }, [user?.id, quote?.cost, analytics]);
+  }, [user?.id, analytics]);
 
-  // Al entrar: precio + balance. Si ya está cacheado lo muestra directo GRATIS;
-  // si no, card previa con consentimiento explícito.
+  // Si ya está cacheado se muestra directo; si no, card previa que explica
+  // qué vas a recibir.
   useEffect(() => {
     if (startedRef.current || !user?.id) return;
     startedRef.current = true;
@@ -94,7 +81,7 @@ export default function InterventionRationaleScreen() {
       setQuote(q);
       if (!q.hasDx) { setState('no_dx'); return; }
       if (!q.hasProtocol) { setState('no_protocol'); return; }
-      if (q.hasCachedRationale) { generate(); return; } // gratis, directo
+      if (q.hasCachedRationale) { generate(); return; } // ya existe, directo
       setState('offer');
     }).catch(() => setState('error'));
   }, [user?.id, generate]);
@@ -106,8 +93,6 @@ export default function InterventionRationaleScreen() {
     }, 5000);
     return () => clearInterval(interval);
   }, [state]);
-
-  const canAfford = quote?.isPro || quote?.balance == null || quote.balance >= (quote?.cost ?? 0);
 
   // B-5 (MB-12): markdown de LLM sin disclaimer → gate obligatorio.
   return (
@@ -124,36 +109,14 @@ export default function InterventionRationaleScreen() {
               ARGOS conecta las raíces de tu Mapa Funcional con cada
               intervención de tu protocolo: qué ataca cada una y qué esperar.
             </EliteText>
-            <View style={styles.priceRow}>
-              {quote.isPro ? (
-                <EliteText style={styles.priceText}>✦ Incluido en tu plan Pro</EliteText>
-              ) : (
-                <>
-                  <EliteText style={styles.priceText}>💎 Usa {formatFull(quote.cost)} H+</EliteText>
-                  <EliteText style={styles.balanceText}>
-                    Tu balance: {quote.balance == null ? '…' : `${formatFull(quote.balance)} H+`}
-                  </EliteText>
-                </>
-              )}
-            </View>
             <AnimatedPressable
               onPress={() => { haptic.medium(); generate(); }}
               style={styles.lockCtaPrimary}
             >
-              <EliteText style={styles.lockCtaPrimaryText}>
-                {quote.isPro ? 'Generar mi explicación' : `Generar (${formatFull(quote.cost)} H+)`}
-              </EliteText>
+              <EliteText style={styles.lockCtaPrimaryText}>Generar mi explicación</EliteText>
             </AnimatedPressable>
-            {!canAfford && (
-              <AnimatedPressable
-                onPress={() => { haptic.light(); router.push('/economy/shop'); }}
-                style={styles.shopLink}
-              >
-                <EliteText style={styles.shopLinkText}>Te faltan H+: conseguir más →</EliteText>
-              </AnimatedPressable>
-            )}
             <EliteText style={styles.lockHint}>
-              Queda tuya mientras no cambie tu protocolo ni tu mapa funcional: releer es gratis.
+              Queda tuya mientras no cambie tu protocolo ni tu mapa funcional.
             </EliteText>
           </Animated.View>
         </View>
@@ -312,11 +275,6 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     textAlign: 'center',
   },
   loadingHint: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue },
-  priceRow: { alignItems: 'center', gap: 2, marginTop: Spacing.xs },
-  priceText: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
-  balanceText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoSecundario },
-  shopLink: { paddingVertical: 6 },
-  shopLinkText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.sm },
   ownedBadge: {
     backgroundColor: t.flotante,
