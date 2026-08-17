@@ -2,7 +2,7 @@
  * HOY = TAREAS — tu checklist del día. Fin. Nada más. (MB-20 Pieza 1)
  *
  * Usa compileDay() como única fuente de datos. Estructura:
- * 1. Header: saludo + fecha + campana + pill de economía
+ * 1. Header: marca (símbolo + "ATP DAILY") + saludo + fecha + campana + pill
  * 2. TareasView: dos lentes (Tareas por momento / Agenda por hora),
  *    card de la orbe colapsable, progreso global y por bloque
  * 3. (libre — aquí vivían las cards de protones, retiradas con la membresía única)
@@ -19,7 +19,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import {
-  View, StyleSheet, ScrollView, Pressable, Text,
+  View, StyleSheet, ScrollView, Pressable, Text, Image,
   DeviceEventEmitter, AppState,
   Platform, UIManager,
 } from 'react-native';
@@ -352,6 +352,18 @@ export default function TodayScreen() {
           <Animated.View entering={FadeInUp.delay(50).springify()}>
             <View style={s.topBar}>
               <View style={s.topBarLeft}>
+                {/* MARCA: el símbolo de ATP no aparecía en ninguna pantalla de
+                    la app (solo como portada del reproductor de Mente). Aquí
+                    entra como marca, no como icono de función: 16px, alineado
+                    al bloque de texto del label, sin ser tocable y sin color
+                    propio en el encabezado. El asset es la molécula sola, con
+                    fondo transparente, así que se lee igual en los dos temas
+                    (verificado sobre acero y sobre el fondo oscuro). */}
+                <Image
+                  source={require('@/assets/images/icon.png')}
+                  style={s.brandMark}
+                  resizeMode="contain"
+                />
                 <Text style={[s.brandLabel, !dark && { color: tokens.textoSecundario }]}>ATP DAILY</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -569,6 +581,13 @@ const s = StyleSheet.create({
     letterSpacing: 3,
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
+  },
+  // 16px contra un label de 12: la marca ocupa el alto del bloque de texto y
+  // ni un pixel más. Subirla convierte el encabezado en el protagonista de la
+  // pantalla, y el protagonista de HOY es el checklist.
+  brandMark: {
+    width: 16,
+    height: 16,
   },
 
   // ── HEADER (MB-20: el hero fotográfico salió; saludo sobre negro) ──
