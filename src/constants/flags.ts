@@ -537,3 +537,76 @@ export const UMBRALES_FEMENINOS_EN_EL_SCORE = true;
  *  Sin migración, sin build nativo, sin tocar datos.
  */
 export const SEXO_NO_SE_ADIVINA = true;
+
+/**
+ * ARGOS_MANDA_JWT_DEL_USUARIO — el proxy deja de creerle al cuerpo (SEG-1).
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → `anthropic-client` manda en `Authorization` el access token
+ *    de la sesión del usuario, igual que ya hacía `argos-tts` con argos-voice.
+ *    Si no hay sesión legible, cae a la anon key y la petición sigue viva.
+ *  · OFF → comportamiento anterior: la anon key en el header y el `userId` en el
+ *    cuerpo como única identidad.
+ *
+ * POR QUÉ, SIN ADORNOS
+ *  `argos-proxy` decidía tier, cuota, techo de gasto y a quién se le carga cada
+ *  llamada con el `userId` que venía en el CUERPO. El cuerpo lo escribe el
+ *  cliente. La anon key viaja en el bundle y es pública por diseño. O sea que
+ *  cualquiera podía mandar el identificador de otra persona y quemarle el techo
+ *  antiabuso de 500 MXN diarios hasta dejarla sin ARGOS, o rotar
+ *  identificadores inventados para que el techo nunca se alcance y la factura
+ *  la pague ATP. Omitir el campo era todavía mejor: sin userId el conteo y el
+ *  techo devuelven abierto.
+ *
+ * LO QUE NO ROMPE
+ *  Nada del servidor depende de este flag. El proxy ya acepta las dos formas y
+ *  PREFIERE el JWT (ver `supabase/functions/_shared/identidad.ts`). Con el flag
+ *  apagado, el servidor cae solo a su camino de gracia.
+ *
+ * ⚠️ DEPENDENCIA DE ORDEN, LA ÚNICA QUE IMPORTA
+ *  El cierre definitivo del hueco es la env var `ARGOS_EXIGE_JWT=true` del
+ *  function. NO se prende hasta que este flag esté ON y el OTA haya llegado a
+ *  todos. Con esta bandera en `false` y esa env var en `true`, nadie puede usar
+ *  ARGOS.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración, sin build nativo, sin tocar datos.
+ */
+export const ARGOS_MANDA_JWT_DEL_USUARIO = true;
+
+/**
+ * ARGOS_RESUELVE_RUTAS_DINAMICAS — ARGOS deja de ofrecer moldes (NAV-2).
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → el índice del navegador se arma con las rutas RESUELTAS que
+ *    salen de `argos-nav-dinamicas-core`: /reports/ayuno, /packs/dormir-mejor,
+ *    /tests/run/plank, /historia-clinica/salud-digestiva. Y cuando el modelo
+ *    propone una plantilla, el parámetro se resuelve con lo que dijo el usuario.
+ *  · OFF → las plantillas siguen fuera del índice (eso NO es opcional, es el
+ *    bug), pero no hay expansiones: ARGOS pierde esos destinos y contesta que no
+ *    encontró la pantalla.
+ *
+ * POR QUÉ EXISTE, CON EL NÚMERO
+ *  Las 10 plantillas de `APP_ROUTES_DYNAMIC` entraban al índice con los
+ *  corchetes puestos, salían como opción tocable en la fila de desambiguación y
+ *  el chat hacía `router.push('/reports/[dominio]')`: una ruta que no existe. El
+ *  título que veía el usuario era el slug del parámetro, o sea "PackKey".
+ *  Resolverlas suma 55 destinos reales que ARGOS no podía ofrecer aunque se los
+ *  pidieran por su nombre.
+ *
+ * LO QUE ESTE FLAG NO ALCANZA
+ *  · No arregla el bug: quitar las plantillas del índice y filtrar la puerta de
+ *    salida va SIN bandera, porque no hay escenario en que ofrecer un molde sea
+ *    correcto. La bandera solo gobierna la parte que agrega entradas nuevas, que
+ *    es la que puede mover el ranking de una consulta que hoy funciona.
+ *  · No revive ninguna evaluación. Las 25 que no tienen `live` siguen abriendo
+ *    su pantalla original, que es la que funciona hoy: el expansor usa
+ *    `currentRoute()`, la misma puerta que el hub.
+ *  · No toca `.maestro/rutas.json` ni el barrido visual.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración, sin build nativo, sin tocar datos.
+ */
+export const ARGOS_RESUELVE_RUTAS_DINAMICAS = true;

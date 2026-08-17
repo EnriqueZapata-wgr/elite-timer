@@ -13,6 +13,16 @@ verify_jwt = true
 [functions.argos-voice]
 verify_jwt = true
 
+# SEG-1: mismo caso que argos-voice. Este renglón NO autentica a nadie (la anon
+# key pasa el gate); solo se declara para que quede escrito que la identidad se
+# resuelve adentro, con resolverIdentidad() de _shared/identidad.ts.
+# El interruptor del cierre definitivo NO vive aquí, vive en una env var:
+#   npx supabase secrets set ARGOS_EXIGE_JWT=true    (cerrar)
+#   npx supabase secrets unset ARGOS_EXIGE_JWT       (volver a la gracia)
+# No prender hasta que el OTA con ARGOS_MANDA_JWT_DEL_USUARIO haya llegado a todos.
+[functions.argos-proxy]
+verify_jwt = true
+
 # MB-13: webhooks de pago. Los proveedores NO mandan JWT de Supabase; la
 # protección real es la firma (Stripe HMAC) / token compartido (Conekta,
 # RevenueCat) dentro de cada función.

@@ -28,6 +28,14 @@ import {
   APP_ROUTES_DYNAMIC,
   APP_ROUTE_DESCRIPTIONS,
 } from '@/src/constants/app-routes.generated';
+import { ARGOS_RESUELVE_RUTAS_DINAMICAS } from '@/src/constants/flags';
+import {
+  esPlantilla,
+  expandirPlantilla,
+  expandirTodas,
+  SUPERFICIE_PLANTILLA,
+  type RutaExpandida,
+} from './argos-nav-dinamicas-core';
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -45,8 +53,16 @@ export type ResultadoNav =
   | { tipo: 'resuelta'; ruta: string; titulo: string; puntaje: number }
   /** Varios plausibles y ninguno domina. ARGOS PREGUNTA, no adivina. */
   | { tipo: 'ambigua'; candidatos: CandidatoNav[] }
-  /** La ruta existe pero necesita un parámetro que ARGOS no tiene. */
-  | { tipo: 'requiere_dato'; ruta: string; titulo: string; parametro: string }
+  /**
+   * La ruta existe pero necesita un parámetro que ARGOS no tiene.
+   *
+   * NAV-2: ahora viaja con `opciones` cuando la plantilla SÍ se puede expandir.
+   * Antes esto era un callejón sin salida: ARGOS decía "para abrir PackKey
+   * necesito saber cuál en específico" y ahí se acababa el turno, sin ofrecer
+   * nada y sin forma de dar el dato. Con las opciones puestas, el llamador
+   * pregunta como en cualquier otra ambigüedad.
+   */
+  | { tipo: 'requiere_dato'; ruta: string; titulo: string; parametro: string; opciones?: CandidatoNav[] }
   /** Existe pero ARGOS no navega ahí por diseño (dev, auth, onboarding). */
   | { tipo: 'bloqueada'; ruta: string; motivo: string }
   /** Nada superó el piso. Se devuelven sugerencias para que el modelo decida. */
@@ -402,8 +418,14 @@ function sumar(mapa: Map<string, number>, tokens: string[], peso: number): void 
   }
 }
 
-function construirEntrada(ruta: string, dinamica: boolean): EntradaIndice {
-  const titulo = tituloDe(ruta);
+function construirEntrada(
+  ruta: string,
+  dinamica: boolean,
+  /** NAV-2: las rutas expandidas traen su propio título y su propio corpus, que
+   *  vienen de la fuente de verdad y no del docblock de una pantalla. */
+  override?: { titulo?: string; descripcion?: string },
+): EntradaIndice {
+  const titulo = override?.titulo ?? tituloDe(ruta);
   const pesos = new Map<string, number>();
 
   sumar(pesos, tokenizar(ruta.replace(/\//g, ' ').replace(/[-_]/g, ' ')), PESO_SLUG);
@@ -413,17 +435,52 @@ function construirEntrada(ruta: string, dinamica: boolean): EntradaIndice {
     sumar(pesos, tokenizar(alias), PESO_ALIAS);
   }
 
-  const desc = APP_ROUTE_DESCRIPTIONS[ruta];
+  const desc = override?.descripcion ?? APP_ROUTE_DESCRIPTIONS[ruta];
   if (desc) sumar(pesos, tokenizar(limpiarDescripcion(desc)), PESO_DESC);
 
   const param = dinamica ? (ruta.match(/\[([^\]]+)\]/)?.[1] ?? 'dato') : undefined;
   return { ruta, titulo, dinamica, parametro: param, pesos };
 }
 
+/**
+ * Entrada de una ruta EXPANDIDA. No usa los pesos normales a propósito.
+ *
+ * La superficie ("reporte", "pack", "evaluación") entra con peso de alias porque
+ * es lo único que discrimina: es la palabra que separa "el ayuno" de "el reporte
+ * del ayuno". El valor y el título entran con peso de descripción, el más bajo,
+ * porque el valor ya le pertenece a una pantalla principal que casi siempre es
+ * el destino correcto. Sin esta asimetría, "llévame a donde registro el ayuno"
+ * se vuelve ambigua entre /fasting y /reports/ayuno: medido, no supuesto.
+ */
+function construirEntradaExpandida(e: RutaExpandida): EntradaIndice {
+  const pesos = new Map<string, number>();
+  for (const s of SUPERFICIE_PLANTILLA[e.plantilla] ?? []) {
+    sumar(pesos, tokenizar(s), PESO_ALIAS);
+  }
+  sumar(pesos, tokenizar(e.ruta.replace(/\//g, ' ').replace(/[-_]/g, ' ')), PESO_DESC);
+  sumar(pesos, tokenizar(e.titulo), PESO_DESC);
+  if (e.descripcion) sumar(pesos, tokenizar(limpiarDescripcion(e.descripcion)), PESO_DESC);
+  for (const alias of ALIAS_RUTA[e.ruta] ?? []) sumar(pesos, tokenizar(alias), PESO_ALIAS);
+  return { ruta: e.ruta, titulo: e.titulo, dinamica: false, pesos };
+}
+
 let _indice: EntradaIndice[] | null = null;
 let _df: Map<string, number> | null = null;
 
-/** Índice memoizado. Se construye una vez por proceso. */
+/**
+ * Índice memoizado. Se construye una vez por proceso.
+ *
+ * NAV-2: LAS PLANTILLAS YA NO ENTRAN. Antes se metían los 10 moldes con los
+ * corchetes puestos (`/reports/[dominio]`), y de ahí salían como candidatos
+ * tocables que terminaban en un `router.push` a una ruta inexistente. Un molde
+ * no es un destino y no tiene nada que hacer en un catálogo de destinos.
+ *
+ * Lo que entra en su lugar son las rutas RESUELTAS
+ * (`argos-nav-dinamicas-core`): `/reports/ayuno`, `/packs/dormir-mejor`,
+ * `/tests/run/plank`. Existen de verdad, tienen título de verdad y las ofrece
+ * el mismo ranking que a todas las demás. Con la bandera apagada simplemente no
+ * hay expansiones: ARGOS pierde esos destinos, pero nunca ofrece uno roto.
+ */
 export function obtenerIndice(): EntradaIndice[] {
   if (_indice) return _indice;
   const entradas: EntradaIndice[] = [];
@@ -431,9 +488,11 @@ export function obtenerIndice(): EntradaIndice[] {
     if (rutaVetada(r)) continue;
     entradas.push(construirEntrada(r, false));
   }
-  for (const r of APP_ROUTES_DYNAMIC) {
-    if (rutaVetada(r)) continue;
-    entradas.push(construirEntrada(r, true));
+  if (ARGOS_RESUELVE_RUTAS_DINAMICAS) {
+    for (const e of expandirTodas()) {
+      if (rutaVetada(e.ruta)) continue;
+      entradas.push(construirEntradaExpandida(e));
+    }
   }
   _indice = entradas;
   return entradas;
@@ -541,11 +600,34 @@ export function resolverDestino(consulta: string): ResultadoNav {
       });
     }
   }
+  // NAV-2: EL ORDEN PONDERA LA COBERTURA, no solo el puntaje.
+  //
+  // La cobertura ya existía, pero solo como PISO. Faltaba usarla para ordenar, y
+  // sin eso "llévame a mi reporte de ayuno" quedaba ambigua entre /reports/ayuno
+  // (explica las dos palabras) y /fasting (explica una, pero esa una es rara y
+  // pesada). Explicar toda la frase es evidencia de haber entendido; explicar la
+  // mitad con un acierto caro es la definición del falso positivo que
+  // COBERTURA_MINIMA ya trataba de matar. Ponderar aquí es la misma doctrina,
+  // aplicada al ranking y no solo al umbral.
+  //
+  // Va bajo la misma bandera que las expansiones: apagarla devuelve el orden
+  // exacto de antes. El puntaje que se reporta sigue siendo el crudo, para que
+  // el umbral y los logs signifiquen lo mismo que siempre.
+  const orden = (c: { puntaje: number; cobertura: number }) =>
+    ARGOS_RESUELVE_RUTAS_DINAMICAS ? c.puntaje * c.cobertura : c.puntaje;
   // Desempate por ruta para que el resultado sea estable entre corridas.
-  puntuados.sort((a, b) => (b.puntaje - a.puntaje) || a.ruta.localeCompare(b.ruta));
+  puntuados.sort((a, b) => (orden(b) - orden(a)) || a.ruta.localeCompare(b.ruta));
 
+  // NAV-2, puerta de salida: nada con corchetes sale de aquí como opción.
+  // Las plantillas ya no entran al índice, así que este filtro no debería quitar
+  // nunca nada. Está porque el precio de equivocarse es un `router.push` a una
+  // ruta que no existe, y ese es el bug que estamos cerrando: si mañana alguien
+  // vuelve a meter moldes al índice, se queda en el índice y no llega al usuario.
   const desnudos = (n: number) =>
-    puntuados.slice(0, n).map(({ ruta, titulo, puntaje }) => ({ ruta, titulo, puntaje }));
+    puntuados
+      .filter((c) => !esPlantilla(c.ruta))
+      .slice(0, n)
+      .map(({ ruta, titulo, puntaje }) => ({ ruta, titulo, puntaje }));
 
   const mejor = puntuados[0];
   if (!mejor || mejor.puntaje < UMBRAL_MINIMO || mejor.cobertura < COBERTURA_MINIMA) {
@@ -553,7 +635,7 @@ export function resolverDestino(consulta: string): ResultadoNav {
   }
 
   const segundo = puntuados[1];
-  const domina = !segundo || mejor.puntaje >= segundo.puntaje * FACTOR_DOMINANCIA;
+  const domina = !segundo || orden(mejor) >= orden(segundo) * FACTOR_DOMINANCIA;
   if (!domina) {
     return { tipo: 'ambigua', candidatos: desnudos(MAX_CANDIDATOS) };
   }
@@ -572,11 +654,51 @@ export function resolverDestino(consulta: string): ResultadoNav {
 }
 
 /**
+ * Las expansiones de UNA plantilla, ordenadas por qué tanto explican la
+ * consulta original. Reusa el índice y el mismo `puntuar` que el camino local:
+ * las expansiones ya viven en el índice, así que no hay un segundo ranking que
+ * se pueda desincronizar del primero.
+ */
+function opcionesDePlantilla(plantilla: string, consulta?: string): CandidatoNav[] {
+  if (!ARGOS_RESUELVE_RUTAS_DINAMICAS) return [];
+  const expansiones: RutaExpandida[] = expandirPlantilla(plantilla);
+  if (expansiones.length === 0) return [];
+  const rutas = new Set(expansiones.map((e) => e.ruta));
+
+  const tokens = tokenizar(consulta ?? '');
+  if (tokens.length > 0) {
+    const indice = obtenerIndice();
+    const df = obtenerDf();
+    const puntuados = indice
+      .filter((e) => rutas.has(e.ruta))
+      .map((e) => ({ ruta: e.ruta, titulo: e.titulo, puntaje: puntuar(e, tokens, df, indice.length).puntaje }))
+      .filter((c) => c.puntaje > 0)
+      .sort((a, b) => (b.puntaje - a.puntaje) || a.ruta.localeCompare(b.ruta));
+    if (puntuados.length > 0) return puntuados.slice(0, MAX_CANDIDATOS);
+  }
+
+  // Sin consulta con la que rankear: se ofrecen las primeras, en orden estable.
+  return expansiones.slice(0, MAX_CANDIDATOS).map((e) => ({ ruta: e.ruta, titulo: e.titulo, puntaje: 0 }));
+}
+
+/**
  * Valida que una ruta propuesta por el MODELO exista de verdad y sea navegable.
  * El modelo alucina rutas plausibles (`/mis-analisis`) que no existen; sin este
  * filtro ARGOS navegaría a 404 con toda confianza.
+ *
+ * NAV-2, dos cosas nuevas:
+ *  · Una ruta CONCRETA de las que nacen de una plantilla (`/reports/ayuno`) ya
+ *    se acepta. Antes caía en `sin_resultado`: el modelo contestaba bien y
+ *    nosotros le decíamos que no existía.
+ *  · Una PLANTILLA (`/reports/[dominio]`) ya no es un callejón. Si la consulta
+ *    original alcanza para elegir una expansión con claridad, se navega ahí; si
+ *    no, se devuelven las opciones para preguntar.
  */
-export function validarRutaPropuesta(ruta: string | null | undefined): ResultadoNav {
+export function validarRutaPropuesta(
+  ruta: string | null | undefined,
+  /** El texto del usuario, para poder resolver el parámetro de una plantilla. */
+  consulta?: string,
+): ResultadoNav {
   if (!ruta || typeof ruta !== 'string') return { tipo: 'sin_resultado', sugerencias: [] };
   const limpia = ruta.trim().split('?')[0].split('#')[0].replace(/\/+$/, '') || '/';
 
@@ -589,12 +711,27 @@ export function validarRutaPropuesta(ruta: string | null | undefined): Resultado
 
   const dinamica = APP_ROUTES_DYNAMIC.find((d) => d === limpia);
   if (dinamica) {
+    const opciones = opcionesDePlantilla(dinamica, consulta);
+    const mejor = opciones[0];
+    const segundo = opciones[1];
+    if (mejor && mejor.puntaje > 0 && (!segundo || mejor.puntaje >= segundo.puntaje * FACTOR_DOMINANCIA)) {
+      return { tipo: 'resuelta', ruta: mejor.ruta, titulo: mejor.titulo, puntaje: mejor.puntaje };
+    }
     return {
       tipo: 'requiere_dato',
       ruta: dinamica,
       titulo: tituloDe(dinamica),
       parametro: dinamica.match(/\[([^\]]+)\]/)?.[1] ?? 'dato',
+      opciones,
     };
+  }
+
+  // NAV-2: una ruta concreta que salió de una plantilla es un destino legítimo.
+  if (ARGOS_RESUELVE_RUTAS_DINAMICAS) {
+    const expandida = expandirTodas().find((e) => e.ruta === limpia || e.ruta.split('?')[0] === limpia);
+    if (expandida) {
+      return { tipo: 'resuelta', ruta: expandida.ruta, titulo: expandida.titulo, puntaje: UMBRAL_MINIMO };
+    }
   }
 
   return { tipo: 'sin_resultado', sugerencias: [] };

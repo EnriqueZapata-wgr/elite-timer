@@ -151,6 +151,15 @@ export function turnoDesdeResultado(resultado: ResultadoNav): TurnoNav {
       };
 
     case 'requiere_dato':
+      // NAV-2: con opciones expandidas, el turno PREGUNTA en vez de avisar y
+      // morir. Ver el mismo caso en argos-nav-exec-core.
+      if (resultado.opciones && resultado.opciones.length > 0) {
+        return {
+          accion: 'preguntar',
+          mensaje: `¿Te refieres a ${listar(resultado.opciones)}?`,
+          opciones: resultado.opciones,
+        };
+      }
       return {
         accion: 'avisar',
         mensaje: `Para abrir ${resultado.titulo} necesito saber cuál en específico.`,

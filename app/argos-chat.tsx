@@ -281,6 +281,10 @@ function ArgosChat() {
 
   /** El push real. Diferido para que se alcance a leer a dónde te lleva. */
   function navegarDiferido(ruta: string) {
+    // NAV-2, última reja: una plantilla sin resolver NO se navega nunca. El
+    // resolvedor ya no las ofrece, pero este es el único lugar donde el error se
+    // vuelve una pantalla en blanco para el usuario, así que aquí se corta.
+    if (!ruta || ruta.includes('[')) return;
     if (navTimerRef.current) clearTimeout(navTimerRef.current);
     navTimerRef.current = setTimeout(() => {
       navTimerRef.current = null;
