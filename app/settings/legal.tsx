@@ -4,7 +4,7 @@
  * disclaimers + estado de aceptación (user_consent).
  */
 import { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Linking } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -66,40 +66,35 @@ export default function SettingsLegalScreen() {
       });
   }, [user?.id]);
 
+  // SIMPLE (17-ago-2026): eran CINCO filas para TRES documentos. "Términos de
+  // servicio" y "Términos y condiciones" son el mismo texto, igual que "Política
+  // de privacidad" y "Aviso de privacidad": lo único que las distinguía era
+  // "Ver documento" contra "Leer en la app", o sea el transporte, no el
+  // contenido. Al usuario le pedíamos elegir entre dos copias del mismo papel.
+  //
+  // Queda una fila por documento y abre el espejo in-app, que es el mejor de los
+  // dos caminos: se lee sin señal, no rebota al navegador y no depende de que
+  // somosatp.com esté publicado. Las URLs externas siguen siendo las que abre el
+  // paywall (fuente única B-6), aquí ya no hacen falta.
   const rows = [
     {
       icon: 'document-text-outline' as const,
-      title: 'Términos de servicio',
+      title: 'Términos y condiciones',
       status: consentFailed
         ? 'Estado de aceptación sin lectura. Revisa tu conexión.'
         : consent?.terms_accepted_at
           ? `Aceptados: v${consent.terms_version ?? '1.0'} · ${fmtDate(consent.terms_accepted_at)}`
-          : 'Ver documento',
-      // B-6 (MB-12): fuente única — las MISMAS URLs que abre el paywall.
-      onPress: () => Linking.openURL('https://somosatp.com/terminos').catch(() => {}),
-    },
-    {
-      // QW-5: espejo in-app (Sprint Compliance 2) accesible sin salir de la app.
-      icon: 'reader-outline' as const,
-      title: 'Términos y condiciones',
-      status: 'Leer en la app',
+          : 'Leer el documento',
       onPress: () => router.push('/legal/terminos'),
     },
     {
-      icon: 'lock-closed-outline' as const,
-      title: 'Política de privacidad',
+      icon: 'shield-checkmark-outline' as const,
+      title: 'Aviso de privacidad',
       status: consentFailed
         ? 'Estado de aceptación sin lectura. Revisa tu conexión.'
         : consent?.privacy_accepted_at
-          ? `Aceptada: v${consent.privacy_version ?? '1.0'} · ${fmtDate(consent.privacy_accepted_at)}`
-          : 'Ver documento',
-      onPress: () => Linking.openURL('https://somosatp.com/privacidad').catch(() => {}),
-    },
-    {
-      // QW-5: espejo in-app (Sprint Compliance 2) accesible sin salir de la app.
-      icon: 'shield-checkmark-outline' as const,
-      title: 'Aviso de privacidad',
-      status: 'Leer en la app',
+          ? `Aceptado: v${consent.privacy_version ?? '1.0'} · ${fmtDate(consent.privacy_accepted_at)}`
+          : 'Leer el documento',
       onPress: () => router.push('/legal/aviso'),
     },
     {

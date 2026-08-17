@@ -1,6 +1,12 @@
 /**
- * AJUSTES › SALUD Y PROTOCOLO (#137) — cronotipo, protocolos, fitness,
- * nutrición, ciclo e historia clínica.
+ * AJUSTES › SALUD Y PROTOCOLO — nivel de entrenamiento, nutrición, ciclo y la
+ * densidad del hub de SALUD.
+ *
+ * SIMPLE (17-ago-2026): salieron de aquí un test (cronotipo), un catálogo clínico
+ * (protocolos) y un dato médico (la ficha de emergencia). Ninguno era un ajuste y
+ * los tres ya tenían casa en Tests o en Salud. Lo que queda son interruptores de
+ * verdad: cosas que cambian cómo se comporta la app, no destinos disfrazados de
+ * ajuste.
  */
 import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -16,7 +22,6 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { useNutritionMode } from '@/src/hooks/useNutritionMode';
 import { getInsightsEnabled, setInsightsEnabled } from '@/src/services/argos-nutrition-insights';
 import { loadModoDenso, saveModoDenso, SALUD_DENSO_EVENT } from '@/src/services/salud-denso-store';
-import { loadFichaPrelogin, saveFichaPrelogin } from '@/src/services/salud/emergency-card-store';
 import { getFitnessLevel, setFitnessLevel } from '@/src/services/fitness/fitness-profile-service';
 import { NIVELES_USUARIO, type NivelUsuario } from '@/src/constants/exercise-matrix';
 import { SectionLabel, Divider, SettingRow, ui } from '@/src/components/settings/settings-ui';
@@ -52,23 +57,6 @@ export default function SettingsSaludScreen() {
   // MB-19: modo denso de SALUD (default OFF — la versión curada recibe a todos).
   const [modoDenso, setModoDenso] = useState(false);
   useEffect(() => { loadModoDenso().then(setModoDenso); }, []);
-  // OLA6 D: la ficha de emergencia abre sin sesión. ENCENDIDO por default:
-  // quien te auxilie no va a poder entrar a tu cuenta, y ese es el punto.
-  const [fichaPrelogin, setFichaPrelogin] = useState(true);
-  useEffect(() => { loadFichaPrelogin().then(setFichaPrelogin); }, []);
-
-  function onToggleFichaPrelogin(v: boolean) {
-    haptic.light();
-    setFichaPrelogin(v);
-    void saveFichaPrelogin(v);
-    if (!v) {
-      Alert.alert(
-        'Ficha apagada',
-        'Se borró la copia de tu teléfono. Tu ficha sigue guardada en tu cuenta, pero ya no se puede abrir sin iniciar sesión.',
-      );
-    }
-  }
-
   function onToggleDenso(v: boolean) {
     haptic.light();
     setModoDenso(v);
@@ -100,24 +88,16 @@ export default function SettingsSaludScreen() {
       <ScreenHeader title="Salud y protocolo" onBack={() => router.back()} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        <Animated.View entering={FadeInUp.delay(80).springify()}>
-          <SectionLabel>MI PROTOCOLO</SectionLabel>
-          <SettingRow
-            icon="sunny-outline"
-            iconColor={CATEGORY_COLORS.optimization}
-            label="Mi cronotipo"
-            sub="Toca para cambiar"
-            onPress={() => { haptic.medium(); router.push('/quiz/chronotype'); }}
-          />
-          <SettingRow
-            icon="flask-outline"
-            iconColor={CATEGORY_COLORS.metrics}
-            label="Protocolos activos"
-            sub="Explorar y gestionar"
-            onPress={() => { haptic.medium(); router.push('/protocol-explorer'); }}
-          />
-          <Divider />
-        </Animated.View>
+        {/* SIMPLE (17-ago-2026): aquí estaba la sección MI PROTOCOLO con dos
+            filas que no eran ajustes y ya tenían casa:
+              · "Mi cronotipo" abría un TEST, y encima por un alias legacy
+                (/quiz/chronotype). Un test pertenece a Tests, y ya está en
+                /tests y en la puerta "Mi cronotipo" del hub de SALUD.
+              · "Protocolos activos" abría el CATÁLOGO clínico. Un catálogo
+                clínico pertenece a Salud, y ahora entra por la puerta
+                "Catálogo de protocolos" de MI EXPEDIENTE (salud-puertas.ts).
+            Era el patrón que hizo de Ajustes un basurero: cualquier cosa que no
+            encontraba dónde vivir acababa aquí de fila. */}
 
         <Animated.View entering={FadeInUp.delay(110).springify()}>
           <SectionLabel>FITNESS</SectionLabel>
@@ -162,8 +142,13 @@ export default function SettingsSaludScreen() {
           {/* MB-23 P4.3: UN concepto en toda la app — simple contra completo.
               MB-28A P1: las tres pantallas de registro ya respetan el modo,
               así que el copy vuelve a prometer todo lo que hace. */}
+          {/* SIMPLE (17-ago-2026): esta etiqueta decía "Modo completo", literal e
+              idéntica a la de EXPEDIENTE, en la MISMA pantalla. Dos interruptores
+              con el mismo nombre y efectos distintos: el usuario no podía saber
+              cuál apagaba qué, y ARGOS tampoco. Se les pone el dominio en el
+              nombre. El concepto simple contra completo se conserva. */}
           <EliteToggle
-            label="Modo completo"
+            label="Modo completo de Nutrición"
             description="Simple: registro directo con la proteína como único número. Completo: calorías y macros visibles y ajustables al registrar, todas las secciones del hub y score con micros."
             value={isComplete}
             onValueChange={onToggleComplete}
@@ -200,21 +185,13 @@ export default function SettingsSaludScreen() {
             onPress={() => { haptic.medium(); router.push('/salud'); }}
           />
           <Divider />
-          {/* OLA6 D: la única fila de SALUD pensada para que la lea otra persona. */}
-          <SettingRow
-            icon="medkit-outline"
-            iconColor="#D93636"
-            label="Ficha de emergencia"
-            sub="Sangre, alergias, condiciones y a quién llamar"
-            onPress={() => { haptic.medium(); router.push('/salud/ficha-emergencia'); }}
-          />
-          <EliteToggle
-            label="Abrir la ficha sin iniciar sesión"
-            description="Encendido: se guarda en el teléfono y se abre sin señal y sin tu contraseña, para que quien te auxilie la lea. Apagado: solo dentro de tu cuenta."
-            value={fichaPrelogin}
-            onValueChange={onToggleFichaPrelogin}
-          />
-          <Divider />
+          {/* SIMPLE (17-ago-2026): aquí estaban la fila de la ficha de emergencia
+              y su interruptor de "abrir sin iniciar sesión". Los dos se fueron.
+              La ficha es un DATO CLÍNICO, no un ajuste, y su fila ya existía
+              idéntica en el hub de SALUD (FichaEmergenciaRow): tenerla también
+              aquí era el mismo dato en dos lugares. El interruptor se mudó a la
+              pantalla de la ficha, que es donde significa algo: se decide con la
+              ficha enfrente, no a tres pantallas de distancia. */}
           {/* MB-19 PIEZA 3: la válvula de escape del rediseño. SALUD se curó a
               cuatro puertas; quien ya sabe lo que busca puede pedir la lista
               completa y saltárselas. Garmin curó su app sin esta salida y sus
@@ -222,7 +199,7 @@ export default function SettingsSaludScreen() {
               MB-23 P4.3: se llamaba "Modo denso" — mismo concepto que
               nutrición, mismo nombre: simple contra completo. */}
           <EliteToggle
-            label="Modo completo"
+            label="Modo completo de Salud"
             description="Simple: Salud te recibe con cuatro puertas. Completo: todas sus secciones en una sola lista."
             value={modoDenso}
             onValueChange={onToggleDenso}

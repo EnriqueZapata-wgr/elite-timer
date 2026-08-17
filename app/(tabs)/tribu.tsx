@@ -38,6 +38,18 @@ const PUERTAS = [
     route: '/comunidad/amigos' as const,
     image: require('@/assets/images/pillars/comunidad-tribu.webp'),
   },
+  {
+    // SIMPLE (17-ago-2026): esto vivía en Ajustes › Comunidad. Quién te ve en la
+    // Tribu es una decisión que se toma mirando la Tribu, no cavando en Ajustes,
+    // y con la puerta aquí la sección se explica sola.
+    key: 'perfil_publico',
+    icon: '👤',
+    title: 'MI PERFIL PÚBLICO',
+    subtitle: 'Tu nombre de usuario y qué ve tu gente de ti',
+    gradient: ['#1ABC9C', '#7F77DD'] as [string, string],
+    route: '/comunidad/ajustes' as const,
+    image: require('@/assets/images/pillars/comunidad.webp'),
+  },
 ];
 
 export default function TribuTab() {

@@ -32,9 +32,12 @@ export const NOTIFICATION_PREFS_DEFAULTS: NotificationPrefs = {
   dnd_during_consultation: true,
 };
 
-export const MODE_META: { value: NotificationMode; title: string; description: string; pro?: boolean }[] = [
+// SIMPLE (17-ago-2026): la bandera `pro` se fue. Solo pintaba un badge "PRO" en
+// Adaptive ARGOS sobre un modo que nunca estuvo gateado, y con una sola membresía
+// no queda nada que etiquetar.
+export const MODE_META: { value: NotificationMode; title: string; description: string }[] = [
   { value: 'standard', title: 'Standard', description: 'Notificaciones normales según tus toggles.' },
-  { value: 'adaptive_argos', title: 'Adaptive ARGOS', description: 'ARGOS decide cuándo notificar — menos ruido, más relevancia.', pro: true },
+  { value: 'adaptive_argos', title: 'Adaptive ARGOS', description: 'ARGOS decide cuándo notificar, menos ruido y más relevancia.' },
   { value: 'silent', title: 'Silent', description: 'Solo notificaciones críticas del sistema.' },
 ];
 

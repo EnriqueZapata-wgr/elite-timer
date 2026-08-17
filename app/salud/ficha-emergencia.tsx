@@ -5,9 +5,9 @@
  * llega quien llega, agarra tu teléfono. Por eso:
  *
  *   · Se guarda una copia en el teléfono, EN CLARO, y se abre sin sesión
- *     (interruptor en Ajustes, encendido por default). No va cifrada a
- *     propósito: se diseñó para que la lea un extraño. El aviso se da al
- *     crearla, con todas sus letras.
+ *     (interruptor AQUÍ ABAJO, encendido por default; vivía en Ajustes hasta el
+ *     17-ago-2026). No va cifrada a propósito: se diseñó para que la lea un
+ *     extraño. El aviso se da al crearla, con todas sus letras.
  *   · Las alergias van con severidad y NO son las alimentarias de nutrición.
  *     Aquellas son preferencias; estas cambian una decisión clínica.
  *   · La medicación se puede traer del protocolo activo, pero una por una y
@@ -35,6 +35,8 @@ import {
 import {
   loadEmergencyCard, saveEmergencyCard, marcarRevisada, shareEmergencyCardPdf,
 } from '@/src/services/salud/emergency-card-service';
+import { loadFichaPrelogin, saveFichaPrelogin } from '@/src/services/salud/emergency-card-store';
+import { EliteToggle } from '@/components/elite-toggle';
 import { ROJO_EMERGENCIA as ROJO } from '@/src/components/salud/FichaEmergenciaRow';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -56,6 +58,23 @@ export default function FichaEmergenciaScreen() {
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [eraNueva, setEraNueva] = useState(false);
+
+  // OLA6 D: la ficha abre sin sesión. ENCENDIDO por default: quien te auxilie no
+  // va a poder entrar a tu cuenta, y ese es el punto.
+  const [fichaPrelogin, setFichaPrelogin] = useState(true);
+  useEffect(() => { loadFichaPrelogin().then(setFichaPrelogin); }, []);
+
+  function onToggleFichaPrelogin(v: boolean) {
+    haptic.light();
+    setFichaPrelogin(v);
+    void saveFichaPrelogin(v);
+    if (!v) {
+      Alert.alert(
+        'Ficha apagada',
+        'Se borró la copia de tu teléfono. Tu ficha sigue guardada en tu cuenta, pero ya no se puede abrir sin iniciar sesión.',
+      );
+    }
+  }
 
   useEffect(() => {
     if (!user?.id) { setCargando(false); return; }
@@ -366,6 +385,20 @@ export default function FichaEmergenciaScreen() {
         </Seccion>
 
         <GradientCTA label={guardando ? 'GUARDANDO…' : 'GUARDAR FICHA'} onPress={guardar} disabled={guardando} style={{ marginTop: Spacing.md }} />
+
+        {/* SIMPLE (17-ago-2026): este interruptor vivía en Ajustes › Salud y
+            protocolo, a tres pantallas de la ficha que gobierna. Decidir si un
+            extraño puede abrir tus alergias sin tu contraseña es una decisión que
+            se toma viendo lo que hay escrito, no en una lista de preferencias.
+            Guarda al momento, aparte del botón de guardar la ficha. */}
+        <Seccion titulo="Sin iniciar sesión" s={s}>
+          <EliteToggle
+            label="Abrir la ficha sin iniciar sesión"
+            description="Encendido: se guarda en el teléfono y se abre sin señal y sin tu contraseña, para que quien te auxilie la lea. Apagado: solo dentro de tu cuenta."
+            value={fichaPrelogin}
+            onValueChange={onToggleFichaPrelogin}
+          />
+        </Seccion>
 
         <View style={s.salidas}>
           <AnimatedPressable

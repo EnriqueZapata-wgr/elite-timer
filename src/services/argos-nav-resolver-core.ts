@@ -170,9 +170,12 @@ export const TITULOS_RUTA: Readonly<Record<string, string>> = {
   '/salud/mis-sintomas': 'Mis síntomas',
   '/salud/padecimientos': 'Mis padecimientos',
   '/settings': 'Ajustes',
-  '/settings/comunidad': 'Ajustes de comunidad',
+  // SIMPLE (17-ago-2026): /settings/comunidad y /settings/cuenta son redirects.
+  // Se sacan del mapa de títulos para que ARGOS mande al destino real y no
+  // anuncie una pantalla que ya no existe. Los deep links viejos siguen
+  // resolviendo por el stub.
+  '/comunidad/ajustes': 'Mi perfil público de la Tribu',
   '/settings/conexiones': 'Conexiones y coach',
-  '/settings/cuenta': 'Mi cuenta',
   '/settings/experiencia': 'Ajustes de experiencia',
   '/settings/legal': 'Avisos legales',
   '/settings/notifications': 'Ajustes de notificaciones',
@@ -277,15 +280,17 @@ export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = {
   // "cómo gano protones". Reconocerlos sin destino que ofrecer era peor que no
   // reconocerlos: ARGOS entendía y luego no podía llevarte a ningún lado.
   '/economy/history': ['historial de electrones', 'que he ganado'],
-  '/settings': ['ajustes', 'configuracion', 'opciones', 'preferencias'],
   '/settings/notifications': ['notificaciones', 'avisos', 'recordatorios', 'alertas', 'configurar notificaciones', 'silenciar'],
   '/settings/privacy': ['privacidad', 'mis datos personales', 'consentimiento', 'borrar cuenta', 'exportar datos'],
   '/settings/experiencia': ['tema', 'modo oscuro', 'modo claro', 'apariencia', 'sonidos', 'vibracion'],
-  '/settings/cuenta': ['cuenta', 'cerrar sesion', 'mi cuenta'],
-  '/settings/subscription': ['suscripcion', 'plan', 'pago', 'facturacion'],
+  // "cuenta" y "cerrar sesion" ahora son el hub: las tres filas de la pantalla
+  // /settings/cuenta viven ahí desde el 17-ago-2026.
+  '/settings': ['ajustes', 'configuracion', 'opciones', 'preferencias', 'cuenta', 'mi cuenta', 'cerrar sesion'],
+  '/settings/subscription': ['suscripcion', 'plan', 'pago', 'facturacion', 'membresia', 'mi membresia'],
   '/settings/conexiones': ['coach', 'entrenador', 'conectar coach', 'clinico'],
   '/settings/salud-conexion': ['health connect', 'healthkit', 'reloj', 'apple salud', 'sincronizar salud', 'conectar reloj', 'conectar health', 'pasos'],
-  '/settings/salud': ['ajustes de salud', 'modo completo'],
+  '/settings/salud': ['ajustes de salud', 'modo completo', 'modo completo de salud', 'modo completo de nutricion'],
+  '/comunidad/ajustes': ['perfil publico', 'quien me ve', 'visibilidad', 'nombre de usuario', 'ajustes de comunidad'],
   '/night-filter': ['filtro nocturno', 'luz azul', 'pantalla naranja'],
   '/notifications': ['bandeja de notificaciones', 'novedades'],
   '/profile': ['perfil', 'mi perfil', 'mis datos personales'],

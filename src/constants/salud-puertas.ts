@@ -144,6 +144,11 @@ export const DESTINOS_EXPEDIENTE: Destino[] = [
   // MB-19.2: divergencia #1 pagada — Labs se dibujaba book-outline aquí y
   // flask-outline en la sala ATP, con la MISMA ruta. Ahora es una sola función.
   { key: 'labs_guide', title: 'Guía de labs', subtitle: 'Qué estudios hacerte y cuánto cuestan', icon: 'labs', color: '#60A5FA', route: '/labs-guide' },
+  // SIMPLE (17-ago-2026): el catálogo de protocolos solo se alcanzaba desde
+  // Ajustes › Salud y protocolo, que es donde acababa lo que no encontraba casa.
+  // Un catálogo clínico pertenece a Salud, y aquí es donde el usuario ya está
+  // leyendo su expediente cuando se pregunta qué protocolos existen.
+  { key: 'protocolos_catalogo', title: 'Catálogo de protocolos', subtitle: 'Todos los protocolos ATP y para qué son', icon: 'protocolos', color: '#A8E02A', route: '/protocol-explorer' },
 ];
 
 export const DESTINOS_POR_PUERTA: Record<'hoy' | 'evolucion' | 'expediente', Destino[]> = {

@@ -1,8 +1,8 @@
 {
   "scheme": "atp",
-  "generado": "2026-08-17T05:47:11.615Z",
+  "generado": "2026-08-17T12:49:16.257Z",
   "resumen": {
-    "estaticas": 189,
+    "estaticas": 190,
     "dinamicas": 112,
     "variantes": 8
   },
@@ -404,6 +404,12 @@
       "tipo": "variante",
       "plantilla": "/cocina",
       "slug": "cocina-tab-recetas"
+    },
+    {
+      "ruta": "/comunidad/ajustes",
+      "archivo": "app/comunidad/ajustes.tsx",
+      "tipo": "estatica",
+      "slug": "comunidad-ajustes"
     },
     {
       "ruta": "/comunidad/amigos",

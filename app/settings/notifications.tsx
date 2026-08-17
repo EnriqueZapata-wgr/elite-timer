@@ -113,14 +113,12 @@ export default function SettingsNotificationsScreen() {
                 {selected && <View style={s.radioDot} />}
               </View>
               <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <EliteText style={[s.rowTitle, { color: tokens.texto }]}>{m.title}</EliteText>
-                  {m.pro && (
-                    <View style={[s.proBadge, !dark && { backgroundColor: ATP_BRAND.lime }]}>
-                      <EliteText style={[s.proBadgeText, !dark && { color: tokens.textoSobreLima }]}>PRO</EliteText>
-                    </View>
-                  )}
-                </View>
+                {/* SIMPLE (17-ago-2026): aquí iba un badge "PRO" sobre Adaptive
+                    ARGOS. Era una promesa falsa desde el pivote: el modo se podía
+                    seleccionar sin pagar nada, así que el badge insinuaba un muro
+                    que no existía. Con una sola membresía no hay nada que marcar
+                    como PRO, porque todo lo es. */}
+                <EliteText style={[s.rowTitle, { color: tokens.texto }]}>{m.title}</EliteText>
                 <EliteText style={[s.rowDesc, thDesc]}>{m.description}</EliteText>
               </View>
             </Pressable>
@@ -237,11 +235,6 @@ const s = StyleSheet.create({
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: ATP_BRAND.lime },
   rowTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
   rowDesc: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2, lineHeight: 16 },
-  proBadge: {
-    backgroundColor: withOpacity(ATP_BRAND.lime, 0.14), borderRadius: 6,
-    paddingHorizontal: 6, paddingVertical: 1,
-  },
-  proBadgeText: { fontSize: 9, fontFamily: Fonts.bold, color: ATP_BRAND.lime, letterSpacing: 1 },
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     borderWidth: 1,

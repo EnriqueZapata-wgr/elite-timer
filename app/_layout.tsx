@@ -229,6 +229,8 @@ function RootLayout() {
                 <Stack.Screen name="settings/dev" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="settings/privacy" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="settings/notifications" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* SIMPLE (17-ago-2026): los ajustes de comunidad se mudaron a Tribu. */}
+                <Stack.Screen name="comunidad/ajustes" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="argos/conversations" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* MAGIA ARGOS T6: primer contacto cinemático post-onboarding. */}
                 <Stack.Screen name="argos/meet" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
