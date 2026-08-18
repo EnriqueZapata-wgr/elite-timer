@@ -39,6 +39,7 @@ import {
   autorizaEntrada,
   decidirTrasFalloDefinitivo,
   esperaDelReintento,
+  seAgotoElTiempo,
   TECHO_LECTURA_MS,
   COPY_SIN_CONEXION,
   type FaseAcceso,
@@ -123,6 +124,7 @@ export default function IndexRedirect() {
     setFase('verificando');
 
     (async () => {
+      const inicio = Date.now();
       for (let n = 0; ; n++) {
         const lectura = await leerPasoDelPerfil(userId);
         if (!vivo) return;
@@ -158,7 +160,10 @@ export default function IndexRedirect() {
         }
 
         const espera = esperaDelReintento(n);
-        if (espera === null) break;
+        // El techo por lectura acota cada intento; este acota la suma. Sin él,
+        // cuatro lecturas colgadas dan 37 s de splash: acotado y aun así
+        // inaceptable.
+        if (espera === null || seAgotoElTiempo(Date.now() - inicio)) break;
         await dormir(espera);
         if (!vivo) return;
       }

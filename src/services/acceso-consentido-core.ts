@@ -52,6 +52,24 @@ export const ESPERAS_REINTENTO_MS = [600, 1500, 3000] as const;
  */
 export const TECHO_LECTURA_MS = 8000;
 
+/**
+ * Techo del gate COMPLETO, reintentos incluidos.
+ *
+ * El techo por lectura acota cada intento pero no la suma: cuatro lecturas
+ * colgadas de 8 s más 5.1 s de esperas dan 37 s de splash. Está acotado y
+ * sigue siendo inaceptable. A los 15 s se corta y se pasa directo a decidir,
+ * que es lo mismo que iba a pasar 22 s después.
+ *
+ * El número no es arbitrario: es el punto donde una persona deja de creer que
+ * la app está cargando y empieza a creer que se trabó.
+ */
+export const TECHO_TOTAL_MS = 15000;
+
+/** ¿Ya se pasó el gate de su techo total? `transcurrido` en milisegundos. */
+export function seAgotoElTiempo(transcurrido: number): boolean {
+  return transcurrido >= TECHO_TOTAL_MS;
+}
+
 /** Fase del gate. `verificando` SIEMPRE termina: el bucle tiene techo. */
 export type FaseAcceso =
   | 'verificando'
