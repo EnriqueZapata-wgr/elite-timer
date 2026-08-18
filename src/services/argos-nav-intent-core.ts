@@ -29,29 +29,67 @@
 import {
   resolverDestino,
   normalizar,
+  esTokenDeDestino,
+  PALABRAS_VACIAS,
   type ResultadoNav,
   type CandidatoNav,
 } from './argos-nav-resolver-core';
 
 /**
- * Verbos y frases con los que se pide un traslado. Se buscan al ARRANQUE del
- * texto normalizado: "llévame al ayuno" es navegación, "el ayuno me lleva a
- * dormir mal" no lo es, y la diferencia es la posición.
+ * RAÍCES de los verbos con los que se pide un traslado, NO conjugaciones.
+ *
+ * POR QUÉ CAMBIÓ (VOZ-1). Antes esto era una lista de 30 frases exactas que se
+ * buscaban al arranque del texto. Traía "muestrame" pero no "me muestras", así
+ * que "¿me muestras mis labs?" se caía al chat y contestaba con un ensayo en vez
+ * de abrir la pantalla. Ese es el bug medido, y su causa no es que faltara una
+ * frase: es que el español tiene más conjugaciones de las que nadie va a
+ * escribir a mano. Exigirle al usuario la fórmula exacta es lo contrario de
+ * tener un modelo de lenguaje.
+ *
+ * Una raíz de 4+ letras cubre la familia entera: `muestr` atrapa "muéstrame",
+ * "me muestras", "muéstramelo"; `llev` atrapa "llévame", "me llevas",
+ * "llevarme". Se comparan como PREFIJO de una palabra ya normalizada.
+ *
+ * Cuidado al agregar: la raíz tiene que ser lo bastante larga para no morder
+ * otra palabra. Por eso `entra` y no `entr` (que se comería "entrenar"), y
+ * `abre`/`abri` y no `abr` (que se comería "abrazo" y "abril").
  */
-export const DISPARADORES_NAV: readonly string[] = [
-  'llevame', 'llevame a', 'llevame al',
-  'llevar me', 'me llevas',
-  'abreme', 'abre', 'abrir', 'abrime',
-  'ir a', 'ir al', 'quiero ir', 'vamos a', 've a', 'vete a',
-  'muestrame', 'ensename', 'enseñame',
-  'donde', 'a donde', 'en donde',
-  'como llego', 'como entro', 'como abro', 'como veo', 'como encuentro',
-  'quiero ver', 'quiero abrir', 'quiero entrar',
-  'necesito ver', 'necesito abrir',
-  'busco', 'buscar',
-  'sacame', 'mandame a', 'mandame al',
-  'entra a', 'entrar a',
-  'ponme en', 'ponme la pantalla',
+export const RAICES_NAV: readonly string[] = [
+  'llev',                 // llévame, me llevas, llevarme, llévanos
+  'muestr', 'mostr',      // muéstrame, me muestras, mostrarme, mostrar
+  'abre', 'abri', 'abra',  // ábreme, abre, abrir, ábramelo
+  'ensen',                // enséñame, me enseñas, enseñarme
+  'entra',                // entra, entrar (NO "entrenar", que empieza con entre)
+  'busc',                 // busco, buscar, buscando
+  'encuentr', 'encontr',  // encuéntrame, encontrar
+  'ubica',                // ubícame, ubicar
+  'acced',                // acceder, accede
+  'naveg',                // navegar, navégame
+  'lleg',                 // cómo llego, llegar a
+  'sacam', 'sacar',       // sácame, sacar
+  'manda',                // mándame
+  'ponme',                // ponme en
+  'dirig',                // dirígeme
+  'donde', 'adonde',      // dónde, adónde, en dónde
+];
+
+/**
+ * Verbos de traslado demasiado cortos para tratarlos como prefijo. Se comparan
+ * como palabra COMPLETA: `ve` como prefijo se comería "vengo" y "verde".
+ */
+export const PALABRAS_NAV: readonly string[] = [
+  'ver', 'veo', 'vea', 'verlo', 'verla', 've', 'vete', 'vamos', 'voy', 'vas',
+  'ir', 'irme', 'ire',
+];
+
+/**
+ * Vocativos y muletillas de apertura. Se recortan ANTES de mirar el orden de la
+ * frase, porque "oye ARGOS, me muestras mis labs" es la misma petición que "me
+ * muestras mis labs" y no debe cambiar de veredicto por el saludo de enfrente.
+ */
+export const APERTURAS_NAV: readonly string[] = [
+  'oye', 'oiga', 'hey', 'ey', 'hola', 'argos', 'porfa', 'porfavor', 'favor',
+  'disculpa', 'perdon', 'perdona', 'ok', 'okey', 'bueno', 'pues', 'este', 'ya',
 ];
 
 /**
@@ -74,21 +112,64 @@ export const VETOS_NAV: readonly string[] = [
 /** Una petición de traslado es corta. Un párrafo con "ábreme" en medio no lo es. */
 export const MAX_PALABRAS_NAV = 10;
 
+/**
+ * Cuántas palabras de contenido puede tener una frase para que ARGOS se atreva
+ * a leerla como un destino a secas ("mis labs", "el ayuno"). Más largo que esto
+ * ya es una oración, y una oración sin verbo de traslado es una consulta.
+ */
+export const MAX_PALABRAS_DESTINO_DESNUDO = 4;
+
+/**
+ * Qué tan bien tiene que resolver una frase SIN verbo para que valga la pena
+ * preguntar "¿te llevo?".
+ *
+ * NO es un número inventado. Medido contra el índice real: un destino a secas
+ * pega un alias limpio y sale por arriba de 38 ("mis labs" 40, "el ayuno" 38,
+ * "mi agenda" 60). Una consulta de salud que roza una pantalla de refilón se
+ * queda abajo de 21 ("estoy cansado" 14, "cómo bajo de peso" 20, "hola ARGOS
+ * buenos días" 16). El piso vive en medio de ese hueco, no pegado a ninguno de
+ * los dos bordes.
+ */
+export const UMBRAL_DESTINO_DESNUDO = 30;
+
 export interface DeteccionNav {
+  /** Petición clara de traslado: hay verbo y apunta a un destino. */
   es: boolean;
+  /**
+   * Podría ser una petición pero no hay verbo que lo confirme ("mis labs").
+   * NUNCA se navega con esto: se PREGUNTA. Un "¿te llevo?" de más cuesta un
+   * toque; navegar de más saca a la persona de donde estaba.
+   */
+  duda?: boolean;
   /** Por qué NO fue navegación. Para depurar y para los tests. */
   motivo?: 'sin_disparador' | 'veto_semantico' | 'demasiado_largo' | 'vacio';
 }
 
-function arrancaCon(texto: string, frase: string): boolean {
-  return texto === frase || texto.startsWith(frase + ' ');
+function esRaiz(palabra: string): boolean {
+  if (PALABRAS_NAV.includes(palabra)) return true;
+  return RAICES_NAV.some((r) => palabra.startsWith(r));
+}
+
+/** Recorta vocativos y muletillas del arranque. "oye argos ..." → "...". */
+function sinApertura(palabras: string[]): string[] {
+  let i = 0;
+  while (i < palabras.length && APERTURAS_NAV.includes(palabras[i])) i++;
+  // Todo era saludo: se devuelve tal cual para no dejar la frase vacía.
+  return i >= palabras.length ? palabras : palabras.slice(i);
 }
 
 /**
  * ¿El usuario está pidiendo que lo lleven a algún lado?
  *
  * No decide A DÓNDE: eso es del resolvedor. Solo decide si vale la pena
- * preguntárselo.
+ * preguntárselo, y con cuánta confianza.
+ *
+ * EL CRITERIO QUE SUSTITUYE A LA LISTA DE FRASES: en una petición de traslado el
+ * verbo va ANTES del destino ("muéstrame mis labs"). Cuando el destino va antes
+ * y el verbo después, el destino es el sujeto de otra cosa ("el ayuno me lleva a
+ * dormir mal") y eso es una consulta, no una petición. Es la diferencia
+ * gramatical de verdad entre los dos casos, y no depende de que alguien haya
+ * escrito a mano la conjugación correcta.
  */
 export function detectarIntencionNavegacion(texto: string | null | undefined): DeteccionNav {
   const t = normalizar(texto ?? '');
@@ -98,11 +179,35 @@ export function detectarIntencionNavegacion(texto: string | null | undefined): D
     if (t.includes(veto)) return { es: false, motivo: 'veto_semantico' };
   }
 
-  const palabras = t.split(' ').filter(Boolean);
-  if (palabras.length > MAX_PALABRAS_NAV) return { es: false, motivo: 'demasiado_largo' };
+  const crudas = t.split(' ').filter(Boolean);
+  if (crudas.length > MAX_PALABRAS_NAV) return { es: false, motivo: 'demasiado_largo' };
 
-  for (const d of DISPARADORES_NAV) {
-    if (arrancaCon(t, d)) return { es: true };
+  const palabras = sinApertura(crudas);
+  const iVerbo = palabras.findIndex(esRaiz);
+  // Un verbo de traslado NUNCA cuenta como destino, aunque el índice lo conozca.
+  // Medido: "lleva" aparece en la descripción de un reporte, así que "me llevas
+  // a mis labs" se leía como destino-antes-de-verbo y moría en el chat. El
+  // vocabulario del índice es de pantallas, no de gramática.
+  const iDestino = palabras.findIndex((p) => !esRaiz(p) && esTokenDeDestino(p));
+
+  if (iVerbo >= 0 && (iDestino < 0 || iVerbo < iDestino)) return { es: true };
+
+  // Sin verbo de traslado, pero corto y con vocabulario de la app: puede ser un
+  // destino a secas. No se afirma, se marca la duda; quien decide es el
+  // resolvedor y lo que sale de ahí es una PREGUNTA.
+  if (iVerbo < 0 && iDestino >= 0) {
+    // TODA palabra de contenido tiene que ser vocabulario de la app. Es la misma
+    // doctrina de COBERTURA_MINIMA del resolvedor, aplicada antes de resolver:
+    // si algo de lo que dijo no lo conocemos, no estaba nombrando una pantalla.
+    // Medido: sin esto, "ayuno 16 8" ofrecía llevar a Ayuno en vez de contestar
+    // sobre el 16:8, y "gracias ARGOS" ofrecía llevar al chat desde el chat.
+    const contenido = palabras.filter(
+      (p) => !PALABRAS_VACIAS.has(p) && !APERTURAS_NAV.includes(p),
+    );
+    const todoConocido = contenido.length > 0 && contenido.every(esTokenDeDestino);
+    if (todoConocido && contenido.length <= MAX_PALABRAS_DESTINO_DESNUDO) {
+      return { es: false, duda: true, motivo: 'sin_disparador' };
+    }
   }
   return { es: false, motivo: 'sin_disparador' };
 }
@@ -178,15 +283,46 @@ export function turnoDesdeResultado(resultado: ResultadoNav): TurnoNav {
 }
 
 /**
+ * Un destino a secas resuelto con claridad no se navega: se OFRECE.
+ *
+ * Es la respuesta a "si tiene duda, que pregunte". El usuario escribió "mis
+ * labs" y puede querer dos cosas distintas: que lo lleven, o que le cuenten qué
+ * dicen. Adivinar cualquiera de las dos es apostar; preguntar cuesta un toque y
+ * cero protones. Se reusa la acción `preguntar` con UNA opción a propósito: la
+ * pantalla ya sabe pintar chips de desambiguación, así que un ofrecimiento no
+ * necesita interfaz nueva ni un camino que se pueda pudrir aparte.
+ */
+function turnoDesdeDuda(texto: string): TurnoNav | null {
+  const r = resolverDestino(texto);
+  if (r.tipo !== 'resuelta' || r.puntaje < UMBRAL_DESTINO_DESNUDO) return null;
+  // Ofrecer el chat desde el chat. Este detector solo corre dentro de la
+  // conversación, así que llevar ahí no mueve a nadie a ningún lado.
+  if (r.ruta === '/argos-chat') return null;
+  return {
+    accion: 'preguntar',
+    mensaje: `¿Te llevo a ${r.titulo}?`,
+    opciones: [{ ruta: r.ruta, titulo: r.titulo, puntaje: r.puntaje }],
+  };
+}
+
+/**
  * La puerta única del turno: texto del usuario a decisión.
  *
  * Devuelve `chat` en todo lo que no sea navegación clarísima. Es deliberado:
  * el costo de equivocarse hacia el chat es un turno cobrado; el costo de
  * equivocarse hacia la navegación es sacar al usuario de donde estaba parado
  * en medio de una pregunta de salud.
+ *
+ * VOZ-1, LA REGLA DE COSTO QUE NO SE TOCA: una duda nunca escala al modelo.
+ * Escalar es pagar por una corazonada. Si el índice local no la resolvió con
+ * holgura, el turno sigue al chat como siempre y ahí se decide.
  */
 export function decidirTurnoNav(texto: string | null | undefined): TurnoNav {
   const deteccion = detectarIntencionNavegacion(texto);
-  if (!deteccion.es) return { accion: 'chat', escalable: false };
-  return turnoDesdeResultado(resolverDestino(texto ?? ''));
+  if (deteccion.es) return turnoDesdeResultado(resolverDestino(texto ?? ''));
+  if (deteccion.duda) {
+    const oferta = turnoDesdeDuda(texto ?? '');
+    if (oferta) return oferta;
+  }
+  return { accion: 'chat', escalable: false };
 }
