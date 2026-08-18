@@ -22,6 +22,7 @@ import { construirBloqueLabs } from './argos-labs-core';
 import { persistTurnAudit } from './coach-audit-service';
 import { generateUUID } from '@/src/utils/uuid';
 import { buildPersonalityInjection, buildTimeContextInjection } from './argos-personality';
+import { buildAlcanceInjection } from './argos-alcance-core';
 import { buildScreenContextInjection, type ArgosScreen } from '@/src/hooks/argos-screen-context-core';
 import { construirInyeccionPantalla } from './argos-screen-explain-core';
 import { ultimaRutaVisitada } from './argos-last-route';
@@ -335,8 +336,12 @@ Reglas operativas:
    sugerir uno solo.
 4. Documenta y persiste banderas cuando el cliente no atiende
    recomendaciones críticas (ver Bloque 11 — Banderas Rojas).
-5. Deriva con respeto y opciones concretas — no solo "ve al médico";
-   sugiere tipo de especialista, acciones inmediatas, mantente disponible.
+5. Deriva con respeto y sin dirigir la atención médica del cliente. NO
+   nombres la especialidad: remite a "tu médico" o "tu profesional de
+   salud". Lo que SÍ das son las acciones inmediatas que sí te tocan y
+   seguir disponible. (VOZ-3: esta línea pedía "sugiere tipo de
+   especialista" y por eso ARGOS ofrecía armar preguntas para el
+   endocrinólogo. Ver argos-alcance-core.)
 6. Aplica el árbol del cliente antes de actuar sobre un objetivo nuevo.
 7. Aplica las dos preguntas rectoras antes de tomar decisiones operativas
    (ver Bloque 7 — Dos Preguntas Rectoras).
@@ -1545,10 +1550,15 @@ async function prepareChatTurn(
   // lo anterior viaja resumido en el system prompt (ARGOS puede decirlo).
   // Punto único: stream y no-stream mandan EXACTAMENTE la misma ventana.
   const historyWindow = buildHistoryWindow(messages);
+  // VOZ-3: el límite de alcance viaja en la capa DINÁMICA, no en el prompt base,
+  // por dos razones. Una, el prompt base hoy lo sirve el cerebro desde el
+  // servidor y esto tiene que llegar por OTA. Dos, va después del cerebro en el
+  // ensamblado del proxy, así que califica lo que el cerebro haya dicho antes.
+  const alcanceInjection = buildAlcanceInjection();
   const dynamicSystem =
     cycleGuard + protocolGuard + voiceInjection +
     coachGateInjection + presenceInjection + timeInjection + screenInjection +
-    historyWindow.summaryInjection + contextPrompt;
+    alcanceInjection + historyWindow.summaryInjection + contextPrompt;
   const systemPrompt = ARGOS_SYSTEM_PROMPT + dynamicSystem;
 
   return { systemPrompt, dynamicSystem, gateResult, conversationId, llmMessages: historyWindow.messages };

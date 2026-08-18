@@ -610,3 +610,32 @@ export const ARGOS_MANDA_JWT_DEL_USUARIO = true;
  *  Sin migración, sin build nativo, sin tocar datos.
  */
 export const ARGOS_RESUELVE_RUTAS_DINAMICAS = true;
+
+/**
+ * ARGOS_LIMITE_DE_ALCANCE — dónde termina ATP (VOZ-3).
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → al system prompt le entra un bloque corto que le prohíbe a
+ *    ARGOS nombrar especialidades médicas, decir que un marcador "pide" un
+ *    especialista, y ofrecer armar preguntas, citas o agendas clínicas. Remite a
+ *    "tu médico o tu profesional de salud" en general, que es lo que ya dicen
+ *    los disclaimers aprobados.
+ *  · OFF → el bloque no viaja y ARGOS vuelve exactamente al comportamiento
+ *    anterior. No hay estado que migrar: es texto de prompt.
+ *
+ * POR QUÉ EXISTE, CON LA CITA
+ *  El dueño abrió sus labs y ARGOS le ofreció "armar la lista de preguntas para
+ *  tu endocrinólogo" y le dijo que un marcador "pide un endocrinólogo". El
+ *  modelo NO improvisó: el prompt base le pedía textualmente "sugiere tipo de
+ *  especialista". La regla contraria estaba escrita, así que el límite nunca se
+ *  había decidido, solo se había asumido.
+ *
+ * LO QUE ESTE FLAG NO TOCA
+ *  La derivación por emergencia médica. Ante señales de urgencia ARGOS sigue
+ *  mandando a servicios de emergencia (911 en MX) con la bandera encendida o
+ *  apagada. Un límite de alcance que apagara eso sería el peor cambio posible.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ */
+export const ARGOS_LIMITE_DE_ALCANCE = true;
