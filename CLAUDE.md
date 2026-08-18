@@ -17,7 +17,10 @@ IA personalizada (ARGOS) bajo modelo de medicina funcional.
 - Próximo: argos-proxy con fallback OpenAI + logging custom (CC_PROMPT_002b)
 
 ## Versión actual
-v1.2.x (89 pantallas, 68K líneas, 430+ commits, 0 errores TS)
+v2.2.0 (142 pantallas reales + 59 redirects, 236K líneas, 1,929 commits, 0 errores TS)
+Medido el 18-ago-2026. Estos números estuvieron dos meses desactualizados
+(decían 89 pantallas y 430 commits) y es el primer archivo que lee cualquiera
+que llega: si vuelven a envejecer, mienten desde la primera página.
 Roadmap → v2.0.0 (julio-agosto 2026 — publicación a stores)
 
 ## Reglas técnicas no negociables
