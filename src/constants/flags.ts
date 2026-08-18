@@ -104,6 +104,50 @@ export const FASTING_MEASURED_MODE = false;
 export const LOGIN_PASA_POR_GATE = true;
 
 /**
+ * TABS_EXIGEN_CONSENTIMIENTO — el candado deja de ser una pantalla y pasa a ser
+ * la puerta (CONSENT).
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → `app/(tabs)/_layout.tsx` no renderiza para nadie que no
+ *    tenga visto bueno de acceso. Si no lo tiene, redirige a `/`, que es el
+ *    gate de verdad y hace el trabajo completo (leer el perfil, reintentar,
+ *    mandar al onboarding que toque o mostrar la pantalla honesta de fallo).
+ *  · OFF → el layout renderiza como hasta hoy y el guard es un no-op.
+ *
+ * POR QUÉ EXISTE, Y POR QUÉ NO BASTABA ARREGLAR `app/index.tsx`
+ *  Cerrar el `catch` del gate arregla UNA puerta. El barrido encontró siete de
+ *  la misma familia, y la peor no es una línea de código: es estructural. El
+ *  scheme de la app es `atp` y expo-router resuelve los deep links por
+ *  convención de archivos, así que `atp://kit`, `atp://salud`, `atp://tribu`,
+ *  `atp://progreso`, `atp://perfil`, `atp://biblioteca` y el `atp://fasting`
+ *  del widget abren su pantalla SIN montar nunca `app/index.tsx`. Ni el layout
+ *  raíz ni el de las pestañas tenían un solo guard. Parchar cada llamada de
+ *  navegación es una carrera que se pierde: la lista crece con cada pantalla
+ *  nueva y basta olvidar una.
+ *
+ *  Puestas en el layout, las siete se cierran de un golpe y las que se
+ *  inventen mañana nacen cerradas.
+ *
+ * POR QUÉ NO PARPADEA NI CUESTA UNA CONSULTA DE RED
+ *  El visto bueno vive en memoria (`acceso-consentido.ts`) y el gate lo marca
+ *  de forma SÍNCRONA antes de redirigir, así que en el camino normal el layout
+ *  ya lo tiene puesto cuando monta. El único caso que lee disco es el arranque
+ *  en frío por deep link, y eso es AsyncStorage, no red.
+ *
+ * QUÉ NO HACE
+ *  No lee `user_consent_log` (ver LOGIN_PASA_POR_GATE para el porqué) y no
+ *  consulta al servidor: el layout solo pregunta "¿hay visto bueno?" y, si no,
+ *  delega en el gate. Toda la política de red vive en un solo lugar.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Apagarlo reabre los deep links al grupo de pestañas: solo tiene sentido si
+ *  el guard resultara estar rebotando a gente que sí consintió, y aun así lo
+ *  correcto sería arreglar el gate, no quitar la puerta.
+ */
+export const TABS_EXIGEN_CONSENTIMIENTO = true;
+
+/**
  * DIA_1_SIEMBRA_SUAVE — el día 1 se siembra, no se hereda (CIERRE-1).
  *
  * QUÉ CONTROLA

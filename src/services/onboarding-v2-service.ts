@@ -8,6 +8,7 @@
 import { DeviceEventEmitter } from 'react-native';
 import type { Href } from 'expo-router';
 import { supabase } from '@/src/lib/supabase';
+import { marcarVistoBueno } from './acceso-consentido';
 import {
   type V2Step,
   type CycleModality,
@@ -34,6 +35,13 @@ export async function completeV2Step(userId: string, step: V2Step): Promise<Href
     onboarding_completed_at: new Date().toISOString(),
   }).eq('id', userId);
   DeviceEventEmitter.emit('onboarding_step_changed');
+  // CONSENT: quien acaba de terminar el onboarding llega a las pestañas por
+  // /argos/meet, sin volver a pasar por el gate de `app/index.tsx`. Sin esta
+  // línea el guard del layout lo rebotaría al gate justo después de firmar sus
+  // consentimientos, que es el peor momento posible para un rebote. Se marca
+  // aquí porque aquí es donde de verdad se acaba de consentir: la escritura de
+  // 'completed' que está tres líneas arriba es el hecho, no una suposición.
+  marcarVistoBueno(userId);
   // MAGIA ARGOS T6: primer contacto cinemático con ARGOS antes de HOY. La
   // pantalla marca argos_introduced_at y luego enruta a /(tabs).
   return '/argos/meet';

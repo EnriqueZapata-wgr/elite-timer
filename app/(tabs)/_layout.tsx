@@ -21,7 +21,7 @@
 import { useState, useEffect } from 'react';
 import { useWindowDimensions, View, Pressable, StyleSheet, DeviceEventEmitter } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EliteText } from '@/components/elite-text';
@@ -40,8 +40,69 @@ import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
 import { OrbTour } from '@/src/components/tour/OrbTour';
 import { ORB_TOUR_DONE_KEY, ORB_TOUR_RESTART_EVENT } from '@/src/components/tour/orb-tour-core';
 import { countUnreadInbox } from '@/src/services/user-notifications-service';
+import { TABS_EXIGEN_CONSENTIMIENTO } from '@/src/constants/flags';
+import { hayVistoBuenoEnMemoria, leerVistoBueno } from '@/src/services/acceso-consentido';
 
 const COACH_PANEL_MIN_WIDTH = 1024;
+
+/** Veredicto del guard de consentimiento. Ver useAccesoConsentido. */
+type Acceso = 'consultando' | 'permitido' | 'al_gate';
+
+/**
+ * CONSENT · El guard. Este grupo de rutas NO se renderiza para quien no haya
+ * pasado por el gate de consentimientos.
+ *
+ * POR QUÉ VIVE AQUÍ Y NO EN CADA PANTALLA
+ *  `app/index.tsx` era el único gate, y se lo brincaban siete caminos: los deep
+ *  links por scheme (expo-router resuelve `atp://kit`, `atp://salud`,
+ *  `atp://tribu` y el `atp://fasting` del widget por convención de archivos,
+ *  sin montar el index), la cadena MeetArgosGate → /argos/meet → /(tabs), las
+ *  rutas que abre una notificación, el rechazo del disclaimer médico, el
+ *  `finally` de voice-config y el propio `catch` del gate. Tapar cada uno es
+ *  una carrera que se pierde: basta que la pantalla número 143 olvide el
+ *  chequeo. Puesto en el layout, todas se cierran a la vez y las que se
+ *  inventen mañana nacen cerradas.
+ *
+ * POR QUÉ NO PREGUNTA A LA RED
+ *  Preguntar aquí duplicaría la política de fallo en dos lugares, y eso es
+ *  exactamente cómo se llegó a tener dos modos de falla contradictorios. El
+ *  guard solo consulta el visto bueno local; si no lo hay, manda a `/`, que es
+ *  el gate de verdad, tiene los reintentos y sabe mostrar la pantalla honesta.
+ *
+ * POR QUÉ NO PARPADEA
+ *  En el camino normal el gate ya marcó el visto bueno en memoria de forma
+ *  síncrona antes de redirigir, así que el estado inicial ya es 'permitido' y
+ *  no hay ni un frame de más. Solo el arranque en frío por deep link paga una
+ *  lectura de AsyncStorage, que son milisegundos y no red.
+ */
+function useAccesoConsentido(userId: string | undefined, cargandoSesion: boolean): Acceso {
+  const [acceso, setAcceso] = useState<Acceso>(() =>
+    !TABS_EXIGEN_CONSENTIMIENTO || (userId && hayVistoBuenoEnMemoria(userId))
+      ? 'permitido'
+      : 'consultando',
+  );
+
+  useEffect(() => {
+    if (!TABS_EXIGEN_CONSENTIMIENTO || acceso === 'permitido') return;
+    // Todavía no se sabe si hay sesión: esperar. Mandarla al gate ahora sería
+    // rebotar a alguien por el simple hecho de que la app está arrancando.
+    if (cargandoSesion) return;
+    // Sesión resuelta y no hay usuario: al gate, que la manda a login.
+    if (!userId) { setAcceso('al_gate'); return; }
+    let vivo = true;
+    // Techo duro. Leer AsyncStorage tarda milisegundos, pero "tarda
+    // milisegundos" no es lo mismo que "no puede colgarse", y una pantalla
+    // colgada ya se pagó dos veces. Si a los 2.5 s no hay respuesta, al gate:
+    // ante la duda se pregunta, nunca se abre.
+    const techo = setTimeout(() => { if (vivo) setAcceso('al_gate'); }, 2500);
+    leerVistoBueno(userId)
+      .then((ok) => { if (vivo) setAcceso(ok ? 'permitido' : 'al_gate'); })
+      .catch(() => { if (vivo) setAcceso('al_gate'); });
+    return () => { vivo = false; clearTimeout(techo); };
+  }, [userId, cargandoSesion, acceso]);
+
+  return acceso;
+}
 
 /** El tabBarIcon de una sala: reposo o '-fill' según focused, del registro. */
 function tabIcon(tab: keyof typeof TAB_BAR_ICONS) {
@@ -75,7 +136,8 @@ const ORB_TAB_SIZE = 42;
 export default function TabLayout() {
   const { width } = useWindowDimensions();
   const { isCoach } = useCoachStatus();
-  const { user } = useAuth();
+  const { user, loading: cargandoSesion } = useAuth();
+  const acceso = useAccesoConsentido(user?.id, cargandoSesion);
   const insets = useSafeAreaInsets();
   // MB-31A: la barra de pestañas ES el marco — posee su superficie completa
   // y sigue el tema global aunque las pantallas de arriba sigan sin migrar.
@@ -116,6 +178,16 @@ export default function TabLayout() {
     const interval = setInterval(check, 5 * 60 * 1000);
     return () => { alive = false; sub.remove(); clearInterval(interval); };
   }, [user?.id, setOrbState]);
+
+  // CONSENT · El guard, después de todos los hooks (las reglas de hooks no se
+  // negocian ni por cumplimiento). `/` es el gate: lee el perfil, reintenta y
+  // decide si la persona va al onboarding, entra, o ve la pantalla honesta de
+  // fallo. Aquí no se toma ninguna de esas decisiones, solo se delega.
+  if (acceso === 'al_gate') return <Redirect href="/" />;
+  // Fondo del tema, sin spinner: se resuelve en milisegundos y un spinner que
+  // aparece y desaparece se siente peor que nada. Este estado tiene techo de
+  // 2.5 s por diseño, así que no puede quedarse puesto.
+  if (acceso === 'consultando') return <View style={{ flex: 1, backgroundColor: tokens.fondo }} />;
 
   const showCoachPanel = width >= COACH_PANEL_MIN_WIDTH && isCoach && !forceAthleteView;
 
