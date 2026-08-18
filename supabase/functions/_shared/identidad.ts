@@ -73,7 +73,14 @@ export function extraerJwt(authorization: string | null | undefined): string | n
   // reemplazo no coincidiera y el token saliera con el "Bearer" pegado. Eso no
   // abre un hueco (el token malformado no verifica y cae al camino de gracia),
   // pero degrada a un usuario legítimo a la ruta del cliente viejo sin motivo.
-  const crudo = (authorization ?? '').trim().replace(/^Bearer\s+/i, '').trim();
+  // Tres detalles y cada uno cubre un caso que ya falló:
+  //  · el trim va ANTES, porque `^Bearer` está anclado al inicio y un header con
+  //    espacios al frente hacía que el reemplazo no coincidiera nunca;
+  //  · el espacio es OPCIONAL (`\s*`), para que "Bearer " a secas quede vacío y
+  //    devuelva null en vez de entregar la palabra "Bearer" como si fuera token;
+  //  · la frontera `\b` evita comerse el prefijo de un token que casualmente
+  //    empiece con esas letras pegadas.
+  const crudo = (authorization ?? '').trim().replace(/^Bearer\b\s*/i, '').trim();
   return crudo.length > 0 ? crudo : null;
 }
 
