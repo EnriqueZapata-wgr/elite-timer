@@ -68,7 +68,12 @@ export type VerificadorJwt = (jwt: string) => Promise<string | null>;
 
 /** Saca el token del header Authorization. Tolera "Bearer" en cualquier caja. */
 export function extraerJwt(authorization: string | null | undefined): string | null {
-  const crudo = (authorization ?? '').replace(/^Bearer\s+/i, '').trim();
+  // El trim va ANTES de quitar el esquema, no después: `^Bearer` está anclado al
+  // inicio de la cadena, así que un header con espacios al frente hacía que el
+  // reemplazo no coincidiera y el token saliera con el "Bearer" pegado. Eso no
+  // abre un hueco (el token malformado no verifica y cae al camino de gracia),
+  // pero degrada a un usuario legítimo a la ruta del cliente viejo sin motivo.
+  const crudo = (authorization ?? '').trim().replace(/^Bearer\s+/i, '').trim();
   return crudo.length > 0 ? crudo : null;
 }
 
