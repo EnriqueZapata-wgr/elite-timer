@@ -279,16 +279,76 @@ export function conVigencia(
   return `${valor} [${sello} — posiblemente desactualizado: no lo afirmes como cierto hoy e invita a ${repetir}]`;
 }
 
-/** La regla general de vigencia, una sola vez por prompt. */
+// === LAS REGLAS, JUNTAS Y DICHAS UNA VEZ (VOZ-2) ===
+//
+// EL PROBLEMA QUE ESTO ENTIERRA: el dueño usó su app y dijo "no me encanta cómo
+// habla, es raro, los parches y candados lo están dejando chueco". Tenía razón y
+// se puede señalar el mecanismo: había seis imperativos marcados "(obligatoria)"
+// intercalados ENTRE los datos, uno por bloque. El prompt le decía a ARGOS
+// "ferritina 90" y acto seguido le gritaba una regla, luego otro dato, luego
+// otro grito. Un texto así se lee cosido porque está cosido.
+//
+// NO SE QUITÓ NINGUNA REGLA DE FONDO. La de vigencia, la de aritmética, la de
+// labs con fase del ciclo, la del dato emocional y la de Edad ATP existen por
+// bugs reales que ya nos costaron caro, y siguen enteras. Lo que cambió es
+// dónde viven: un solo bloque al final, después de los datos, con el
+// "obligatorio" dicho una vez en el encabezado en vez de seis veces adentro.
+//
+// Van al FINAL a propósito: las que se refieren a algo "indicado arriba" siguen
+// siendo ciertas, y un modelo obedece mejor la instrucción que acaba de leer.
+
+/** La regla general de vigencia. Solo viaja si algún dato salió fechado. */
 export const REGLA_VIGENCIA_GLOBAL =
-  'REGLA DE VIGENCIA (obligatoria): cada dato trae entre corchetes cuándo se midió. ' +
+  'REGLA DE VIGENCIA: cada dato trae entre corchetes cuándo se midió. ' +
   `Un rasgo de más de ${VIGENCIA_DIAS_TENDENCIA} días NUNCA se cita en presente ("tienes X") ni se encadena ` +
   'como causa de lo que pasa hoy: se menciona como tendencia observada, con su fecha. ' +
   `Más de ${VIGENCIA_DIAS_CADUCADO} días: trátalo como posiblemente desactualizado e invita a repetir la evaluación. ` +
   'Si un dato no trae fecha, no asumas que es de hoy.';
 
+/** Pieza 3: con "25.3h de 16h" el modelo concluyó "más del doble". Es 1.6 veces. */
+export const REGLA_ARITMETICA =
+  'REGLA DE ARITMÉTICA: las comparaciones numéricas ya vienen calculadas. ' +
+  'Úsalas tal cual; no calcules múltiplos, porcentajes ni diferencias por tu cuenta.';
+
+/** H.4 (MB-10): el check-in de hoy calibra el tono, no abre un expediente. */
+export const REGLA_EMOCIONAL =
+  'REGLAS DEL DATO EMOCIONAL: usa el estado de HOY solo para calibrar tono y recomendaciones. ' +
+  'NO diagnosticas ni interpretas patrones emocionales como condición clínica. ' +
+  'NUNCA mencionas el historial o expediente emocional de otros días salvo que el cliente lo pregunte explícitamente. ' +
+  'Si detectas señales sostenidas de malestar profundo, sugiere apoyo profesional, no lo resuelves tú.';
+
+/** IMPL-03: una estimación educativa no es un resultado clínico. */
+export const REGLA_EDAD_ATP =
+  'REGLA EDAD ATP: es una estimación educativa de hábitos y marcadores, ' +
+  'NO un diagnóstico ni una medida de esperanza de vida. Nunca la presentes como resultado clínico.';
+
+/** IMPL-03: el sueño lo mide un aparato ajeno y ATP no lo audita. */
+export const REGLA_FUENTE_EXTERNA =
+  'REGLA DE FUENTE EXTERNA: el sueño lo mide el dispositivo del cliente, es dato NO verificado por ATP. ' +
+  'Repórtalo como lo que reportó el aparato, nunca como medición propia.';
+
+/**
+ * E-9 (MB-12): un valor hormonal fuera de fase no significa lo mismo.
+ * Solo viaja cuando hay labs Y ciclo activo, y la fase entra interpolada para
+ * que la regla no dependa de que el modelo la busque en otro renglón.
+ */
+export function reglaLabsCiclo(fase: string): string {
+  return (
+    'REGLA LABS + CICLO: en mujeres con ciclo activo, interpreta los labs EN CONTEXTO de la fase ' +
+    `del ciclo indicada arriba (fase ${fase}): hormonas (estradiol, progesterona, LH/FSH), ` +
+    'ferritina/hierro y marcadores inflamatorios varían por fase. Si la fase hace ambiguo un valor, dilo y ' +
+    'sugiere repetir la medición en la fase adecuada; no concluyas con un dato fuera de contexto.'
+  );
+}
+
 export function buildContextPrompt(ctx: UserContext): string {
   const parts: string[] = [];
+  // Las reglas se juntan aquí y se dicen UNA vez al final. `regla` deduplica:
+  // labs+ciclo salía dos veces cuando había expediente y resumen viejo.
+  const reglas: string[] = [];
+  const regla = (texto: string) => {
+    if (!reglas.includes(texto)) reglas.push(texto);
+  };
   // Si ningún dato viaja fechado, la regla global son ~55 tokens que no
   // aplican a nada. `sellar` avisa cuando de verdad se estampó una fecha.
   let hayFechas = false;
@@ -335,10 +395,7 @@ export function buildContextPrompt(ctx: UserContext): string {
     // hacía la división él solo, 25.3h contra 16h le salía "más del doble".
     const comp = f.comparacionMeta || compararConMeta(f.hoursElapsed, f.targetHours);
     parts.push(`Ayuno activo: ${f.hoursElapsed}h de ${f.targetHours}h objetivo (${comp})`);
-    parts.push(
-      'REGLA DE ARITMÉTICA (obligatoria): las comparaciones numéricas de este bloque ya vienen calculadas. ' +
-      'Úsalas tal cual; no calcules múltiplos, porcentajes ni diferencias por tu cuenta.',
-    );
+    regla(REGLA_ARITMETICA);
   }
   if (ctx.bravermanProfile) {
     const b = ctx.bravermanProfile;
@@ -381,12 +438,7 @@ export function buildContextPrompt(ctx: UserContext): string {
     // H.4 (MB-10): el estado de HOY calibra las recomendaciones — con límites
     // DUROS que viajan pegados al dato (no dependen del cerebro cacheado).
     parts.push(`Estado emocional de HOY (check-in): ${ctx.todayEmotion.labels.join(', ')} (zona ${ctx.todayEmotion.quadrant})`);
-    parts.push(
-      'REGLAS DEL DATO EMOCIONAL (obligatorias): usa el estado de HOY solo para calibrar tono y recomendaciones. ' +
-      'NO diagnosticas ni interpretas patrones emocionales como condición clínica. ' +
-      'NUNCA mencionas el historial o expediente emocional de otros días salvo que el cliente lo pregunte explícitamente. ' +
-      'Si detectas señales sostenidas de malestar profundo, sugiere apoyo profesional — no lo resuelves tú.',
-    );
+    regla(REGLA_EMOCIONAL);
   }
   if (ctx.cycleInfo) {
     const c = ctx.cycleInfo;
@@ -413,30 +465,14 @@ export function buildContextPrompt(ctx: UserContext): string {
       reevaluar: 'repetir el laboratorio',
     }));
     if (resto.length > 0) parts.push(resto.join('\n'));
-    if (ctx.cycleInfo) {
-      parts.push(
-        'REGLA LABS + CICLO (obligatoria): en mujeres con ciclo activo, interpreta los labs EN CONTEXTO de la fase ' +
-        `del ciclo indicada arriba (fase ${ctx.cycleInfo.currentPhase}): hormonas (estradiol, progesterona, LH/FSH), ` +
-        'ferritina/hierro y marcadores inflamatorios varían por fase. Si la fase hace ambiguo un valor, dilo y ' +
-        'sugiere repetir la medición en la fase adecuada; no concluyas con un dato fuera de contexto.',
-      );
-    }
+    if (ctx.cycleInfo) regla(reglaLabsCiclo(ctx.cycleInfo.currentPhase));
   } else if (ctx.recentLabs) {
     const markers = ctx.recentLabs.keyMarkers.map(m => `${m.name} ${m.value}${m.unit}`).join(', ');
     parts.push(sellar(`Labs: ${markers}`, ctx.recentLabs.lastUpdated, {
       verbo: 'muestra tomada',
       reevaluar: 'repetir el laboratorio',
     }));
-    // E-9 (MB-12): ciclo y labs viajaban como dos líneas independientes — el
-    // mismo patrón de reglas duras pegadas al dato que el estado emocional.
-    if (ctx.cycleInfo) {
-      parts.push(
-        'REGLA LABS + CICLO (obligatoria): en mujeres con ciclo activo, interpreta los labs EN CONTEXTO de la fase ' +
-        `del ciclo indicada arriba (fase ${ctx.cycleInfo.currentPhase}): hormonas (estradiol, progesterona, LH/FSH), ` +
-        'ferritina/hierro y marcadores inflamatorios varían por fase. Si la fase hace ambiguo un valor, dilo y ' +
-        'sugiere repetir la medición en la fase adecuada; no concluyas con un dato fuera de contexto.',
-      );
-    }
+    if (ctx.cycleInfo) regla(reglaLabsCiclo(ctx.cycleInfo.currentPhase));
   }
   if (ctx.todaySupplements) {
     const s = ctx.todaySupplements;
@@ -454,9 +490,9 @@ export function buildContextPrompt(ctx: UserContext): string {
     const score = s.avgScore !== null ? `, calma promedio ${s.avgScore}/100` : '';
     parts.push(
       `Sueño 7d: ${s.nightsLast7} noches registradas, promedio ${s.avgHours} h${score}, tendencia ${s.trend}. ` +
-      `Última noche ${s.lastNightHours} h [registrado ${s.lastNightDate}]. ` +
-      `Fuente externa (${s.source}), dato NO verificado por ATP: repórtalo como lo que reportó el dispositivo.`,
+      `Última noche ${s.lastNightHours} h [registrado ${s.lastNightDate}]. Fuente externa: ${s.source}.`,
     );
+    regla(REGLA_FUENTE_EXTERNA);
   }
   if (ctx.edadAtpContext) {
     const e = ctx.edadAtpContext;
@@ -469,10 +505,7 @@ export function buildContextPrompt(ctx: UserContext): string {
       e.calculatedAt,
       { verbo: 'calculada', reevaluar: 'actualizar sus datos y recalcular la Edad ATP' },
     ));
-    parts.push(
-      'REGLA EDAD ATP (obligatoria): es una estimación educativa de hábitos y marcadores, ' +
-      'NO un diagnóstico ni una medida de esperanza de vida. Nunca la presentes como resultado clínico.',
-    );
+    regla(REGLA_EDAD_ATP);
   }
   if (ctx.agendaContext) {
     const a = ctx.agendaContext;
@@ -492,8 +525,13 @@ export function buildContextPrompt(ctx: UserContext): string {
     parts.push(sellar(`Health Score: ${hs.score}`, hs.calculatedAt, { verbo: 'calculado' }));
   }
   if (parts.length === 0) return '';
-  const encabezado = hayFechas ? `${REGLA_VIGENCIA_GLOBAL}\n` : '';
-  return `\n\n## DATOS ACTUALES DEL USUARIO\n${encabezado}${parts.join('\n')}`;
+  // La de vigencia va primero de las reglas y solo si algún dato salió fechado:
+  // sin fechas son ~55 tokens que no aplican a nada.
+  if (hayFechas) reglas.unshift(REGLA_VIGENCIA_GLOBAL);
+  const bloqueReglas = reglas.length > 0
+    ? `\n\n## CÓMO USAR ESTOS DATOS (obligatorio)\n${reglas.map((r) => `- ${r}`).join('\n')}`
+    : '';
+  return `\n\n## DATOS ACTUALES DEL USUARIO\n${parts.join('\n')}${bloqueReglas}`;
 }
 
 // === ARITMÉTICA FUERA DEL MODELO (Pieza 3) ===

@@ -336,7 +336,7 @@ export function normalizar(texto: string): string {
  * Muletillas de navegación y gramática. Se van porque no discriminan: "llévame
  * a donde veo mis análisis" y "análisis" deben resolver igual.
  */
-const VACIAS = new Set([
+export const PALABRAS_VACIAS: ReadonlySet<string> = new Set([
   'llevame', 'lleva', 'llevar', 'donde', 'quiero', 'ir', 'vamos', 'vete',
   'a', 'al', 'la', 'el', 'los', 'las', 'de', 'del', 'en', 'mi', 'mis', 'me', 'te',
   'que', 'como', 'cual', 'cuales', 'puedo', 'puedes', 'veo', 'ver', 'vea', 'viendo',
@@ -371,7 +371,7 @@ export function singularizar(token: string): string {
 export function tokenizar(texto: string): string[] {
   return normalizar(texto)
     .split(' ')
-    .filter((t) => t.length > 0 && !VACIAS.has(t))
+    .filter((t) => t.length > 0 && !PALABRAS_VACIAS.has(t))
     .filter((t) => t.length >= 3 || PALABRAS_CORTAS_VALIDAS.has(t))
     .map(singularizar);
 }
@@ -512,6 +512,24 @@ function obtenerDf(): Map<string, number> {
 export function _resetIndice(): void {
   _indice = null;
   _df = null;
+}
+
+/**
+ * ¿Esta palabra suelta nombra algo que existe en la app? (VOZ-1)
+ *
+ * La usa el detector de intención para saber DÓNDE cae el destino dentro de la
+ * frase, que es lo que separa "muéstrame el ayuno" (petición) de "el ayuno me
+ * lleva a dormir mal" (consulta). El vocabulario ya está construido: son las
+ * llaves del df, o sea todo lo que el índice de rutas conoce. No hay una
+ * segunda lista que se pueda desincronizar de la primera.
+ *
+ * Devuelve false para muletillas y palabras cortas, porque `tokenizar` ya las
+ * tira: preguntar por "de" o "mi" no dice nada sobre la posición del destino.
+ */
+export function esTokenDeDestino(palabra: string): boolean {
+  const t = tokenizar(palabra);
+  if (t.length !== 1) return false;
+  return (obtenerDf().get(t[0]) ?? 0) > 0;
 }
 
 // ---------------------------------------------------------------------------

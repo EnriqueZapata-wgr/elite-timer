@@ -104,6 +104,51 @@ describe('buildContextPrompt — los 25 bloques', () => {
     expect(prompt).toContain('## DATOS ACTUALES DEL USUARIO');
   });
 
+  it('VOZ-2 · las reglas viven juntas al final, no salpicadas entre los datos', () => {
+    const prompt = buildContextPrompt(fullContext());
+    const iDatos = prompt.indexOf('## DATOS ACTUALES DEL USUARIO');
+    const iReglas = prompt.indexOf('## CÓMO USAR ESTOS DATOS');
+    expect(iReglas).toBeGreaterThan(iDatos);
+    // Ninguna regla puede quedar por encima del bloque: si aparece antes, es que
+    // volvió a colarse entre los datos y el texto se vuelve a leer cosido.
+    for (const nombre of ['REGLA DE VIGENCIA', 'REGLAS DEL DATO EMOCIONAL', 'REGLA LABS + CICLO']) {
+      expect(prompt.indexOf(nombre)).toBeGreaterThan(iReglas);
+    }
+  });
+
+  it('VOZ-2 · el "obligatorio" se dice UNA vez, no una por bloque', () => {
+    const prompt = buildContextPrompt(fullContext());
+    expect(prompt.split('obligatori').length - 1).toBe(1);
+  });
+
+  it('VOZ-2 · ninguna regla se repite aunque dos bloques la pidan', () => {
+    // Con expediente de labs Y resumen viejo, labs+ciclo salía dos veces.
+    const ctx = fullContext();
+    ctx.labsExpediente = { lineas: ['Expediente de labs', 'Ferritina 90'], ultimaMedicion: '2026-07-20' };
+    const prompt = buildContextPrompt(ctx);
+    expect(prompt.split('REGLA LABS + CICLO').length - 1).toBe(1);
+  });
+
+  it('VOZ-2 · consolidar no borró ninguna regla de fondo', () => {
+    const prompt = buildContextPrompt({
+      ...fullContext(),
+      edadAtpContext: {
+        edadIntegral: 34, edadCronologica: 40,
+        subEdades: [{ area: 'metabólica', valor: 33 }], calculatedAt: '2026-08-10',
+      },
+      sleepContext: {
+        nightsLast7: 6, avgHours: 6.8, avgScore: 74, lastNightDate: '2026-08-17',
+        lastNightHours: 7.2, trend: 'up', source: 'sleep_cycle',
+      },
+    });
+    for (const r of [
+      'REGLA DE VIGENCIA', 'REGLA DE ARITMÉTICA', 'REGLAS DEL DATO EMOCIONAL',
+      'REGLA LABS + CICLO', 'REGLA EDAD ATP', 'REGLA DE FUENTE EXTERNA',
+    ]) {
+      expect(prompt, `desapareció ${r}`).toContain(r);
+    }
+  });
+
   it('la regla LABS+CICLO solo viaja cuando hay labs Y ciclo', () => {
     const ctx = fullContext();
     delete ctx.cycleInfo;

@@ -35,6 +35,68 @@ describe('detectarIntencionNavegacion — lo que SÍ es pedir traslado', () => {
   }
 });
 
+describe('VOZ-1 — la conjugación ya no decide (el bug que reportó el dueño)', () => {
+  // "Me muestras mis labs?" contestaba con un resumen larguísimo en vez de abrir
+  // la pantalla, porque la lista vieja traía "muestrame" y no "me muestras".
+  // Exigir la fórmula exacta es lo contrario de tener un modelo de lenguaje.
+  const familia = [
+    'Me muestras mis labs?',
+    'muéstrame mis labs',
+    'puedes mostrarme mis labs',
+    'me llevas a mis labs',
+    'ábreme mis labs',
+    'quiero ver mis labs',
+    '¿me enseñas mis análisis?',
+    'llévame a mis análisis',
+  ];
+  for (const frase of familia) {
+    it(`"${frase}" navega`, () => {
+      const t = decidirTurnoNav(frase);
+      expect(t.accion).toBe('navegar');
+      if (t.accion === 'navegar') expect(t.ruta).toBe('/edad-atp/labs');
+    });
+  }
+});
+
+describe('VOZ-1 — un destino a secas se OFRECE, nunca se navega solo', () => {
+  // "Si tiene duda, que pregunte". Escribir "mis labs" puede querer decir dos
+  // cosas: llévame, o cuéntame. Adivinar cualquiera de las dos es apostar.
+  for (const frase of ['mis labs', 'labs', 'mi agenda', 'hidratación', 'el ayuno']) {
+    it(`"${frase}" pregunta con UNA opción`, () => {
+      const t = decidirTurnoNav(frase);
+      expect(t.accion).toBe('preguntar');
+      if (t.accion === 'preguntar') {
+        expect(t.opciones).toHaveLength(1);
+        expect(t.mensaje).toContain('¿Te llevo a');
+      }
+    });
+  }
+
+  it('la duda NUNCA escala al modelo: preguntar cuesta cero', () => {
+    // Si el índice local no resolvió con holgura, el turno sigue al chat como
+    // siempre. Escalar una corazonada sería pagar por adivinar.
+    const t = decidirTurnoNav('estoy cansado');
+    expect(t.accion).toBe('chat');
+    if (t.accion === 'chat') expect(t.escalable).toBe(false);
+  });
+
+  it('una frase con palabras que la app no conoce no se lee como destino', () => {
+    // "ayuno 16 8" es una pregunta sobre el protocolo, no una petición.
+    expect(decidirTurnoNav('ayuno 16 8').accion).toBe('chat');
+    expect(decidirTurnoNav('gracias ARGOS').accion).toBe('chat');
+  });
+
+  it('no ofrece llevarte al chat estando en el chat', () => {
+    expect(decidirTurnoNav('argos').accion).toBe('chat');
+  });
+
+  it('una consulta de salud corta no se convierte en oferta de navegación', () => {
+    for (const frase of ['cómo bajo de peso', 'no dormí bien', 'tengo antojo de dulce']) {
+      expect(decidirTurnoNav(frase).accion).toBe('chat');
+    }
+  });
+});
+
 describe('detectarIntencionNavegacion — lo que NO es, aunque lo parezca', () => {
   it('una consulta de salud que menciona una pantalla no navega', () => {
     const d = detectarIntencionNavegacion('me duele la cabeza cuando hago ayuno');
@@ -62,9 +124,19 @@ describe('detectarIntencionNavegacion — lo que NO es, aunque lo parezca', () =
   });
 
   it('sin verbo de navegación al arranque, no navega', () => {
+    // VOZ-1: lo que lo descarta ya no es la posición absoluta sino el ORDEN.
+    // Aquí el destino ("ayuno") va ANTES del verbo ("lleva"), así que el destino
+    // es el sujeto de otra cosa. Esa es la diferencia gramatical de verdad entre
+    // pedir un traslado y contar un síntoma.
     const d = detectarIntencionNavegacion('el ayuno me lleva a dormir mal');
     expect(d.es).toBe(false);
+    expect(d.duda).not.toBe(true);
     expect(d.motivo).toBe('sin_disparador');
+  });
+
+  it('un vocativo de enfrente no cambia el veredicto', () => {
+    // "oye ARGOS, me muestras mis labs" es la misma petición que sin el saludo.
+    expect(detectarIntencionNavegacion('oye ARGOS, me muestras mis labs').es).toBe(true);
   });
 
   it('texto vacío o nulo no revienta', () => {

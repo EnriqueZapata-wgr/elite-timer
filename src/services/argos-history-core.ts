@@ -54,7 +54,11 @@ function buildSummaryInjection(older: HistoryMessage[]): string {
   const topicsLine = userTopics.length > 0
     ? `Temas que el usuario trató en esa parte: ${userTopics.join(', ')}.`
     : 'No hay preguntas del usuario en esa parte.';
-  return `\n\n## CONVERSACIÓN PREVIA (RESUMIDA)\nEsta conversación tiene ${older.length} turnos anteriores que ya no viajan completos. ${topicsLine}\nSi el usuario refiere algo de esa parte y no lo ves en los mensajes, NO lo inventes: dile con naturalidad que resumiste lo anterior y pídele el dato. Puedes mencionar el resumen si viene al caso.`;
+  // VOZ-4: la última línea decía "puedes mencionar el resumen si viene al caso",
+  // que es una invitación abierta a sacar temas viejos. Sumada a la capa de
+  // presencia, de ahí salían aperturas como "antes de ir a tu ayuno, van tus
+  // labs". El resumen es una RED contra inventar, no material de conversación.
+  return `\n\n## CONVERSACIÓN PREVIA (RESUMIDA)\nEsta conversación tiene ${older.length} turnos anteriores que ya no viajan completos. ${topicsLine}\nEsto es una red, no material de conversación: si el usuario refiere algo de esa parte y no lo ves en los mensajes, NO lo inventes, dile con naturalidad que resumiste lo anterior y pídele el dato. NO saques estos temas por tu cuenta ni los uses para abrir la respuesta.`;
 }
 
 /**
