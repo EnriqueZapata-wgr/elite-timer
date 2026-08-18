@@ -639,3 +639,35 @@ export const ARGOS_RESUELVE_RUTAS_DINAMICAS = true;
  *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
  */
 export const ARGOS_LIMITE_DE_ALCANCE = true;
+
+/**
+ * ARGOS_SUFIJO_DE_EVIDENCIA — el segundo disclaimer apilado (VOZ-4).
+ *
+ * QUÉ CONTROLA
+ *  · OFF (default) → ARGOS deja de pegar al final de sus respuestas el aviso
+ *    "⚠️ Esta recomendación no tiene nivel de evidencia explícito. Confírmala
+ *    con tu profesional de salud antes de actuar." El chequeo SIGUE corriendo y
+ *    se sigue registrando: lo que se apaga es el texto que ve el usuario, no la
+ *    observabilidad.
+ *  · ON → vuelve el sufijo tal cual estaba.
+ *
+ * POR QUÉ SE APAGA, CON LA VERIFICACIÓN
+ *  En el pantallazo del dueño salen DOS disclaimers apilados al final: este y el
+ *  de "ARGOS no es médico". El segundo es de cumplimiento y se queda: su texto
+ *  está en Business development/Legal/04_Disclaimers_Medicos_por_Pantalla.md.
+ *  Este NO aparece en ningún documento legal (verificado por búsqueda en las dos
+ *  carpetas Legal): es deuda de ingeniería auto-impuesta.
+ *
+ *  Y se dispara con keywords tan comunes como "toma ", "protocolo" o "ayuno",
+ *  así que salía casi siempre. El propio cerebro de ARGOS dice que el deslinde
+ *  "no es una muletilla de miedo pegada al final". Era exactamente eso.
+ *
+ * QUÉ NO SE TOCA
+ *  El disclaimer de cumplimiento en la pantalla de chat (MedicalDisclaimer
+ *  feature="argos"), el banner de crisis y el gate de consentimiento. Ninguno se
+ *  quita ni se mueve: son obligación, no adorno.
+ *
+ * CÓMO ENCENDERLO DE VUELTA
+ *  `true` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ */
+export const ARGOS_SUFIJO_DE_EVIDENCIA = false;

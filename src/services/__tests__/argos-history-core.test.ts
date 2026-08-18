@@ -100,3 +100,21 @@ describe('buildHistoryWindow — sobre el techo recorta y resume', () => {
     expect(w.summaryInjection.length).toBeLessThan(1500);
   });
 });
+
+describe('VOZ-4 · el resumen es una red contra inventar, no material de charla', () => {
+  it('prohíbe explícitamente sacar los temas viejos por cuenta propia', () => {
+    // La línea vieja decía "puedes mencionar el resumen si viene al caso", y
+    // esa invitación abierta es parte de por qué ARGOS abría un turno de labs
+    // hablando del ayuno del turno anterior.
+    const muchos = Array.from({ length: 40 }, (_, i) => ({
+      role: (i % 2 === 0 ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: `mensaje ${i}`,
+    }));
+    const w = buildHistoryWindow(muchos);
+    expect(w.truncated).toBe(true);
+    expect(w.summaryInjection).toContain('NO saques estos temas por tu cuenta');
+    expect(w.summaryInjection).not.toContain('si viene al caso');
+    // La red contra inventar sigue intacta: eso NO se debilita.
+    expect(w.summaryInjection).toContain('no lo ves en los mensajes');
+  });
+});

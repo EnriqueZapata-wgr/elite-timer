@@ -203,6 +203,31 @@ describe('buildPersonalityInjection — sufijo de presencia para el LLM', () => 
     const s = buildPersonalityInjection({ nombre: 'Enrique' });
     expect(s).not.toContain('CONTEXTO TEMPORAL');
   });
+
+  // VOZ-4 · el turno se cosía con el anterior. El dueño preguntó por ayuno,
+  // luego por labs, y ARGOS abrió con "Antes de ir a tu ayuno, van tus labs".
+  it('VOZ-4 · prohíbe abrir con un puente al tema anterior', () => {
+    const s = buildPersonalityInjection({ nombre: 'Enrique' });
+    expect(s).toContain('Responde LO QUE SE PREGUNTÓ');
+    expect(s).toContain('No abras con un puente al tema anterior');
+  });
+
+  it('VOZ-4 · el dato reciente ya no entra por ser reciente, sino por venir al tema', () => {
+    // La línea vieja invitaba a traer cualquier dato reciente. Ese era el
+    // permiso con el que ARGOS mezclaba dos temas que no tenían que ver.
+    const s = buildPersonalityInjection({});
+    expect(s).toContain('viene al tema de este turno');
+  });
+
+  it('VOZ-4 · prohíbe que el texto se auto-cite', () => {
+    // En el pantallazo salía «Yo no diagnostico» entrecomillado por el propio
+    // ARGOS. Las frases del método se dicen, no se citan.
+    expect(buildPersonalityInjection({})).toContain('no se citan');
+  });
+
+  it('VOZ-4 · una acción por respuesta, no un plan que nadie pidió', () => {
+    expect(buildPersonalityInjection({})).toContain('Una acción por respuesta');
+  });
 });
 
 describe('buildTimeContextInjection — capa temporal T5', () => {

@@ -14,7 +14,7 @@ import { getHydrationStats } from './hydration-service';
 import { getCycleInfo } from './cycle-service';
 import { VoiceModulator, runCoachEngineGate, buildCoachGateInjection, EvidenceTag, type CoachGateResult } from '@/src/lib/coach-engine';
 import { error as logError, warn as logWarn } from '@/src/lib/logger';
-import { ARGOS_LEE_LABS_DE_VERDAD } from '@/src/constants/flags';
+import { ARGOS_LEE_LABS_DE_VERDAD, ARGOS_SUFIJO_DE_EVIDENCIA } from '@/src/constants/flags';
 import { resolveRange } from './reports/report-domain-core';
 import { loadLabsReport } from './reports/labs-report-service';
 import { construirHistorias, resumirLabs } from './reports/labs-report-core';
@@ -1603,17 +1603,15 @@ export async function chatWithArgosEx(
   const rawText = extractResponseText(data) || undefined;
   const text = rawText || 'Se me fue la señal. Reintenta en unos minutos.';
 
-  // Post-LLM enforcement (Step COACH 7/N): si la respuesta es una recomendación
-  // clínico-colindante SIN nivel de evidencia explícito, anótala (no la modifica).
-  // Solo sobre respuestas reales (no sobre el fallback degradado).
+  // Post-LLM enforcement (Step COACH 7/N). VOZ-4: el chequeo sigue corriendo,
+  // lo que ya no viaja al usuario es el sufijo (ver ARGOS_SUFIJO_DE_EVIDENCIA).
   let finalText = text;
   if (rawText) {
     try {
       const evidenceCheck = await EvidenceTag.enforceEvidenceTag(rawText);
       if (!evidenceCheck.valid && containsClinicalRecommendation(rawText)) {
-        finalText =
-          rawText +
-          '\n\n⚠️ _Esta recomendación no tiene nivel de evidencia explícito. Confírmala con tu profesional de salud antes de actuar._';
+        if (ARGOS_SUFIJO_DE_EVIDENCIA) finalText = rawText + SUFIJO_EVIDENCIA;
+        else logWarn('[ARGOS] recomendación clínico-colindante sin nivel de evidencia');
       }
     } catch (err) {
       logError('[ARGOS] evidence-tag check failed:', err);
@@ -1629,6 +1627,18 @@ export async function chatWithArgosEx(
 
   return { text: finalText, degraded: degraded || !rawText };
 }
+
+/**
+ * El sufijo apilado. Vive en UNA constante porque los dos caminos (stream y
+ * no-stream) lo pegaban por su cuenta con el texto duplicado a mano, y basta que
+ * alguien toque uno para que el usuario vea un aviso distinto según si el stream
+ * sirvió. Hoy solo viaja con ARGOS_SUFIJO_DE_EVIDENCIA encendida, que está
+ * apagada: no lo respalda ningún documento legal y se disparaba con palabras tan
+ * comunes como "toma " o "protocolo". El disclaimer de cumplimiento, ese sí
+ * obligatorio, sigue intacto en la pantalla de chat.
+ */
+const SUFIJO_EVIDENCIA =
+  '\n\n⚠️ _Esta recomendación no tiene nivel de evidencia explícito. Confírmala con tu profesional de salud antes de actuar._';
 
 /**
  * Heurística v1 (Step COACH 7/N): ¿el texto contiene una recomendación
@@ -1701,15 +1711,18 @@ export async function* generateResponseStream(
   }
   if (!full) throw new ArgosStreamUnavailableError('empty_stream');
 
-  // Post-LLM enforcement (mismo patrón que chatWithArgosEx): anotar si falta
-  // nivel de evidencia en una recomendación clínico-colindante.
+  // Post-LLM enforcement (mismo patrón que chatWithArgosEx, misma bandera: los
+  // dos caminos tienen que decir lo mismo o el usuario ve un disclaimer que
+  // aparece y desaparece según si el stream sirvió).
   try {
     const evidenceCheck = await EvidenceTag.enforceEvidenceTag(full);
     if (!evidenceCheck.valid && containsClinicalRecommendation(full)) {
-      const suffix =
-        '\n\n⚠️ _Esta recomendación no tiene nivel de evidencia explícito. Confírmala con tu profesional de salud antes de actuar._';
-      full += suffix;
-      yield suffix;
+      if (ARGOS_SUFIJO_DE_EVIDENCIA) {
+        full += SUFIJO_EVIDENCIA;
+        yield SUFIJO_EVIDENCIA;
+      } else {
+        logWarn('[ARGOS] recomendación clínico-colindante sin nivel de evidencia (stream)');
+      }
     }
   } catch (err) {
     logError('[ARGOS] evidence-tag check failed (stream):', err);
