@@ -28,29 +28,41 @@ Las siguientes ya no bajan nada.
 
 **El dueño no tiene que correr nada.** Ni una vez. Todo pasa dentro del sandbox.
 
-### Se tarda, y es normal
+### Se tarda, y hay un truco para la suite completa
 
-La suite completa son 347 archivos y toma alrededor de **85 minutos** en el
-sandbox (2 CPUs, y el repo se lee por un mount de red lento). En Windows tarda
-minutos. La diferencia es I/O del mount, no de los tests.
+La suite completa son 346 archivos y toma alrededor de **una hora** en el
+sandbox (2 CPUs, y el repo se lee por un mount de red muy lento). En Windows
+tarda minutos. La diferencia es I/O del mount, no los tests. Para iterar,
+filtra por carpeta y listo.
 
-Por eso, cuando corras la suite completa, lánzala desacoplada y haz polling en
-vez de esperar en una sola llamada:
+El problema aparece al querer correrla completa: **el sandbox mata todos los
+procesos entre una llamada de shell y la siguiente**, y cada llamada tiene un
+techo de unos 178 segundos. Una corrida de una hora no sobrevive.
+
+Esto está verificado, no supuesto: se lanzó un `sleep 900` con `setsid nohup`
+y también murió. Ni `setsid`, ni `nohup`, ni `disown` salvan la corrida. Lo
+que sí persiste es el **sistema de archivos**.
+
+Por eso existe el segundo script, que corre la suite en lotes y guarda el
+avance en disco:
 
 ```bash
-setsid nohup bash -c 'cd /ruta/al/repo && stdbuf -oL bash scripts/testing/pruebas-linux.sh \
-  --reporter=basic --reporter=json --outputFile.json=/tmp/suite.json \
-  > /tmp/suite.log 2>&1; echo $? > /tmp/suite.done' < /dev/null > /dev/null 2>&1 &
+bash scripts/testing/pruebas-linux-lotes.sh init    # arma la lista de pendientes
+bash scripts/testing/pruebas-linux-lotes.sh         # corre un lote, repetir
+bash scripts/testing/pruebas-linux-lotes.sh total   # suma todos los lotes
 ```
 
-Dos detalles que cuestan una hora si no los sabes:
+Llamas al segundo comando una y otra vez hasta que diga `PENDIENTES=0`. Cada
+llamada avanza unos 26 archivos y sobrevive porque termina dentro del techo.
+Si un lote se corta a la mitad, sus archivos siguen en pendientes y se
+reintentan: es idempotente, no se pierde ni se duplica nada.
 
-- **`setsid`.** Sin eso, el sandbox mata el árbol de procesos cuando termina la
-  llamada de shell, y la corrida muere en silencio dejando un log vacío.
-- **`stdbuf -oL`.** Al redirigir a archivo, Node bufferiza por bloques. Sin esto
-  el log se ve vacío por minutos y parece colgado cuando en realidad avanza.
+Son unas 14 llamadas para la suite completa. Es tedioso y es lo que hay.
 
-Para iterar rápido, filtra por carpeta. La suite completa déjala para el cierre.
+Un detalle más que cuesta una hora si no se sabe: al redirigir la salida a un
+archivo, Node bufferiza por bloques y el log **se ve vacío durante minutos**.
+Parece colgado y no lo está. Usa `stdbuf -oL` o confirma con
+`ps -eo args | grep 'vites[t]'`.
 
 ---
 
