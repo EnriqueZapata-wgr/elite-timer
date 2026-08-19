@@ -87,5 +87,12 @@ expo-env.d.ts
 # Logs de herramientas de navegador: ruido, no fuente.
 .playwright-mcp/
 
+# Entorno de pruebas en Linux (docs/PRUEBAS_EN_LINUX.md). Por default vive en
+# /tmp, fuera del repo. Estas entradas son el seguro por si alguien apunta
+# ATP_TEST_CACHE o ATP_LINUX_DEPS hacia adentro: son binarios y cache, se
+# regeneran solos y jamás deben viajar al repo ni al build nativo.
+.test-linux/
+atp-linux-deps/
+
 # Capturas del audit visual: se regeneran con npm run audit-visual.
 .maestro/capturas/
