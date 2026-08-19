@@ -99,7 +99,7 @@ documento lees "el repo está en OneDrive", está mal: **corrígelo en cuanto lo
 alguien va a mover un repositorio de casi 1,940 commits para nada.
 
 Lo que **sí** vive en OneDrive son los documentos de negocio, en
-`C:\Users\ezapa\OneDrive\EZ online\ATP\`: lo legal, el modelo financiero y el material que
+`C:\Users\<usuario>\OneDrive\EZ online\ATP\`: lo legal, el modelo financiero y el material que
 `CLAUDE.md` referencia. Sobre esas rutas, y solo sobre esas:
 
 - Un `ls -la` o un `du` te da **tamaños obsoletos**, porque OneDrive presenta el marcador
