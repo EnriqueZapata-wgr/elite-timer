@@ -120,7 +120,19 @@ notifications.tsx:129  finish(false, '/packs/armar?origen=onboarding')   ← el 
 La siembra corre y pone su bandera (`goals.cierre1_dia1_v1`) **antes** de que exista la
 oportunidad de elegir pack. Y `sembrarDia1` acepta un segundo parámetro `packBooleans`
 (`install-service.ts:195`, honrado en `install-core.ts:183-199`) que **ningún llamador
-pasa**. El parámetro está escrito, probado y muerto.
+pasa**. El parámetro está escrito y muerto.
+
+> **Corrección del 18 de agosto de 2026: `packBooleans` NO está probado.** Una versión
+> anterior de este documento decía "escrito, probado y muerto". Verificado buscando
+> `packBooleans`, `sembrarDia1` y `siembraDia1` en todos los `*.test.ts` del repositorio:
+> **cero resultados.** Existe `src/services/hoy/__tests__/install-core.test.ts`, pero
+> prueba `seedInitialApps`, que es otra función.
+>
+> O sea que el día que alguien le pase el segundo argumento, **no hay red debajo**, y ese
+> día es justo el del cambio 1 de este documento. Escribir esa prueba es parte del cambio,
+> no un extra. Y ojo con la trampa de fondo: quien escribió "probado" no mintió, dio por
+> bueno un número que no midió. Es el mismo patrón que produjo tres conteos distintos de
+> banderas en veinticuatro horas.
 
 Consecuencia: quien elige pack no arranca con los 3 hábitos de su pack. Arranca con los 3
 genéricos **más** los 3 del pack encima. Nadie recibe nunca lo que el diseño prometía.

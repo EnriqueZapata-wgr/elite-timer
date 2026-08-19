@@ -99,6 +99,33 @@ bug nativo obliga a compilar y compilar reinicia la revisión de la tienda.
 
 - Aplicar la migración **296** de seguridad (y las que vengan). El CLI de Supabase está
   ligado a su máquina.
+
+  > **Estado al 18 de agosto de 2026: escrita, versionada y NO aplicada.** Vive en
+  > `R and D/296_sec_invite_consentido.sql`, **fuera** de `supabase/migrations/`, a
+  > propósito: moverla ahí la arma para el siguiente `npx supabase db push`, y eso es
+  > aplicarla de hecho. El número **296 está libre** (la migración más alta del proyecto es
+  > la 295, verificado el 18 de agosto), así que no hay choque cuando se decida promoverla.
+  >
+  > **Qué cierra:** que con la llave anónima, que viaja dentro del paquete de la app,
+  > cualquiera pudiera crear un vínculo coach-cliente en estado `active` contra el correo de
+  > otra persona. Ese vínculo es del que cuelgan 44 políticas de acceso a datos de salud, 21
+  > de ellas de lectura **y** escritura. Deriva el coach del token en vez del parámetro y
+  > revoca `EXECUTE` a `anon`.
+  >
+  > **Qué hay que sopesar antes de promoverla:** cambia el contrato de
+  > `invite_client_by_email` a días del lanzamiento, y su único llamador es el panel de
+  > coach (`coach-service.ts`). Si ese llamador alguna vez manda un `p_coach_id` distinto de
+  > `auth.uid()`, la invitación empieza a fallar. Es una decisión de riesgo, no una tarea.
+  >
+  > **Y lo que la migración no cura:** la entrevista de handoff no encontró ninguna
+  > migración que reabriera el permiso, así que la reapertura vino casi seguro de una
+  > edición por el editor de SQL, fuera del repositorio. Si es así, **volverá a abrirse la
+  > próxima vez que alguien edite por fuera.** La cura de fondo es dejar de editar la base
+  > fuera del repositorio, o poner un guard que le pregunte al servidor en vez de leer el
+  > archivo de migración. Promover la 296 sin eso compra tiempo, no cierre.
+  >
+  > Promoverla, cuando se decida, es mover el archivo a `supabase/migrations/` y hacer
+  > `npx supabase db push`. La consulta de verificación viene al final del propio archivo.
 - Correr **`npm test`** y la corrida de `npx tsc --noEmit` que cuenta.
 - **El recorrido en el teléfono**, que está escrito y ordenado por riesgo en
   `R and D/RECORRIDO_EN_TELEFONO.md`. Son treinta minutos, empieza por el paywall, se hace

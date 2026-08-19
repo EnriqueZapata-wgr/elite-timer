@@ -58,10 +58,12 @@ aplica también al copy que ve el usuario, y la explico en el archivo de doctrin
 
 ## El estado en cinco frases
 
-1. El repositorio está en `main`, HEAD `f9bd843`, con 1,926 commits y unas 231 mil líneas
-   entre `src/` y `app/`. Hay 203 archivos de ruta, de los cuales unas 145 son pantallas
-   reales y unos 57 son redirects o alias. (El `CLAUDE.md` dice 89 pantallas y 68 mil
-   líneas: está desactualizado, no le creas ese dato.)
+1. El repositorio está en `main`, con **1,938 commits** y unas 231 mil líneas entre `src/`
+   y `app/` (medido el 18 de agosto de 2026). Hay 203 archivos de ruta, de los cuales unas
+   145 son pantallas reales y unos 57 son redirects o alias. Vive en
+   `D:\Proyectos_ClaudeCode\ELITE_Timer\EliteTimer`, **no en OneDrive**. (El `CLAUDE.md` ya
+   fue corregido el 18 de agosto y hoy dice 142 pantallas; la versión que decía 89 pantallas
+   y 68 mil líneas llevaba dos meses mintiendo.)
 2. El binario **2.2.0** (Android versionCode 23, iOS build 5) es el último. **No quedan
    builds nativos antes del lanzamiento.** Todo viaja por actualización de JavaScript.
 3. **Nada de este ciclo ha corrido en un teléfono.** Ni una pantalla. La lista de qué
@@ -107,8 +109,9 @@ el dato del usuario es sagrado, cómo se habla de salud sin nombrar enfermedades
 y el pivote de negocio del 16 de agosto que invalida buena parte de la documentación vieja.
 
 **`03_ESTADO_Y_TRAMPAS.md`.** Las trampas del entorno (git, worktrees, finales de línea,
-OneDrive, pruebas que no corren en Linux) y el estado real y verificable hoy: banderas,
-migraciones, qué está desplegado, qué se verificó y qué no.
+OneDrive **en los documentos de negocio, no en el repositorio**, pruebas que no corren en
+Linux) y el estado real y verificable hoy: banderas, migraciones, qué está desplegado, qué
+se verificó y qué no.
 
 **`04_PENDIENTES_Y_DESPLIEGUE.md`.** Los 84 pendientes resumidos, separados entre lo que
 solo puede hacer el dueño y lo que puedes hacer tú, el orden de despliegue (que es

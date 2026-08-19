@@ -31,8 +31,14 @@ El `node_modules` del repositorio trae binarios compilados para Windows. Cualqui
 que trabaje en un entorno Linux (que es donde corren los agentes) **no puede ejecutar las
 pruebas**. Ni una.
 
-Hay 343 archivos de prueba sobre 1,321 archivos de código y **nadie sabe si están
-verdes**. Esa frase es literal y es el hueco de verificación más grande del proyecto.
+Hay **347 archivos de prueba sobre 976 archivos de código** en `src/` y `app/` (medido el
+18 de agosto de 2026) y **nadie sabe si están verdes**. Esa frase es literal y es el hueco
+de verificación más grande del proyecto.
+
+El denominador anterior que traía este documento (1,321) estaba inflado en un tercio y
+hacía ver la cobertura peor de lo que es. La proporción real es mejor. Lo que la
+proporción **no** te dice es qué miden esas pruebas: eso está en `09_LO_QUE_LA_SUITE_NO_MIDE.md`
+y es la lectura que de verdad importa antes de creerle a un número en verde.
 
 **Solo el dueño puede correr `npm test`.** Lo que puedes hacer tú: escribir las pruebas,
 dejarlas listas, y decirle explícitamente que la corrida que cuenta es la suya. Nunca
@@ -82,15 +88,31 @@ git diff --ignore-cr-at-eol
 
 Si eso sale vacío y `git diff` no, entonces no cambió nada. No lo commitees.
 
-## 6. bash sobre OneDrive reporta tamaños viejos
+## 6. OneDrive: la trampa es real, pero NO aplica al repositorio
 
-Parte del ecosistema del dueño vive en OneDrive (`C:\Users\...\OneDrive\...`). Un `ls -la`
-o un `du` sobre esas rutas te da **tamaños obsoletos**, porque OneDrive presenta el
-marcador del archivo y no el contenido sincronizado. No tomes decisiones sobre esos
-números.
+**Corrección del 18 de agosto de 2026. Lee esto antes de mover nada.**
 
-Relacionado: OneDrive también corrompe el índice de git en repositorios que viven ahí. La
-reparación conocida es borrar `.git/index.lock` y hacer `git reset --hard`.
+**El repositorio de código NO está en OneDrive.** Está en
+`D:\Proyectos_ClaudeCode\ELITE_Timer\EliteTimer`, verificado con `git worktree list`, y
+todos los worktrees de este ciclo cuelgan de `D:\Proyectos_ClaudeCode\`. Si en cualquier
+documento lees "el repo está en OneDrive", está mal: **corrígelo en cuanto lo veas**, o
+alguien va a mover un repositorio de casi 1,940 commits para nada.
+
+Lo que **sí** vive en OneDrive son los documentos de negocio, en
+`C:\Users\ezapa\OneDrive\EZ online\ATP\`: lo legal, el modelo financiero y el material que
+`CLAUDE.md` referencia. Sobre esas rutas, y solo sobre esas:
+
+- Un `ls -la` o un `du` te da **tamaños obsoletos**, porque OneDrive presenta el marcador
+  del archivo y no el contenido sincronizado. No tomes decisiones sobre esos números.
+- Puede haber bloqueos de archivo cuando dos procesos tocan lo mismo.
+
+**Lo que se elimina de este documento:** la receta de `.git/index.lock` más
+`git reset --hard`. Nació de la premisa equivocada, y `git reset --hard` como consejo por
+defecto sobre el árbol de trabajo del dueño destruye trabajo sin preguntar. Si alguna vez
+hace falta, que sea una decisión consciente y no una receta copiada.
+
+(La reparación de `git reset --hard` **dentro de un worktree propio recién creado y sin
+índice** sigue siendo válida y está en la trampa 4. Es otro caso y no se toca.)
 
 ## 7. Windows y PowerShell, sin `&&`
 
@@ -107,19 +129,31 @@ entregas al dueño van en PowerShell, una línea por renglón, sin `&&`, con rut
 
 | Qué | Cuánto |
 |---|---|
-| Commits | 1,926 |
-| Líneas en `src/` y `app/` | ~231,563 |
-| Archivos de ruta en `app/` | 203 |
-| Pantallas reales | ~145 |
-| Redirects y alias | ~57 |
-| Archivos de código | ~1,321 |
-| Archivos de prueba | 343 (estado desconocido) |
-| Migraciones SQL | 220 |
-| Funciones de borde | 14 más `_shared` |
-| Banderas en `src/constants/flags.ts` | 17 |
+**Todo lo de esta tabla se midió el 18 de agosto de 2026.** Si hoy no es ese día, vuelve a
+medir antes de citarla. El comando está junto a cada renglón que cambia solo.
 
-**Aviso:** `CLAUDE.md` dice 89 pantallas, 68 mil líneas y 430 commits. Los tres números son
-de otra época. El resto de `CLAUDE.md` sigue vigente y es lectura obligatoria.
+| Qué | Cuánto | Cómo se mide |
+|---|---|---|
+| Commits | 1,938 | `git rev-list --count HEAD` |
+| Líneas en `src/` y `app/` | ~231,563 | |
+| Archivos de ruta en `app/` | 203 | |
+| Pantallas reales | ~145 | |
+| Redirects y alias | ~57 | |
+| Archivos de código en `src/` y `app/` | 976 | |
+| Archivos de prueba | 347 (estado desconocido) | `find src supabase/functions -path "*__tests__*" -name "*.test.ts" \| wc -l` |
+| Migraciones SQL | 220 (la más alta es la 295) | `ls supabase/migrations/ \| wc -l` |
+| Funciones de borde | 14 más `_shared` | |
+| Banderas en `src/constants/flags.ts` | **18** | `grep -c "^export const" src/constants/flags.ts` |
+
+**Aviso sobre `CLAUDE.md`.** Ya fue corregido el 18 de agosto (commit `0983ab4`) y hoy dice
+142 pantallas y 236 mil líneas. La versión anterior decía 89 pantallas, 68 mil líneas y 430
+commits, y esos números llevaban **dos meses** mintiendo en el primer archivo que lee
+cualquiera que llega. El resto de `CLAUDE.md` sigue vigente y es lectura obligatoria.
+
+**Y la lección, que vale más que la tabla:** el número de banderas pasó por tres cifras
+distintas (11 → 17 → 18) en veinticuatro horas, y ninguna era un error de quien la
+escribió: cada una era correcta el día que se midió. El problema no es que los números
+envejezcan, es que **se copian entre documentos en vez de medirse**. Mide y pon la fecha.
 
 ## El binario
 
@@ -128,7 +162,7 @@ Lleva HealthKit, Health Connect, cámara y widgets ya compilados.
 
 Esto tiene una consecuencia que gobierna todo el plan: **todo lo que salga de aquí al 1 de
 septiembre viaja por actualización de JavaScript.** El plan de reversión completo asume
-eso, y es cierto para las 17 banderas y **falso para cualquier bug nativo**. Un solo
+eso, y es cierto para las 18 banderas y **falso para cualquier bug nativo**. Un solo
 problema nativo obliga a compilar, y compilar reinicia la revisión de la tienda.
 
 Por eso el recorrido en el teléfono no es opcional.
@@ -139,13 +173,28 @@ Por eso el recorrido en el teléfono no es opcional.
 comentario qué hace, qué pasa al apagarla, qué **no** deshace al apagarla, y de qué
 migración depende. Léelo entero antes de tocar nada; te ahorra leer veinte documentos.
 
-**17 banderas. 15 encendidas, 2 apagadas.**
+**18 banderas. 16 encendidas, 2 apagadas.** Medido el 18 de agosto de 2026 con
+`grep -c "^export const" src/constants/flags.ts`. **No copies este número: vuelve a
+correr el comando.**
 
-Encendidas: `INTERVENTIONS_DRIVE_HOY`, `LOGIN_PASA_POR_GATE`, `DIA_1_SIEMBRA_SUAVE`,
-`SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA`, `RANGOS_UNA_SOLA_FUENTE`, `INSIGHT_EN_VENTANA`,
-`ARGOS_LEE_LABS_DE_VERDAD`, `LABS_UNIDADES_ALINEADAS`, `LABS_FICHA_POR_BIOMARCADOR`,
-`AUTH_RESPETA_EL_TEMA`, `UMBRALES_FEMENINOS_EN_EL_SCORE`, `SEXO_NO_SE_ADIVINA`,
-`ARGOS_MANDA_JWT_DEL_USUARIO`, `ARGOS_RESUELVE_RUTAS_DINAMICAS`, `ARGOS_LIMITE_DE_ALCANCE`.
+Encendidas (16): `INTERVENTIONS_DRIVE_HOY`, `LOGIN_PASA_POR_GATE`,
+`TABS_EXIGEN_CONSENTIMIENTO`, `DIA_1_SIEMBRA_SUAVE`, `SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA`,
+`RANGOS_UNA_SOLA_FUENTE`, `INSIGHT_EN_VENTANA`, `ARGOS_LEE_LABS_DE_VERDAD`,
+`LABS_UNIDADES_ALINEADAS`, `LABS_FICHA_POR_BIOMARCADOR`, `AUTH_RESPETA_EL_TEMA`,
+`UMBRALES_FEMENINOS_EN_EL_SCORE`, `SEXO_NO_SE_ADIVINA`, `ARGOS_MANDA_JWT_DEL_USUARIO`,
+`ARGOS_RESUELVE_RUTAS_DINAMICAS`, `ARGOS_LIMITE_DE_ALCANCE`.
+
+(La que faltaba en la lista anterior de este documento era `TABS_EXIGEN_CONSENTIMIENTO`,
+que no es una cualquiera: es la que exige consentimiento para entrar a los tabs.)
+
+**Tres de ellas están clavadas en `true` por un test y esto no está en ningún otro
+documento de handoff:** `LOGIN_PASA_POR_GATE` y `TABS_EXIGEN_CONSENTIMIENTO`
+(`consent-puertas.test.ts:182` y `:88`) y `ARGOS_LIMITE_DE_ALCANCE`
+(`argos-alcance-core.test.ts:23`) están fijadas con `expect(FLAG).toBe(true)`. O sea que
+el plan de reversión que todos los documentos repiten (cambias el booleano, `tsc`,
+`eas update`) **deja la suite roja**. Apagarlas en una emergencia sigue siendo correcto;
+solo que no te sorprenda el rojo, y acuérdate de que nadie puede correr la suite salvo el
+dueño (ver `08_PUNTO_UNICO_DE_FALLA.md`).
 
 Apagadas a propósito:
 
@@ -164,8 +213,8 @@ y el OTA haya llegado a todos**. Bandera apagada más variable encendida es igua
 puede usar ARGOS.
 
 **Nota importante sobre el runbook:** `R and D/RUNBOOK_SIN_BUILDS.md` documenta el
-interruptor de pánico para **cinco** de las diecisiete banderas. Es de un ciclo anterior.
-Las doce restantes, incluidas las de seguridad y las de laboratorio, tienen su reversión
+interruptor de pánico para **cinco** de las dieciocho banderas. Es de un ciclo anterior.
+Las trece restantes, incluidas las de seguridad y las de laboratorio, tienen su reversión
 documentada solo en el comentario de `flags.ts`. Eso hay que unificarlo.
 
 ## Migraciones
@@ -216,10 +265,25 @@ Esta distinción es la más importante de todo el handover.
 - **El tema claro está a medio pagar.** 70 archivos migrados sin probar.
 - **Los dos cuadernillos `.xlsx` de revisión clínica** no se abrieron; solo se confirmó que
   existen.
-- **`ClientDetailScreen.tsx`** es el archivo de mayor riesgo del ciclo: 4,166 líneas con
-  unas 1,200 de diferencia por la migración de tema. La caja de resumen clínico llegó a
+- **`ClientDetailScreen.tsx`** es el archivo de mayor riesgo del ciclo: **4,250 líneas**
+  (medido el 18 de agosto de 2026 con `wc -l`; creció 84 líneas desde que se escribió la
+  primera versión de este documento) con unas 1,200 de diferencia por la migración de
+  tema. La caja de resumen clínico llegó a
   tener contraste 1.0 en tema claro, o sea invisible, y ninguna prueba lo detectó. Lo
   encontró un ojo humano mirando una captura.
+
+  **Y ninguna prueba lo iba a detectar, por dos razones que hay que decir completas:**
+  primero, el archivo tiene **cobertura cero** y está **excluido explícitamente** del único
+  guard que lo barrería (`src/__tests__/registro-comida.test.ts:178`, que lo salta por
+  nombre). Segundo, en todo el repositorio **no hay una sola prueba de renderizado**: sin
+  `jsdom` ni `@testing-library`, ninguna prueba monta una pantalla. Está desarrollado en
+  `09_LO_QUE_LA_SUITE_NO_MIDE.md`, y es lectura obligatoria antes de creerle a la suite.
+
+  Se suma que en un teléfono esta pantalla **no se ve nunca**: solo se monta con ancho
+  ≥1024 y usuario coach (`COACH_PANEL_MIN_WIDTH = 1024`). O sea que tampoco la iba a
+  atrapar un recorrido manual. Es el único módulo del proyecto sin pruebas automáticas
+  **ni** pruebas humanas. Antes de tocarle una línea, métela en la lista de
+  `mb31b1-ambito.test.ts`.
 
 ### Lo que dice la auditoría visual del 16 de agosto
 

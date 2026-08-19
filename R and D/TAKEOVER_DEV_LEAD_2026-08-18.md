@@ -193,8 +193,15 @@ inventario decía. Lo que decide el 1 de septiembre casi no es escribir código.
 2. **Correr la app en tu teléfono y `npm test` en tu máquina.** Nada de este ciclo ha
    corrido en un dispositivo, y **no quedan builds**: el binario 2.2.0 es el último. El
    plan de reversión asume que todo se apaga por actualización de JavaScript, lo cual es
-   cierto para las 11 banderas y falso para cualquier bug nativo. Un solo problema de
+   cierto para las **18** banderas y falso para cualquier bug nativo. Un solo problema de
    ese tipo te obliga a compilar, y compilar reinicia la revisión de la tienda.
+
+   > **Corregido el 18 de agosto de 2026.** Este documento decía 11 y
+   > `HANDOVER/03_ESTADO_Y_TRAMPAS.md` decía 17: la misma frase copiada con dos
+   > números distintos. El real, medido con
+   > `grep -c "^export const" src/constants/flags.ts`, es **18**. Ninguno de los
+   > dos era mentira el día que se escribió; los dos se copiaron en vez de
+   > medirse. **Vuelve a correr el comando antes de citar el número.**
 
 **Esta semana:**
 

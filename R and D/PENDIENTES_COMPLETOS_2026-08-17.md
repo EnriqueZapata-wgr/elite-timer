@@ -381,13 +381,36 @@ solo guarda la de reposo del día, así que ese parámetro queda sin cablear.
 **T-9 · El QR clínico no existe, y en este ciclo no puede existir.** Un hospital
 escanea con la cámara del sistema, así que el código tiene que abrir un
 navegador, y eso exige configuración nativa. `BUILD` · **imposible antes del 1 de
-septiembre.** Hay tres decisiones no técnicas pendientes escritas en el
-encabezado del componente.
+septiembre.** Hay **cuatro** decisiones no técnicas pendientes escritas en el
+encabezado del componente (`src/components/salud/QrFicha.tsx:31-52`).
 
-**T-10 · El motor del coach está en una rama sin mergear con 7 pendientes.**
+> **Corregido el 18 de agosto de 2026: son cuatro, no tres.** La cuarta es la que
+> más muerde y es la que faltaba: **qué es "la historia clínica completa"**. Hay
+> cuatro documentos ya construidos y NO son el mismo (`historia_clinica.data`, el
+> reporte de consulta, el timeline del expediente y el export maestro). Alguien va
+> a imprimir el equivocado. Las cuatro, en orden del archivo: (1) qué abre el que
+> escanea, que es la que bloquea todo y la única que no viaja por OTA; (2) dónde
+> vive el documento; (3) quién entra y si queda rastro, donde
+> `user_data_access_log` ya existe con las columnas correctas y **nadie escribe en
+> ella todavía**; (4) qué es la historia clínica completa.
+
+**T-10 · ~~El motor del coach está en una rama sin mergear con 7 pendientes.~~
+FALSO. El motor está en `main` desde el 2 de junio de 2026.** Los 7 pendientes
+existen, pero son deuda **dentro de `main`**, no trabajo atorado en una rama.
 Ninguno exige build. Uno pide una migración nueva si se quieren guardar el
 mensaje del usuario y la descripción de la señal. La detección de recurrencia
 está fija en falso y el detector de frenos recibe contexto vacío. `medio`
+
+> **Corregido el 18 de agosto de 2026.** Verificado: el código vive en
+> `src/lib/coach-engine/` con 17 módulos, el primer commit es del 1 de junio y el
+> merge que lo cablea a producción es `b69e9d7`, del 2 de junio ("wire
+> coach-engine a producción"). Las ocho ramas de la familia coach están
+> mergeadas.
+>
+> **Qué se pierde si nunca se mergea: nada, porque no hay nada que mergear.** Lo
+> que sí se perdía era el tiempo del siguiente desarrollador buscando una rama que
+> no existe. Por eso se corrige aquí y no solo en el handoff: este archivo es el
+> inventario que la gente abre.
 
 **T-11 · La pantalla de ayuno tiene 1,343 líneas y 30 superficies presionables.**
 La referencia del sector tiene 4. Adoptar eso no es agregar, es quitar. `medio`
