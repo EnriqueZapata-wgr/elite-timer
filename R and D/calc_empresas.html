@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ATP · Calculadora de paquetes para empresas</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--lime:#A8E02A;--teal:#1ABC9C;--grad:linear-gradient(135deg,#A8E02A,#6DCC48,#3DBF6E,#2EC28A,#1ABC9C);
+--n0:#000;--n1:#0A0A0A;--n2:#121212;--n3:#232323;--ink:#fff;--ink2:#C4C4C4;--muted:#8A8A8A;--line:#232323;
+--good:#0ca30c;--warn:#fab219;--crit:#d03b3b;--data:#2fd0ae;
+--sans:'Poppins',system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--n0);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6}
+.w{max-width:1240px;margin:0 auto;padding:26px 22px 80px}
+h1{font-size:clamp(24px,3.4vw,34px);font-weight:800;letter-spacing:-.035em;margin:0}
+h2{font-size:15px;font-weight:600;margin:0}
+.sub{color:var(--muted);font-size:13.5px;margin-top:6px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.top{display:flex;align-items:center;gap:14px;padding-bottom:22px;border-bottom:1px solid var(--line);margin-bottom:26px;flex-wrap:wrap}
+.mol{width:34px;height:30px}
+.cols{display:grid;grid-template-columns:352px 1fr;gap:22px;align-items:start}
+@media(max-width:980px){.cols{grid-template-columns:1fr}}
+.card{background:var(--n1);border:1px solid var(--line);border-radius:16px}
+.ch{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ch .t{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.cb{padding:18px}
+.f{margin-bottom:15px}
+.f label{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink2);margin-bottom:6px;gap:10px}
+.f label b{font-family:var(--mono);color:var(--ink);font-weight:600}
+.f input[type=range]{width:100%;accent-color:var(--teal)}
+.f input[type=number]{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--n2);color:var(--ink);font-family:var(--mono);font-size:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.sec{margin:20px 0 12px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700;padding-top:16px;border-top:1px solid var(--line)}
+.sec:first-of-type{border-top:0;padding-top:0;margin-top:0}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--line)}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+tbody tr:hover{background:var(--n2)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+@media(max-width:900px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.tile{background:var(--n1);border:1px solid var(--line);border-radius:16px;padding:18px}
+.tile .k{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.tile .v{font-family:var(--mono);font-size:clamp(21px,2.6vw,28px);font-weight:700;letter-spacing:-.03em;margin-top:8px;line-height:1;
+ background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tile .d{font-size:12px;color:var(--muted);margin-top:6px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700}
+.pill.ok{background:rgba(12,163,12,.16)}.pill.warn{background:rgba(250,178,25,.18)}.pill.bad{background:rgba(208,59,59,.18)}
+.chart{padding:18px}
+.bars{display:flex;align-items:flex-end;gap:6px;height:170px}
+.bars .c{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%}
+.bars .c i{display:block;width:100%;max-width:52px;border-radius:4px 4px 0 0;background:var(--data);min-height:2px}
+.bars .c em{font-style:normal;font-size:10px;color:var(--muted);font-family:var(--mono)}
+.bars .c b{font-family:var(--mono);font-size:11px;font-weight:600}
+.note{font-size:12px;color:var(--muted);padding:12px 18px;border-top:1px solid var(--line);line-height:1.55}
+.alert{margin:14px 0 0;padding:12px 14px;border-radius:11px;font-size:12.5px;display:flex;gap:9px;align-items:flex-start;line-height:1.5}
+.alert.ok{background:rgba(12,163,12,.12)}.alert.warn{background:rgba(250,178,25,.14)}.alert.bad{background:rgba(208,59,59,.14)}
+.tr-row{display:grid;grid-template-columns:1fr 88px;gap:8px;align-items:center;margin-bottom:8px}
+.tr-row span{font-size:12.5px;color:var(--ink2)}
+.tr-row input{padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--n2);color:var(--ink);font-family:var(--mono);font-size:13px;width:100%}
+</style></head><body>
+<div class="w">
+<div class="top">
+  <svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#g)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg>
+  <div><h1>Calculadora de paquetes para empresas</h1><p class="sub">Base, Premium y Pro. Todo editable, todo se recalcula solo. Datos de trabajo, no precios publicados.</p></div>
+</div>
+
+<div class="cols">
+  <div>
+    <div class="card"><div class="ch"><span class="t">La empresa</span></div><div class="cb">
+      <div class="f"><label>Empleados en total <b id="lN">200</b></label><input type="range" id="N" min="10" max="3000" step="10" value="200"></div>
+      <div class="f"><label>Cuántos llevan laboratorio <b id="lP">60%</b></label><input type="range" id="P" min="0" max="100" step="5" value="60"></div>
+      <div class="f"><label>Cuántos llevan consulta <b id="lQ">20%</b></label><input type="range" id="Q" min="0" max="100" step="5" value="20"></div>
+      <div class="f"><label>Consultas al año por persona <b id="lC">12</b></label><input type="range" id="C" min="1" max="12" step="1" value="12"></div>
+    </div></div>
+
+    <div class="card" style="margin-top:16px"><div class="ch"><span class="t">Laboratorio</span></div><div class="cb">
+      <div class="grid2">
+        <div class="f"><label>Costo</label><input type="number" id="labC" value="2500" step="100"></div>
+        <div class="f"><label>Precio de venta</label><input type="number" id="labV" value="3300" step="100"></div>
+      </div>
+      <div id="labMsg"></div>
+    </div></div>
+
+    <div class="card" style="margin-top:16px"><div class="ch"><span class="t">Consulta nutricional</span></div><div class="cb">
+      <div class="grid2">
+        <div class="f"><label>Costo becaria</label><input type="number" id="conC" value="300" step="50"></div>
+        <div class="f"><label>Precio de venta</label><input type="number" id="conV" value="600" step="50"></div>
+      </div>
+      <div class="grid2">
+        <div class="f"><label>Día de Mariana</label><input type="number" id="marD" value="8000" step="500"></div>
+        <div class="f"><label>Días al mes por cuenta</label><input type="number" id="marN" value="2" step="1"></div>
+      </div>
+      <div id="conMsg"></div>
+    </div></div>
+
+    <div class="card" style="margin-top:16px"><div class="ch"><span class="t">Tramos marginales de la app</span><span class="sub" style="margin:0">Precio de cada plaza según en qué tramo cae</span></div><div class="cb">
+      <div class="sec">Base</div><div id="trBase"></div>
+      <div class="sec">Premium</div><div id="trPrem"></div>
+      <div class="sec">Pro</div><div id="trPro"></div>
+    </div></div>
+  </div>
+
+  <div>
+    <div class="tiles">
+      <div class="tile"><div class="k">Contrato al año</div><div class="v" id="tTotal">$0</div><div class="d" id="tTotalD"></div></div>
+      <div class="tile"><div class="k">Por empleado</div><div class="v" id="tEmp">$0</div><div class="d" id="tEmpD"></div></div>
+      <div class="tile"><div class="k">Margen</div><div class="v" id="tMar">$0</div><div class="d" id="tMarD"></div></div>
+      <div class="tile"><div class="k">Consultas al mes</div><div class="v" id="tCon">0</div><div class="d" id="tConD"></div></div>
+    </div>
+
+    <div class="card"><div class="ch"><h2>De dónde sale el dinero</h2></div>
+      <table><thead><tr><th>Componente</th><th style="text-align:right">Personas</th><th style="text-align:right">Precio al año</th><th style="text-align:right">Costo</th><th style="text-align:right">Margen</th><th style="text-align:right">%</th></tr></thead>
+      <tbody id="desglose"></tbody></table>
+    </div>
+
+    <div class="card" style="margin-top:18px"><div class="ch"><h2>La curva: precio promedio por plaza</h2><span class="sub" style="margin:0">Solo la app, sin laboratorio ni consulta</span></div>
+      <div class="chart"><div class="bars" id="curva"></div></div>
+      <div class="note" id="monot"></div>
+    </div>
+
+    <div class="card" style="margin-top:18px"><div class="ch"><h2>Comparación con lo que ya paga</h2></div>
+      <div class="cb">
+        <div class="f"><label>Prima anual de gastos médicos por empleado <b id="lG">$20,000</b></label><input type="range" id="G" min="5000" max="60000" step="1000" value="20000"></div>
+        <div id="compara"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const mx=n=>'$'+Math.round(n).toLocaleString('es-MX');
+const TR={base:[[25,820],[100,740],[300,670],[1000,610],[1e9,560]],
+          prem:[[25,700],[100,620],[300,560],[1000,510],[1e9,470]],
+          pro :[[25,620],[100,550],[300,500],[1000,450],[1e9,420]]};
+const NOM={base:'Base',prem:'Premium',pro:'Pro'};
+
+function pintaTramos(){
+  for(const k of ['base','prem','pro']){
+    const cont=$('#tr'+(k==='base'?'Base':k==='prem'?'Prem':'Pro'));
+    cont.innerHTML=TR[k].map(([lim,p],i)=>{
+      const desde=i===0?1:TR[k][i-1][0]+1;
+      const hasta=lim>1e8?'∞':lim;
+      return `<div class="tr-row"><span>plaza ${desde} a ${hasta}</span><input type="number" data-k="${k}" data-i="${i}" value="${p}" step="10"></div>`;
+    }).join('');
+  }
+  cont_listeners();
+}
+function cont_listeners(){
+  document.querySelectorAll('.tr-row input').forEach(el=>el.oninput=e=>{
+    TR[e.target.dataset.k][+e.target.dataset.i][1]=+e.target.value||0; calc();
+  });
+}
+function marg(n,k){ let t=0,prev=0; for(const [lim,p] of TR[k]){ if(n<=prev) break; t+=(Math.min(n,lim)-prev)*p; prev=lim; } return t; }
+
+function calc(){
+  const N=+$('#N').value, P=+$('#P').value/100, Q=+$('#Q').value/100, C=+$('#C').value;
+  const labC=+$('#labC').value, labV=+$('#labV').value;
+  const conC=+$('#conC').value, conV=+$('#conV').value;
+  const marD=+$('#marD').value, marN=+$('#marN').value;
+  $('#lN').textContent=N.toLocaleString('es-MX'); $('#lP').textContent=(P*100)+'%';
+  $('#lQ').textContent=(Q*100)+'%'; $('#lC').textContent=C;
+
+  const nPrem=Math.round(N*P), nPro=Math.round(N*Q);
+  /* la app se cobra al nivel mas alto que tenga cada persona */
+  const nBaseSolo=N-nPrem, nPremSolo=Math.max(0,nPrem-nPro);
+  const appPrecio = (marg(N,'base')*12*nBaseSolo/N) + (marg(N,'prem')*12*nPremSolo/N) + (marg(N,'pro')*12*nPro/N);
+  const appCosto  = N*25*12;
+  const labPrecio = nPrem*labV, labCosto = nPrem*labC;
+  const consultasMes = nPro*C/12;
+  const mariana = nPro>0 ? marD*marN*12 : 0;
+  const conPrecio = nPro*conV*C, conCosto = nPro*conC*C + mariana;
+  const total=appPrecio+labPrecio+conPrecio, costo=appCosto+labCosto+conCosto;
+  const margen=total-costo;
+
+  $('#tTotal').textContent=mx(total);
+  $('#tTotalD').textContent=`${N.toLocaleString('es-MX')} empleados`;
+  $('#tEmp').textContent=mx(total/N);
+  $('#tEmpD').textContent='por empleado al año';
+  $('#tMar').textContent=mx(margen);
+  $('#tMarD').textContent=(margen/total*100).toFixed(1)+'% del contrato';
+  $('#tCon').textContent=Math.round(consultasMes).toLocaleString('es-MX');
+  const porDia=consultasMes/20;
+  $('#tConD').textContent=porDia>=1?`${porDia.toFixed(1)} al día hábil`:'menos de una al día';
+
+  const filas=[
+    ['App', N, appPrecio, appCosto],
+    ['Laboratorio', nPrem, labPrecio, labCosto],
+    ['Consultas', nPro, conPrecio, nPro*conC*C],
+    ['Tiempo de Mariana', nPro>0?1:0, 0, mariana],
+  ];
+  $('#desglose').innerHTML=filas.map(([n,p,pr,co])=>{
+    const m=pr-co, pct=pr>0?(m/pr*100).toFixed(1)+'%':'—';
+    const col=pr>0&&m<0?'style="color:var(--crit)"':'';
+    return `<tr><td>${n}</td><td class="n">${p.toLocaleString('es-MX')}</td><td class="n">${pr?mx(pr):'—'}</td><td class="n">${mx(co)}</td><td class="n" ${col}>${pr?mx(m):'-'+mx(co)}</td><td class="n" ${col}>${pct}</td></tr>`;
+  }).join('')+`<tr style="background:var(--n2)"><td><b>Total</b></td><td class="n"></td><td class="n"><b>${mx(total)}</b></td><td class="n"><b>${mx(costo)}</b></td><td class="n"><b>${mx(margen)}</b></td><td class="n"><b>${(margen/total*100).toFixed(1)}%</b></td></tr>`;
+
+  /* avisos */
+  const labM=labV-labC;
+  $('#labMsg').innerHTML = labM<=0
+    ? `<div class="alert bad"><span>●</span><span>Estás vendiendo el laboratorio por debajo del costo.</span></div>`
+    : `<div class="alert ${labM<400?'warn':'ok'}"><span>${labM<400?'⚠':'✓'}</span><span>Margen de <b class="mono">${mx(labM)}</b> por panel, o sea ${(labM/labV*100).toFixed(1)}%. Cubre interpretación, manejo y la responsabilidad de la compraventa.</span></div>`;
+
+  const extraM = nPro>0 ? mariana/(nPro*C) : 0;
+  const costoReal = conC+extraM, margenReal = conV-costoReal;
+  $('#conMsg').innerHTML = nPro===0
+    ? `<div class="alert warn"><span>⚠</span><span>Nadie lleva consulta en este escenario.</span></div>`
+    : `<div class="alert ${margenReal<0?'bad':margenReal<150?'warn':'ok'}"><span>${margenReal<0?'●':margenReal<150?'⚠':'✓'}</span><span>Con <b class="mono">${nPro}</b> personas en consulta, el tiempo de Mariana suma <b class="mono">${mx(extraM)}</b> por consulta. Costo real <b class="mono">${mx(costoReal)}</b> y margen <b class="mono">${mx(margenReal)}</b> por consulta.${margenReal<0?' <b>Estás perdiendo dinero en cada una.</b>':''}</span></div>`;
+
+  /* curva */
+  const puntos=[25,50,100,200,300,500,1000,2000];
+  const proms=puntos.map(n=>marg(n,'base')/n);
+  const max=Math.max(...proms);
+  $('#curva').innerHTML=puntos.map((n,i)=>`<div class="c"><b>${Math.round(proms[i])}</b><i style="height:${proms[i]/max*100}%"></i><em>${n>=1000?(n/1000)+'k':n}</em></div>`).join('');
+
+  /* monotonía */
+  let malos=0;
+  for(let n=1;n<3000;n++){ if(marg(n+1,'base')<=marg(n,'base')) malos++; }
+  $('#monot').innerHTML = malos===0
+    ? `<span class="pill ok">✓ Monotónica</span> Agregar una plaza siempre sube el total. Ningún cliente sale ganando por contratar de más, ni perdiendo por contratar de menos.`
+    : `<span class="pill bad">● Rota en ${malos} puntos</span> Hay tamaños donde contratar una plaza más cuesta menos. Sube el precio de algún tramo.`;
+
+  /* comparación */
+  const G=+$('#G').value; $('#lG').textContent=mx(G);
+  const pct=(total/N)/G*100;
+  $('#compara').innerHTML=`<div class="alert ${pct>60?'bad':pct>30?'warn':'ok'}"><span>${pct>60?'●':pct>30?'⚠':'✓'}</span><span>
+    El programa cuesta <b class="mono">${mx(total/N)}</b> por empleado al año, o sea <b class="mono">${pct.toFixed(0)}%</b> de su prima de gastos médicos.
+    ${pct>60?'<b>Arriba de 60% deja de leerse como beneficio y empieza a competir con el seguro.</b>':pct>30?'Es una proporción alta. Se defiende, pero hay que argumentarla.':'Es una proporción que un área de beneficios aprueba sin pelearse.'}
+    </span></div>`;
+}
+['N','P','Q','C','labC','labV','conC','conV','marD','marN','G'].forEach(id=>$('#'+id).addEventListener('input',calc));
+pintaTramos(); calc();
+</script></body></html>

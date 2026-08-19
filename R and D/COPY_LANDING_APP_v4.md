@@ -171,8 +171,12 @@
 > Mensual o anual. **Si quieres entrar acompañado hay un precio especial, y si quieres entrar en grupo, entre más, mejor.**
 >
 > **Individual · $7,900 al año** *(o $890 al mes)*
-> **Dúo · $13,900 al año** *(o $1,580 al mes)*
-> **Familiar hasta 4 · $26,900 al año** *(o $3,000 al mes)*
+> **Dúo · $12,900 al año** *(o $1,490 al mes)*
+> **Familiar hasta 4 · $24,900 al año** *(o $2,790 al mes)*
+
+⚠️ **Precios actualizados el 14 de agosto por Enrique.** Dúo bajó de $1,580 a $1,490 y Familiar de $3,000 a $2,790, o sea **$745 y $697.50 por plaza**. Familiar de 3 sale del catálogo.
+
+🔴 **Y con eso vuelve el roce que ya habíamos corregido:** Familiar de 4 queda en **$697.50 por plaza** y el bloque de empresa de 10 a 49 sigue en **$740**. Una familia de cuatro paga **$42.50 menos por cabeza que una empresa de veinte personas.** Si quieres cerrarlo, el arreglo de siempre es colapsar los dos primeros tramos de empresa en uno solo de 10 a 199 a $690, que devuelve la escalera monótona sin tocar los precios de casa.
 >
 > **[ Empezar ]**
 
