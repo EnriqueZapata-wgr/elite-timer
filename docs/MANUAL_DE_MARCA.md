@@ -214,7 +214,8 @@ es el error de **interfaz** (un formulario mal llenado). `SCORE_COLORS.critical 
 rojo pleno y es el dato **de salud** en estado crítico. El criterio, escrito en `brand.ts`
 100-102 y 314-315: *"el dato crítico de salud grita MÁS que un error de formulario."* Un campo
 de captura vacío no puede verse tan grave como un biomarcador fuera de rango.
-**Esta regla se rompe en el semáforo de labs. Ver capítulo 14.**
+Esta regla estaba rota en el semáforo de labs y en tres tablas más. **Ya se corrigió**
+(commit `MARCA:`, ver 14.3), y ahora la cuida un candado: `src/constants/__tests__/rojo-clinico.test.ts`.
 
 ### 3.4 Fases del ciclo
 
@@ -1021,17 +1022,41 @@ El comentario de `concept-colors.ts` lista `electrons.ts` como consumidor. Cardi
 mismo con `sueno`: mismo valor pero escrito a mano en vez de importado, y el candado de
 `concept-colors.test.ts` solo cubre cinco electrones, así que no lo detecta.
 
-### 14.3 Los dos rojos críticos están invertidos en labs
+### 14.3 Los dos rojos críticos estaban invertidos en labs · RESUELTO
 
-`brand.ts` dice que el dato crítico de salud grita más que el error de formulario, y le asigna
-`#FF3B30`. Pero `src/utils/lab-rating.ts` línea 50 pinta el nivel `critical` con
-`SEMANTIC.error = #E8877F`, que es justo el coral apagado reservado a errores de interfaz.
+**Era cierta, y era más ancha de lo que decía este capítulo.** Se corrigió completa.
 
-Peor: el `bgColor` de esa misma fila es `rgba(226,75,74,0.12)`, o sea `#E24B4A`, **un tercer
-rojo**. El fondo y el texto del estado crítico vienen de rojos distintos.
+Lo que estaba pasando: `brand.ts` dice que el dato crítico de salud grita más que el error de
+formulario y le asigna `#FF3B30`, pero `src/utils/lab-rating.ts` pintaba el nivel `critical` con
+`SEMANTIC.error = #E8877F`, el coral apagado reservado a errores de interfaz. Y el `bgColor` de
+esa misma fila era `rgba(226,75,74,…)`, o sea `#E24B4A`, **un tercer rojo**: fondo y texto del
+estado crítico venían de rojos distintos.
 
-**Esta es la contradicción más grave del documento**, porque invierte una regla de seguridad que
-está escrita con su porqué.
+Al ir a arreglarlo aparecieron **cuatro tablas** con el mismo error, no una:
+
+| Tabla | Qué pintaba mal |
+|---|---|
+| `src/utils/lab-rating.ts` | `critical` y `out_of_range` con el coral + fondo del tercer rojo |
+| `src/components/edad-atp/tokens.ts` | `EDAD_STATUS.bad = '#E24B4A'` a mano |
+| `src/data/condition-catalog.ts` | la bandera clínica `present`, coral + tercer rojo de fondo |
+| `src/data/functional-health-engine.ts` | `RATING_COLORS`, tabla gemela hoy sin consumidores |
+
+La de mayor alcance no era la de labs sino `EDAD_STATUS.bad`: es la que ve el usuario final en
+ATP Labs, `ParameterChart` y las sub-edades. `good` ya se había anclado al token semántico en
+MB-11 D.3 y `bad` se quedó atrás.
+
+Por qué no lo detectaba nada: **el ratchet de MB-31B solo escanea `.tsx`, y las cuatro tablas
+viven en `.ts`.** Ahora lo cuida `src/constants/__tests__/rojo-clinico.test.ts`, que afirma que
+los dos rojos siguen existiendo y distintos, que el peor estado clínico de las cuatro tablas usa
+el rojo de salud y nunca el coral, que los fondos derivan por canales rgb del mismo color que el
+texto, y que el resto del semáforo sigue anclado a `SEMANTIC`.
+
+**Lo que sigue pendiente** son los usos EN LÍNEA de `t.error` sobre estado clínico dentro de
+pantallas (presión arterial en `app/health-input.tsx`, el reporte de labs en
+`src/components/reports/domains/labs.tsx`, y un nido grande en
+`src/screens/coach/ClientDetailScreen.tsx`). No son tablas: son decisiones sueltas archivo por
+archivo, y en modo claro `#FF3B30` sobre card da ~3.1:1, así que migrarlos toca contraste y es
+trabajo aparte.
 
 ### 14.4 Hay cuatro escalas rivales de "score de salud"
 

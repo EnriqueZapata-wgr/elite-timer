@@ -2,7 +2,7 @@
  * Catálogo de condiciones médicas por zona — Tablero del coach.
  * Cada condición es un flag con 4 estados: no evaluado → normal → observación → presente.
  */
-import { ATP_BRAND, CATEGORY_COLORS, SEMANTIC } from '../constants/brand';
+import { ATP_BRAND, CATEGORY_COLORS, SCORE_COLORS, SEMANTIC } from '../constants/brand';
 
 export interface ConditionDef {
   key: string;
@@ -280,7 +280,10 @@ export const FLAG_STATUSES: Record<FlagStatus, { label: string; color: string; b
   not_evaluated: { label: 'No evaluado', color: '#666666', bgColor: '#333333' },
   normal: { label: 'Normal', color: SEMANTIC.success, bgColor: 'rgba(168, 224, 42, 0.1)' },
   observation: { label: 'En observación', color: SEMANTIC.warning, bgColor: 'rgba(239, 159, 39, 0.1)' },
-  present: { label: 'Presente', color: SEMANTIC.error, bgColor: 'rgba(226, 75, 74, 0.15)' },
+  // MARCA: "presente" es una bandera CLÍNICA, no un error de captura. Va con
+  // el rojo de salud (#FF3B30), igual que el resto de la fila lleva ya los
+  // semánticos correctos. El bgColor venía del tercer rojo (#E24B4A).
+  present: { label: 'Presente', color: SCORE_COLORS.critical, bgColor: 'rgba(255, 59, 48, 0.15)' },
 };
 
 /** Ciclo de estados al hacer tap */

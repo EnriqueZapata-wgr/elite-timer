@@ -2,7 +2,7 @@
  * Tokens compartidos del módulo Edad ATP — colores por dimensión, estados,
  * timings de animación y helpers de status. Fuente única para los componentes UI.
  */
-import { SEMANTIC } from '@/src/constants/brand';
+import { SCORE_COLORS, SEMANTIC } from '@/src/constants/brand';
 
 // Motor v2: 5 áreas (labs/composicion/fitness/cognicion/riesgos). Emojis sin cambio.
 export type DimKey = 'labs' | 'composicion' | 'fitness' | 'cognicion' | 'riesgos';
@@ -18,7 +18,16 @@ export const EDAD_DIMS: { key: DimKey; icon: string; label: string; color: strin
 // MB-11 D.3: `good` colgaba de Colors.neonGreen (alias legacy) — el ancla que
 // reproducía el verde plano en todo el clúster. Ahora deriva del token
 // semántico canónico: estado "mejor que tu edad" ES feedback, no decoración.
-export const EDAD_STATUS = { good: SEMANTIC.success, neutral: '#EF9F27', bad: '#E24B4A' };
+// MARCA: `bad` se quedó atrás cuando `good` se ancló al token semántico. Era
+// '#E24B4A', un tercer rojo sin doctrina, y es el color con el que el usuario
+// final ve un biomarcador en atención (ATP Labs, ParameterChart, sub-edades).
+// Estado clínico peor = SCORE_COLORS.critical (#FF3B30). `neutral` es el mismo
+// valor que SEMANTIC.warning, ahora anclado en vez de escrito a mano.
+export const EDAD_STATUS = {
+  good: SEMANTIC.success,
+  neutral: SEMANTIC.warning,
+  bad: SCORE_COLORS.critical,
+};
 
 /**
  * CE mínimo (%) para mostrar el número de una sub-edad. Por debajo, la mayoría de

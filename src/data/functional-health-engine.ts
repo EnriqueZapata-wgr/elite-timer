@@ -35,7 +35,7 @@
  * Original: 144 parámetros declarados, 10 dominios, PhenoAge de Levine.
  * Rangos funcionales por sexo, ajustes por composición corporal.
  */
-import { SEMANTIC } from '../constants/brand';
+import { SCORE_COLORS, SEMANTIC } from '../constants/brand';
 import { UMBRALES_FEMENINOS_EN_EL_SCORE } from '@/src/constants/flags';
 import { rangoFemeninoV6 } from '@/src/services/salud/umbrales-femeninos-core';
 
@@ -491,11 +491,17 @@ export function mapPatientDataToInput(
   return i;
 }
 
+/**
+ * MARCA: tabla GEMELA de la de `src/utils/lab-rating.ts`. Hoy no tiene
+ * consumidores, pero es de donde se copió la que sí pinta, así que si se
+ * queda con el rojo equivocado el error vuelve el día que alguien la reviva.
+ * Estado clínico = `SCORE_COLORS.critical`, nunca `SEMANTIC.error`.
+ */
 export const RATING_COLORS: Record<string, string> = {
   optimal: SEMANTIC.success,
   acceptable: SEMANTIC.acceptable,
   risk: SEMANTIC.warning,
-  critical: SEMANTIC.error,
-  out_of_range: SEMANTIC.error,
+  critical: SCORE_COLORS.critical,
+  out_of_range: SCORE_COLORS.critical,
   no_data: SEMANTIC.noData,
 };

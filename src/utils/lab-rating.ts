@@ -23,7 +23,7 @@ import {
   type NivelFuncional,
 } from '../services/salud/rangos-funcionales-core';
 import type { Sex } from '../types/edad-atp-v2';
-import { SEMANTIC } from '../constants/brand';
+import { SCORE_COLORS, SEMANTIC } from '../constants/brand';
 
 /**
  * Los mismos literales que exportaba el legacy. Se declaran aquí para que el
@@ -43,13 +43,23 @@ export interface ValueRating {
   arrow: string;
 }
 
-const RATING_CONFIG: Record<RatingLevel | 'no_data', { color: string; bgColor: string; label: string }> = {
-  optimal:      { color: SEMANTIC.success,    bgColor: 'rgba(168,224,42,0.12)',  label: 'Óptimo' },
-  acceptable:   { color: SEMANTIC.acceptable, bgColor: 'rgba(239,213,79,0.12)', label: 'Aceptable' },
-  risk:         { color: SEMANTIC.warning,    bgColor: 'rgba(239,159,39,0.12)', label: 'Riesgo' },
-  critical:     { color: SEMANTIC.error,      bgColor: 'rgba(226,75,74,0.12)',  label: 'Crítico' },
-  out_of_range: { color: SEMANTIC.error,      bgColor: 'rgba(226,75,74,0.20)', label: 'Fuera de rango' },
-  no_data:      { color: '#666',              bgColor: 'rgba(102,102,102,0.12)', label: 'Sin dato' },
+/**
+ * MARCA: los dos rojos estaban invertidos aquí. `critical` y `out_of_range`
+ * son estado CLÍNICO, no error de interfaz, así que van con
+ * `SCORE_COLORS.critical` (#FF3B30, rojo pleno) y no con `SEMANTIC.error`
+ * (#E8877F, el coral apagado del formulario mal llenado). El criterio está
+ * escrito con su porqué en brand.ts 100-102 y 314-315: el dato crítico de
+ * salud grita MÁS que un error de captura. Los bgColor venían además de un
+ * TERCER rojo (#E24B4A) que no era ninguno de los dos; ahora derivan del
+ * mismo #FF3B30 que pinta el texto.
+ */
+export const RATING_CONFIG: Record<RatingLevel | 'no_data', { color: string; bgColor: string; label: string }> = {
+  optimal:      { color: SEMANTIC.success,     bgColor: 'rgba(168,224,42,0.12)',  label: 'Óptimo' },
+  acceptable:   { color: SEMANTIC.acceptable,  bgColor: 'rgba(239,213,79,0.12)', label: 'Aceptable' },
+  risk:         { color: SEMANTIC.warning,     bgColor: 'rgba(239,159,39,0.12)', label: 'Riesgo' },
+  critical:     { color: SCORE_COLORS.critical, bgColor: 'rgba(255,59,48,0.12)',  label: 'Crítico' },
+  out_of_range: { color: SCORE_COLORS.critical, bgColor: 'rgba(255,59,48,0.20)', label: 'Fuera de rango' },
+  no_data:      { color: '#666',               bgColor: 'rgba(102,102,102,0.12)', label: 'Sin dato' },
 };
 
 // Mapeo: columna de lab_results → key(s) del motor de salud
