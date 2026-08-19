@@ -80,6 +80,67 @@ describe('nochesDesdeTramos', () => {
     expect(noches.map((n) => n.nightDate)).toEqual(['2026-08-09', '2026-08-10']);
   });
 
+  // 🚨 El hueco que dejó pasar el bug de producción: TODOS los casos de
+  // arriba usan tramos que no se traslapan. Las plataformas reales sí los
+  // traslapan y la suma inflaba la noche hasta el techo de 1,440 min.
+  it('dos apps reportan la MISMA noche: cuenta una vez, no dos', () => {
+    const tramos: TramoSueno[] = [
+      // El reloj y la app del fabricante escriben la misma noche en Health
+      // Connect, con minutos de diferencia. Es una noche, no dos.
+      { startMs: ms(2026, 8, 8, 23, 0), endMs: ms(2026, 8, 9, 7, 0), externalId: 'reloj' },
+      { startMs: ms(2026, 8, 8, 23, 10), endMs: ms(2026, 8, 9, 6, 50), externalId: 'fabricante' },
+    ];
+    const noches = nochesDesdeTramos(tramos, 'health_connect', aFechaLocal);
+    expect(noches).toHaveLength(1);
+    expect(noches[0].durationMinutes).toBe(480); // 8 h, no 8 h + 7 h 40
+  });
+
+  it('un tramo contenido en otro no suma nada', () => {
+    const tramos: TramoSueno[] = [
+      { startMs: ms(2026, 8, 8, 23, 0), endMs: ms(2026, 8, 9, 7, 0), externalId: 'completo' },
+      { startMs: ms(2026, 8, 9, 1, 0), endMs: ms(2026, 8, 9, 3, 0), externalId: 'dentro' },
+    ];
+    expect(nochesDesdeTramos(tramos, 'healthkit', aFechaLocal)[0].durationMinutes).toBe(480);
+  });
+
+  it('HealthKit: el tramo sin especificar y sus tipos no se cuentan doble', () => {
+    // Patrón real de Salud: un tramo "dormido" que cubre la noche entera
+    // (valor 1) y encima los tramos por tipo (3/4/5) que la subdividen.
+    const tramos: TramoSueno[] = [
+      { startMs: ms(2026, 8, 8, 23, 0), endMs: ms(2026, 8, 9, 7, 0), externalId: 'sin-especificar' },
+      { startMs: ms(2026, 8, 8, 23, 0), endMs: ms(2026, 8, 9, 1, 30), externalId: 'ligero' },
+      { startMs: ms(2026, 8, 9, 1, 30), endMs: ms(2026, 8, 9, 3, 0), externalId: 'profundo' },
+      { startMs: ms(2026, 8, 9, 3, 0), endMs: ms(2026, 8, 9, 7, 0), externalId: 'rem' },
+    ];
+    const noches = nochesDesdeTramos(tramos, 'healthkit', aFechaLocal);
+    expect(noches).toHaveLength(1);
+    expect(noches[0].durationMinutes).toBe(480); // 8 h, no 16 h
+  });
+
+  it('lo dormido nunca puede exceder el rato entre acostarse y despertar', () => {
+    // La invariante que la producción violó (1,440 min sobre una cama de 9 h).
+    const tramos: TramoSueno[] = [
+      { startMs: ms(2026, 8, 8, 22, 0), endMs: ms(2026, 8, 9, 7, 0), externalId: 'a' },
+      { startMs: ms(2026, 8, 8, 22, 0), endMs: ms(2026, 8, 9, 7, 0), externalId: 'b' },
+      { startMs: ms(2026, 8, 8, 22, 30), endMs: ms(2026, 8, 9, 6, 0), externalId: 'c' },
+    ];
+    const n = nochesDesdeTramos(tramos, 'health_connect', aFechaLocal)[0];
+    const spanMin = Math.round(
+      (new Date(n.wakeTimeISO).getTime() - new Date(n.bedTimeISO).getTime()) / 60000,
+    );
+    expect(n.durationMinutes).toBeLessThanOrEqual(spanMin);
+    expect(n.durationMinutes).toBe(540);
+  });
+
+  it('traslape parcial: solo el tiempo nuevo se agrega', () => {
+    const tramos: TramoSueno[] = [
+      { startMs: ms(2026, 8, 8, 23, 0), endMs: ms(2026, 8, 9, 3, 0), externalId: 'a' },
+      { startMs: ms(2026, 8, 9, 2, 0), endMs: ms(2026, 8, 9, 6, 0), externalId: 'b' },
+    ];
+    // Unión 23:00 → 06:00 = 420 min (la suma cruda daría 480).
+    expect(nochesDesdeTramos(tramos, 'health_connect', aFechaLocal)[0].durationMinutes).toBe(420);
+  });
+
   it('tramos inválidos se filtran sin tronar', () => {
     const tramos: TramoSueno[] = [
       { startMs: Number.NaN, endMs: ms(2026, 8, 9, 6, 0), externalId: 'x' },

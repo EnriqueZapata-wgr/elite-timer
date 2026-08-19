@@ -9,8 +9,17 @@
  * cortos se vuelven "la noche".
  *
  * Honestidad de medida: aunque HealthKit reporta valores por tipo de sueño,
- * aquí TODO lo dormido se suma parejo. No guardamos ni mostramos fases:
+ * aquí TODO lo dormido cuenta parejo. No guardamos ni mostramos fases:
  * el producto no las promete.
+ *
+ * 🚨 Los tramos SE TRASLAPAN y por eso se mide su UNIÓN, nunca su suma.
+ * Las dos plataformas entregan el mismo rato dormido más de una vez:
+ * Health Connect devuelve una SleepSession por cada app que escribe (reloj,
+ * app del fabricante, app de sueño de terceros), y HealthKit entrega a la
+ * vez el tramo "dormido sin especificar" que cubre la noche completa y los
+ * tramos por tipo que la subdividen. Sumarlos contaba la misma noche dos y
+ * tres veces: en producción salieron noches de 1,440 min (24 h, el techo
+ * del CHECK) sobre una cama de 9 h. Medir la unión es lo único correcto.
  */
 
 export const SLEEP_IMPORT_SOURCES = ['health_connect', 'healthkit'] as const;
@@ -74,8 +83,12 @@ export function nochesDesdeTramos(
   for (const t of validos) {
     if (actual && t.startMs - actual.finMs <= HUECO_MISMA_NOCHE_MS) {
       actual.tramos.push(t);
+      // UNIÓN, no suma: un tramo solo aporta el tiempo que NO estaba ya
+      // cubierto. Los tramos vienen ordenados por inicio y finMs es el
+      // máximo fin visto, así que finMs es la frontera de lo ya contado.
+      const desde = Math.max(t.startMs, actual.finMs);
+      if (t.endMs > desde) actual.dormidoMs += t.endMs - desde;
       actual.finMs = Math.max(actual.finMs, t.endMs);
-      actual.dormidoMs += t.endMs - t.startMs;
     } else {
       actual = {
         tramos: [t],
