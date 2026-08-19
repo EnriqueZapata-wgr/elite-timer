@@ -245,6 +245,12 @@ async function logArgosCall(supabase: any, params: {
   target_user_id?: string | null,
   target_profile_id?: string | null,
   brain_version?: string | null,
+  // De dónde salió el cerebro. La versión sola dejó de alcanzar el día que el
+  // empaquetado y el almacén quedaron en la misma versión: a partir de ahí las
+  // dos fuentes reportan el mismo string y la caída al respaldo se vuelve
+  // invisible, que es justo cuando ya nadie la estaría buscando. Requiere la
+  // migración 305 aplicada.
+  brain_source?: "store" | "embedded" | null,
 }) {
   try {
     const cost = computeCost(
@@ -272,6 +278,7 @@ async function logArgosCall(supabase: any, params: {
       target_user_id: params.target_user_id ?? null,
       target_profile_id: params.target_profile_id ?? null,
       brain_version: params.brain_version ?? null,
+      brain_source: params.brain_source ?? null,
     });
 
     // NOCHE-3: cerrar la llamada en el acumulado de gasto. Vive aquí y no en el
@@ -1198,7 +1205,7 @@ serve(async (req) => {
                   cache_read_tokens: cacheRead, cache_write_tokens: cacheWrite,
                   latency_ms: Date.now() - startTime, success: true, fallback_used: false,
                   target_user_id: targetUserId ?? null, target_profile_id: targetProfileId ?? null,
-                  brain_version: brainVersion,
+                  brain_version: brainVersion, brain_source: brainSource,
                 });
               } catch (e: any) {
                 // Murió a mitad del stream → evento de error + refund H+.
@@ -1307,6 +1314,7 @@ serve(async (req) => {
           target_user_id: targetUserId ?? null,
           target_profile_id: targetProfileId ?? null,
           brain_version: brainVersion,
+          brain_source: brainSource,
         });
         return new Response(JSON.stringify({ ...ant.data, ...brainEcho }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -1360,6 +1368,7 @@ serve(async (req) => {
           target_user_id: targetUserId ?? null,
           target_profile_id: targetProfileId ?? null,
           brain_version: brainVersion,
+          brain_source: brainSource,
         });
         return new Response(JSON.stringify({
           content: [{ type: "text", text: gem.text }],
