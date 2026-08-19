@@ -99,6 +99,11 @@ Estas cinco no se discuten. Cada una costó horas o rompió el entorno de alguie
 
 ## Cómo está repartido el resto
 
+**`INDICE.md`.** El mapa: qué leer para qué, en qué orden, y **cuál documento gana cuando
+dos se contradigan**, que va a pasar. Trae además la advertencia que gobierna todo el
+expediente: **los números envejecen, hay que medirlos y no copiarlos, y va la fecha de la
+medición al lado.** Si te vas a perder entre los 381 archivos de `R and D/`, empieza ahí.
+
 **`01_COMO_TRABAJA_ENRIQUE.md`.** Va primero a propósito, porque es lo que más fricción
 ahorra. Cómo habla el dueño, cómo quiere el estado, cómo se decide el alcance, y el
 principio de los cuatro ojos con los casos reales que lo justifican, que son errores del
