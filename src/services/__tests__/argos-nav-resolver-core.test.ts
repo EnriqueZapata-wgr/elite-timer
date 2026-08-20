@@ -134,6 +134,15 @@ describe('intentos reales en es-MX', () => {
     ['quiero ver mi expediente', '/salud/mi-expediente'],
     ['mis síntomas', '/salud/mis-sintomas'],
     ['la lista del super', '/lista-compra'],
+    // CUATRO-OJOS (20-ago): estas tres frases viven en ALIAS_RUTA de rutas que
+    // ahora son alias excluidos del indice. Clavan que la donacion de
+    // vocabulario funciona: si alguien la rompe, estas fallan primero.
+    ['entrenar ahora', '/fitness-hub'],
+    ['quiero salir a correr', '/log-cardio'],
+    // 'mis cuestionarios' NO se prueba: gana /tests/q/maestro por su corpus
+    // propio, y eso ya pasaba ANTES de excluir alias (verificado corriendo la
+    // frase contra el indice viejo). 'quizzes' solo vive en la donacion.
+    ['mis quizzes', '/tests'],
     ['configurar notificaciones', '/settings/notifications'],
     ['quiero cambiar el tema a modo oscuro', '/settings/experiencia'],
     ['dónde está mi suscripción', '/settings/subscription'],
@@ -312,6 +321,19 @@ describe('integridad del catalogo (candado)', () => {
   it('ningun alias apunta a una ruta vetada (seria inalcanzable)', () => {
     const muertos = Object.keys(ALIAS_RUTA).filter((r) => rutaVetada(r));
     expect(muertos, 'alias hacia rutas que ARGOS nunca abrira').toEqual([]);
+  });
+
+  it('el vocabulario a mano de un alias excluido siempre tiene a quien donarse', () => {
+    // CUATRO-OJOS (20-ago): si una clave de ALIAS_RUTA es un alias 1:1 puro,
+    // su vocabulario se dona al destino. Eso exige que el destino sea una
+    // ruta real y no vetada; si no, las palabras mueren en silencio.
+    const huerfanos = Object.keys(ALIAS_RUTA)
+      .filter((r) => esAliasPuro(r))
+      .filter((r) => {
+        const base = (APP_ROUTE_ALIASES[r] as string).split('?')[0];
+        return !APP_ROUTES.includes(base) || rutaVetada(base);
+      });
+    expect(huerfanos, 'vocabulario a mano sin destino al que donarse').toEqual([]);
   });
 
   it('el indice cubre practicamente toda la app', () => {

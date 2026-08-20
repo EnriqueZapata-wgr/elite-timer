@@ -174,7 +174,6 @@ export const TITULOS_RUTA: Readonly<Record<string, string>> = {
   '/ordenar-dia': 'Ordenar mi día',
   '/plan-entrenamiento': 'Plan de entrenamiento',
   '/profile': 'Mi perfil',
-  '/protocol-explorer': 'Protocolos',
   '/quizzes': 'Cuestionarios funcionales',
   '/redeem-code': 'Canjear código',
   '/reports': 'Reportes',
@@ -268,7 +267,8 @@ export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = {
   '/salud/diagnostico': ['diagnostico funcional', 'mi diagnostico'],
   '/salud/evolucion': ['evolucion', 'como voy', 'tendencia'],
   '/historia-clinica': ['historia clinica', 'antecedentes familiares'],
-  '/protocol-explorer': ['protocolos', 'protocolo'],
+  // '/protocol-explorer' salió (A-1): el concepto de catálogo de protocolos
+  // se retiró con el pivote. "Mi protocolo" vive en /salud/intervenciones.
   '/ficha-emergencia': ['emergencia', 'ficha de emergencia', 'contacto de emergencia'],
   '/fitness-hub': ['fitness', 'ejercicio', 'entrenar', 'gimnasio', 'gym'],
   '/fitness-train': ['entrenar ahora', 'empezar entrenamiento', 'rutina de hoy'],
@@ -497,17 +497,18 @@ export function obtenerIndice(): EntradaIndice[] {
   const entradas: EntradaIndice[] = [];
   for (const r of APP_ROUTES) {
     if (rutaVetada(r)) continue;
-    // ALIAS-1 (20-ago-2026): un alias no es un destino. 54 de las 200 rutas
-    // del mapa son stubs que redirigen a otra (APP_ROUTE_ALIASES, detectados
-    // por el generador). Antes competian en el ranking como pantallas: seis
-    // rutas distintas llevaban a /tests y se repartian el puntaje.
+    // ALIAS-1 (20-ago-2026): un alias no es un destino. Una cuarta parte de
+    // las rutas del mapa son stubs que redirigen a otra (APP_ROUTE_ALIASES,
+    // detectados por el generador). Antes competían en el ranking como
+    // pantallas: seis rutas distintas llevaban a /tests repartiéndose el
+    // puntaje.
     //
     // La regla exacta, y las dos excepciones salieron de la suite, no de la
-    // teoria: se excluye SOLO el alias 1:1 limpio (destino leido y SIN query).
+    // teoría: se excluye SOLO el alias 1:1 limpio (destino leído y SIN query).
     //  - destino null (runtime): SE QUEDA, o su vocabulario se tira.
     //  - destino con '?' (/lista-compra -> /cocina?tab=lista): SE QUEDA,
-    //    porque el alias carga un parametro que el destino pelon no tiene;
-    //    mandar a /cocina sin tab NO es lo que el usuario pidio.
+    //    porque el alias carga un parámetro que el destino pelón no tiene;
+    //    mandar a /cocina sin tab NO es lo que el usuario pidió.
     if (esAliasPuro(r)) continue;
     entradas.push(construirEntrada(r, false));
   }
@@ -523,10 +524,16 @@ export function obtenerIndice(): EntradaIndice[] {
   // llegue a /my-routines en vez de a ningun lado.
   const porRuta = new Map(entradas.map((e) => [e.ruta, e]));
   for (const [alias, destino] of Object.entries(APP_ROUTE_ALIASES)) {
-    if (!esAliasPuro(alias)) continue; // sigue en el indice: donar duplicaria
+    if (!esAliasPuro(alias)) continue; // sigue en el índice: donar duplicaría
     const dueno = porRuta.get((destino as string).split('?')[0]);
-    if (!dueno) continue; // el destino no esta en el indice (vetado o dinamico)
+    if (!dueno) continue; // el destino no está en el índice (vetado o dinámico)
     sumar(dueno.pesos as Map<string, number>, tokenizar(alias.replace(/\//g, ' ').replace(/[-_]/g, ' ')), PESO_ALIAS);
+    // CUATRO-OJOS (20-ago): el vocabulario A MANO del alias también se dona.
+    // Sin esto, "entrenar ahora", "correr" o "cuestionarios" (ALIAS_RUTA de
+    // rutas ahora excluidas) morían en silencio y la suite no lo veía.
+    for (const palabra of ALIAS_RUTA[alias] ?? []) {
+      sumar(dueno.pesos as Map<string, number>, tokenizar(palabra), PESO_ALIAS);
+    }
   }
   _indice = entradas;
   return entradas;

@@ -111,13 +111,12 @@ function descripcionDe(archivo) {
  * es el único lugar que ya lee todos los archivos: una lista a mano naceria
  * desactualizada.
  *
- * POR QUÉ IMPORTA (medido en el barrido del 19-ago-2026): 54 de las 200 rutas
- * del mapa eran alias, y el resolvedor de ARGOS los rankeaba como destinos
+ * POR QUÉ IMPORTA (medido en el barrido del 19-ago-2026): 54 de las 200 rutas de ese día eran alias, y el resolvedor de ARGOS los puntuaba como destinos
  * distintos. Seis rutas distintas llevaban a /tests y se repartían el puntaje
  * entre ellas. Con esta marca, el resolvedor los excluye del índice y le
  * regala sus palabras al destino real.
  *
- * Devuelve { esAlias, destino } — destino null cuando se calcula en runtime
+ * Devuelve { esAlias, destino }: destino null cuando se calcula en runtime
  * y no se puede leer estático.
  */
 function aliasDe(archivo) {
