@@ -28,6 +28,10 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { PACK_BY_KEY, habitosPorIntensidad } from '@/src/constants/packs';
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
 import { APP_BY_KEY } from '@/src/constants/app-registry';
+import { INTERVENTIONS_CATALOG } from '@/src/constants/interventions-catalog';
+import { CASOS_DE_USO_PRESCRIBEN } from '@/src/constants/flags';
+
+const INTERVENTION_BY_KEY = Object.fromEntries(INTERVENTIONS_CATALOG.map((i) => [i.key, i]));
 import { getUserPacks, avanzarPackEtapa } from '@/src/services/pack-service';
 import { packAplicado, type UserPackRow } from '@/src/services/pack-core';
 import { etapaDelPack } from '@/src/services/pack-etapas-core';
@@ -247,6 +251,32 @@ export default function FichaPackScreen() {
             </EliteText>
           </View>
         </Animated.View>
+
+        {/* Qué entra a tu día (CASOS_DE_USO_PRESCRIBEN): las prácticas del
+            pack, con nombre y para qué, ANTES de aplicar. La transparencia es
+            la mitad del contrato: nadie descubre después qué le llenó el día. */}
+        {CASOS_DE_USO_PRESCRIBEN && (pack.prescribe?.length ?? 0) > 0 && (
+          <Animated.View entering={FadeInUp.delay(220).springify()}>
+            <EliteText style={[s.seccion, thTenue]}>QUÉ ENTRA A TU DÍA</EliteText>
+            <View style={[s.card, thCard]}>
+              {(pack.prescribe as readonly string[]).map((key) => {
+                const def = INTERVENTION_BY_KEY[key];
+                if (!def) return null;
+                return (
+                  <View key={key} style={{ marginBottom: 8 }}>
+                    <EliteText style={[s.cardTexto, thTexto]}>{def.name}</EliteText>
+                    <EliteText style={[s.cardLabel, thTenue]}>{def.benefit}</EliteText>
+                  </View>
+                );
+              })}
+              <EliteText style={[s.nota, thTenue]}>
+                Entran a Mi Protocolo y aparecen en tu día con su hora. Si ya
+                habías pausado o descartado alguna, se queda como la dejaste.
+                Cada una se puede pausar cuando quieras.
+              </EliteText>
+            </View>
+          </Animated.View>
+        )}
 
         {/* Metas y avisos, solo si el pack los trae */}
         {(pack.metas.length > 0 || pack.avisos.length > 0) && (
