@@ -52,7 +52,7 @@ const INCLUYE: string[] = [
   'Todo ATP completo: HOY, Fitness, Nutrición, Mente, Salud, Ciclo y Tests',
   'ARGOS sin límites, tu IA de rendimiento, todos los días',
   'Análisis de comida por foto y por texto',
-  'Tu mapa funcional, protocolos y biomarcadores',
+  'Tu mapa funcional, tu plan diario y biomarcadores',
   'Reportes profundos, sin costo extra por cada uno',
   'La comunidad: no compras una app, entras a la tribu',
 ];

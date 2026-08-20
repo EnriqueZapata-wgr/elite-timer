@@ -215,13 +215,13 @@ function AssessmentEngine() {
       await clearDraft(user.id, session!.assessment.id);
       if (count > 0) {
         haptic.success();
-        Alert.alert('Listo', `Se activaron ${count} protocolo${count > 1 ? 's' : ''}.`);
+        Alert.alert('Listo', `Se guardaron ${count} propuesta${count > 1 ? 's' : ''}.`);
       } else {
         haptic.success();
       }
       router.replace('/tests');
     } catch {
-      Alert.alert('Error', 'No se pudieron activar los protocolos.');
+      Alert.alert('Error', 'No se pudieron guardar las propuestas.');
     } finally {
       setSaving(false);
     }
@@ -365,7 +365,7 @@ function AssessmentEngine() {
               return next;
             })}
             onAccept={onAcceptProtocols}
-            onExplore={() => router.push('/protocol-explorer')}
+            onExplore={() => router.push('/salud/intervenciones')}
             saving={saving}
           />
         </Screen>
