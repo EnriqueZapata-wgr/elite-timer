@@ -53,6 +53,15 @@ export default function ExerciseLibraryScreen() {
   // MB-3.6 §1.1: los métodos ATP viven aquí (antes /training-methods suelto) —
   // la teoría junto a los ejercicios, no como destino hermano.
   const [tab, setTab] = useState<'ejercicios' | 'metodos'>(params.tab === 'metodos' ? 'metodos' : 'ejercicios');
+  // Barrido B (20-ago-2026): el parámetro también manda con la pantalla YA
+  // montada (ARGOS o un deep link tibio piden otra pestaña). El initializer de
+  // useState solo corre al montar; sin esto, pedir la ruta con otro parámetro
+  // desde la misma pantalla no hacía nada. Solo valores válidos: un parámetro
+  // inválido no tumba lo que el usuario ya eligió. Pedir el MISMO valor dos
+  // veces seguidas no re-fuerza nada: el efecto solo corre cuando cambia.
+  useEffect(() => {
+    if (params.tab === 'metodos' || params.tab === 'ejercicios') setTab(params.tab);
+  }, [params.tab]);
   const [catalogo, setCatalogo] = useState<MatrixExercise[] | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [grupo, setGrupo] = useState('Todos');

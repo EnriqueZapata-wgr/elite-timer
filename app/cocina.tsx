@@ -12,7 +12,7 @@
  *
  * Ruta: /cocina?tab=recetas|lista|preferencias
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -46,6 +46,15 @@ export default function CocinaScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
   const { kind, tokens: t } = useAppTheme();
   const [tab, setTab] = useState<TabId>(esTab(params.tab) ? params.tab : 'recetas');
+  // Barrido B (20-ago-2026): el parámetro también manda con la pantalla YA
+  // montada (ARGOS o un deep link tibio piden otra pestaña). El initializer de
+  // useState solo corre al montar; sin esto, pedir la ruta con otro parámetro
+  // desde la misma pantalla no hacía nada. Solo valores válidos: un parámetro
+  // inválido no tumba lo que el usuario ya eligió. Pedir el MISMO valor dos
+  // veces seguidas no re-fuerza nada: el efecto solo corre cuando cambia.
+  useEffect(() => {
+    if (esTab(params.tab)) setTab(params.tab);
+  }, [params.tab]);
 
   return (
     <Screen keyboard themed>

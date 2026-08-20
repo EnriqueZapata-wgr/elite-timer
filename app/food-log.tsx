@@ -22,7 +22,7 @@
  * updateFrequentFood y maybeGeneratePostMealInsight tras guardar.
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, Alert, Text, Pressable, Modal, TextInput } from 'react-native';
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -101,6 +101,20 @@ export default function FoodLogScreen() {
   // ¿El sensor actual se eligió tocando su chip? Al montar NO: el sensor
   // inicial viene del parámetro de la ruta. Solo el gesto abre la cámara.
   const [sensorPorGesto, setSensorPorGesto] = useState(false);
+  // Barrido B (20-ago-2026): el parámetro también manda con la pantalla YA
+  // montada (ARGOS o un deep link tibio piden otro sensor). El initializer de
+  // useState solo corre al montar; sin esto, pedir la ruta con otro parámetro
+  // desde la misma pantalla no hacía nada. Solo valores válidos: un parámetro
+  // inválido no tumba lo que el usuario ya eligió. Pedir el MISMO valor dos
+  // veces seguidas no re-fuerza nada: el efecto solo corre cuando cambia.
+  // Y aquí el cambio NO es gesto: la cámara no se abre sola (mismo criterio
+  // que el montaje).
+  useEffect(() => {
+    if (esSensor(params.sensor)) {
+      setSensor(params.sensor);
+      setSensorPorGesto(false);
+    }
+  }, [params.sensor]);
   const intent: CaptureIntent = params.intent === 'etiqueta' ? 'etiqueta' : 'comida';
 
   // Tipo de comida: el param manda; si no, la ventana del usuario; si no, el reloj.
