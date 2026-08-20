@@ -27,6 +27,10 @@ export interface TodaySignals {
 export interface ChatSuggestion {
   label: string;
   icon: string;
+  /** Chip de ACCIÓN: en vez de mandar el label al chat, dispara algo real.
+   * 'tour' relanza el tour de la orbe (mismo camino que Ajustes › Experiencia).
+   * Un chip sin action es un chip de conversación, como siempre. */
+  action?: 'tour';
 }
 
 /** Cuántos chips pinta el estado vacío. */
@@ -37,6 +41,33 @@ export const EVENING_HOUR = 17;
 
 /** A partir de esta hora "no has registrado comidas" ya es señal, no madrugada. */
 export const MEALS_MATTER_FROM_HOUR = 11;
+
+/**
+ * MENU-1 (20-ago-2026, pedido directo del dueño): la fila de CAPACIDADES.
+ *
+ * Abrir ARGOS caía directo al chat y nada le decía al usuario qué puede
+ * pedirle además de platicar. Estos chips no son temas: son las funciones de
+ * la orbe, siempre visibles en el arranque, arriba de los temas del día.
+ *
+ * Todos están respaldados por código, no por fe:
+ *  · "esta pantalla": el chat inyecta la ruta exacta de la última pantalla
+ *    visitada (ultimaRutaVisitada + catálogo de pantallas) en cada turno,
+ *    así que ARGOS sabe dónde estaba parado el usuario.
+ *  · "qué puedes hacer": el cerebro trae su sección de identidad y
+ *    capacidades; contestarlo es exactamente su trabajo.
+ *  · "dame el tour": chip de acción (action: 'tour') — relanza el tour de la
+ *    orbe de verdad, no manda texto al modelo.
+ * El de navegar ya tiene sus dos chips con lugar reservado en
+ * NAV_SUGGESTIONS y no se duplica aquí.
+ */
+export const CAPABILITY_SUGGESTIONS: ChatSuggestion[] = [
+  { label: '¿Qué es esta pantalla y para qué sirve?', icon: 'help-circle-outline' },
+  { label: '¿Qué puedes hacer por mí?', icon: 'sparkles-outline' },
+  // L-17 (tutorial como requisito de lanzamiento): el tour invocable desde la
+  // orbe, no solo desde Ajustes. Es acción real, no un mensaje al modelo:
+  // prometer un tour y contestar con texto sería un control que miente.
+  { label: 'Dame el tour de la app', icon: 'footsteps-outline', action: 'tour' },
+];
 
 /** Los seis de siempre — relleno cuando el día aún no dice nada. */
 export const DEFAULT_SUGGESTIONS: ChatSuggestion[] = [

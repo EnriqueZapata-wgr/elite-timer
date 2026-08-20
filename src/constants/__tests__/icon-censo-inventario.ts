@@ -158,6 +158,8 @@ export const GLYPH_INVENTORY: readonly string[] = [
   // Menú de capacidades de ARGOS (20-ago-2026): "¿Qué puedes hacer por mí?"
   // y "Explícame lo que notaste hoy de mí" — chips de acción, no lanzadores.
   'src/services/argos-suggestions-core.ts::sparkles-outline::x2',
+  // L-17: chip "Dame el tour de la app" — acción real, no lanzador.
+  'src/services/argos-suggestions-core.ts::footsteps-outline',
   'src/components/salud/FichaEmergenciaRow.tsx::medkit',
   'app/settings/legal.tsx::document-text-outline',
   'app/settings/legal.tsx::medkit-outline',
