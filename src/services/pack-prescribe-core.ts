@@ -49,3 +49,52 @@ export function planearPrescripcion(
   }
   return plan;
 }
+// ─────────────────────────────────────────────────────────────────────────────
+// Reglas de combinación de casos de uso
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** La forma mínima de un pack que estas reglas necesitan conocer. */
+export interface PackParaCombinar {
+  key: string;
+  nombre: string;
+  excluye?: readonly string[];
+  /** true = caso de uso de estilo de vida (cuenta para el techo). */
+  cuentaParaElTecho: boolean;
+}
+
+export type VeredictoCombinacion =
+  | { ok: true }
+  | { ok: false; razon: 'exclusion'; con: string; nombreCon: string }
+  | { ok: false; razon: 'techo'; activos: number };
+
+/**
+ * ¿Puede activarse `candidato` con `activos` ya puestos?
+ *
+ * Dos frenos, en este orden:
+ *  1. EXCLUSIÓN declarada (en cualquiera de las dos direcciones: el candado
+ *     del registro exige simetría, pero aquí se revisan ambas por si una
+ *     edición rompe la simetría antes de que CI la cache).
+ *  2. TECHO de casos de estilo de vida activos (MAX_CASOS_ACTIVOS): tres
+ *     días distintos armados a la vez ya no son un día. Los paquetes de
+ *     salud no cuentan para el techo: capturan expediente, no arman el día.
+ *
+ * Re-aplicar un pack que ya está activo nunca choca consigo mismo: el
+ * llamador filtra al candidato de la lista de activos.
+ */
+export function validarCombinacion(
+  candidato: PackParaCombinar,
+  activos: readonly PackParaCombinar[],
+  techo: number,
+): VeredictoCombinacion {
+  for (const a of activos) {
+    if (a.key === candidato.key) continue;
+    const choca =
+      (candidato.excluye ?? []).includes(a.key) || (a.excluye ?? []).includes(candidato.key);
+    if (choca) return { ok: false, razon: 'exclusion', con: a.key, nombreCon: a.nombre };
+  }
+  if (candidato.cuentaParaElTecho) {
+    const cuenta = activos.filter((a) => a.key !== candidato.key && a.cuentaParaElTecho).length;
+    if (cuenta >= techo) return { ok: false, razon: 'techo', activos: cuenta };
+  }
+  return { ok: true };
+}

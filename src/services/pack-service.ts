@@ -25,10 +25,10 @@
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { DeviceEventEmitter } from 'react-native';
-import { PACK_BY_KEY, type PackIntensidad } from '@/src/constants/packs';
+import { PACK_BY_KEY, PACKS, MAX_CASOS_ACTIVOS, type PackIntensidad } from '@/src/constants/packs';
 import { CASOS_DE_USO_PRESCRIBEN } from '@/src/constants/flags';
 import { INTERVENTIONS_CHANGED_EVENT } from '@/src/services/interventions/intervention-service';
-import { planearPrescripcion, type FilaIntervencion } from '@/src/services/pack-prescribe-core';
+import { planearPrescripcion, validarCombinacion, type FilaIntervencion } from '@/src/services/pack-prescribe-core';
 import {
   buildPackPlan,
   esHoraValida,
@@ -174,6 +174,39 @@ export async function aplicarPack(
   const estado = await leerEstadoActual(userId, pack.avisos.map((a) => a.app));
   if (estado === null) {
     return fallo('registro', 'No pude leer tu configuración actual. Nada se tocó. Intenta de nuevo en un momento.');
+  }
+
+  // 0b · Reglas de combinación (CASOS_DE_USO_PRESCRIBEN): exclusiones
+  //      declaradas y techo de casos de estilo de vida. Se frena con
+  //      explicación ANTES de escribir nada.
+  if (CASOS_DE_USO_PRESCRIBEN) {
+    const aCombinar = (k: string) => {
+      const def = PACK_BY_KEY[k];
+      return def
+        ? {
+            key: def.key,
+            nombre: def.nombre,
+            excluye: def.excluye,
+            cuentaParaElTecho: PACKS.some((pk) => pk.key === def.key),
+          }
+        : null;
+    };
+    const candidato = aCombinar(packKey);
+    const activos = rows
+      .filter((r) => r.active && r.pack_key !== packKey)
+      .map((r) => aCombinar(r.pack_key))
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+    if (candidato) {
+      const veredicto = validarCombinacion(candidato, activos, MAX_CASOS_ACTIVOS);
+      if (!veredicto.ok) {
+        return fallo(
+          'registro',
+          veredicto.razon === 'exclusion'
+            ? `Este caso de uso no se combina con ${veredicto.nombreCon}. Desactívalo primero y vuelve a intentar.`
+            : `Ya tienes ${veredicto.activos} casos de uso activos, que es el tope. Con más, tu día deja de ser un día. Desactiva uno para sumar este.`,
+        );
+      }
+    }
   }
 
   const filaPrevia = rows.find((r) => r.pack_key === packKey) ?? null;
