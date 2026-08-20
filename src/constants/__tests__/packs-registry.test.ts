@@ -11,6 +11,7 @@ import { PACKS, PAQUETES_SALUD, PACK_BY_KEY, habitosPorIntensidad } from '@/src/
 import { APP_BY_KEY } from '@/src/constants/app-registry';
 import { ELECTRON_WEIGHTS } from '@/src/constants/electrons';
 import { hasAppIcon } from '@/src/components/ui/app-icon-names';
+import { INTERVENTIONS_CATALOG } from '@/src/constants/interventions-catalog';
 
 // MB-29 P4: el contrato cubre los dos registros — mismos invariantes.
 const TODOS = [...PACKS, ...PAQUETES_SALUD];
@@ -107,6 +108,39 @@ describe('contrato del registro de packs', () => {
       const copy = [pack.nombre, pack.paraQuien, pack.queEsperar, pack.argosFoco].join(' ');
       expect(copy.includes('—'), `em dash en ${pack.key}`).toBe(false);
       expect(prohibidas.test(copy), `palabra roja en ${pack.key}: ${copy.match(prohibidas)?.[0] ?? ''}`).toBe(false);
+    }
+  });
+
+  it('prescribe: toda llave existe en el catálogo y ninguna espera validación clínica', () => {
+    // CASOS_DE_USO_PRESCRIBEN: prescribir desde un pack una intervención con
+    // requiresClinicalValidation sería brincarse la firma de la responsable
+    // clínica por la puerta de atrás. El motor ya las excluye de sugerencias;
+    // este candado cierra la otra puerta.
+    const porLlave = new Map(INTERVENTIONS_CATALOG.map((i) => [i.key, i]));
+    for (const pack of TODOS) {
+      for (const key of pack.prescribe ?? []) {
+        const int = porLlave.get(key);
+        expect(int, `${pack.key} prescribe "${key}" que no existe en el catálogo`).toBeTruthy();
+        expect(
+          int?.requiresClinicalValidation ?? false,
+          `${pack.key} prescribe "${key}" que espera validación clínica`,
+        ).toBe(false);
+      }
+      const set = new Set(pack.prescribe ?? []);
+      expect(set.size, `prescribe duplicado en ${pack.key}`).toBe((pack.prescribe ?? []).length);
+    }
+  });
+
+  it('excluye: llaves reales, sin auto-exclusión y simétricas', () => {
+    for (const pack of TODOS) {
+      for (const otro of pack.excluye ?? []) {
+        expect(PACK_BY_KEY[otro], `${pack.key} excluye "${otro}" que no existe`).toBeTruthy();
+        expect(otro, `${pack.key} se excluye a sí mismo`).not.toBe(pack.key);
+        expect(
+          (PACK_BY_KEY[otro]?.excluye ?? []).includes(pack.key),
+          `exclusión asimétrica: ${pack.key} excluye a ${otro} pero no al revés`,
+        ).toBe(true);
+      }
     }
   });
 

@@ -96,6 +96,24 @@ export interface PackDef {
   enciende: PackHabito[];
   /** Metas que el pack fija por los servicios existentes. */
   metas: PackMetaDef[];
+  /**
+   * Practicas de Mi Protocolo que este caso de uso enciende (llaves de
+   * INTERVENTIONS_CATALOG). Es la pieza que faltaba: sin esto, elegir un
+   * pack configuraba la app pero no ponia NADA en el dia, y la unica via
+   * era escoger a mano entre 88 (decision del dueno, 20-ago-2026: el
+   * usuario nunca ve la lista cruda). Reglas del registro, con candado en
+   * packs-registry.test.ts: la llave existe en el catalogo, jamas una con
+   * requiresClinicalValidation, y las modalidades entran por la puerta
+   * suave de su familia (ayuno_14_10, no ayuno_20_4).
+   * ⚠️ PEND-FIRMA (Enrique + Mariana): el set de cada pack.
+   */
+  prescribe?: readonly string[];
+  /**
+   * Casos de uso que NO se combinan con este (llaves de PACK_BY_KEY).
+   * Simetrico por candado: si A excluye a B, B excluye a A. Hoy ninguno
+   * declara exclusiones; el mecanismo queda listo para el catalogo de 20.
+   */
+  excluye?: readonly string[];
   /** Avisos que el pack configura (restricción: pocos y con condición). */
   avisos: PackAviso[];
   /**
@@ -106,6 +124,13 @@ export interface PackDef {
 }
 
 export type PackIntensidad = 'suave' | 'con_todo';
+
+/**
+ * Techo de casos de uso activos a la vez. Tres dias distintos armados al
+ * mismo tiempo ya no son un dia: son una lista de pendientes. La entrada
+ * de packs lo usa para frenar con explicacion, no para bloquear en seco.
+ */
+export const MAX_CASOS_ACTIVOS = 3;
 
 export const INTENSIDAD_LABELS: Record<PackIntensidad, string> = {
   suave: 'Suave',
@@ -135,7 +160,9 @@ export const INTENSIDAD_LABELS: Record<PackIntensidad, string> = {
 export const PACKS: PackDef[] = [
   {
     key: 'bajar-revoluciones',
-    nombre: 'Bajar revoluciones',
+    // ⚠️ PEND-FIRMA: renombrado de "Bajar revoluciones" (veto directo del
+    // dueno, 20-ago-2026: nombres reales, del resultado).
+    nombre: 'Controlar el estrés',
     paraQuien: 'Para quien no puede apagar la cabeza al final del día.',
     queEsperar:
       'Tu día gana tres momentos de pausa: respirar, un check-in de cómo vienes y unos minutos de meditación. En la noche, escribir y soltar pantallas antes de dormir.',
@@ -154,10 +181,14 @@ export const PACKS: PackDef[] = [
       { app: 'meditar', hora: { ancla: 'despertar', offsetMin: 15 } },
     ],
     argosFoco: 'Qué días se dispara la coordenada del check-in y qué los precede.',
+    // ⚠️ PEND-FIRMA (set propuesto): bajar el ritmo se practica, no se desea.
+    prescribe: ['respiracion_478', 'coherencia_cardiaca_5_5', 'journal_pm', 'nsdr_10min', 'green_time_30min'],
   },
   {
     key: 'dormir-mejor',
-    nombre: 'Dormir mejor',
+    // ⚠️ PEND-FIRMA: renombrado de "Dormir mejor": el resultado que la
+    // persona quiere es profundidad, no un adverbio.
+    nombre: 'Dormir profundo',
     paraQuien: 'Para quien duerme sus horas y aun así amanece cansado.',
     queEsperar:
       'Luz de mañana temprano, corte de pantallas en la noche y una rutina para bajar el ritmo antes de acostarte. La app registra tu hora real de dormir, que es lo accionable sin wearable.',
@@ -176,6 +207,8 @@ export const PACKS: PackDef[] = [
       { app: 'respirar', hora: { ancla: 'dormir', offsetMin: -90 } },
     ],
     argosFoco: 'La distancia entre tu hora objetivo de dormir y la real, y qué la mueve.',
+    // ⚠️ PEND-FIRMA (set propuesto): palancas de higiene circadiana, puerta suave.
+    prescribe: ['exposicion_solar_matutina', 'pantallas_off_60min', 'cerrar_comida_3h_antes_dormir', 'blackout_total_cuarto', 'respiracion_478'],
   },
   {
     key: 'energia-estable',
@@ -198,6 +231,8 @@ export const PACKS: PackDef[] = [
     ],
     avisos: [],
     argosFoco: 'Qué comidas preceden la caída de energía de la tarde.',
+    // ⚠️ PEND-FIRMA (set propuesto): la tarde se arregla en la mañana y en la mesa.
+    prescribe: ['hidratacion_matutina', 'exposicion_solar_matutina', 'caminata_postprandial', 'ayuno_14_10', 'ducha_fria_nivel1'],
   },
   {
     key: 'foco-claridad',
@@ -217,6 +252,8 @@ export const PACKS: PackDef[] = [
     metas: [],
     avisos: [{ app: 'meditar', hora: { ancla: 'despertar', offsetMin: 15 } }],
     argosFoco: 'El score de N-Back contra las noches que durmió bien.',
+    // ⚠️ PEND-FIRMA (set propuesto): entrenar el foco y protegerlo del ruido.
+    prescribe: ['n_back_challenge', 'physiological_sigh', 'pausas_activas_90min', 'binaurales_beta'],
   },
   {
     key: 'longevidad',
@@ -239,6 +276,8 @@ export const PACKS: PackDef[] = [
     metas: [],
     avisos: [{ app: 'sol', hora: { ancla: 'despertar', offsetMin: 30 } }],
     argosFoco: 'Qué mueve su Edad ATP y qué no.',
+    // ⚠️ PEND-FIRMA (set propuesto): musculo, zona 2 y plato antiinflamatorio.
+    prescribe: ['zona_2_aerobica', 'levantamiento_compuesto', 'sardinas_pescados_grasos', 'eliminar_aceites_vegetales', 'meta_pasos_8k'],
   },
 ];
 
@@ -283,6 +322,8 @@ export const PAQUETES_SALUD: PackDef[] = [
     ],
     avisos: [],
     argosFoco: 'Qué comidas mueven la glucosa de esta persona en particular.',
+    // ⚠️ PEND-FIRMA (set propuesto): lo que mas mueve glucosa sin tocar farmacos.
+    prescribe: ['caminata_postprandial', 'ayuno_14_10', 'eliminar_aceites_vegetales', 'masticar_mas_20'],
   },
   {
     key: 'entender-sintomas',

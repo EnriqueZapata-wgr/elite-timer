@@ -24,7 +24,11 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
+import { DeviceEventEmitter } from 'react-native';
 import { PACK_BY_KEY, type PackIntensidad } from '@/src/constants/packs';
+import { CASOS_DE_USO_PRESCRIBEN } from '@/src/constants/flags';
+import { INTERVENTIONS_CHANGED_EVENT } from '@/src/services/interventions/intervention-service';
+import { planearPrescripcion, type FilaIntervencion } from '@/src/services/pack-prescribe-core';
 import {
   buildPackPlan,
   esHoraValida,
@@ -118,7 +122,7 @@ async function leerEstadoActual(userId: string, avisoApps: string[]): Promise<Es
 
 // ─── Aplicar ────────────────────────────────────────────────────────────────
 
-export type PasoAplicacion = 'apps' | 'habitos' | 'horas' | 'metas' | 'avisos' | 'registro';
+export type PasoAplicacion = 'apps' | 'habitos' | 'horas' | 'metas' | 'avisos' | 'practicas' | 'registro';
 
 export interface PasoResultado {
   paso: PasoAplicacion;
@@ -291,6 +295,58 @@ export async function aplicarPack(
               : `Avisos sin configurar: ${fallidas.join(', ')}.`,
           }),
     });
+  }
+
+  // 5b · Prácticas (CASOS_DE_USO_PRESCRIBEN): las intervenciones del pack
+  //      entran a Mi Protocolo y de ahí al día (INTERVENTIONS_DRIVE_HOY).
+  //      El plan es puro (pack-prescribe-core) y respeta lo pausado y lo
+  //      descartado: eso se reporta, nunca se revive en silencio.
+  if (CASOS_DE_USO_PRESCRIBEN && (pack.prescribe?.length ?? 0) > 0) {
+    let ok = true;
+    let detalle: string | undefined;
+    try {
+      const llaves = [...(pack.prescribe as readonly string[])];
+      const { data: filas, error: leerErr } = await supabase
+        .from('user_interventions')
+        .select('intervention_key, status')
+        .eq('user_id', userId)
+        .in('intervention_key', llaves);
+      if (leerErr) throw leerErr;
+      const plan = planearPrescripcion(llaves, (filas ?? []) as FilaIntervencion[]);
+      const ahora = new Date().toISOString();
+      if (plan.insertar.length > 0) {
+        const { error } = await supabase.from('user_interventions').insert(
+          plan.insertar.map((key) => ({
+            user_id: userId,
+            intervention_key: key,
+            status: 'active',
+            activated_at: ahora,
+          })),
+        );
+        if (error) throw error;
+      }
+      if (plan.promover.length > 0) {
+        const { error } = await supabase
+          .from('user_interventions')
+          .update({ status: 'active', activated_at: ahora, updated_at: ahora })
+          .eq('user_id', userId)
+          .eq('status', 'suggested')
+          .in('intervention_key', plan.promover);
+        if (error) throw error;
+      }
+      if (plan.respetadas.length > 0) {
+        const c = plan.respetadas.length;
+        detalle = c === 1
+          ? 'Una práctica sigue como la dejaste (la habías pausado o descartado).'
+          : `${c} prácticas siguen como las dejaste (las habías pausado o descartado).`;
+      }
+      DeviceEventEmitter.emit(INTERVENTIONS_CHANGED_EVENT);
+    } catch (e) {
+      ok = false;
+      detalle = 'Las prácticas del pack no entraron a tu protocolo. Intenta aplicar el pack de nuevo.';
+      logWarn('[packs] prescripcion fallo', e);
+    }
+    pasos.push({ paso: 'practicas', ok, ...(detalle ? { detalle } : {}) });
   }
 
   // 6 · Registro: la fila se queda para siempre (idempotencia + la

@@ -715,3 +715,33 @@ export const ARGOS_LIMITE_DE_ALCANCE = true;
  *  `true` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
  */
 export const ARGOS_SUFIJO_DE_EVIDENCIA = false;
+
+/**
+ * CASOS_DE_USO_PRESCRIBEN: el pack llena tu dia, no solo tu configuracion.
+ *
+ * QUE CONTROLA
+ *  · ON  → aplicarPack corre un paso mas ('practicas'): las intervenciones
+ *    declaradas en `prescribe` del pack entran a Mi Protocolo
+ *    (user_interventions, status 'active') y por INTERVENTIONS_DRIVE_HOY
+ *    aparecen como renglones del dia con su hora anclada al cronotipo. El
+ *    usuario elige UN caso de uso y su dia queda armado: nunca tiene que
+ *    escoger entre 88 practicas del catalogo.
+ *  · OFF → aplicarPack se comporta exactamente como hoy (apps, habitos,
+ *    horas, metas, avisos, registro). Nadie pierde nada: solo deja de
+ *    llenarse Mi Protocolo desde el pack.
+ *
+ * LO QUE NUNCA HACE, CON BANDERA EN CUALQUIER POSICION
+ *  · No toca una intervencion que el usuario pauso o descarto: el dato del
+ *    usuario es sagrado, y "el pack me revivio lo que yo apague" es
+ *    exactamente la clase de sorpresa que esta doctrina prohibe. Solo
+ *    inserta las que no existen y promueve las 'suggested'.
+ *  · No prescribe nada con requiresClinicalValidation: el candado del
+ *    registro (packs-registry.test.ts) lo exige en CI.
+ *
+ * QUE NO DESHACE APAGARLA
+ *  Las intervenciones ya activadas se quedan (son datos del usuario). Se
+ *  administran una a una en Mi Protocolo, como cualquier otra.
+ *
+ * COMO APAGARLA EN CALIENTE: false aqui → npx tsc --noEmit → OTA.
+ */
+export const CASOS_DE_USO_PRESCRIBEN = true;
