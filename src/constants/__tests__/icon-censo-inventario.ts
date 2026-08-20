@@ -77,9 +77,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/glucose-log.tsx::moon-outline',
   'app/glucose-log.tsx::restaurant-outline',
   'app/glucose-log.tsx::timer-outline',
-  'app/health-input.tsx::body-outline',
-  'app/health-input.tsx::moon-outline',
-  'app/health-input.tsx::sparkles-outline',
   // MB-27 0.3: indicadores de estado del hábito (reposo/graduado) en la fila
   // de Mis hábitos — chrome de estado, no lanzador de función del registro.
   'app/hoy-habitos.tsx::moon-outline',
@@ -117,7 +114,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/onboarding/v2/positioning.tsx::trending-up-outline',
   'app/onboarding/v2/privacy.tsx::document-text-outline::x2',
   'app/progress.tsx::trophy-outline',
-  'app/protocol-explorer.tsx::flask-outline',
   'app/register.tsx::eye-outline',
   // FIX-NOCHE: analytics-outline y barbell-outline salieron. OLA1 se llevó las
   // secciones por dominio del hub a REPORT_DOMAINS y app/reports.tsx dejó de
@@ -128,7 +124,9 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/reports.tsx::document-text-outline',
   'app/reports.tsx::eye-outline',
   'app/routine-generator.tsx::hourglass-outline',
-  'app/salud/intervenciones/index.tsx::sparkles-outline',
+  // Casos de uso (20-ago-2026): botón "¿Por qué estas intervenciones?" y card
+  // "Arma tu día por objetivo" — chips de acción, no lanzadores.
+  'app/salud/intervenciones/index.tsx::sparkles-outline::x2',
   'app/salud/mi-expediente/index.tsx::document-text-outline',
   'app/salud/mis-datos/index.tsx::body-outline',
   'app/salud/mis-datos/index.tsx::flame-outline',
@@ -157,6 +155,9 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/salud/ficha-emergencia.tsx::eye-outline',
   'app/salud/ficha-emergencia.tsx::phone-portrait-outline',
   'app/settings/salud.tsx::medkit-outline',
+  // Menú de capacidades de ARGOS (20-ago-2026): "¿Qué puedes hacer por mí?"
+  // y "Explícame lo que notaste hoy de mí" — chips de acción, no lanzadores.
+  'src/services/argos-suggestions-core.ts::sparkles-outline::x2',
   'src/components/salud/FichaEmergenciaRow.tsx::medkit',
   'app/settings/legal.tsx::document-text-outline',
   'app/settings/legal.tsx::medkit-outline',
@@ -290,7 +291,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/services/argos-suggestions-core.ts::moon-outline::x2',
   'src/services/argos-suggestions-core.ts::nutrition-outline::x2',
   'src/services/argos-suggestions-core.ts::restaurant-outline::x2',
-  'src/services/argos-suggestions-core.ts::sparkles-outline',
   'src/services/argos-suggestions-core.ts::trending-up-outline',
   'src/services/community/mood-share-core.ts::eye-outline',
   'src/services/cycle-service.ts::leaf-outline',

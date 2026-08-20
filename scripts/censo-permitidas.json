@@ -44,6 +44,8 @@
     "/cycle-history": "Redirect legacy (Ola 1 Reports R-3, ANEXO_A §6) a /reports/ciclo?tab=ciclos. El guard de acceso vive ahora en el dominio, así que este enlace tampoco abre ciclo a quien no le toca. Solo deep links y OTA viejos.",
     "/cycle-charts": "Redirect legacy (Ola 1 Reports R-3, ANEXO_A §6) a /reports/ciclo?tab=graficas. Mismo guard que el anterior. Solo deep links y OTA viejos.",
     "/mente/nback/stats": "Redirect legacy (Ola 1 Reports R-4, ANEXO_A §6) a /reports/nback: las estadísticas del juego se absorbieron en el dominio, con sus tres pestañas. Solo deep links y OTA viejos.",
-    "/mente/progreso": "Redirect legacy (Ola 1 Reports R-5, ANEXO_A §6) a /reports/adherencia?tab=rachas: las rachas y medallas se absorbieron en el dominio adherencia. La app Rachas del registro apunta ya al destino nuevo. Solo deep links y OTA viejos."
+    "/mente/progreso": "Redirect legacy (Ola 1 Reports R-5, ANEXO_A §6) a /reports/adherencia?tab=rachas: las rachas y medallas se absorbieron en el dominio adherencia. La app Rachas del registro apunta ya al destino nuevo. Solo deep links y OTA viejos.",
+    "/protocol-explorer": "Redirect legacy (A-1 casos de uso, 20-ago-2026, autorizado dueño) a /salud/intervenciones: el catálogo del modelo pre-pivote murió; hoy el día lo arman las intervenciones activas y la puerta son los casos de uso. Solo deep links y OTA viejos.",
+    "/health-input": "Redirect legacy (Barrido D, 20-ago-2026) a /salud/mis-datos: el formulario general fue absorbido por la captura consolidada y su única puerta era el fallback de captureRouteFor, que ya apunta al destino real. Solo deep links y OTA viejos."
   }
 }
