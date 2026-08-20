@@ -1,4 +1,25 @@
--- 296_sec_invite_consentido.sql
+-- 306_sec_invite_consentido.sql
+--
+-- ─── REGISTRO DE RENUMERACIÓN ────────────────────────────────────────────────
+-- Este archivo era la migración 296 y se renumeró a 306 el 19 de agosto de 2026,
+-- con autorización del dueño.
+--
+-- POR QUÉ. La 296 se escribió el 18 de agosto, cuando la migración más alta
+-- aplicada al remoto era la 295 y el número 296 estaba libre. Nunca se aplicó.
+-- Entre el 18 y el 19 se aplicaron al remoto la 300 (sleep_nights, limpieza de
+-- duraciones imposibles) y la 305 (argos_logs, brain_source), así que promoverla
+-- con el número 296 metería una migración con versión MENOR que las dos últimas
+-- aplicadas. Renumerar cuesta cero y evita tener que averiguar cómo se comporta
+-- `db push` en ese caso.
+--
+-- LA 296 NUNCA SE APLICÓ A NINGÚN AMBIENTE. Verificado el 19 de agosto de 2026
+-- contra `supabase_migrations.schema_migrations`: el historial remoto salta de
+-- 295 a 300. Si alguien encuentra una referencia a "la 296" en cualquier
+-- documento, es este archivo y su número ya no existe.
+--
+-- Contenido: idéntico al de la 296, sin un solo cambio de SQL.
+-- ─────────────────────────────────────────────────────────────────────────────
+--
 -- Cierre de la regresión de permisos detectada el 18 de agosto de 2026.
 --
 -- QUÉ CIERRA

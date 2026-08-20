@@ -26,6 +26,17 @@ set -euo pipefail
 
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DEPS_LINUX="${ATP_LINUX_DEPS:-/tmp/atp-linux-deps}"
+
+# ─── CACHE POR USUARIO (19-ago-2026) ─────────────────────────────────────────
+# El cache de vitest va POR USUARIO, no compartido. Cuando dos sesiones del
+# sandbox corren con uid distinto, la segunda hereda /tmp/atp-vitest-cache a
+# nombre de la primera y vitest truena con EACCES al escribir results.json,
+# DESPUÉS de que todas las pruebas pasaron. Resultado: la suite sale en verde y
+# el script sale con código 1. Un semáforo que dice rojo con el tablero en
+# verde, que es peor que no tener semáforo.
+# `vitest.linux.config.mts` ya respeta esta variable; sólo faltaba fijarla.
+export ATP_TEST_CACHE="${ATP_TEST_CACHE:-/tmp/atp-vitest-cache-$(id -u)}"
+
 CONFIG="$RAIZ/scripts/testing/vitest.linux.config.mts"
 
 if [[ "$(uname -s)" != "Linux" ]]; then

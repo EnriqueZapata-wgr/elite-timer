@@ -96,3 +96,5 @@ atp-linux-deps/
 
 # Capturas del audit visual: se regeneran con npm run audit-visual.
 .maestro/capturas/
+
+scripts/testing/vitest.linux.config.mts.timestamp-*.mjs

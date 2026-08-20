@@ -31,6 +31,12 @@ SALIDAS="$TRABAJO/resultados"
 TAM="${ATP_LOTE_TAM:-26}"        # calibrado para caber en ~170s
 PRESUPUESTO="${ATP_LOTE_SEG:-170}"
 
+
+# Cache por usuario. Misma razón que en pruebas-linux.sh: compartir el cache
+# entre sesiones con uid distinto rompe la escritura de results.json.
+export ATP_TEST_CACHE="${ATP_TEST_CACHE:-/tmp/atp-vitest-cache-$(id -u)}"
+
+
 mkdir -p "$SALIDAS"
 
 case "${1:-lote}" in
