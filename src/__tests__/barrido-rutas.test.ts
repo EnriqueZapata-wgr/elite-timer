@@ -80,12 +80,16 @@ describe('los valores salen de la fuente de verdad, no de una lista a mano', () 
     );
   });
 
-  it('el motor de cuestionarios junta sus cuatro catálogos', () => {
+  it('el motor de cuestionarios solo emite familias vivas', () => {
     const ids: string[] = todos['/tests/q/[id]'].valores;
     expect(ids).toEqual(expect.arrayContaining(['sleep_functional'])); // funcionales
-    expect(ids.some((i) => i.startsWith('hc-'))).toBe(true); // historia clínica
-    expect(ids.some((i) => i.startsWith('edad-'))).toBe(true); // edad ATP
     expect(ids).toEqual(expect.arrayContaining(['cronotipo'])); // los sueltos
+    // hc-* y edad-* NO entran: sus familias no tienen live:true en el registry
+    // y sus 25 rutas de motor pintaban "Evaluación no encontrada" (barrido del
+    // 19-ago-2026, grupo G01). Cuando prendan live, se restaura su FUENTE y
+    // este candado se reapunta.
+    expect(ids.some((i) => i.startsWith('hc-'))).toBe(false);
+    expect(ids.some((i) => i.startsWith('edad-'))).toBe(false);
     // Braverman NO pasa por el motor: tiene pantalla propia.
     expect(ids).not.toContain('braverman');
   });
@@ -102,6 +106,10 @@ describe('los valores salen de la fuente de verdad, no de una lista a mano', () 
         (f: { prefijo?: string }) => f.prefijo || ''
       )
     );
+    // Espejo exacto del centinela: un prefijo vale si tiene FUENTE o si está
+    // declarado como excluido CON razón (PREFIJOS_EXCLUIDOS). Sin ninguna de
+    // las dos = catálogo nuevo sin registrar, y eso sigue reventando.
+    for (const p of Object.keys(ejemplos.PREFIJOS_EXCLUIDOS)) declarados.add(p);
     for (const p of prefijos) expect(declarados.has(p), `prefijo "${p}" sin catálogo`).toBe(true);
   });
 

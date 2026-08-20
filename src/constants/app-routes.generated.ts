@@ -218,6 +218,71 @@ export const APP_ROUTES_DYNAMIC: readonly string[] = [
 ];
 
 /**
+ * ALIAS: rutas que existen solo para no romper deep links viejos. Cada una
+ * redirige al destino indicado (null = el destino se calcula en runtime y no
+ * se puede leer estático). El resolvedor de ARGOS las EXCLUYE de su índice y
+ * le suma sus palabras al destino real; el barrido visual las sigue
+ * recorriendo para verificar que la redirección vive.
+ */
+export const APP_ROUTE_ALIASES: Readonly<Record<string, string | null>> = {
+  "/argos-recipes": "/cocina?tab=recetas",
+  "/biblioteca": "/my-routines",
+  "/cardio-import": "/log-cardio?fase=importar",
+  "/cycle-charts": "/reports/ciclo?tab=graficas",
+  "/cycle-history": "/reports/ciclo?tab=ciclos",
+  "/edad-atp/cinematic-tests-index": "/tests",
+  "/edad-atp/cognitive": "/edad-atp/tests/reaction-time",
+  "/edad-atp/questionnaires": "/tests",
+  "/edad-atp/test-bolt": "/tests/run/bolt",
+  "/edad-atp/test-old-man": "/tests/run/old-man",
+  "/edad-atp/test-plank": "/tests/run/plank",
+  "/edad-atp/test-recovery-hr": "/tests/run/recovery-hr",
+  "/edad-atp/tests": "/tests",
+  "/edad-atp/tests/chronotype": "/tests/q/cronotipo",
+  "/edad-atp/tests/cooper": "/tests/run/cooper",
+  "/edad-atp/tests/push-ups": "/tests/run/push-ups",
+  "/emotion-exploration": "/checkin?mode=explore",
+  "/emotion-history": "/reports/emociones",
+  "/emotion-navigation": null,
+  "/emotion-profile": "/reports/emociones?section=perfil",
+  "/execution": null,
+  "/fitness-cardio": "/log-cardio",
+  "/fitness-hiit": "/routine-generator?puerta=intervalos",
+  "/fitness-my": "/fitness-hub",
+  "/fitness-train": "/fitness-hub",
+  "/food-barcode": "/food-log?sensor=codigo",
+  "/food-preferences": "/cocina?tab=preferencias",
+  "/food-register": "/food-log",
+  "/food-scan": "/supplements?capture=foto",
+  "/food-text": "/food-log?sensor=texto",
+  "/functional-quiz": null,
+  "/health-hub": "/salud",
+  "/historia-clinica": "/tests",
+  "/journal-history": "/reports/journal",
+  "/lista-compra": "/cocina?tab=lista",
+  "/log-exercise": null,
+  "/mente/nback/stats": "/reports/nback",
+  "/mente/progreso": "/reports/adherencia?tab=rachas",
+  "/my-chronotype": "/tests/resultado/cronotipo",
+  "/my-recipes": "/cocina?tab=recetas",
+  "/perfil": "/settings",
+  "/progreso": "/fitness-strength",
+  "/protocol-explorer": "/salud/intervenciones",
+  "/quiz-take": null,
+  "/quiz/chronotype": "/tests/q/cronotipo",
+  "/quizzes": "/tests",
+  "/reset-password": "/forgot-password",
+  "/salud/cuestionario-maestro": "/tests/q/maestro",
+  "/salud/evolucion": "/salud?seccion=evolucion",
+  "/salud/expediente": "/salud?seccion=expediente",
+  "/salud/hoy": "/salud?seccion=hoy",
+  "/salud/mis-evaluaciones": "/tests",
+  "/settings/comunidad": "/comunidad/ajustes",
+  "/settings/cuenta": "/settings",
+  "/shared-routine": null,
+};
+
+/**
  * Qué hace cada pantalla, cosechado del encabezado de su propio archivo.
  *
  * Es la semilla del conocimiento que ARGOS necesita para EXPLICAR la app, no
@@ -243,7 +308,7 @@ export const APP_ROUTE_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "/argos/conversations": "ARGOS — Historial de conversaciones (F2.2 #93 · MB-21 Pieza 3). Lo que lo vuelve usable con cincuenta conversaciones: grupos por fecha",
   "/argos/meet": "Meet ARGOS — primer contacto post-onboarding (T6 MAGIA ARGOS · T1 ONBOARDING épico). Secuencia cinemática de 5 pantallas (Propuesta A, guion en",
   "/atp-orden": "Mi orden (MB-19 PIEZA 2) — la pantalla que edita el orden \"Mío\" de la sala ATP. Con una LISTA, no arrastrando. Subir, bajar y fijar arriba resuelven el 100%",
-  "/biblioteca": "Tab vieja Biblioteca — redirect para deep links externos (OLA0 QW-6).",
+  "/biblioteca": "Tab vieja Biblioteca — redirect para deep links externos (OLA0 QW-6). G09 (20-ago-2026): era un <Redirect> declarativo y dejaba la pantalla EN",
   "/braverman": "Test de Braverman — Evaluación clínica de neurotransmisores. 313 preguntas V/F divididas en 2 partes (dominancia + deficiencias).",
   "/braverman-premium": "REPORTE PREMIUM ARGOS — Braverman (#90, #143). PREMIUM (16-ago-2026): costaba 1,000 H+ y ahora viene incluido. Se cayó la",
   "/breathing": "Respiración — Timer con animación de círculo expandible/contractible. Ciclos de inhala/retén/exhala con visualización.",
@@ -370,12 +435,12 @@ export const APP_ROUTE_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "/ordenar-dia": "Ordenar mi día (MB-26 Pieza 4) — la salida al desmadre. Tres caminos, uno por pantalla: empezar de cero (todo a reposo),",
   "/packs/armar": "Ármala por mí — la entrada de dos preguntas (MB-25 Pieza 3, en etapas desde MB-26 Pieza 7).",
   "/paywall": "PAYWALL — editorial ATP (negro + lima). PREMIUM (16-ago-2026): UNA membresía. Se acabaron Base y Pro, se acabó el",
-  "/perfil": "Tab vieja Perfil — redirect para deep links externos (OLA0 QW-6).",
+  "/perfil": "Tab vieja Perfil — redirect para deep links externos (OLA0 QW-6). G09 (20-ago-2026): era un <Redirect> declarativo y dejaba la pantalla EN",
   "/plan-entrenamiento": "Mi plan de entrenar (MB-27 Pieza 2) — el usuario dice UNA vez qué días entrena qué, y Entrenar le contesta \"hoy te toca X\".",
   "/profile": "Perfil — identidad del usuario: nombre, fecha de nacimiento (calcula edad cronológica), sexo biológico. Accesible desde el header de YO (Mariana #1:",
-  "/progreso": "Tab vieja Progreso — redirect para deep links externos (OLA0 QW-6).",
+  "/progreso": "Tab vieja Progreso — redirect para deep links externos (OLA0 QW-6). G09 (20-ago-2026): era un <Redirect> declarativo y dejaba la pantalla EN",
   "/progress": "Mi Progreso — Resumen mensual, gráficas de frecuencia/volumen semanal, y lista de PRs recientes.",
-  "/protocol-explorer": "ProtocolExplorer — Pantalla donde el cliente explora y activa plantillas de protocolos. Muestra protocolos activos del usuario y la galería de plantillas públicas.",
+  "/protocol-explorer": "protocol-explorer — RETIRADA A ALIAS (A-1, 20-ago-2026, autorizado dueño). Era el catálogo del modelo anterior al pivote del 16-ago: protocolos que",
   "/quiz-take": "Redirect legacy (Ola 4, Anexo C, pieza 5). El quiz de base de datos lo corre el motor único de /tests/q/[id], que",
   "/quiz/chronotype": "Redirect legacy (Ola 4, Anexo C, pieza 5). El cronotipo lo corre el motor unico. La rama de onboarding que tenia esta",
   "/quizzes": "Redirect legacy (Ola 4, Anexo C, pieza 5). Uno de los seis hubs que ensenaban lo mismo desde angulos distintos. Lo absorbio el hub unico /tests, que lee",

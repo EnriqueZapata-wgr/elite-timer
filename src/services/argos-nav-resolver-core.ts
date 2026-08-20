@@ -27,6 +27,7 @@ import {
   APP_ROUTES,
   APP_ROUTES_DYNAMIC,
   APP_ROUTE_DESCRIPTIONS,
+  APP_ROUTE_ALIASES,
 } from '@/src/constants/app-routes.generated';
 import { ARGOS_RESUELVE_RUTAS_DINAMICAS } from '@/src/constants/flags';
 import {
@@ -481,11 +482,33 @@ let _df: Map<string, number> | null = null;
  * el mismo ranking que a todas las demás. Con la bandera apagada simplemente no
  * hay expansiones: ARGOS pierde esos destinos, pero nunca ofrece uno roto.
  */
+/**
+ * ALIAS-1: ¿esta ruta es un alias 1:1 limpio (excluible del indice)?
+ * Exportada para que el candado de cobertura del test espejee LA MISMA regla
+ * en vez de reimplementarla y desincronizarse.
+ */
+export function esAliasPuro(ruta: string): boolean {
+  const d = APP_ROUTE_ALIASES[ruta];
+  return !!d && !d.includes('?');
+}
+
 export function obtenerIndice(): EntradaIndice[] {
   if (_indice) return _indice;
   const entradas: EntradaIndice[] = [];
   for (const r of APP_ROUTES) {
     if (rutaVetada(r)) continue;
+    // ALIAS-1 (20-ago-2026): un alias no es un destino. 54 de las 200 rutas
+    // del mapa son stubs que redirigen a otra (APP_ROUTE_ALIASES, detectados
+    // por el generador). Antes competian en el ranking como pantallas: seis
+    // rutas distintas llevaban a /tests y se repartian el puntaje.
+    //
+    // La regla exacta, y las dos excepciones salieron de la suite, no de la
+    // teoria: se excluye SOLO el alias 1:1 limpio (destino leido y SIN query).
+    //  - destino null (runtime): SE QUEDA, o su vocabulario se tira.
+    //  - destino con '?' (/lista-compra -> /cocina?tab=lista): SE QUEDA,
+    //    porque el alias carga un parametro que el destino pelon no tiene;
+    //    mandar a /cocina sin tab NO es lo que el usuario pidio.
+    if (esAliasPuro(r)) continue;
     entradas.push(construirEntrada(r, false));
   }
   if (ARGOS_RESUELVE_RUTAS_DINAMICAS) {
@@ -493,6 +516,17 @@ export function obtenerIndice(): EntradaIndice[] {
       if (rutaVetada(e.ruta)) continue;
       entradas.push(construirEntradaExpandida(e));
     }
+  }
+  // ALIAS-1: el nombre del alias es como la gente CONOCE ese lugar
+  // ("biblioteca", "perfil", "progreso"). Ese vocabulario no se tira: se le
+  // suma al destino real con peso de alias, para que "llevame a biblioteca"
+  // llegue a /my-routines en vez de a ningun lado.
+  const porRuta = new Map(entradas.map((e) => [e.ruta, e]));
+  for (const [alias, destino] of Object.entries(APP_ROUTE_ALIASES)) {
+    if (!esAliasPuro(alias)) continue; // sigue en el indice: donar duplicaria
+    const dueno = porRuta.get((destino as string).split('?')[0]);
+    if (!dueno) continue; // el destino no esta en el indice (vetado o dinamico)
+    sumar(dueno.pesos as Map<string, number>, tokenizar(alias.replace(/\//g, ' ').replace(/[-_]/g, ' ')), PESO_ALIAS);
   }
   _indice = entradas;
   return entradas;

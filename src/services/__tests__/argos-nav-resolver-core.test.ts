@@ -24,8 +24,10 @@ import {
   RUTAS_VETADAS,
   TITULOS_RUTA,
   ALIAS_RUTA,
+  esAliasPuro,
 } from '../argos-nav-resolver-core';
-import { APP_ROUTES, APP_ROUTES_DYNAMIC } from '@/src/constants/app-routes.generated';
+import { APP_ROUTES,
+  APP_ROUTE_ALIASES, APP_ROUTES_DYNAMIC } from '@/src/constants/app-routes.generated';
 import {
   esPlantilla,
   expandirPlantilla,
@@ -121,7 +123,10 @@ describe('intentos reales en es-MX', () => {
     ['quiero meditar', '/meditation'],
     ['ejercicios de respiración', '/breathing'],
     ['abre mi journal', '/journal'],
-    ['dónde veo mi cronotipo', '/my-chronotype'],
+    // ALIAS-1: /my-chronotype es un alias con destino conocido y ya no entra
+    // al indice; sus palabras se donaron al destino real. La expectativa nueva
+    // es estrictamente mejor: directo a la pantalla, sin pasar por el stub.
+    ['dónde veo mi cronotipo', '/tests/resultado/cronotipo'],
     ['quiero ver mi edad biológica', '/edad-atp'],
     ['el test de braverman', '/braverman'],
     ['mis suplementos', '/supplements'],
@@ -313,7 +318,11 @@ describe('integridad del catalogo (candado)', () => {
     // NAV-2: la cuenta cambió de forma. Antes eran las estáticas más los 10
     // MOLDES; ahora son las estáticas más las rutas RESUELTAS. Un molde no es un
     // destino y ya no ocupa un renglón del catálogo.
-    const estaticas = APP_ROUTES.filter((r) => !rutaVetada(r)).length;
+    // ALIAS-1: los alias con destino conocido ya no ocupan renglon propio
+    // (donan sus palabras al destino). Los de destino en runtime se quedan.
+    const estaticas = APP_ROUTES.filter(
+      (r) => !rutaVetada(r) && !esAliasPuro(r),
+    ).length;
     const expandidas = expandirTodas().filter((e) => !rutaVetada(e.ruta)).length;
     expect(obtenerIndice().length).toBe(estaticas + expandidas);
   });
