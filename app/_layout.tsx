@@ -50,6 +50,7 @@ import { HomeFloatingButton } from '@/src/components/ui/HomeFloatingButton';
 import { MeetArgosGate } from '@/src/components/argos/MeetArgosGate';
 import { AtpSplash } from '@/src/components/AtpSplash';
 import { OnboardingCompletion } from '@/src/components/onboarding/OnboardingCompletion';
+import { TutorialPorPantalla } from '@/src/components/tour/TutorialPorPantalla';
 
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
@@ -341,6 +342,7 @@ function RootLayout() {
                 {/* MB-30B: filtro nocturno de sistema (Android overlay / guía iOS) */}
                 <Stack.Screen name="night-filter" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Suscripciones RevenueCat (sprint IAP V1.3) */}
+                <Stack.Screen name="tutorial" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="paywall" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="settings/subscription" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* MB-13: canje de códigos de activación (puente de pago) */}
@@ -362,6 +364,11 @@ function RootLayout() {
               <MeetArgosGate />
               {/* T5 ONBOARDING épico: celebración al aterrizar en HOY tras Meet ARGOS. */}
               <OnboardingCompletion />
+              {/* Tutorial (requisito de lanzamiento, 21-ago-2026): la pieza
+                  que explica la pantalla donde estás. Vive aquí y no en la
+                  carcasa de tabs porque también cubre agenda, ajustes y Mi
+                  Protocolo, que no son tabs. Capa box-none: no come toques. */}
+              <TutorialPorPantalla />
               {/* MB-31A: el velo nocturno in-app — encima de la UI, debajo
                   del splash. Capa sin toque; entibia el tema que haya. */}
               <NightVeil />

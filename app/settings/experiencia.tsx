@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { View, ScrollView, Pressable, Switch, StyleSheet, DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ORB_TOUR_DONE_KEY, ORB_TOUR_RESTART_EVENT } from '@/src/components/tour/orb-tour-core';
+import { TUTORIAL_POR_PANTALLA } from '@/src/constants/flags';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
@@ -108,12 +109,18 @@ export default function SettingsExperienciaScreen() {
             right={<EliteText variant="caption" style={{ color: acento }}>Español</EliteText>} />
           <SettingRow icon="resize-outline" label="Unidades"
             right={<EliteText variant="caption" style={{ color: acento }}>Métrico</EliteText>} />
-          {/* MB-20 Pieza 4: retomar el tour de la orbe cuando quieras. */}
+          {/* 21-ago-2026: la puerta del tutorial. Con la bandera encendida
+              lleva al centro de ayuda (las piezas por pantalla); apagada,
+              relanza el tour de 12 pasos como siempre. */}
           <SettingRow
             icon="play-circle-outline"
-            label="Volver a ver el tour"
+            label={TUTORIAL_POR_PANTALLA ? 'Tutorial' : 'Volver a ver el tour'}
             onPress={async () => {
               haptic.light();
+              if (TUTORIAL_POR_PANTALLA) {
+                router.push('/tutorial');
+                return;
+              }
               await AsyncStorage.removeItem(ORB_TOUR_DONE_KEY).catch(() => {});
               DeviceEventEmitter.emit(ORB_TOUR_RESTART_EVENT);
               router.replace('/');

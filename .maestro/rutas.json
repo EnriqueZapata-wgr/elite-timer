@@ -1,8 +1,8 @@
 {
   "scheme": "atp",
-  "generado": "2026-08-20T19:41:50.131Z",
+  "generado": "2026-08-21T03:09:00.443Z",
   "resumen": {
-    "estaticas": 190,
+    "estaticas": 191,
     "dinamicas": 87,
     "variantes": 8
   },
@@ -1817,6 +1817,12 @@
       "archivo": "app/(tabs)/tribu.tsx",
       "tipo": "estatica",
       "slug": "tribu"
+    },
+    {
+      "ruta": "/tutorial",
+      "archivo": "app/tutorial.tsx",
+      "tipo": "estatica",
+      "slug": "tutorial"
     }
   ]
 }

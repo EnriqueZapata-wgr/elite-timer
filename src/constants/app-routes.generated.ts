@@ -201,6 +201,7 @@ export const APP_ROUTES: readonly string[] = [
   "/tests",
   "/tests/resultado/cronotipo",
   "/tribu",
+  "/tutorial",
 ];
 
 /** Rutas que necesitan un parámetro. ARGOS debe resolverlo antes de navegar. */
@@ -488,4 +489,5 @@ export const APP_ROUTE_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "/tests": "TESTS — hub único de evaluaciones (Ola 4, Anexo C, pieza 2). Absorbe seis hubs que hoy muestran lo mismo desde ángulos distintos:",
   "/tests/resultado/cronotipo": "Mi Cronotipo — la vista de TU cronotipo, no el test crudo. Ola 4, pieza 5: se mudó de /my-chronotype a /tests/resultado/cronotipo, que",
   "/tribu": "Tab TRIBU (MB-19 PIEZA 4) — la casa de la comunidad. Antes se llegaba por una card dentro de Mi ATP, que este run convirtió en la",
+  "/tutorial": "CENTRO DE AYUDA — el tutorial completo, siempre disponible. El tutorial llega solo, pieza por pieza, la primera vez que pisas cada",
 };

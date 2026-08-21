@@ -186,6 +186,7 @@ export const TITULOS_RUTA: Readonly<Record<string, string>> = {
   '/salud/mis-sintomas': 'Mis síntomas',
   '/salud/padecimientos': 'Mis padecimientos',
   '/settings': 'Ajustes',
+  '/tutorial': 'Tutorial y centro de ayuda',
   // SIMPLE (17-ago-2026): /settings/comunidad y /settings/cuenta son redirects.
   // Se sacan del mapa de títulos para que ARGOS mande al destino real y no
   // anuncie una pantalla que ya no existe. Los deep links viejos siguen
@@ -303,6 +304,10 @@ export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = {
   // "cuenta" y "cerrar sesion" ahora son el hub: las tres filas de la pantalla
   // /settings/cuenta viven ahí desde el 17-ago-2026.
   '/settings': ['ajustes', 'configuracion', 'opciones', 'preferencias', 'cuenta', 'mi cuenta', 'cerrar sesion'],
+  // L-17: la gente no pide "el tutorial", pide ayuda o dice que no le
+  // entiende. Todas esas formas tienen que caer en el centro de ayuda.
+  '/tutorial': ['tutorial', 'ayuda', 'centro de ayuda', 'como se usa', 'como funciona la app',
+    'ensename a usar la app', 'no le entiendo', 'explicame la app', 'tour', 'guia'],
   '/settings/subscription': ['suscripcion', 'plan', 'pago', 'facturacion', 'membresia', 'mi membresia'],
   '/settings/conexiones': ['coach', 'entrenador', 'conectar coach', 'clinico'],
   '/settings/salud-conexion': ['health connect', 'healthkit', 'reloj', 'apple salud', 'sincronizar salud', 'conectar reloj', 'conectar health', 'pasos'],

@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePathname, useRouter } from 'expo-router';
 import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
 import { CAPABILITY_SUGGESTIONS, type ChatSuggestion } from '@/src/services/argos-suggestions-core';
+import { TUTORIAL_POR_PANTALLA } from '@/src/constants/flags';
 import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { Fonts, FontSizes } from '@/constants/theme';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
@@ -32,13 +33,19 @@ export function ChatEmptyState({ suggestions, onPick }: Props) {
   const pathname = usePathname();
 
   // L-17: un chip con action dispara algo real en vez de hablarle al modelo.
-  // 'tour' limpia la marca, avisa a la carcasa de tabs y aterriza en HOY.
-  // Desde el TAB /argos las tabs ya están montadas: cambiar de tab con
-  // '/(tabs)' no las desmonta y el tour sale de inmediato. Desde /argos-chat
-  // (empujado sobre tabs) replace('/') es el mismo camino que Ajustes ›
-  // Experiencia › Volver a ver el tour.
+  // 'tour' abre el centro de ayuda, que es donde vive el tutorial completo:
+  // las ocho piezas, cuáles faltan y el interruptor de si aparecen solas.
+  // Con la bandera apagada seguimos por el camino viejo (relanzar el tour de
+  // 12 pasos), para que apagarla devuelva la conducta anterior entera. Desde
+  // el TAB /argos las tabs ya están montadas y cambiar de tab con '/(tabs)'
+  // no las desmonta; desde /argos-chat (empujado encima) replace('/') es el
+  // mismo camino que usa Ajustes › Experiencia.
   const ejecutar = async (sg: ChatSuggestion) => {
     if (sg.action === 'tour') {
+      if (TUTORIAL_POR_PANTALLA) {
+        router.push('/tutorial');
+        return;
+      }
       await AsyncStorage.removeItem(ORB_TOUR_DONE_KEY).catch(() => {});
       DeviceEventEmitter.emit(ORB_TOUR_RESTART_EVENT);
       router.replace(pathname === '/argos' ? '/(tabs)' : '/');
