@@ -10,7 +10,7 @@
  * ⚠️ La gráfica no promete nada: muestra la tendencia, no la califica ni la
  * declara resultado de nada. Cero declaración médica.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -28,11 +28,14 @@ import {
   serieDePeso, ultimoPeso, resumenMedidas, ultimaGrasa,
   type MedicionRow, type PuntoPeso, type UltimoPeso, type MedidaResumen,
 } from '@/src/services/cuerpo/medidas-core';
-import { ELEVATION, TEXT, ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 export default function MedidasScreen() {
   const { user } = useAuth();
+  const t = useSurfaceTokens();
+  const s = useMemo(() => makeStyles(t), [t]);
   const [serie, setSerie] = useState<PuntoPeso[]>([]);
   const [ultimo, setUltimo] = useState<UltimoPeso | null>(null);
   const [medidas, setMedidas] = useState<MedidaResumen[]>([]);
@@ -66,7 +69,7 @@ export default function MedidasScreen() {
   };
 
   return (
-    <Screen edges={[]}>
+    <Screen edges={[]} themed>
       <ScreenHeader title="Medidas" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         {/* ── El dato: tu peso, y cómo se ha movido ── */}
@@ -95,7 +98,9 @@ export default function MedidasScreen() {
             <View style={s.chartWrap}>
               <SimpleLineChart
                 data={serie.map(({ label, value }) => ({ label, value }))}
-                color={ATP_BRAND.lime}
+                // El lima contrasta 1.34 sobre fondo claro: una línea de
+                // gráfica en lima ahí es una línea invisible.
+                color={t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto}
                 height={120}
               />
             </View>
@@ -147,35 +152,44 @@ export default function MedidasScreen() {
   );
 }
 
-const s = StyleSheet.create({
+/**
+ * 21-ago-2026 — migrada al tema. Antes usaba TEXT y ELEVATION, que son las
+ * constantes del modo OSCURO: quien eligiera claro abría esta pantalla y la
+ * veía negra. No era color clavado suelto, era una pantalla entera sin migrar.
+ *
+ * Los textos tenues (TEXT.tertiary) pasan a textoSecundario, no a textoTenue:
+ * ese token contrasta 3.19 en claro y aquí lleva texto de leer, no etiquetas
+ * grandes ni cosas deshabilitadas.
+ */
+const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
   card: {
-    backgroundColor: ELEVATION[1].bg, borderRadius: Radius.card,
-    borderWidth: 1, borderColor: ELEVATION[1].border,
+    backgroundColor: t.card, borderRadius: Radius.card,
+    borderWidth: 1, borderColor: t.borde,
     padding: Spacing.md, marginBottom: Spacing.md,
   },
   sectionTitle: {
-    color: TEXT.tertiary, fontSize: FontSizes.xs, fontFamily: Fonts.bold,
+    color: t.textoSecundario, fontSize: FontSizes.xs, fontFamily: Fonts.bold,
     letterSpacing: 2, marginBottom: Spacing.sm,
   },
   heroRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
-  heroKg: { color: TEXT.primary, fontFamily: Fonts.extraBold, fontSize: 44, lineHeight: 48 },
-  heroUnit: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md, marginBottom: 8 },
-  delta: { color: TEXT.secondary, marginTop: 2 },
-  empty: { color: TEXT.tertiary, lineHeight: 18, marginTop: 2 },
+  heroKg: { color: t.texto, fontFamily: Fonts.extraBold, fontSize: 44, lineHeight: 48 },
+  heroUnit: { color: t.textoSecundario, fontFamily: Fonts.semiBold, fontSize: FontSizes.md, marginBottom: 8 },
+  delta: { color: t.textoSecundario, marginTop: 2 },
+  empty: { color: t.textoSecundario, lineHeight: 18, marginTop: 2 },
   chartWrap: { marginTop: Spacing.md, alignItems: 'center' },
   cta: { marginTop: Spacing.md },
   fila: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: Spacing.sm,
   },
-  filaDivider: { borderBottomWidth: 1, borderBottomColor: ELEVATION[1].border },
-  filaLabel: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: FontSizes.md },
-  filaValor: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  filaDivider: { borderBottomWidth: 1, borderBottomColor: t.borde },
+  filaLabel: { color: t.textoSecundario, fontFamily: Fonts.regular, fontSize: FontSizes.md },
+  filaValor: { color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
   secundario: {
-    marginTop: Spacing.sm, borderWidth: 1, borderColor: ELEVATION[2].border,
+    marginTop: Spacing.sm, borderWidth: 1, borderColor: t.bordeMarcado,
     borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center',
   },
-  secundarioText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
-  nota: { color: TEXT.tertiary, textAlign: 'center', lineHeight: 18 },
+  secundarioText: { color: t.textoSecundario, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  nota: { color: t.textoSecundario, textAlign: 'center', lineHeight: 18 },
 });
