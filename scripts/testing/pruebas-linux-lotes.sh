@@ -108,7 +108,7 @@ while true; do
   # maxThreads alto a propósito: estos tests están esperando I/O del mount, no
   # quemando CPU. Más hilos que núcleos enmascara la latencia y casi duplica el
   # avance por llamada.
-  NODE_PATH="${ATP_LINUX_DEPS:-/tmp/atp-linux-deps}/node_modules" \
+  NODE_PATH="${ATP_LINUX_DEPS:-$(dirname "$MODULOS")/.atp-linux-deps}/node_modules" \
   timeout "$RESTA" node "$MODULOS/vitest/vitest.mjs" run \
     --config "$RAIZ/scripts/testing/vitest.linux.config.mts" \
     --poolOptions.threads.maxThreads=12 --poolOptions.threads.minThreads=12 \

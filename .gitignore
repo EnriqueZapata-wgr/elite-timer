@@ -98,3 +98,7 @@ atp-linux-deps/
 .maestro/capturas/
 
 scripts/testing/vitest.linux.config.mts.timestamp-*.mjs
+# Binarios nativos de Linux para el harness de pruebas (rollup y esbuild).
+# No son del proyecto: son prestados a Node por NODE_PATH y jamás entran
+# al node_modules del repo. Ver scripts/testing/pruebas-linux.sh.
+.atp-linux-deps/

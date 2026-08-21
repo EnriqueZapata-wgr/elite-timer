@@ -25,7 +25,6 @@
 set -euo pipefail
 
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DEPS_LINUX="${ATP_LINUX_DEPS:-/tmp/atp-linux-deps}"
 
 # ─── CACHE POR USUARIO (19-ago-2026) ─────────────────────────────────────────
 # El cache de vitest va POR USUARIO, no compartido. Cuando dos sesiones del
@@ -59,6 +58,13 @@ buscar_modulos() {
   return 1
 }
 MODULOS="$(buscar_modulos || true)"
+
+# Los dos binarios nativos viven JUNTO al node_modules del repo, en una carpeta
+# ignorada por git (.atp-linux-deps). Antes vivían en /tmp y se perdían cada vez
+# que el sandbox reciclaba la máquina; ahí adentro, además, el VM del dueño no
+# tiene salida a npm y no se podían volver a bajar. Junto al repo sobreviven y
+# los comparten todos los worktrees. Se sigue pudiendo mover con ATP_LINUX_DEPS.
+DEPS_LINUX="${ATP_LINUX_DEPS:-$(dirname "$MODULOS")/.atp-linux-deps}"
 
 if [[ -z "$MODULOS" ]]; then
   echo "ERROR: no hay node_modules legible desde $RAIZ (ni subiendo por el árbol)." >&2
