@@ -319,8 +319,12 @@ export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = {
   '/redeem-code': ['canjear', 'codigo', 'codigo de activacion'],
   '/argos-chat': ['argos', 'chat', 'hablar con argos', 'preguntar'],
   '/argos/conversations': ['conversaciones', 'historial de chat'],
-  '/afiliados/mi-codigo': ['mi codigo de afiliado', 'referidos'],
-  '/afiliados/dashboard': ['afiliados', 'comisiones'],
+  // Afiliados salió del vocabulario el 21-ago-2026: el programa entra al
+  // lanzamiento solo por invitación, y ARGOS vive DENTRO de la app, así que
+  // dejarlo aquí sería exactamente la puerta que se acordó no tener. Las
+  // rutas siguen vivas por deep link. Reponer es descomentar.
+  // '/afiliados/mi-codigo': ['mi codigo de afiliado', 'referidos'],
+  // '/afiliados/dashboard': ['afiliados', 'comisiones'],
 };
 
 // ---------------------------------------------------------------------------
