@@ -1,7 +1,7 @@
 /**
  * Mi Salud — Cliente sube estudios de laboratorio y ve resultados.
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter , type Href } from 'expo-router';
@@ -86,6 +86,19 @@ function MyHealthScreen() {
   // Selector de tipo de upload (#10): método elegido pendiente + visibilidad del picker.
   const [pendingMethod, setPendingMethod] = useState<'camera' | 'gallery' | 'pdf' | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
+  /**
+   * Un solo selector de archivo a la vez (21-ago-2026).
+   *
+   * Reportado por una usuaria que no pudo subir sus laboratorios: el módulo
+   * nativo lleva su propia sesión de selección y, si se le pide una segunda
+   * con la anterior abierta, revienta con "Different document picking in
+   * progress". Pasa con un doble toque, y también cuando la primera se quedó
+   * colgada porque la app se fue a segundo plano.
+   *
+   * Va en un ref y no en estado: hay que leerlo y escribirlo dentro del mismo
+   * ciclo, antes de que React vuelva a pintar.
+   */
+  const eligiendoRef = useRef(false);
 
   useEffect(() => { if (userId) loadData(); }, [userId]);
 
@@ -122,7 +135,22 @@ function MyHealthScreen() {
     else if (method === 'pdf') handlePickPDF(type);
   };
 
+  /**
+   * El mensaje del selector, en español y sin nombres de funciones internas.
+   * El caso de "ya hay una selección abierta" merece copy propio: no es una
+   * falla, es que hay que esperar, y decirlo evita que la persona insista y
+   * lo empeore.
+   */
+  const mensajeDeSeleccion = (err: unknown, respaldo: string): string => {
+    const crudo = err instanceof Error ? err.message : String(err ?? '');
+    if (/document picking in progress|already.*in progress/i.test(crudo)) {
+      return 'Ya hay una ventana de archivos abierta. Ciérrala y vuelve a intentar.';
+    }
+    return userErrorMessage(err, respaldo);
+  };
+
   const handlePickImage = async (useCamera: boolean, type?: UploadType) => {
+    if (eligiendoRef.current) return;
     if (!ImagePicker) {
       Alert.alert(
         'Cámara no disponible',
@@ -135,9 +163,18 @@ function MyHealthScreen() {
     const opts: any = useCamera
       ? { quality: 0.8, base64: true }
       : { quality: 0.8, base64: true, allowsMultipleSelection: true, selectionLimit: 10 };
-    const res = useCamera
-      ? await ImagePicker.launchCameraAsync(opts)
-      : await ImagePicker.launchImageLibraryAsync(opts);
+    let res: any;
+    eligiendoRef.current = true;
+    try {
+      res = useCamera
+        ? await ImagePicker.launchCameraAsync(opts)
+        : await ImagePicker.launchImageLibraryAsync(opts);
+    } catch (err: any) {
+      setResult({ error: mensajeDeSeleccion(err, 'No se pudo abrir la galería.') });
+      return;
+    } finally {
+      eligiendoRef.current = false;
+    }
 
     if (res.canceled || !res.assets?.length) return;
     const images: string[] = res.assets.map((a: any) => a.base64).filter(Boolean);
@@ -147,6 +184,7 @@ function MyHealthScreen() {
   };
 
   const handlePickPDF = async (type?: UploadType) => {
+    if (eligiendoRef.current) return;
     if (!DocumentPicker) {
       Alert.alert(
         'PDF no disponible en esta versión',
@@ -160,7 +198,9 @@ function MyHealthScreen() {
       return;
     }
     try {
+      eligiendoRef.current = true;
       const res = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
+      eligiendoRef.current = false;
       if (res.canceled || !res.assets?.[0]) return;
       const uri = res.assets[0].uri;
       const fileRes = await fetch(uri);
@@ -172,7 +212,9 @@ function MyHealthScreen() {
       });
       await processUpload(base64, 'pdf', type);
     } catch (err: any) {
-      setResult({ error: userErrorMessage(err, 'No se pudo seleccionar el PDF.') });
+      setResult({ error: mensajeDeSeleccion(err, 'No se pudo abrir el PDF.') });
+    } finally {
+      eligiendoRef.current = false;
     }
   };
 

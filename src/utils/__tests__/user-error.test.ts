@@ -47,4 +47,40 @@ describe('userErrorMessage — nada técnico llega a pantalla', () => {
     expect(isTechnicalMessage('syntax error at or near "SELECT"')).toBe(true);
     expect(isTechnicalMessage('No encontramos tu emoción.')).toBe(false);
   });
+
+  it('el error de módulo nativo que vio una usuaria NO llega a pantalla', () => {
+    // Caso real (21-ago-2026): subiendo un laboratorio desde un binario viejo,
+    // la pantalla mostró este texto tal cual, en inglés. Mide 138 caracteres,
+    // así que el tope de 160 no lo frenó, y no traía ninguna firma técnica de
+    // las que había. Si este test se pone rojo, alguien debilitó ese candado.
+    const real =
+      "Calling the 'getDocumentAsync' function has failed \u2192 Caused by: " +
+      'Different document picking in progress. Await other document picking first';
+    expect(real.length).toBeLessThan(160);
+    expect(isTechnicalMessage(real)).toBe(true);
+    expect(userErrorMessage(new Error(real), 'No se pudo abrir el archivo.')).toBe(
+      'No se pudo abrir el archivo.'
+    );
+  });
+
+  it('otros errores de módulo nativo tampoco pasan', () => {
+    for (const m of [
+      'Invariant Violation: TurboModuleRegistry.getEnforcing(...)',
+      'expo-document-picker is not available',
+      'launchImageLibraryAsync failed',
+    ]) {
+      expect(isTechnicalMessage(m), m).toBe(true);
+    }
+  });
+
+  it('el copy en español que escribimos nosotros sigue pasando', () => {
+    // El candado tiene que dejar pasar los mensajes de dominio, o el usuario
+    // se queda sin la explicación útil.
+    for (const m of [
+      'Ya hay un archivo abriéndose. Espera a que termine.',
+      'El estudio no trae valores que podamos leer.',
+    ]) {
+      expect(userErrorMessage(new Error(m), 'respaldo'), m).toBe(m);
+    }
+  });
 });

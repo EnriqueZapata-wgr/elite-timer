@@ -23,6 +23,15 @@ const TECH_SIGNATURES: RegExp[] = [
   /\bselect\s.+\sfrom\b|\binsert\s+into\b|\bupdate\s.+\sset\b|\bdelete\s+from\b/i,
   // Rutas de código / stack traces
   /\.tsx?\b|\.jsx?\b|\/src\/|\bat\s+\w+\s*\(/,
+  // Módulos nativos y SDK (21-ago-2026). Una usuaria vio en pantalla, en
+  // inglés: "Calling the 'getDocumentAsync' function has failed → Caused by:
+  // Different document picking in progress." Cabía en 160 caracteres y no
+  // traía ninguna de las firmas de arriba, así que pasó entero. El nombre de
+  // una función interna en pantalla es exactamente lo que este archivo existe
+  // para evitar, y además en un idioma que la persona no eligió.
+  /calling the .+ function has failed|caused by:/i,
+  /\bexpo-[a-z-]+|native ?module|turbomodule|invariant violation/i,
+  /\bgetDocumentAsync\b|\blaunch(Camera|ImageLibrary)Async\b/i,
 ];
 
 /** ¿El mensaje trae firma técnica que no debe llegar a pantalla? */
