@@ -1,10 +1,10 @@
 /**
  * Mi Salud — Cliente sube estudios de laboratorio y ve resultados.
  */
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, AppState } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { useRouter , type Href } from 'expo-router';
+import { useRouter, useFocusEffect, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { userErrorMessage } from '@/src/utils/user-error';
 // Módulos nativos — importar con try/catch para OTA compat
@@ -97,8 +97,26 @@ function MyHealthScreen() {
    *
    * Va en un ref y no en estado: hay que leerlo y escribirlo dentro del mismo
    * ciclo, antes de que React vuelva a pintar.
+   *
+   * SE LIBERA TAMBIÉN POR FUERA (auditoría del 21-ago-2026). El `finally` de
+   * cada handler solo corre si la promesa del selector RESUELVE, y el caso que
+   * motivó este candado es justo el que no resuelve: la pantalla nativa muere
+   * con la app en segundo plano y el resultado nunca llega. Sin esta segunda
+   * salida, el candado se quedaba encendido para siempre y los tres botones
+   * dejaban de responder sin decir nada, que es el mismo síntoma que veníamos
+   * a resolver. Volver a la pantalla, o traer la app al frente, lo libera.
    */
   const eligiendoRef = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      eligiendoRef.current = false;
+      const sub = AppState.addEventListener('change', (estado) => {
+        if (estado === 'active') eligiendoRef.current = false;
+      });
+      return () => sub.remove();
+    }, [])
+  );
 
   useEffect(() => { if (userId) loadData(); }, [userId]);
 
@@ -227,8 +245,11 @@ function MyHealthScreen() {
     if ('error' in review) {
       setResult({
         error: review.retriable
-          ? review.error
-          : `No pudimos leer laboratorios de este archivo. No se modificó tu data. (${review.error})`,
+          ? userErrorMessage(review.error, 'No pudimos leer el archivo. Intenta de nuevo.')
+          : userErrorMessage(
+              review.error,
+              'No pudimos leer laboratorios de este archivo. No se modificó tu data.'
+            ),
         retriable: review.retriable,
         uploadId,
       });

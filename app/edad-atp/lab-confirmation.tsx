@@ -26,6 +26,7 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SEMANTIC, ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 // YYYY-MM-DD válido (entre 1900 y 2099).
 const ISO_DATE_RE = /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
@@ -173,7 +174,11 @@ export default function LabConfirmationScreen() {
       upload_id: review.uploadId,
     });
 
-    if ('error' in res) { Alert.alert('Error', res.error); return; }
+    // res.error puede traer el mensaje de Postgres o de RLS: al filtro.
+    if ('error' in res) {
+      Alert.alert('No se pudo guardar', userErrorMessage(res.error, 'No se pudo guardar. Intenta de nuevo.'));
+      return;
+    }
     clearReview(review.uploadId);
     haptic.success();
     const omitted = res.rejectedCount ?? 0;

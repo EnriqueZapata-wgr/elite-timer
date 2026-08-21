@@ -15,6 +15,7 @@ import { useLabProcessing } from '@/src/hooks/useLabProcessing';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SEMANTIC } from '@/src/constants/brand';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 function IndeterminateBar() {
   const x = useSharedValue(-0.4);
@@ -95,7 +96,15 @@ export function LabProcessingSheet() {
 
         {status === 'failed' ? (
           <>
-            {upload.errorMessage ? <Text style={styles.errorMsg}>{upload.errorMessage}</Text> : null}
+            {/* El mensaje del worker viene en inglés y con detalle tecnico
+                ("Worker error: anthropic 400", "Proxy error 429"). Es la misma
+                clase de fuga que una usuaria vio el 21-ago en la otra pantalla:
+                pasa por el filtro, como todo lo que se muestra. */}
+            {upload.errorMessage ? (
+              <Text style={styles.errorMsg}>
+                {userErrorMessage(upload.errorMessage, 'No pudimos leer este archivo. Puedes capturar los valores a mano.')}
+              </Text>
+            ) : null}
             <View style={styles.failRow}>
               <Pressable onPress={() => { haptic.medium(); retryUpload(upload.uploadId); }} style={styles.primaryBtn}>
                 <Text style={styles.primaryBtnText}>Reintentar</Text>
