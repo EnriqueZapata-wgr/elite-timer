@@ -2,9 +2,9 @@
  * ARGOS Voice — preferencia de voz (masculina/femenina) elegida en Meet ARGOS.
  *
  * Persistencia en profiles.argos_voice (migración 205). El PREVIEW usa la voz
- * REAL de ARGOS (ElevenLabs vía edge function argos-voice, MB-4 J5) con fallback
- * a expo-speech (TTS del SO) si la voz propia no está disponible (sin keys/config
- * o binario viejo) — nunca se queda mudo el botón "Muestra".
+ * REAL de ARGOS (ElevenLabs vía edge function argos-voice, MB-4 J5) y NADA MÁS:
+ * si esa voz no está disponible, el botón "Muestra" lo dice en vez de fingir
+ * con el TTS del sistema. Ver la nota de previewArgosVoice.
  */
 import { supabase } from '@/src/lib/supabase';
 import { synthesizeSpeech, playAudioFile, stopPlayback } from '@/src/services/argos-tts';
@@ -38,25 +38,25 @@ function normalizeVoice(v: unknown): ArgosVoice | null {
 }
 
 /**
- * Reproduce una muestra de la voz elegida. Intenta la voz REAL (ElevenLabs) y,
- * si no está disponible, cae a expo-speech (TTS del SO). Fail-soft total.
+ * Reproduce una muestra de la voz elegida. Devuelve true solo si sonó la voz
+ * REAL de ARGOS.
+ *
+ * 21-ago-2026 — SE QUITÓ EL FALLBACK A expo-speech. Cuando la voz propia no
+ * estaba disponible, esto hablaba con el TTS del sistema cambiándole el tono:
+ * 0.85 para "masculina" y 1.15 para "femenina". En un teléfono cuya voz de
+ * español es femenina, las dos opciones sonaban a la MISMA mujer, una un poco
+ * más grave. El dueño lo cachó en el primer minuto de la app y tenía razón:
+ * ofrecer una elección que no se cumple se siente barato, y es lo primero que
+ * la persona toca. Además contradecía la doctrina que este mismo pipeline ya
+ * tenía escrita en argos-tts: nunca voz robótica del sistema, mejor callar.
+ *
+ * Ahora: o suena ARGOS de verdad, o el botón lo dice y no inventa nada.
  */
-export async function previewArgosVoice(voice: ArgosVoice): Promise<void> {
+export async function previewArgosVoice(voice: ArgosVoice): Promise<boolean> {
   await stopPlayback();
-  // 1) Voz real de ARGOS (ElevenLabs vía edge function).
   const clip = await synthesizeSpeech(PREVIEW_LINE, voice);
-  if (clip && await playAudioFile(clip.uri)) return;
-
-  // 2) Fallback: TTS del SO (sin keys/config o binario viejo).
-  try {
-    const Speech = await import('expo-speech');
-    Speech.stop();
-    Speech.speak(PREVIEW_LINE, {
-      language: 'es-MX',
-      pitch: voice === 'masculina' ? 0.85 : 1.15,
-      rate: 1.0,
-    });
-  } catch { /* sin TTS → sin preview, nunca crashea */ }
+  if (!clip) return false;
+  return await playAudioFile(clip.uri);
 }
 
 export async function stopArgosVoicePreview(): Promise<void> {

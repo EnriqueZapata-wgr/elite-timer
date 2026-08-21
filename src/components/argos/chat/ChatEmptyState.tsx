@@ -43,7 +43,9 @@ export function ChatEmptyState({ suggestions, onPick }: Props) {
   const ejecutar = async (sg: ChatSuggestion) => {
     if (sg.action === 'tour') {
       if (TUTORIAL_POR_PANTALLA) {
-        router.push('/tutorial');
+        // Cast por las rutas tipadas de Expo: las genera el servidor de
+        // desarrollo y /tutorial es nueva. Mismo patrón que OrbTour.
+        router.push('/tutorial' as never);
         return;
       }
       await AsyncStorage.removeItem(ORB_TOUR_DONE_KEY).catch(() => {});

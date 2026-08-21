@@ -119,7 +119,10 @@ export default function SettingsExperienciaScreen() {
             onPress={async () => {
               haptic.light();
               if (TUTORIAL_POR_PANTALLA) {
-                router.push('/tutorial');
+                // El cast es por las rutas tipadas de Expo: ese archivo lo
+                // genera el servidor de desarrollo y /tutorial es nueva, así
+                // que todavía no aparece en la unión. Mismo patrón que OrbTour.
+                router.push('/tutorial' as never);
                 return;
               }
               await AsyncStorage.removeItem(ORB_TOUR_DONE_KEY).catch(() => {});
