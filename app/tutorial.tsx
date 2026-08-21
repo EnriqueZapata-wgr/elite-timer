@@ -76,8 +76,8 @@ export default function CentroDeAyuda() {
         <ScrollView contentContainerStyle={s.cuerpo} showsVerticalScrollIndicator={false}>
           <Animated.View entering={FadeInUp.springify()}>
             <EliteText style={[s.entrada, { color: t.textoSecundario }]}>
-              Cada pieza explica una pantalla, en menos de un minuto y encima del
-              contenido real. Ábrelas en el orden que quieras.
+              Cada explicación dura menos de un minuto. Al abrir una te llevamos
+              a su pantalla y te la explicamos ahí mismo.
             </EliteText>
             <View style={[s.avanceCaja, { backgroundColor: t.card, borderColor: t.borde }]}>
               <EliteText style={[s.avanceNumero, { color: acento }]}>
@@ -85,14 +85,14 @@ export default function CentroDeAyuda() {
               </EliteText>
               <EliteText style={[s.avanceTexto, { color: t.textoSecundario }]}>
                 {avance.vistos === avance.total
-                  ? 'Ya viste todas. Puedes repetir la que quieras.'
-                  : 'piezas vistas'}
+                  ? 'Ya las viste todas. Puedes repetir la que quieras.'
+                  : 'explicaciones vistas'}
               </EliteText>
             </View>
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(80).springify()}>
-            <SectionLabel>LAS PIEZAS</SectionLabel>
+            <SectionLabel>LAS EXPLICACIONES</SectionLabel>
             {TOURS_POR_PANTALLA.map((pieza) => {
               const yaVista = vistos.has(pieza.id);
               return (
@@ -100,7 +100,9 @@ export default function CentroDeAyuda() {
                   key={pieza.id}
                   onPress={() => abrir(pieza.id)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Ver la explicación de ${pieza.titulo}`}
+                  accessibilityLabel={`Ver la explicación de ${pieza.titulo}${
+                    yaVista ? ', ya vista' : ', sin ver'
+                  }`}
                   style={({ pressed }) => [
                     s.fila,
                     { backgroundColor: t.card, borderColor: t.borde },
@@ -119,13 +121,15 @@ export default function CentroDeAyuda() {
                     <View
                       style={[
                         s.marca,
-                        { borderColor: withOpacity(ATP_BRAND.lime, 0.6) },
+                        // El acento del tema, no el lima a pelo: en claro el
+                        // lima queda lavado y pelea con el texto, que es teal.
+                        { borderColor: withOpacity(acento, 0.6) },
                       ]}
                     >
-                      <EliteText style={[s.marcaTexto, { color: acento }]}>NUEVA</EliteText>
+                      <EliteText style={[s.marcaTexto, { color: acento }]}>SIN VER</EliteText>
                     </View>
                   )}
-                  <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
+                  <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />
                 </Pressable>
               );
             })}
@@ -151,6 +155,7 @@ export default function CentroDeAyuda() {
                 setVistos(new Set());
               }}
               accessibilityRole="button"
+              accessibilityLabel="Marcar todas las explicaciones como no vistas"
               style={({ pressed }) => [s.reinicio, pressed && { opacity: 0.7 }]}
             >
               <Ionicons name="refresh-outline" size={16} color={t.textoSecundario} />
@@ -179,10 +184,11 @@ export default function CentroDeAyuda() {
                   Pregúntale a ARGOS
                 </EliteText>
                 <EliteText style={[s.filaResumen, { color: t.textoSecundario }]}>
-                  Te explica la pantalla donde estés y responde lo que le preguntes.
+                  Resuelve cualquier duda de la app o de tus datos, con tus
+                  números a la mano.
                 </EliteText>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
+              <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />
             </Pressable>
           </Animated.View>
         </ScrollView>
@@ -216,19 +222,20 @@ const s = StyleSheet.create({
   },
   filaTexto: { flex: 1, gap: 2 },
   filaTitulo: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
-  filaResumen: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, lineHeight: 17 },
+  filaResumen: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, lineHeight: 18 },
   marca: {
     borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  marcaTexto: { fontSize: 9, fontFamily: Fonts.bold, letterSpacing: 1 },
+  marcaTexto: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 1 },
   reinicio: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingVertical: Spacing.sm,
+    minHeight: 44,
   },
   reinicioTexto: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 });

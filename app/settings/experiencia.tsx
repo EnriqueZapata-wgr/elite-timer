@@ -113,8 +113,9 @@ export default function SettingsExperienciaScreen() {
               lleva al centro de ayuda (las piezas por pantalla); apagada,
               relanza el tour de 12 pasos como siempre. */}
           <SettingRow
-            icon="play-circle-outline"
-            label={TUTORIAL_POR_PANTALLA ? 'Tutorial' : 'Volver a ver el tour'}
+            icon="school-outline"
+            label={TUTORIAL_POR_PANTALLA ? 'Tutorial' : 'Volver a ver el tutorial'}
+            sub="Repite la explicación de cualquier pantalla"
             onPress={async () => {
               haptic.light();
               if (TUTORIAL_POR_PANTALLA) {

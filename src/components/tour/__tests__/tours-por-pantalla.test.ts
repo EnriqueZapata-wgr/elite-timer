@@ -60,6 +60,16 @@ describe('guion del tutorial por pantalla', () => {
     }
   });
 
+  it('los kickers van acentuados: en español las mayúsculas se acentúan', () => {
+    // Sin esto, 'TU DIA' pasa el candado de mayúsculas y sale a producción.
+    const SIN_ACENTO = /\b(DIA|CONFIGURACION|SECCION|EVOLUCION|PROTOCOLO_)\b/;
+    for (const t of TOURS_POR_PANTALLA) {
+      for (const p of t.pasos) {
+        expect(SIN_ACENTO.test(p.kicker), `${t.id}/${p.id}: ${p.kicker}`).toBe(false);
+      }
+    }
+  });
+
   it('cero promesas de salud y cero lenguaje de consulta', () => {
     // Mismo criterio que packs-registry: la app describe lo que HACE, nunca
     // lo que la persona va a sentir ni un acto medico.

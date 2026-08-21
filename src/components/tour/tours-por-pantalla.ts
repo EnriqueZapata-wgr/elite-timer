@@ -50,15 +50,15 @@ export const TOURS_POR_PANTALLA: readonly TourDePantalla[] = [
     pasos: [
       {
         id: 'lista',
-        kicker: 'TU DIA',
-        copy: 'Todo lo que te toca hoy vive en una sola lista. No hay que buscarlo en otro lado.',
+        kicker: 'TU DÍA',
+        copy: 'Todo lo que te toca hoy vive en una sola lista, agrupada por momento del día.',
       },
       {
         // MB-20.5: quedan DOS tipos de card y este paso enseña esa regla.
         // Si cambia el gesto, cambia aquí: es el paso más leído de la app.
         id: 'gestos',
         kicker: 'LOS DOS GESTOS',
-        copy: 'Un toque palomea el hábito y abre la función. Mantén presionado el que además tiene pantalla propia.',
+        copy: 'Un toque palomea los hábitos y abre las funciones. Deja presionado un hábito para entrar a su pantalla, si la tiene.',
       },
       {
         id: 'inline',
@@ -68,7 +68,7 @@ export const TOURS_POR_PANTALLA: readonly TourDePantalla[] = [
       {
         id: 'electrones',
         kicker: 'ELECTRONES',
-        copy: 'Cada hábito cumplido carga electrones. Se acumulan y te muestran qué tan constante has sido.',
+        copy: 'Cada hábito cumplido carga electrones. Son el marcador de tu constancia y mueven tu lugar en el ranking.',
       },
     ],
   },
@@ -76,17 +76,17 @@ export const TOURS_POR_PANTALLA: readonly TourDePantalla[] = [
     id: 'kit',
     ruta: '/kit',
     titulo: 'Tus herramientas',
-    resumen: 'Dónde están todas las funciones y qué significa instalar.',
+    resumen: 'Qué hay en tu cuadrícula y qué significa instalar.',
     pasos: [
       {
         id: 'sala',
         kicker: 'TUS HERRAMIENTAS',
-        copy: 'Todas tus funciones viven aquí. Búscalas por nombre o acomódalas como quieras.',
+        copy: 'Aquí vive lo que ya tienes instalado. Búscalo por nombre o acomódalo como quieras.',
       },
       {
         id: 'instalar',
         kicker: 'INSTALAR ES ACTIVAR',
-        copy: 'Instalar enciende el hábito y suma su fila a tu día. Desinstalar nunca borra tu historia.',
+        copy: 'Instalar desde el Centro enciende el hábito y suma su fila a tu día. Desinstalar nunca borra tu historial.',
       },
     ],
   },
@@ -94,19 +94,19 @@ export const TOURS_POR_PANTALLA: readonly TourDePantalla[] = [
     id: 'salud',
     ruta: '/salud',
     titulo: 'Tu salud funcional',
-    resumen: 'Las cuatro secciones y de dónde sale tu Edad ATP.',
+    resumen: 'Las secciones del tab y de dónde sale tu Edad ATP.',
     pasos: [
       {
         id: 'secciones',
-        kicker: 'CUATRO PUERTAS',
-        copy: 'Cómo vienes hoy, tus datos, tu evolución y tu expediente. Cada sección se abre y se cierra.',
+        kicker: 'LAS SECCIONES',
+        copy: 'Hoy en tu cuerpo, tus datos, tu evolución y tu expediente. Cada una se abre con un toque.',
       },
       {
         // Candado de tienda: la Edad ATP se presenta como ventana educativa.
         // Nunca como evaluación médica. Ver medical-disclaimers.
         id: 'edad',
         kicker: 'EDAD ATP',
-        copy: 'Es una ventana educativa a tu estado interno. No es una evaluación médica.',
+        copy: 'Resume tus datos en un número y lo compara con tu edad real. No es una evaluación médica.',
       },
     ],
   },
@@ -124,7 +124,7 @@ export const TOURS_POR_PANTALLA: readonly TourDePantalla[] = [
       {
         id: 'objetivo',
         kicker: 'POR OBJETIVO',
-        copy: 'Si no sabes por dónde empezar, elige un objetivo y él enciende las prácticas por ti.',
+        copy: 'Toca "Arma tu día por objetivo": dices qué quieres lograr y las prácticas entran solas, con su hora.',
       },
     ],
   },
@@ -137,7 +137,7 @@ export const TOURS_POR_PANTALLA: readonly TourDePantalla[] = [
       {
         id: 'lente',
         kicker: 'LA OTRA LENTE',
-        copy: 'Es tu misma lista, ordenada por hora. Nada se captura dos veces.',
+        copy: 'Es tu misma lista, ordenada por hora. Lo que palomeas aquí ya queda palomeado en tu día.',
       },
     ],
   },
@@ -145,12 +145,12 @@ export const TOURS_POR_PANTALLA: readonly TourDePantalla[] = [
     id: 'tribu',
     ruta: '/tribu',
     titulo: 'Tu tribu',
-    resumen: 'Quién entrena contigo y qué ven de ti.',
+    resumen: 'Quién entrena contigo y qué decides mostrar.',
     pasos: [
       {
         id: 'gente',
         kicker: 'TU GENTE',
-        copy: 'Aquí ves quién entrena contigo. Tú decides qué parte de tu avance comparten.',
+        copy: 'Ranking, amigos y tu perfil público. En Mi perfil público decides qué ve tu gente de ti.',
       },
     ],
   },
@@ -171,12 +171,12 @@ export const TOURS_POR_PANTALLA: readonly TourDePantalla[] = [
     id: 'ajustes',
     ruta: '/settings',
     titulo: 'Tu configuración',
-    resumen: 'Avisos, tema, y dónde repetir cualquier tutorial.',
+    resumen: 'Dónde están tus avisos, el tema y el tutorial.',
     pasos: [
       {
         id: 'donde',
-        kicker: 'TU CONFIGURACION',
-        copy: 'Aquí cambias tus avisos y el tema. En Experiencia puedes repetir cualquier tutorial.',
+        kicker: 'TU CONFIGURACIÓN',
+        copy: 'Todo se ajusta por grupos: Notificaciones, Experiencia, Privacidad y más. El tutorial vive en Experiencia.',
       },
     ],
   },

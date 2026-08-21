@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   TOURS_POR_PANTALLA,
   llaveTour,
+  TOUR_VISTO_PREFIJO,
 } from '@/src/components/tour/tours-por-pantalla';
 
 /** El usuario pidió que ya no aparezcan solas. Vale para todas. */
@@ -24,9 +25,12 @@ export async function cargarVistos(): Promise<Set<string>> {
     const llaves = TOURS_POR_PANTALLA.map((t) => llaveTour(t.id));
     const filas = await AsyncStorage.multiGet(llaves);
     const vistos = new Set<string>();
-    filas.forEach(([llave, valor], i) => {
-      if (valor === 'true') vistos.add(TOURS_POR_PANTALLA[i].id);
-      void llave;
+    // Se empareja por la LLAVE que viene en la fila, nunca por el índice: el
+    // contrato de multiGet no promete conservar el orden de lo que pediste, y
+    // un desajuste marcaría como vista una pieza que nadie vio.
+    filas.forEach(([llave, valor]) => {
+      if (valor !== 'true' || !llave?.startsWith(TOUR_VISTO_PREFIJO)) return;
+      vistos.add(llave.slice(TOUR_VISTO_PREFIJO.length));
     });
     return vistos;
   } catch {

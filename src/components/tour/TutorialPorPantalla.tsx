@@ -27,9 +27,10 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
+import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_EVENTS, useAnalytics } from '@/src/lib/analytics';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { TUTORIAL_POR_PANTALLA } from '@/src/constants/flags';
 import {
   tourPendiente,
@@ -56,11 +57,15 @@ const ALTO_TAB_BAR = 60;
 const RESPIRO_MS = 900;
 
 export function TutorialPorPantalla() {
-  const t = useSurfaceTokens();
+  // La burbuja vive en la carcasa RAÍZ, encima de todo <ThemeReady>. Con
+  // useSurfaceTokens el scope devuelve oscuro perpetuo y el modo claro no
+  // existiría: aquí se lee el tema GLOBAL, como el tab de Salud.
+  const t = useAppTheme().tokens;
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { track } = useAnalytics();
+  const { setHidden } = useArgosPresence();
 
   const [vistos, setVistos] = useState<Set<string> | null>(null);
   const [silencio, setSilencio] = useState(false);
@@ -68,6 +73,7 @@ export function TutorialPorPantalla() {
   const [paso, setPaso] = useState(0);
   /** Pieza abierta a mano: se muestra aunque ya esté vista. */
   const pedidaRef = useRef<string | null>(null);
+  const respiroRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let vivo = true;
@@ -97,22 +103,28 @@ export function TutorialPorPantalla() {
     if (!TUTORIAL_POR_PANTALLA) return;
     if (!vistos) return;
     if (pedidaRef.current) return;
+    // Con una pieza abierta este efecto no tiene nada que decidir. Sin este
+    // guarda, cada render (tocar SIGUIENTE, un cambio de tema) reprogramaba
+    // el respiro y a los 900 ms la pieza se reiniciaba en el paso 1: las de
+    // varios pasos eran imposibles de terminar.
+    if (pieza) return;
     const candidata = tourPendiente(pathname, vistos, silencio);
-    if (!candidata) {
-      setPieza(null);
-      return;
-    }
+    if (!candidata) return;
     const id = setTimeout(() => abrir(candidata, false), RESPIRO_MS);
     return () => clearTimeout(id);
-  }, [pathname, vistos, silencio, abrir]);
+    // `abrir` queda FUERA a propósito: depende de `track`, que cambia de
+    // identidad en cada render y volvería a meter el mismo defecto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, vistos, silencio, pieza]);
 
   // Si la persona se va de la pantalla, la pieza se va con ella.
   useEffect(() => {
     if (!pieza) return;
-    if (pathname === pieza.ruta) {
-      pedidaRef.current = null;
-      return;
-    }
+    // Estando en su ruta NO se limpia `pedidaRef`: es lo único que protege a
+    // una pieza pedida a mano de que el efecto de arriba la cierre por estar
+    // ya vista. Lo limpia `cerrar`, o irse de la pantalla.
+    if (pathname === pieza.ruta) return;
+    pedidaRef.current = null;
     setPieza(null);
   }, [pathname, pieza]);
 
@@ -133,11 +145,28 @@ export function TutorialPorPantalla() {
             return;
           }
         }
-        setTimeout(() => abrir(p, true), pathname === p.ruta ? 0 : RESPIRO_MS);
+        if (respiroRef.current) clearTimeout(respiroRef.current);
+        respiroRef.current = setTimeout(
+          () => abrir(p, true),
+          pathname === p.ruta ? 0 : RESPIRO_MS
+        );
       }
     );
-    return () => sub.remove();
-  }, [pathname, router, abrir]);
+    // Si la persona se regresa antes de que venza el respiro, el temporizador
+    // seguía vivo y pintaba la burbuja encima de otra pantalla por un frame.
+    return () => {
+      sub.remove();
+      if (respiroRef.current) clearTimeout(respiroRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, router]);
+
+  // El botón flotante de ARGOS vive en insets.bottom + 78 y la burbuja lo
+  // tapaba por completo. Se esconde mientras hay pieza y vuelve al cerrar.
+  useEffect(() => {
+    setHidden(!!pieza);
+    return () => setHidden(false);
+  }, [pieza, setHidden]);
 
   const cerrar = useCallback(
     (completada: boolean) => {
@@ -170,13 +199,15 @@ export function TutorialPorPantalla() {
     });
   }, [pieza, paso, cerrar, track]);
 
-  if (!TUTORIAL_POR_PANTALLA && !pedidaRef.current) return null;
+  // Con la bandera apagada el efecto automático ya sale antes de tocar nada,
+  // así que `pieza` solo puede venir del camino a mano. Basta con esto.
   if (!pieza) return null;
 
   const actual = pieza.pasos[paso];
   if (!actual) return null;
 
-  const acento = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
+  const oscuro = t.kind === 'dark';
+  const acento = oscuro ? ATP_BRAND.lime : t.tealTexto;
   const abajo =
     (RUTAS_CON_TABS.has(pathname) ? ALTO_TAB_BAR : 0) + insets.bottom + Spacing.sm;
   const ultimo = paso >= pieza.pasos.length - 1;
@@ -184,6 +215,7 @@ export function TutorialPorPantalla() {
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      <ThemeReady>
       <Animated.View
         key={`${pieza.id}-${actual.id}`}
         entering={FadeInDown.springify().damping(18)}
@@ -191,11 +223,15 @@ export function TutorialPorPantalla() {
         style={[s.wrap, { bottom: abajo }]}
       >
         <View
+          accessibilityLiveRegion="polite"
           style={[
             s.burbuja,
             {
               backgroundColor: t.flotante,
-              borderColor: withOpacity(ATP_BRAND.lime, t.kind === 'dark' ? 0.35 : 0.5),
+              // El borde sigue al acento del tema: en claro el lima queda
+              // lavado y además pelea con el kicker, que ahí es teal.
+              borderColor: withOpacity(acento, oscuro ? 0.35 : 0.5),
+              shadowOpacity: oscuro ? 0.35 : 0.16,
             },
           ]}
         >
@@ -205,7 +241,7 @@ export function TutorialPorPantalla() {
               {actual.kicker}
             </EliteText>
             {varios && (
-              <EliteText style={[s.avance, { color: t.textoTenue }]}>
+              <EliteText style={[s.avance, { color: t.textoSecundario }]}>
                 {paso + 1} de {pieza.pasos.length}
               </EliteText>
             )}
@@ -214,7 +250,7 @@ export function TutorialPorPantalla() {
                 haptic.light();
                 cerrar(false);
               }}
-              hitSlop={12}
+              hitSlop={16}
               accessibilityRole="button"
               accessibilityLabel="Cerrar explicación"
             >
@@ -231,6 +267,7 @@ export function TutorialPorPantalla() {
             <Pressable
               onPress={siguiente}
               accessibilityRole="button"
+              accessibilityLabel={ultimo ? 'Terminar la explicación' : 'Ver el siguiente paso'}
               style={({ pressed }) => [
                 s.boton,
                 { backgroundColor: ATP_BRAND.lime },
@@ -244,6 +281,7 @@ export function TutorialPorPantalla() {
           </View>
         </View>
       </Animated.View>
+      </ThemeReady>
     </View>
   );
 }
@@ -255,7 +293,6 @@ const s = StyleSheet.create({
     borderWidth: 1,
     padding: Spacing.md,
     shadowColor: '#000',
-    shadowOpacity: 0.35,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 6 },
     elevation: 14,
@@ -268,9 +305,9 @@ const s = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   copy: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.lg,
     fontFamily: Fonts.regular,
-    lineHeight: 21,
+    lineHeight: 23,
     marginTop: 8,
   },
   pie: {
@@ -281,6 +318,13 @@ const s = StyleSheet.create({
     gap: Spacing.sm,
   },
   titulo: { flex: 1, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
-  boton: { borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 },
-  botonTexto: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 1 },
+  boton: {
+    borderRadius: 999,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  botonTexto: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 1 },
 });
