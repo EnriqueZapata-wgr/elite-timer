@@ -36,6 +36,21 @@
 --      30.5 es un MCH escrito en el campo del MCV.
 --   3. Si difieren y los dos son plausibles, gana el capturado a mano: la
 --      persona lo escribió mirando su hoja.
+--
+-- LÍMITE CONOCIDO DE LA REGLA 2, y por eso el aviso de abajo.
+-- Si una persona de verdad tiene un valor extremo real (colesterol de 620 en
+-- una hipercolesterolemia familiar), el parser lo lee mal, y ella lo teclea
+-- correcto, esta regla anularía el valor bueno por caer fuera del rango. En
+-- estas 21 filas no ocurre: las seis en conflicto son tres errores de unidad,
+-- un MCH escrito en el campo del MCV, y dos diferencias chicas entre valores
+-- plausibles. Aun así, la migración AVISA cada vez que anula un valor
+-- capturado a mano, para que si alguna vez corre sobre datos que nadie miró,
+-- eso no pase en silencio.
+--
+-- Hacia adelante el problema no se repite: con la tabla temporal y la función
+-- de migración, nunca hay dos filas compitiendo por el mismo dato. Y el valor
+-- que un humano confirma fuera de rango se marca como tal y ningún parser lo
+-- puede pisar.
 --   4. A igualdad, gana la fila que trae unidad, y luego la más antigua.
 --
 -- Los rangos de abajo son copia de lab-clinical-ranges.ts para los seis
@@ -93,6 +108,27 @@ UPDATE lab_values
 SET is_voided = true
 WHERE id IN (SELECT id FROM puntuado)
   AND id NOT IN (SELECT id FROM ganador);
+
+-- Aviso: qué valores capturados A MANO se anularon. Que quede en el registro
+-- de la corrida, no solo en el resultado.
+DO $$
+DECLARE r record; n int := 0;
+BEGIN
+  FOR r IN
+    SELECT parameter_key, value, measured_at
+    FROM lab_values
+    WHERE is_voided = true AND source = 'manual'
+      AND id IN (SELECT id FROM lab_values WHERE is_voided = true)
+    ORDER BY parameter_key
+  LOOP
+    n := n + 1;
+    RAISE NOTICE 'Se anulo un valor capturado a mano: % = % (%). Revisar si la persona tenia razon.',
+      r.parameter_key, r.value, r.measured_at;
+  END LOOP;
+  IF n = 0 THEN
+    RAISE NOTICE 'No se anulo ningun valor capturado a mano.';
+  END IF;
+END $$;
 
 -- Candado: si después de esto queda un solo grupo con dos filas vivas, la
 -- migración no hizo su trabajo y no debe darse por buena.
