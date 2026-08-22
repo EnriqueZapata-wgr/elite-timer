@@ -36,7 +36,7 @@ const STEPS: { icon: string; title: string; body: string }[] = [
   {
     icon: 'trending-up-outline',
     title: 'El nivel se adapta a ti',
-    body: `≥${NBACK_CONFIG.RAISE_THRESHOLD * 100}% en AMBOS canales → subes de nivel. <${NBACK_CONFIG.DROP_THRESHOLD * 100}% en cualquiera → baja para consolidar. En medio → te quedas. No hay techo: N=8+ es territorio de élite.`,
+    body: `Con ${NBACK_CONFIG.MAX_ERRORES_PARA_SUBIR} errores o menos en los dos canales, subes de nivel. Con ${NBACK_CONFIG.MIN_ERRORES_PARA_BAJAR} o más en alguno, baja para consolidar. En medio te quedas donde estás. Un objetivo que se te va y un toque de más cuentan igual. No hay techo: N=8 es territorio de élite.`,
   },
   {
     icon: 'headset-outline',
