@@ -202,8 +202,8 @@ export async function aplicarPack(
         return fallo(
           'registro',
           veredicto.razon === 'exclusion'
-            ? `Este caso de uso no se combina con ${veredicto.nombreCon}. Desactívalo primero y vuelve a intentar.`
-            : `Ya tienes ${veredicto.activos} casos de uso activos, que es el tope. Con más, tu día deja de ser un día. Desactiva uno para sumar este.`,
+            ? `Este objetivo no se combina con ${veredicto.nombreCon}. Desactívalo primero y vuelve a intentar.`
+            : `Ya tienes ${veredicto.activos} objetivos activos, que es el tope. Con más, tu día deja de ser un día. Desactiva uno para sumar este.`,
         );
       }
     }
@@ -348,13 +348,18 @@ export async function aplicarPack(
       const plan = planearPrescripcion(llaves, (filas ?? []) as FilaIntervencion[]);
       const ahora = new Date().toISOString();
       if (plan.insertar.length > 0) {
-        const { error } = await supabase.from('user_interventions').insert(
+        // CUATRO-OJOS: upsert con ignoreDuplicates, no insert plano. Dos
+        // aplicaciones concurrentes del mismo pack chocaban con el UNIQUE y
+        // el conflicto tumbaba el lote completo; así, el duplicado se ignora
+        // y el resto del lote entra.
+        const { error } = await supabase.from('user_interventions').upsert(
           plan.insertar.map((key) => ({
             user_id: userId,
             intervention_key: key,
             status: 'active',
             activated_at: ahora,
           })),
+          { onConflict: 'user_id,intervention_key', ignoreDuplicates: true },
         );
         if (error) throw error;
       }
@@ -374,9 +379,13 @@ export async function aplicarPack(
           : `${c} prácticas siguen como las dejaste (las habías pausado o descartado).`;
       }
       DeviceEventEmitter.emit(INTERVENTIONS_CHANGED_EVENT);
+      // CUATRO-OJOS: HOY no escucha interventions_changed (se refresca por
+      // focus). day_changed sí lo escucha, y es la regla de la casa para
+      // todo lo que cambia el día compilado.
+      DeviceEventEmitter.emit('day_changed');
     } catch (e) {
       ok = false;
-      detalle = 'Las prácticas del pack no entraron a tu protocolo. Intenta aplicar el pack de nuevo.';
+      detalle = 'No todas las prácticas entraron a tu protocolo. Aplica el pack de nuevo para completarlas.';
       logWarn('[packs] prescripcion fallo', e);
     }
     pasos.push({ paso: 'practicas', ok, ...(detalle ? { detalle } : {}) });
