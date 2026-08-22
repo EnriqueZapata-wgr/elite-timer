@@ -1,11 +1,10 @@
 /**
  * Cycle Service — Tracking de ciclo menstrual, fases, predicción, ajustes.
  */
-import { parseLocalDate, getLocalToday } from '@/src/utils/date-helpers';
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
-import { cycleLengthsFromPeriods } from '@/src/services/cycle/cycle-length-core';
 import { canAccessCycle } from '@/src/services/cycle/cycle-access-core';
-import { resolverCiclo, largoDeCiclo } from '@/src/services/cycle/cycle-phase-core';
+import { resolverCiclo, largoDeCiclo, predecirProximo } from '@/src/services/cycle/cycle-phase-core';
 
 // MB-27 P3 + audit B1: la función de fase Y la resolución {inicio, largo,
 // periodo} viven en cycle-phase-core (ÚNICAS, con test de mutación). Se
@@ -82,19 +81,12 @@ export const PHASES: Record<string, PhaseInfo> = {
 // Audit B1: getCycleDay murió — era una resolución paralela del día del
 // ciclo (Date.now contra parseLocalDate) sin guarda de frescura. El día
 // canónico sale de resolverCiclo, siempre.
-
-export function predictNext(periods: { start_date: string }[]): { date: Date; daysUntil: number; confidence: string } {
-  if (!periods.length) return { date: new Date(), daysUntil: 0, confidence: 'sin datos' };
-  // M3.b: el cálculo de duraciones vive en cycle-length-core, compartido con
-  // la pantalla de ciclo (que antes ignoraba lo observado y decía "de 28").
-  const lengths = cycleLengthsFromPeriods(periods);
-  const avg = lengths.length > 0 ? Math.round(lengths.reduce((a, b) => a + b, 0) / lengths.length) : 28;
-  const next = parseLocalDate(periods[0].start_date);
-  next.setDate(next.getDate() + avg);
-  const daysUntil = Math.max(0, Math.ceil((next.getTime() - Date.now()) / 86400000));
-  const confidence = lengths.length >= 3 ? 'alta' : lengths.length >= 2 ? 'media' : 'baja';
-  return { date: next, daysUntil, confidence };
-}
+//
+// Ciclo-1: predictNext murió por la misma razón. Promediaba periods[]
+// por su cuenta y publicaba una fecha distinta a la de la tarjeta (hasta
+// 5 días de diferencia, misma usuaria, misma pantalla). La predicción
+// canónica es predecirProximo() en cycle/cycle-phase-core.ts, que parte
+// de resolverCiclo. Una sola fecha viva a la vez.
 
 // ═══ CRUD ═══
 
@@ -135,7 +127,7 @@ export async function getCycleInfo(userId: string) {
   });
   if (!res) return null;
 
-  const pred = predictNext(periods);
+  const pred = predecirProximo(res);
   return {
     currentDay: res.day, currentPhase: res.phase, phaseInfo: PHASES[res.phase],
     prediction: pred, periods, cycleLen: res.cycleLen, periodLen: res.periodLen,

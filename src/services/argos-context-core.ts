@@ -89,7 +89,9 @@ export interface UserContext {
   cycleInfo?: {
     cycleDay: number;
     currentPhase: string;
-    nextPeriodEstimate: string;
+    // null = la fecha estimada ya venció y no hay registro de inicio nuevo.
+    nextPeriodEstimate: string | null;
+    diasDeRetraso?: number;
   };
   recentBodyMeasurements?: {
     lastWeightKg: number | null;
@@ -442,7 +444,11 @@ export function buildContextPrompt(ctx: UserContext): string {
   }
   if (ctx.cycleInfo) {
     const c = ctx.cycleInfo;
-    parts.push(`Ciclo: día ${c.cycleDay} (fase ${c.currentPhase}), próximo periodo ~${c.nextPeriodEstimate}`);
+    parts.push(
+      c.nextPeriodEstimate
+        ? `Ciclo: día ${c.cycleDay} (fase ${c.currentPhase}), próximo periodo ~${c.nextPeriodEstimate}`
+        : `Ciclo: día ${c.cycleDay} (fase ${c.currentPhase}), periodo estimado vencido hace ${c.diasDeRetraso ?? 0} días y sin registro de inicio nuevo`,
+    );
   }
   if (ctx.recentBodyMeasurements) {
     const b = ctx.recentBodyMeasurements;

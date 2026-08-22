@@ -118,3 +118,56 @@ export function resolverCiclo(e: EntradaCiclo): CicloResuelto | null {
     cyclesUsed,
   };
 }
+
+/**
+ * La próxima menstruación, DERIVADA DE LA RESOLUCIÓN. No la calcula: la lee.
+ *
+ * 22-ago-2026 — MURIÓ predictNext, que era la última resolución paralela del
+ * largo del ciclo. El Audit B1 mató a su hermana (getCycleDay) y dejó un
+ * candado para que no volviera, pero la lista nunca cubrió a ésta, así que
+ * siguió viva y ARGOS la publicaba.
+ *
+ * Hacía dos cosas que la doctrina de la casa prohíbe:
+ *  · Aprendía el largo con UN solo ciclo registrado. cycle-length-core exige
+ *    dos y lo dice en su comentario: "con menos de 2 ciclos válidos no se
+ *    aprende: manda el ajuste manual".
+ *  · Si no podía aprender, caía a 28 duro en vez de al ajuste que la usuaria
+ *    escribió a mano. Le cambiaba su dato en silencio.
+ *
+ * Resultado medible: con un intervalo de 27 días y ajuste manual de 32, la
+ * tarjeta de /cycle decía 2 de septiembre y ARGOS decía 28 de agosto. Cinco
+ * días de diferencia, en la misma sesión, sobre el mismo cuerpo.
+ *
+ * Ahora sale de `inicio` y `cycleLen` de resolverCiclo, que es exactamente lo
+ * que pinta la tarjeta y el calendario. Una sola cuenta, tres superficies.
+ *
+ * Vive en el CORE y no en el servicio porque es aritmética pura: así se
+ * puede probar sin arrastrar Supabase ni react-native, que es justo lo que
+ * hizo tronar la prueba cuando estaba del otro lado.
+ *
+ * 4EP MEDIO-2 (22-ago) — `daysUntil` estaba clampeado a 0 y `date` no, así
+ * que con retraso (resolverCiclo tolera hasta 14 días de gracia) la tarjeta
+ * decía "~0d" y ARGOS publicaba una fecha YA VENCIDA como si fuera futura.
+ * Otra vez dos lecturas del mismo cuerpo. Ahora la función lo dice: cuando
+ * la estimada ya pasó, `retrasada` es true y `diasDeRetraso` trae por
+ * cuántos. Quien publique decide qué hacer con eso; lo que no puede es
+ * enseñar una fecha del pasado con la palabra "próximo" delante.
+ */
+export function predecirProximo(res: {
+  inicio: string;
+  day: number;
+  cycleLen: number;
+  cyclesUsed?: number;
+}): { date: Date; daysUntil: number; confidence: string; retrasada: boolean; diasDeRetraso: number } {
+  const date = parseLocalDate(res.inicio);
+  date.setDate(date.getDate() + res.cycleLen);
+  // Mismo despeje que la tarjeta (app/cycle.tsx): cuántos días faltan para
+  // cerrar el ciclo. En días locales, sin mezclar relojes. Negativo = retraso.
+  const faltan = res.cycleLen - res.day + 1;
+  const daysUntil = Math.max(0, faltan);
+  const retrasada = faltan < 0;
+  const diasDeRetraso = retrasada ? -faltan : 0;
+  const usados = res.cyclesUsed ?? 0;
+  const confidence = usados >= 3 ? 'alta' : usados >= 2 ? 'media' : 'baja';
+  return { date, daysUntil, confidence, retrasada, diasDeRetraso };
+}

@@ -4,7 +4,7 @@
  * Todo el calendario de /cycle se construía con settings.avg_cycle_length,
  * que solo cambia si la usuaria lo teclea a mano: las predicciones nunca
  * aprendían de los ciclos registrados y siempre decían "de 28". Aquí vive el
- * promedio observado que comparten predictNext (cycle-service) y la pantalla
+ * promedio observado que comparten resolverCiclo (cycle-phase-core) y la pantalla
  * de ciclo. Regla de la casa: quien use este número DEBE decir de dónde sale.
  * Nunca se cambia un dato de su cuerpo en silencio.
  *
