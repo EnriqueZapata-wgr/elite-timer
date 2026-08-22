@@ -63,12 +63,25 @@ describe('capture-service — saveBiomarkers', () => {
     expect(inserted[0][0].measured_at).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  // La persona que teclea su hoja es la autoridad sobre su propio dato: si
-  // escribe un valor extremo que de verdad tiene, queda marcado y ningún
-  // parser lo puede pisar después.
-  it('la captura manual se marca como confirmada por un humano', async () => {
+  // La persona que teclea su hoja es la autoridad sobre su propio dato y puede
+  // corregir lo que sea. Pero la PROTECCIÓN contra parsers se pone solo sobre
+  // el valor que de verdad cae fuera del rango clínico: marcar todo lo
+  // capturado a mano como intocable dejaba al PDF sin poder corregir nada.
+  it('lo capturado a mano se marca como escrito por un humano', async () => {
     await saveBiomarkers('u1', [{ key: 'glucose', value: 90, unit: 'mg/dL' }]);
-    expect(rpcs[0].params.p_confirmado_por_humano).toBe(true);
+    expect(rpcs[0].params.p_es_humano).toBe(true);
+  });
+
+  it('pero un valor NORMAL no se blinda contra correcciones', async () => {
+    await saveBiomarkers('u1', [{ key: 'glucose', value: 90, unit: 'mg/dL' }]);
+    expect(rpcs[0].params.p_fuera_confirmado).toBe(false);
+  });
+
+  it('y uno fuera de rango sí, que es la excepción del 21-ago', async () => {
+    // Glucosa de 600: el validador la rechazaría, pero la persona la escribió
+    // mirando su hoja. Ningún parser la puede pisar después.
+    await saveBiomarkers('u1', [{ key: 'glucose', value: 600, unit: 'mg/dL' }]);
+    expect(rpcs[0].params.p_fuera_confirmado).toBe(true);
   });
 
   // Antes se devolvía ok aunque el espejo fallara: la pantalla decía
