@@ -15,7 +15,7 @@ try { DocumentPicker = require('expo-document-picker'); } catch { /* */ }
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
-import { uploadLabFile, extractLabValuesForReview, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult, type LabReviewPayload } from '@/src/services/lab-service';
+import { uploadLabFile, extractLabValuesForReview, materializarRevision, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult, type LabReviewPayload } from '@/src/services/lab-service';
 import { setReview } from '@/src/services/edad-atp/lab-review-store';
 import { mergeReviews } from '@/src/services/edad-atp/lab-review-merge';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
@@ -286,7 +286,10 @@ function MyHealthScreen() {
       setUploading(true);
       setResult(null);
       try {
-        const { uploadId } = await uploadLabFile(userId, base64, fileType);
+        // El tipo elegido viaja a la base (migración 308). Sin eso, un archivo
+        // a medias lo re-encolaba el arranque de la app y el motor lo parseaba
+        // como si fuera sangre.
+        const { uploadId } = await uploadLabFile(userId, base64, fileType, undefined, type?.id ?? 'labs');
         setUploading(false);
         const fileName = type?.label ? `${type.label}.${fileType === 'pdf' ? 'pdf' : 'jpg'}` : `lab.${fileType === 'pdf' ? 'pdf' : 'jpg'}`;
         labProcessing.startProcessing(uploadId, fileName, fileSize, v.pageCount);
@@ -301,7 +304,13 @@ function MyHealthScreen() {
     setUploading(true);
     setResult(null);
     try {
-      const { uploadId } = await uploadLabFile(userId, base64, fileType);
+      // Contexto: el tipo se guarda, y con eso el reanudador del arranque ya
+      // sabe que esto NO se parsea. También el nombre, para que en la lista se
+      // reconozca qué archivo es y no salga como "lab_1755…".
+      const nombreContexto = type?.label
+        ? `${type.label}.${fileType === 'pdf' ? 'pdf' : 'jpg'}`
+        : undefined;
+      const { uploadId } = await uploadLabFile(userId, base64, fileType, nombreContexto, type?.id ?? 'contexto');
       setUploading(false);
 
       {
@@ -334,28 +343,38 @@ function MyHealthScreen() {
     setMultiProgress({ done: 0, total: images.length });
     let done = 0;
     const settled = await Promise.all(
-      images.map(async (img) => {
+      images.map(async (img, i) => {
         try {
-          const { uploadId } = await uploadLabFile(userId, img, 'image');
+          const { uploadId } = await uploadLabFile(userId, img, 'image', undefined, type?.id ?? 'labs');
           const review = await extractLabValuesForReview(uploadId);
           done++; setMultiProgress({ done, total: images.length });
-          return 'error' in review ? null : review;
-        } catch {
+          if ('error' in review) {
+            return { fallo: { nombre: `Foto ${i + 1}`, motivo: review.error } };
+          }
+          return { review };
+        } catch (e: any) {
           done++; setMultiProgress({ done, total: images.length });
-          return null;
+          return { fallo: { nombre: `Foto ${i + 1}`, motivo: e?.message ?? 'No se pudo subir' } };
         }
       }),
     );
     setMultiProgress(null);
-    const okReviews = settled.filter(Boolean) as LabReviewPayload[];
+    const okReviews = settled.map((r) => (r as any).review).filter(Boolean) as LabReviewPayload[];
+    // 22-ago: de cinco fotos podían fallar dos y la pantalla enseñaba las tres
+    // buenas como si fueran el panel completo. Ahora las que se cayeron viajan
+    // con la revisión y la pantalla de confirmación las nombra.
+    const fallos = settled.map((r) => (r as any).fallo).filter(Boolean) as Array<{ nombre: string; motivo: string }>;
     if (okReviews.length === 0) {
       setProcessing(false);
       setResult({ error: `No pudimos leer ninguno de los ${images.length} archivos. Revisa que sean fotos legibles de laboratorios.` });
       loadData();
       return;
     }
-    const merged = mergeReviews(okReviews);
-    analytics.track(ATP_EVENTS.LAB_PARSER_V2_REVIEWED, { total: merged.items.length, photos: okReviews.length, upload_id: merged.uploadId });
+    const merged = { ...mergeReviews(okReviews), fallos };
+    // El paso intermedio también para el lote: lo mergeado aterriza en el
+    // colector bajo el upload que abre la revisión.
+    await materializarRevision(merged);
+    analytics.track(ATP_EVENTS.LAB_PARSER_V2_REVIEWED, { total: merged.items.length, photos: okReviews.length, fallos: fallos.length, upload_id: merged.uploadId });
     setReview(merged);
     setResult(null);
     setProcessing(false);

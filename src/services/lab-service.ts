@@ -6,8 +6,10 @@ import { getFreshSignedUrl } from '@/src/services/storage-signed-url';
 import { callAnthropic, extractResponseText, uploadFileToAnthropicViaProxy } from '@/src/services/anthropic-client';
 import { getArgosCallMetadata } from '@/src/services/argos-service';
 import { getLocalToday } from '@/src/utils/date-helpers';
-import { insertLabValuesFromRaw, voidLabValuesByUpload, voidLabValuesByLabResult } from '@/src/services/edad-atp/lab-values-service';
+import { voidLabValuesByUpload, voidLabValuesByLabResult } from '@/src/services/edad-atp/lab-values-service';
 import { isLabValueValid, LAB_ABSOLUTE_RANGES } from '@/src/constants/lab-clinical-ranges';
+import { toCanonicalEntries } from '@/src/constants/lab-canonical-map';
+import { userErrorMessage } from '@/src/utils/user-error';
 import { processParserItems, type RawParserItem, type ProcessedItem, type DerivedItem, type DupCandidate } from '@/src/services/edad-atp/lab-parser-process';
 import { warn as logWarn } from '@/src/lib/logger';
 import * as Sentry from '@sentry/react-native';
@@ -160,8 +162,19 @@ export const LAB_ASYNC_WORKER_ENABLED = true;
 
 // === UPLOAD ===
 
+/**
+ * 22-ago-2026 — EL TIPO ELEGIDO SE GUARDA.
+ *
+ * `uploadType` es el tipo que la persona escogió en el selector (labs, ECG,
+ * genética, contexto…). Hasta hoy vivía SOLO en el estado de React, así que en
+ * la base todo archivo era igual. Consecuencia medida: un archivo de contexto
+ * que se quedaba a medias lo re-encolaba el arranque de la app (useLabProcessing
+ * reanuda lo que lleva más de cinco minutos en 'uploaded'), el trigger lo mandaba
+ * al worker, y un electrocardiograma se parseaba contra el prompt de sangre.
+ */
 export async function uploadLabFile(
-  userId: string, base64Data: string, fileType: 'image' | 'pdf', fileName?: string
+  userId: string, base64Data: string, fileType: 'image' | 'pdf', fileName?: string,
+  uploadType?: string,
 ): Promise<{ uploadId: string; fileUrl: string }> {
   const ext = fileType === 'pdf' ? 'pdf' : 'jpg';
   const path = `${userId}/${Date.now()}.${ext}`;
@@ -181,7 +194,12 @@ export async function uploadLabFile(
   // año (enlace público de facto). La URL se firma corta al momento de usarse.
   const { data: upload, error: insertError } = await supabase
     .from('lab_uploads')
-    .insert({ user_id: userId, file_url: path, file_type: fileType, file_name: fileName ?? `lab_${Date.now()}.${ext}`, status: 'uploaded' })
+    .insert({
+      user_id: userId, file_url: path, file_type: fileType,
+      file_name: fileName ?? `lab_${Date.now()}.${ext}`,
+      status: 'uploaded',
+      upload_type: uploadType ?? 'labs',
+    })
     .select('id')
     .single();
 
@@ -194,7 +212,17 @@ export async function uploadLabFile(
 
 export interface LabExtractResult {
   labResultId: string;
+  /** Lo que de verdad quedó vivo en el expediente: escritos + los que ya estaban igual. */
   extractedCount: number;
+  /** Valores nuevos o corregidos que entraron. */
+  escritos?: number;
+  /** Ya existían con ese mismo número: no se tocó nada. */
+  sinCambio?: number;
+  /**
+   * No se pisaron porque una persona los había confirmado a mano fuera de
+   * rango. Es la excepción que protege el dato del usuario contra el parser.
+   */
+  protegidos?: number;
   otherValues: any[];
   /** Cuántos valores la IA extrajo pero descartamos por estar fuera de rango clínico. */
   rejectedCount: number;
@@ -371,30 +399,111 @@ Solo valores encontrados. No mapeados→other_values.`;
 
     if (labError) throw new Error(labError.message || JSON.stringify(labError));
 
-    // Fuente ÚNICA canónica: escribir cada valor extraído a lab_values (append-only, con
-    // fecha+procedencia por-valor). Esto es lo que alimenta el motor Edad ATP — lab_results
-    // queda como expediente médico crudo. measured_at = fecha del estudio (no de la subida).
-    const rawValues: Record<string, number> = {};
+    // 22-ago-2026 — ESTA RUTA YA NO SE SALTA LA CONVERSIÓN DE UNIDADES.
+    //
+    // Aquí el número entraba tal como lo devolvía el proveedor. Solo se
+    // validaba el rango y se convertían tres porcentajes al escribir. Una
+    // glucosa en mmol/L o una testosterona en ng/mL entraban crudas al
+    // expediente de un cliente, por la puerta del coach, que es justo donde
+    // menos se puede fallar. El pipeline v2 (processParserItems) ya hace esa
+    // conversión y tiene pruebas de regresión desde julio; esta ruta no lo
+    // usaba por ser código más viejo, no por ninguna razón.
+    const crudos: RawParserItem[] = [];
     for (const [key, val] of Object.entries(values)) {
       const num = (val as any)?.value;
-      if (typeof num === 'number' && Number.isFinite(num)) rawValues[key] = num;
+      if (typeof num !== 'number' || !Number.isFinite(num)) continue;
+      crudos.push({
+        key,
+        value: num,
+        unit_in_document: (val as any)?.unit ?? null,
+        confidence: 'medium',
+      });
     }
-    await insertLabValuesFromRaw(upload.user_id, rawValues, {
-      source: 'lab_pdf',
-      measuredAt: labData.lab_date,
-      uploadId,
-      labResultId: labResult.id,
-    });
+    const { items: itemsCoach } = processParserItems(crudos);
+    const valoresRpc: Array<Record<string, unknown>> = [];
+    const yaPuestoCoach = new Set<string>();
+    for (const it of itemsCoach) {
+      if (it.passedValidation === false) continue;
+      for (const e of toCanonicalEntries({ [it.key]: it.valueCanonical })) {
+        // 4EP MEDIO-6: sin este candado, dos claves del documento que caen en
+        // el mismo dato canónico se escribían dos veces y la última ganaba en
+        // silencio, dejando además una fila anulada espuria.
+        if (yaPuestoCoach.has(e.parameter_key)) {
+          logWarn('[colector] ruta coach: dos claves caen en el mismo dato canónico:', {
+            uploadId, canonico: e.parameter_key, original: it.key,
+          });
+          continue;
+        }
+        yaPuestoCoach.add(e.parameter_key);
+        valoresRpc.push({
+          parameter_key: e.parameter_key,
+          value: e.value,
+          unit: it.unitCanonical ?? null,
+          measured_at: labData.lab_date,
+          source: 'lab_pdf',
+          es_humano: false,
+          fuera_confirmado: false,
+        });
+      }
+    }
 
-    // Update upload
+    // 4EP GRAVE-4: la conversión de unidades puede sacar de rango un valor que
+    // había pasado la validación cruda, así que lo que de verdad se escribe
+    // puede ser menos que lo extraído. Si no queda nada, esto no es un estudio
+    // guardado: es un estudio fallido, y así se dice.
+    if (valoresRpc.length === 0) {
+      await supabase.from('lab_results').delete().eq('id', labResult.id);
+      await supabase.from('lab_uploads').update({
+        status: 'failed',
+        error_message: 'Ningún valor sobrevivió a la conversión de unidades.',
+      }).eq('id', uploadId);
+      return {
+        error: 'Ningún valor pasó la validación tras convertir unidades.',
+        extractedCount: 0, otherValues, rejectedCount: rejected.length, rejected,
+      };
+    }
+
     await supabase.from('lab_uploads').update({
-      status: 'extracted',
       extracted_data: parsed,
       ai_raw_response: rawText,
       lab_result_id: labResult.id,
     }).eq('id', uploadId);
 
-    return { labResultId: labResult.id, extractedCount, otherValues, rejectedCount: rejected.length, rejected };
+    // Misma puerta de escritura que el flujo del usuario: un solo valor vivo
+    // por dato y fecha, y el estudio queda confirmado en el mismo acto.
+    //
+    // PENDIENTE DECLARADO, no olvidado: esta ruta sigue guardando SIN que la
+    // persona confirme, porque el panel del coach no tiene pantalla de
+    // revisión. Lo peligroso (unidades crudas, valores compitiendo) ya está
+    // cerrado; lo que falta es que el cliente pueda revisar antes. Está en la
+    // estación de lanzamiento para decidirlo con Enrique.
+    const { data: resCoach, error: rpcError } = await supabase.rpc('lab_revision_aprobar', {
+      p_upload_id: uploadId,
+      p_valores: valoresRpc,
+      p_lab_result_id: labResult.id,
+      p_source: 'lab_pdf',
+    });
+    if (rpcError) {
+      await borrarLabResultHuerfano(labResult.id);
+      await supabase.from('lab_uploads').update({ status: 'failed', error_message: 'No se pudieron guardar los valores' }).eq('id', uploadId);
+      logWarn('[colector] ruta coach: aprobar falló:', rpcError);
+      return { error: userErrorMessage(rpcError, 'No se pudieron guardar los valores del estudio.') };
+    }
+
+    // 4EP GRAVE-4: el conteo sale de la base, no de lo que se intentó. Antes
+    // el coach veía "N valores extraídos" aunque no hubiera entrado ninguno:
+    // es el mismo defecto que la ruta del usuario acababa de cerrar.
+    const escritosCoach = Number((resCoach as any)?.escritos ?? 0)
+      + Number((resCoach as any)?.sin_cambio ?? 0);
+
+    return {
+      labResultId: labResult.id,
+      extractedCount: escritosCoach,
+      escritos: Number((resCoach as any)?.escritos ?? 0),
+      sinCambio: Number((resCoach as any)?.sin_cambio ?? 0),
+      protegidos: Number((resCoach as any)?.protegidos ?? 0),
+      otherValues, rejectedCount: rejected.length, rejected,
+    };
 
   } catch (err: any) {
     const retriable = isRetriableError(err);
@@ -461,6 +570,21 @@ export interface LabReviewPayload {
   duplicates?: Record<string, DupCandidate[]>;
   /** Multi-foto: todos los uploads que componen esta revisión (para guardar/descartar en bloque). */
   uploadIds?: string[];
+  /**
+   * Fecha POR DATO, cuando difiere de labDate. Dos estudios de fechas
+   * distintas fotografiados en la misma tanda dejaban de tener fecha propia y
+   * se guardaban todos bajo la primera que apareciera. Aquí sobrevive.
+   * Clave = item.key.
+   */
+  fechasPorItem?: Record<string, string>;
+  /** De qué archivo salió cada dato, cuando el lote trae varios. Clave = item.key. */
+  origenPorItem?: Record<string, string>;
+  /**
+   * Fotos del lote que NO se pudieron leer. Antes se caían del conjunto en
+   * silencio: de cinco fotos podían fallar dos y la pantalla enseñaba las
+   * tres buenas como si fueran el panel completo.
+   */
+  fallos?: Array<{ nombre?: string; motivo: string }>;
 }
 
 /** Acepta `values` como array v2 o como objeto {key:{value,unit}} (compat) → RawParserItem[]. */
@@ -544,7 +668,7 @@ export async function extractLabValuesForReview(uploadId: string): Promise<LabRe
       return { error: 'No biomarkers extracted', extractedCount: 0, otherValues: parsed.other_values ?? [] };
     }
 
-    return {
+    const payload: LabReviewPayload = {
       uploadId,
       userId: upload.user_id,
       labName: parsed.lab_name ?? null,
@@ -553,12 +677,176 @@ export async function extractLabValuesForReview(uploadId: string): Promise<LabRe
       derived,
       otherValues: parsed.other_values ?? [],
     };
+    // El paso intermedio: lo extraído aterriza en el colector, no en memoria.
+    await materializarRevision(payload);
+    return payload;
   } catch (err: any) {
     const retriable = isRetriableError(err);
     const message = retriable ? LAB_NETWORK_ERROR_MSG : (err?.message ?? 'Error al procesar el archivo');
     await supabase.from('lab_uploads').update({ status: 'failed', error_message: message }).eq('id', uploadId);
     return { error: message, retriable };
   }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// EL PLACEHOLDER TEMPORAL (migración 308)
+// ════════════════════════════════════════════════════════════════════════
+//
+// Hasta el 22-ago-2026, lo extraído vivía en un Map de memoria de la sesión de
+// JavaScript (lab-review-store.ts). Es decir: la extracción NUNCA llegaba a la
+// capa del colector. Si la app se recargaba entre la extracción y el aceptar,
+// el trabajo se perdía, y la pantalla de confirmación reconstruía todo desde el
+// JSON crudo del proveedor, perdiendo confianza por dato, fragmento de texto y
+// origen en fotos múltiples.
+//
+// Ahora hay una tabla, lab_revision, con UNA fila por dato y por estudio. Nace
+// al abrir la revisión y muere en la aprobación, dentro de la misma transacción
+// que escribe en el expediente. Nunca hay dos placeholders vivos del mismo dato.
+
+/** Una fila del placeholder temporal, tal como la ve la app. */
+export interface FilaRevision {
+  parameter_key: string;
+  value: number;
+  unit: string | null;
+  measured_at: string;
+  confidence: string | null;
+  passed_validation: boolean;
+  confirmado_fuera_de_rango: boolean;
+  origen_upload_id: string | null;
+  conversion_method: string | null;
+  raw_snippet: string | null;
+}
+
+/**
+ * Guarda la corrección que la persona acaba de hacer sobre UN dato.
+ *
+ * 4EP GRAVE-6: el comentario de la tabla prometía que el temporal traía las
+ * ediciones, y no era cierto: vivían en el estado de React y solo viajaban al
+ * confirmar. Una recarga a media revisión las perdía, que es exactamente el
+ * problema que la tabla existe para resolver.
+ *
+ * Best-effort a propósito: si falla, la edición sigue viva en la pantalla y se
+ * guarda al confirmar, como antes. No se le interrumpe a nadie por esto.
+ */
+export async function actualizarValorRevision(
+  uploadId: string,
+  parameterKey: string,
+  value: number,
+  opts?: { confirmadoFueraDeRango?: boolean },
+): Promise<void> {
+  try {
+    await supabase.from('lab_revision').update({
+      value,
+      // Editar un dato es revisarlo: deja de estar "sin mirar".
+      passed_validation: true,
+      confirmado_fuera_de_rango: opts?.confirmadoFueraDeRango ?? false,
+      editado_en: new Date().toISOString(),
+    }).eq('upload_id', uploadId).eq('parameter_key', parameterKey);
+  } catch (e) {
+    logWarn('[colector] no se pudo guardar la edición en el temporal:', e);
+  }
+}
+
+/**
+ * Escribe (o reescribe) el placeholder temporal de un estudio.
+ *
+ * Reemplaza lo que hubiera: una revisión abierta dos veces no acumula
+ * versiones del mismo dato, la última manda. Esa es la regla de la casa,
+ * "solo un placeholder por dato vivo al mismo tiempo", aplicada también aquí.
+ *
+ * Si falla, NO revienta el flujo: la revisión sigue funcionando desde memoria
+ * como antes. Perder la red no puede costarle al usuario el estudio que acaba
+ * de subir. Pero sí lo dice en el resultado, para que quien llame no crea que
+ * el temporal quedó guardado.
+ */
+export async function materializarRevision(
+  payload: LabReviewPayload,
+): Promise<{ ok: boolean; filas: number; error?: string }> {
+  const filas = payload.items
+    .filter((it) => Number.isFinite(it.valueCanonical))
+    .map((it) => ({
+      user_id: payload.userId,
+      upload_id: payload.uploadId,
+      parameter_key: it.key,
+      value: it.valueCanonical,
+      unit: it.unitCanonical ?? null,
+      measured_at: payload.fechasPorItem?.[it.key] ?? payload.labDate,
+      confidence: it.confidence ?? null,
+      passed_validation: it.passedValidation !== false,
+      confirmado_fuera_de_rango: false,
+      // De qué foto salió, cuando el lote trae varias.
+      origen_upload_id: payload.origenPorItem?.[it.key] ?? null,
+      // 4EP: sin guardar esto, al recargar TODO se pintaba con el ícono de
+      // advertencia (el viaje de ida y vuelta convierte 'identity' en
+      // 'explicit') y la señal dejaba de significar nada.
+      conversion_method: it.conversionMethod ?? null,
+      raw_snippet: it.rawTextSnippet ?? null,
+    }));
+  if (filas.length === 0) return { ok: true, filas: 0 };
+  try {
+    await supabase.from('lab_revision').delete().eq('upload_id', payload.uploadId);
+    const { error } = await supabase.from('lab_revision').insert(filas);
+    if (error) {
+      logWarn('[colector] no se pudo materializar la revision:', error);
+      return { ok: false, filas: 0, error: error.message };
+    }
+    // 4EP MEDIO-1: el lote también se persiste. Sin esto, recargar la app a
+    // media revisión dejaba a las otras fotos huérfanas en 'extracted' para
+    // siempre, y el aviso global las volvía a ofrecer una por una.
+    const hermanos = (payload.uploadIds ?? []).filter((id) => id && id !== payload.uploadId);
+    if (hermanos.length > 0 || (payload.fallos?.length ?? 0) > 0) {
+      await supabase.from('lab_uploads').update({
+        lote_upload_ids: hermanos.length > 0 ? [payload.uploadId, ...hermanos] : null,
+        lote_fallos: (payload.fallos?.length ?? 0) > 0 ? payload.fallos : null,
+      }).eq('id', payload.uploadId);
+    }
+    return { ok: true, filas: filas.length };
+  } catch (e: any) {
+    logWarn('[colector] materializarRevision reventó:', e);
+    return { ok: false, filas: 0, error: e?.message ?? 'Error al guardar la revisión' };
+  }
+}
+
+/**
+ * Borra una fila ancha de lab_results que quedó sin valores.
+ *
+ * 4EP MEDIO-2: el resultado de este borrado no se comprobaba. Si también
+ * fallaba, quedaba un estudio en el expediente que la persona VE y que el
+ * motor no tiene: peor que no haberlo guardado, porque parece que sí está.
+ * Si no se puede quitar, al menos se marca para que no se lea como bueno.
+ */
+async function borrarLabResultHuerfano(labResultId: string): Promise<void> {
+  const { error } = await supabase.from('lab_results').delete().eq('id', labResultId);
+  if (!error) return;
+  logWarn('[colector] no se pudo borrar el lab_results huérfano:', { labResultId, error });
+  const { error: e2 } = await supabase.from('lab_results')
+    .update({ status: 'void', notes: 'Sin valores: la escritura al expediente falló.' })
+    .eq('id', labResultId);
+  if (e2) logWarn('[colector] tampoco se pudo marcar el huérfano:', { labResultId, error: e2 });
+}
+
+/** Lee el placeholder temporal de un estudio. Vacío = no hay revisión abierta. */
+export async function leerRevision(uploadId: string): Promise<FilaRevision[]> {
+  const { data, error } = await supabase
+    .from('lab_revision')
+    .select('parameter_key, value, unit, measured_at, confidence, passed_validation, confirmado_fuera_de_rango, origen_upload_id, conversion_method, raw_snippet')
+    .eq('upload_id', uploadId)
+    .order('parameter_key');
+  if (error) { logWarn('[colector] leerRevision falló:', error); return []; }
+  return (data ?? []) as FilaRevision[];
+}
+
+/**
+ * Descarta la revisión: el temporal muere sin migrar nada y el estudio queda
+ * cancelado. Es el otro final del cuadro de diálogo, y también borra.
+ */
+export async function descartarRevision(uploadId: string): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase.rpc('lab_revision_descartar', { p_upload_id: uploadId });
+  if (error) {
+    logWarn('[colector] descartarRevision falló:', error);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
 }
 
 /**
@@ -595,28 +883,129 @@ export function reconstructReviewFromExtractedData(upload: any): LabReviewPayloa
 export async function loadReviewFromDb(uploadId: string): Promise<LabReviewPayload | LabExtractError> {
   const { data: upload } = await supabase.from('lab_uploads').select('*').eq('id', uploadId).single();
   if (!upload) return { error: 'Upload no encontrado' };
-  return reconstructReviewFromExtractedData(upload);
+
+  // PRIMERO el placeholder temporal, que es el estado real de la revisión y
+  // puede traer ediciones que la persona ya hizo. Solo si no hay nada ahí se
+  // reconstruye desde el JSON crudo del proveedor, y en ese caso se
+  // materializa, para que a partir de ese momento sí exista el paso intermedio.
+  const filas = await leerRevision(uploadId);
+  if (filas.length > 0) {
+    const crudos: RawParserItem[] = filas.map((f) => ({
+      key: f.parameter_key,
+      value: f.value,
+      // El valor guardado YA está en unidad canónica, así que declarar esa
+      // misma unidad hace que la conversión sea la identidad. Se pasa por el
+      // mismo pipeline de siempre para no tener dos formas de armar un item.
+      unit_in_document: f.unit,
+      confidence: (f.confidence === 'high' || f.confidence === 'low') ? f.confidence : 'medium',
+      raw_text_snippet: f.raw_snippet ?? undefined,
+    }));
+    const { items, derived } = processParserItems(crudos);
+    const porClave = new Map(filas.map((f) => [f.parameter_key, f]));
+
+    // 4EP: se restaura lo que la tabla guardó y el pipeline no puede saber.
+    //  · El método de conversión: al reprocesar, la unidad canónica declarada
+    //    se resuelve como conversión EXPLÍCITA, así que todo salía marcado con
+    //    advertencia y la señal dejaba de distinguir nada.
+    //  · La validación y la marca de "lo miré y lo sostengo", que son
+    //    decisiones de la persona, no del extractor.
+    const restaurados = items.map((it) => {
+      const f = porClave.get(it.key);
+      if (!f) return it;
+      return {
+        ...it,
+        conversionMethod: (f.conversion_method as any) ?? it.conversionMethod,
+        passedValidation: f.confirmado_fuera_de_rango ? true : f.passed_validation,
+      };
+    });
+
+    const fechasPorItem: Record<string, string> = {};
+    const origenPorItem: Record<string, string> = {};
+    for (const f of filas) {
+      fechasPorItem[f.parameter_key] = f.measured_at;
+      if (f.origen_upload_id) origenPorItem[f.parameter_key] = f.origen_upload_id;
+    }
+    // La fecha del lote es la MÁS RECIENTE, que es la del panel que manda.
+    // Tomar la más vieja hacía que un estudio antiguo del lote gobernara el
+    // encabezado de la pantalla.
+    const fechas = [...new Set(filas.map((f) => f.measured_at))].sort();
+    const hermanos: string[] = (upload.lote_upload_ids as string[] | null) ?? [];
+    return {
+      uploadId,
+      userId: upload.user_id,
+      labName: (upload.extracted_data as any)?.lab_name ?? null,
+      labDate: fechas[fechas.length - 1] ?? getLocalToday(),
+      items: restaurados,
+      derived,
+      otherValues: (upload.extracted_data as any)?.other_values ?? [],
+      // Solo se declaran fechas por dato si de verdad hay más de una. Con una
+      // sola, manda la del encabezado, que es la que la persona puede corregir
+      // en pantalla: si no, editarla no cambiaba nada donde importa (4EP).
+      ...(fechas.length > 1 ? { fechasPorItem } : {}),
+      ...(Object.keys(origenPorItem).length > 0 ? { origenPorItem } : {}),
+      // 4EP MEDIO-1: el lote sobrevive a la recarga, así que las otras fotos
+      // se cierran al guardar en vez de quedarse ofreciéndose para siempre.
+      ...(hermanos.length > 0 ? { uploadIds: hermanos } : {}),
+      ...(upload.lote_fallos ? { fallos: upload.lote_fallos } : {}),
+    };
+  }
+
+  const reconstruido = reconstructReviewFromExtractedData(upload);
+  if (!('error' in reconstruido)) await materializarRevision(reconstruido);
+  return reconstruido;
 }
 
 /**
- * Capa 4: guarda los valores YA CONFIRMADOS por el usuario (con sus ediciones aplicadas).
- * Re-valida cada uno contra rangos clínicos (defensa) y escribe SOLO los válidos a
- * lab_results + lab_values. `confirmed` trae key inglés + valor en unidad canónica.
+ * EL PASO FINAL del colector: la persona aceptó, y aquí el dato entra al
+ * expediente y el placeholder temporal muere.
+ *
+ * QUÉ CAMBIÓ el 22-ago-2026 y por qué:
+ *
+ *  · El estudio quedaba en `extracted` en vez de `confirmed`, así que el aviso
+ *    volvía a ofrecer revisarlo, el badge de notificaciones nunca se limpiaba
+ *    y confirmar dos veces insertaba DOS filas en lab_results. Ahora se marca
+ *    confirmado dentro de la misma transacción que escribe.
+ *
+ *  · El resultado de la escritura se tiraba a la basura y la pantalla decía
+ *    "N valores guardados" con N = lo VALIDADO, no lo escrito. Si la escritura
+ *    fallaba entera, el mensaje era el mismo. Ahora se devuelve lo que de
+ *    verdad entró, y si falla, falla a la vista.
+ *
+ *  · La fecha era una sola para todo el lote. Ahora cada dato lleva la suya.
+ *
+ *  · `confirmadosFueraDeRango` es la excepción que pidió Enrique el 21-ago:
+ *    un valor de verdad extremo que la persona teclea mirando su hoja. Se
+ *    escribe marcado, y ningún parser lo puede pisar después.
  */
 export async function saveConfirmedLabValues(
   uploadId: string,
   confirmed: Array<{ key: string; value: number }>,
-  opts: { labDate?: string; labName?: string | null; extraUploadIds?: string[] },
+  opts: {
+    labDate?: string;
+    labName?: string | null;
+    extraUploadIds?: string[];
+    /** Fecha por dato, cuando el lote trae estudios de fechas distintas. */
+    fechasPorItem?: Record<string, string>;
+    /** Claves que la persona confirmó a sabiendas de que caen fuera de rango. */
+    confirmadosFueraDeRango?: string[];
+    /** Claves que la persona corrigió a mano en la pantalla. */
+    editadas?: string[];
+    /** Unidad canónica por clave, para que quede escrita en el expediente. */
+    unidades?: Record<string, string | null>;
+  },
 ): Promise<LabExtractResult | LabExtractError> {
   const { data: upload } = await supabase.from('lab_uploads').select('*').eq('id', uploadId).single();
   if (!upload) return { error: 'Upload no encontrado' };
 
   try {
+    const fueraOk = new Set(opts.confirmadosFueraDeRango ?? []);
+    const editados = new Set(opts.editadas ?? opts.confirmadosFueraDeRango ?? []);
+    const unidades = opts.unidades ?? {};
     const validated: Record<string, number> = {};
     const rejected: Array<{ key: string; value: number; reason: string }> = [];
     for (const { key, value } of confirmed) {
       if (typeof value !== 'number' || !Number.isFinite(value)) continue;
-      if (isLabValueValid(key, value)) {
+      if (isLabValueValid(key, value) || fueraOk.has(key)) {
         validated[key] = value;
       } else {
         const r = LAB_ABSOLUTE_RANGES[key];
@@ -630,9 +1019,10 @@ export async function saveConfirmedLabValues(
       return { error: 'Ningún valor confirmado válido', extractedCount: 0, otherValues: [], rejectedCount: rejected.length, rejected };
     }
 
+    const fechaLote = opts.labDate || getLocalToday();
     const labData: Record<string, any> = {
       user_id: upload.user_id,
-      lab_date: opts.labDate || getLocalToday(),
+      lab_date: fechaLote,
       lab_name: opts.labName ?? null,
       upload_id: uploadId,
       status: 'draft',
@@ -643,22 +1033,87 @@ export async function saveConfirmedLabValues(
       .from('lab_results').insert(labData).select('id').single();
     if (labError) throw new Error(labError.message || JSON.stringify(labError));
 
-    await insertLabValuesFromRaw(upload.user_id, validated, {
-      source: 'lab_pdf', measuredAt: labData.lab_date, uploadId, labResultId: labResult.id,
+    // La canonicalización vive en TypeScript y está probada (alias como ggt se
+    // desdoblan, inglés pasa a español, los porcentajes se convierten una sola
+    // vez). Se hace aquí y la base recibe filas ya canónicas: una sola
+    // resolución del problema, no dos.
+    // Se canoniza CLAVE POR CLAVE, no el lote entero, para no perder de vista
+    // de qué dato original salió cada fila: la fecha y la marca de "confirmado
+    // fuera de rango" viajan pegadas al dato, no al lote.
+    const valoresRpc: Array<{
+      parameter_key: string; value: number; unit: null;
+      measured_at: string; confirmado_por_humano: boolean;
+    }> = [];
+    const yaPuesto = new Set<string>();
+    for (const [original, valor] of Object.entries(validated)) {
+      for (const e of toCanonicalEntries({ [original]: valor })) {
+        // Dos claves del documento pueden caer en el mismo dato canónico. Si
+        // pasa, gana la primera y se deja constancia: escribir las dos sería
+        // volver a tener dos versiones del mismo dato, que es justo lo que
+        // esta arquitectura existe para impedir.
+        if (yaPuesto.has(e.parameter_key)) {
+          logWarn('[colector] dos claves confirmadas caen en el mismo dato canónico:', {
+            uploadId, canonico: e.parameter_key, original,
+          });
+          continue;
+        }
+        yaPuesto.add(e.parameter_key);
+        const loEditoLaPersona = editados.has(original);
+        valoresRpc.push({
+          parameter_key: e.parameter_key,
+          value: e.value,
+          // 4EP MENOR: la unidad se guardaba en la ruta del coach y no en
+          // ésta. Mismo dato, distinta columna según por dónde entró.
+          unit: unidades[original] ?? null,
+          measured_at: opts.fechasPorItem?.[original] || fechaLote,
+          // 4EP MEDIO-5: la procedencia es POR DATO. Lo que la persona corrigió
+          // a mano en la pantalla es suyo, no del PDF. La 307 pudo reconstruir
+          // el incidente del colesterol porque el origen distinguía quién
+          // había escrito cada fila; aplanarlo todo a lab_pdf tira esa pista.
+          source: loEditoLaPersona ? 'manual' : 'lab_pdf',
+          es_humano: loEditoLaPersona,
+          fuera_confirmado: fueraOk.has(original),
+        });
+      }
+    }
+
+    const { data: res, error: rpcError } = await supabase.rpc('lab_revision_aprobar', {
+      p_upload_id: uploadId,
+      p_valores: valoresRpc,
+      p_lab_result_id: labResult.id,
+      p_source: 'lab_pdf',
     });
+    if (rpcError) {
+      // La fila ancha entró y los valores no. Se anula para no dejar un estudio
+      // fantasma en el expediente que el motor no puede leer.
+      await borrarLabResultHuerfano(labResult.id);
+      logWarn('[colector] lab_revision_aprobar falló:', rpcError);
+      return { error: userErrorMessage(rpcError, 'No se pudieron guardar los valores. Intenta de nuevo.') };
+    }
 
-    await supabase.from('lab_uploads').update({ status: 'extracted', lab_result_id: labResult.id }).eq('id', uploadId);
+    const escritos = Number((res as any)?.escritos ?? 0);
+    const sinCambio = Number((res as any)?.sin_cambio ?? 0);
+    const protegidos = Number((res as any)?.protegidos ?? 0);
 
-    // Multi-foto: las demás fotos quedan asociadas al mismo lab_result (no quedan "fallidas").
+    // Multi-foto: las demás fotos quedan asociadas al mismo lab_result y
+    // confirmadas, para que el aviso global no las vuelva a ofrecer.
     const extras = (opts.extraUploadIds ?? []).filter((id) => id && id !== uploadId);
     if (extras.length > 0) {
-      await supabase.from('lab_uploads').update({ status: 'extracted', lab_result_id: labResult.id }).in('id', extras);
+      await supabase.from('lab_uploads').update({ status: 'confirmed', lab_result_id: labResult.id }).in('id', extras);
+      await supabase.from('lab_revision').delete().in('upload_id', extras);
     }
 
     if (rejected.length > 0) logWarn('[lab-parser-v2] confirmados rechazados por rango:', { uploadId, rejected });
-    return { labResultId: labResult.id, extractedCount, otherValues: [], rejectedCount: rejected.length, rejected };
+    return {
+      labResultId: labResult.id,
+      extractedCount: escritos + sinCambio,
+      escritos, sinCambio, protegidos,
+      otherValues: [],
+      rejectedCount: rejected.length,
+      rejected,
+    };
   } catch (err: any) {
-    return { error: err?.message ?? 'Error al guardar' };
+    return { error: userErrorMessage(err, 'Error al guardar') };
   }
 }
 

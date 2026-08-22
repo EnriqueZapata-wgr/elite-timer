@@ -6,7 +6,7 @@
  * orchestrator prioriza edad_atp_biomarkers > extracted_data > lab_results).
  */
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Alert, Linking } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, Alert, Linking, TextInput } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/src/lib/supabase';
@@ -26,6 +26,7 @@ import { loadCanonicalLabValues } from '@/src/services/edad-atp/lab-values-servi
 import { canonicalParameterKey, CANONICAL_PCT_KEYS, decimalToPct } from '@/src/constants/lab-canonical-map';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
+import { userErrorMessage } from '@/src/utils/user-error';
 import { getCycleInfo } from '@/src/services/cycle-service';
 import { deriveLabCycleContext, type CyclePhase } from '@/src/services/salud/lab-cycle-context-core';
 import { ATP_BRAND, SEMANTIC, type AppThemeTokens } from '@/src/constants/brand';
@@ -71,6 +72,13 @@ const SECTIONS: { section: string; items: Bio[] }[] = [
 ];
 const ALL_BIO = SECTIONS.flatMap((s) => s.items);
 
+/**
+ * Mismo formato Y MISMO RIGOR que la pantalla de laboratorios: AAAA-MM-DD con
+ * mes y día acotados. 4EP: con el patrón laxo, "2026-99-99" pasaba el filtro
+ * del cliente y reventaba en Postgres.
+ */
+const ISO_DATE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
 function daysAgo(dateStr: string): number {
   const then = parseLocalDate(dateStr.includes('T') ? dateStr.slice(0, 10) : dateStr).getTime();
   const now = parseLocalDate(getLocalToday()).getTime();
@@ -96,6 +104,9 @@ export default function BiomarkersCapture() {
   const [editMode, setEditMode] = useState(updateMode);
   const [showAvailable, setShowAvailable] = useState(updateMode);
   const [saving, setSaving] = useState(false);
+  // Fecha del estudio que se está capturando. Arranca en hoy porque lo normal
+  // es teclear lo que acabas de recoger, pero se puede corregir.
+  const [fechaEstudio, setFechaEstudio] = useState<string>(getLocalToday());
   // Edición inline de UN toque (#16): qué fila disponible se está editando + cuál guardando.
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
@@ -175,6 +186,15 @@ export default function BiomarkersCapture() {
 
   const setField = (k: string, v: string) => setValues((p) => ({ ...p, [k]: v }));
 
+  // 22-ago — LA FECHA DEL ESTUDIO SE PREGUNTA.
+  //
+  // Esta pantalla estampaba la fecha de HOY sin preguntar, así que un estudio
+  // de marzo tecleado en agosto entraba como si fuera de agosto y se volvía el
+  // valor vigente, por encima del reciente. La pantalla de laboratorios ya
+  // resolvió esto hace meses con un campo editable; la captura manual se había
+  // quedado atrás.
+  const fechaValida = ISO_DATE_RE.test(fechaEstudio);
+
   const available = ALL_BIO.filter((f) => current[f.key] != null);
   const missing = ALL_BIO.filter((f) => current[f.key] == null);
 
@@ -185,8 +205,9 @@ export default function BiomarkersCapture() {
     const numv = parseDecimalInput(values[f.key]);
     if (numv == null) { Alert.alert('Valor inválido', 'Ingresa un número válido.'); return; }
     if (current[f.key]?.value === numv) { setEditingKey(null); return; }
+    if (!fechaValida) { Alert.alert('Fecha inválida', 'La fecha del estudio debe estar en formato AAAA-MM-DD.'); return; }
     setSavingKey(f.key);
-    const result = await saveBiomarkers(user.id, [{ key: f.key, value: numv, unit: f.unit }]);
+    const result = await saveBiomarkers(user.id, [{ key: f.key, value: numv, unit: f.unit }], fechaEstudio);
     setSavingKey(null);
     if (!result.ok) { Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.'); return; }
     analytics.track(ATP_EVENTS.EDAD_ATP_BIOMARKERS_SAVED, { count: 1, source: 'inline' });
@@ -206,10 +227,14 @@ export default function BiomarkersCapture() {
       entries.push({ key: f.key, value: numv, unit: f.unit });
     }
     if (entries.length === 0) { Alert.alert('Sin cambios', 'Ingresa o actualiza al menos un valor.'); return; }
+    if (!fechaValida) { Alert.alert('Fecha inválida', 'La fecha del estudio debe estar en formato AAAA-MM-DD.'); return; }
     setSaving(true);
-    const result = await saveBiomarkers(user.id, entries);
+    const result = await saveBiomarkers(user.id, entries, fechaEstudio);
     setSaving(false);
-    if (!result.ok) { Alert.alert('Error', 'No se pudieron guardar. Intenta de nuevo.'); return; }
+    if (!result.ok) {
+      Alert.alert('No se pudo guardar', userErrorMessage(result.error, 'No se pudieron guardar. Intenta de nuevo.'));
+      return;
+    }
     // Capa 7: si veníamos de un upload fallido, marcarlo confirmado (capturado a mano).
     if (sourceUploadId) {
       try { await supabase.from('lab_uploads').update({ status: 'confirmed' }).eq('id', sourceUploadId); } catch { /* best-effort */ }
@@ -240,6 +265,31 @@ export default function BiomarkersCapture() {
         <EliteText variant="caption" style={styles.intro}>
           Cargamos lo que ya tienes en tu expediente. Solo completa lo que falta para subir la precisión.
         </EliteText>
+
+        {/* La fecha del estudio, no la de hoy. Ver el comentario de handleSave:
+            measured_at es lo que decide qué valor es el vigente, así que un
+            estudio viejo capturado hoy pisaba al reciente. */}
+        <View style={[styles.fechaCard, !fechaValida && { borderColor: t.error + '60' }]}>
+          <Ionicons name="calendar-outline" size={18} color={t.textoSecundario} />
+          <View style={{ flex: 1 }}>
+            <EliteText variant="caption" style={styles.fechaLabel}>Fecha del estudio</EliteText>
+            <TextInput
+              style={styles.fechaInput}
+              value={fechaEstudio}
+              onChangeText={setFechaEstudio}
+              placeholder="AAAA-MM-DD"
+              placeholderTextColor={t.textoTenue}
+              autoCorrect={false}
+              autoCapitalize="none"
+              maxLength={10}
+            />
+            <EliteText variant="caption" style={styles.fechaHint}>
+              {fechaValida
+                ? 'Si el estudio es de otro mes, corrige la fecha: es la que ordena tu historial.'
+                : 'Usa formato AAAA-MM-DD (ej. 2026-03-15).'}
+            </EliteText>
+          </View>
+        </View>
 
         {/* ✓ DISPONIBLES (collapsible, read-only salvo edit mode) */}
         {available.length > 0 && (
@@ -354,6 +404,17 @@ export default function BiomarkersCapture() {
 const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
   intro: { color: t.textoSecundario, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
+  fechaCard: {
+    flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start',
+    backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md,
+    borderWidth: 1, borderColor: t.borde, marginBottom: Spacing.md,
+  },
+  fechaLabel: { color: t.textoSecundario, fontSize: FontSizes.xs },
+  fechaInput: {
+    color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.md,
+    paddingVertical: 2, borderWidth: 0,
+  },
+  fechaHint: { color: t.textoTenue, fontSize: FontSizes.xs, marginTop: 2 },
   sourceBanner: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: 'rgba(168,224,42,0.08)', borderWidth: 1, borderColor: 'rgba(168,224,42,0.25)',

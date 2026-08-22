@@ -16,7 +16,7 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
-import { saveConfirmedLabValues, deleteLabUpload, loadReviewFromDb, type LabReviewPayload } from '@/src/services/lab-service';
+import { saveConfirmedLabValues, deleteLabUpload, loadReviewFromDb, descartarRevision, actualizarValorRevision, type LabReviewPayload } from '@/src/services/lab-service';
 import { getReview, setReview, clearReview } from '@/src/services/edad-atp/lab-review-store';
 import { setNuevos } from '@/src/services/edad-atp/lab-nuevos-store';
 import type { ProcessedItem } from '@/src/services/edad-atp/lab-parser-process';
@@ -162,7 +162,26 @@ export default function LabConfirmationScreen() {
 
     const extraUploadIds = (review.uploadIds ?? []).filter((id) => id !== review.uploadId);
     setSaving(true);
-    const res = await saveConfirmedLabValues(review.uploadId, confirmed, { labDate, labName: review.labName, extraUploadIds });
+    const res = await saveConfirmedLabValues(review.uploadId, confirmed, {
+      labDate,
+      labName: review.labName,
+      extraUploadIds,
+      // Cada dato conserva SU fecha. Dos estudios de fechas distintas
+      // fotografiados en la misma tanda ya no se funden bajo la primera.
+      fechasPorItem: review.fechasPorItem,
+      // Un valor que el validador marcó fuera de rango y la persona EDITÓ a
+      // mano es una confirmación explícita: lo escribió mirando su hoja. Se
+      // guarda marcado, y ningún parser lo puede pisar después. Es la
+      // excepción que Enrique preguntó el 21-ago: el extremo real que el
+      // extractor lee mal y el humano corrige.
+      confirmadosFueraDeRango: review.items
+        .filter((it) => it.passedValidation === false && edited[it.key] != null)
+        .map((it) => it.key),
+      // Lo que la persona tocó se guarda con SU procedencia, no como si lo
+      // hubiera leído el extractor.
+      editadas: Object.keys(edited),
+      unidades: Object.fromEntries(review.items.map((it) => [it.key, it.unitCanonical ?? null])),
+    });
     setSaving(false);
 
     const editedCount = Object.keys(edited).length;
@@ -182,14 +201,23 @@ export default function LabConfirmationScreen() {
     clearReview(review.uploadId);
     haptic.success();
     const omitted = res.rejectedCount ?? 0;
+    const protegidos = res.protegidos ?? 0;
     // OLA6 PIEZA C: se acabó el círculo. Guardar devolvía a Mi Salud, que no
     // muestra los valores: el usuario nunca veía lo que acababa de hacer.
     // Ahora aterriza en ATP Labs con lo nuevo resaltado.
     setNuevos(confirmed.map((c) => c.key));
     const nuevo = String(res.extractedCount);
+    // El mensaje dice lo que DE VERDAD pasó. Antes decía "N guardados" con N =
+    // lo validado, así que si la escritura fallaba entera el texto era el
+    // mismo. Ahora el conteo viene de la base.
+    const partes = [`${res.extractedCount} valores guardados`];
+    if (omitted > 0) partes.push(`${omitted} omitidos por no estar claros`);
+    if (protegidos > 0) {
+      partes.push(`${protegidos} se dejaron como los tenías, porque los habías confirmado a mano`);
+    }
     Alert.alert(
       '',
-      `${res.extractedCount} valores guardados${omitted > 0 ? `, ${omitted} omitidos por no estar claros` : ''}. Tu Edad ATP se actualizó.`,
+      `${partes.join(', ')}. Tu Edad ATP se actualizó.`,
       [{ text: 'OK', onPress: () => router.replace({ pathname: '/edad-atp/labs', params: { nuevo } }) }],
     );
   }
@@ -202,6 +230,9 @@ export default function LabConfirmationScreen() {
         text: 'Descartar', style: 'destructive',
         onPress: async () => {
           const ids = review.uploadIds ?? [review.uploadId];
+          // El placeholder temporal muere aquí también: descartar es el otro
+          // final del cuadro de diálogo, y también tiene que borrar.
+          for (const id of ids) { try { await descartarRevision(id); } catch { /* */ } }
           for (const id of ids) { try { await deleteLabUpload(id); } catch { /* */ } }
           clearReview(review.uploadId);
           // OLA6 PIEZA C: replace, nunca back(). Volver atrás reentra al picker
@@ -224,11 +255,37 @@ export default function LabConfirmationScreen() {
     return e != null ? parseDecimalInput(e) : it.valueCanonical;
   };
 
+  // Las fechas que de verdad viajan en el lote, sin repetir.
+  const fechasDistintas = [...new Set(Object.values(review.fechasPorItem ?? {}))].sort();
+
+  /**
+   * Cierra la edición de un dato y la GUARDA en el placeholder temporal.
+   *
+   * 4EP GRAVE-6: las correcciones vivían solo en el estado de React y viajaban
+   * al confirmar. Si la app se recargaba a media revisión, se perdían, que es
+   * justo el problema que la tabla temporal existe para resolver. Es
+   * best-effort: si no se puede guardar, la corrección sigue en pantalla y se
+   * escribirá al aceptar, como antes.
+   */
+  const terminarEdicion = (it: ProcessedItem) => {
+    haptic.light();
+    setEditingKey(null);
+    if (!review) return;
+    const v = parseDecimalInput(edited[it.key] ?? '');
+    if (v == null) return;
+    void actualizarValorRevision(review.uploadId, it.key, v, {
+      confirmadoFueraDeRango: it.passedValidation === false,
+    });
+  };
+
   // Multi-foto: elegir uno de los candidatos detectados para ese biomarker.
   const chooseCandidate = (key: string, value: number) => {
     haptic.light();
     setEdited((p) => ({ ...p, [key]: String(value) }));
     setEditingKey(null);
+    // Elegir entre los candidatos de varias fotos también es una decisión de
+    // la persona: se guarda en el temporal igual que una corrección a mano.
+    if (review) void actualizarValorRevision(review.uploadId, key, value);
   };
 
   return (
@@ -239,6 +296,43 @@ export default function LabConfirmationScreen() {
         <EliteText variant="caption" style={styles.intro}>
           Detectamos estos valores en tu laboratorio. Revísalos y corrige lo que haga falta antes de guardar.
         </EliteText>
+
+        {/* 22-ago: de cinco fotos podían fallar dos y esta pantalla enseñaba
+            las tres buenas como si fueran el panel completo. Una persona
+            guardaba media biometría creyendo que estaba entera. */}
+        {(review.fallos?.length ?? 0) > 0 && (
+          <View style={styles.avisoFallos}>
+            <Ionicons name="alert-circle-outline" size={18} color={SEMANTIC.warning} />
+            <View style={{ flex: 1 }}>
+              <EliteText variant="caption" style={styles.avisoFallosTitulo}>
+                {review.fallos!.length === 1
+                  ? 'Una foto no se pudo leer'
+                  : `${review.fallos!.length} fotos no se pudieron leer`}
+              </EliteText>
+              <EliteText variant="caption" style={styles.avisoFallosTexto}>
+                {review.fallos!.map((f) => f.nombre).filter(Boolean).join(', ')}. Lo de abajo es lo
+                que sí se leyó. Si tu estudio traía más valores, vuelve a fotografiar lo que falta.
+              </EliteText>
+            </View>
+          </View>
+        )}
+
+        {/* Fechas distintas dentro del mismo lote: se dice, y cada dato guarda
+            la suya. Antes todos se guardaban bajo la primera que apareciera. */}
+        {fechasDistintas.length > 1 && (
+          <View style={styles.avisoFallos}>
+            <Ionicons name="calendar-outline" size={18} color={SEMANTIC.warning} />
+            <View style={{ flex: 1 }}>
+              <EliteText variant="caption" style={styles.avisoFallosTitulo}>
+                Este lote trae {fechasDistintas.length} fechas distintas
+              </EliteText>
+              <EliteText variant="caption" style={styles.avisoFallosTexto}>
+                {fechasDistintas.join(' · ')}. Cada valor se guarda con la fecha de su propio
+                estudio, no con una sola para todos.
+              </EliteText>
+            </View>
+          </View>
+        )}
 
         {/* Fecha del estudio editable — clave para que estudios viejos vayan al histórico. */}
         <View style={[styles.dateCard, !labDateValid && { borderColor: t.error + '60' }]}>
@@ -289,7 +383,7 @@ export default function LabConfirmationScreen() {
                         autoFocus
                       />
                       <EliteText variant="caption" style={styles.unit}>{it.unitCanonical}</EliteText>
-                      <Pressable onPress={() => { haptic.light(); setEditingKey(null); }} style={styles.doneBtn}>
+                      <Pressable onPress={() => terminarEdicion(it)} style={styles.doneBtn}>
                         <EliteText variant="caption" style={styles.doneBtnText}>Listo</EliteText>
                       </Pressable>
                     </View>
@@ -383,6 +477,13 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     borderWidth: 1, borderColor: t.borde, fontSize: FontSizes.md,
   },
   dateHint: { color: t.textoTenue, fontSize: FontSizes.xs, marginTop: 4 },
+  avisoFallos: {
+    flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start',
+    backgroundColor: t.hundido, borderRadius: Radius.card,
+    padding: Spacing.md, borderWidth: 1, borderColor: SEMANTIC.warning + '55',
+  },
+  avisoFallosTitulo: { color: t.texto, fontFamily: Fonts.semiBold },
+  avisoFallosTexto: { color: t.textoSecundario, fontSize: FontSizes.xs, marginTop: 3 },
   itemCard: { backgroundColor: t.card, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1 },
   itemRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   itemLabel: { color: t.texto, fontFamily: Fonts.semiBold },

@@ -33,10 +33,15 @@ export async function countUnreadNotifications(userId: string): Promise<number> 
       .eq('user_id', userId).eq('date', today).eq('read', false),
   );
 
+  // 22-ago: solo cuentan los laboratorios PENDIENTES DE REVISAR. Antes el
+  // badge nunca se limpiaba, porque al guardar el estudio se quedaba en
+  // 'extracted' en vez de pasar a 'confirmed'; y contaba también los archivos
+  // de contexto, que no hay nada que revisar en ellos.
   const labs = await safeCount(() =>
     supabase.from('lab_uploads')
       .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('status', 'extracted'),
+      .eq('user_id', userId).eq('status', 'extracted')
+      .eq('upload_type', 'labs'),
   );
 
   const agenda = await safeCount(() =>

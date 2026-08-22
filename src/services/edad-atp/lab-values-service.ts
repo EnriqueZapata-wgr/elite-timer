@@ -28,6 +28,7 @@ import {
   decimalToPct,
 } from '@/src/constants/lab-canonical-map';
 import { aUnidadDeMatriz } from '@/src/constants/lab-unidades-core';
+import { isLabValueValid } from '@/src/constants/lab-clinical-ranges';
 
 export type LabValueSource = 'lab_pdf' | 'manual' | 'upload_extract' | 'wearable' | 'form';
 
@@ -163,40 +164,106 @@ export function bridgeToPhenoAge(map: CanonicalMap): Record<string, number> {
 }
 
 // ============================================================
-// Escritura append-only
+// Escritura: UNA sola puerta
 // ============================================================
 
 /**
- * Inserta valores canónicos en `lab_values` (append-only). Aplica la conversión de unidad
- * UNA vez (en `toCanonicalEntries`). `raw` viene en claves inglesas/español del extractor o
+ * 22-ago-2026 — LA ESCRITURA DEJA DE SER append-only Y PASA POR LA BASE.
+ *
+ * El upsert con `onConflict: user_id,parameter_key,measured_at,source` e
+ * `ignoreDuplicates: true` tenía dos defectos que se comieron datos reales:
+ *
+ *  · Con el ORIGEN dentro de la llave, el mismo dato del mismo día podía
+ *    vivir tres veces, una por etiqueta de origen, y cuál alimentaba el motor
+ *    era el orden en que Postgres devolviera las filas. En la cuenta de
+ *    pruebas convivieron un colesterol total de 672 y uno de 172 (migración
+ *    307). La corrección del humano nunca ganaba: solo se sumaba a la pila.
+ *
+ *  · `ignoreDuplicates` descartaba en silencio la segunda versión del mismo
+ *    dato. Corregir un valor en la pantalla y volver a guardar no corregía el
+ *    motor: el expediente mostraba lo corregido y la Edad ATP seguía con lo
+ *    equivocado.
+ *
+ * Ahora la regla vive en la base (migración 308): un índice único parcial deja
+ * a lo más un valor VIVO por usuario, dato y fecha, y la función
+ * `lab_valor_guardar` anula el anterior y escribe el nuevo en un solo acto.
+ * Lo anulado se conserva, así que sigue habiendo histórico.
+ *
+ * NOTA PARA QUIEN LEA `lab-no-pisa.test.ts`: ese candado decía "estas
+ * funciones jamás hacen update ni delete sobre lab_values". Sigue siendo
+ * cierto y sigue importando, pero se re-apunta: ahora prohíbe que el servicio
+ * escriba DIRECTO a la tabla, porque la única puerta legítima es el RPC. Un
+ * update a mano desde aquí volvería a abrir el agujero de los dos valores.
+ */
+
+/** Lo que devuelve la función de la base por cada dato. */
+type ResultadoGuardado = 'escrito' | 'sin_cambio' | 'protegido';
+
+async function guardarUnValor(fila: {
+  user_id: string; parameter_key: string; value: number; unit: string | null;
+  measured_at: string; source: LabValueSource; upload_id?: string | null;
+  lab_result_id?: string | null;
+  /** Quién escribe. Un humano siempre puede corregir su propio dato. */
+  es_humano?: boolean;
+  /** El valor cae fuera del rango clínico y una persona lo sostiene igual. */
+  fuera_confirmado?: boolean;
+}): Promise<{ ok: boolean; resultado?: ResultadoGuardado; error?: string }> {
+  const { data, error } = await supabase.rpc('lab_valor_guardar', {
+    p_user_id: fila.user_id,
+    p_parameter_key: fila.parameter_key,
+    p_value: fila.value,
+    p_unit: fila.unit,
+    p_measured_at: fila.measured_at,
+    p_source: fila.source,
+    p_upload_id: fila.upload_id ?? null,
+    p_lab_result_id: fila.lab_result_id ?? null,
+    p_es_humano: fila.es_humano ?? false,
+    p_fuera_confirmado: fila.fuera_confirmado ?? false,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, resultado: (data as ResultadoGuardado) ?? 'escrito' };
+}
+
+/**
+ * Escribe valores canónicos. Aplica la conversión de unidad UNA vez (en
+ * `toCanonicalEntries`). `raw` viene en claves inglesas/español del extractor o
  * captura; se mapean a parameter_key canónico y se expanden alias (ggt → 2 filas).
- * Idempotente por el UNIQUE(user_id, parameter_key, measured_at, source) → ON CONFLICT ignora.
+ *
+ * Devuelve el conteo REAL de lo que entró, no el de lo que se intentó. Quien
+ * llame tiene que mirarlo: la pantalla decía "guardado" aunque la escritura
+ * hubiera fallado entera.
  */
 export async function insertLabValuesFromRaw(
   userId: string,
   raw: Record<string, number>,
   opts: { source: LabValueSource; measuredAt?: string; uploadId?: string; labResultId?: string },
-): Promise<{ ok: boolean; inserted: number; error?: string }> {
+): Promise<{ ok: boolean; inserted: number; sinCambio: number; protegidos: number; error?: string }> {
   const entries = toCanonicalEntries(raw);
-  if (entries.length === 0) return { ok: true, inserted: 0 };
+  if (entries.length === 0) return { ok: true, inserted: 0, sinCambio: 0, protegidos: 0 };
   const measured_at = opts.measuredAt ?? getLocalToday();
-  const rows = entries.map((e) => ({
-    user_id: userId,
-    parameter_key: e.parameter_key,
-    value: e.value,
-    measured_at,
-    source: opts.source,
-    upload_id: opts.uploadId ?? null,
-    lab_result_id: opts.labResultId ?? null,
-  }));
-  const { error } = await supabase
-    .from('lab_values')
-    .upsert(rows, { onConflict: 'user_id,parameter_key,measured_at,source', ignoreDuplicates: true });
-  if (error) {
-    logWarn('[lab-values] insertLabValuesFromRaw failed:', error);
-    return { ok: false, inserted: 0, error: error.message };
+  let inserted = 0; let sinCambio = 0; let protegidos = 0;
+  const fallos: string[] = [];
+  for (const e of entries) {
+    const r = await guardarUnValor({
+      user_id: userId,
+      parameter_key: e.parameter_key,
+      value: e.value,
+      unit: null,
+      measured_at,
+      source: opts.source,
+      upload_id: opts.uploadId ?? null,
+      lab_result_id: opts.labResultId ?? null,
+    });
+    if (!r.ok) { fallos.push(`${e.parameter_key}: ${r.error}`); continue; }
+    if (r.resultado === 'escrito') inserted += 1;
+    else if (r.resultado === 'sin_cambio') sinCambio += 1;
+    else protegidos += 1;
   }
-  return { ok: true, inserted: rows.length };
+  if (fallos.length > 0) {
+    logWarn('[lab-values] insertLabValuesFromRaw fallos:', fallos);
+    return { ok: false, inserted, sinCambio, protegidos, error: fallos[0] };
+  }
+  return { ok: true, inserted, sinCambio, protegidos };
 }
 
 /**
@@ -206,9 +273,13 @@ export async function insertLabValuesFromRaw(
 export async function insertCanonicalBiomarkers(
   userId: string,
   entries: { parameter_key: string; value: number; unit?: string }[],
-  opts: { source: LabValueSource; measuredAt?: string },
-): Promise<{ ok: boolean; inserted: number; error?: string }> {
-  if (entries.length === 0) return { ok: true, inserted: 0 };
+  opts: {
+    source: LabValueSource; measuredAt?: string;
+    /** Lo escribió una persona (captura manual), no un extractor. */
+    escritoPorHumano?: boolean;
+  },
+): Promise<{ ok: boolean; inserted: number; sinCambio: number; protegidos: number; error?: string }> {
+  if (entries.length === 0) return { ok: true, inserted: 0, sinCambio: 0, protegidos: 0 };
   const measured_at = opts.measuredAt ?? getLocalToday();
   const rows = entries.map((e) => {
     // #labs-desmadre: colapsar key raw inglesa → canónica español ANTES de persistir, para que la
@@ -223,16 +294,42 @@ export async function insertCanonicalBiomarkers(
       unit: e.unit ?? null,
       measured_at,
       source: opts.source,
+      // La clave TAL COMO LLEGÓ, que es con la que están indexados los rangos
+      // clínicos (LAB_ABSOLUTE_RANGES usa las claves del extractor y de la UI,
+      // en inglés). Preguntar el rango con la clave canónica en español no
+      // encuentra nada y devuelve "válido" por omisión, que es justo lo que
+      // haría inútil la protección.
+      _claveOriginal: e.parameter_key,
+      // Y el valor SIN convertir: los rangos están en unidad de reporte
+      // (hba1c en %), no en la de almacenamiento (fracción decimal).
+      _valorOriginal: e.value,
     };
   });
-  const { error } = await supabase
-    .from('lab_values')
-    .upsert(rows, { onConflict: 'user_id,parameter_key,measured_at,source', ignoreDuplicates: true });
-  if (error) {
-    logWarn('[lab-values] insertCanonicalBiomarkers failed:', error);
-    return { ok: false, inserted: 0, error: error.message };
+  let inserted = 0; let sinCambio = 0; let protegidos = 0;
+  const fallos: string[] = [];
+  for (const { _claveOriginal, _valorOriginal, ...row } of rows) {
+    // 4EP GRAVE-3: la protección se pone SOLO en el valor que de verdad cae
+    // fuera del rango clínico. Marcar todo lo capturado a mano blindaba
+    // valores normales, y después el PDF del mismo estudio no podía corregir
+    // nada. Escribir a mano da autoridad para corregir; no convierte cada
+    // número en intocable.
+    const esHumano = opts.escritoPorHumano ?? false;
+    const fueraDeRango = !isLabValueValid(_claveOriginal, _valorOriginal);
+    const r = await guardarUnValor({
+      ...row,
+      es_humano: esHumano,
+      fuera_confirmado: esHumano && fueraDeRango,
+    });
+    if (!r.ok) { fallos.push(`${row.parameter_key}: ${r.error}`); continue; }
+    if (r.resultado === 'escrito') inserted += 1;
+    else if (r.resultado === 'sin_cambio') sinCambio += 1;
+    else protegidos += 1;
   }
-  return { ok: true, inserted: rows.length };
+  if (fallos.length > 0) {
+    logWarn('[lab-values] insertCanonicalBiomarkers fallos:', fallos);
+    return { ok: false, inserted, sinCambio, protegidos, error: fallos[0] };
+  }
+  return { ok: true, inserted, sinCambio, protegidos };
 }
 
 /**

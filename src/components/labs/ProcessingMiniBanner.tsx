@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +20,7 @@ const AUTO_DISMISS_MS = 8000;
 
 export function ProcessingMiniBanner() {
   const router = useRouter();
+  const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { state, openSheet, dismiss, retryUpload } = useLabProcessing();
   const upload = bannerUpload(state);
@@ -48,6 +49,17 @@ export function ProcessingMiniBanner() {
 
   // No render: nada que mostrar, o el sheet completo ya está abierto.
   if (!upload || !uploadId || state.sheetExpanded) return null;
+
+  // 22-ago — EL AVISO NO COMPITE CON LA PANTALLA DE CONFIRMACIÓN.
+  //
+  // Con varias fotos, cada una marcaba 'extracted' por su cuenta y el aviso
+  // global aparecía ENCIMA de la revisión consolidada, apuntando a una foto
+  // suelta. Tocarlo abría esa foto sola y tiraba el merge de las demás: la
+  // persona guardaba un panel incompleto creyendo que era el completo.
+  //
+  // Mientras se está revisando, el aviso se calla. No es cosmético: es el paso
+  // donde el dato entra al expediente y no puede haber dos caminos abiertos.
+  if (pathname?.startsWith('/edad-atp/lab-confirmation')) return null;
 
   const bottom = insets.bottom + TAB_BAR_APPROX + 8;
   const isProcessing = status === 'pending' || status === 'processing';
