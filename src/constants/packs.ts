@@ -97,21 +97,21 @@ export interface PackDef {
   /** Metas que el pack fija por los servicios existentes. */
   metas: PackMetaDef[];
   /**
-   * Practicas de Mi Protocolo que este caso de uso enciende (llaves de
+   * Prácticas de Mi Protocolo que este objetivo enciende (llaves de
    * INTERVENTIONS_CATALOG). Es la pieza que faltaba: sin esto, elegir un
-   * pack configuraba la app pero no ponia NADA en el dia, y la unica via
-   * era escoger a mano entre 88 (decision del dueno, 20-ago-2026: el
+   * pack configuraba la app pero no ponía NADA en el día, y la única vía
+   * era escoger a mano entre 88 (decisión del dueño, 20-ago-2026: el
    * usuario nunca ve la lista cruda). Reglas del registro, con candado en
-   * packs-registry.test.ts: la llave existe en el catalogo, jamas una con
+   * packs-registry.test.ts: la llave existe en el catálogo, jamás una con
    * requiresClinicalValidation, y las modalidades entran por la puerta
    * suave de su familia (ayuno_14_10, no ayuno_20_4).
    * ⚠️ PEND-FIRMA (Enrique + Mariana): el set de cada pack.
    */
   prescribe?: readonly string[];
   /**
-   * Casos de uso que NO se combinan con este (llaves de PACK_BY_KEY).
-   * Simetrico por candado: si A excluye a B, B excluye a A. Hoy ninguno
-   * declara exclusiones; el mecanismo queda listo para el catalogo de 20.
+   * Objetivos que NO se combinan con este (llaves de PACK_BY_KEY).
+   * Simétrico por candado: si A excluye a B, B excluye a A. Hoy ninguno
+   * declara exclusiones; el mecanismo queda listo para el catálogo de 20.
    */
   excluye?: readonly string[];
   /** Avisos que el pack configura (restricción: pocos y con condición). */
@@ -126,9 +126,9 @@ export interface PackDef {
 export type PackIntensidad = 'suave' | 'con_todo';
 
 /**
- * Techo de casos de uso activos a la vez. Tres dias distintos armados al
- * mismo tiempo ya no son un dia: son una lista de pendientes. La entrada
- * de packs lo usa para frenar con explicacion, no para bloquear en seco.
+ * Techo de objetivos activos a la vez. Tres días distintos armados al
+ * mismo tiempo ya no son un día: son una lista de pendientes. La entrada
+ * de packs lo usa para frenar con explicación, no para bloquear en seco.
  */
 export const MAX_CASOS_ACTIVOS = 3;
 
@@ -161,7 +161,7 @@ export const PACKS: PackDef[] = [
   {
     key: 'bajar-revoluciones',
     // ⚠️ PEND-FIRMA: renombrado de "Bajar revoluciones" (veto directo del
-    // dueno, 20-ago-2026: nombres reales, del resultado).
+    // dueño, 20-ago-2026: nombres reales, del resultado).
     nombre: 'Controlar el estrés',
     paraQuien: 'Para quien no puede apagar la cabeza al final del día.',
     queEsperar:
@@ -276,7 +276,7 @@ export const PACKS: PackDef[] = [
     metas: [],
     avisos: [{ app: 'sol', hora: { ancla: 'despertar', offsetMin: 30 } }],
     argosFoco: 'Qué mueve su Edad ATP y qué no.',
-    // ⚠️ PEND-FIRMA (set propuesto): musculo, zona 2 y plato antiinflamatorio.
+    // ⚠️ PEND-FIRMA (set propuesto): músculo, zona 2 y plato antiinflamatorio.
     prescribe: ['zona_2_aerobica', 'levantamiento_compuesto', 'sardinas_pescados_grasos', 'eliminar_aceites_vegetales', 'meta_pasos_8k'],
   },
 ];
@@ -322,7 +322,7 @@ export const PAQUETES_SALUD: PackDef[] = [
     ],
     avisos: [],
     argosFoco: 'Qué comidas mueven la glucosa de esta persona en particular.',
-    // ⚠️ PEND-FIRMA (set propuesto): lo que mas mueve glucosa sin tocar farmacos.
+    // ⚠️ PEND-FIRMA (set propuesto): lo que más mueve glucosa sin tocar fármacos.
     prescribe: ['caminata_postprandial', 'ayuno_14_10', 'eliminar_aceites_vegetales', 'masticar_mas_20'],
   },
   {
