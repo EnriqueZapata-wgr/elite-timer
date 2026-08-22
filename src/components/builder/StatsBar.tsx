@@ -44,10 +44,10 @@ function StatCard({ label, value, filo, textoValor }: {
   label: string; value: string;
 }) {
   const t = useSurfaceTokens();
+  // 4EP MEDIO-4: con t.card la stat quedaba en #121212, más oscura que las
+  // BlockCard de abajo (#232323), cuando antes casi coincidían (#1f1f1f).
+  // flotante y bordeMarcado dejan el oscuro donde estaba.
   return (
-    {/* 4EP MEDIO-4: con t.card la stat quedaba en #121212, más oscura que
-        las BlockCard de abajo (#232323), cuando antes casi coincidían
-        (#1f1f1f). flotante y bordeMarcado dejan el oscuro donde estaba. */}
     <View style={[styles.card, { backgroundColor: t.flotante, borderColor: t.bordeMarcado }]}>
       <View style={[styles.cardAccent, { backgroundColor: filo }]} />
       <EliteText variant="caption" style={[styles.label, { color: t.textoSecundario }]}>{label}</EliteText>
