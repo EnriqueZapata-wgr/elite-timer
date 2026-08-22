@@ -3,12 +3,22 @@
  *
  * Muestra un menú con opciones: Grupo, Trabajo, Descanso, Preparación.
  * Al seleccionar, crea un Block con defaults inteligentes.
+ *
+ * Barrido D (22-ago): el menú era una hoja oscura dura dentro del
+ * Constructor. Superficie, bordes y texto pasan a token.
+ *
+ * OJO con createDefaultBlock: el `color` que escribe ahí NO es presentación,
+ * es DATO que se guarda en la rutina del usuario y viaja a Supabase. Ese se
+ * queda como está. Si se tokeniza, el color del bloque cambiaría al cambiar
+ * de tema y estaríamos reescribiendo algo que la persona eligió.
  */
 import { useState } from 'react';
 import { View, Pressable, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import type { Block } from '@/src/engine/types';
 import { generateId } from '@/src/utils/routine-storage';
 
@@ -103,6 +113,9 @@ function createDefaultBlock(type: Block['type'], parentId: string | null): Block
 }
 
 export function AddBlockButton({ parentId, onAdd, label = 'Agregar paso' }: AddBlockButtonProps) {
+  const t = useSurfaceTokens();
+  // El lima no va como texto en claro (1.34). Teal calibrado en su lugar.
+  const acento = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const [menuVisible, setMenuVisible] = useState(false);
 
   const handleSelect = (type: Block['type']) => {
@@ -117,8 +130,8 @@ export function AddBlockButton({ parentId, onAdd, label = 'Agregar paso' }: AddB
         onPress={() => setMenuVisible(true)}
         style={({ pressed }) => [styles.button, pressed && styles.pressed]}
       >
-        <Ionicons name="add" size={16} color={Colors.neonGreen} />
-        <EliteText variant="caption" style={styles.buttonText}>{label}</EliteText>
+        <Ionicons name="add" size={16} color={acento} />
+        <EliteText variant="caption" style={[styles.buttonText, { color: acento }]}>{label}</EliteText>
       </Pressable>
 
       <Modal
@@ -130,44 +143,46 @@ export function AddBlockButton({ parentId, onAdd, label = 'Agregar paso' }: AddB
         {/* Overlay: toque en el fondo cierra el menú */}
         <Pressable style={styles.overlay} onPress={() => setMenuVisible(false)}>
           {/* Pressable interno: bloquea propagación de toques al overlay */}
-          <Pressable style={styles.menu}>
-            <EliteText variant="label" style={styles.menuTitle}>
+          <Pressable style={[styles.menu, { backgroundColor: t.flotante, borderColor: t.borde }]}>
+            <EliteText variant="label" style={[styles.menuTitle, { color: acento }]}>
               ¿QUÉ TIPO DE BLOQUE?
             </EliteText>
 
             {/* Opción: Grupo (container con rounds) */}
             <Pressable
               onPress={() => handleSelect('group')}
-              style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+              style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.hundido }]}
             >
-              <View style={[styles.menuDot, { backgroundColor: Colors.textSecondary }]} />
+              <View style={[styles.menuDot, { backgroundColor: t.textoSecundario }]} />
               <View style={styles.menuItemContent}>
-                <EliteText variant="body" style={styles.menuItemLabel}>
+                <EliteText variant="body" style={[styles.menuItemLabel, { color: t.texto }]}>
                   Grupo
                 </EliteText>
-                <EliteText variant="caption">Contiene pasos, se repite N rondas</EliteText>
+                <EliteText variant="caption" style={{ color: t.textoSecundario }}>Contiene pasos, se repite N rondas</EliteText>
               </View>
-              <Ionicons name="layers-outline" size={20} color={Colors.textSecondary} />
+              <Ionicons name="layers-outline" size={20} color={t.textoSecundario} />
             </Pressable>
 
             {/* Separador visual */}
-            <View style={styles.menuSeparator} />
-            <EliteText variant="caption" style={styles.menuSectionLabel}>PASOS</EliteText>
+            <View style={[styles.menuSeparator, { backgroundColor: t.borde }]} />
+            <EliteText variant="caption" style={[styles.menuSectionLabel, { color: t.textoSecundario }]}>PASOS</EliteText>
 
             {/* Opciones: Trabajo, Descanso, Preparación */}
             {STEP_OPTIONS.map(opt => (
               <Pressable
                 key={opt.type}
                 onPress={() => handleSelect(opt.type)}
-                style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: t.hundido }]}
               >
                 <View style={[styles.menuDot, { backgroundColor: opt.color }]} />
                 <View style={styles.menuItemContent}>
-                  <EliteText variant="body" style={styles.menuItemLabel}>
+                  <EliteText variant="body" style={[styles.menuItemLabel, { color: t.texto }]}>
                     {opt.label}
                   </EliteText>
-                  <EliteText variant="caption">{opt.description}</EliteText>
+                  <EliteText variant="caption" style={{ color: t.textoSecundario }}>{opt.description}</EliteText>
                 </View>
+                {/* El icono repite el color del punto: es semántica del paso
+                    (trabajo/descanso/preparación), no superficie. */}
                 <Ionicons name={opt.icon} size={20} color={opt.color} />
               </Pressable>
             ))}
@@ -191,7 +206,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: Colors.neonGreen,
     fontFamily: Fonts.semiBold,
   },
   // Modal overlay
@@ -203,19 +217,16 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
   },
   menu: {
-    backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     padding: Spacing.md,
     width: '100%',
     maxWidth: 340,
     borderWidth: 1,
-    borderColor: Colors.surfaceLight,
   },
   menuTitle: {
     letterSpacing: 2,
     marginBottom: Spacing.md,
     textAlign: 'center',
-    color: Colors.neonGreen,
   },
   menuItem: {
     flexDirection: 'row',
@@ -224,9 +235,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.sm,
     borderRadius: Radius.sm,
-  },
-  menuItemPressed: {
-    backgroundColor: Colors.surfaceLight,
   },
   menuDot: {
     width: 10,
@@ -241,11 +249,9 @@ const styles = StyleSheet.create({
   },
   menuSeparator: {
     height: 1,
-    backgroundColor: Colors.surfaceLight,
     marginVertical: Spacing.sm,
   },
   menuSectionLabel: {
-    color: Colors.textSecondary,
     letterSpacing: 2,
     fontSize: 10,
     marginBottom: Spacing.xs,

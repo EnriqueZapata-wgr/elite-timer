@@ -35,8 +35,9 @@ import { deepCopyBlock } from '@/src/utils/routine-storage';
 import { MatrixExercisePicker } from '@/src/components/MatrixExercisePicker';
 import { ensureExerciseId } from '@/src/services/fitness/workout-session-service';
 import type { MatrixExercise } from '@/src/constants/exercise-matrix';
-import { Colors, Spacing, Radius, Fonts, FontSizes, BlockColors } from '@/constants/theme';
-import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, brandGradient } from '@/src/constants/brand';
+import { Spacing, Radius, Fonts, FontSizes, BlockColors } from '@/constants/theme';
+import { ATP_BRAND, CATEGORY_COLORS, TEXT_COLORS, brandGradient } from '@/src/constants/brand';
+import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { userErrorMessage } from '@/src/utils/user-error';
 
 // === CATEGORÍAS (solo Workout y Custom según diseño) ===
@@ -49,6 +50,14 @@ const CATEGORIES = [
 // === PANTALLA PRINCIPAL ===
 
 export default function BuilderScreen() {
+  // Barrido D: la última pantalla grande sin tema. Color duro de punta a
+  // punta, así que en modo claro se veía negra entera. Los colores de bloque
+  // (BlockColors) y el lima de relleno se quedan: son semántica del producto,
+  // no superficie. Lo que cambia es el lienzo, el texto y los bordes.
+  const { kind, tokens: t } = useAppTheme();
+  // El lima nunca va como TEXTO en claro (contraste 1.34). El teal calibrado
+  // es su reemplazo, misma jerarquía.
+  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const router = useRouter();
   const params = useLocalSearchParams<{ routineId?: string; clone?: string; mode?: string }>();
 
@@ -275,7 +284,9 @@ export default function BuilderScreen() {
   const isEditing = params.routineId && params.clone !== 'true';
 
   return (
-    <View style={styles.screen}>
+    <>
+    <ThemeReady>
+    <View style={[styles.screen, { backgroundColor: t.fondo }]}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -290,45 +301,55 @@ export default function BuilderScreen() {
         >
           {/* === NOMBRE === */}
           <View style={styles.nameSection}>
-            <EliteText variant="caption" style={styles.nameLabel}>NOMBRE DE LA RUTINA</EliteText>
+            <EliteText variant="caption" style={[styles.nameLabel, { color: t.textoSecundario }]}>NOMBRE DE LA RUTINA</EliteText>
             <RoutineNameInput
               value={routine.name}
               onChangeText={name => updateRoutine(prev => ({ ...prev, name }))}
             />
-            <View style={styles.nameAccent} />
+            {/* 4EP MEDIO-3: el input no tiene borde ni fondo, así que esta
+                barra es lo único que dice "aquí se escribe". En lima sobre
+                acero claro daba 1.20 y desaparecía. Pasa por el calibre. */}
+            <View style={[styles.nameAccent, { backgroundColor: acento }]} />
           </View>
 
           {/* === MODO: Timer vs Rutina === */}
           <View style={styles.modeContainer}>
-            <View style={styles.modeToggle}>
+            {/* 4EP GRAVE-2: la pista iba a t.hundido, que en oscuro es
+                #0A0A0A y sobre el fondo negro da 1.06: el control dejaba de
+                verse como forma. t.flotante es el #232323 que tenía antes,
+                así que el oscuro queda idéntico, y en claro sube sobre el
+                acero en vez de hundirse en él. */}
+            <View style={[styles.modeToggle, { backgroundColor: t.flotante }]}>
               <Pressable
                 onPress={() => updateRoutine(prev => ({ ...prev, mode: 'timer' }))}
-                style={[styles.modePill, routine.mode === 'timer' && styles.modePillTimerActive]}
+                style={[styles.modePill, routine.mode === 'timer' && { backgroundColor: ATP_BRAND.lime }]}
               >
                 <Ionicons
                   name="timer-outline"
                   size={16}
-                  color={routine.mode === 'timer' ? Colors.textOnGreen : Colors.textSecondary}
+                  color={routine.mode === 'timer' ? t.textoSobreLima : t.textoSecundario}
                 />
                 <EliteText variant="caption" style={[
                   styles.modeText,
-                  routine.mode === 'timer' && styles.modeTextTimerActive,
+                  { color: routine.mode === 'timer' ? t.textoSobreLima : t.textoSecundario },
                 ]}>
                   Timer
                 </EliteText>
               </Pressable>
               <Pressable
                 onPress={() => updateRoutine(prev => ({ ...prev, mode: 'routine' }))}
-                style={[styles.modePill, routine.mode === 'routine' && styles.modePillRoutineActive]}
+                style={[styles.modePill, routine.mode === 'routine' && { backgroundColor: CATEGORY_COLORS.mind }]}
               >
                 <Ionicons
                   name="barbell-outline"
                   size={16}
-                  color={routine.mode === 'routine' ? TEXT_COLORS.primary : Colors.textSecondary}
+                  color={routine.mode === 'routine' ? TEXT_COLORS.primary : t.textoSecundario}
                 />
                 <EliteText variant="caption" style={[
                   styles.modeText,
-                  routine.mode === 'routine' && styles.modeTextRoutineActive,
+                  // Blanco sobre el color de MENTE en los dos modos: el relleno
+                  // es el mismo, así que el contraste no depende del tema.
+                  { color: routine.mode === 'routine' ? TEXT_COLORS.primary : t.textoSecundario },
                 ]}>
                   Rutina
                 </EliteText>
@@ -344,14 +365,14 @@ export default function BuilderScreen() {
                 onPress={() => updateRoutine(prev => ({ ...prev, category: cat.key }))}
                 style={[
                   styles.categoryPill,
-                  routine.category === cat.key && styles.categoryPillActive,
+                  { backgroundColor: routine.category === cat.key ? ATP_BRAND.lime : t.flotante },
                 ]}
               >
                 <EliteText
                   variant="caption"
                   style={[
                     styles.categoryText,
-                    routine.category === cat.key && styles.categoryTextActive,
+                    { color: routine.category === cat.key ? t.textoSobreLima : t.textoSecundario },
                   ]}
                 >
                   {cat.label}
@@ -371,8 +392,8 @@ export default function BuilderScreen() {
           <Animated.View entering={FadeInUp.delay(150).springify()} style={styles.blocksZone}>
             {routine.blocks.length === 0 ? (
               <View style={styles.emptyBlocks}>
-                <Ionicons name="layers-outline" size={48} color={Colors.textSecondary} />
-                <EliteText variant="body" style={styles.emptyText}>
+                <Ionicons name="layers-outline" size={48} color={t.textoSecundario} />
+                <EliteText variant="body" style={[styles.emptyText, { color: t.textoSecundario }]}>
                   Agrega bloques para construir tu rutina
                 </EliteText>
               </View>
@@ -422,31 +443,31 @@ export default function BuilderScreen() {
         {/* === BOTTOM ACTION BAR ===
             MB-5 Bloque 3: spring scale (AnimatedPressable) en vez de opacity
             apilada en pressed; GUARDAR con el degradado de marca. */}
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { backgroundColor: t.fondo, borderTopColor: t.borde }]}>
           {/* PROBAR */}
           <AnimatedPressable
             onPress={handleTest}
             disabled={!stats || stats.totalSteps === 0}
-            style={[styles.bottomBtn, styles.bottomBtnOutline]}
+            style={[styles.bottomBtn, styles.bottomBtnOutline, { borderColor: t.bordeMarcado }]}
           >
-            <Ionicons name="play" size={18} color={Colors.textSecondary} />
-            <EliteText variant="caption" style={styles.bottomBtnOutlineText}>PROBAR</EliteText>
+            <Ionicons name="play" size={18} color={t.textoSecundario} />
+            <EliteText variant="caption" style={[styles.bottomBtnOutlineText, { color: t.textoSecundario }]}>PROBAR</EliteText>
           </AnimatedPressable>
 
           {/* GUARDAR (protagonista) */}
           <AnimatedPressable
             onPress={handleSave}
             disabled={saving}
-            style={saving && { opacity: 0.7 }}
+            style={saving ? { opacity: 0.7 } : undefined}
           >
             <LinearGradient
               colors={brandGradient()}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.saveBtn}
+              style={[styles.saveBtn, { shadowColor: ATP_BRAND.lime }]}
             >
-              <Ionicons name="checkmark" size={20} color={Colors.textOnGreen} />
-              <EliteText variant="caption" style={styles.saveBtnText}>
+              <Ionicons name="checkmark" size={20} color={t.textoSobreLima} />
+              <EliteText variant="caption" style={[styles.saveBtnText, { color: t.textoSobreLima }]}>
                 {saving ? 'GUARDANDO...' : 'GUARDAR'}
               </EliteText>
             </LinearGradient>
@@ -456,10 +477,10 @@ export default function BuilderScreen() {
           <AnimatedPressable
             onPress={() => setPreviewVisible(true)}
             disabled={!stats || stats.totalSteps === 0}
-            style={[styles.bottomBtn, styles.bottomBtnOutline]}
+            style={[styles.bottomBtn, styles.bottomBtnOutline, { borderColor: t.bordeMarcado }]}
           >
-            <Ionicons name="eye-outline" size={18} color={Colors.textSecondary} />
-            <EliteText variant="caption" style={styles.bottomBtnOutlineText}>PREVIEW</EliteText>
+            <Ionicons name="eye-outline" size={18} color={t.textoSecundario} />
+            <EliteText variant="caption" style={[styles.bottomBtnOutlineText, { color: t.textoSecundario }]}>PREVIEW</EliteText>
           </AnimatedPressable>
         </View>
 
@@ -471,19 +492,19 @@ export default function BuilderScreen() {
           onRequestClose={() => setPreviewVisible(false)}
         >
           <View style={styles.previewOverlay}>
-            <View style={styles.previewContainer}>
+            <View style={[styles.previewContainer, { backgroundColor: t.flotante }]}>
               <View style={styles.previewHeader}>
-                <EliteText variant="label" style={styles.previewTitle}>
+                <EliteText variant="label" style={[styles.previewTitle, { color: acento }]}>
                   PREVIEW ({previewSteps.length} steps)
                 </EliteText>
                 <Pressable onPress={() => setPreviewVisible(false)}>
-                  <Ionicons name="close" size={24} color={Colors.textSecondary} />
+                  <Ionicons name="close" size={24} color={t.textoSecundario} />
                 </Pressable>
               </View>
               <ScrollView style={styles.previewScroll}>
                 {previewSteps.map((step, i) => (
-                  <View key={i} style={styles.previewStep}>
-                    <EliteText variant="caption" style={styles.previewIndex}>
+                  <View key={i} style={[styles.previewStep, { borderBottomColor: t.borde }]}>
+                    <EliteText variant="caption" style={[styles.previewIndex, { color: t.textoSecundario }]}>
                       {step.stepIndex + 1}
                     </EliteText>
                     <View
@@ -491,23 +512,23 @@ export default function BuilderScreen() {
                         styles.previewDot,
                         {
                           backgroundColor: step.isRestBetween
-                            ? Colors.textSecondary
+                            ? t.textoSecundario
                             : step.type === 'work' ? BlockColors.exercise
                             : step.type === 'rest' ? BlockColors.rest
                             : BlockColors.transition,
                         },
                       ]}
                     />
-                    <EliteText variant="body" style={styles.previewLabel} numberOfLines={1}>
+                    <EliteText variant="body" style={[styles.previewLabel, { color: t.texto }]} numberOfLines={1}>
                       {step.isRestBetween ? `⟳ ${step.label}` : step.label}
                     </EliteText>
-                    <EliteText variant="caption" style={styles.previewTime}>
+                    <EliteText variant="caption" style={[styles.previewTime, { color: t.textoSecundario }]}>
                       {formatTime(step.durationSeconds)}
                     </EliteText>
                   </View>
                 ))}
                 {stats && stats.totalSteps > 15 && (
-                  <EliteText variant="caption" style={styles.previewMore}>
+                  <EliteText variant="caption" style={[styles.previewMore, { color: t.textoSecundario }]}>
                     ... y {stats.totalSteps - 15} steps más
                   </EliteText>
                 )}
@@ -516,17 +537,24 @@ export default function BuilderScreen() {
           </View>
         </Modal>
 
-        {/* === EXERCISE PICKER MODAL (MB-5 2.1: catálogo matriceado) === */}
-        <MatrixExercisePicker
-          visible={exercisePickerVisible}
-          onClose={() => {
-            exercisePickerCallback.current = null;
-            setExercisePickerVisible(false);
-          }}
-          onSelect={handleExerciseSelected}
-        />
       </KeyboardAvoidingView>
     </View>
+    </ThemeReady>
+    {/* 4EP MEDIO-1: el picker de ejercicios sigue en oscuro duro y NO se
+        migra hoy (es otra pantalla, con su propio barrido). Va FUERA del
+        ThemeReady a propósito: adentro, su EmptyState resolvía tokens claros
+        y pintaba texto #0F1518 sobre su fondo negro, contraste 1.14, texto
+        invisible. Fuera, se comporta igual que antes de este cambio. Cuando
+        el picker se migre, esto entra al scope y este comentario se va. */}
+    <MatrixExercisePicker
+      visible={exercisePickerVisible}
+      onClose={() => {
+        exercisePickerCallback.current = null;
+        setExercisePickerVisible(false);
+      }}
+      onSelect={handleExerciseSelected}
+    />
+    </>
   );
 }
 
@@ -539,13 +567,21 @@ function RoutineNameInput({
   value: string;
   onChangeText: (text: string) => void;
 }) {
+  // useAppTheme entrega el tema real siempre (el que depende de <ThemeReady>
+  // es useSurfaceTokens). Se usa éste justamente para no depender de dónde
+  // cuelgue el componente.
+  const t = useAppTheme().tokens;
   return (
     <TextInput
-      style={styles.nameInput}
+      style={[styles.nameInput, { color: t.texto }]}
       value={value}
       onChangeText={onChangeText}
       placeholder="Mi rutina"
-      placeholderTextColor={Colors.textSecondary + '60'}
+      // 4EP MEDIO-2: textoTenue da 3.19 sobre CARD, pero este input va sobre
+      // el fondo desnudo, donde cae a 2.85 y no llega ni al umbral de texto
+      // grande. En claro sube a textoSecundario (5.84); en oscuro se queda
+      // tenue, que es lo que había.
+      placeholderTextColor={t.kind === 'dark' ? t.textoTenue : t.textoSecundario}
       maxLength={50}
     />
   );
@@ -554,31 +590,17 @@ function RoutineNameInput({
 // === ESTILOS ===
 
 const styles = StyleSheet.create({
+  // El color de cada superficie entra por token en el JSX. Aquí solo vive lo
+  // que no cambia con el tema: medidas, tipografía y forma.
   screen: {
     flex: 1,
-    backgroundColor: Colors.black,
   },
   flex: {
     flex: 1,
   },
 
-  // --- Header ---
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.xs,
-    paddingBottom: Spacing.sm,
-    gap: Spacing.xs,
-  },
-  backButton: {
-    padding: Spacing.xs,
-  },
-  headerTitle: {
-    fontSize: FontSizes.lg,
-    letterSpacing: 2,
-    color: Colors.neonGreen,
-  },
+  // Barrido D: header, backButton y headerTitle se fueron. Estaban muertos
+  // desde que la pantalla pasó a ScreenHeader, y arrastraban color duro.
 
   // --- Nombre ---
   nameSection: {
@@ -586,7 +608,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   nameLabel: {
-    color: Colors.textSecondary,
     letterSpacing: 2,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
@@ -595,14 +616,12 @@ const styles = StyleSheet.create({
   nameInput: {
     fontFamily: Fonts.extraBold,
     fontSize: FontSizes.display,
-    color: Colors.textPrimary,
     paddingVertical: 4,
     borderWidth: 0,
   },
   nameAccent: {
     width: 48,
     height: 3,
-    backgroundColor: Colors.neonGreen,
     borderRadius: 2,
     marginTop: 4,
   },
@@ -614,7 +633,6 @@ const styles = StyleSheet.create({
   },
   modeToggle: {
     flexDirection: 'row',
-    backgroundColor: Colors.surfaceLight,
     borderRadius: Radius.pill,
     padding: 3,
   },
@@ -627,22 +645,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderRadius: Radius.pill,
   },
-  modePillTimerActive: {
-    backgroundColor: Colors.neonGreen,
-  },
-  modePillRoutineActive: {
-    backgroundColor: CATEGORY_COLORS.mind,
-  },
   modeText: {
-    color: Colors.textSecondary,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.md,
-  },
-  modeTextTimerActive: {
-    color: Colors.textOnGreen,
-  },
-  modeTextRoutineActive: {
-    color: TEXT_COLORS.primary,
   },
 
   // --- Categoría ---
@@ -656,18 +661,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radius.pill,
-    backgroundColor: Colors.surfaceLight,
-  },
-  categoryPillActive: {
-    backgroundColor: Colors.neonGreen,
   },
   categoryText: {
-    color: Colors.textSecondary,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.sm,
-  },
-  categoryTextActive: {
-    color: Colors.textOnGreen,
   },
 
   // --- Stats ---
@@ -686,7 +683,6 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   emptyText: {
-    color: Colors.textSecondary,
     textAlign: 'center',
   },
 
@@ -697,9 +693,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    backgroundColor: Colors.black,
     borderTopWidth: 0.5,
-    borderTopColor: Colors.surfaceLight,
   },
   bottomBtn: {
     flexDirection: 'row',
@@ -710,11 +704,9 @@ const styles = StyleSheet.create({
   },
   bottomBtnOutline: {
     borderWidth: 1,
-    borderColor: Colors.disabled,
     borderRadius: Radius.pill,
   },
   bottomBtnOutlineText: {
-    color: Colors.textSecondary,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.sm,
     letterSpacing: 1,
@@ -726,14 +718,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.pill,
-    shadowColor: Colors.neonGreen,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
   },
   saveBtnText: {
-    color: Colors.textOnGreen,
     fontFamily: Fonts.extraBold,
     fontSize: FontSizes.md,
     letterSpacing: 1,
@@ -746,7 +736,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   previewContainer: {
-    backgroundColor: Colors.surface,
     borderTopLeftRadius: Radius.lg,
     borderTopRightRadius: Radius.lg,
     maxHeight: '70%',
@@ -759,7 +748,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   previewTitle: {
-    color: Colors.neonGreen,
     letterSpacing: 2,
   },
   previewScroll: {
@@ -771,12 +759,10 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingVertical: Spacing.xs + 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.surfaceLight,
   },
   previewIndex: {
     width: 28,
     textAlign: 'right',
-    color: Colors.textSecondary,
     fontVariant: ['tabular-nums'],
   },
   previewDot: {
@@ -789,14 +775,12 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
   },
   previewTime: {
-    color: Colors.textSecondary,
     fontVariant: ['tabular-nums'],
     fontSize: FontSizes.sm,
   },
   previewMore: {
     textAlign: 'center',
     paddingVertical: Spacing.md,
-    color: Colors.textSecondary,
     fontStyle: 'italic',
   },
 });
