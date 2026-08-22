@@ -393,7 +393,7 @@ export default function IntervencionesScreen() {
                 >
                   <Ionicons name="sparkles-outline" size={18} color={ATP_BRAND.lime} />
                   <View style={{ flex: 1 }}>
-                    <EliteText style={styles.casoDeUsoTitulo}>Arma tu día por caso de uso</EliteText>
+                    <EliteText style={styles.casoDeUsoTitulo}>Arma tu día por objetivo</EliteText>
                     <EliteText style={styles.casoDeUsoTexto}>
                       Dinos qué quieres lograr y las prácticas entran solas, con su hora.
                     </EliteText>
