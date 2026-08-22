@@ -97,10 +97,41 @@ Nada de esto se tocó todavía: requieren decisión o trabajo con cuidado.
 
 ---
 
+## Cerrado el 22-ago-2026
+
+Cuatro motores que estaban dando números equivocados, no fallando en silencio.
+Los cuatro con cuatro ojos y con el defecto medido antes de tocar nada.
+
+- **Ciclo hormonal.** Vivían dos predicciones del próximo periodo. La tarjeta
+  derivaba del largo observado y del ajuste manual; ARGOS tenía la suya, que
+  aprendía con un solo ciclo y si no podía caía a 28 duro en vez de respetar el
+  ajuste que la usuaria escribió. Con un intervalo de 27 días y ajuste manual
+  de 32, la tarjeta decía 2 de septiembre y ARGOS 28 de agosto. Misma sesión,
+  mismo cuerpo. Queda una sola cuenta. Y con retraso, ARGOS publicaba una fecha
+  ya vencida con la palabra "próximo" delante: ahora dice el retraso.
+
+- **Dual n-back.** La regla de subir de nivel era de porcentaje y empujaba
+  hacia abajo a quien jugaba bien. Jaeggi cuenta errores, no porcentaje, y el
+  denominador aquí es chico: la mediana de objetivos por canal es 7.75, así que
+  con 7 objetivos "≥90 %" y "perfecto" son el mismo número. Medido sobre el
+  generador real, un jugador con 90 % de aciertos bajaba de nivel tres veces
+  más seguido de lo que subía. Con conteo de errores sube el 77 % de las veces.
+
+- **Packs.** Dos aplicaciones del mismo pack chocaban contra el índice único y
+  el conflicto tumbaba el lote completo: no entraba ninguna práctica. Y aplicar
+  un pack no refrescaba la card de HOY hasta salir y volver.
+
+- **builder.tsx**, el editor de rutinas: migrado. Era la última pantalla grande
+  sin tema. De paso salieron dos defectos que ya vivían ahí: el chip de
+  ejercicio en BlockCard se apagaba en claro, y el picker de ejercicios (que
+  sigue sin migrar) tenía que quedar fuera del ámbito del tema o su texto se
+  volvía invisible. Hay candado nuevo para que el color duro no regrese.
+
 ## Otros pendientes con nombre
 
-- **builder.tsx**, el editor de rutinas: 802 líneas sin una sola referencia al
-  tema. En modo claro se ve negro. Es la última pantalla grande así.
+- **El picker de ejercicios** (`MatrixExercisePicker`) sigue en oscuro duro.
+  Hoy está fuera del ámbito del tema a propósito y hay una prueba que lo
+  obliga a quedarse fuera. Cuando se migre, se borra esa prueba a mano.
 - **Recetas**: 93 recetas y 149 ingredientes ya despiezados, con matriz de
   composición. Falta que la responsable clínica revise los 17 ingredientes de
   confianza baja y las recetas cuya diferencia contra la tarjeta pase del 50 %.
