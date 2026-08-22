@@ -71,6 +71,12 @@ const MODEL_ROUTING: Record<string, ModelRoute> = {
   food_estimate_text: ROUTE_GEMINI,
   label_scan: ROUTE_GEMINI,
   supplement_scan: ROUTE_GEMINI,
+  // El escáner de etiquetas del Súper: el modelo transcribe la tabla
+  // nutrimental y la lista de ingredientes, y NADA más. El juicio lo hace
+  // código puro (sellos-nom051.ts). Es el caso de libro de "extracción sin
+  // cerebro", así que pagar Sonnet por esto sería justo el error que este
+  // router existe para evitar.
+  etiqueta_super: ROUTE_GEMINI,
   // nav_intent: "¿a qué pantalla quiere ir?" contra un catálogo de 192 rutas.
   // Es clasificación sobre una lista cerrada, no razonamiento clínico: no toca
   // el cerebro, no lee datos de salud, y su salida es un JSON de una ruta. La

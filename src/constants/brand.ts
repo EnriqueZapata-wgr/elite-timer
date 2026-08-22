@@ -93,6 +93,20 @@ export const APP_SECTION_COLORS = {
 
 // ═══ COLORES SEMÁNTICOS ═══
 
+/**
+ * SELLO DE ADVERTENCIA NOM-051 — marca regulada, no estilo nuestro.
+ *
+ * El octágono es negro con tinta blanca porque así lo manda la norma de
+ * etiquetado frontal. Por eso NO conmuta con el tema de la app: reproducir un
+ * sello oficial en gris claro sería reproducirlo mal. Vive aquí, junto a los
+ * demás valores de marca, y no como dos literales sueltos en una hoja de
+ * estilos, para que el ratchet de color duro siga significando algo.
+ */
+export const SELLO_NOM = {
+  fondo: '#0B0B0B',
+  tinta: '#FFFFFF',
+} as const;
+
 export const SEMANTIC = {
   success: '#A8E02A',    // Éxito, óptimo
   acceptable: ATP_BRAND.amber, // Aceptable, en rango (el único amarillo de marca)

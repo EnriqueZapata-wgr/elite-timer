@@ -131,8 +131,11 @@ export const APP_REGISTRY: AppEntry[] = [
   // receta (un toque) Y guardar lo registrado como receta.
   { key: 'recetas', label: 'Recetas', icon: 'recetas', section: 'diario', route: '/cocina?tab=recetas', installable: false, alias: ['cocinar', 'platillos', 'menú'],
     description: 'Guarda tus comidas como recetas y reúsalas al registrar, sin volver a capturar nada.' },
-  { key: 'lista-compra', label: 'Lista', icon: 'lista-compra', section: 'diario', route: '/cocina?tab=lista', installable: false, alias: ['compras', 'súper', 'mandado', 'despensa'],
-    description: 'Tu lista del súper: escríbela a mano o manda los ingredientes de una receta. Lo comprado queda en tu despensa y no se te vuelve a pedir.' },
+  // 22-ago-2026: la lista dejó de ser la pantalla y pasó a ser una sección.
+  // Lo que la persona viene a hacer aquí es el súper completo: leer etiquetas
+  // con la cámara y saber elegir. La llave se queda por los enlaces existentes.
+  { key: 'lista-compra', label: 'Súper', icon: 'lista-compra', section: 'diario', route: '/cocina?tab=lista', installable: false, alias: ['compras', 'lista', 'mandado', 'despensa', 'etiquetas', 'etiqueta', 'sellos', 'ingredientes'],
+    description: 'Hacer el súper con criterio: lee una etiqueta con la cámara y te decimos qué sellos le tocan y qué trae su lista de ingredientes. Aquí vive también tu lista de compras.' },
 
   // ── Salud ──
   { key: 'sol', label: 'Sol', icon: 'sol', section: 'salud', route: '/solar', installable: true, alias: ['uv', 'vitamina d', 'luz', 'sunlight'],
