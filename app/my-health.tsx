@@ -2,7 +2,7 @@
  * Mi Salud — Cliente sube estudios de laboratorio y ve resultados.
  */
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, AppState } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, Platform } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter, useFocusEffect, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,9 @@ import { userErrorMessage } from '@/src/utils/user-error';
 // Módulos nativos — importar con try/catch para OTA compat
 let ImagePicker: any = null;
 try { ImagePicker = require('expo-image-picker'); } catch { /* */ }
+// 4EP: constante de modulo, no del componente (se recreaba en cada render).
+const CANDADO_MS = 30_000;
+
 let DocumentPicker: any = null;
 try { DocumentPicker = require('expo-document-picker'); } catch { /* */ }
 import { EliteText } from '@/components/elite-text';
@@ -106,15 +109,42 @@ function MyHealthScreen() {
    * dejaban de responder sin decir nada, que es el mismo síntoma que veníamos
    * a resolver. Volver a la pantalla, o traer la app al frente, lo libera.
    */
-  const eligiendoRef = useRef(false);
+  // LAB-SUBIR (23-ago): el candado era un booleano sin caducidad. Si la promesa
+  // del selector nativo no resolvia -- que es justo lo que pasa cuando se le pide
+  // presentarse mientras la hoja de tipo se esta cerrando -- quedaba encendido
+  // para siempre y los tres botones morian en un return mudo. Ahora guarda el
+  // instante en que se tomo y se libera solo a los 30 s.
+  const eligiendoRef = useRef(0);
+  const difeririRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 4EP: el candado necesita DUEÑO. Sin token, un flujo viejo que termina tarde
+  // suelta el candado que ya tomo un flujo nuevo, y se cuelan dos selectores.
+  // tomarCandado devuelve el token (0 = no lo consiguio); soltar solo libera si
+  // el token sigue siendo el vigente.
+  const tomarCandado = useCallback((): number => {
+    const ahora = Date.now();
+    if (eligiendoRef.current && ahora - eligiendoRef.current < CANDADO_MS) return 0;
+    eligiendoRef.current = ahora;
+    return ahora;
+  }, []);
+  const soltarCandado = useCallback((token: number) => {
+    if (!token || eligiendoRef.current === token) eligiendoRef.current = 0;
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      eligiendoRef.current = false;
-      const sub = AppState.addEventListener('change', (estado) => {
-        if (estado === 'active') eligiendoRef.current = false;
-      });
-      return () => sub.remove();
+      eligiendoRef.current = 0;
+      // 4EP: se retiro el listener de AppState que liberaba el candado en 'active'.
+      // En Android abrir el selector manda la app a segundo plano, y volver dispara
+      // 'active' CON EL SELECTOR TODAVIA ABIERTO: desarmaba el candado justo cuando
+      // debia sostenerlo. La caducidad de 30 s ya cubre el caso que ese listener
+      // venia a resolver.
+      return () => {
+        // El lanzamiento diferido no debe sobrevivir a la salida de la pantalla:
+        // abriria el selector encima de otra, y runReviewFlow navegaria desde una
+        // pantalla muerta.
+        if (difeririRef.current) { clearTimeout(difeririRef.current); difeririRef.current = null; }
+      };
     }, [])
   );
 
@@ -146,11 +176,32 @@ function MyHealthScreen() {
 
   // Paso 2: tipo elegido → seguir con el método pendiente, llevando el tipo.
   const handleTypeSelected = (type: UploadType) => {
-    setPickerVisible(false);
     const method = pendingMethod;
-    if (method === 'camera') handlePickImage(true, type);
-    else if (method === 'gallery') handlePickImage(false, type);
-    else if (method === 'pdf') handlePickPDF(type);
+    setPickerVisible(false);
+    setPendingMethod(null);
+
+    // LAB-SUBIR (23-ago): si el metodo se perdio, esto terminaba sin hacer nada
+    // y sin decir nada. Ahora se ve.
+    if (!method) {
+      setResult({ error: 'No quedo registrado si ibas por camara, galeria o PDF. Vuelve a tocar el boton de subir.' });
+      return;
+    }
+
+    // MIGAJA 1 de 4. Con estas cuatro lineas, el proximo intento fallido dice
+    // POR DONDE murio en vez de dejarnos adivinando otra semana.
+    logWarn('[subir] tipo elegido', { tipo: type?.id, metodo: method, plataforma: Platform.OS });
+
+    // En iOS el selector nativo se presenta sobre el view controller del <Modal>:
+    // pedirlo mientras la hoja se desmonta deja la promesa sin resolver. En Android
+    // es un Intent sobre la misma Activity y no aplica, por eso no se espera ahi.
+    const espera = Platform.OS === 'ios' ? 350 : 0;
+    if (difeririRef.current) clearTimeout(difeririRef.current);
+    difeririRef.current = setTimeout(() => {
+      difeririRef.current = null;
+      if (method === 'camera') handlePickImage(true, type);
+      else if (method === 'gallery') handlePickImage(false, type);
+      else handlePickPDF(type);
+    }, espera);
   };
 
   /**
@@ -168,12 +219,17 @@ function MyHealthScreen() {
   };
 
   const handlePickImage = async (useCamera: boolean, type?: UploadType) => {
-    if (eligiendoRef.current) return;
+    const token = tomarCandado();
+    if (!token) {
+      setResult({ error: 'El selector no respondió la vez pasada. Espera unos segundos y vuelve a intentar.' });
+      return;
+    }
     if (!ImagePicker) {
       Alert.alert(
         'Cámara no disponible',
         'Toma una captura de pantalla de tu estudio y súbela desde la galería.',
       );
+      soltarCandado(token);
       return;
     }
     // Galería permite selección múltiple (Mariana #9: antes solo dejaba una foto).
@@ -182,7 +238,6 @@ function MyHealthScreen() {
       ? { quality: 0.8, base64: true }
       : { quality: 0.8, base64: true, allowsMultipleSelection: true, selectionLimit: 10 };
     let res: any;
-    eligiendoRef.current = true;
     try {
       res = useCamera
         ? await ImagePicker.launchCameraAsync(opts)
@@ -191,40 +246,55 @@ function MyHealthScreen() {
       setResult({ error: mensajeDeSeleccion(err, 'No se pudo abrir la galería.') });
       return;
     } finally {
-      eligiendoRef.current = false;
+      soltarCandado(token);
     }
 
     if (res.canceled || !res.assets?.length) return;
     const images: string[] = res.assets.map((a: any) => a.base64).filter(Boolean);
-    if (images.length === 0) return;
+    if (images.length === 0) {
+      setResult({ error: 'No se pudo leer la imagen. Intenta con otra foto o sube el PDF.' });
+      return;
+    }
     if (images.length === 1) { await processUpload(images[0], 'image', type); return; }
     await processMultipleUploads(images, type);
   };
 
   const handlePickPDF = async (type?: UploadType) => {
-    if (eligiendoRef.current) return;
+    const token = tomarCandado();
+    if (!token) {
+      setResult({ error: 'El selector no respondió la vez pasada. Espera unos segundos y vuelve a intentar.' });
+      return;
+    }
     if (!DocumentPicker) {
       Alert.alert(
         'PDF no disponible en esta versión',
         'Toma una foto del documento con la cámara: la IA puede leerlo igual de bien.',
         [
-          { text: 'Tomar foto', onPress: () => handlePickImage(true) },
-          { text: 'Galería', onPress: () => handlePickImage(false) },
+          // 4EP: el tipo se perdia aqui y todo entraba al motor como sangre.
+          { text: 'Tomar foto', onPress: () => handlePickImage(true, type) },
+          { text: 'Galería', onPress: () => handlePickImage(false, type) },
           { text: 'Cancelar', style: 'cancel' },
         ],
       );
+      soltarCandado(token);
       return;
     }
     try {
-      eligiendoRef.current = true;
+      logWarn('[subir] pidiendo el selector de PDF');           // MIGAJA 2
       const res = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
-      eligiendoRef.current = false;
+      logWarn('[subir] el selector volvio', { cancelado: res?.canceled }); // MIGAJA 3
+      soltarCandado(token);
       if (res.canceled || !res.assets?.[0]) return;
       const uri = res.assets[0].uri;
       const fileRes = await fetch(uri);
       const blob = await fileRes.blob();
-      const base64 = await new Promise<string>((resolve) => {
+      // 4EP: sin onerror ni reject, un FileReader que falla dejaba la promesa
+      // colgada para siempre: ni catch, ni finally, ni mensaje. La misma
+      // enfermedad que veniamos a matar, un await mas abajo.
+      const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
+        reader.onerror = () => reject(new Error('No se pudo leer el archivo.'));
+        reader.onabort = () => reject(new Error('La lectura del archivo se interrumpio.'));
         reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
         reader.readAsDataURL(blob);
       });
@@ -232,7 +302,7 @@ function MyHealthScreen() {
     } catch (err: any) {
       setResult({ error: mensajeDeSeleccion(err, 'No se pudo abrir el PDF.') });
     } finally {
-      eligiendoRef.current = false;
+      soltarCandado(token);
     }
   };
 
@@ -731,7 +801,12 @@ function MyHealthScreen() {
       <UploadTypePicker
         visible={pickerVisible}
         onSelect={handleTypeSelected}
-        onCancel={() => { setPickerVisible(false); setPendingMethod(null); }}
+        onCancel={() => {
+          // MIGAJA 4. Si esto aparece justo despues de tocar 'Laboratorios', el toque
+          // se fue al fondo de la hoja y no a la opcion: otra causa, otro arreglo.
+          logWarn('[subir] la hoja se cerro por cancelar');
+          setPickerVisible(false); setPendingMethod(null);
+        }}
       />
     </Screen>
   );
