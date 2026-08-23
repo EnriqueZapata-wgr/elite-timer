@@ -771,3 +771,43 @@ export const CASOS_DE_USO_PRESCRIBEN = true;
  * COMO APAGARLA EN CALIENTE: false aqui → npx tsc --noEmit → OTA.
  */
 export const TUTORIAL_POR_PANTALLA = true;
+
+/**
+ * ACERO_OSCURO (22-ago-2026) — el lienzo oscuro deja de ser negro puro y pasa
+ * a un acero. Decisión del dueño: el negro puro se lee demasiado profundo y
+ * cansa. Opción conservadora de las tres que se propusieron.
+ *
+ * QUÉ PRENDE
+ *  · ON  → toda la escala de superficies oscuras se corre a la rampa de acero
+ *    (ver RAMPA_ACERO en brand.ts): lienzo #0F1114, card #1A1D22, campo
+ *    #0A0C0F, y con ellos el chrome, el flotante, el popover y los seis
+ *    bordes, derivados para conservar el MISMO salto perceptual que tenían.
+ *  · OFF → vuelve RAMPA_NEGRO, que son los valores de hoy color por color.
+ *
+ * POR QUÉ LA ESCALA COMPLETA Y NO SOLO EL FONDO
+ *  Porque mover un escalón sin mover los demás invierte el modelo de
+ *  elevación de toda la app. Con el lienzo en #0F1114 y la card todavía en
+ *  #121212, la card queda MÁS OSCURA que el fondo sobre el que se supone que
+ *  flota, y lo mismo le pasa a cada borde calibrado contra negro. La rampa se
+ *  mueve completa o no se mueve.
+ *
+ * LO QUE NO TOCA, CON BANDERA EN CUALQUIER POSICIÓN
+ *  · El tema CLARO. Esta bandera solo gobierna el oscuro.
+ *  · Las superficies inmersivas donde el negro profundo es la función: la
+ *    sesión de sueño (paleta NIGHT, ahora anclada de verdad a NIGHT.bg) y el
+ *    reproductor de mente (negro editorial declarado).
+ *  · Los colores de dominio, de sección y de estado clínico. Son señal, no
+ *    decoración, y no se tematizan.
+ *  · La card editorial, que por doctrina queda oscura en los dos temas.
+ *
+ * LO QUE NO PUEDE ARREGLAR
+ *  El splash NATIVO vive en app.json con `backgroundColor: #000000` y eso es
+ *  recurso compilado: no viaja por OTA. Con la bandera encendida, el arranque
+ *  en frío pasa del negro del splash nativo al acero de la app. Se cierra en
+ *  el próximo build nativo, no antes.
+ *
+ * CÓMO VOLVER AL NEGRO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *  Sin migración, sin build nativo, sin tocar un solo dato.
+ */
+export const ACERO_OSCURO = true;
