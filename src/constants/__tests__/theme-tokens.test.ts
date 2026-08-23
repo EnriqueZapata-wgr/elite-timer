@@ -167,8 +167,17 @@ describe('ACERO 3 · los números del oscuro, calculados', () => {
     if (!ACERO_OSCURO) return; // con la bandera apagada rigen los de siempre
     expect(contrastRatio(THEME_DARK.texto, THEME_DARK.fondo)).toBeCloseTo(18.91, 1);
     expect(contrastRatio(THEME_DARK.texto, THEME_DARK.card)).toBeCloseTo(16.90, 1);
-    expect(contrastRatio(THEME_DARK.textoSecundario, THEME_DARK.card)).toBeCloseTo(4.77, 1);
+    expect(contrastRatio(THEME_DARK.textoSecundario, THEME_DARK.card)).toBeCloseTo(5.29, 1);
     expect(contrastRatio(ATP_BRAND.lime, THEME_DARK.fondo)).toBeCloseTo(12.03, 1);
+  });
+
+  it('el secundario conserva la holgura que tenía sobre negro (o el velo se ahoga)', () => {
+    // Este par es el que estrangula el clamp del velo nocturno: el velo se
+    // recorta hasta que el par MÁS APRETADO siga pasando AA. Con #888888
+    // sobre la card de acero la holgura caía de 0.785 a 0.267 y el velo
+    // perdía 60% de fuerza. Por eso el gris se recalibró a #909090.
+    const holgura = contrastRatio(THEME_DARK.textoSecundario, THEME_DARK.card) - 4.5;
+    expect(holgura).toBeGreaterThan(0.7);
   });
 });
 

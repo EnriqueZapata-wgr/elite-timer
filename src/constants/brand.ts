@@ -161,6 +161,33 @@ export const OSCURO: RampaOscura = ACERO_OSCURO ? RAMPA_ACERO : RAMPA_NEGRO;
  */
 export const RAMPAS_OSCURAS = [RAMPA_NEGRO, RAMPA_ACERO] as const;
 
+/**
+ * El gris secundario del modo oscuro, recalibrado contra el lienzo nuevo.
+ *
+ * NO es un retoque de gusto: es la MISMA regla de la rampa (conservar el
+ * salto que el token tenía contra la superficie que lo sostiene) aplicada al
+ * único token de texto que se estaba quedando corto. #888888 daba 5.285
+ * contra la card de negro; contra la card de acero da 4.767. Sigue siendo AA,
+ * así que a simple vista no había problema.
+ *
+ * EL PROBLEMA APARECIÓ EN OTRO LADO, Y ES DE SALUD, NO DE ESTÉTICA
+ *  El velo nocturno in-app tiene un contrato duro: nunca puede tumbar un par
+ *  de texto por debajo de AA, y si lo tumbaría, se recorta a sí mismo
+ *  (night-veil-core, clampVeilForTheme). Ese clamp se come la holgura que le
+ *  sobre al par más apretado. Con #888888 sobre acero la holgura pasó de
+ *  0.785 a 0.267, y el velo se estranguló: el rojo pleno del final de la
+ *  curva caía de alpha 0.116 a 0.046, o sea 60% menos filtro justo a la hora
+ *  en que el filtro sirve para algo. Legibilidad y sueño no tienen por qué
+ *  competir cuando basta con aclarar un gris 8 puntos de canal.
+ *
+ * #909090 devuelve 5.293 contra la card (era 5.285) y 5.923 contra el lienzo
+ * (era 5.924), y con eso el velo vuelve a 0.113. Prácticamente los mismos
+ * números de antes del cambio, que era exactamente el objetivo.
+ *
+ * Con ACERO_OSCURO apagado vuelve #888888 y no se mueve un pixel.
+ */
+const SECUNDARIO_OSCURO = ACERO_OSCURO ? '#909090' : '#888888';
+
 // ═══ SUPERFICIES ═══
 
 export const SURFACES = {
@@ -174,8 +201,8 @@ export const SURFACES = {
 // ═══ TEXTO ═══
 
 export const TEXT_COLORS = {
-  primary: '#FFFFFF',    // Texto principal sobre fondo negro
-  secondary: '#888888',  // Texto secundario, hints, labels inactivos
+  primary: '#FFFFFF',    // Texto principal sobre el lienzo oscuro
+  secondary: SECUNDARIO_OSCURO, // Texto secundario, hints, labels inactivos
   muted: '#555555',      // Tab inactivo, texto muy tenue
   onAccent: '#000000',   // Texto sobre fondo lima (botones primarios)
 } as const;
@@ -327,7 +354,7 @@ export const BORDER = {
 /** Texto canonico */
 export const TEXT = {
   primary: '#fff',
-  secondary: '#888',
+  secondary: SECUNDARIO_OSCURO,
   tertiary: '#555',
   muted: '#444',
   accent: '#a8e02a',
@@ -338,7 +365,7 @@ export const SECTION_TITLE = {
   fontSize: 11,
   letterSpacing: 2,
   fontWeight: '600' as const,
-  color: '#888',
+  color: SECUNDARIO_OSCURO,
   textTransform: 'uppercase' as const,
   marginBottom: 12,
 } as const;
