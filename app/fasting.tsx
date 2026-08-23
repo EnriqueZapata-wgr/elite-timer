@@ -252,15 +252,34 @@ export default function FastingScreen() {
   // del goal del user. MB-22: lectura y escritura viven en fasting-service
   // (getFastingGoalHours/setFastingGoalHours), compartidas con la ficha de
   // Ayuno del Centro — un dato, un writer.
+  // AY-G1 (a): con ayuno en curso, SU target_hours es la única verdad del
+  // protocolo mostrado. Esto vivía suelto dentro de loadActiveFast, así que sus
+  // cuatro salidas tempranas de error dejaban el anillo dibujado contra el
+  // default de 16:8. Declarativo cubre los 16 sitios que tocan activeFast.
   useEffect(() => {
-    if (!userId) return;
+    const meta = activeFast?.target_hours;
+    if (!meta) return;
+    const p = FASTING_PROTOCOLS.find(x => x.hours === meta);
+    if (p) setSelectedProtocol(p);
+    else logWarn('Ayuno activo con target_hours fuera de la lista:', meta);
+  }, [activeFast?.target_hours]);
+
+  // AY-G1 (b): la meta del perfil SOLO siembra el estado sin ayuno. Antes leía
+  // activeFast de un closure congelado (null en el primer ciclo) y pisaba el
+  // target_hours del ayuno en curso: 20 h dibujadas contra 16, y el anillo decía
+  // "ya llegaste" cuatro horas antes. El cleanup descarta la escritura si el
+  // ayuno llega mientras esperamos, así que ya no importa quién resuelva primero.
+  useEffect(() => {
+    if (!userId || activeFast) return;
+    let cancelado = false;
     (async () => {
       const hours = await fastingService.getFastingGoalHours(userId);
+      if (cancelado) return;
       const match = FASTING_PROTOCOLS.find(p => p.hours === hours);
-      if (match) setSelectedProtocol(prev => (activeFast ? prev : match));
+      if (match) setSelectedProtocol(match);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+    return () => { cancelado = true; };
+  }, [userId, activeFast]);
 
   /** Persiste el protocolo elegido como goal (merge sobre goals existentes). */
   const persistFastingGoal = useCallback(async (hours: number) => {
@@ -450,11 +469,9 @@ export default function FastingScreen() {
       }
     }
 
+    // AY-G1: el protocolo ya no se escribe aquí. Lo deriva el efecto (a) desde
+    // activeFast.target_hours, que cubre también las salidas tempranas de error.
     setActiveFast(data);
-    if (data?.target_hours) {
-      const protocol = FASTING_PROTOCOLS.find(p => p.hours === data.target_hours) || FASTING_PROTOCOLS[2];
-      setSelectedProtocol(protocol);
-    }
   }
 
   async function loadHistory() {

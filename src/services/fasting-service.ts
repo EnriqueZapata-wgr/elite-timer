@@ -8,7 +8,7 @@
  * ayuno cuando la fila sigue 'active' en DB.
  */
 import { supabase } from '@/src/lib/supabase';
-import { getLocalToday, toLocalDateString } from '@/src/utils/date-helpers';
+import { toLocalDateString } from '@/src/utils/date-helpers';
 import { warn as logWarn } from '@/src/lib/logger';
 
 export type FastStatus = 'active' | 'completed' | 'cancelled';
@@ -105,14 +105,21 @@ export async function startFast(params: {
   targetHours: number;
   startTime?: Date;
 }): Promise<MutationResult> {
+  // Un solo golpe de reloj: fast_start y date deben salir del MISMO instante,
+  // o un inicio a las 23:59:59.9 puede caer en días distintos.
+  const inicio = params.startTime ?? new Date();
   const { data, error } = await supabase
     .from('fasting_logs')
     .insert({
       user_id: params.userId,
-      fast_start: (params.startTime ?? new Date()).toISOString(),
+      fast_start: inicio.toISOString(),
       target_hours: params.targetHours,
       status: 'active',
-      date: getLocalToday(),
+      // AY-G2: «date» es la llave del calendario de adherencia, los reportes y
+      // la tira semanal. Escribía la fecha de hoy, así que un ayuno abierto con
+      // «¿Empezaste antes?» a las 23:00 de ayer se archivaba en HOY: un día se
+      // pintaba cumplido y el vecino vacío. Ahora sale del inicio real.
+      date: toLocalDateString(inicio),
     })
     .select();
   if (error) {
@@ -231,7 +238,12 @@ export async function updateFast(params: {
 }): Promise<MutationResult> {
   const updates: Record<string, any> = {};
   if (params.targetHours !== undefined) updates.target_hours = params.targetHours;
-  if (params.fastStart) updates.fast_start = params.fastStart.toISOString();
+  if (params.fastStart) {
+    updates.fast_start = params.fastStart.toISOString();
+    // AY-G2: mover el inicio mueve el día al que pertenece el ayuno. Antes se
+    // corregía fast_start y «date» se quedaba con el valor viejo para siempre.
+    updates.date = toLocalDateString(params.fastStart);
+  }
   if (params.fastEnd !== undefined) {
     updates.fast_end = params.fastEnd ? params.fastEnd.toISOString() : null;
     if (params.fastStart && params.fastEnd) {

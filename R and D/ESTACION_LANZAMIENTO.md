@@ -7,6 +7,46 @@ que no cabe en un commit y no debe vivir en la memoria de nadie.
 
 ---
 
+## Ayuno: los dos primeros del levantamiento, cerrados (23-ago-2026, noche)
+
+Sin migración. Dos archivos: `app/fasting.tsx` y `src/services/fasting-service.ts`.
+
+**AY-G1 · la meta que ves ya es la de tu ayuno.** El efecto que cargaba la meta
+del perfil leía `activeFast` de un closure congelado (null en el primer ciclo),
+así que si esa consulta resolvía al último pisaba el `target_hours` del ayuno en
+curso: 20 h dibujadas contra 16, anillo lleno cuatro horas antes.
+
+El primer intento fue un ref, y el cuatro ojos lo tumbó con razón: tapaba una de
+las dos carreras y la otra quedaba cubierta por casualidad, y solo 1 de los 16
+sitios que tocan `activeFast` fijaba el ref. Quedó rediseñado en dos efectos
+declarativos: (a) el `target_hours` del ayuno en curso manda siempre, y cubre
+también las cuatro salidas tempranas de error de `loadActiveFast` que antes
+dejaban el anillo contra el default de 16:8; (b) la meta del perfil solo siembra
+el estado SIN ayuno, con cleanup que descarta la escritura si el ayuno llega
+mientras esperamos. La carrera ya no se parcha: no existe.
+
+**AY-G2 · la columna `date` es el día del ayuno.** `startFast` escribía la fecha
+de hoy aunque «¿Empezaste antes?» apuntara a ayer, y `updateFast` corregía
+`fast_start` sin tocar nunca `date`. Ahora las dos salen del inicio real, y
+`startFast` hoistea un solo golpe de reloj para que `fast_start` y `date` no
+puedan caer en días distintos por milisegundos.
+
+Verificado contra la base en vivo antes de tocar nada: la migración 070 sí está
+aplicada, el viejo `UNIQUE(user_id, date)` ya no existe y el único índice único
+es parcial sobre `status = active`. Mover `date` no puede chocar con nada.
+
+**Destapado por AY-G2, decisión tuya:** el electrón de ayuno se archiva con la
+fecha de CIERRE (`electron-service.ts`), y ahora la adherencia pinta el día de
+INICIO. Con «¿Empezaste antes?» los dos caen en días distintos. Antes coincidían
+por accidente. Hay que decidir cuál día es el canónico y alinear los dos; no lo
+toqué porque cambia qué día se ve cumplido en el calendario.
+
+Pendiente de este bloque: `npx tsc --noEmit` y `npm test` completos. Mi acceso al
+disco por red muere a los 45 s y `tsc` no cabe; corrió el parser de TypeScript
+sobre los dos archivos (sintaxis limpia) pero eso no sustituye el chequeo de tipos.
+
+---
+
 ## Migración 308: aplicada y verificada (23-ago-2026)
 
 Corrida por el dueño desde el worktree `cowork-casos`. No basta con que el CLI
