@@ -1,8 +1,9 @@
 # GENERADO por scripts/gen-mapa-rutas.js. NO editar a mano.
 #
-# Recorre TODAS las rutas estáticas con deep link y dispara una captura por
-# pantalla. No navega menús: salta directo, que es lo que hace viable pasar
-# por ~190 pantallas sin que nadie toque el teléfono.
+# Recorre TODAS las pantallas con deep link y dispara una captura por pantalla,
+# incluidas las rutas con parámetro ya resueltas. No navega menús: salta
+# directo, que es lo que hace viable pasar por ~285 pantallas sin
+# que nadie toque el teléfono.
 #
 # Antes de correr esto, deja la app en tema CLARO.
 appId: com.atpperformance.app
@@ -81,6 +82,146 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/centro
+- openLink: atp://centro/ajustes
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-ajustes
+- openLink: atp://centro/ayuno
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-ayuno
+- openLink: atp://centro/cardio
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-cardio
+- openLink: atp://centro/cetonas
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-cetonas
+- openLink: atp://centro/ciclo
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-ciclo
+- openLink: atp://centro/comida
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-comida
+- openLink: atp://centro/cronotipo
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-cronotipo
+- openLink: atp://centro/cuestionario
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-cuestionario
+- openLink: atp://centro/edad-atp
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-edad-atp
+- openLink: atp://centro/emociones
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-emociones
+- openLink: atp://centro/entrenar
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-entrenar
+- openLink: atp://centro/evaluaciones
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-evaluaciones
+- openLink: atp://centro/glucosa
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-glucosa
+- openLink: atp://centro/hidratacion
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-hidratacion
+- openLink: atp://centro/historia-clinica
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-historia-clinica
+- openLink: atp://centro/journal
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-journal
+- openLink: atp://centro/labs
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-labs
+- openLink: atp://centro/lista-compra
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-lista-compra
+- openLink: atp://centro/mapa-funcional
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-mapa-funcional
+- openLink: atp://centro/medidas
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-medidas
+- openLink: atp://centro/meditar
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-meditar
+- openLink: atp://centro/movilidad
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-movilidad
+- openLink: atp://centro/nback
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-nback
+- openLink: atp://centro/padecimientos
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-padecimientos
+- openLink: atp://centro/protocolos
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-protocolos
+- openLink: atp://centro/rachas
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-rachas
+- openLink: atp://centro/recetas
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-recetas
+- openLink: atp://centro/records
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-records
+- openLink: atp://centro/reportes
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-reportes
+- openLink: atp://centro/respirar
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-respirar
+- openLink: atp://centro/rm
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-rm
+- openLink: atp://centro/sintomas
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-sintomas
+- openLink: atp://centro/sol
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-sol
+- openLink: atp://centro/sueno
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-sueno
+- openLink: atp://centro/suplementos
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/centro-suplementos
 - openLink: atp://checkin
 - waitForAnimationToEnd:
     timeout: 4000
@@ -93,6 +234,22 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/cocina
+- openLink: atp://cocina?tab=lista
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/cocina-tab-lista
+- openLink: atp://cocina?tab=preferencias
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/cocina-tab-preferencias
+- openLink: atp://cocina?tab=recetas
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/cocina-tab-recetas
+- openLink: atp://comunidad/ajustes
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/comunidad-ajustes
 - openLink: atp://comunidad/amigos
 - waitForAnimationToEnd:
     timeout: 4000
@@ -137,22 +294,10 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/economy-admin
-- openLink: atp://economy/convert
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: capturas/claro/economy-convert
 - openLink: atp://economy/history
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/economy-history
-- openLink: atp://economy/how-to-earn
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: capturas/claro/economy-how-to-earn
-- openLink: atp://economy/shop
-- waitForAnimationToEnd:
-    timeout: 4000
-- takeScreenshot: capturas/claro/economy-shop
 - openLink: atp://edad-atp
 - waitForAnimationToEnd:
     timeout: 4000
@@ -177,6 +322,18 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/edad-atp-lab-confirmation
+- openLink: atp://edad-atp/lab/homocisteina
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-lab-homocisteina
+- openLink: atp://edad-atp/lab/proteina_c_reactiva_cuantitativa_pcr
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-lab-proteina-c-reactiva-cuantitativa-pcr
+- openLink: atp://edad-atp/lab/relacion_neutrofilos_linfocitos_nlr
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-lab-relacion-neutrofilos-linfocitos-nlr
 - openLink: atp://edad-atp/labs
 - waitForAnimationToEnd:
     timeout: 4000
@@ -225,6 +382,26 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/edad-atp-result-preview
+- openLink: atp://edad-atp/sub-edad/cognicion
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-sub-edad-cognicion
+- openLink: atp://edad-atp/sub-edad/composicion
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-sub-edad-composicion
+- openLink: atp://edad-atp/sub-edad/fitness
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-sub-edad-fitness
+- openLink: atp://edad-atp/sub-edad/labs
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-sub-edad-labs
+- openLink: atp://edad-atp/sub-edad/riesgos
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/edad-atp-sub-edad-riesgos
 - openLink: atp://edad-atp/test-bolt
 - waitForAnimationToEnd:
     timeout: 4000
@@ -301,6 +478,14 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/exercise-library
+- openLink: atp://exercise-library?tab=ejercicios
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/exercise-library-tab-ejercicios
+- openLink: atp://exercise-library?tab=metodos
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/exercise-library-tab-metodos
 - openLink: atp://fasting
 - waitForAnimationToEnd:
     timeout: 4000
@@ -345,6 +530,18 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/food-log
+- openLink: atp://food-log?sensor=codigo
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/food-log-sensor-codigo
+- openLink: atp://food-log?sensor=foto
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/food-log-sensor-foto
+- openLink: atp://food-log?sensor=texto
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/food-log-sensor-texto
 - openLink: atp://food-preferences
 - waitForAnimationToEnd:
     timeout: 4000
@@ -385,6 +582,14 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/historia-clinica
+- openLink: atp://historia-clinica/padecimientos_familiares
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/historia-clinica-padecimientos-familiares
+- openLink: atp://historia-clinica/padecimientos_personales
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/historia-clinica-padecimientos-personales
 - openLink: atp://history
 - waitForAnimationToEnd:
     timeout: 4000
@@ -565,6 +770,38 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/packs-armar
+- openLink: atp://packs/bajar-revoluciones
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/packs-bajar-revoluciones
+- openLink: atp://packs/cuidar-glucosa
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/packs-cuidar-glucosa
+- openLink: atp://packs/dormir-mejor
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/packs-dormir-mejor
+- openLink: atp://packs/energia-estable
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/packs-energia-estable
+- openLink: atp://packs/entender-sintomas
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/packs-entender-sintomas
+- openLink: atp://packs/foco-claridad
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/packs-foco-claridad
+- openLink: atp://packs/longevidad
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/packs-longevidad
+- openLink: atp://packs/salud-en-orden
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/packs-salud-en-orden
 - openLink: atp://paywall
 - waitForAnimationToEnd:
     timeout: 4000
@@ -617,6 +854,62 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/reports
+- openLink: atp://reports/adherencia
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports-adherencia
+- openLink: atp://reports/ayuno
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports-ayuno
+- openLink: atp://reports/ciclo
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports-ciclo
+- openLink: atp://reports/economia
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports-economia
+- openLink: atp://reports/emociones
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports-emociones
+- openLink: atp://reports/entrenamiento
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports-entrenamiento
+- openLink: atp://reports/expediente
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports-expediente
+- openLink: atp://reports/glucosa
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports-glucosa
+- openLink: atp://reports/hidratacion
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports-hidratacion
+- openLink: atp://reports/journal
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports-journal
+- openLink: atp://reports/labs
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports-labs
+- openLink: atp://reports/mente
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports-mente
+- openLink: atp://reports/nback
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports-nback
+- openLink: atp://reports/nutricion
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/reports-nutricion
 - openLink: atp://reset-password
 - waitForAnimationToEnd:
     timeout: 4000
@@ -657,14 +950,30 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/salud-intervenciones
+- openLink: atp://salud/intervenciones/exposicion_solar_matutina
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-intervenciones-exposicion-solar-matutina
+- openLink: atp://salud/intervenciones/hidratacion_matutina
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-intervenciones-hidratacion-matutina
 - openLink: atp://salud/intervenciones/rationale
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/salud-intervenciones-rationale
+- openLink: atp://salud/intervenciones/recordatorio_dormir
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-intervenciones-recordatorio-dormir
 - openLink: atp://salud/mi-expediente
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/salud-mi-expediente
+- openLink: atp://salud/mi-lectura
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/salud-mi-lectura
 - openLink: atp://salud/mis-datos
 - waitForAnimationToEnd:
     timeout: 4000
@@ -729,6 +1038,10 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/settings-salud
+- openLink: atp://settings/salud-conexion
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/settings-salud-conexion
 - openLink: atp://settings/subscription
 - waitForAnimationToEnd:
     timeout: 4000
@@ -761,10 +1074,78 @@ appId: com.atpperformance.app
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/tests
+- openLink: atp://tests/q/cronotipo
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-q-cronotipo
+- openLink: atp://tests/q/db-lifestyle_assessment
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-q-db-lifestyle-assessment
+- openLink: atp://tests/q/digestion_functional
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-q-digestion-functional
+- openLink: atp://tests/q/energy_functional
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-q-energy-functional
+- openLink: atp://tests/q/maestro
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-q-maestro
+- openLink: atp://tests/q/pain_functional
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-q-pain-functional
+- openLink: atp://tests/q/sleep_functional
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-q-sleep-functional
+- openLink: atp://tests/q/stress_functional
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-q-stress-functional
 - openLink: atp://tests/resultado/cronotipo
 - waitForAnimationToEnd:
     timeout: 4000
 - takeScreenshot: capturas/claro/tests-resultado-cronotipo
+- openLink: atp://tests/run/balance
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-run-balance
+- openLink: atp://tests/run/bolt
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-run-bolt
+- openLink: atp://tests/run/cooper
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-run-cooper
+- openLink: atp://tests/run/grip
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-run-grip
+- openLink: atp://tests/run/old-man
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-run-old-man
+- openLink: atp://tests/run/plank
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-run-plank
+- openLink: atp://tests/run/push-ups
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-run-push-ups
+- openLink: atp://tests/run/reaction-time
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-run-reaction-time
+- openLink: atp://tests/run/recovery-hr
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: capturas/claro/tests-run-recovery-hr
 - openLink: atp://tribu
 - waitForAnimationToEnd:
     timeout: 4000

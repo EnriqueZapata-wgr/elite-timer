@@ -30,6 +30,8 @@ export type LabAbsoluteRange = {
   clinical_only?: boolean;
 };
 
+import { LAB_COLUMN_TO_CANONICAL, EXTRACTED_KEY_ALIASES } from '@/src/constants/lab-canonical-map';
+
 export const LAB_ABSOLUTE_RANGES: Record<string, LabAbsoluteRange> = {
   // Lípidos
   ldl: { min: 30, max: 400, unit: 'mg/dL' },
@@ -239,12 +241,47 @@ export const HOME_METRIC_THRESHOLDS = {
 } as const;
 
 /**
+ * Clave canónica (la que se guarda en lab_values, casi siempre en español)
+ * → columna inglesa, que es como está indexada LA TABLA DE ARRIBA.
+ *
+ * Se deriva de los mismos mapas que usa el resto de la casa, invertidos, para
+ * no tener una segunda lista que se desincronice. Las claves que ya existen
+ * en LAB_ABSOLUTE_RANGES no se tocan: la búsqueda directa siempre gana.
+ */
+const ALIAS_A_INGLES: Record<string, string> = (() => {
+  const out: Record<string, string> = {};
+  for (const [columna, m] of Object.entries(LAB_COLUMN_TO_CANONICAL)) {
+    for (const canonica of m.keys) {
+      if (canonica !== columna && out[canonica] == null) out[canonica] = columna;
+    }
+  }
+  for (const [alias, columna] of Object.entries(EXTRACTED_KEY_ALIASES)) {
+    if (out[alias] == null) out[alias] = columna;
+  }
+  return out;
+})();
+
+/**
  * Valida un valor extraído contra el rango absoluto del biomarker.
  * @returns true si el valor es plausible, false si es imposible (descartar).
+ *
+ * 22-ago-2026 — RESUELVE EL ALIAS ANTES DE BUSCAR EL RANGO.
+ *
+ * Esta tabla está indexada por las claves del extractor y de la UI, que son
+ * inglesas. Preguntar con la clave canónica en español (`colesterol_total`)
+ * no encontraba nada y la función devolvía `true` por su regla de omisión:
+ * "sin rango definido, aceptar". Es decir, todo el camino que ya había
+ * canonicalizado la clave se saltaba la validación entera, en silencio, que
+ * es la peor forma de fallar para una guarda clínica.
+ *
+ * Se resuelve con la misma tabla de alias que usa el resto de la casa, así
+ * que no hay una segunda lista que mantener. Sigue en pie la regla de fondo:
+ * un parámetro sin rango declarado se acepta, porque inventar rangos clínicos
+ * está prohibido.
  */
 export function isLabValueValid(key: string, value: number | null | undefined): boolean {
   if (value == null || !Number.isFinite(value)) return false;
-  const range = LAB_ABSOLUTE_RANGES[key];
+  const range = LAB_ABSOLUTE_RANGES[key] ?? LAB_ABSOLUTE_RANGES[ALIAS_A_INGLES[key] ?? ''];
   if (!range) return true; // si no hay rango definido, aceptar (TODO Mariana validar)
   return value >= range.min && value <= range.max;
 }

@@ -31,6 +31,23 @@ vi.mock('@/src/services/cycle-service', () => ({
 }));
 
 import { gatherConsultaInput } from '@/src/services/salud/consulta-report-service';
+import { getLocalToday } from '@/src/utils/date-helpers';
+
+/**
+ * 22-ago-2026 — FECHAS RELATIVAS, NO CLAVADAS.
+ *
+ * Esta prueba fijaba un periodo del 18 al 22 de julio contra una ventana de
+ * 30 días que se mueve con el calendario. El 22 de agosto la ventana empieza
+ * el 23 de julio, así que el periodo quedó fuera y la prueba se puso roja
+ * sola, sin que nadie tocara el código. Una prueba con fecha de caducidad no
+ * es un candado: es una alarma que va a sonar el día equivocado y va a hacer
+ * que alguien la desactive. Ahora las fechas se calculan desde hoy.
+ */
+function haceDias(n: number): string {
+  const d = new Date(`${getLocalToday()}T00:00:00`);
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
 
 const OK = { data: [], error: null };
 
@@ -122,14 +139,14 @@ describe('gatherConsultaInput', () => {
       phaseInfo: { label: 'Lútea' },
       currentDay: 21,
       cycleLen: 28,
-      periods: [{ start_date: '2026-07-18', end_date: '2026-07-22' }],
+      periods: [{ start_date: haceDias(12), end_date: haceDias(8) }],
     };
     const input = await gatherConsultaInput('u1', '', 30);
     expect(input!.cycle).toEqual({
       phaseLabel: 'Lútea',
       currentDay: 21,
       cycleLen: 28,
-      periods: [{ start: '2026-07-18', end: '2026-07-22' }],
+      periods: [{ start: haceDias(12), end: haceDias(8) }],
     });
     // La mutación que consulte ciclo por fuera del gate truena aquí.
     for (const tabla of ['cycle_periods', 'cycle_settings', 'cycle_daily_logs', 'user_app_modes']) {

@@ -36,6 +36,23 @@ PRESUPUESTO="${ATP_LOTE_SEG:-170}"
 # entre sesiones con uid distinto rompe la escritura de results.json.
 export ATP_TEST_CACHE="${ATP_TEST_CACHE:-/tmp/atp-vitest-cache-$(id -u)}"
 
+# node_modules legible (21-ago-2026). En un worktree no hay node_modules propio
+# y el enlace que pone Windows no se puede leer desde Linux. Subimos por el
+# árbol igual que Node. Misma función que en pruebas-linux.sh.
+buscar_modulos() {
+  local dir="$RAIZ"
+  for _ in 1 2 3 4 5; do
+    [[ -d "$dir/node_modules/vitest" ]] && { echo "$dir/node_modules"; return 0; }
+    dir="$(dirname "$dir")"
+  done
+  return 1
+}
+MODULOS="$(buscar_modulos || true)"
+if [[ -z "$MODULOS" ]]; then
+  echo "ERROR: no hay node_modules legible desde $RAIZ (ni subiendo por el árbol)." >&2
+  exit 1
+fi
+
 
 mkdir -p "$SALIDAS"
 
@@ -91,8 +108,8 @@ while true; do
   # maxThreads alto a propósito: estos tests están esperando I/O del mount, no
   # quemando CPU. Más hilos que núcleos enmascara la latencia y casi duplica el
   # avance por llamada.
-  NODE_PATH="${ATP_LINUX_DEPS:-/tmp/atp-linux-deps}/node_modules" \
-  timeout "$RESTA" node node_modules/vitest/vitest.mjs run \
+  NODE_PATH="${ATP_LINUX_DEPS:-$(dirname "$MODULOS")/.atp-linux-deps}/node_modules" \
+  timeout "$RESTA" node "$MODULOS/vitest/vitest.mjs" run \
     --config "$RAIZ/scripts/testing/vitest.linux.config.mts" \
     --poolOptions.threads.maxThreads=12 --poolOptions.threads.minThreads=12 \
     --reporter=basic --reporter=json --outputFile.json="$JSON" \

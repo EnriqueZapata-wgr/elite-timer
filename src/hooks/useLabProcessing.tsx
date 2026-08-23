@@ -9,6 +9,7 @@ import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { extractLabValuesForReview, deleteLabUpload, enqueueLabWorker, LAB_ASYNC_WORKER_ENABLED } from '@/src/services/lab-service';
 import { setReview } from '@/src/services/edad-atp/lab-review-store';
+import { routeUploadByType } from '@/src/constants/upload-types';
 import {
   labProcReducer, initialLabProcState, type LabProcState, type ProcessingUpload,
 } from '@/src/hooks/lab-processing-reducer';
@@ -100,13 +101,37 @@ export function LabProcessingProvider({ children }: { children: React.ReactNode 
           return;
         }
         const row = payload.new;
-        if (row?.id) dispatch({ type: 'upsert', upload: rowToUpload(row) });
+        if (!row?.id) return;
+        // Un archivo que no es de laboratorio no tiene por qué encender el
+        // aviso global ni ofrecer "revisar valores".
+        //
+        // 4EP GRAVE-5: la primera versión preguntaba por `writesValues`, y
+        // 'composicion' lo tiene en true aunque su destino NO sea lab_values.
+        // El filtro correcto es el mismo que usa my-health para decidir la
+        // rama: el DESTINO del dato.
+        const tipo = (row as any).upload_type ?? 'labs';
+        if (routeUploadByType(tipo).target !== 'lab_values') return;
+        // Y un estudio ya confirmado tampoco: el aviso volvía a ofrecerlo justo
+        // después de guardar, porque el estado se quedaba en 'extracted'.
+        if (row.status === 'confirmed' || row.status === 'cancelled') {
+          dispatch({ type: 'remove', uploadId: row.id });
+          return;
+        }
+        dispatch({ type: 'upsert', upload: rowToUpload(row) });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
   // Arranque: cargar uploads pending/processing y reanudar los atascados (>5min).
+  //
+  // 22-ago-2026 — SOLO SE REANUDA LO QUE DE VERDAD ES LABORATORIO.
+  // Antes se reanudaba cualquier fila en 'uploaded', y un archivo de contexto
+  // (un electrocardiograma, un RAW genético, la interpretación de un
+  // especialista) que se hubiera quedado a medias entraba aquí, se marcaba
+  // 'pending', el trigger lo mandaba al worker y se parseaba contra el prompt
+  // de química sanguínea. Con la migración 308 el tipo elegido está en la
+  // base, así que la pregunta ya se puede contestar.
   useEffect(() => {
     if (!userId) return;
     let alive = true;
@@ -116,6 +141,16 @@ export function LabProcessingProvider({ children }: { children: React.ReactNode 
         .in('status', ['uploaded', 'pending', 'processing']).order('uploaded_at', { ascending: false });
       if (!alive) return;
       for (const row of data ?? []) {
+        // Nulo = fila anterior a la 308, y todas esas eran de la puerta de
+        // laboratorios, que era la única que llamaba al motor.
+        //
+        // 4EP GRAVE-5: con `writesValues` aquí, una composición corporal
+        // (InBody, DEXA, báscula) pasaba el filtro, porque declara que escribe
+        // valores aunque su destino sea otro. Y como my-health la sube y la
+        // deja en 'uploaded' para siempre, el siguiente arranque la reanudaba
+        // y el worker la parseaba contra el prompt de química sanguínea.
+        const tipo = (row as any).upload_type ?? 'labs';
+        if (routeUploadByType(tipo).target !== 'lab_values') continue;
         dispatch({ type: 'upsert', upload: rowToUpload(row) });
         const ageMs = Date.now() - new Date(row.uploaded_at ?? 0).getTime();
         if (ageMs > STUCK_MS) runExtractionRef.current(row.id); // reanudar el atascado

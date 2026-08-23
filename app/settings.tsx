@@ -92,7 +92,7 @@ const GROUPS: SettingsGroup[] = [
     icon: 'people-outline',
     iconColor: CATEGORY_COLORS.metrics,
     title: 'Conexiones',
-    subtitle: 'Coach, atletas, dispositivos y afiliados',
+    subtitle: 'Coach, atletas y dispositivos',
     route: '/settings/conexiones' as const,
   },
 ];

@@ -277,15 +277,11 @@ export default function SettingsConexionesScreen() {
         </Animated.View>
 
         {/* ══════ AFILIADOS ══════ */}
-        <Animated.View entering={FadeInUp.delay(280).springify()}>
-          <SectionLabel>PROGRAMA DE AFILIADOS</SectionLabel>
-          <SettingRow
-            icon="briefcase-outline"
-            label="Programa de afiliados"
-            sub="Clínicos, coaches, centros y creadores"
-            onPress={() => { haptic.medium(); router.push('/afiliados/aplicar'); }}
-          />
-        </Animated.View>
+        {/* PROGRAMA DE AFILIADOS — sin puerta desde el 21-ago-2026, decisión
+            del dueño para el lanzamiento: entra solo por invitación. Las tres
+            pantallas (aplicar, dashboard, mi-codigo) siguen vivas y se llega a
+            ellas por deep link, para los afiliados que él invite a mano. No se
+            borró nada: devolver la puerta es reponer estas ocho líneas. */}
 
         <View style={{ height: 40 }} />
       </ScrollView>

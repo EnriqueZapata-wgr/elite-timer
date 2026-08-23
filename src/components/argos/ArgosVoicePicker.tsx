@@ -5,8 +5,11 @@
  * Doctrina guiado-no-prisionero: "Saltar" siempre visible, sin culpa — se puede
  * elegir después. El orb (ArgosAvatar) pasa a 'speaking' mientras suena el preview.
  *
- * Preview = expo-speech (TTS del dispositivo) vía argos-voice-service; stub honesto
- * hasta la voz propia de ARGOS (MB-4 J5). Persiste en profiles.argos_voice (mig 205).
+ * Preview = la voz REAL de ARGOS (ElevenLabs), nunca el TTS del dispositivo.
+ * Antes había un stub que cambiaba el tono del TTS del sistema, y en teléfonos
+ * con voz de español femenina las dos opciones sonaban a la misma mujer. Si la
+ * voz propia no responde, la pantalla lo dice y no finge. Persiste en
+ * profiles.argos_voice (mig 205).
  */
 import { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
@@ -39,12 +42,20 @@ export function ArgosVoicePicker({ userId, onDone, loading }: Props) {
   const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<ArgosVoice | null>(null);
   const [previewing, setPreviewing] = useState<ArgosVoice | null>(null);
+  // La voz propia no contestó. No se oculta la elección (sigue valiendo para
+  // después), pero se deja de prometer una muestra que no va a sonar.
+  const [sinMuestra, setSinMuestra] = useState(false);
 
   const choose = async (voice: ArgosVoice) => {
     haptic.light();
     setSelected(voice);
     setPreviewing(voice);
-    await previewArgosVoice(voice);
+    const sono = await previewArgosVoice(voice);
+    if (!sono) {
+      setSinMuestra(true);
+      setPreviewing(null);
+      return;
+    }
     // El orb vuelve a idle tras la ventana aproximada del preview.
     setTimeout(() => setPreviewing((p) => (p === voice ? null : p)), 3200);
   };
@@ -72,7 +83,11 @@ export function ArgosVoicePicker({ userId, onDone, loading }: Props) {
         </Animated.View>
         <Animated.View entering={FadeInUp.duration(500).delay(120)}>
           <EliteText style={s.title}>¿Cómo quieres que suene ARGOS?</EliteText>
-          <EliteText style={s.subtitle}>Escucha una muestra y elige. Puedes cambiarla cuando quieras.</EliteText>
+          <EliteText style={s.subtitle}>
+            {sinMuestra
+              ? 'La muestra no está disponible ahora. Elige la que quieras: se aplica cuando ARGOS te hable, y la cambias cuando quieras.'
+              : 'Escucha una muestra y elige. Puedes cambiarla cuando quieras.'}
+          </EliteText>
         </Animated.View>
 
         <View style={s.options}>
@@ -88,16 +103,18 @@ export function ArgosVoicePicker({ userId, onDone, loading }: Props) {
                       color={active ? ATP_BRAND.lime : TEXT.secondary}
                     />
                     <EliteText style={[s.cardLabel, active && { color: '#fff' }]}>{v.label}</EliteText>
-                    <View style={s.playRow}>
-                      <Ionicons
-                        name={previewing === v.id ? 'volume-high' : 'play-circle-outline'}
-                        size={16}
-                        color={active ? ATP_BRAND.lime : TEXT.tertiary}
-                      />
-                      <EliteText style={[s.playText, active && { color: ATP_BRAND.lime }]}>
-                        {previewing === v.id ? 'Sonando…' : 'Muestra'}
-                      </EliteText>
-                    </View>
+                    {!sinMuestra && (
+                      <View style={s.playRow}>
+                        <Ionicons
+                          name={previewing === v.id ? 'volume-high' : 'play-circle-outline'}
+                          size={16}
+                          color={active ? ATP_BRAND.lime : TEXT.tertiary}
+                        />
+                        <EliteText style={[s.playText, active && { color: ATP_BRAND.lime }]}>
+                          {previewing === v.id ? 'Sonando…' : 'Muestra'}
+                        </EliteText>
+                      </View>
+                    )}
                   </View>
                 </AnimatedPressable>
               </Animated.View>

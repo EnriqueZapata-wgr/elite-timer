@@ -30,8 +30,29 @@ export const NBACK_CONFIG = {
   STIMULUS_VISIBLE_MS: 500,
   ROUNDS_PER_DAY: 12,
   CHALLENGE_DAYS: 20,
-  RAISE_THRESHOLD: 0.9,  // ambos canales ≥90% → N+1
-  DROP_THRESHOLD: 0.75,  // cualquier canal <75% → N−1
+  // 22-ago-2026 — LA REGLA PASA DE PORCENTAJE A CONTEO DE ERRORES.
+  //
+  // Los umbrales de 90 y 75 son los de Jaeggi 2008, pero Jaeggi NO evalúa
+  // porcentaje: cuenta errores. Sube con menos de 3 por canal (o sea tolera
+  // 2) y baja con más de 5. Traducirlo a porcentaje parecía equivalente y no
+  // lo es, porque el denominador es chico: la mediana de objetivos por canal
+  // es 7.75, así que el escalón mínimo entre un acierto y otro es de 14
+  // puntos. Con 7 objetivos, "≥90%" y "perfecto" son el mismo número.
+  //
+  // Medido sobre el generador real: un jugador con 90% de aciertos y 3% de
+  // falsos BAJABA de nivel tres veces más seguido de lo que subía. El juego
+  // lo empujaba hacia abajo. Con la regla de conteo sube el 77% de las veces.
+  //
+  // Los porcentajes se siguen calculando y mostrando, porque son la lectura
+  // que el jugador entiende. Lo que ya no hacen es decidir el nivel.
+  MAX_ERRORES_PARA_SUBIR: 2,   // 0, 1 o 2 errores por canal → N+1
+  MIN_ERRORES_PARA_BAJAR: 6,   // 6 o más errores en un canal → N−1
+  // 4EP MENOR-1: sin consumidores desde el cambio a conteo. Se dejan como
+  // referencia histórica del spec (Jaeggi 2008 los cita), NO se leen en
+  // ningún lado. Si alguien las vuelve a enchufar a una decisión de nivel,
+  // está reviviendo la regla que se midió mala. Ver el bloque de arriba.
+  RAISE_THRESHOLD: 0.9,
+  DROP_THRESHOLD: 0.75,
   SPEEDS: [1, 1.5, 2] as const,
   POSITION_COUNT: 8,     // grid 3×3 sin el centro (crosshair)
   LETTERS: ['a', 'o', 'f', 'l', 'r', 'z', 'h', 'j'] as const,
@@ -172,29 +193,59 @@ export function scoreChannel(matches: boolean[], pressed: boolean[]): ChannelSco
 export interface NBackRoundResult {
   accuracyVisual: number;
   accuracyAudio: number;
+  erroresVisual: number;
+  erroresAudio: number;
   promoted: boolean;
   demoted: boolean;
   nextN: number;
 }
 
+/** Un error es un objetivo perdido o una presión de más. Cuentan igual. */
+export function erroresDeCanal(c: { misses: number; falses: number }): number {
+  return c.misses + c.falses;
+}
+
 /**
- * Regla adaptativa de la referencia (75/90): cualquiera <75% baja (piso N_MIN),
- * ambos ≥90% sube (sin techo — Jaeggi llegó a N=8+), si no se mantiene.
+ * Regla adaptativa por CONTEO DE ERRORES (Jaeggi 2008), no por porcentaje.
+ *
+ * Sube: 2 errores o menos en AMBOS canales.
+ * Baja: 6 errores o más en CUALQUIERA (piso N_MIN).
+ * Si no, se mantiene.
+ *
+ * Por qué cuenta errores y no porcentaje: con una mediana de 7.75 objetivos
+ * por canal, un porcentaje del 90% exige literalmente cero errores, porque el
+ * escalón entre un acierto y otro vale 14 puntos. Contar errores es lo que
+ * hace la referencia y es lo único que deja margen para equivocarse una o dos
+ * veces, que es como se aprende.
+ *
+ * Un objetivo perdido y un falso positivo pesan IGUAL. Antes no: un miss
+ * restaba al numerador y un falso solo inflaba el denominador, así que con 7
+ * objetivos dos misses te bajaban de nivel pero hacían falta tres falsos.
  */
-export function evaluateRound(accuracyVisual: number, accuracyAudio: number, n: number): NBackRoundResult {
-  const v = Number.isFinite(accuracyVisual) ? accuracyVisual : 0;
-  const a = Number.isFinite(accuracyAudio) ? accuracyAudio : 0;
+export function evaluateRound(
+  visual: { misses: number; falses: number; accuracy: number },
+  audio: { misses: number; falses: number; accuracy: number },
+  n: number,
+): NBackRoundResult {
+  const ev = erroresDeCanal(visual);
+  const ea = erroresDeCanal(audio);
+  const v = Number.isFinite(visual.accuracy) ? visual.accuracy : 0;
+  const a = Number.isFinite(audio.accuracy) ? audio.accuracy : 0;
   let nextN = n;
   let promoted = false;
   let demoted = false;
-  if (v < NBACK_CONFIG.DROP_THRESHOLD || a < NBACK_CONFIG.DROP_THRESHOLD) {
+  if (ev >= NBACK_CONFIG.MIN_ERRORES_PARA_BAJAR || ea >= NBACK_CONFIG.MIN_ERRORES_PARA_BAJAR) {
     nextN = Math.max(NBACK_CONFIG.N_MIN, n - 1);
     demoted = nextN < n;
-  } else if (v >= NBACK_CONFIG.RAISE_THRESHOLD && a >= NBACK_CONFIG.RAISE_THRESHOLD) {
+  } else if (ev <= NBACK_CONFIG.MAX_ERRORES_PARA_SUBIR && ea <= NBACK_CONFIG.MAX_ERRORES_PARA_SUBIR) {
     nextN = n + 1;
     promoted = true;
   }
-  return { accuracyVisual: v, accuracyAudio: a, promoted, demoted, nextN };
+  return {
+    accuracyVisual: v, accuracyAudio: a,
+    erroresVisual: ev, erroresAudio: ea,
+    promoted, demoted, nextN,
+  };
 }
 
 /**

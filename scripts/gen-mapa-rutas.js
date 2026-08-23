@@ -100,16 +100,61 @@ function descripcionDe(archivo) {
   return resumen.length > 240 ? resumen.slice(0, 237) + '...' : resumen;
 }
 
+
+/**
+ * ¿Este archivo es un ALIAS (redirect) y a dónde manda?
+ *
+ * Un alias es un stub que existe solo para no romper deep links viejos:
+ * contiene un <Redirect> o un router.replace y mide poco (los 54 del repo
+ * miden 3 a 25 líneas; el techo de 60 deja fuera cualquier pantalla real que
+ * use replace dentro de un flujo). Se detecta aquí, en el generador, porque
+ * es el único lugar que ya lee todos los archivos: una lista a mano naceria
+ * desactualizada.
+ *
+ * POR QUÉ IMPORTA (medido en el barrido del 19-ago-2026): 54 de las 200 rutas de ese día eran alias, y el resolvedor de ARGOS los puntuaba como destinos
+ * distintos. Seis rutas distintas llevaban a /tests y se repartían el puntaje
+ * entre ellas. Con esta marca, el resolvedor los excluye del índice y le
+ * regala sus palabras al destino real.
+ *
+ * Devuelve { esAlias, destino }: destino null cuando se calcula en runtime
+ * y no se puede leer estático.
+ */
+function aliasDe(archivo) {
+  let texto;
+  try { texto = fs.readFileSync(archivo, 'utf8'); } catch { return { esAlias: false, destino: null }; }
+  const lineas = texto.split('\n').length;
+  const esRedirect = /<Redirect\b/.test(texto) || /router\.replace\(/.test(texto) || /useRouter\(\)\.replace\(/.test(texto);
+  if (!esRedirect || lineas > 60) return { esAlias: false, destino: null };
+  const m = texto.match(/href=\{?["'`](\/[^"'`}]+)/) ||
+            texto.match(/href=\{\{\s*pathname:\s*["'`](\/[^"'`]+)/) ||
+            texto.match(/replace\(\s*["'`](\/[^"'`]+)/) ||
+            texto.match(/replace\(\s*\{\s*pathname:\s*["'`](\/[^"'`]+)/);
+  if (!m) return { esAlias: true, destino: null };
+  let destino = m[1];
+  // Un redirect por objeto con params NO es un duplicado 1:1: el alias carga
+  // información propia (/lista-compra abre la pestaña Lista de /cocina). El
+  // param se anexa como query para que el consumidor distinga alias puro
+  // (destino sin '?') de alias con carga (destino con '?').
+  if (!destino.includes('?')) {
+    const pm = texto.match(/params:\s*\{\s*(\w+):\s*["'`]([^"'`]+)/);
+    if (pm) destino += `?${pm[1]}=${pm[2]}`;
+  }
+  return { esAlias: true, destino };
+}
+
 function construirMapa() {
   const estaticas = [];
   const dinamicas = [];
   for (const archivo of recorrer(APP_DIR)) {
     const rel = path.relative(APP_DIR, archivo);
     const ruta = aRuta(rel);
+    const ali = aliasDe(archivo);
     const entrada = {
       ruta,
       archivo: 'app/' + rel.split(path.sep).join('/'),
       desc: descripcionDe(archivo),
+      esAlias: ali.esAlias,
+      destinoAlias: ali.destino,
     };
     if (ruta.includes('[')) dinamicas.push(entrada);
     else estaticas.push(entrada);
@@ -227,6 +272,17 @@ ${estaticas.map((e) => `  ${JSON.stringify(e.ruta)},`).join('\n')}
 export const APP_ROUTES_DYNAMIC: readonly string[] = [
 ${dinamicas.map((e) => `  ${JSON.stringify(e.ruta)},`).join('\n')}
 ];
+
+/**
+ * ALIAS: rutas que existen solo para no romper deep links viejos. Cada una
+ * redirige al destino indicado (null = el destino se calcula en runtime y no
+ * se puede leer estático). El resolvedor de ARGOS las EXCLUYE de su índice y
+ * le suma sus palabras al destino real; el barrido visual las sigue
+ * recorriendo para verificar que la redirección vive.
+ */
+export const APP_ROUTE_ALIASES: Readonly<Record<string, string | null>> = {
+${estaticas.filter((e) => e.esAlias).map((e) => `  ${JSON.stringify(e.ruta)}: ${JSON.stringify(e.destinoAlias)},`).join('\n')}
+};
 
 /**
  * Qué hace cada pantalla, cosechado del encabezado de su propio archivo.

@@ -20,6 +20,11 @@ const state = vi.hoisted(() => ({
   gridOnly: [] as string[],
 }));
 
+// pack-service emite eventos al prescribir (casos de uso, paso 5b), así que
+// ahora importa react-native. Sin este mock vitest intenta parsear el
+// fuente Flow de react-native y la suite ni siquiera colecta. Es el mismo
+// mock que ya usan los otros nueve tests de servicios que emiten.
+vi.mock('react-native', () => ({ DeviceEventEmitter: { emit: vi.fn() } }));
 vi.mock('@/src/lib/supabase', () => ({
   supabase: { from: (t: string) => state.fake.from(t) },
 }));

@@ -1130,7 +1130,12 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         context.cycleInfo = {
           cycleDay: info.currentDay,
           currentPhase: info.currentPhase,
-          nextPeriodEstimate: toLocalDateString(info.prediction.date),
+          // 4EP MEDIO-2: con retraso la estimada ya venció. Publicar una
+          // fecha del pasado como "próximo periodo" le hacía decir al coach
+          // que el periodo llega el 29 de julio estando a 9 de agosto. Con
+          // retraso se publica el retraso, no una fecha inventada.
+          nextPeriodEstimate: info.prediction.retrasada ? null : toLocalDateString(info.prediction.date),
+          diasDeRetraso: info.prediction.retrasada ? info.prediction.diasDeRetraso : undefined,
         };
       }
     } catch (e) { registrarBloqueDeContexto('ciclo-menstrual', 'error', e); }

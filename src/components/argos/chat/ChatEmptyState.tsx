@@ -4,13 +4,20 @@
  * (argos-suggestions-core decide; la pantalla carga las señales).
  */
 import { useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, DeviceEventEmitter } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { usePathname, useRouter } from 'expo-router';
 import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
-import type { ChatSuggestion } from '@/src/services/argos-suggestions-core';
+import { CAPABILITY_SUGGESTIONS, type ChatSuggestion } from '@/src/services/argos-suggestions-core';
+import { TUTORIAL_POR_PANTALLA } from '@/src/constants/flags';
 import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { Fonts, FontSizes } from '@/constants/theme';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import {
+  ORB_TOUR_DONE_KEY,
+  ORB_TOUR_RESTART_EVENT,
+} from '@/src/components/tour/orb-tour-core';
 
 interface Props {
   suggestions: ChatSuggestion[];
@@ -22,6 +29,32 @@ export function ChatEmptyState({ suggestions, onPick }: Props) {
   // (regla de tránsito: fuera de <ThemeReady> sigue oscuro).
   const t = useSurfaceTokens();
   const s = useMemo(() => makeStyles(t), [t]);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // L-17: un chip con action dispara algo real en vez de hablarle al modelo.
+  // 'tour' abre el centro de ayuda, que es donde vive el tutorial completo:
+  // las ocho piezas, cuáles faltan y el interruptor de si aparecen solas.
+  // Con la bandera apagada seguimos por el camino viejo (relanzar el tour de
+  // 12 pasos), para que apagarla devuelva la conducta anterior entera. Desde
+  // el TAB /argos las tabs ya están montadas y cambiar de tab con '/(tabs)'
+  // no las desmonta; desde /argos-chat (empujado encima) replace('/') es el
+  // mismo camino que usa Ajustes › Experiencia.
+  const ejecutar = async (sg: ChatSuggestion) => {
+    if (sg.action === 'tour') {
+      if (TUTORIAL_POR_PANTALLA) {
+        // Cast por las rutas tipadas de Expo: las genera el servidor de
+        // desarrollo y /tutorial es nueva. Mismo patrón que OrbTour.
+        router.push('/tutorial' as never);
+        return;
+      }
+      await AsyncStorage.removeItem(ORB_TOUR_DONE_KEY).catch(() => {});
+      DeviceEventEmitter.emit(ORB_TOUR_RESTART_EVENT);
+      router.replace(pathname === '/argos' ? '/(tabs)' : '/');
+      return;
+    }
+    onPick(sg.label);
+  };
   return (
     <View style={s.wrap}>
       <ArgosOrb state="idle" size={80} style={{ marginBottom: 16 }} />
@@ -29,6 +62,18 @@ export function ChatEmptyState({ suggestions, onPick }: Props) {
       <Text style={s.subtitle}>
         Tu sistema de inteligencia en salud funcional. Conozco tu historial, tus datos y tus objetivos. Pregúntame lo que quieras.
       </Text>
+
+      {/* MENU-1: las capacidades primero, con su propio trato visual. Son
+          las funciones de la orbe, no temas: el usuario descubre aquí que
+          ARGOS explica pantallas y dice qué sabe hacer. */}
+      <View style={s.chips}>
+        {CAPABILITY_SUGGESTIONS.map((sg) => (
+          <Pressable key={sg.label} onPress={() => ejecutar(sg)} style={[s.chip, s.chipCapacidad]}>
+            <Ionicons name={sg.icon as any} size={14} color={ATP_BRAND.lime} />
+            <Text style={s.chipText}>{sg.label}</Text>
+          </Pressable>
+        ))}
+      </View>
 
       <View style={s.chips}>
         {suggestions.map((sg) => (
@@ -59,6 +104,13 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     backgroundColor: t.hundido, borderRadius: 20,
     paddingVertical: 10, paddingHorizontal: 14,
     borderWidth: 1, borderColor: t.borde,
+  },
+  // MENU-1: la capacidad se distingue del tema por el borde, no por otro
+  // color de fondo: un acento sutil, dentro de la regla del lima como
+  // micro-acento.
+  chipCapacidad: {
+    borderColor: withOpacity(ATP_BRAND.lime, 0.35),
+    marginBottom: 2,
   },
   chipText: {
     color: withOpacity(t.texto, 0.8), fontSize: FontSizes.sm, fontFamily: Fonts.regular,

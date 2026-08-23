@@ -25,7 +25,6 @@
 set -euo pipefail
 
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DEPS_LINUX="${ATP_LINUX_DEPS:-/tmp/atp-linux-deps}"
 
 # ─── CACHE POR USUARIO (19-ago-2026) ─────────────────────────────────────────
 # El cache de vitest va POR USUARIO, no compartido. Cuando dos sesiones del
@@ -44,8 +43,31 @@ if [[ "$(uname -s)" != "Linux" ]]; then
   exit 1
 fi
 
-if [[ ! -d "$RAIZ/node_modules/vitest" ]]; then
-  echo "ERROR: no hay node_modules en $RAIZ." >&2
+# ─── DÓNDE ESTÁ node_modules (21-ago-2026) ───────────────────────────────────
+# En un worktree de git no hay node_modules propio. El dueño lo enlaza con una
+# junction de Windows y Linux no puede seguir ese enlace (I/O error), así que
+# aquí hacemos lo mismo que hace Node: subir por el árbol hasta el primer
+# node_modules LEGIBLE. No se instala nada; si no aparece ninguno, se aborta
+# igual que antes.
+buscar_modulos() {
+  local dir="$RAIZ"
+  for _ in 1 2 3 4 5; do
+    [[ -d "$dir/node_modules/vitest" ]] && { echo "$dir/node_modules"; return 0; }
+    dir="$(dirname "$dir")"
+  done
+  return 1
+}
+MODULOS="$(buscar_modulos || true)"
+
+# Los dos binarios nativos viven JUNTO al node_modules del repo, en una carpeta
+# ignorada por git (.atp-linux-deps). Antes vivían en /tmp y se perdían cada vez
+# que el sandbox reciclaba la máquina; ahí adentro, además, el VM del dueño no
+# tiene salida a npm y no se podían volver a bajar. Junto al repo sobreviven y
+# los comparten todos los worktrees. Se sigue pudiendo mover con ATP_LINUX_DEPS.
+DEPS_LINUX="${ATP_LINUX_DEPS:-$(dirname "$MODULOS")/.atp-linux-deps}"
+
+if [[ -z "$MODULOS" ]]; then
+  echo "ERROR: no hay node_modules legible desde $RAIZ (ni subiendo por el árbol)." >&2
   echo "El dueño tiene que instalar desde Windows. NO corras npm install aquí." >&2
   exit 1
 fi
@@ -55,7 +77,7 @@ fi
 # verdad. Si el dueño actualiza vite o vitest, estas versiones cambian solas y
 # el script vuelve a bajar el binario que toca. No hay nada que editar a mano.
 version_de() {
-  node -p "require('$RAIZ/node_modules/$1/package.json').version" 2>/dev/null || echo ""
+  node -p "require('$MODULOS/$1/package.json').version" 2>/dev/null || echo ""
 }
 VER_ROLLUP="$(version_de rollup)"
 VER_ESBUILD="$(version_de esbuild)"
@@ -109,4 +131,4 @@ fi
 # binarios en vez de reinstalar 1,500 paquetes.
 cd "$RAIZ"
 export NODE_PATH="$DEPS_LINUX/node_modules"
-exec node node_modules/vitest/vitest.mjs run --config "$CONFIG" "$@"
+exec node "$MODULOS/vitest/vitest.mjs" run --config "$CONFIG" "$@"

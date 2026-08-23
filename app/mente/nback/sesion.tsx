@@ -3,8 +3,9 @@
  *
  * Countdown (¿Listo? / En posición. / ¡Va!) → gameplay full-black (grid 3×3
  * con crosshair, cuadro que se ilumina 500ms, letra hablada, botones POSICIÓN
- * y SONIDO) → resultados (barras con umbrales 75/90, cambio de nivel, rounds
- * restantes, economía). FULL FOCUS: cero ARGOS/nav flotante (isMentePillarPath).
+ * y SONIDO) → resultados (barras de lectura, conteo de errores por canal,
+ * cambio de nivel, rounds restantes, economía). FULL FOCUS: cero ARGOS/nav
+ * flotante (isMentePillarPath).
  *
  * Timing: 3.3s por trial a 1x (V1.5.1 #3), speed divide. Primera sesión:
  * N=1 forzado (tutorial, #44-1); después resume_mode. Al completar round:
@@ -26,7 +27,7 @@ import { haptic } from '@/src/utils/haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   NBACK_CONFIG, generateRound, scoreChannel, evaluateRound, startingN,
-  trialDurationMs, stimuliCountFor, resolvePressIndex,
+  trialDurationMs, stimuliCountFor, resolvePressIndex, erroresDeCanal,
   type NBackRound, type NBackRoundResult, type ChannelScore,
 } from '@/src/services/nback-core';
 import { createNBackAudio, type NBackAudioHandle } from '@/src/services/nback-audio';
@@ -51,8 +52,13 @@ const COUNTDOWN_TOTAL_MS = 4600;
 // V1.5.1 (#2): el grid respira este tiempo ANTES del primer estímulo — que el
 // usuario ubique la vista con el tablero ya visible (el countdown no basta).
 const FIRST_TRIAL_GRACE_MS = 2000;
-const RAISE_PCT = NBACK_CONFIG.RAISE_THRESHOLD * 100;
-const DROP_PCT = NBACK_CONFIG.DROP_THRESHOLD * 100;
+// 22-ago-2026 — RAISE_PCT/DROP_PCT murieron con la regla de porcentaje.
+// El nivel lo decide el CONTEO de errores por canal (nback-core), no el
+// porcentaje. Dejar las marcas de 75/90 en la barra hacía que el 11% de
+// las subidas se pintaran en rojo mientras el texto decía "Nivel sube".
+// El porcentaje se sigue mostrando: es la lectura, ya no el juez.
+const SUBE = NBACK_CONFIG.MAX_ERRORES_PARA_SUBIR;
+const BAJA = NBACK_CONFIG.MIN_ERRORES_PARA_BAJAR;
 
 interface ResultsView {
   result: NBackRoundResult;
@@ -321,7 +327,9 @@ export default function NBackSessionScreen() {
     setPhase('saving');
     const visual = scoreChannel(round.visualMatches, pressedVRef.current);
     const audio = scoreChannel(round.audioMatches, pressedARef.current);
-    const result = evaluateRound(visual.accuracy, audio.accuracy, round.n);
+    // La regla cuenta errores, no porcentaje: se le pasan los canales
+    // completos y no solo su precisión (22-ago-2026).
+    const result = evaluateRound(visual, audio, round.n);
     const trialMs = trialDurationMs(settingsRef.current.speed);
     const durationMin = (round.positions.length * trialMs) / 60000;
 
@@ -526,16 +534,37 @@ export default function NBackSessionScreen() {
         </View>
       )}
 
-      {phase === 'results' && results && (
+      {phase === 'results' && results && (() => {
+        // Un canal "duro" es el que por sí solo alcanza el umbral de bajada.
+        // Es el mismo conteo que pinta la barra en rojo, para que color y
+        // texto no puedan contradecirse nunca.
+        const canalDuro =
+          erroresDeCanal(results.visual) >= BAJA || erroresDeCanal(results.audio) >= BAJA;
+        return (
         <Animated.View entering={FadeInUp.duration(350)} style={s.resultsWrap}>
+          {/* 4EP MEDIO-1 (22-ago): el título leía `demoted`, que en N=1 viene
+              clampeado por N_MIN. Un round de 9 fallos y 9 falsos en los dos
+              canales daba demoted:false, así que la pantalla decía "Buen
+              round" con las dos barras en rojo. Justo al usuario nuevo, que
+              es quien está en N=1 por el tutorial. El título mira el mismo
+              conteo que pinta las barras; el nivel lo sigue diciendo la
+              tarjeta de abajo, que es donde vive el piso. */}
           <EliteText style={[s.resultsTitle, priTxt]}>
-            {results.result.promoted ? 'Nivel superado' : results.result.demoted ? 'Ajustamos el reto' : 'Buen round'}
+            {results.result.promoted
+              ? 'Nivel superado'
+              : results.result.demoted
+                ? 'Ajustamos el reto'
+                : canalDuro
+                  ? 'Round duro'
+                  : 'Buen round'}
           </EliteText>
 
           <ResultBar label="Posición" pct={Math.round(results.result.accuracyVisual * 100)} score={results.visual} />
           <ResultBar label="Sonido" pct={Math.round(results.result.accuracyAudio * 100)} score={results.audio} />
           <EliteText style={[s.thresholdHint, tenueTxt]}>
-            &lt;{DROP_PCT}% en un canal baja el nivel · ≥{RAISE_PCT}% en ambos lo sube
+            {results.n <= NBACK_CONFIG.N_MIN
+              ? `Hasta ${SUBE} errores en cada canal sube el nivel · en N=${NBACK_CONFIG.N_MIN} ya no se puede bajar más`
+              : `Hasta ${SUBE} errores en cada canal sube el nivel · ${BAJA} o más en uno lo baja`}
           </EliteText>
 
           <View style={[s.levelCard, cardSurf]}>
@@ -570,7 +599,8 @@ export default function NBackSessionScreen() {
             <EliteText style={[s.endText, secTxt]}>Terminar por hoy</EliteText>
           </AnimatedPressable>
         </Animated.View>
-      )}
+        );
+      })()}
     </View>
     </ThemeReady>
   );
@@ -579,6 +609,7 @@ export default function NBackSessionScreen() {
 function ResultBar({ label, pct, score }: { label: string; pct: number; score: ChannelScore }) {
   // MB-31B3: tokens del tema (el fill lima/rojo del juego se queda).
   const { kind, tokens: t } = useAppTheme();
+  const errores = erroresDeCanal(score);
   const tenueTxt = { color: t.textoTenue };
   return (
     <View style={s.barBlock}>
@@ -587,8 +618,11 @@ function ResultBar({ label, pct, score }: { label: string; pct: number; score: C
         <EliteText style={[s.barPct, { color: t.texto }]}>{pct}%</EliteText>
       </View>
       <View style={s.barTrack}>
-        {/* V1.5.2 (#1): fill en gradiente molécula (fuera lime plano); rojo si cae bajo umbral */}
-        {pct < DROP_PCT ? (
+        {/* V1.5.2 (#1): fill en gradiente molécula (fuera lime plano).
+            22-ago: el rojo lo dispara el conteo de errores de ESTE canal
+            (el que baja el nivel), no un porcentaje. Antes un canal con
+            74% y 2 errores salía rojo junto a "Nivel sube". */}
+        {errores >= BAJA ? (
           <View style={[s.barFill, { width: `${Math.min(100, pct)}%`, backgroundColor: '#f87171' }]} />
         ) : (
           <LinearGradient
@@ -597,9 +631,6 @@ function ResultBar({ label, pct, score }: { label: string; pct: number; score: C
             style={[s.barFill, { width: `${Math.min(100, pct)}%` }]}
           />
         )}
-        {/* Umbrales 75/90 de la referencia */}
-        <View style={[s.barMark, { left: `${DROP_PCT}%` }]} />
-        <View style={[s.barMark, { left: `${RAISE_PCT}%` }]} />
       </View>
       {/* V1.5.2 (#2): breakdown de errores del canal — +comisión / −omisión,
           de los mismos conteos que produjeron el score. */}
@@ -696,7 +727,6 @@ const s = StyleSheet.create({
   barPct: { fontSize: FontSizes.sm, fontFamily: Fonts.bold },
   barTrack: { height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.08)' },
   barFill: { height: '100%', borderRadius: 5, backgroundColor: ATP_BRAND.lime },
-  barMark: { position: 'absolute', top: -3, width: 2, height: 16, backgroundColor: 'rgba(255,255,255,0.45)' },
   thresholdHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginBottom: Spacing.md },
 
   levelCard: {

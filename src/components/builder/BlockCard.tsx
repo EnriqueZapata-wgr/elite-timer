@@ -395,7 +395,7 @@ export function BlockCard({
               <EliteText variant="caption" style={s.configLabel}>Ejercicio</EliteText>
               {block.exercise_id && block.exercise_name ? (
                 <View style={s.exerciseAssigned}>
-                  <Ionicons name="barbell-outline" size={14} color={Colors.neonGreen} />
+                  <Ionicons name="barbell-outline" size={14} color={t.kind === 'dark' ? Colors.neonGreen : t.tealTexto} />
                   <EliteText variant="caption" style={s.exerciseNameText} numberOfLines={1}>
                     {block.exercise_name}
                   </EliteText>
@@ -411,7 +411,7 @@ export function BlockCard({
                 </View>
               ) : (
                 <Pressable onPress={onAssignExercise} style={s.assignBtn}>
-                  <Ionicons name="add-circle-outline" size={16} color={Colors.neonGreen} />
+                  <Ionicons name="add-circle-outline" size={16} color={t.kind === 'dark' ? Colors.neonGreen : t.tealTexto} />
                   <EliteText variant="caption" style={s.assignBtnText}>Asignar ejercicio</EliteText>
                 </Pressable>
               )}
@@ -453,14 +453,19 @@ function NumberStepper({
   min?: number; max?: number; step?: number; suffix?: string; accent?: string;
 }) {
   const s = useMemo(() => makeStyles(t), [t]);
+  const glifo = t.kind === 'dark' ? accent : t.texto;
   return (
     <View style={s.stepperRow}>
+      {/* 4EP: el color de TIPO se queda en el filo y en el punto, que es
+          relleno. Como glifo sobre acero claro el lima da 1.44, así que el
+          +/- se pinta con el texto del tema. La identidad del bloque sigue
+          viviendo en el borde, que sí es relleno. */}
       <Pressable
         onPress={() => onChange(Math.max(min, value - step))}
         disabled={value <= min}
         style={[s.stepperBtn, { borderColor: value <= min ? t.bordeMarcado : accent + '40' }]}
       >
-        <Ionicons name="remove" size={14} color={value <= min ? t.bordeMarcado : accent} />
+        <Ionicons name="remove" size={14} color={value <= min ? t.bordeMarcado : glifo} />
       </Pressable>
       <EliteText variant="body" style={s.stepperValue}>
         {value}{suffix}
@@ -470,13 +475,23 @@ function NumberStepper({
         disabled={value >= max}
         style={[s.stepperBtn, { borderColor: value >= max ? t.bordeMarcado : accent + '40' }]}
       >
-        <Ionicons name="add" size={14} color={value >= max ? t.bordeMarcado : accent} />
+        <Ionicons name="add" size={14} color={value >= max ? t.bordeMarcado : glifo} />
       </Pressable>
     </View>
   );
 }
 
 // === ESTILOS ===
+
+// 4EP GRAVE-1 (22-ago): hasta hoy este archivo pintaba el chip de ejercicio
+// con lima duro. Era inofensivo porque el Constructor no tenía <ThemeReady>
+// encima y useSurfaceTokens devolvía siempre el oscuro. Al migrar builder,
+// el claro llegó aquí y esos tres textos quedaron en contraste 1.44: el
+// nombre del ejercicio, CAMBIAR y "Asignar ejercicio" desaparecían.
+//
+// El lima se queda como RELLENO (el punto de color, el filo). Como TEXTO
+// pasa por el calibre: teal en claro, lima en oscuro.
+const limaTexto = (t: AppThemeTokens) => (t.kind === 'dark' ? Colors.neonGreen : t.tealTexto);
 
 const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   // Card exterior (compartida grupo y hoja)
@@ -642,27 +657,29 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.neonGreen + '10',
+    // El velo de lima al 6% no se ve sobre acero claro: ahí el chip se
+    // apoya en la superficie hundida, que es la que ya usa el resto.
+    backgroundColor: t.kind === 'dark' ? Colors.neonGreen + '10' : t.hundido,
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs + 2,
     borderWidth: 1,
-    borderColor: Colors.neonGreen + '25',
+    borderColor: t.kind === 'dark' ? Colors.neonGreen + '25' : t.borde,
   },
   exerciseNameText: {
-    color: Colors.neonGreen,
+    color: limaTexto(t),
     fontFamily: Fonts.semiBold,
     fontSize: 12,
     flex: 1,
   },
   changeBtn: {
-    backgroundColor: Colors.neonGreen + '20',
+    backgroundColor: t.kind === 'dark' ? Colors.neonGreen + '20' : t.card,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.pill,
   },
   changeBtnText: {
-    color: Colors.neonGreen,
+    color: limaTexto(t),
     fontSize: 10,
     fontFamily: Fonts.bold,
     letterSpacing: 1,
@@ -674,7 +691,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     paddingVertical: Spacing.xs,
   },
   assignBtnText: {
-    color: Colors.neonGreen,
+    color: limaTexto(t),
     fontSize: 12,
     fontFamily: Fonts.semiBold,
   },

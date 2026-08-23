@@ -21,19 +21,37 @@ export interface FakeCall {
   args: unknown[];
 }
 
+/** Una llamada a una función de la base (RPC), con sus parámetros. */
+export interface FakeRpcCall {
+  fn: string;
+  params: Record<string, unknown> | undefined;
+}
+
 export interface FakeSupabase {
   from: (table: string) => any;
+  /**
+   * 22-ago-2026: el colector de laboratorios dejó de escribir directo a la
+   * tabla y ahora pasa por funciones de la base (migración 308), porque la
+   * regla de "un solo valor vivo por dato y fecha" tiene que vivir donde no
+   * se pueda esquivar. Los tests necesitan poder afirmar QUÉ función se llamó
+   * y con qué parámetros, igual que ya afirmaban la forma de un insert.
+   */
+  rpc: (fn: string, params?: Record<string, unknown>) => Promise<FakeResp>;
   auth: { getUser: () => Promise<{ data: { user: { id: string } | null } }> };
   /** Tablas consultadas, en orden. */
   queried: string[];
   /** MB-28A P3: cada método encadenado con sus args (p.ej. el payload de un
    * .insert(...)) — permite afirmar la FORMA de lo escrito, no solo la tabla. */
   calls: FakeCall[];
+  /** Llamadas a funciones de la base, en orden. */
+  rpcCalls: FakeRpcCall[];
 }
 
 export function makeFakeSupabase(
   byTable: Record<string, FakeResp | FakeResp[]>,
   userId: string | null = 'user-test',
+  /** Respuesta por nombre de función. Sin entrada → {data:'escrito', error:null}. */
+  byRpc: Record<string, FakeResp | FakeResp[]> = {},
 ): FakeSupabase {
   const queried: string[] = [];
   const calls: FakeCall[] = [];
@@ -65,12 +83,27 @@ export function makeFakeSupabase(
     return builder;
   };
 
+  const rpcCalls: FakeRpcCall[] = [];
+  const pendingRpc = new Map<string, FakeResp[]>();
+  for (const [fn, r] of Object.entries(byRpc)) {
+    pendingRpc.set(fn, Array.isArray(r) ? [...r] : [r]);
+  }
+
+  const rpc = async (fn: string, params?: Record<string, unknown>): Promise<FakeResp> => {
+    rpcCalls.push({ fn, params });
+    const list = pendingRpc.get(fn);
+    if (!list || list.length === 0) return { data: 'escrito', error: null };
+    return list.length === 1 ? list[0] : list.shift()!;
+  };
+
   return {
     from,
+    rpc,
     auth: {
       getUser: async () => ({ data: { user: userId ? { id: userId } : null } }),
     },
     queried,
     calls,
+    rpcCalls,
   };
 }

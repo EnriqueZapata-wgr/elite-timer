@@ -161,8 +161,15 @@ const PUERTAS_CONOCIDAS = [
   'app/login.tsx',
   'app/onboarding/voice-config.tsx',
   'app/ordenar-dia.tsx',
-  'app/protocol-explorer.tsx',
+  // A-1 (20-ago-2026): protocol-explorer se retiró a alias y ya no navega
+  // a las pestanias. Sale del censo porque desapareció la puerta, no
+  // porque estorbara.
   'src/components/argos/argos-floating-core.ts',
+  // ARGOS-MENU (21-ago-2026): el chip que relanza el tutorial cambia de
+  // tab desde /argos, donde las pestañas YA están montadas y el usuario
+  // ya pasó el visto bueno. Entra por el layout como todas: el guard la
+  // cubre, verificado antes de agregarla aquí.
+  'src/components/argos/chat/ChatEmptyState.tsx',
   'src/components/layout/StickyPillarBanner.tsx',
   'src/components/legal/MedicalDisclaimerGate.tsx',
   'src/components/ui/HomeChip.tsx',

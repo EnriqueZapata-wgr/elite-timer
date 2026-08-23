@@ -1,10 +1,10 @@
 /**
  * Mi Salud — Cliente sube estudios de laboratorio y ve resultados.
  */
-import { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, AppState } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { useRouter , type Href } from 'expo-router';
+import { useRouter, useFocusEffect, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { userErrorMessage } from '@/src/utils/user-error';
 // Módulos nativos — importar con try/catch para OTA compat
@@ -15,7 +15,7 @@ try { DocumentPicker = require('expo-document-picker'); } catch { /* */ }
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
-import { uploadLabFile, extractLabValuesForReview, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult, type LabReviewPayload } from '@/src/services/lab-service';
+import { uploadLabFile, extractLabValuesForReview, materializarRevision, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult, type LabReviewPayload } from '@/src/services/lab-service';
 import { setReview } from '@/src/services/edad-atp/lab-review-store';
 import { mergeReviews } from '@/src/services/edad-atp/lab-review-merge';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
@@ -86,6 +86,37 @@ function MyHealthScreen() {
   // Selector de tipo de upload (#10): método elegido pendiente + visibilidad del picker.
   const [pendingMethod, setPendingMethod] = useState<'camera' | 'gallery' | 'pdf' | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
+  /**
+   * Un solo selector de archivo a la vez (21-ago-2026).
+   *
+   * Reportado por una usuaria que no pudo subir sus laboratorios: el módulo
+   * nativo lleva su propia sesión de selección y, si se le pide una segunda
+   * con la anterior abierta, revienta con "Different document picking in
+   * progress". Pasa con un doble toque, y también cuando la primera se quedó
+   * colgada porque la app se fue a segundo plano.
+   *
+   * Va en un ref y no en estado: hay que leerlo y escribirlo dentro del mismo
+   * ciclo, antes de que React vuelva a pintar.
+   *
+   * SE LIBERA TAMBIÉN POR FUERA (auditoría del 21-ago-2026). El `finally` de
+   * cada handler solo corre si la promesa del selector RESUELVE, y el caso que
+   * motivó este candado es justo el que no resuelve: la pantalla nativa muere
+   * con la app en segundo plano y el resultado nunca llega. Sin esta segunda
+   * salida, el candado se quedaba encendido para siempre y los tres botones
+   * dejaban de responder sin decir nada, que es el mismo síntoma que veníamos
+   * a resolver. Volver a la pantalla, o traer la app al frente, lo libera.
+   */
+  const eligiendoRef = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      eligiendoRef.current = false;
+      const sub = AppState.addEventListener('change', (estado) => {
+        if (estado === 'active') eligiendoRef.current = false;
+      });
+      return () => sub.remove();
+    }, [])
+  );
 
   useEffect(() => { if (userId) loadData(); }, [userId]);
 
@@ -122,7 +153,22 @@ function MyHealthScreen() {
     else if (method === 'pdf') handlePickPDF(type);
   };
 
+  /**
+   * El mensaje del selector, en español y sin nombres de funciones internas.
+   * El caso de "ya hay una selección abierta" merece copy propio: no es una
+   * falla, es que hay que esperar, y decirlo evita que la persona insista y
+   * lo empeore.
+   */
+  const mensajeDeSeleccion = (err: unknown, respaldo: string): string => {
+    const crudo = err instanceof Error ? err.message : String(err ?? '');
+    if (/document picking in progress|already.*in progress/i.test(crudo)) {
+      return 'Ya hay una ventana de archivos abierta. Ciérrala y vuelve a intentar.';
+    }
+    return userErrorMessage(err, respaldo);
+  };
+
   const handlePickImage = async (useCamera: boolean, type?: UploadType) => {
+    if (eligiendoRef.current) return;
     if (!ImagePicker) {
       Alert.alert(
         'Cámara no disponible',
@@ -135,9 +181,18 @@ function MyHealthScreen() {
     const opts: any = useCamera
       ? { quality: 0.8, base64: true }
       : { quality: 0.8, base64: true, allowsMultipleSelection: true, selectionLimit: 10 };
-    const res = useCamera
-      ? await ImagePicker.launchCameraAsync(opts)
-      : await ImagePicker.launchImageLibraryAsync(opts);
+    let res: any;
+    eligiendoRef.current = true;
+    try {
+      res = useCamera
+        ? await ImagePicker.launchCameraAsync(opts)
+        : await ImagePicker.launchImageLibraryAsync(opts);
+    } catch (err: any) {
+      setResult({ error: mensajeDeSeleccion(err, 'No se pudo abrir la galería.') });
+      return;
+    } finally {
+      eligiendoRef.current = false;
+    }
 
     if (res.canceled || !res.assets?.length) return;
     const images: string[] = res.assets.map((a: any) => a.base64).filter(Boolean);
@@ -147,6 +202,7 @@ function MyHealthScreen() {
   };
 
   const handlePickPDF = async (type?: UploadType) => {
+    if (eligiendoRef.current) return;
     if (!DocumentPicker) {
       Alert.alert(
         'PDF no disponible en esta versión',
@@ -160,7 +216,9 @@ function MyHealthScreen() {
       return;
     }
     try {
+      eligiendoRef.current = true;
       const res = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
+      eligiendoRef.current = false;
       if (res.canceled || !res.assets?.[0]) return;
       const uri = res.assets[0].uri;
       const fileRes = await fetch(uri);
@@ -172,7 +230,9 @@ function MyHealthScreen() {
       });
       await processUpload(base64, 'pdf', type);
     } catch (err: any) {
-      setResult({ error: userErrorMessage(err, 'No se pudo seleccionar el PDF.') });
+      setResult({ error: mensajeDeSeleccion(err, 'No se pudo abrir el PDF.') });
+    } finally {
+      eligiendoRef.current = false;
     }
   };
 
@@ -185,8 +245,11 @@ function MyHealthScreen() {
     if ('error' in review) {
       setResult({
         error: review.retriable
-          ? review.error
-          : `No pudimos leer laboratorios de este archivo. No se modificó tu data. (${review.error})`,
+          ? userErrorMessage(review.error, 'No pudimos leer el archivo. Intenta de nuevo.')
+          : userErrorMessage(
+              review.error,
+              'No pudimos leer laboratorios de este archivo. No se modificó tu data.'
+            ),
         retriable: review.retriable,
         uploadId,
       });
@@ -223,7 +286,10 @@ function MyHealthScreen() {
       setUploading(true);
       setResult(null);
       try {
-        const { uploadId } = await uploadLabFile(userId, base64, fileType);
+        // El tipo elegido viaja a la base (migración 308). Sin eso, un archivo
+        // a medias lo re-encolaba el arranque de la app y el motor lo parseaba
+        // como si fuera sangre.
+        const { uploadId } = await uploadLabFile(userId, base64, fileType, undefined, type?.id ?? 'labs');
         setUploading(false);
         const fileName = type?.label ? `${type.label}.${fileType === 'pdf' ? 'pdf' : 'jpg'}` : `lab.${fileType === 'pdf' ? 'pdf' : 'jpg'}`;
         labProcessing.startProcessing(uploadId, fileName, fileSize, v.pageCount);
@@ -238,7 +304,13 @@ function MyHealthScreen() {
     setUploading(true);
     setResult(null);
     try {
-      const { uploadId } = await uploadLabFile(userId, base64, fileType);
+      // Contexto: el tipo se guarda, y con eso el reanudador del arranque ya
+      // sabe que esto NO se parsea. También el nombre, para que en la lista se
+      // reconozca qué archivo es y no salga como "lab_1755…".
+      const nombreContexto = type?.label
+        ? `${type.label}.${fileType === 'pdf' ? 'pdf' : 'jpg'}`
+        : undefined;
+      const { uploadId } = await uploadLabFile(userId, base64, fileType, nombreContexto, type?.id ?? 'contexto');
       setUploading(false);
 
       {
@@ -271,28 +343,38 @@ function MyHealthScreen() {
     setMultiProgress({ done: 0, total: images.length });
     let done = 0;
     const settled = await Promise.all(
-      images.map(async (img) => {
+      images.map(async (img, i) => {
         try {
-          const { uploadId } = await uploadLabFile(userId, img, 'image');
+          const { uploadId } = await uploadLabFile(userId, img, 'image', undefined, type?.id ?? 'labs');
           const review = await extractLabValuesForReview(uploadId);
           done++; setMultiProgress({ done, total: images.length });
-          return 'error' in review ? null : review;
-        } catch {
+          if ('error' in review) {
+            return { fallo: { nombre: `Foto ${i + 1}`, motivo: review.error } };
+          }
+          return { review };
+        } catch (e: any) {
           done++; setMultiProgress({ done, total: images.length });
-          return null;
+          return { fallo: { nombre: `Foto ${i + 1}`, motivo: e?.message ?? 'No se pudo subir' } };
         }
       }),
     );
     setMultiProgress(null);
-    const okReviews = settled.filter(Boolean) as LabReviewPayload[];
+    const okReviews = settled.map((r) => (r as any).review).filter(Boolean) as LabReviewPayload[];
+    // 22-ago: de cinco fotos podían fallar dos y la pantalla enseñaba las tres
+    // buenas como si fueran el panel completo. Ahora las que se cayeron viajan
+    // con la revisión y la pantalla de confirmación las nombra.
+    const fallos = settled.map((r) => (r as any).fallo).filter(Boolean) as Array<{ nombre: string; motivo: string }>;
     if (okReviews.length === 0) {
       setProcessing(false);
       setResult({ error: `No pudimos leer ninguno de los ${images.length} archivos. Revisa que sean fotos legibles de laboratorios.` });
       loadData();
       return;
     }
-    const merged = mergeReviews(okReviews);
-    analytics.track(ATP_EVENTS.LAB_PARSER_V2_REVIEWED, { total: merged.items.length, photos: okReviews.length, upload_id: merged.uploadId });
+    const merged = { ...mergeReviews(okReviews), fallos };
+    // El paso intermedio también para el lote: lo mergeado aterriza en el
+    // colector bajo el upload que abre la revisión.
+    await materializarRevision(merged);
+    analytics.track(ATP_EVENTS.LAB_PARSER_V2_REVIEWED, { total: merged.items.length, photos: okReviews.length, fallos: fallos.length, upload_id: merged.uploadId });
     setReview(merged);
     setResult(null);
     setProcessing(false);

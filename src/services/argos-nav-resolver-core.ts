@@ -27,6 +27,7 @@ import {
   APP_ROUTES,
   APP_ROUTES_DYNAMIC,
   APP_ROUTE_DESCRIPTIONS,
+  APP_ROUTE_ALIASES,
 } from '@/src/constants/app-routes.generated';
 import { ARGOS_RESUELVE_RUTAS_DINAMICAS } from '@/src/constants/flags';
 import {
@@ -173,7 +174,6 @@ export const TITULOS_RUTA: Readonly<Record<string, string>> = {
   '/ordenar-dia': 'Ordenar mi día',
   '/plan-entrenamiento': 'Plan de entrenamiento',
   '/profile': 'Mi perfil',
-  '/protocol-explorer': 'Protocolos',
   '/quizzes': 'Cuestionarios funcionales',
   '/redeem-code': 'Canjear código',
   '/reports': 'Reportes',
@@ -186,6 +186,7 @@ export const TITULOS_RUTA: Readonly<Record<string, string>> = {
   '/salud/mis-sintomas': 'Mis síntomas',
   '/salud/padecimientos': 'Mis padecimientos',
   '/settings': 'Ajustes',
+  '/tutorial': 'Tutorial y centro de ayuda',
   // SIMPLE (17-ago-2026): /settings/comunidad y /settings/cuenta son redirects.
   // Se sacan del mapa de títulos para que ARGOS mande al destino real y no
   // anuncie una pantalla que ya no existe. Los deep links viejos siguen
@@ -267,7 +268,8 @@ export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = {
   '/salud/diagnostico': ['diagnostico funcional', 'mi diagnostico'],
   '/salud/evolucion': ['evolucion', 'como voy', 'tendencia'],
   '/historia-clinica': ['historia clinica', 'antecedentes familiares'],
-  '/protocol-explorer': ['protocolos', 'protocolo'],
+  // '/protocol-explorer' salió (A-1): el concepto de catálogo de protocolos
+  // se retiró con el pivote. "Mi protocolo" vive en /salud/intervenciones.
   '/ficha-emergencia': ['emergencia', 'ficha de emergencia', 'contacto de emergencia'],
   '/fitness-hub': ['fitness', 'ejercicio', 'entrenar', 'gimnasio', 'gym'],
   '/fitness-train': ['entrenar ahora', 'empezar entrenamiento', 'rutina de hoy'],
@@ -302,6 +304,10 @@ export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = {
   // "cuenta" y "cerrar sesion" ahora son el hub: las tres filas de la pantalla
   // /settings/cuenta viven ahí desde el 17-ago-2026.
   '/settings': ['ajustes', 'configuracion', 'opciones', 'preferencias', 'cuenta', 'mi cuenta', 'cerrar sesion'],
+  // L-17: la gente no pide "el tutorial", pide ayuda o dice que no le
+  // entiende. Todas esas formas tienen que caer en el centro de ayuda.
+  '/tutorial': ['tutorial', 'ayuda', 'centro de ayuda', 'como se usa', 'como funciona la app',
+    'ensename a usar la app', 'no le entiendo', 'explicame la app', 'tour', 'guia'],
   '/settings/subscription': ['suscripcion', 'plan', 'pago', 'facturacion', 'membresia', 'mi membresia'],
   '/settings/conexiones': ['coach', 'entrenador', 'conectar coach', 'clinico'],
   '/settings/salud-conexion': ['health connect', 'healthkit', 'reloj', 'apple salud', 'sincronizar salud', 'conectar reloj', 'conectar health', 'pasos'],
@@ -313,8 +319,12 @@ export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = {
   '/redeem-code': ['canjear', 'codigo', 'codigo de activacion'],
   '/argos-chat': ['argos', 'chat', 'hablar con argos', 'preguntar'],
   '/argos/conversations': ['conversaciones', 'historial de chat'],
-  '/afiliados/mi-codigo': ['mi codigo de afiliado', 'referidos'],
-  '/afiliados/dashboard': ['afiliados', 'comisiones'],
+  // Afiliados salió del vocabulario el 21-ago-2026: el programa entra al
+  // lanzamiento solo por invitación, y ARGOS vive DENTRO de la app, así que
+  // dejarlo aquí sería exactamente la puerta que se acordó no tener. Las
+  // rutas siguen vivas por deep link. Reponer es descomentar.
+  // '/afiliados/mi-codigo': ['mi codigo de afiliado', 'referidos'],
+  // '/afiliados/dashboard': ['afiliados', 'comisiones'],
 };
 
 // ---------------------------------------------------------------------------
@@ -481,17 +491,57 @@ let _df: Map<string, number> | null = null;
  * el mismo ranking que a todas las demás. Con la bandera apagada simplemente no
  * hay expansiones: ARGOS pierde esos destinos, pero nunca ofrece uno roto.
  */
+/**
+ * ALIAS-1: ¿esta ruta es un alias 1:1 limpio (excluible del indice)?
+ * Exportada para que el candado de cobertura del test espejee LA MISMA regla
+ * en vez de reimplementarla y desincronizarse.
+ */
+export function esAliasPuro(ruta: string): boolean {
+  const d = APP_ROUTE_ALIASES[ruta];
+  return !!d && !d.includes('?');
+}
+
 export function obtenerIndice(): EntradaIndice[] {
   if (_indice) return _indice;
   const entradas: EntradaIndice[] = [];
   for (const r of APP_ROUTES) {
     if (rutaVetada(r)) continue;
+    // ALIAS-1 (20-ago-2026): un alias no es un destino. Una cuarta parte de
+    // las rutas del mapa son stubs que redirigen a otra (APP_ROUTE_ALIASES,
+    // detectados por el generador). Antes competían en el ranking como
+    // pantallas: seis rutas distintas llevaban a /tests repartiéndose el
+    // puntaje.
+    //
+    // La regla exacta, y las dos excepciones salieron de la suite, no de la
+    // teoría: se excluye SOLO el alias 1:1 limpio (destino leído y SIN query).
+    //  - destino null (runtime): SE QUEDA, o su vocabulario se tira.
+    //  - destino con '?' (/lista-compra -> /cocina?tab=lista): SE QUEDA,
+    //    porque el alias carga un parámetro que el destino pelón no tiene;
+    //    mandar a /cocina sin tab NO es lo que el usuario pidió.
+    if (esAliasPuro(r)) continue;
     entradas.push(construirEntrada(r, false));
   }
   if (ARGOS_RESUELVE_RUTAS_DINAMICAS) {
     for (const e of expandirTodas()) {
       if (rutaVetada(e.ruta)) continue;
       entradas.push(construirEntradaExpandida(e));
+    }
+  }
+  // ALIAS-1: el nombre del alias es como la gente CONOCE ese lugar
+  // ("biblioteca", "perfil", "progreso"). Ese vocabulario no se tira: se le
+  // suma al destino real con peso de alias, para que "llevame a biblioteca"
+  // llegue a /my-routines en vez de a ningun lado.
+  const porRuta = new Map(entradas.map((e) => [e.ruta, e]));
+  for (const [alias, destino] of Object.entries(APP_ROUTE_ALIASES)) {
+    if (!esAliasPuro(alias)) continue; // sigue en el índice: donar duplicaría
+    const dueno = porRuta.get((destino as string).split('?')[0]);
+    if (!dueno) continue; // el destino no está en el índice (vetado o dinámico)
+    sumar(dueno.pesos as Map<string, number>, tokenizar(alias.replace(/\//g, ' ').replace(/[-_]/g, ' ')), PESO_ALIAS);
+    // CUATRO-OJOS (20-ago): el vocabulario A MANO del alias también se dona.
+    // Sin esto, "entrenar ahora", "correr" o "cuestionarios" (ALIAS_RUTA de
+    // rutas ahora excluidas) morían en silencio y la suite no lo veía.
+    for (const palabra of ALIAS_RUTA[alias] ?? []) {
+      sumar(dueno.pesos as Map<string, number>, tokenizar(palabra), PESO_ALIAS);
     }
   }
   _indice = entradas;

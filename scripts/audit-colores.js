@@ -37,7 +37,21 @@ const EXENTOS = [
   'src/components/onboarding/onboarding-theme.ts',
   'src/theme/',
   'src/constants/colors',
+  // 21-ago-2026 — los archivos cuyo TRABAJO es definir colores. Marcarlos es
+  // como marcar un diccionario por contener palabras: aquí el color no está
+  // "clavado a mano", está declarado, que es lo que queremos. Lo que sí hay
+  // que revisar en ellos es si cada color contrasta en los dos temas, y eso
+  // no lo dice este detector: lo dicen los candados de contraste.
+  'src/constants/concept-colors.ts',
+  'src/constants/electrons.ts',
+  'src/constants/categories.ts',
+  'src/constants/salud-puertas.ts',
+  // El logo y su gradiente son la marca, dibujada en SVG: por definición no
+  // cambia con el tema.
+  'src/components/ui/brand/',
 ];
+
+const ARCHIVO_BASE = path.join(__dirname, 'audit-colores-base.json');
 
 const ES_TEST = /(__tests__|\.test\.|\.spec\.)/;
 const EXT_VALIDAS = new Set(['.ts', '.tsx']);
@@ -79,6 +93,27 @@ function* recorrer(dir) {
 function clasificar(linea, lineasPrevias) {
   const l = linea.toLowerCase();
   const bloque = lineasPrevias.join('\n').toLowerCase();
+
+  // 21-ago-2026 — DOS CLASES QUE NO SON BUG, Y QUE INFLABAN EL NÚMERO.
+  //
+  // Sin esto el reporte decía 975 críticos y la mitad no lo eran. Un número
+  // que asusta y no se puede trabajar es peor que no medir: se ignora entero.
+  //
+  // 1) El color YA cambia con el tema. Vive dentro de un ternario que mira el
+  //    tema (t.kind === 'dark' ? A : B, dark ? A : B, isDark ? …). Son dos
+  //    literales, sí, pero el tema los voltea, que es justo lo que pedimos.
+  if (/\b(t\.kind\s*===|iskind|isdark|\bdark\s*\?)/.test(l)) return 'ya cambia con el tema';
+  //
+  // 2) El color es un DATO, no cromo: la identidad de una categoría (proteína
+  //    azul, grasa naranja), que es la misma en claro y en oscuro a propósito.
+  //    Se reconocen porque viven en una definición con etiqueta o llave.
+  if (
+    /\bcolor\s*:/.test(l) &&
+    /\b(label|key|id|name|title|titulo|abbr|icon|emoji|unit|subtitle|offset|stop)\s*:/.test(l)
+  ) {
+    return 'color de dato';
+  }
+
   if (/\b(backgroundcolor|bordercolor|shadowcolor)\b/.test(l)) return 'fondo/borde';
   if (/\bcolor\s*:/.test(l)) return 'texto';
   if (/(stroke|fill)\s*[:=]/.test(l)) return 'svg';
@@ -88,7 +123,17 @@ function clasificar(linea, lineasPrevias) {
 }
 
 // Los que casi siempre son bug de tema, contra los que suelen ser marca.
-const PRIORIDAD = { 'fondo/borde': 3, texto: 3, icono: 2, gradiente: 1, svg: 1, otro: 2 };
+// Prioridad 0 = no es hallazgo, se cuenta aparte para poder auditar el filtro.
+const PRIORIDAD = {
+  'fondo/borde': 3,
+  texto: 3,
+  icono: 2,
+  gradiente: 1,
+  svg: 1,
+  otro: 2,
+  'ya cambia con el tema': 0,
+  'color de dato': 0,
+};
 
 function analizar() {
   const hallazgos = [];
@@ -181,7 +226,74 @@ function main() {
     console.log('');
   }
 
-  if (args.includes('--ci') && totalCriticos > 0) process.exit(1);
+  if (args.includes('--sellar')) return sellar(orden);
+  if (args.includes('--ci')) return revisarContraBase(orden);
+}
+
+/**
+ * TRINQUETE (21-ago-2026).
+ *
+ * Antes `--ci` reventaba si había UN solo hallazgo, y hay cientos: el candado
+ * nacía rojo y por lo tanto nadie lo corría. Un candado que no puede pasar no
+ * es un candado, es un adorno.
+ *
+ * Ahora compara contra una línea base sellada por archivo. Pasa si nadie
+ * empeoró; revienta si un archivo sube o si aparece uno nuevo con color
+ * clavado. La deuda vieja se puede pagar cuando toque, pero no crece. Y
+ * cuando bajas un archivo, te lo dice, para que selles el nuevo piso.
+ */
+function sellar(orden) {
+  const base = {};
+  for (const { archivo, criticos } of orden) if (criticos > 0) base[archivo] = criticos;
+  fs.writeFileSync(
+    ARCHIVO_BASE,
+    JSON.stringify(
+      {
+        _lee_esto:
+          'Línea base del audit de color: cuántos colores críticos tolera cada archivo HOY. ' +
+          'No es una meta, es un techo. `--ci` revienta si un archivo sube o si aparece uno nuevo. ' +
+          'Cuando bajes un archivo, vuelve a sellar con `node scripts/audit-colores.js --sellar` ' +
+          'para que el piso nuevo quede fijo y nadie lo deshaga.',
+        _sellado: new Date().toISOString().slice(0, 10),
+        archivos: base,
+      },
+      null,
+      2
+    ) + '\n'
+  );
+  console.log(`  Línea base sellada: ${Object.keys(base).length} archivos con deuda.`);
+  console.log(`  ${ARCHIVO_BASE}`);
+}
+
+function revisarContraBase(orden) {
+  let base;
+  try {
+    base = JSON.parse(fs.readFileSync(ARCHIVO_BASE, 'utf8')).archivos || {};
+  } catch {
+    console.log('  No hay línea base. Séllala con: node scripts/audit-colores.js --sellar');
+    process.exit(1);
+  }
+  const peores = [];
+  const mejores = [];
+  for (const { archivo, criticos } of orden) {
+    if (criticos === 0) continue;
+    const techo = base[archivo] ?? 0;
+    if (criticos > techo) peores.push({ archivo, criticos, techo });
+    else if (criticos < techo) mejores.push({ archivo, criticos, techo });
+  }
+  for (const { archivo, criticos, techo } of peores) {
+    console.log(`  SUBIÓ  ${archivo}: ${techo} → ${criticos}`);
+  }
+  for (const { archivo, criticos, techo } of mejores) {
+    console.log(`  bajó   ${archivo}: ${techo} → ${criticos}  (vuelve a sellar)`);
+  }
+  if (peores.length) {
+    console.log('');
+    console.log('  Hay color clavado NUEVO. Usa los tokens del tema, o si de verdad');
+    console.log('  no cambia con el tema, di por qué en el propio renglón.');
+    process.exit(1);
+  }
+  console.log('  Sin color clavado nuevo.');
 }
 
 main();

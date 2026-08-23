@@ -15,11 +15,17 @@ export type SaveResult = { ok: boolean; error?: string };
  * de lab_results: glucose, creatinine, pcr, cholesterol_total, t3_free, etc.).
  * Así los datos de Edad ATP alimentan el mismo expediente médico que el pilar Salud.
  */
-export async function saveLabResults(userId: string, values: Record<string, number>): Promise<SaveResult> {
+export async function saveLabResults(
+  userId: string,
+  values: Record<string, number>,
+  /** Fecha del estudio. Si no viene, hoy: es captura del momento. */
+  fechaEstudio?: string,
+): Promise<SaveResult> {
   if (Object.keys(values).length === 0) return { ok: true };
+  const fecha = fechaEstudio || getLocalToday();
   const { error } = await supabase.from('lab_results').insert({
     user_id: userId,
-    lab_date: getLocalToday(),
+    lab_date: fecha,
     status: 'draft',
     lab_name: 'Edad ATP (captura manual)',
     ...values,
@@ -28,23 +34,49 @@ export async function saveLabResults(userId: string, values: Record<string, numb
     logWarn('[edad-atp capture] saveLabResults failed:', error);
     return { ok: false, error: error.message };
   }
-  // Espejo a la fuente única `lab_values` (append-only). `values` está en columnas inglesas
+  // Espejo a la fuente única `lab_values`. `values` está en columnas inglesas
   // de lab_results → toCanonicalEntries las mapea a claves de matriz y convierte unidades.
-  await insertLabValuesFromRaw(userId, values, { source: 'form' });
+  //
+  // 22-ago: el resultado de esta escritura se tiraba. Si fallaba, la pantalla
+  // decía "guardado" igual y el motor se quedaba sin el dato.
+  const esp = await insertLabValuesFromRaw(userId, values, { source: 'form', measuredAt: fecha });
+  if (!esp.ok) {
+    logWarn('[edad-atp capture] el espejo a lab_values falló:', esp.error);
+    return { ok: false, error: esp.error ?? 'No se pudieron guardar los valores.' };
+  }
   return { ok: true };
 }
 
 export type BiomarkerEntry = { key: string; value: number; unit: string };
 
-/** Inserta una fila por biomarcador (source 'manual', measured_at now). */
-export async function saveBiomarkers(userId: string, entries: BiomarkerEntry[]): Promise<SaveResult> {
+/**
+ * Inserta una fila por biomarcador capturado a mano.
+ *
+ * 22-ago-2026 — LA FECHA DEJA DE SER SIEMPRE HOY.
+ *
+ * Se estampaba `new Date()` sin preguntar, así que un estudio de marzo tecleado
+ * en agosto entraba como si fuera de agosto. Eso no es un detalle de
+ * presentación: `measured_at` es lo que ordena la serie del parámetro y lo que
+ * decide qué valor es el vigente. Un estudio viejo capturado a mano pisaba al
+ * reciente y la Edad ATP se calculaba con el dato equivocado.
+ *
+ * Y el resultado del espejo a lab_values se tiraba: si fallaba, esta función
+ * devolvía ok igual.
+ */
+export async function saveBiomarkers(
+  userId: string,
+  entries: BiomarkerEntry[],
+  /** Fecha del estudio en AAAA-MM-DD. Si no viene, hoy. */
+  fechaEstudio?: string,
+): Promise<SaveResult> {
+  const fecha = fechaEstudio || getLocalToday();
   const rows = entries.map((e) => ({
     user_id: userId,
     biomarker_key: e.key,
     value: e.value,
     unit: e.unit,
     source: 'manual',
-    measured_at: new Date().toISOString(),
+    measured_at: fecha,
   }));
   if (rows.length === 0) return { ok: true };
   const { error } = await supabase.from('edad_atp_biomarkers').insert(rows);
@@ -54,11 +86,21 @@ export async function saveBiomarkers(userId: string, entries: BiomarkerEntry[]):
   }
   // Espejo a la fuente única `lab_values` (source 'manual'). biomarker_key ya es clave
   // canónica (de matriz / PhenoAge); insertCanonicalBiomarkers convierte las unidades pct.
-  await insertCanonicalBiomarkers(
+  //
+  // escritoPorHumano: una persona tecleando su hoja es la autoridad sobre su
+  // propio dato y puede corregir lo que sea. La PROTECCIÓN contra parsers se
+  // pone abajo, y solo sobre el valor que de verdad cae fuera del rango
+  // clínico: es la excepción que Enrique preguntó el 21-ago. Marcar todo lo
+  // capturado a mano como intocable dejaba al PDF sin poder corregir nada.
+  const esp = await insertCanonicalBiomarkers(
     userId,
     entries.map((e) => ({ parameter_key: e.key, value: e.value, unit: e.unit })),
-    { source: 'manual' },
+    { source: 'manual', measuredAt: fecha, escritoPorHumano: true },
   );
+  if (!esp.ok) {
+    logWarn('[edad-atp capture] el espejo a lab_values falló:', esp.error);
+    return { ok: false, error: esp.error ?? 'No se pudieron guardar los valores.' };
+  }
   return { ok: true };
 }
 

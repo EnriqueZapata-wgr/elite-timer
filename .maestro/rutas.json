@@ -1,9 +1,9 @@
 {
   "scheme": "atp",
-  "generado": "2026-08-17T12:49:16.257Z",
+  "generado": "2026-08-21T03:09:00.443Z",
   "resumen": {
-    "estaticas": 190,
-    "dinamicas": 112,
+    "estaticas": 191,
+    "dinamicas": 87,
     "variantes": 8
   },
   "fuera": {
@@ -1709,186 +1709,11 @@
       "slug": "tests-q-digestion-functional"
     },
     {
-      "ruta": "/tests/q/edad-cardiovascular",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-edad-cardiovascular"
-    },
-    {
-      "ruta": "/tests/q/edad-habitos",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-edad-habitos"
-    },
-    {
-      "ruta": "/tests/q/edad-inflamacion",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-edad-inflamacion"
-    },
-    {
-      "ruta": "/tests/q/edad-inmunidad",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-edad-inmunidad"
-    },
-    {
-      "ruta": "/tests/q/edad-metabolismo",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-edad-metabolismo"
-    },
-    {
-      "ruta": "/tests/q/edad-renal_micronutrientes",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-edad-renal-micronutrientes"
-    },
-    {
-      "ruta": "/tests/q/edad-sistema_hormonal",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-edad-sistema-hormonal"
-    },
-    {
-      "ruta": "/tests/q/edad-sueno",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-edad-sueno"
-    },
-    {
-      "ruta": "/tests/q/edad-vitalidad",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-edad-vitalidad"
-    },
-    {
       "ruta": "/tests/q/energy_functional",
       "archivo": "app/tests/q/[id].tsx",
       "tipo": "dinamica",
       "plantilla": "/tests/q/[id]",
       "slug": "tests-q-energy-functional"
-    },
-    {
-      "ruta": "/tests/q/hc-antecedentes_heredopatologicos",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-antecedentes-heredopatologicos"
-    },
-    {
-      "ruta": "/tests/q/hc-habitos_nutricionales",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-habitos-nutricionales"
-    },
-    {
-      "ruta": "/tests/q/hc-inflamacion",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-inflamacion"
-    },
-    {
-      "ruta": "/tests/q/hc-integral",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-integral"
-    },
-    {
-      "ruta": "/tests/q/hc-padecimientos_familiares",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-padecimientos-familiares"
-    },
-    {
-      "ruta": "/tests/q/hc-padecimientos_personales",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-padecimientos-personales"
-    },
-    {
-      "ruta": "/tests/q/hc-salud_bucal",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-salud-bucal"
-    },
-    {
-      "ruta": "/tests/q/hc-salud_digestiva",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-salud-digestiva"
-    },
-    {
-      "ruta": "/tests/q/hc-salud_hormonal_h",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-salud-hormonal-h"
-    },
-    {
-      "ruta": "/tests/q/hc-salud_hormonal_m",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-salud-hormonal-m"
-    },
-    {
-      "ruta": "/tests/q/hc-salud_inmunologica",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-salud-inmunologica"
-    },
-    {
-      "ruta": "/tests/q/hc-salud_metabolica",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-salud-metabolica"
-    },
-    {
-      "ruta": "/tests/q/hc-salud_piel",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-salud-piel"
-    },
-    {
-      "ruta": "/tests/q/hc-salud_sueno",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-salud-sueno"
-    },
-    {
-      "ruta": "/tests/q/hc-sintomas_cronicos",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-sintomas-cronicos"
-    },
-    {
-      "ruta": "/tests/q/hc-tratamientos",
-      "archivo": "app/tests/q/[id].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/tests/q/[id]",
-      "slug": "tests-q-hc-tratamientos"
     },
     {
       "ruta": "/tests/q/maestro",
@@ -1992,6 +1817,12 @@
       "archivo": "app/(tabs)/tribu.tsx",
       "tipo": "estatica",
       "slug": "tribu"
+    },
+    {
+      "ruta": "/tutorial",
+      "archivo": "app/tutorial.tsx",
+      "tipo": "estatica",
+      "slug": "tutorial"
     }
   ]
 }

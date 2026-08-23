@@ -94,21 +94,54 @@ describe('scoreChannel (hit/miss/false → accuracy = hits/(total+falses))', () 
   });
 });
 
-describe('evaluateRound (referencia 75/90 — supersede 80/50 del spec viejo)', () => {
-  it('ambos ≥90% → sube N (sin techo)', () => {
-    expect(evaluateRound(0.9, 0.95, 3)).toMatchObject({ promoted: true, demoted: false, nextN: 4 });
-    expect(evaluateRound(1, 1, 8).nextN).toBe(9);
+describe('evaluateRound (conteo de errores, Jaeggi 2008)', () => {
+  // Atajo: un canal con m objetivos perdidos y f presiones de más.
+  const canal = (misses: number, falses: number, accuracy = 0.5) => ({ misses, falses, accuracy });
+
+  it('2 errores o menos en AMBOS canales → sube N (sin techo)', () => {
+    expect(evaluateRound(canal(0, 0), canal(0, 0), 3))
+      .toMatchObject({ promoted: true, demoted: false, nextN: 4 });
+    expect(evaluateRound(canal(2, 0), canal(1, 1), 3))
+      .toMatchObject({ promoted: true, nextN: 4 });
+    expect(evaluateRound(canal(0, 0), canal(0, 0), 8).nextN).toBe(9);
   });
 
-  it('cualquiera <75% → baja N con piso en 1', () => {
-    expect(evaluateRound(0.74, 0.95, 3)).toMatchObject({ promoted: false, demoted: true, nextN: 2 });
-    expect(evaluateRound(0.9, 0.5, 3).nextN).toBe(2);
-    expect(evaluateRound(0.1, 0.1, 1)).toMatchObject({ demoted: false, nextN: 1 }); // piso: no baja de 1
+  it('EL CASO QUE MOTIVÓ EL CAMBIO: un error ya no cancela el ascenso', () => {
+    // Con la regla vieja de porcentaje, un solo objetivo perdido sobre los
+    // ~7 objetivos de un canal daba 85.7% y bloqueaba el ascenso en el 91%
+    // de los rounds. Ahora un error se perdona, que es como se aprende.
+    expect(evaluateRound(canal(1, 0), canal(0, 0), 3).promoted).toBe(true);
+    expect(evaluateRound(canal(0, 1), canal(0, 0), 3).promoted).toBe(true);
   });
 
-  it('zona intermedia → se mantiene', () => {
-    expect(evaluateRound(0.8, 0.85, 3)).toMatchObject({ promoted: false, demoted: false, nextN: 3 });
-    expect(evaluateRound(0.75, 0.89, 2).nextN).toBe(2); // 75 exacto no baja; 89 no sube
+  it('3 errores en un canal ya no sube, pero tampoco baja', () => {
+    expect(evaluateRound(canal(3, 0), canal(0, 0), 3))
+      .toMatchObject({ promoted: false, demoted: false, nextN: 3 });
+  });
+
+  it('6 errores o más en cualquiera → baja N, con piso en 1', () => {
+    expect(evaluateRound(canal(6, 0), canal(0, 0), 3))
+      .toMatchObject({ promoted: false, demoted: true, nextN: 2 });
+    expect(evaluateRound(canal(0, 0), canal(3, 3), 3).nextN).toBe(2);
+    expect(evaluateRound(canal(9, 9), canal(9, 9), 1))
+      .toMatchObject({ demoted: false, nextN: 1 });
+  });
+
+  it('un objetivo perdido y una presión de más pesan IGUAL', () => {
+    // Antes no: un miss restaba al numerador y un falso solo inflaba el
+    // denominador, así que con 7 objetivos dos misses bajaban de nivel pero
+    // hacían falta tres falsos para lo mismo.
+    const a = evaluateRound(canal(2, 0), canal(0, 0), 3);
+    const b = evaluateRound(canal(0, 2), canal(0, 0), 3);
+    expect(a.nextN).toBe(b.nextN);
+    expect(a.erroresVisual).toBe(b.erroresVisual);
+  });
+
+  it('los porcentajes se siguen reportando, aunque ya no decidan', () => {
+    const r = evaluateRound(canal(1, 0, 0.857), canal(0, 0, 1), 3);
+    expect(r.accuracyVisual).toBe(0.857);
+    expect(r.accuracyAudio).toBe(1);
+    expect(r.promoted).toBe(true);
   });
 });
 

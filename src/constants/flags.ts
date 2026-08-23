@@ -715,3 +715,59 @@ export const ARGOS_LIMITE_DE_ALCANCE = true;
  *  `true` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
  */
 export const ARGOS_SUFIJO_DE_EVIDENCIA = false;
+
+/**
+ * CASOS_DE_USO_PRESCRIBEN: el pack llena tu dia, no solo tu configuracion.
+ *
+ * QUE CONTROLA
+ *  · ON  → aplicarPack corre un paso mas ('practicas'): las intervenciones
+ *    declaradas en `prescribe` del pack entran a Mi Protocolo
+ *    (user_interventions, status 'active') y por INTERVENTIONS_DRIVE_HOY
+ *    aparecen como renglones del dia con su hora anclada al cronotipo. El
+ *    usuario elige UN caso de uso y su dia queda armado: nunca tiene que
+ *    escoger entre 88 practicas del catalogo.
+ *  · OFF → aplicarPack se comporta exactamente como hoy (apps, habitos,
+ *    horas, metas, avisos, registro). Nadie pierde nada: solo deja de
+ *    llenarse Mi Protocolo desde el pack.
+ *
+ * LO QUE NUNCA HACE, CON BANDERA EN CUALQUIER POSICION
+ *  · No toca una intervencion que el usuario pauso o descarto: el dato del
+ *    usuario es sagrado, y "el pack me revivio lo que yo apague" es
+ *    exactamente la clase de sorpresa que esta doctrina prohibe. Solo
+ *    inserta las que no existen y promueve las 'suggested'.
+ *  · No prescribe nada con requiresClinicalValidation: el candado del
+ *    registro (packs-registry.test.ts) lo exige en CI.
+ *
+ * QUE NO DESHACE APAGARLA
+ *  Las intervenciones ya activadas se quedan (son datos del usuario). Se
+ *  administran una a una en Mi Protocolo, como cualquier otra.
+ *
+ * COMO APAGARLA EN CALIENTE: false aqui → npx tsc --noEmit → OTA.
+ */
+export const CASOS_DE_USO_PRESCRIBEN = true;
+
+/**
+ * TUTORIAL_POR_PANTALLA (21-ago-2026) — el tutorial deja de ser un tour de 12
+ * pasos al inicio y pasa a ser piezas chicas que llegan cuando la pantalla
+ * importa. Decision del dueño: el tutorial es requisito de lanzamiento.
+ *
+ * QUE PRENDE
+ *  · ON  → al entrar por PRIMERA vez a una pantalla con pieza, aparece la
+ *    burbuja de ARGOS con uno a cuatro pasos. Se marca vista y no vuelve
+ *    sola nunca mas. El centro de ayuda deja relanzar cualquiera, y ARGOS
+ *    puede abrir la de la pantalla donde estas.
+ *  · OFF → nadie ve burbujas solas. El centro de ayuda sigue existiendo y
+ *    los tours se pueden abrir a mano: apagar la bandera quita la
+ *    interrupcion, no el contenido.
+ *
+ * LO QUE NUNCA HACE
+ *  · No secuestra la navegacion. La pieza vive sobre la pantalla donde ya
+ *    estas; si te vas, se va con ella y no te regresa.
+ *  · No repite. Una pieza vista queda vista aunque la bandera se apague y
+ *    se vuelva a prender: la marca es del usuario.
+ *  · No aparece antes del visto bueno: las ocho piezas viven en pantallas
+ *    a las que solo se llega pasando el gate.
+ *
+ * COMO APAGARLA EN CALIENTE: false aqui → npx tsc --noEmit → OTA.
+ */
+export const TUTORIAL_POR_PANTALLA = true;

@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const captured = vi.hoisted(() => ({ upserts: [] as any[] }));
+const captured = vi.hoisted(() => ({ upserts: [] as any[], rpcs: [] as any[] }));
 
 vi.mock('@/src/lib/supabase', () => {
   const q: any = {
@@ -14,7 +14,18 @@ vi.mock('@/src/lib/supabase', () => {
     upsert: (rows: any[], opts: any) => { captured.upserts.push({ rows, opts }); return q; },
     then: (resolve: any) => resolve({ data: [], error: null }),
   };
-  return { supabase: { from: () => q } };
+  return {
+    supabase: {
+      from: () => q,
+      // 22-ago: la escritura pasó de upsert directo a función de la base
+      // (migración 308). Aquí se captura la llamada para poder afirmar la
+      // forma de lo escrito, igual que antes con el upsert.
+      rpc: async (fn: string, params: any) => {
+        captured.rpcs.push({ fn, params });
+        return { data: 'escrito', error: null };
+      },
+    },
+  };
 });
 vi.mock('@/src/lib/logger', () => ({ warn: vi.fn(), error: vi.fn(), log: vi.fn() }));
 
@@ -25,7 +36,7 @@ import {
 import { toCanonicalEntries } from '@/src/constants/lab-canonical-map';
 
 const TODAY = '2026-06-12';
-beforeEach(() => { captured.upserts = []; });
+beforeEach(() => { captured.upserts = []; captured.rpcs = []; });
 
 describe('dedupeLatestByKey — recencia por parámetro, sin pérdida de paneles', () => {
   it('REGRESIÓN: panel viejo completo + panel nuevo parcial → ningún valor se pierde', () => {
@@ -115,24 +126,29 @@ describe('escritura — conversión UNA vez + idempotencia + expansión de alias
     expect(byKey.transaminasa_g_oxalacetica_ast_tgo).toBe(22);
   });
 
-  it('insertLabValuesFromRaw usa ON CONFLICT ignoreDuplicates (idempotente al re-extraer)', async () => {
+  it('insertLabValuesFromRaw escribe por la función de la base, una llamada por dato', async () => {
+    // El candado ya no es la forma del upsert (ver lab-no-pisa.test.ts: esa
+    // forma permitía dos valores vivos del mismo dato). Ahora es que la
+    // escritura NO toca la tabla directo y que cada dato viaja con su fecha.
     await insertLabValuesFromRaw('u1', { glucose: 90, hba1c: 5.7 }, { source: 'lab_pdf', measuredAt: '2026-05-01' });
-    expect(captured.upserts).toHaveLength(1);
-    const { rows, opts } = captured.upserts[0];
-    expect(opts).toEqual({ onConflict: 'user_id,parameter_key,measured_at,source', ignoreDuplicates: true });
-    const g = rows.find((r: any) => r.parameter_key === 'glucosa_en_ayuno');
-    expect(g.value).toBe(90);
-    expect(g.measured_at).toBe('2026-05-01');
-    expect(g.source).toBe('lab_pdf');
+    expect(captured.upserts).toHaveLength(0);
+    expect(captured.rpcs.every((c: any) => c.fn === 'lab_valor_guardar')).toBe(true);
+    const g = captured.rpcs.find((c: any) => c.params.p_parameter_key === 'glucosa_en_ayuno');
+    expect(g.params.p_value).toBe(90);
+    expect(g.params.p_measured_at).toBe('2026-05-01');
+    expect(g.params.p_source).toBe('lab_pdf');
+    const h = captured.rpcs.find((c: any) => c.params.p_parameter_key === 'hba1c');
+    expect(h.params.p_value).toBeCloseTo(0.057, 5); // %→decimal, UNA vez
   });
 
   it('insertCanonicalBiomarkers convierte unidades pct por clave canónica', async () => {
     await insertCanonicalBiomarkers('u1', [
       { parameter_key: 'hba1c', value: 5.9 }, { parameter_key: 'glucosa_en_ayuno', value: 95 },
     ], { source: 'manual', measuredAt: '2026-05-01' });
-    const { rows } = captured.upserts[0];
-    expect(rows.find((r: any) => r.parameter_key === 'hba1c').value).toBeCloseTo(0.059, 5);
-    expect(rows.find((r: any) => r.parameter_key === 'glucosa_en_ayuno').value).toBe(95);
+    const h = captured.rpcs.find((c: any) => c.params.p_parameter_key === 'hba1c');
+    const g = captured.rpcs.find((c: any) => c.params.p_parameter_key === 'glucosa_en_ayuno');
+    expect(h.params.p_value).toBeCloseTo(0.059, 5);
+    expect(g.params.p_value).toBe(95);
   });
 });
 

@@ -48,6 +48,7 @@ import { PrescriptionCard } from '@/src/components/interventions/PrescriptionCar
 import { getCurrentPrescription, generatePrescription } from '@/src/services/interventions/prescription-service';
 import type { PrescribedIntervention } from '@/src/services/interventions/personalize-types';
 import { ROOT_LABELS, type InterventionRoot } from '@/src/constants/intervention-vocab';
+import { CASOS_DE_USO_PRESCRIBEN } from '@/src/constants/flags';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
@@ -379,6 +380,29 @@ export default function IntervencionesScreen() {
               );
             })()}
 
+            {/* ── LA PUERTA POR CASO DE USO (CASOS_DE_USO_PRESCRIBEN) ──
+                La decisión del dueño (20-ago): el usuario no arma su día
+                escogiendo entre 88 prácticas; elige un caso de uso y el día
+                se arma solo. El catálogo sigue abajo, colapsado, para quien
+                quiere ver todo lo que existe y para qué sirve. */}
+            {CASOS_DE_USO_PRESCRIBEN && (
+              <Animated.View entering={FadeInUp.delay(120).springify()}>
+                <AnimatedPressable
+                  onPress={() => { haptic.light(); router.push('/packs/armar'); }}
+                  style={styles.casoDeUsoCard}
+                >
+                  <Ionicons name="sparkles-outline" size={18} color={ATP_BRAND.lime} />
+                  <View style={{ flex: 1 }}>
+                    <EliteText style={styles.casoDeUsoTitulo}>Arma tu día por objetivo</EliteText>
+                    <EliteText style={styles.casoDeUsoTexto}>
+                      Dinos qué quieres lograr y las prácticas entran solas, con su hora.
+                    </EliteText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={t.textoSecundario} />
+                </AnimatedPressable>
+              </Animated.View>
+            )}
+
             {/* ── EXPLORAR CATÁLOGO COMPLETO (colapsable) — el resto de sugeridas ── */}
             <Animated.View entering={FadeInUp.delay(140).springify()}>
               <AnimatedPressable
@@ -543,6 +567,13 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     borderRadius: Radius.md, padding: Spacing.sm, marginTop: 4,
   },
   contextNoteText: { flex: 1, fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.kind === 'dark' ? '#F5C77E' : t.textoSecundario, lineHeight: 16 },
+  casoDeUsoCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: Spacing.lg,
+    backgroundColor: t.card, borderWidth: 0.5, borderColor: withOpacity(ATP_BRAND.lime, 0.35),
+    borderRadius: Radius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
+  },
+  casoDeUsoTitulo: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: t.texto },
+  casoDeUsoTexto: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoSecundario, marginTop: 2 },
   catalogToggle: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing.xl, marginBottom: Spacing.sm,
     backgroundColor: t.card, borderWidth: 0.5, borderColor: t.borde,

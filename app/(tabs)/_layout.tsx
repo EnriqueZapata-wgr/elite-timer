@@ -38,6 +38,7 @@ import { FeedbackButton } from '@/src/components/FeedbackButton';
 import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
 import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
 import { OrbTour } from '@/src/components/tour/OrbTour';
+import { TUTORIAL_POR_PANTALLA } from '@/src/constants/flags';
 import { ORB_TOUR_DONE_KEY, ORB_TOUR_RESTART_EVENT } from '@/src/components/tour/orb-tour-core';
 import { countUnreadInbox } from '@/src/services/user-notifications-service';
 import { TABS_EXIGEN_CONSENTIMIENTO } from '@/src/constants/flags';
@@ -155,10 +156,17 @@ export default function TabLayout() {
   // delay secuencia con la celebración de onboarding (~2.3 s en HOY).
   useEffect(() => {
     let alive = true;
-    AsyncStorage.getItem(ORB_TOUR_DONE_KEY).then((v) => {
-      if (!alive || v === 'true') return;
-      setTimeout(() => { if (alive) setShowTour(true); }, 3000);
-    });
+    // 21-ago-2026: con TUTORIAL_POR_PANTALLA encendida, el tour de 12 pasos
+    // ya no sale solo. Su contenido vive ahora en piezas por pantalla, y dos
+    // tutoriales encima del mismo usuario es peor que ninguno. Apagar la
+    // bandera devuelve este tour tal como estaba, sin tocar nada mas.
+    // Relanzarlo a mano (Ajustes) sigue funcionando en los dos casos.
+    if (!TUTORIAL_POR_PANTALLA) {
+      AsyncStorage.getItem(ORB_TOUR_DONE_KEY).then((v) => {
+        if (!alive || v === 'true') return;
+        setTimeout(() => { if (alive) setShowTour(true); }, 3000);
+      });
+    }
     const sub = DeviceEventEmitter.addListener(ORB_TOUR_RESTART_EVENT, () => setShowTour(true));
     return () => { alive = false; sub.remove(); };
   }, []);

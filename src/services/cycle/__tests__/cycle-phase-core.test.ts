@@ -10,9 +10,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   getPhase, resolverCiclo, largoDeCiclo, FRESCURA_DIAS_EXTRA,
-  PHASE_FOLLICULAR_END, PHASE_OVULATION_END,
-} from '@/src/services/cycle/cycle-phase-core';
+  PHASE_FOLLICULAR_END, PHASE_OVULATION_END, predecirProximo } from '@/src/services/cycle/cycle-phase-core';
 import { agruparPeriodos } from '@/src/services/cycle/cycle-periods-core';
+import { toLocalDateString } from '@/src/utils/date-helpers';
 
 const ROOT = path.resolve(__dirname, '../../../..');
 
@@ -240,6 +240,17 @@ describe('mutación 9: los umbrales viven en UN solo lugar', () => {
     // Y la resolución paralela vieja no puede volver:
     const cycleService = fs.readFileSync(path.join(ROOT, 'src/services/cycle-service.ts'), 'utf8');
     expect(cycleService, 'getCycleDay era la resolución paralela sin frescura').not.toMatch(/function getCycleDay/);
+    // 22-ago-2026: predictNext era la OTRA resolución paralela, y a ésta el
+    // candado no la cubría. Aprendía el largo con un solo ciclo y caía a 28
+    // duro en vez de al ajuste manual, así que ARGOS publicaba una fecha
+    // distinta de la que pintaba la tarjeta. Cinco días de diferencia en el
+    // ejemplo que lo destapó. La predicción ahora se DERIVA de resolverCiclo.
+    expect(cycleService, 'predictNext era una segunda resolución del largo').not.toMatch(
+      /function predictNext/,
+    );
+    expect(cycleService, 'la predicción debe derivarse de la resolución').toMatch(
+      /predecirProximo\(res\)/,
+    );
     const cycleTsx = fs.readFileSync(path.join(ROOT, 'app/cycle.tsx'), 'utf8');
     expect(cycleTsx, 'las bandas no pueden volver a cortar con settings crudo').not.toMatch(
       /cycleDay = daysDiff >= 0 \? \(daysDiff % settings\.avg_cycle_length\)/,
@@ -267,5 +278,62 @@ describe('el vocabulario es uno (la etiqueta ovulatory murió)', () => {
       const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
       expect(src, `${rel} sigue usando la etiqueta vieja`).not.toMatch(/'ovulatory'/);
     }
+  });
+
+});
+
+// MENOR-3 (4EP): este bloque vivía anidado dentro del describe del
+// vocabulario, así que el reporte lo listaba como "el vocabulario es uno > la
+// predicción...". Nadie lo iba a buscar ahí. Va al nivel raíz, que es donde
+// corresponde.
+describe('la predicción es la misma cuenta que pinta la tarjeta', () => {
+  it('deriva de inicio y cycleLen, no de un promedio propio', () => {
+    // El caso que destapó el problema: UN solo intervalo de 27 días y ajuste
+    // manual de 32. La doctrina dice que con menos de dos ciclos manda el
+    // ajuste, así que el largo es 32 y la próxima cae a 32 días del inicio.
+    const res = { inicio: '2026-08-01', day: 22, cycleLen: 32, cyclesUsed: 1 };
+    const p = predecirProximo(res);
+    expect(toLocalDateString(p.date)).toBe('2026-09-02');
+    // Y los días que faltan son el mismo despeje de la tarjeta.
+    expect(p.daysUntil).toBe(32 - 22 + 1);
+    expect(p.confidence).toBe('baja');
+  });
+
+  it('con el ciclo cumplido no devuelve días negativos', () => {
+    const p = predecirProximo({ inicio: '2026-07-01', day: 40, cycleLen: 28, cyclesUsed: 3 });
+    expect(p.daysUntil).toBe(0);
+    expect(p.confidence).toBe('alta');
+  });
+
+  // 4EP MEDIO-2: `daysUntil` estaba clampeado a 0 y `date` no, así que con
+  // retraso ARGOS publicaba una fecha del pasado con "próximo" delante.
+  it('cuando la estimada ya venció lo declara en vez de fingir futuro', () => {
+    const p = predecirProximo({ inicio: '2026-07-01', day: 40, cycleLen: 28, cyclesUsed: 3 });
+    expect(p.retrasada, 'día 40 de un ciclo de 28 es retraso').toBe(true);
+    // 28 - 40 + 1 = -11: la fecha estimada quedó 11 días atrás.
+    expect(p.diasDeRetraso).toBe(11);
+    // La fecha cruda sigue siendo la estimada, que es del pasado: por eso
+    // quien publica tiene que mirar `retrasada` antes de enseñarla.
+    expect(toLocalDateString(p.date)).toBe('2026-07-29');
+  });
+
+  it('dentro del ciclo no marca retraso', () => {
+    const p = predecirProximo({ inicio: '2026-08-01', day: 22, cycleLen: 32, cyclesUsed: 1 });
+    expect(p.retrasada).toBe(false);
+    expect(p.diasDeRetraso).toBe(0);
+  });
+
+  // El borde exacto: la estimada cae HOY, todavía no es retraso.
+  it('el día en que cae la estimada todavía no es retraso', () => {
+    const p = predecirProximo({ inicio: '2026-08-01', day: 29, cycleLen: 28, cyclesUsed: 3 });
+    expect(p.daysUntil).toBe(0);
+    expect(p.retrasada).toBe(false);
+  });
+
+  it('la confianza sale de cuántos ciclos se usaron de verdad', () => {
+    expect(predecirProximo({ inicio: '2026-08-01', day: 1, cycleLen: 28, cyclesUsed: 2 }).confidence)
+      .toBe('media');
+    expect(predecirProximo({ inicio: '2026-08-01', day: 1, cycleLen: 28 }).confidence)
+      .toBe('baja');
   });
 });

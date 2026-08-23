@@ -24,8 +24,10 @@ import {
   RUTAS_VETADAS,
   TITULOS_RUTA,
   ALIAS_RUTA,
+  esAliasPuro,
 } from '../argos-nav-resolver-core';
-import { APP_ROUTES, APP_ROUTES_DYNAMIC } from '@/src/constants/app-routes.generated';
+import { APP_ROUTES,
+  APP_ROUTE_ALIASES, APP_ROUTES_DYNAMIC } from '@/src/constants/app-routes.generated';
 import {
   esPlantilla,
   expandirPlantilla,
@@ -121,7 +123,10 @@ describe('intentos reales en es-MX', () => {
     ['quiero meditar', '/meditation'],
     ['ejercicios de respiración', '/breathing'],
     ['abre mi journal', '/journal'],
-    ['dónde veo mi cronotipo', '/my-chronotype'],
+    // ALIAS-1: /my-chronotype es un alias con destino conocido y ya no entra
+    // al indice; sus palabras se donaron al destino real. La expectativa nueva
+    // es estrictamente mejor: directo a la pantalla, sin pasar por el stub.
+    ['dónde veo mi cronotipo', '/tests/resultado/cronotipo'],
     ['quiero ver mi edad biológica', '/edad-atp'],
     ['el test de braverman', '/braverman'],
     ['mis suplementos', '/supplements'],
@@ -129,6 +134,15 @@ describe('intentos reales en es-MX', () => {
     ['quiero ver mi expediente', '/salud/mi-expediente'],
     ['mis síntomas', '/salud/mis-sintomas'],
     ['la lista del super', '/lista-compra'],
+    // CUATRO-OJOS (20-ago): estas tres frases viven en ALIAS_RUTA de rutas que
+    // ahora son alias excluidos del indice. Clavan que la donacion de
+    // vocabulario funciona: si alguien la rompe, estas fallan primero.
+    ['entrenar ahora', '/fitness-hub'],
+    ['quiero salir a correr', '/log-cardio'],
+    // 'mis cuestionarios' NO se prueba: gana /tests/q/maestro por su corpus
+    // propio, y eso ya pasaba ANTES de excluir alias (verificado corriendo la
+    // frase contra el indice viejo). 'quizzes' solo vive en la donacion.
+    ['mis quizzes', '/tests'],
     ['configurar notificaciones', '/settings/notifications'],
     ['quiero cambiar el tema a modo oscuro', '/settings/experiencia'],
     ['dónde está mi suscripción', '/settings/subscription'],
@@ -309,11 +323,28 @@ describe('integridad del catalogo (candado)', () => {
     expect(muertos, 'alias hacia rutas que ARGOS nunca abrira').toEqual([]);
   });
 
+  it('el vocabulario a mano de un alias excluido siempre tiene a quien donarse', () => {
+    // CUATRO-OJOS (20-ago): si una clave de ALIAS_RUTA es un alias 1:1 puro,
+    // su vocabulario se dona al destino. Eso exige que el destino sea una
+    // ruta real y no vetada; si no, las palabras mueren en silencio.
+    const huerfanos = Object.keys(ALIAS_RUTA)
+      .filter((r) => esAliasPuro(r))
+      .filter((r) => {
+        const base = (APP_ROUTE_ALIASES[r] as string).split('?')[0];
+        return !APP_ROUTES.includes(base) || rutaVetada(base);
+      });
+    expect(huerfanos, 'vocabulario a mano sin destino al que donarse').toEqual([]);
+  });
+
   it('el indice cubre practicamente toda la app', () => {
     // NAV-2: la cuenta cambió de forma. Antes eran las estáticas más los 10
     // MOLDES; ahora son las estáticas más las rutas RESUELTAS. Un molde no es un
     // destino y ya no ocupa un renglón del catálogo.
-    const estaticas = APP_ROUTES.filter((r) => !rutaVetada(r)).length;
+    // ALIAS-1: los alias con destino conocido ya no ocupan renglon propio
+    // (donan sus palabras al destino). Los de destino en runtime se quedan.
+    const estaticas = APP_ROUTES.filter(
+      (r) => !rutaVetada(r) && !esAliasPuro(r),
+    ).length;
     const expandidas = expandirTodas().filter((e) => !rutaVetada(e.ruta)).length;
     expect(obtenerIndice().length).toBe(estaticas + expandidas);
   });

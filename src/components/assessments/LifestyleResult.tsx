@@ -96,7 +96,7 @@ export function LifestyleResult({
       <View style={s.bottom}>
         <AnimatedPressable onPress={onAccept} disabled={saving} style={[s.primary, saving && { opacity: 0.5 }]}>
           <EliteText style={s.primaryText}>
-            {saving ? 'Guardando…' : selected.size > 0 ? 'Aceptar recomendaciones' : 'Guardar resultados'}
+            {saving ? 'Guardando…' : selected.size > 0 ? 'Aceptar propuestas' : 'Guardar resultados'}
           </EliteText>
         </AnimatedPressable>
         <Pressable onPress={onExplore} style={s.link}>

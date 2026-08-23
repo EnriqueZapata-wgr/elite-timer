@@ -24,7 +24,11 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
-import { PACK_BY_KEY, type PackIntensidad } from '@/src/constants/packs';
+import { DeviceEventEmitter } from 'react-native';
+import { PACK_BY_KEY, PACKS, MAX_CASOS_ACTIVOS, type PackIntensidad } from '@/src/constants/packs';
+import { CASOS_DE_USO_PRESCRIBEN } from '@/src/constants/flags';
+import { INTERVENTIONS_CHANGED_EVENT } from '@/src/services/interventions/intervention-service';
+import { planearPrescripcion, validarCombinacion, type FilaIntervencion } from '@/src/services/pack-prescribe-core';
 import {
   buildPackPlan,
   esHoraValida,
@@ -118,7 +122,7 @@ async function leerEstadoActual(userId: string, avisoApps: string[]): Promise<Es
 
 // ─── Aplicar ────────────────────────────────────────────────────────────────
 
-export type PasoAplicacion = 'apps' | 'habitos' | 'horas' | 'metas' | 'avisos' | 'registro';
+export type PasoAplicacion = 'apps' | 'habitos' | 'horas' | 'metas' | 'avisos' | 'practicas' | 'registro';
 
 export interface PasoResultado {
   paso: PasoAplicacion;
@@ -170,6 +174,39 @@ export async function aplicarPack(
   const estado = await leerEstadoActual(userId, pack.avisos.map((a) => a.app));
   if (estado === null) {
     return fallo('registro', 'No pude leer tu configuración actual. Nada se tocó. Intenta de nuevo en un momento.');
+  }
+
+  // 0b · Reglas de combinación (CASOS_DE_USO_PRESCRIBEN): exclusiones
+  //      declaradas y techo de casos de estilo de vida. Se frena con
+  //      explicación ANTES de escribir nada.
+  if (CASOS_DE_USO_PRESCRIBEN) {
+    const aCombinar = (k: string) => {
+      const def = PACK_BY_KEY[k];
+      return def
+        ? {
+            key: def.key,
+            nombre: def.nombre,
+            excluye: def.excluye,
+            cuentaParaElTecho: PACKS.some((pk) => pk.key === def.key),
+          }
+        : null;
+    };
+    const candidato = aCombinar(packKey);
+    const activos = rows
+      .filter((r) => r.active && r.pack_key !== packKey)
+      .map((r) => aCombinar(r.pack_key))
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+    if (candidato) {
+      const veredicto = validarCombinacion(candidato, activos, MAX_CASOS_ACTIVOS);
+      if (!veredicto.ok) {
+        return fallo(
+          'registro',
+          veredicto.razon === 'exclusion'
+            ? `Este objetivo no se combina con ${veredicto.nombreCon}. Desactívalo primero y vuelve a intentar.`
+            : `Ya tienes ${veredicto.activos} objetivos activos, que es el tope. Con más, tu día deja de ser un día. Desactiva uno para sumar este.`,
+        );
+      }
+    }
   }
 
   const filaPrevia = rows.find((r) => r.pack_key === packKey) ?? null;
@@ -291,6 +328,67 @@ export async function aplicarPack(
               : `Avisos sin configurar: ${fallidas.join(', ')}.`,
           }),
     });
+  }
+
+  // 5b · Prácticas (CASOS_DE_USO_PRESCRIBEN): las intervenciones del pack
+  //      entran a Mi Protocolo y de ahí al día (INTERVENTIONS_DRIVE_HOY).
+  //      El plan es puro (pack-prescribe-core) y respeta lo pausado y lo
+  //      descartado: eso se reporta, nunca se revive en silencio.
+  if (CASOS_DE_USO_PRESCRIBEN && (pack.prescribe?.length ?? 0) > 0) {
+    let ok = true;
+    let detalle: string | undefined;
+    try {
+      const llaves = [...(pack.prescribe as readonly string[])];
+      const { data: filas, error: leerErr } = await supabase
+        .from('user_interventions')
+        .select('intervention_key, status')
+        .eq('user_id', userId)
+        .in('intervention_key', llaves);
+      if (leerErr) throw leerErr;
+      const plan = planearPrescripcion(llaves, (filas ?? []) as FilaIntervencion[]);
+      const ahora = new Date().toISOString();
+      if (plan.insertar.length > 0) {
+        // CUATRO-OJOS: upsert con ignoreDuplicates, no insert plano. Dos
+        // aplicaciones concurrentes del mismo pack chocaban con el UNIQUE y
+        // el conflicto tumbaba el lote completo; así, el duplicado se ignora
+        // y el resto del lote entra.
+        const { error } = await supabase.from('user_interventions').upsert(
+          plan.insertar.map((key) => ({
+            user_id: userId,
+            intervention_key: key,
+            status: 'active',
+            activated_at: ahora,
+          })),
+          { onConflict: 'user_id,intervention_key', ignoreDuplicates: true },
+        );
+        if (error) throw error;
+      }
+      if (plan.promover.length > 0) {
+        const { error } = await supabase
+          .from('user_interventions')
+          .update({ status: 'active', activated_at: ahora, updated_at: ahora })
+          .eq('user_id', userId)
+          .eq('status', 'suggested')
+          .in('intervention_key', plan.promover);
+        if (error) throw error;
+      }
+      if (plan.respetadas.length > 0) {
+        const c = plan.respetadas.length;
+        detalle = c === 1
+          ? 'Una práctica sigue como la dejaste (la habías pausado o descartado).'
+          : `${c} prácticas siguen como las dejaste (las habías pausado o descartado).`;
+      }
+      DeviceEventEmitter.emit(INTERVENTIONS_CHANGED_EVENT);
+      // CUATRO-OJOS: HOY no escucha interventions_changed (se refresca por
+      // focus). day_changed sí lo escucha, y es la regla de la casa para
+      // todo lo que cambia el día compilado.
+      DeviceEventEmitter.emit('day_changed');
+    } catch (e) {
+      ok = false;
+      detalle = 'No todas las prácticas entraron a tu protocolo. Aplica el pack de nuevo para completarlas.';
+      logWarn('[packs] prescripcion fallo', e);
+    }
+    pasos.push({ paso: 'practicas', ok, ...(detalle ? { detalle } : {}) });
   }
 
   // 6 · Registro: la fila se queda para siempre (idempotencia + la

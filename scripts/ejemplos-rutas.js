@@ -85,21 +85,16 @@ const FUENTES = [
     patron: /^ {2}id: '([^']+)',/gm,
     prefijo: '',
   },
-  {
-    // Los 16 de historia clínica. El registry les pega `hc-` (registry.ts:212).
-    plantilla: '/tests/q/[id]',
-    archivo: 'src/constants/historia-clinica-questionnaires.ts',
-    patron: /^ {4}id: '([^']+)',/gm,
-    prefijo: 'hc-',
-  },
-  {
-    // Los 9 de Edad ATP. El registry les pega `edad-` (registry.ts:258).
-    plantilla: '/tests/q/[id]',
-    archivo: 'src/constants/assessments/registry.ts',
-    bloque: /const EDAD_DOMAINS[\s\S]*?\n\];/,
-    patron: /domain: '([^']+)'/g,
-    prefijo: 'edad-',
-  },
+  // Los 16 de historia clínica (hc-*) y los 9 de Edad ATP (edad-*) SALIERON
+  // del barrido el 20-ago-2026. Sus rutas de motor (/tests/q/hc-*, /tests/q/
+  // edad-*) existen en el registry pero sus familias NO tienen `live: true`:
+  // las 25 pintaban "Evaluación no encontrada", idénticas píxel a píxel
+  // (verificado en el barrido del 19-ago, grupo G01 del mapa visual). Sus
+  // pantallas VIVAS son las legacyRoutes, que ya entran al barrido como rutas
+  // estáticas. Cuando una familia prenda `live: true` en el registry, su
+  // FUENTE se restaura aquí; hasta entonces, fotografiar 25 errores no audita
+  // nada. ARGOS nunca las ofreció: argos-nav-dinamicas-core expande con
+  // currentRoute(), que respeta `live`.
   {
     // Los sueltos que el registry escribe con su ruta literal: cronotipo,
     // lifestyle, maestro. Se leen de la ruta misma, así que no hay que saber
@@ -259,6 +254,16 @@ function valoresDe(raiz, f) {
  * Esto compara los prefijos que el registry USA de verdad contra los que este
  * archivo DECLARA. Si aparece uno nuevo, revienta y dice cuál.
  */
+/**
+ * Prefijos que el registry usa pero que el barrido EXCLUYE a propósito, con la
+ * razón escrita. Un prefijo tiene que estar en FUENTES o aquí; en ninguno de
+ * los dos = catálogo nuevo sin registrar, y eso sigue reventando.
+ */
+const PREFIJOS_EXCLUIDOS = {
+  'hc-': 'familia sin live:true en el registry; sus 16 rutas de motor pintan "Evaluación no encontrada"',
+  'edad-': 'familia sin live:true en el registry; sus 9 rutas de motor pintan "Evaluación no encontrada"',
+};
+
 function verificarPrefijosDeCuestionarios(raiz) {
   const texto = leer(raiz, 'src/constants/assessments/registry.ts');
   const usados = new Set();
@@ -266,6 +271,7 @@ function verificarPrefijosDeCuestionarios(raiz) {
   const declarados = new Set(
     FUENTES.filter((f) => f.plantilla === '/tests/q/[id]').map((f) => f.prefijo || '')
   );
+  for (const p of Object.keys(PREFIJOS_EXCLUIDOS)) declarados.add(p);
   const huerfanos = [...usados].filter((p) => !declarados.has(p));
   if (huerfanos.length) {
     throw new Error(
@@ -344,4 +350,4 @@ function variantesDe(raiz, estaticas) {
   return salida;
 }
 
-module.exports = { FUENTES, SIN_FUENTE, VARIANTES, ejemplosDe, variantesDe, valoresDe };
+module.exports = { FUENTES, SIN_FUENTE, VARIANTES, PREFIJOS_EXCLUIDOS, ejemplosDe, variantesDe, valoresDe };

@@ -12,7 +12,7 @@
  *
  * Ruta: /cocina?tab=recetas|lista|preferencias
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -25,16 +25,26 @@ import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { RecetasTab } from '@/src/components/nutrition/cocina/RecetasTab';
-import { ListaTab } from '@/src/components/nutrition/cocina/ListaTab';
+import { SuperTab } from '@/src/components/nutrition/cocina/SuperTab';
 import { PreferenciasTab } from '@/src/components/nutrition/cocina/PreferenciasTab';
 
 const BLUE = CATEGORY_COLORS.nutrition;
 
+// 22-ago-2026 — LA PESTAÑA "LISTA" PASA A SER "SÚPER".
+//
+// Decisión del dueño, verbatim: "la lista de súper es solamente un commodity
+// dentro de toda la pantalla". Lo que vale es leer una etiqueta con la cámara
+// y entender cómo la industria fabrica cosas comestibles en vez de vender
+// alimentos. La lista sigue viva, ahora como una sección adentro.
+//
+// El id de la ruta se queda como 'lista' a propósito: hay enlaces profundos y
+// navegaciones internas que apuntan a ?tab=lista, y romperlos por un cambio de
+// nombre sería cobrarle al usuario nuestra reorganización.
 type TabId = 'recetas' | 'lista' | 'preferencias';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'recetas', label: 'Recetas' },
-  { id: 'lista', label: 'Lista' },
+  { id: 'lista', label: 'Súper' },
   { id: 'preferencias', label: 'Preferencias' },
 ];
 
@@ -46,6 +56,15 @@ export default function CocinaScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
   const { kind, tokens: t } = useAppTheme();
   const [tab, setTab] = useState<TabId>(esTab(params.tab) ? params.tab : 'recetas');
+  // Barrido B (20-ago-2026): el parámetro también manda con la pantalla YA
+  // montada (ARGOS o un deep link tibio piden otra pestaña). El initializer de
+  // useState solo corre al montar; sin esto, pedir la ruta con otro parámetro
+  // desde la misma pantalla no hacía nada. Solo valores válidos: un parámetro
+  // inválido no tumba lo que el usuario ya eligió. Pedir el MISMO valor dos
+  // veces seguidas no re-fuerza nada: el efecto solo corre cuando cambia.
+  useEffect(() => {
+    if (esTab(params.tab)) setTab(params.tab);
+  }, [params.tab]);
 
   return (
     <Screen keyboard themed>
@@ -82,7 +101,7 @@ export default function CocinaScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {tab === 'recetas' && <RecetasTab onIrALista={() => setTab('lista')} />}
-        {tab === 'lista' && <ListaTab />}
+        {tab === 'lista' && <SuperTab />}
         {tab === 'preferencias' && <PreferenciasTab />}
         <View style={{ height: 80 }} />
       </ScrollView>
