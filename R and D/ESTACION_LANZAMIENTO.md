@@ -7,32 +7,25 @@ que no cabe en un commit y no debe vivir en la memoria de nadie.
 
 ---
 
-## ⚠ ANTES DE ABRIR LA APP: correr la migración 308
+## Migración 308: aplicada y verificada (23-ago-2026)
 
-```
-npx supabase db push
-```
+Corrida por el dueño desde el worktree `cowork-casos`. No basta con que el CLI
+diga "up to date": eso significa lo mismo si ya se aplicó que si no encontró
+nada. Se comprobó contra la base, consulta por consulta:
 
-El colector de laboratorios se reescribió la noche del 22 de agosto y el código
-NUEVO depende de la migración `308_colector_labs_placeholder_temporal.sql`. Sin
-ella, y de forma ruidosa (no silenciosa, se verificó uno por uno):
+- `lab_revision` existe, con RLS encendido y sus dos políticas.
+- El índice `ux_lab_values_un_vivo` existe.
+- La llave vieja con `source` adentro ya no existe.
+- `lab_uploads.upload_type`, `lote_upload_ids` y `lote_fallos` existen.
+- Las tres funciones existen, son SECURITY DEFINER, y tienen EXECUTE para
+  `authenticated`. Sus firmas coinciden EXACTO con lo que manda la app
+  (`p_es_humano`, `p_fuera_confirmado`): un desajuste ahí rompería el colector
+  en tiempo de ejecución sin que ninguna prueba lo viera.
+- **Cero grupos con más de un valor vivo** por usuario, dato y fecha, sobre 709
+  valores vivos. La regla ya está impuesta por la base sobre datos reales.
+- Cero filas temporales colgadas.
 
-- Subir cualquier laboratorio falla al insertar, porque la columna
-  `upload_type` no existe. El archivo ya subió a Storage antes del insert, así
-  que cada intento deja un objeto huérfano en el bucket.
-- Confirmar un laboratorio falla, y la fila ancha recién creada se borra sola.
-  No queda basura.
-- La captura manual de biomarcadores falla en el espejo. Ahí sí queda un estado
-  a medias: la fila entra en `edad_atp_biomarkers` y no en `lab_values`. Se
-  arregla reintentando después de aplicar la migración.
-- El paso intermedio degrada solo: la revisión sigue funcionando desde memoria,
-  como antes.
-
-La migración es idempotente en estructura y trae candados propios: si al
-terminar quedara un solo grupo con dos valores vivos por fecha, revienta la
-transacción entera con un mensaje claro.
-
----
+Verificación completa: `npx tsc --noEmit` limpio y `npm test` en 4540 verdes.
 
 ## Cerrado la noche del 22-ago-2026
 
