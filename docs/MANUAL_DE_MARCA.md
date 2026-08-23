@@ -273,30 +273,141 @@ componente (no exportada, no hay fuente única):
 ## 4. Los dos temas
 
 **Un token nombra un rol, no un color.** Los dos temas tienen exactamente las mismas llaves, y
-un test lo verifica. Fuente: `src/constants/brand.ts` 444-521, interfaz `AppThemeTokens`.
+un test lo verifica. Fuente: `src/constants/brand.ts`, interfaz `AppThemeTokens`.
 
-| Token | Rol | Oscuro | Claro (acero) |
+> **El oscuro dejó de ser negro puro. Medido y aplicado el 22 de agosto de 2026.**
+> Decisión del dueño: el negro puro se lee demasiado profundo y cansa a la lectura. El lienzo
+> es ahora un **acero oscuro**. La pizca de azul es a propósito: es lo que el ojo lee como
+> acero y no como gris sucio. Vive detrás de la bandera `ACERO_OSCURO` en
+> `src/constants/flags.ts`, así que se puede volver al negro por OTA sin compilar.
+
+| Token | Rol | Oscuro (acero) | Oscuro anterior | Claro (acero) |
+|---|---|---|---|---|
+| `fondo` | El lienzo de la pantalla | `#0F1114` | `#000000` | `#DBE2E7` |
+| `card` | Superficie de card | `#1A1D22` | `#121212` | `#E9EEF1` |
+| `hundido` | Dato dentro de card, campo de captura | `#0A0C0F` | `#0A0A0A` | `#D3DBE1` |
+| `flotante` | Hoja modal, menú emergente | `#292E36` | `#232323` | `#F2F5F7` |
+| `borde` | Separador, contorno de card | `#252931` | `#1F1F1F` | `#CBD5DC` |
+| `bordeMarcado` | Campo con foco, selección | `#383F4A` | `#333333` | `#B4C1CA` |
+| `texto` | Texto principal | `#FFFFFF` | `#FFFFFF` | `#0F1518` |
+| `textoSecundario` | Texto secundario | `#909090` | `#888888` | `#4A555C` |
+| `textoTenue` | Etiquetas grandes o deshabilitadas | `#555555` | `#555555` | `#7A868E` |
+| `textoSobreLima` | Texto sobre relleno lima | `#000000` | `#000000` | `#000000` |
+| `tealTexto` | Acento de texto y enlace | `#1ABC9C` | `#1ABC9C` | `#086A5E` |
+| `error` | Error de interfaz | `#E8877F` | `#E8877F` | `#B03A2E` |
+| `sinDatos` | Sin datos | `#444444` | `#444444` | `#A9B4BC` |
+| `info` | Información como texto | `#5B9BD5` | `#5B9BD5` | `#2E6DA4` |
+| `bordeEditorial` | Borde de la card editorial | `transparent` | `transparent` | `#CBD5DC` |
+
+### 4.1 La rampa oscura se mueve completa
+
+Esta es la regla que ordena todo el capítulo, y la que más caro se paga si se ignora: **la
+escala de elevación se mueve entera o no se mueve.** Aclarar solo el lienzo deja la card más
+oscura que el fondo sobre el que flota, y con eso el modelo de elevación se invierte en las 142
+pantallas de un golpe. Lo mismo con cada borde, que estaba calibrado contra negro.
+
+Los doce valores viven en `OSCURO` (`src/constants/brand.ts`) y de ahí los consumen `SURFACES`,
+`BG`, `BORDER`, `PILL`, `CARD`, `ELEVATION` y `THEME_DARK`. **Ningún gris del modo oscuro se
+escribe a mano en ningún otro archivo.**
+
+| Escalón | Rol | Acero | Anterior |
 |---|---|---|---|
-| `fondo` | El lienzo de la pantalla | `#000000` | `#DBE2E7` |
-| `card` | Superficie de card | `#121212` | `#E9EEF1` |
-| `hundido` | Dato dentro de card, campo de captura | `#0A0A0A` | `#D3DBE1` |
-| `flotante` | Hoja modal, menú emergente | `#232323` | `#F2F5F7` |
-| `borde` | Separador, contorno de card | `#1F1F1F` | `#CBD5DC` |
-| `bordeMarcado` | Campo con foco, selección | `#333333` | `#B4C1CA` |
-| `texto` | Texto principal | `#FFFFFF` | `#0F1518` |
-| `textoSecundario` | Texto secundario | `#888888` | `#4A555C` |
-| `textoTenue` | Etiquetas grandes o deshabilitadas | `#555555` | `#7A868E` |
-| `textoSobreLima` | Texto sobre relleno lima | `#000000` | `#000000` |
-| `tealTexto` | Acento de texto y enlace | `#1ABC9C` | `#086A5E` |
-| `error` | Error de interfaz | `#E8877F` | `#B03A2E` |
-| `sinDatos` | Sin datos | `#444444` | `#A9B4BC` |
-| `info` | Información como texto | `#5B9BD5` | `#2E6DA4` |
-| `bordeEditorial` | Borde de la card editorial | `transparent` | `#CBD5DC` |
+| `campo` | Campo de captura, hundido dentro de una card | `#0A0C0F` | `#0a0a0a` |
+| `fondo` | El lienzo, o sea `ELEVATION[0]` | `#0F1114` | `#000000` |
+| `chrome` | Tab bar, sidebar, píldoras de filtro | `#16191D` | `#0A0A0A` |
+| `card` | Card estándar, o sea `ELEVATION[1]` | `#1A1D22` | `#121212` |
+| `flotante` | Card sobre card u hoja modal, o sea `ELEVATION[2]` | `#292E36` | `#232323` |
+| `popover` | Menú flotante, o sea `ELEVATION[3]` | `#343A45` | `#2F2F2F` |
+| `bordeSutil` | Separador interno de card | `#1E2228` | `#141414` |
+| `bordeCampo` | Contorno de campo de captura | `#23272E` | `#222222` |
+| `bordePildora` | Contorno de píldora de filtro | `#242830` | `#1a1a1a` |
+| `bordeCard` | Contorno de card, o sea `ELEVATION[1].border` | `#252931` | `#1F1F1F` |
+| `bordeMarcado` | Foco, selección, deshabilitado | `#383F4A` | `#333333` |
+| `bordePopover` | Contorno de popover | `#404854` | `#3D3D3D` |
 
-Nota de fidelidad escrita en el propio archivo (`brand.ts` 438-442): el manual PDF anota fondo
-base `#0A0A0A`, pero el lienzo real de las pantallas es `#000000`. `#0A0A0A` es la tab bar, el
-sidebar y los inputs. Se dejó como está para que quien no elige nada vea la app igual que
-siempre.
+**Cómo se derivaron los nueve valores que el dueño no dictó.** No a ojo:
+
+1. El tinte de acero que él eligió resultó ser una función limpia, `G = R + 0.12·R` y
+   `B = R + 0.32·R`, que reproduce `#0F1114` y `#1A1D22` exactos. Los escalones derivados usan
+   esa misma función, así que la pizca de azul crece con la luminancia igual que en sus valores.
+2. Cada escalón conserva el **mismo salto de contraste WCAG** que ya tenía sobre negro:
+   card→flotante pasa de 1.192 a 1.238, flotante→popover de 1.174 a 1.194. No se inventó
+   separación nueva.
+3. Cada borde conserva el salto que tenía sobre la superficie que contornea, que es lo que lo
+   hace leerse como filo y no como halo.
+
+**Un desacople deliberado.** `campo` y `chrome` compartían `#0A0A0A` por accidente: con el
+lienzo en negro puro no había hacia dónde bajar, así que lo hundido y el chrome tuvieron que
+subir los dos. Ahora se separan. El campo se queda hundido, que es su rol, y por fin se lee como
+campo: su contraste contra la card pasa de 1.057 a 1.159. El chrome, que vive **sobre** el
+lienzo, sube a su propio escalón; si se hubiera quedado en `#0A0A0A` habría quedado más oscuro
+que el lienzo y la tab bar se habría leído hundida.
+
+### 4.2 Los números del oscuro, medidos el 22-ago-2026
+
+Calculados con `contrastRatio` de `src/utils/contrast.ts` (WCAG 2.x real) y anclados en
+`src/constants/__tests__/theme-tokens.test.ts`.
+
+| Par | Antes | Ahora | Nivel |
+|---|---|---|---|
+| Texto blanco sobre lienzo | 21.00 | **18.91** | AAA de sobra |
+| Texto blanco sobre card | 18.73 | **16.90** | AAA de sobra |
+| Texto secundario sobre card | 5.28 | **5.29** | AA (ver 4.2.1) |
+| Lima sobre lienzo | 13.36 | **12.03** | AAA |
+| Teal sobre card | 7.78 | **7.01** | AAA |
+
+**Qué se debilitó, dicho sin adornos.** El contorno del campo de captura contra la card baja de
+1.177 a 1.127. Se aceptó porque el propio campo se hunde el doble que antes contra esa misma
+card (1.057 a 1.159): el campo se distingue mejor aunque su filo sea más suave.
+
+#### 4.2.1 El gris secundario se recalibró, y no por gusto
+
+`textoSecundario` pasa de `#888888` a `#909090` **solo en el modo oscuro**. Ocho puntos de canal,
+imperceptibles a la vista. Se hizo por una razón que no es estética y que costó encontrar.
+
+`#888888` contra la card de acero da 4.767. Sigue siendo AA, así que a simple vista no había
+problema. Pero **el velo nocturno in-app tiene un contrato duro** (cap. 4 y
+`night-veil-core.ts`): nunca puede tumbar un par de texto por debajo de AA, y si lo tumbaría, se
+recorta a sí mismo. Ese recorte se come la holgura del par **más apretado**, y el más apretado
+es justo este. La holgura pasaba de 0.785 a 0.267, y con eso el velo se estrangulaba: el rojo
+pleno del final de la curva caía de alpha 0.116 a 0.046, o sea **60% menos filtro justo a la
+hora en que el filtro sirve para algo**.
+
+`#909090` devuelve 5.293 contra la card (era 5.285) y 5.923 contra el lienzo (era 5.924), y con
+eso el velo vuelve a 0.113. Los mismos números de antes del cambio, que era el objetivo.
+
+La regla general que deja este caso: **al mover el lienzo hay que remedir también los textos,
+no solo las superficies y los bordes.** Un token puede seguir pasando AA y aun así romper algo
+que depende de su holgura.
+
+**Los colores de dominio no se recalibran.** Son señal, no decoración (cap. 2 y 3). Contra el
+lienzo nuevo los diez de sección siguen igual de legibles que antes; el más bajo es ciclo con
+4.81. Pero como **texto sobre una card de acero** hay tres que quedan un pelo bajo AA: mente
+4.49, ciclo 4.30, cardio 4.42. No se tocan: se usan al 100% para icono y encabezado, que es
+texto grande y ahí el mínimo es 3:1, y al 10% y 22% como fondo y borde del mosaico. Ayuno
+(`#6B46C1`, 2.63) y `sinDatos` (`#444444`, 1.73) ya estaban bajo AA antes de este cambio y por
+las mismas razones: el morado de ayuno es relleno con texto blanco encima, no tinta.
+
+### 4.3 Dónde el negro se queda, y por qué
+
+El acero es el lienzo general. Hay superficies donde el negro profundo **es la función**:
+
+- **La sesión de sueño** (`app/sleep-session.tsx`). Un teléfono encendido toda la noche junto a
+  la cama. Tiene su paleta propia (`NIGHT`, en `night-curve.ts`) y ahora pasa `NIGHT.bg`
+  explícito por el prop `fondo` de `<Screen>`. Antes heredaba el lienzo global y coincidía en
+  `#000000` de casualidad.
+- **El reproductor de mente** (`app/mente/player.tsx`). Superficie editorial full-bleed, negra
+  en los dos temas (cap. 7). Ya estaba anclada.
+- **La card editorial**. Oscura en los dos temas, con velo constante. Solo su borde cambia.
+
+**No** se quedan en negro, y es correcto: la respiración y la meditación leen el tema dentro de
+`<ThemeReady>` y en modo claro salen claras. Son pantallas de sesión, no superficies de noche.
+
+**Lo que este cambio no alcanza.** El splash **nativo** vive en `app.json` con
+`backgroundColor: #000000` y es recurso compilado: no viaja por OTA. Con la bandera encendida,
+el arranque en frío pasa del negro del splash al acero de la app. Se cierra en el próximo build
+nativo, no antes. Lo mismo el fondo del widget de Android (`widget_bg_dark.xml`), que además
+vive en la pantalla de inicio del teléfono y no participa de la rampa de la app.
 
 ### Los cuatro modos
 
@@ -781,19 +892,28 @@ secciones · `lg 32` entre grupos grandes.
 `ELEVATION` (`brand.ts` 256-263). **Código nuevo elige un nivel; no escribe fondo y borde
 sueltos.**
 
+Los cuatro niveles ya no escriben su color: lo toman de `OSCURO`, la rampa única del cap. 4.1.
+Valores vigentes con `ACERO_OSCURO` encendido, y entre paréntesis los de antes del 22-ago-2026.
+
 | Nivel | Fondo | Borde | Para qué |
 |---|---|---|---|
-| 0 | `#000000` | `transparent` | Fondo de pantalla |
-| 1 | `#121212` | `#1F1F1F` | **Card estándar, el default** |
-| 2 | `#232323` | `#333333` | Card sobre card, hoja modal |
-| 3 | `#2F2F2F` | `#3D3D3D` | Popover, menú flotante |
+| 0 | `#0F1114` (`#000000`) | `transparent` | Fondo de pantalla |
+| 1 | `#1A1D22` (`#121212`) | `#252931` (`#1F1F1F`) | **Card estándar, el default** |
+| 2 | `#292E36` (`#232323`) | `#383F4A` (`#333333`) | Card sobre card, hoja modal |
+| 3 | `#343A45` (`#2F2F2F`) | `#404854` (`#3D3D3D`) | Popover, menú flotante |
 
-**Los niveles se abrieron a propósito.** El comentario (líneas 257-258) explica que antes estaban
+**Los niveles se abrieron a propósito.** El comentario del archivo explica que antes estaban
 a 1.08 y 1.12 de luminancia entre sí, o sea imperceptibles, y un modal sobre una card no se
-distinguía de la card.
+distinguía de la card. El paso a acero conserva esos saltos ya abiertos: 1→2 pasa de 1.192 a
+1.238 y 2→3 de 1.174 a 1.194.
 
-Los inputs van a `#0a0a0a` (`BG.input`): **recedidos**, se leen como pozo frente a la card
-elevada.
+Los inputs van a `OSCURO.campo`, hoy `#0A0C0F` (antes `#0a0a0a`): **recedidos**, se leen como
+pozo frente a la card elevada. Con el lienzo en acero el pozo es de verdad, no una convención:
+el campo queda por debajo del fondo de pantalla y no por encima como antes.
+
+**La tab bar y las píldoras de filtro NO son inputs**, aunque compartieran su color hasta el
+22-ago-2026. Van a `OSCURO.chrome`, hoy `#16191D`. Viven sobre el lienzo, así que tienen que
+estar por encima de él (ver el desacople en el cap. 4.1).
 
 ### 10.4 Halo
 
@@ -821,9 +941,10 @@ concéntricos, dos arcos más anchos a baja opacidad.
 
 **Hay dos radios de card conviviendo (12 y 16). Ver capítulo 14.**
 
-Pastilla estándar (`PILL`, `brand.ts` 202-216): alto 34, `paddingHorizontal 16`, borde 0.5,
-fondo `#0a0a0a`, borde `#1a1a1a`, texto `#666`; activa fondo y borde `#a8e02a` con texto `#000`;
-11px, peso 600, `letterSpacing 1`.
+Pastilla estándar (`PILL`): alto 34, `paddingHorizontal 16`, borde 0.5, fondo `OSCURO.chrome`
+(hoy `#16191D`, antes `#0a0a0a`), borde `OSCURO.bordePildora` (hoy `#242830`, antes `#1a1a1a`),
+texto `#666`; activa fondo y borde `#a8e02a` con texto `#000`; 11px, peso 600,
+`letterSpacing 1`.
 
 ---
 
@@ -1095,8 +1216,8 @@ El documento sigue siendo la guía de criterio, pero estos números ya no son ci
 
 | Dice DESIGN_SYSTEM.md | Dice el código |
 |---|---|
-| `ELEVATION[2] = #1A1A1A` / borde `#2A2A2A` | `#232323` / `#333333` |
-| `ELEVATION[3] = #222222` / borde `#323232` | `#2F2F2F` / `#3D3D3D` |
+| `ELEVATION[2] = #1A1A1A` / borde `#2A2A2A` | `#292E36` / `#383F4A` (acero, 22-ago-2026) |
+| `ELEVATION[3] = #222222` / borde `#323232` | `#343A45` / `#404854` (acero, 22-ago-2026) |
 | `SEMANTIC.error = #FB7185` | `#E8877F` |
 | `SCORE_COLORS.critical = #EF4444` | `#FF3B30` |
 | `fitness #A8E02A` como color de categoría | `CATEGORY_COLORS.fitness = #8CBF24` |
