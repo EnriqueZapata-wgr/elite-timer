@@ -21,6 +21,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { AppIcon } from '@/src/components/ui/AppIcon';
+import type { AppIconName } from '@/src/components/ui/app-icon-names';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { userErrorMessage } from '@/src/utils/user-error';
@@ -35,10 +37,17 @@ import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 type Seccion = 'escanear' | 'guia' | 'lista';
 
-const SECCIONES: { id: Seccion; label: string; icono: keyof typeof Ionicons.glyphMap }[] = [
+/**
+ * El censo de iconos (icon-censo.test.ts) prohíbe dibujar a mano el glifo de
+ * una función del registro: para eso está <AppIcon>. La sección de lista ES la
+ * app "lista-compra", así que va por ahí y hereda su dibujo del set SVG. Las
+ * otras dos no son apps del registro, son secciones de esta pantalla, y usan
+ * glifos que no chocan con ninguna función.
+ */
+const SECCIONES: { id: Seccion; label: string; icono?: keyof typeof Ionicons.glyphMap; app?: AppIconName }[] = [
   { id: 'escanear', label: 'Leer etiqueta', icono: 'scan-outline' },
-  { id: 'guia', label: 'Cómo elegir', icono: 'book-outline' },
-  { id: 'lista', label: 'Mi lista', icono: 'cart-outline' },
+  { id: 'guia', label: 'Cómo elegir', icono: 'bulb-outline' },
+  { id: 'lista', label: 'Mi lista', app: 'lista-compra' },
 ];
 
 export function SuperTab() {
@@ -64,7 +73,9 @@ export function SuperTab() {
               onPress={() => { haptic.light(); setSeccion(sc.id); }}
               style={[s.segmento, activa && { backgroundColor: t.card, borderColor: t.bordeMarcado }]}
             >
-              <Ionicons name={sc.icono} size={15} color={activa ? t.texto : t.textoSecundario} />
+              {sc.app
+                ? <AppIcon name={sc.app} size={15} color={activa ? t.texto : t.textoSecundario} />
+                : <Ionicons name={sc.icono!} size={15} color={activa ? t.texto : t.textoSecundario} />}
               <EliteText variant="caption" style={{ color: activa ? t.texto : t.textoSecundario, fontFamily: Fonts.semiBold }}>
                 {sc.label}
               </EliteText>

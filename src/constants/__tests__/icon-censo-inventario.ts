@@ -48,12 +48,21 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/cycle.tsx::water-outline::x3',
   'app/economy/admin.tsx::trophy-outline',
   'app/edad-atp/biomarkers.tsx::document-text-outline',
+  // 22-ago-2026: el campo "Fecha del estudio" de la captura manual. Es la
+  // misma afordancia de fecha que lab-confirmation ya tenía auditada abajo,
+  // no un lanzador de la Agenda. Nació porque esta pantalla estampaba la
+  // fecha de HOY sin preguntar, y measured_at decide qué valor está vigente.
+  'app/edad-atp/biomarkers.tsx::calendar-outline',
   'app/edad-atp/index.tsx::barbell-outline',
   'app/edad-atp/index.tsx::document-text-outline',
   'app/edad-atp/index.tsx::flask-outline',
   'app/edad-atp/index.tsx::list-outline',
   'app/edad-atp/index.tsx::water-outline',
-  'app/edad-atp/lab-confirmation.tsx::calendar-outline',
+  // 22-ago-2026: pasa de 1 a 2 usos. El primero es el campo "Fecha del
+  // estudio"; el segundo es el aviso de que el lote trae varias fechas
+  // distintas y que cada valor se guarda con la suya. Los dos son chrome de
+  // fecha en la misma pantalla, ninguno dibuja la función Agenda.
+  'app/edad-atp/lab-confirmation.tsx::calendar-outline::x2',
   'app/edad-atp/lab-confirmation.tsx::document-outline',
   'app/edad-atp/lab-confirmation.tsx::hourglass-outline',
   'app/emotions.tsx::pulse-outline',
