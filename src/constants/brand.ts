@@ -6,6 +6,7 @@
  */
 import { hoyBgBucket } from '@/src/utils/time-of-day';
 import { BRAND_LIME, BRAND_TEAL } from '@/src/constants/brand-palette';
+import { ACERO_OSCURO } from '@/src/constants/flags';
 
 // ═══ PALETA PRINCIPAL ═══
 
@@ -39,14 +40,135 @@ export const ATP_BRAND = {
 // cambiará a skool.com/tribu-atp (o plan premium) cuando haya presupuesto.
 export const SKOOL_URL = 'https://www.skool.com/the-vital-order-7560/about';
 
+// ═══════════════════════════════════════════════════════════════════
+// LA RAMPA OSCURA — una sola escalera, y se mueve completa (ACERO, 22-ago-2026)
+// ═══════════════════════════════════════════════════════════════════
+/**
+ * Las doce superficies y bordes del modo oscuro viven AQUÍ y en ningún otro
+ * lado. Todo lo que sigue en este archivo (SURFACES, BG, BORDER, PILL, CARD,
+ * ELEVATION, THEME_DARK) las consume; nadie vuelve a escribir uno de estos
+ * grises a mano.
+ *
+ * POR QUÉ EXISTE ESTE BLOQUE
+ *  El dueño pidió cambiar tres valores: lienzo, card y campo. Cambiar solo
+ *  esos tres rompe la app. Con el lienzo en #0F1114 y la card todavía en
+ *  #121212, la card queda MÁS OSCURA que el fondo sobre el que flota y el
+ *  modelo de elevación se invierte en las 142 pantallas de un golpe. Lo mismo
+ *  con cada borde: están calibrados contra negro, y sobre acero unos
+ *  desaparecen y otros gritan. La escalera se mueve completa o no se mueve.
+ *
+ * CÓMO SE DERIVÓ (la regla, no el gusto)
+ *  1. Los TRES valores del dueño se respetan al pie de la letra.
+ *  2. El tinte de acero que él eligió resultó ser una función limpia:
+ *     G = R + 0.12·R, B = R + 0.32·R. Reproduce #0F1114 y #1A1D22 EXACTOS.
+ *     Los escalones derivados usan esa misma función, así que la pizca de
+ *     azul crece con la luminancia igual que en sus valores.
+ *  3. Cada escalón derivado conserva el MISMO salto de contraste WCAG que
+ *     tenía sobre negro. Ejemplo: card→flotante era 1.192, queda en 1.238;
+ *     flotante→popover era 1.174, queda en 1.194. No se inventó separación.
+ *  4. Cada borde conserva el salto que tenía sobre la superficie que
+ *     contornea, que es lo que lo hace leerse como contorno y no como halo.
+ *
+ * LOS DOS ROLES QUE SE DESACOPLARON, Y POR QUÉ
+ *  `campo` y `chrome` compartían #0A0A0A por accidente histórico: con el
+ *  lienzo en negro puro no había hacia dónde bajar, así que lo hundido y el
+ *  chrome tuvieron que subir los dos. Con el lienzo en acero sí se puede
+ *  bajar, y el dueño ya lo hizo al dejar el campo en #0A0C0F, por debajo del
+ *  lienzo. Eso está bien para el campo, que vive DENTRO de una card: se hunde
+ *  el doble que antes (1.057 → 1.159 contra la card) y por fin se lee como
+ *  campo. Pero el tab bar y las píldoras de filtro viven SOBRE el lienzo: si
+ *  se quedaban en #0A0A0A quedaban más oscuros que el lienzo y se invertía su
+ *  lectura. Por eso `chrome` es ahora su propio escalón, calculado para
+ *  conservar el mismo 1.061 que tenía sobre negro.
+ *
+ * VERIFICADO, NO SUPUESTO (contrastRatio de src/utils/contrast)
+ *  Blanco sobre lienzo 21.00 → 18.91 · blanco sobre card 18.73 → 16.90,
+ *  los dos muy por encima de AAA. La escalera es monótona creciente en los
+ *  dos casos y hay un candado en theme-tokens.test.ts que lo exige.
+ *
+ * SE APAGA CON `ACERO_OSCURO = false` (flags.ts) y vuelve RAMPA_NEGRO, que
+ * son los valores de hoy color por color.
+ */
+export interface RampaOscura {
+  /** Campo de captura, hundido DENTRO de una card. */
+  campo: string;
+  /** El lienzo de la pantalla — el escalón cero de ELEVATION. */
+  fondo: string;
+  /** Chrome sobre el lienzo: tab bar, sidebar, píldoras de filtro. */
+  chrome: string;
+  /** Card estándar — ELEVATION[1]. */
+  card: string;
+  /** Card sobre card, hoja modal — ELEVATION[2]. */
+  flotante: string;
+  /** Popover, menú flotante — ELEVATION[3]. */
+  popover: string;
+  /** Separador interno de una card. */
+  bordeSutil: string;
+  /** Contorno de un campo de captura. */
+  bordeCampo: string;
+  /** Contorno de una píldora de filtro. */
+  bordePildora: string;
+  /** Contorno de card — ELEVATION[1].border. */
+  bordeCard: string;
+  /** Foco y selección — ELEVATION[2].border, y el gris de lo deshabilitado. */
+  bordeMarcado: string;
+  /** Contorno de popover — ELEVATION[3].border. */
+  bordePopover: string;
+}
+
+/** Lo que la app fue hasta el 22-ago-2026. Es el camino de vuelta. */
+const RAMPA_NEGRO: RampaOscura = {
+  campo: '#0a0a0a',
+  fondo: '#000000',
+  chrome: '#0A0A0A',
+  card: '#121212',
+  flotante: '#232323',
+  popover: '#2F2F2F',
+  bordeSutil: '#141414',
+  bordeCampo: '#222222',
+  bordePildora: '#1a1a1a',
+  bordeCard: '#1F1F1F',
+  bordeMarcado: '#333333',
+  bordePopover: '#3D3D3D',
+};
+
+/** El acero. Los tres primeros marcados son decisión del dueño; el resto sale
+ *  de la derivación descrita arriba. */
+const RAMPA_ACERO: RampaOscura = {
+  campo: '#0A0C0F',      // ← dueño
+  fondo: '#0F1114',      // ← dueño
+  chrome: '#16191D',     // escalón nuevo (antes compartía valor con `campo`)
+  card: '#1A1D22',       // ← dueño
+  flotante: '#292E36',
+  popover: '#343A45',
+  bordeSutil: '#1E2228',
+  bordeCampo: '#23272E',
+  bordePildora: '#242830',
+  bordeCard: '#252931',
+  bordeMarcado: '#383F4A',
+  bordePopover: '#404854',
+};
+
+/** La rampa vigente. Único lugar donde se decide. */
+export const OSCURO: RampaOscura = ACERO_OSCURO ? RAMPA_ACERO : RAMPA_NEGRO;
+
+/**
+ * Las DOS rampas juntas, para los candados de tests. El ratchet de hex a mano
+ * deriva su lista negra de los tokens vivos; si mirara solo la rampa vigente,
+ * apagar la bandera dejaría de bloquear los doce valores de acero y encenderla
+ * dejaría de bloquear los doce del negro. Mirando las dos, el candado no se
+ * debilita en ninguna de las dos posiciones.
+ */
+export const RAMPAS_OSCURAS = [RAMPA_NEGRO, RAMPA_ACERO] as const;
+
 // ═══ SUPERFICIES ═══
 
 export const SURFACES = {
-  base: '#0A0A0A',       // Tab bar, sidebar (casi negro, sutil)
-  card: '#121212',       // Cards = ELEVATION[1] (unificado viejo+nuevo, se despega del negro)
-  cardLight: '#232323',  // Bordes, separadores, pista del timer (= ELEVATION[2].bg, MB-17 4.3)
-  border: '#1F1F1F',     // Bordes sutiles de cards = ELEVATION[1].border
-  disabled: '#333333',   // Elementos deshabilitados
+  base: OSCURO.chrome,     // Tab bar, sidebar (chrome sobre el lienzo)
+  card: OSCURO.card,       // Cards = ELEVATION[1] (unificado viejo+nuevo, se despega del lienzo)
+  cardLight: OSCURO.flotante, // Bordes, separadores, pista del timer (= ELEVATION[2].bg, MB-17 4.3)
+  border: OSCURO.bordeCard,   // Bordes sutiles de cards = ELEVATION[1].border
+  disabled: OSCURO.bordeMarcado, // Elementos deshabilitados
 } as const;
 
 // ═══ TEXTO ═══
@@ -77,8 +199,17 @@ export const CATEGORY_COLORS = {
  * CATEGORY_COLORS (nunca un hex escrito a mano en un componente) y se aplica
  * en capas: fondo del mosaico al 10%, borde al 22%, icono y encabezado de
  * sección al 100%; la etiqueta se queda gris (TEXT.secondary).
- * Contraste verificado sobre #0A0A0A: mind 5.27:1, fitness 9.04, nutrition
- * 6.69, metrics 5.85, sistema 5.58 — todos ≥ 4.5:1 (WCAG AA).
+ * Contraste remedido el 22-ago-2026 (ACERO). Sobre el chrome del mosaico
+ * (OSCURO.chrome, antes #0A0A0A y ahora #16191D): mind 5.27 → 4.69, fitness
+ * 9.04 → 8.06, nutrition 6.69 → 5.96, metrics 5.85 → 5.21, sistema 5.58 →
+ * 4.97. Los cinco siguen ≥ 4.5:1 (WCAG AA).
+ *
+ * ⚠️ Los mismos colores como TEXTO sobre una CARD de acero (#1A1D22) caen un
+ * pelo por debajo de AA en tres casos: mind 4.49, ciclo 4.30, cardio 4.42.
+ * NO se recalibran: son señal de dominio, no decoración, y cambiarlos rompe
+ * la identidad de sección que el manual fija en el cap. 3.3. Se usan al 100%
+ * para icono y encabezado (texto grande, donde el mínimo es 3:1) y al 10%/22%
+ * como fondo y borde del mosaico, que es donde de verdad viven.
  */
 export const APP_SECTION_COLORS = {
   mente: CATEGORY_COLORS.mind,
@@ -180,17 +311,17 @@ export function withOpacity(hex: string, opacity: number): string {
 
 /** Backgrounds canonicos */
 export const BG = {
-  screen: '#000',          // fondo de TODA pantalla = ELEVATION[0]
-  card: '#121212',         // fondo de TODA card = ELEVATION[1] (se despega del negro)
-  cardElevated: '#232323', // card sobre card = ELEVATION[2] (MB-17 4.3)
-  input: '#0a0a0a',        // fondo de inputs (recedido, contrasta con la card)
+  screen: OSCURO.fondo,        // fondo de TODA pantalla = ELEVATION[0]
+  card: OSCURO.card,           // fondo de TODA card = ELEVATION[1] (se despega del lienzo)
+  cardElevated: OSCURO.flotante, // card sobre card = ELEVATION[2] (MB-17 4.3)
+  input: OSCURO.campo,         // fondo de inputs (recedido, contrasta con la card)
 } as const;
 
 /** Bordes canonicos */
 export const BORDER = {
-  card: '#1F1F1F',         // borde de cards = ELEVATION[1].border — NUNCA usar como bg
-  input: '#222',           // borde de inputs
-  subtle: '#141414',       // separadores internos
+  card: OSCURO.bordeCard,   // borde de cards = ELEVATION[1].border — NUNCA usar como bg
+  input: OSCURO.bordeCampo, // borde de inputs
+  subtle: OSCURO.bordeSutil, // separadores internos
 } as const;
 
 /** Texto canonico */
@@ -218,8 +349,11 @@ export const PILL = {
   paddingHorizontal: 16,
   borderRadius: 17,
   borderWidth: 0.5,
-  bg: '#0a0a0a',
-  borderColor: '#1a1a1a',
+  // ACERO: la píldora vive SOBRE el lienzo, no dentro de una card — por eso
+  // toma `chrome` y no `campo`. Con el lienzo en acero, quedarse en `campo`
+  // la dejaría más oscura que el fondo e invertiría su lectura.
+  bg: OSCURO.chrome,
+  borderColor: OSCURO.bordePildora,
   activeBg: '#a8e02a',
   activeBorderColor: '#a8e02a',
   textColor: '#666',
@@ -231,8 +365,8 @@ export const PILL = {
 
 /** Estilo unico de Card */
 export const CARD = {
-  bg: '#121212',           // = ELEVATION[1] (se despega del negro)
-  borderColor: '#1F1F1F',
+  bg: OSCURO.card,         // = ELEVATION[1] (se despega del lienzo)
+  borderColor: OSCURO.bordeCard,
   borderWidth: 0.5,
   borderRadius: 16,
   padding: 16,
@@ -270,10 +404,14 @@ export const LETTER_SPACING = {
 export const ELEVATION = {
   // MB-17 4.3: los niveles estaban a 1.08-1.12 entre sí (imperceptible) — se
   // abren para que un modal sobre una card se distinga de la card.
-  0: { bg: '#000000', border: 'transparent' },
-  1: { bg: '#121212', border: '#1F1F1F' }, // card estandar — se despega del negro
-  2: { bg: '#232323', border: '#333333' }, // card sobre card / sheet / modal
-  3: { bg: '#2F2F2F', border: '#3D3D3D' }, // popover / menu flotante
+  // ACERO: los cuatro escalones salen de OSCURO, la rampa única. Cada nivel
+  // conserva el salto de contraste que tenía sobre negro (0→1 1.121→1.101,
+  // 1→2 1.192→1.238, 2→3 1.174→1.194) y la escalera sigue siendo monótona
+  // creciente en las dos posiciones de la bandera. Hay test que lo exige.
+  0: { bg: OSCURO.fondo, border: 'transparent' },
+  1: { bg: OSCURO.card, border: OSCURO.bordeCard }, // card estandar — se despega del lienzo
+  2: { bg: OSCURO.flotante, border: OSCURO.bordeMarcado }, // card sobre card / sheet / modal
+  3: { bg: OSCURO.popover, border: OSCURO.bordePopover }, // popover / menu flotante
 } as const;
 
 /**
@@ -449,11 +587,20 @@ export type SemanticTheme = typeof SEMANTIC_THEME;
 // que el audit los coteje 1:1 contra el manual. El oscuro son los valores
 // que la app YA usa (no se tocan); el claro es el acero del cap. 3.6.
 //
-// ⚠️ Nota de fidelidad (va también en el reporte de MB-31A): el manual 3.5
-// anota "fondo base #0A0A0A", pero el lienzo real de las pantallas hoy es
-// #000000 (ELEVATION[0] / BG.screen); #0A0A0A es SURFACES.base (tab bar,
-// sidebar, inputs). El brief manda "las de hoy, no se tocan" y el device
-// test exige que quien no elige nada vea la app IGUAL: fondo = #000000.
+// ⚠️ Nota de fidelidad, REAPUNTADA el 22-ago-2026 (ACERO). Hasta hoy este
+// comentario decía que el lienzo de quien no elige tema era #000000 y que así
+// se quedaba. Esa decisión la cambió el dueño: el negro puro se lee demasiado
+// profundo. El lienzo del modo oscuro es ahora OSCURO.fondo — #0F1114 con la
+// bandera ACERO_OSCURO encendida, #000000 con ella apagada.
+//
+// Lo que el candado protegía y SIGUE protegiendo es la otra mitad: que quien
+// no elige nada reciba el modo OSCURO, no el claro y no el del sistema. Eso
+// no se movió ni un milímetro y vive en theme-mode-core (THEME_MODE_DEFAULT
+// = 'oscuro', con su test). Lo que se reapuntó es CUÁL es el oscuro.
+//
+// Lo que este archivo NO puede alcanzar: el splash NATIVO de app.json sigue
+// en #000000 y es recurso compilado, así que el arranque en frío pasa del
+// negro del splash al acero de la app hasta el próximo build nativo.
 
 export interface AppThemeTokens {
   kind: 'dark' | 'light';
@@ -495,12 +642,12 @@ export interface AppThemeTokens {
 /** Modo oscuro — el canónico, los valores que la app ya es. */
 export const THEME_DARK: AppThemeTokens = {
   kind: 'dark',
-  fondo: '#000000',
-  card: SURFACES.card,          // #121212
-  hundido: '#0A0A0A',           // inputs recedidos (BG.input)
-  flotante: '#232323',          // ELEVATION[2] / "elevado" del manual 3.5
-  borde: SURFACES.border,       // #1F1F1F
-  bordeMarcado: '#333333',      // ELEVATION[2].border (foco/selección)
+  fondo: OSCURO.fondo,          // acero #0F1114 · negro #000000
+  card: SURFACES.card,          // acero #1A1D22 · negro #121212
+  hundido: OSCURO.campo,        // campo de captura (BG.input)
+  flotante: OSCURO.flotante,    // ELEVATION[2] / "elevado" del manual 3.5
+  borde: SURFACES.border,       // ELEVATION[1].border
+  bordeMarcado: OSCURO.bordeMarcado, // ELEVATION[2].border (foco/selección)
   texto: TEXT_COLORS.primary,   // #FFFFFF
   textoSecundario: TEXT_COLORS.secondary, // #888888
   textoTenue: TEXT_COLORS.muted,          // #555555
