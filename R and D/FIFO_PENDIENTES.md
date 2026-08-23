@@ -1,5 +1,21 @@
 # 📋 FIFO · todo lo que quedó pendiente
 
+---
+
+## 🔴 ABIERTO · Mapa funcional / diagnóstico · pedido por Enrique 23-ago-2026
+
+**Esperando documento de Enrique.** La pestaña de mapa funcional sigue en la
+versión vieja. Debe actualizarse con la página de diagnóstico de los clientes de
+ATP diagnosis. Enrique dijo: *"te pasaré el documento actualizado, está en
+rediseño, para que lo extraigas mejor el nuevo"*.
+
+Bloqueado hasta recibir el documento. En cuanto llegue: extraer la estructura
+nueva y rehacer la pestaña. Registrado también en
+`R and D/BACKLOG_MAESTRO_2026-08-23.md`, sección 3.12.
+
+---
+
+
 **Actualizado:** 10-ago-2026, MB-32 (`feat/mb32-widgets`, los widgets Android)
 ENTREGADO y SIN mergear: espera audit de Cowork. **TRAE CÓDIGO NATIVO: exige
 BUILD (sin OTA), el bump de versión va con el build después del merge.**
