@@ -1040,9 +1040,13 @@ export async function saveConfirmedLabValues(
     // Se canoniza CLAVE POR CLAVE, no el lote entero, para no perder de vista
     // de qué dato original salió cada fila: la fecha y la marca de "confirmado
     // fuera de rango" viajan pegadas al dato, no al lote.
+    // El tipo se quedó del diseño anterior (unit siempre null, y un solo
+    // booleano de "confirmado por humano"). Los dos cambiaron: la unidad ahora
+    // sí viaja, y el booleano se partió en dos preguntas distintas.
     const valoresRpc: Array<{
-      parameter_key: string; value: number; unit: null;
-      measured_at: string; confirmado_por_humano: boolean;
+      parameter_key: string; value: number; unit: string | null;
+      measured_at: string; source: string;
+      es_humano: boolean; fuera_confirmado: boolean;
     }> = [];
     const yaPuesto = new Set<string>();
     for (const [original, valor] of Object.entries(validated)) {
