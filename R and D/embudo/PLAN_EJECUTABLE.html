@@ -1,0 +1,329 @@
+<title>Plan ejecutable</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{--canvas:#000;--card:#121212;--alto:#1A1A1A;--borde:#242424;
+ --tinta:#fff;--sec:#9A9A9A;--tenue:#767676;
+ --lima:#A8E02A;--teal:#1ABC9C;--ambar:#EFD54F;--rojo:#E74C3C;--violeta:#7F77DD;
+ --g1:#A8E02A;--g2:#6DCC48;--g3:#3DBF6E;--g4:#2EC28A;--g5:#1ABC9C}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--canvas);color:var(--tinta);font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+ font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;left:0;top:0;bottom:0;width:6px;z-index:60;
+ background:linear-gradient(180deg,var(--g1),var(--g2) 26%,var(--g3) 50%,var(--g4) 74%,var(--g5))}
+.wrap{max-width:1000px;margin:0 auto;padding:56px 26px 110px 34px}
+h1{font-size:clamp(30px,5.2vw,46px);line-height:1.12;font-weight:600;letter-spacing:-.024em;margin:0 0 18px}
+h2{font-size:clamp(22px,3.2vw,29px);line-height:1.22;font-weight:600;letter-spacing:-.018em;margin:0 0 8px}
+h3{font-size:17.5px;font-weight:600;margin:0 0 10px}
+p{margin:0 0 16px;color:var(--sec)}
+p.lead{color:var(--tinta);font-size:19px;line-height:1.62}
+strong{color:var(--tinta);font-weight:600}
+code{font-family:'SFMono-Regular',Consolas,monospace;font-size:.85em;background:var(--alto);border:1px solid var(--borde);border-radius:5px;padding:1px 6px;color:#CFCFCF;word-break:break-all}
+a{color:var(--teal);text-decoration:none}
+.kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--tenue);font-weight:500;margin:0 0 10px}
+.sec{margin:0 0 74px;scroll-margin-top:20px}
+.sub{color:var(--sec);font-size:16.5px;margin:0 0 26px;max-width:64ch}
+.indice{background:var(--card);border:1px solid var(--borde);border-radius:16px;padding:22px 24px;margin:0 0 60px}
+.indice ol{margin:0;padding:0;list-style:none;counter-reset:i}
+.indice li{counter-increment:i;margin:0 0 9px;display:flex;gap:13px;align-items:baseline}
+.indice li:last-child{margin:0}
+.indice li::before{content:counter(i,decimal-leading-zero);color:var(--tenue);font-size:12px;font-variant-numeric:tabular-nums;flex:0 0 20px}
+.indice a{color:var(--tinta);font-weight:500;font-size:16px}
+.alerta{background:var(--card);border:1px solid var(--borde);border-left:3px solid var(--rojo);border-radius:0 16px 16px 0;padding:22px 24px;margin:0 0 22px}
+.alerta h3{margin-bottom:9px}
+.alerta p{margin:0 0 13px}.alerta p:last-child{margin:0}
+.nota{border-left:3px solid var(--teal);padding:2px 0 2px 20px;margin:0 0 24px}
+.nota p{margin:0;font-size:15.5px}
+.bloque{background:var(--card);border:1px solid var(--borde);border-radius:18px;margin:0 0 16px;overflow:hidden}
+.bcab{padding:20px 26px 16px;border-bottom:1px solid var(--borde);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.bcab .n{font-size:19px;font-weight:600;letter-spacing:-.01em}
+.bcab .m{font-size:13.5px;color:var(--tenue)}
+.bloque.tu .bcab{background:linear-gradient(90deg,rgba(168,224,42,.08),transparent 60%)}
+.bloque.tu .bcab .n{color:var(--lima)}
+.bloque.dev .bcab{background:linear-gradient(90deg,rgba(127,119,221,.09),transparent 60%)}
+.bloque.dev .bcab .n{color:var(--violeta)}
+.tareas{padding:4px 26px 20px}
+.t{display:grid;grid-template-columns:24px 1fr;gap:0 15px;padding:16px 0;border-bottom:1px solid var(--borde)}
+.t:last-child{border-bottom:0;padding-bottom:4px}
+.t .c{width:16px;height:16px;border:2px solid #3C3C3C;border-radius:5px;margin-top:6px}
+.t b{display:block;color:var(--tinta);font-weight:600;font-size:16px;line-height:1.5;margin:0 0 6px}
+.t span{display:block;color:var(--sec);font-size:14.5px;line-height:1.64}
+.t .url{display:block;margin:8px 0 0;font-family:'SFMono-Regular',Consolas,monospace;font-size:12.5px;color:var(--teal);
+ background:#0C0C0C;border:1px solid var(--borde);border-radius:7px;padding:8px 11px;word-break:break-all;line-height:1.5}
+.et{display:inline-block;font-size:10px;letter-spacing:.09em;text-transform:uppercase;font-weight:600;padding:3px 8px;border-radius:4px;margin-left:8px;vertical-align:2px;white-space:nowrap}
+.et.hoy{color:var(--rojo);background:rgba(231,76,60,.13)}
+.et.ojo{color:var(--ambar);background:rgba(239,213,79,.12)}
+.tabla{overflow-x:auto;margin:0 0 22px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+.tabla table{min-width:600px}
+th{text-align:left;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tenue);font-weight:600;padding:0 16px 11px 0;border-bottom:1px solid var(--borde);white-space:nowrap}
+td{padding:13px 16px 13px 0;border-bottom:1px solid var(--borde);color:var(--sec);vertical-align:top;line-height:1.55}
+td:first-child{color:var(--tinta);font-weight:500}
+tr:last-child td{border-bottom:0}
+tr.suma td{border-bottom:0;border-top:1px solid #3A3A3A;padding-top:16px;color:var(--tinta);font-weight:600}
+.dec{background:var(--card);border:1px solid var(--borde);border-left:3px solid var(--lima);border-radius:0 14px 14px 0;padding:20px 24px;margin:0 0 14px}
+.dec h3{margin-bottom:8px}.dec p{margin:0 0 12px;font-size:15.5px}.dec p:last-child{margin:0}
+.opc{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0 0}
+.opc span{font-size:13.5px;color:var(--sec);background:var(--alto);border:1px solid var(--borde);border-radius:8px;padding:8px 13px}
+.opc span.rec{color:var(--tinta);border-color:#3A4A2A;background:rgba(168,224,42,.07)}
+.opc span.rec::before{content:'sugerido · ';color:var(--lima);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.cierre{border-top:1px solid var(--borde);margin-top:60px;padding-top:30px}
+@media(max-width:620px){.wrap{padding:40px 20px 80px 28px}.t{grid-template-columns:1fr}.t .c{display:none}}
+</style>
+
+<main class="wrap">
+<p class="kicker">ATP · plan ejecutable</p>
+<h1>Todo lo que hay<br>que hacer</h1>
+<p class="lead">Con las rutas exactas verificadas contra la documentación de Stripe y de Meta. Lo verde lo haces tú en paneles. Lo morado se programa. Antes de nada, tres cosas que la investigación rompió.</p>
+
+<div class="indice"><ol>
+  <li><a href="#roto">Lo que la investigación rompió</a></li>
+  <li><a href="#decisiones">Las decisiones que faltan</a></li>
+  <li><a href="#stripe">Stripe, en orden</a></li>
+  <li><a href="#whatsapp">WhatsApp, en orden</a></li>
+  <li><a href="#supabase">Supabase y Hostinger</a></li>
+  <li><a href="#codigo">Lo que se programa</a></li>
+  <li><a href="#pruebas">Las pruebas</a></li>
+  <li><a href="#costos">Los costos a mil miembros</a></li>
+</ol></div>
+
+<!-- ═══ 01 ═══ -->
+<section class="sec" id="roto">
+<p class="kicker">01</p>
+<h2>Lo que la investigación rompió</h2>
+<p class="sub">Tres hallazgos que cambian lo que te dije hace dos horas. Prefiero corregirme ahora que después de que configures.</p>
+
+<div class="alerta" style="border-left-color:#1ABC9C">
+<h3>1 · Entitlements sí cubre todo, y el error era mío</h3>
+<p>Te dije que Entitlements dejaba fuera dos de los cuatro planes porque el anual y el Founder eran pago único. El dato era cierto, pero la conclusión estaba mal: <strong>yo estaba defendiendo el diseño de pago único que venía del script viejo, en vez de preguntarme si ese diseño debía cambiar.</strong></p>
+<p>Verificado contra la documentación: <strong>las features de Entitlements se atan al Product, no al Price.</strong> O sea que un mismo producto con precio de 890 y precio de preventa de 690 otorga exactamente el mismo derecho, sin hacer nada.</p>
+<p><strong>Y el hallazgo que lo cambia todo: el intervalo máximo de una suscripción de Stripe son tres años</strong>, no uno. Textual: máximo de tres años, treinta y seis meses o ciento cincuenta y seis semanas. Así que <strong>el Founder de 36 meses también puede ser suscripción</strong>, y no hace falta darlo de alta a mano ni poner una alerta a tres años.</p>
+<p>Conclusión corregida: <strong>los cinco planes pueden ser suscripciones, Entitlements los cubre todos, y no hay ninguna excepción.</strong> Lo único que se pierde por ir todo a suscripción son los meses sin intereses, y eso es decisión comercial, no técnica.</p>
+</div>
+
+<div class="alerta">
+<h3>2 · SPEI no funciona en Payment Links</h3>
+<p>SPEI era el gran ahorro: siete pesos fijos contra los cuarenta de una tarjeta. Stripe lo soporta, pero <strong>no en Payment Links</strong>, y en Checkout tampoco en modo suscripción. Sí funciona en Subscriptions e Invoicing armadas por código, pasándole un cliente ya creado.</p>
+<p>Traducción: SPEI no se activa con una casilla, hay que armarlo por código. Es media hora más de trabajo y el ahorro lo justifica de sobra. Lo bueno es que esto reabre la puerta a cobrar el anual recurrente por transferencia, que era justo lo que parecía imposible.</p>
+<p>OXXO es distinto: sí funciona en Payment Links, pero solo pago único, con tope de 10,000 pesos, comisión de 4% más 3 pesos, y <strong>sin posibilidad de reembolso.</strong> Ese último punto no tiene vuelta: un pago de OXXO no se puede devolver por Stripe nunca.</p>
+</div>
+
+<div class="alerta">
+<h3>3 · El plan gratis de Chatwoot no incluye WhatsApp</h3>
+<p>Te dije que con dos agentes salía en cero. Es falso: el plan gratuito de su nube solo trae chat web. WhatsApp empieza en 19 dólares por agente al mes.</p>
+<p>La versión gratuita de verdad es <strong>Chatwoot autohospedado</strong>, que no tiene límite de agentes pero necesita un servidor de diez a veinte dólares. Con un solo agente sale más barato el plan de nube.</p>
+</div>
+
+<div class="nota"><p>Y un cuarto hallazgo que no rompe nada pero hay que saberlo: <strong>un portafolio nuevo de Meta solo admite dos números de teléfono</strong> hasta que verifiques el negocio. Sube a veinte al verificar.</p></div>
+</section>
+
+<!-- ═══ 02 ═══ -->
+<section class="sec" id="decisiones">
+<p class="kicker">02</p>
+<h2>Las decisiones que faltan</h2>
+<p class="sub">Cuatro. Las cuatro se cierran en quince minutos y bloquean todo lo demás.</p>
+
+<div class="dec"><h3>1 · Meses sin intereses, o suscripción</h3>
+<p>Es lo único que queda del hallazgo anterior, y ya no es técnico. Si todo va como suscripción, Stripe se encarga de renovar, del portal, de los reintentos y de los derechos de acceso. Pero <strong>los meses sin intereses no funcionan con suscripciones.</strong> Verificado y sin vuelta: solo operan en modo de pago único, y ni siquiera en el primer cobro de una suscripción.</p>
+<p>El costo de ofrecerlos lo absorbes tú: <strong>987 pesos sobre un anual de 7,900 a doce meses, y 1,112 sobre el Founder de 8,900.</strong> Contra eso, lo que compras es que en México mucha gente que no suelta 7,900 de golpe sí suelta 658 al mes.</p>
+<div class="opc"><span class="rec">Todo suscripción, sin meses sin intereses</span><span>Mensual y Dúo como suscripción, anual y Founder como pago único con meses sin intereses</span><span>Todo pago único</span></div>
+</div>
+
+<div class="dec"><h3>1b · Cómo se hace la preventa de Mariana</h3>
+<p>Verifiqué las dos formas. <strong>Va un precio separado de 690 sobre el mismo producto, no un cupón.</strong></p>
+<p>Con precio separado, la factura del cliente muestra un solo renglón de 690 y tus reportes registran 690 de ingreso recurrente limpio. Con cupón muestra 890 menos un descuento de 200, y tus reportes registran bruto más descuento, que ensucia todo lo que quieras medir después.</p>
+<p><strong>Y el precio congelado funciona solo.</strong> Stripe nunca migra una suscripción a un precio nuevo salvo que se lo pidas explícitamente. El día que subas el mensual a 990, la gente de la preventa se queda en 690 sin que nadie toque nada. La promesa de por vida se cumple por defecto.</p>
+<p>Un detalle para el guion de soporte: <strong>si alguien de la preventa cancela y vuelve, ya no entra a 690.</strong> El precio viejo se puede seguir usando a mano para reactivarlo, pero no pasa solo, y eso hay que decidirlo como política antes de que ocurra el primer caso.</p>
+</div>
+
+<div class="dec"><h3>2 · Cuál lista de precios</h3>
+<p>Siguen siendo dos listas con cuatro diferencias entre ellas, y el script no contempla Familiar de tres plazas. Escoge una y la publico.</p>
+</div>
+
+<div class="dec"><h3>3 · Qué se vende el 27</h3>
+<p>Individual y Founder funcionan sin tocar plazas. Dúo y Familiar necesitan el modelo de asientos.</p>
+<div class="opc"><span class="rec">Individual y Founder, los otros en septiembre</span><span>Los cuatro planes</span></div>
+</div>
+
+<div class="dec"><h3>4 · Si conservas la app de WhatsApp Business en ese número</h3>
+<p>Aquí hay un matiz nuevo. Existe una modalidad en la que un número funciona a la vez en la app y en la API, con historial sincronizado, pero exige entrar por un proveedor autorizado y no se puede activar después. Si das el número de alta directo, pierdes la app para siempre en ese número.</p>
+<div class="opc"><span class="rec">Número nuevo, alta directa, la app se contesta desde Chatwoot</span><span>Entrar por un proveedor para conservar la app</span></div>
+</div>
+</section>
+
+<!-- ═══ 03 ═══ -->
+<section class="sec" id="stripe">
+<p class="kicker">03</p>
+<h2>Stripe, en orden</h2>
+<p class="sub">Las direcciones están verificadas contra la documentación. Pégalas directo en el navegador, que es más confiable que buscar el menú.</p>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">Antes que nada</span><span class="m">sin esto, lo demás no aparece</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>Sube la URL de tus términos y de tu aviso de privacidad<span class="et hoy">bloquea</span></b><span>Sin esta URL cargada, <strong>la opción de casilla de consentimiento ni siquiera aparece</strong> al crear el enlace de pago. Y hoy esas dos páginas no existen en tu sitio, así que hay que publicarlas primero.</span><span class="url">dashboard.stripe.com/settings/public</span></div></div>
+<div class="t"><div class="c"></div><div><b>Sube logo, icono y colores</b><span>El icono sale en los correos, en el checkout, en el portal y en las facturas. El logo sale en el checkout. Los dos en JPG o PNG, menos de 512 kb, mínimo 128 por 128.</span><span class="url">dashboard.stripe.com/account/branding</span></div></div>
+<div class="t"><div class="c"></div><div><b>Pon el idioma de los correos en español</b><span class="url">dashboard.stripe.com/settings/emails</span></div></div>
+<div class="t"><div class="c"></div><div><b>Completa la activación de la cuenta en vivo<span class="et hoy">bloquea la prueba 12</span></b><span>Datos fiscales, RFC y la CLABE donde Stripe te deposita. Sin esto no puedes cobrar de verdad, y la última prueba es un cobro real con tu tarjeta.</span><span class="url">dashboard.stripe.com/settings/account</span></div></div>
+</div></div>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">Los productos y los enlaces</span><span class="m">esto es lo que se vende</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>Corre el script de productos en modo prueba</b><span>Ya está escrito en <code>stripe/crear-productos.mjs</code>. Crea productos, precios y enlaces con la metadata en los cuatro lugares donde tiene que ir. Es idempotente, se puede correr las veces que haga falta.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Activa la captura de teléfono en cada enlace<span class="et ojo">viene apagada</span></b><span>Es una casilla que dice <strong>Require customers to provide a phone number</strong>. Viene apagada de fábrica y es el dato con el que después le escribes por WhatsApp.</span><span class="url">dashboard.stripe.com/payment-links</span></div></div>
+<div class="t"><div class="c"></div><div><b>Activa la casilla de consentimiento</b><span>Solo aparece si ya cargaste la URL de términos en el primer bloque. Si no la ves, es por eso.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Pon el checkout en español</b><span>No hay ajuste de cuenta para esto: se agrega <code>?locale=es-419</code> al final de cada enlace. Sin eso, Stripe adivina por el navegador del cliente.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Corre el script otra vez, ya en vivo</b><span>Con la lista de precios que hayas decidido. De aquí salen los enlaces reales que vas a compartir el 27.</span></div></div>
+</div></div>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">Métodos de pago</span><span class="m">todo en una sola página</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>Activa meses sin intereses y configura los plazos</b><span>En esa misma página eliges qué plazos ofreces y el monto mínimo de cada uno. El recargo lo absorbes tú: 5% a tres meses, 7.5% a seis, 12.5% a doce. Solo aplica a tarjeta de crédito de consumo emitida en México.</span><span class="url">dashboard.stripe.com/settings/payment_methods</span></div></div>
+<div class="t"><div class="c"></div><div><b>Activa OXXO y transferencia bancaria<span class="et ojo">ojo</span></b><span>SPEI aparece como <strong>Bank transfers</strong>. Actívalos aquí, pero recuerda que SPEI no va a funcionar en los enlaces de pago, solo desde código. OXXO sí funciona en enlaces, con tope de 10,000 pesos y solo pago único.</span></div></div>
+</div></div>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">Cobros fallidos</span><span class="m">esto reemplaza nuestra máquina de estados</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>Configura los reintentos</b><span>Elige Smart Retries. Stripe recomienda <strong>ocho intentos en dos semanas</strong>. Y en esa misma página eliges qué pasa al agotarlos: cancelar, marcar como impagada, o dejarla vencida. Nuestro periodo de gracia tiene que durar al menos lo que dure esta ventana.</span><span class="url">dashboard.stripe.com/revenue_recovery/retries</span></div></div>
+<div class="t"><div class="c"></div><div><b>Enciende los correos de recuperación</b><span>Aquí viven dos: el de cobro fallido y el de tarjeta por vencer. Revísalos uno por uno, porque la documentación no dice cuáles vienen prendidos de fábrica.</span><span class="url">dashboard.stripe.com/revenue_recovery/emails</span></div></div>
+<div class="t"><div class="c"></div><div><b>Y el recordatorio de renovación, que vive en otra página<span class="et ojo">ojo</span></b><span>Este no está con los anteriores. Búscalo como <strong>Send emails about upcoming renewals</strong> en la página de facturación automática. Es el error que te hace dar diez vueltas buscándolo donde no está.</span><span class="url">dashboard.stripe.com/settings/billing/automatic</span></div></div>
+</div></div>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">Portal de cliente</span><span class="m">aquí está el gran ahorro de trabajo</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>Configúralo y genera el enlace fijo</b><span>En esa página, en la sección de cómo empezar, hay un botón para <strong>activar un enlace fijo compartible</strong> tipo <code>billing.stripe.com/p/login/...</code>. Eso significa que no hay que programar nada: el cliente entra su correo, Stripe le manda acceso, y desde ahí cancela, cambia tarjeta y baja sus facturas.</span><span class="url">dashboard.stripe.com/settings/billing/portal</span></div></div>
+<div class="t"><div class="c"></div><div><b>Enciende lo que quieres que pueda hacer</b><span>Vienen apagados por defecto: cambiar de plan, usar cupones y cupones de retención. Vienen prendidos: cancelar, actualizar tarjeta y ver facturas. El motivo de cancelación también viene prendido, y esa información te va a servir mucho.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Asume que el portal solo cubre a quien pagó con tarjeta<span class="et ojo">hueco</span></b><span>Stripe marca el portal como no soportado para transferencia y para OXXO. <strong>Quien pague por SPEI o en tienda no va a poder cancelar ni actualizar nada desde ahí.</strong> Esas bajas llegan por WhatsApp o por correo y las atiende una persona. A cuarenta o sesenta bajas al mes eso es manejable, pero tiene que estar escrito en el guion de soporte.</span></div></div>
+</div></div>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">Webhook</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>Crea el destino de eventos<span class="et ojo">después del código</span></b><span>Este paso necesita que la función de Supabase ya esté desplegada, porque le vas a dar su URL. Va después de la pieza 2 de la sección siguiente, no antes. Alcance <strong>Your account</strong>, y el secreto de firma se revela con un clic en la lista.</span><span class="url">dashboard.stripe.com/webhooks</span></div></div>
+<div class="t"><div class="c"></div><div><b>Hazlo dos veces, en prueba y en vivo<span class="et ojo">ojo</span></b><span>Los endpoints y los secretos <strong>son distintos en cada modo</strong>. Es el error que hace perder una tarde: configuras en prueba, funciona, pasas a vivo y no llega nada.</span></div></div>
+</div></div>
+</section>
+
+<!-- ═══ 04 ═══ -->
+<section class="sec" id="whatsapp">
+<p class="kicker">04</p>
+<h2>WhatsApp, en orden</h2>
+<p class="sub">El orden importa mucho aquí. Hay un paso donde se atora todo el mundo y viene señalado.</p>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">El alta</span><span class="m">primero la app, no el portafolio</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>Crea la app</b><span>El portafolio de negocio se elige o se crea <strong>dentro</strong> del flujo de la app. Después, en el panel de la app, agregas el producto WhatsApp.</span><span class="url">developers.facebook.com → My Apps → Create App</span></div></div>
+<div class="t"><div class="c"></div><div><b>Prueba con el número de prueba primero</b><span>Meta te crea uno gratis con hasta cinco destinatarios en lista blanca y plantillas de muestra. Sirve para validar la conexión y el webhook antes de quemar tu número bueno.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Genera el token permanente<span class="et hoy">aquí se atora todo el mundo</span></b><span>El token que te da la pantalla inicial es efímero y no sirve para producción. Creas un usuario de sistema con rol Admin, y <strong>le asignas dos activos: la app y la cuenta de WhatsApp.</strong> Si solo asignas la app, el token se genera pero devuelve error de permisos. Permisos: <code>whatsapp_business_messaging</code> y <code>whatsapp_business_management</code>. Cópialo al momento porque no se vuelve a mostrar.</span><span class="url">business.facebook.com/settings → Users → System users</span></div></div>
+<div class="t"><div class="c"></div><div><b>Agrega y verifica el número nuevo<span class="et ojo">por llamada</span></b><span>Meta te deja elegir SMS o llamada, sin preferir ninguna. Si el número es virtual, la llamada suele pasar más. El número no puede estar activo en WhatsApp: si ya tiene cuenta, hay que borrarla desde la app antes de registrarlo. Y te va a pedir un PIN de seis dígitos que vas a necesitar otra vez, guárdalo.</span><span class="url">business.facebook.com/wa/manage → Account tools → Phone numbers</span></div></div>
+</div></div>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">Plantillas y límites</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>Manda las plantillas a aprobación</b><span>Se hace en WhatsApp Manager, no en Business Manager. Las tres ya están escritas. La aprobación tarda hasta 24 horas y el estado se ve en la misma pantalla.</span><span class="url">business.facebook.com/wa/manage → Account tools → Manage templates</span></div></div>
+<div class="t"><div class="c"></div><div><b>Configura el webhook de entrada<span class="et ojo">falta decidir quién lo recibe</span></b><span>En el panel de la app, sección WhatsApp, Configuration. Pones la URL de la función de Supabase y un token de verificación que tú inventas. Meta manda una petición de prueba y hay que devolverle el reto tal cual. Suscribe el campo <code>messages</code>, que trae los mensajes entrantes y también los estados de entrega.</span><span>⚠️ <strong>Cloud API admite un solo webhook por app.</strong> Si Chatwoot también lo quiere, se pelean. Hay que decidir si lo recibe nuestra función y le reenvía a Chatwoot, o al revés.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Arranca la verificación de negocio el mismo día<span class="et hoy">a mil miembros aprieta</span></b><span>Un portafolio nuevo arranca en <strong>250 clientes distintos cada 24 horas</strong>, y solo admite <strong>dos números</strong> hasta verificar. Con mil miembros ese techo te aprieta en el primer envío grande. No bloquea el 27, pero se empieza ya porque tarda días.</span><span class="url">business.facebook.com/settings → Security Center</span></div></div>
+</div></div>
+</section>
+
+<!-- ═══ 05 ═══ -->
+<section class="sec" id="supabase">
+<p class="kicker">05</p>
+<h2>Supabase y Hostinger</h2>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">Lo que ya quedó anoche</span><span class="m">no rehacer</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>Correo funcionando de punta a punta</b><span>Dominio verificado con DKIM, SPF y DMARC pasando. SMTP propio conectado. Límite subido de 2 a 300 por hora. Plantilla de contraseña en español y fuera de spam.</span></div></div>
+</div></div>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">Lo que falta esta mañana</span><span class="m">veinte minutos</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>Sube <code>confirmar.html</code> y el logo blanco a Hostinger</b><span>A la raíz de <code>public_html</code>, y el logo a la carpeta <code>correo</code>. Comprueba abriendo <code>somosatp.com/confirmar.html</code>: debe decir que el enlace ya venció.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Pega la plantilla de Confirm signup</b><span>Con el asunto <code>Confirma tu correo para entrar a ATP</code>. Es la que reciben todos los que se registren el 27.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Publica términos y privacidad<span class="et hoy">bloquea Stripe</span></b><span>Sin esas dos páginas publicadas no puedes activar la casilla de consentimiento en Stripe, y además son requisito de las tiendas. Yo te las escribo hoy.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Sube Resend a plan Pro</b><span>Veinte dólares. El plan gratis topa en cien correos al día, que a mil miembros se acaba en una mañana.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Saca tu CSD del SAT para poder timbrar<span class="et hoy">tarda días</span></b><span>Facturapi aparecía en los costos pero sin un solo paso de alta, y eso era un hueco mío. El Certificado de Sello Digital es un trámite del SAT que tarda días, así que se empieza ya aunque el timbrado se conecte en septiembre.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Confirma si <code>hola@somosatp.com</code> existe como buzón</b><span>Los trece correos dicen que si respondes hay alguien del otro lado.</span></div></div>
+</div></div>
+</section>
+
+<!-- ═══ 06 ═══ -->
+<section class="sec" id="codigo">
+<p class="kicker">06</p>
+<h2>Lo que se programa</h2>
+<p class="sub">Seis piezas, ninguna es un motor. Los briefs los escribo yo para que Claude Code los ejecute.</p>
+
+<div class="bloque dev">
+<div class="bcab"><span class="n">En orden de dependencia</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>1 · La tabla de acceso y el modelo de plazas</b><span>Perfil, membresía, plaza, y una vista que calcule el acceso en vez de guardarlo. Todo lo demás lee de aquí.</span></div></div>
+<div class="t"><div class="c"></div><div><b>2 · El webhook, simplificado</b><span>Crear la cuenta al confirmar el pago, y leer el campo de estado de la suscripción para saber si hay acceso. Stripe hace el resto.</span></div></div>
+<div class="t"><div class="c"></div><div><b>3 · La sesión de pago con SPEI</b><span>Por código, porque no cabe en un enlace de pago. Es lo que baja el costo de cobrar el anual de 340 pesos a 8.</span></div></div>
+<div class="t"><div class="c"></div><div><b>4 · El código de WhatsApp</b><span>Seis dígitos, en nuestra tabla, mandados por Cloud API. Se pide dentro de la app, ya después del pago.</span></div></div>
+<div class="t"><div class="c"></div><div><b>5 · El aviso de alta repetida</b><span>El correo ya está escrito. Falta la función que lo dispara sin revelar quién tiene cuenta.</span></div></div>
+<div class="t"><div class="c"></div><div><b>6 · El tablero</b><span>Cuatro listas: quién pagó y no entró, quién tiene SPEI en camino, qué pago llegó sin dueño, y quién se suspendió y sigue en la comunidad.</span></div></div>
+</div></div>
+</section>
+
+<!-- ═══ 07 ═══ -->
+<section class="sec" id="pruebas">
+<p class="kicker">07</p>
+<h2>Las pruebas</h2>
+<p class="sub">Trece pruebas, todas en modo prueba salvo la última. Si alguna falla, ese camino no se abre el 27.</p>
+<div class="tabla"><table>
+<tr><th>#</th><th>Prueba</th><th>Qué comprueba</th></tr>
+<tr><td>01</td><td>Compra de Individual con tarjeta buena</td><td>llega el evento, se crea el acceso, sale correo y WhatsApp</td></tr>
+<tr><td>02</td><td>El mismo evento repetido a propósito</td><td>no da doble membresía</td></tr>
+<tr><td>03</td><td>Tarjeta rechazada</td><td>no se crea nada y queda registro</td></tr>
+<tr><td>04</td><td>Compra de Founder</td><td>la vigencia queda en tres años</td></tr>
+<tr><td>05</td><td>Pago por SPEI</td><td>aparece en el tablero como en camino y se confirma días después</td></tr>
+<tr><td>06</td><td>Pago sin identificador de perfil</td><td>cae como huérfano y sale en el tablero el mismo día</td></tr>
+<tr><td>07</td><td>Con el correo apagado a propósito</td><td>la persona igual recibe su WhatsApp y su acceso</td></tr>
+<tr><td>08</td><td>Cobro fallido en una suscripción</td><td>Stripe reintenta y manda su correo, y el acceso sigue durante la gracia</td></tr>
+<tr><td>09</td><td>Cancelar desde el portal de Stripe</td><td>el acceso dura hasta el fin del periodo pagado</td></tr>
+<tr><td>10</td><td>Código de WhatsApp desde la app</td><td>llega, verifica, y queda el consentimiento guardado</td></tr>
+<tr><td>11</td><td>Alta con un correo que ya existe</td><td>sale el aviso correcto y no se cuelga la pantalla</td></tr>
+<tr><td>12</td><td>Un pago real con tu tarjeta, y su reembolso</td><td>la única que prueba producción</td></tr>
+<tr><td>13</td><td>Un pago por OXXO, y pedir devolverlo</td><td>que el guion de soporte sepa que <strong>no se puede reembolsar</strong> y ofrezca crédito en su lugar</td></tr>
+</table></div>
+</section>
+
+<!-- ═══ 08 ═══ -->
+<section class="sec" id="costos">
+<p class="kicker">08</p>
+<h2>Los costos a mil miembros</h2>
+<p class="sub">Con tu número: mil miembros individuales mensuales son 890,000 pesos de venta al mes.</p>
+<div class="tabla"><table>
+<tr><th>Concepto</th><th>Al mes</th><th>Nota</th></tr>
+<tr><td>Comisión de Stripe, tarjeta</td><td>≈ 40,600 MXN</td><td>3.6% más 3 pesos por cobro, <strong>más 16% de IVA</strong></td></tr>
+<tr><td>Stripe Billing</td><td>≈ 7,200 MXN</td><td>0.7% del volumen con IVA. Es lo que paga el portal y los reintentos</td></tr>
+<tr><td>WhatsApp</td><td>≈ 700 MXN</td><td>mensajes de utilidad iniciados por nosotros. Los de respuesta dentro de la ventana no cuestan</td></tr>
+<tr><td>Facturapi</td><td>≈ 900 MXN</td><td>299 de plan más 60 centavos por timbre</td></tr>
+<tr><td>Supabase Pro</td><td>≈ 450 MXN</td><td></td></tr>
+<tr><td>Resend Pro</td><td>≈ 350 MXN</td><td></td></tr>
+<tr><td>Chatwoot</td><td>≈ 350 MXN</td><td>un agente en la nube. La versión autohospedada es gratis pero pide servidor</td></tr>
+<tr><td>Skool</td><td>≈ 160 MXN</td><td></td></tr>
+<tr class="suma"><td>Total</td><td>≈ 51,000 MXN</td><td>alrededor del <strong>5.7%</strong> de la venta</td></tr>
+</table></div>
+
+<div class="alerta">
+<h3>Dos costos que no están en la tabla porque dependen de tus decisiones</h3>
+<p><strong>El recargo de meses sin intereses lo absorbes tú.</strong> Sobre un anual de 7,900 a doce meses son 987 pesos por venta. Si vendes cien anuales así, son casi cien mil pesos. Ese renglón puede ser el más grande de todos y no aparece hasta que decides ofrecerlo.</p>
+<p><strong>Y OXXO cuesta 4% más 3 pesos</strong>, que sobre 890 son 38.60, más caro que una tarjeta. Además no se puede reembolsar. Si vas a aceptarlo, que sea a sabiendas.</p>
+</div>
+<div class="nota"><p>Vale la pena que veas el renglón de Stripe Billing con calma: a mil miembros son <strong>7,200 pesos al mes</strong> por el portal y los reintentos. Hoy es obviamente rentable contra construirlo. El día que ese número te moleste, se reevalúa. Esa decisión no es de esta semana.</p></div>
+
+<div class="cierre">
+<p class="lead">Si cierras las cuatro decisiones, arranco los briefs de las seis piezas y las páginas de términos y privacidad.</p>
+<p>Y de las cuatro, la única que de verdad corre contra el reloj es la del número de WhatsApp, porque el alta no se deshace.</p>
+</div>
+</section>
+</main>

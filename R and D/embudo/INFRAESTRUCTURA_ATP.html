@@ -1,0 +1,351 @@
+<title>Infraestructura ATP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{--canvas:#000;--card:#121212;--alto:#1A1A1A;--borde:#242424;
+ --tinta:#fff;--sec:#9A9A9A;--tenue:#767676;
+ --lima:#A8E02A;--teal:#1ABC9C;--ambar:#EFD54F;--rojo:#E74C3C;--violeta:#7F77DD;
+ --g1:#A8E02A;--g2:#6DCC48;--g3:#3DBF6E;--g4:#2EC28A;--g5:#1ABC9C}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--canvas);color:var(--tinta);
+ font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+ font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;left:0;top:0;bottom:0;width:6px;z-index:50;
+ background:linear-gradient(180deg,var(--g1),var(--g2) 26%,var(--g3) 50%,var(--g4) 74%,var(--g5))}
+.wrap{max-width:960px;margin:0 auto;padding:60px 26px 110px 34px}
+h1{font-size:clamp(32px,5.6vw,50px);line-height:1.1;font-weight:600;letter-spacing:-.025em;margin:0 0 18px}
+h2{font-size:clamp(23px,3.4vw,30px);line-height:1.22;font-weight:600;letter-spacing:-.018em;margin:0 0 8px}
+h3{font-size:18px;line-height:1.35;font-weight:600;letter-spacing:-.006em;margin:0 0 10px}
+p{margin:0 0 17px;color:var(--sec)}
+p.lead{color:var(--tinta);font-size:19.5px;line-height:1.62}
+strong{color:var(--tinta);font-weight:600}
+code{font-family:'SFMono-Regular',Consolas,monospace;font-size:.86em;background:var(--alto);
+ border:1px solid var(--borde);border-radius:5px;padding:1px 6px;color:#CFCFCF}
+a{color:var(--teal);text-decoration:none}
+.kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--tenue);font-weight:500;margin:0 0 10px}
+.sec{margin:0 0 78px;scroll-margin-top:24px}
+.sub{color:var(--sec);font-size:17px;margin:0 0 30px;max-width:64ch}
+.indice{background:var(--card);border:1px solid var(--borde);border-radius:16px;padding:22px 24px;margin:0 0 74px}
+.indice ol{margin:0;padding:0;list-style:none;counter-reset:i}
+.indice li{counter-increment:i;margin:0 0 9px;display:flex;gap:13px;align-items:baseline}
+.indice li:last-child{margin:0}
+.indice li::before{content:counter(i,decimal-leading-zero);color:var(--tenue);font-size:12px;font-variant-numeric:tabular-nums;flex:0 0 20px}
+.indice a{color:var(--tinta);font-weight:500;font-size:16px}
+.indice a:hover{color:var(--teal)}
+
+table{width:100%;border-collapse:collapse;margin:0 0 22px;font-size:15px}
+.tabla{overflow-x:auto;margin:0 0 22px}
+.tabla table{margin:0;min-width:560px}
+th{text-align:left;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tenue);
+ font-weight:600;padding:0 16px 11px 0;border-bottom:1px solid var(--borde);white-space:nowrap}
+td{padding:14px 16px 14px 0;border-bottom:1px solid var(--borde);color:var(--sec);vertical-align:top;line-height:1.55}
+td:first-child{color:var(--tinta);font-weight:500;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+
+.chip{display:inline-block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+ font-weight:600;padding:3px 9px;border-radius:5px;white-space:nowrap}
+.ya{color:var(--teal);background:rgba(26,188,156,.12)}
+.arr{color:var(--ambar);background:rgba(239,213,79,.12)}
+.nue{color:var(--rojo);background:rgba(231,76,60,.13)}
+.qui{color:var(--tenue);background:#1C1C1C}
+
+/* pila de capas */
+.pila{display:flex;flex-direction:column;gap:8px;margin:0 0 26px}
+.capa{background:var(--card);border:1px solid var(--borde);border-radius:13px;padding:17px 22px;
+ display:grid;grid-template-columns:26px 1fr auto;gap:0 16px;align-items:start;
+ box-shadow:inset 3px 0 0 var(--cc,var(--borde))}
+.capa .cn{color:var(--tenue);font-size:12px;font-variant-numeric:tabular-nums;padding-top:4px}
+.capa b{display:block;color:var(--tinta);font-size:16.5px;font-weight:600;margin:0 0 2px}
+.capa .tool{display:block;color:var(--cc,var(--teal));font-weight:500;font-size:14.5px;margin:0 0 6px}
+.capa .desc{display:block;color:var(--sec);font-size:14.5px;line-height:1.6}
+.capa:nth-child(1){--cc:#A8E02A}
+.capa:nth-child(2){--cc:#8AD836}
+.capa:nth-child(3){--cc:#6DCC48}
+.capa:nth-child(4){--cc:#55C55B}
+.capa:nth-child(5){--cc:#3DBF6E}
+.capa:nth-child(6){--cc:#2EC28A}
+.capa:nth-child(7){--cc:#24BF93}
+.capa:nth-child(8){--cc:#1ABC9C}
+.nota{border-left:3px solid var(--teal);padding:2px 0 2px 20px;margin:0 0 26px}
+.nota p{margin:0;font-size:15.5px}
+.alerta{border-left:3px solid var(--rojo);padding:2px 0 2px 20px;margin:0 0 26px}
+.alerta p{margin:0;font-size:15.5px}
+.alerta p+p{margin-top:12px}
+
+.dec{background:var(--card);border:1px solid var(--borde);border-left:3px solid var(--lima);
+ border-radius:0 14px 14px 0;padding:22px 24px;margin:0 0 16px}
+.dec h3{margin-bottom:8px}
+.dec p{margin:0;font-size:15.5px}
+.dec p+p{margin-top:12px}
+.opc{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0 0}
+.opc span{font-size:13.5px;color:var(--sec);background:var(--alto);border:1px solid var(--borde);
+ border-radius:8px;padding:8px 13px}
+.opc span.rec{color:var(--tinta);border-color:#3A4A2A;background:rgba(168,224,42,.07)}
+.opc span.rec::before{content:'sugerido · ';color:var(--lima);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+
+.total{background:var(--card);border:1px solid var(--borde);border-radius:16px;padding:8px 24px 20px;margin:0 0 22px}
+.total table{margin:0}
+.total tr.suma td{border-bottom:0;border-top:1px solid #3A3A3A;padding-top:18px;color:var(--tinta);font-weight:600;font-size:17px}
+.cierre{border-top:1px solid var(--borde);margin-top:70px;padding-top:34px}
+.cierre p{font-size:17px;line-height:1.7}
+@media(max-width:640px){.wrap{padding:44px 20px 80px 28px}
+ .capa{grid-template-columns:1fr;gap:8px}.capa .cn{display:none}}
+</style>
+
+<main class="wrap">
+
+<p class="kicker">ATP · arquitectura del embudo</p>
+<h1>Toda la infraestructura,<br>en papel</h1>
+<p class="lead">Esto es el inventario completo de lo que ya existe, la arquitectura que propongo, cada herramienta con su costo y su porqué, y las siete decisiones que hay que cerrar antes de escribir una línea. El paso a paso sale después de esto, no antes.</p>
+
+<div class="indice"><ol>
+  <li><a href="#inventario">Lo que ya existe, verificado contra el código</a></li>
+  <li><a href="#nudo">El nudo: hay dos formas de cobrar construidas a medias</a></li>
+  <li><a href="#tiendas">Las tiendas, que es lo que decide la arquitectura</a></li>
+  <li><a href="#pila">La arquitectura, capa por capa</a></li>
+  <li><a href="#catalogo">El catálogo de herramientas, una por una</a></li>
+  <li><a href="#quitar">Lo que se quita</a></li>
+  <li><a href="#costo">El costo mensual completo</a></li>
+  <li><a href="#decisiones">Las siete decisiones</a></li>
+</ol></div>
+
+<!-- ══════ 01 ══════ -->
+<section class="sec" id="inventario">
+<p class="kicker">01</p>
+<h2>Lo que ya existe, verificado contra el código</h2>
+<p class="sub">Nada de esto es suposición. Cada renglón salió de leer el repo, la base de datos en vivo, o de lo que me confirmaste tú.</p>
+
+<div class="tabla"><table>
+<tr><th>Pieza</th><th>Estado</th><th>Detalle</th></tr>
+<tr><td>Supabase</td><td><span class="chip ya">ya está</span></td><td>Plan Pro. 13 funciones desplegadas, 6 tareas programadas corriendo, Postgres con todas las tablas del embudo ya creadas.</td></tr>
+<tr><td>Stripe</td><td><span class="chip arr">a medias</span></td><td>Cuenta viva, webhook desplegado con firma verificada. Cero productos publicados, cero pagos de ATP procesados.</td></tr>
+<tr><td>RevenueCat</td><td><span class="chip arr">a medias</span></td><td>Cableado en la app, con paywall, entitlements y webhook desplegado en versión 11. Nunca ha cobrado nada.</td></tr>
+<tr><td>Resend</td><td><span class="chip nue">sin dominio</span></td><td>Se usa en el webhook de pagos, pero <strong>somosatp.com no está verificado</strong>. Hoy el correo no sale, o sale a spam.</td></tr>
+<tr><td>Skool</td><td><span class="chip ya">ya está</span></td><td>Plan Hobby, 9 dólares al mes. Sin conexión de ningún tipo con la app: hoy es una liga suelta en el código.</td></tr>
+<tr><td>Hostinger</td><td><span class="chip ya">ya está</span></td><td>El sitio está publicado con la portada y los protocolos. Faltan las páginas del embudo.</td></tr>
+<tr><td>Mercado Pago</td><td><span class="chip nue">cuenta sí, código no</span></td><td>Tienes la cuenta. En el repo no hay una sola línea.</td></tr>
+<tr><td>Sentry</td><td><span class="chip ya">ya está</span></td><td>Instrumentado en la app, organización <code>atp-v5</code>. Ya está capturando errores.</td></tr>
+<tr><td>PostHog</td><td><span class="chip ya">ya está</span></td><td>Con grabación de sesión y consentimiento del usuario. Ya está midiendo.</td></tr>
+<tr><td>Anthropic y Gemini</td><td><span class="chip ya">ya está</span></td><td>ARGOS con Claude de primario y Gemini de respaldo. Lectura de laboratorios con Claude.</td></tr>
+<tr><td>ElevenLabs</td><td><span class="chip ya">ya está</span></td><td>Voz de ARGOS, con voz femenina y masculina.</td></tr>
+<tr><td>Expo Push</td><td><span class="chip ya">ya está</span></td><td>Notificaciones funcionando desde dos tareas programadas.</td></tr>
+<tr><td>WhatsApp</td><td><span class="chip nue">no existe</span></td><td>Cero código, cero número dado de alta, cero cuenta de Meta Business.</td></tr>
+<tr><td>Facturación CFDI</td><td><span class="chip nue">no existe</span></td><td>Cero. Ni SAT, ni timbrado, ni proveedor. Solo un campo de RFC en el módulo de afiliados que no emite nada.</td></tr>
+<tr><td>Login social</td><td><span class="chip nue">no existe</span></td><td>Solo correo y contraseña. En la base hay 9 usuarios, todos por correo.</td></tr>
+<tr><td>Conekta</td><td><span class="chip qui">quitar</span></td><td>Aceptado en el webhook con un token, no con su firma real, que es RSA. Es una puerta sin cerradura.</td></tr>
+</table></div>
+
+<div class="alerta"><p><strong>Lo más urgente de esta tabla es Resend.</strong> Verificar un dominio implica tocar DNS y esperar propagación. Si eso no se hace hoy, el 27 no sale un solo correo de bienvenida, y no hay forma de acelerarlo con dinero ni con código.</p></div>
+</section>
+
+<!-- ══════ 02 ══════ -->
+<section class="sec" id="nudo">
+<p class="kicker">02</p>
+<h2>El nudo: hay dos formas de cobrar construidas a medias</h2>
+
+<p class="lead">Dentro de la app hay un paywall completo, con RevenueCat, con tres entitlements, con periodo de prueba y con precios en pantalla. Y por fuera estamos construyendo un embudo web con Stripe. Son dos sistemas de cobro distintos, ninguno terminado, y hoy no está decidido cuál manda.</p>
+
+<p>Esto no es un detalle de implementación. Define qué tabla es la fuente de verdad del acceso, qué precio ve cada quien, quién se queda con la comisión, y sobre todo si la app pasa la revisión de Apple.</p>
+
+<p>Hay una tercera pieza que empeora el nudo: en la app existe una tienda de moneda virtual, <code>app/economy/shop.tsx</code>, que muestra precios en pesos y tiene un botón que dice <strong>Comprar (dev)</strong>, llamando a una función que ya está revocada. La auditoría de tiendas de julio ya la marcó como rechazo casi seguro. Eso sale del binario antes de cualquier envío.</p>
+
+<div class="nota"><p>La buena noticia es que las dos formas de cobrar pueden convivir, y RevenueCat está hecho justo para eso. Lo que no puede seguir es que ninguna esté decidida.</p></div>
+</section>
+
+<!-- ══════ 03 ══════ -->
+<section class="sec" id="tiendas">
+<p class="kicker">03</p>
+<h2>Las tiendas, que es lo que decide la arquitectura</h2>
+<p class="sub">Verifiqué esto contra la documentación de Apple y de Google, no de memoria. Es la parte más cara de equivocarse y la que más mitos tiene alrededor.</p>
+
+<h3>Google Play sí permite vender por fuera</h3>
+<p>Una app donde la persona solo inicia sesión y consume contenido que pagó en otro lado cumple la política de Google, siempre que dentro de la app no se pueda comprar nada. Android puede salir con el modelo web sin ningún problema.</p>
+
+<h3>Apple en México es otra historia</h3>
+<p>La regla que la gente cita, la de Netflix y Spotify, se llama <em>reader apps</em>, y su lista es cerrada: revistas, periódicos, libros, audio, música y video. ATP no entra en esa lista. La otra salida, la de servicios multiplataforma, exige textualmente que lo que vendes por fuera <strong>también esté disponible como compra dentro de la app</strong>. O sea que no sirve para evitar la compra integrada, sirve para complementarla.</p>
+
+<p>La tercera salida es la de servicios en tiempo real entre dos personas, que menciona explícitamente el entrenamiento físico. Y aquí hay algo que hay que decir: esa excepción exige que sea <strong>uno a uno</strong>, y el mismo texto aclara que lo de uno a pocos y uno a muchos sí debe usar compra integrada. Como en ATP todo el acompañamiento es grupal por decisión tuya, esa puerta está cerrada.</p>
+
+<p>Y lo de las ligas externas a comprar, que salió del pleito de Epic contra Apple, aplica solo en Estados Unidos. Lo de la Unión Europea aplica solo en Europa. <strong>En la tienda mexicana sigue vigente la prohibición completa de mandar a comprar por fuera.</strong></p>
+
+<div class="tabla"><table>
+<tr><th>Dentro de la app en iOS, México</th><th>¿Se puede?</th></tr>
+<tr><td>Iniciar sesión con una cuenta ya pagada</td><td>Sí</td></tr>
+<tr><td>Mostrar el estado de la membresía</td><td>Sí</td></tr>
+<tr><td>Decir que hace falta membresía, sin precio ni liga</td><td>Zona gris, suele pasar</td></tr>
+<tr><td>Mostrar precios</td><td>No</td></tr>
+<tr><td>Botón o liga para comprar en la web</td><td>No</td></tr>
+<tr><td>Escribirle por correo a tu usuario sobre otras formas de pago</td><td>Sí, y está permitido por escrito</td></tr>
+</table></div>
+
+<p>La conclusión honesta es que una app iOS de solo inicio de sesión es <strong>zona gris real</strong>. Hay decenas vivas en la tienda mexicana con ese modelo, y también hay rechazos documentados con exactamente ese modelo, con esta frase: que la app accede a contenido digital comprado fuera de la app y ese contenido no está disponible como compra integrada. Depende del revisor, y no hay texto de Apple que lo autorice.</p>
+
+<div class="tabla"><table>
+<tr><th>Comisión</th><th>Cuánto</th><th>Sobre 890 pesos</th></tr>
+<tr><td>Apple, programa de pequeños negocios</td><td>15%</td><td>134 pesos</td></tr>
+<tr><td>Google, suscripciones</td><td>15% desde el primer peso</td><td>134 pesos</td></tr>
+<tr><td>Stripe tarjeta, México</td><td>3.6% + 3 pesos, más IVA</td><td>alrededor de 40 pesos</td></tr>
+<tr><td>Stripe SPEI</td><td>7 pesos fijos, más IVA</td><td>8 pesos</td></tr>
+</table></div>
+</section>
+
+<!-- ══════ 04 ══════ -->
+<section class="sec" id="pila">
+<p class="kicker">04</p>
+<h2>La arquitectura, capa por capa</h2>
+<p class="sub">Del dato a la persona, en ocho capas. La regla que las ordena es una sola: el camino crítico vive en Supabase, y los terceros se quedan en los bordes.</p>
+
+<div class="pila">
+  <div class="capa"><span class="cn">01</span><div><b>Identidad y datos</b><span class="tool">Supabase Pro</span><span class="desc">Postgres, autenticación, funciones y almacenamiento. Login por correo hoy. Todo el camino crítico del pago vive aquí, en una sola transacción.</span></div><span class="chip ya">ya está</span></div>
+  <div class="capa"><span class="cn">02</span><div><b>Cobro</b><span class="tool">Stripe</span><span class="desc">Único cobrador el 27: tarjeta con meses sin intereses, <strong>SPEI con CLABE propia por cliente</strong>, y OXXO para el pago único. Mercado Pago entra en septiembre. Conekta se quita.</span></div><span class="chip arr">completar</span></div>
+  <div class="capa"><span class="cn">03</span><div><b>Derechos de acceso</b><span class="tool">Supabase, con RevenueCat de espejo</span><span class="desc">La tabla de otorgamientos es la fuente de verdad. RevenueCat se queda como espejo y como puerta abierta por si hay que activar compra integrada en iOS. La app resuelve tomando el que dé más acceso.</span></div><span class="chip arr">decidir</span></div>
+  <div class="capa"><span class="cn">04</span><div><b>Aviso</b><span class="tool">Resend, WhatsApp Cloud API y Expo Push</span><span class="desc">Resend con el dominio verificado, sirviendo también los correos de la cuenta. WhatsApp directo de Meta, sin intermediarios, con número nuevo. Las notificaciones ya funcionan.</span></div><span class="chip nue">crear</span></div>
+  <div class="capa"><span class="cn">05</span><div><b>Facturación fiscal</b><span class="tool">Facturapi</span><span class="desc">Con su conexión nativa a Stripe. Factura global mensual para quien no pide, nominativa para quien sí. Serie distinta desde el día uno para que el cambio a persona moral no rompa nada.</span></div><span class="chip nue">crear</span></div>
+  <div class="capa"><span class="cn">06</span><div><b>Comunidad</b><span class="tool">Skool Hobby</span><span class="desc">Nueve dólares al mes. La comisión del 10% no aplica porque el cobro no pasa por Skool. El alta se manda desde el tablero, porque ni pagando el plan de 99 se salta el clic de la persona.</span></div><span class="chip arr">completar</span></div>
+  <div class="capa"><span class="cn">07</span><div><b>Observabilidad</b><span class="tool">Sentry, PostHog y el tablero de rezagados</span><span class="desc">Los dos primeros ya están puestos. Falta lo que importa para el embudo: una vista en Postgres que diga quién pagó y sigue sin entrar, y una alerta que avise cuando algo cae en revisión.</span></div><span class="chip arr">completar</span></div>
+  <div class="capa"><span class="cn">08</span><div><b>Soporte</b><span class="tool">Chatwoot, plan gratis</span><span class="desc">Conectado a WhatsApp. Hace falta porque un número que entra a la API de Meta deja de funcionar en la app de WhatsApp Business, y sin bandeja no hay desde dónde contestar.</span></div><span class="chip nue">crear</span></div>
+</div>
+
+<div class="nota"><p><strong>El hallazgo que más simplifica todo es SPEI dentro de Stripe.</strong> Stripe le da a cada cliente una CLABE propia, recibe la transferencia y avisa por webhook, igual que una tarjeta. Eso borra del mapa toda la parte de recibir comprobantes por WhatsApp y verificarlos a mano. Y cuesta 7 pesos fijos: cobrar el anual de 7,900 por transferencia cuesta 8 pesos en vez de 340.</p></div>
+</section>
+
+<!-- ══════ 05 ══════ -->
+<section class="sec" id="catalogo">
+<p class="kicker">05</p>
+<h2>El catálogo de herramientas, una por una</h2>
+<p class="sub">Cada renglón trae por qué esa y no la alternativa obvia. Donde no hay competencia real, lo digo.</p>
+
+<h3>Cobro</h3>
+<div class="tabla"><table>
+<tr><th>Herramienta</th><th>Para qué</th><th>Costo</th><th>Por qué esa</th></tr>
+<tr><td>Stripe</td><td>Tarjeta, SPEI, OXXO, meses sin intereses</td><td>3.6% + 3 pesos en tarjeta · 7 pesos fijos en SPEI · 4% en OXXO</td><td>Ya está cableado con firma verificada e idempotencia real. Y es el único que resuelve SPEI con CLABE por cliente sin abrir nada nuevo.</td></tr>
+<tr><td>Mercado Pago</td><td>Segunda pasarela, septiembre</td><td>2.95% a 30 días · 3.49% inmediato</td><td>Más barato que Stripe y mucha gente en México paga con su saldo. Pero son de 12 a 20 horas de trabajo bien hecho, y no caben en cinco días.</td></tr>
+<tr><td>Conekta</td><td>Se quita</td><td>N/A</td><td>Su firma es RSA y el código solo revisa un token, así que hoy es una entrada sin validar. Stripe ya cubre OXXO y SPEI mejor.</td></tr>
+</table></div>
+
+<div class="nota"><p><strong>Un detalle que cambia cómo se venden los planes:</strong> los meses sin intereses de Stripe solo funcionan en cobro único, no en suscripción. Y SPEI tampoco funciona en el checkout de suscripción. Así que el mensual va como suscripción real que se renueva sola, y el anual y el Founder van como pago único con vigencia de 370 y 1,095 días, que es exactamente como ya está escrito el script.</p></div>
+
+<h3>Aviso</h3>
+<div class="tabla"><table>
+<tr><th>Herramienta</th><th>Para qué</th><th>Costo</th><th>Por qué esa</th></tr>
+<tr><td>Resend</td><td>Correos del embudo y de la cuenta</td><td>Gratis hasta 3,000 al mes, luego 20 dólares</td><td>Ya está en el código. Lo que falta no es la herramienta, es verificar el dominio y apuntar ahí también los correos de autenticación de Supabase.</td></tr>
+<tr><td>WhatsApp Cloud API</td><td>Aviso de acceso y soporte</td><td>Alrededor de 22 pesos al mes con 50 clientes. Las respuestas dentro de 24 horas no cuestan</td><td>Directo de Meta, sin intermediario que se quede en medio del camino crítico. Un portafolio nuevo arranca en 250 personas distintas al día.</td></tr>
+<tr><td>Chatwoot</td><td>Bandeja para contestar el WhatsApp</td><td>Gratis hasta 2 agentes</td><td>Hace falta sí o sí: el número, una vez en la API, ya no se puede contestar desde el teléfono.</td></tr>
+<tr><td>Expo Push</td><td>Notificaciones en la app</td><td>Gratis</td><td>Ya funciona desde dos tareas programadas.</td></tr>
+</table></div>
+
+<h3>Fiscal</h3>
+<div class="tabla"><table>
+<tr><th>Herramienta</th><th>Para qué</th><th>Costo</th><th>Por qué esa</th></tr>
+<tr><td>Facturapi</td><td>Timbrado de CFDI</td><td>299 pesos al mes + 60 centavos por timbre</td><td>Tiene aplicación nativa en Stripe, así que timbra cada cobro sin escribir código. Y su API es REST plano, que es lo único que sirve en un backend de Deno. Los proveedores que usan SOAP y firmado a mano no caben aquí.</td></tr>
+</table></div>
+<p>La alternativa real es Facturama, más barata por folio y con caja de pruebas abierta, pero sin la conexión directa a Stripe. Si el volumen crece mucho, se revisa. Para arrancar, no escribir código gana.</p>
+
+<h3>Comunidad</h3>
+<div class="tabla"><table>
+<tr><th>Herramienta</th><th>Para qué</th><th>Costo</th><th>Por qué esa</th></tr>
+<tr><td>Skool Hobby</td><td>La comunidad, como está hoy</td><td>9 dólares al mes</td><td>La gente ya está ahí. Su comisión del 10% no aplica porque el cobro no pasa por Skool.</td></tr>
+</table></div>
+<p>Subir a Skool Pro cuesta 99 dólares al mes y lo único que compra es que la invitación salga sola por Zapier. La persona igual tiene que abrir su correo y aceptar. Con los números del primer corte, mandar esa invitación a mano toma menos de un minuto por persona. Si algún día el alta programática de verdad se vuelve requisito, las opciones con API real son Circle en su plan de negocio, 199 dólares, o Discourse, 100 dólares.</p>
+
+<h3>Plataforma y observabilidad</h3>
+<div class="tabla"><table>
+<tr><th>Herramienta</th><th>Para qué</th><th>Costo</th></tr>
+<tr><td>Supabase Pro</td><td>Base, autenticación, funciones, almacenamiento</td><td>25 dólares</td></tr>
+<tr><td>Hostinger</td><td>El sitio y las páginas del embudo</td><td>Ya pagado</td></tr>
+<tr><td>RevenueCat</td><td>Capa de derechos de acceso</td><td>Gratis hasta 2,500 dólares al mes de ingreso, luego 1%</td></tr>
+<tr><td>Sentry y PostHog</td><td>Errores y comportamiento</td><td>Planes gratuitos por ahora</td></tr>
+</table></div>
+
+<h3>La capa que decidí no poner</h3>
+<p>Nada de Zapier, Make ni n8n en el camino crítico. La razón es concreta: Stripe reintenta la entrega de un evento hasta por tres días, pero solo si apunta a tu propio endpoint. Si apunta a Zapier, Zapier contesta que sí lo recibió y esa red de seguridad desaparece. Además, la idempotencia de verdad necesita una restricción única en la base, y eso ninguna herramienta de automatización te lo da. Para cosas de los bordes, como pasar un alta a una hoja de cálculo, n8n está bien y se puede agregar cuando haga falta.</p>
+</section>
+
+<!-- ══════ 06 ══════ -->
+<section class="sec" id="quitar">
+<p class="kicker">06</p>
+<h2>Lo que se quita</h2>
+
+<div class="tabla"><table>
+<tr><th>Qué</th><th>Por qué</th></tr>
+<tr><td>Conekta del webhook</td><td>Su firma real es RSA y el código solo revisa un token. Es una rama sin validar, o sea superficie de ataque gratis.</td></tr>
+<tr><td>La tienda de moneda virtual</td><td><code>app/economy/shop.tsx</code> muestra precios en pesos, tiene un botón que dice Comprar (dev), y llama una función revocada, así que siempre falla. Ya está marcada como rechazo casi seguro.</td></tr>
+<tr><td>La función <code>anthropic-proxy</code></td><td>Está en el repo, nunca se desplegó, y el cliente apunta a otra. Es código muerto que confunde.</td></tr>
+<tr><td>La recepción de comprobantes a mano</td><td>Si SPEI entra por Stripe, esto deja de existir. Se acaba el paso donde un humano mira una foto y decide.</td></tr>
+<tr><td>Los corchetes legales dentro de la app</td><td><code>legal-texts.ts</code> tiene <code>[RAZÓN SOCIAL]</code> sin llenar y se renderiza <strong>antes de crear la cuenta</strong>. Es lo primero que ve un revisor.</td></tr>
+</table></div>
+</section>
+
+<!-- ══════ 07 ══════ -->
+<section class="sec" id="costo">
+<p class="kicker">07</p>
+<h2>El costo mensual completo</h2>
+
+<div class="total"><table>
+<tr><th>Concepto</th><th>Al mes</th></tr>
+<tr><td>Supabase Pro</td><td>25 USD</td></tr>
+<tr><td>Facturapi</td><td>299 MXN, alrededor de 18 USD</td></tr>
+<tr><td>Skool Hobby</td><td>9 USD</td></tr>
+<tr><td>Resend</td><td>0 hasta 3,000 correos</td></tr>
+<tr><td>WhatsApp Cloud API</td><td>alrededor de 1 USD con 50 clientes</td></tr>
+<tr><td>Chatwoot</td><td>0 con 2 agentes</td></tr>
+<tr><td>RevenueCat</td><td>0 debajo de 2,500 USD de ingreso</td></tr>
+<tr><td>Sentry y PostHog</td><td>0 en plan gratuito</td></tr>
+<tr><td>Hostinger</td><td>ya pagado</td></tr>
+<tr class="suma"><td>Fijo al mes</td><td>alrededor de 53 USD</td></tr>
+</table></div>
+
+<p>A eso se le suma lo variable, que solo existe si hay venta: la comisión de Stripe, entre 8 pesos por una transferencia y unos 40 por una tarjeta, y 60 centavos por cada factura timbrada. Si el 27 entran cincuenta membresías individuales mensuales, eso son alrededor de 2,000 pesos de comisión sobre 44,500 de venta.</p>
+
+<p>Y lo que no está en esta tabla porque depende de una decisión tuya: si iOS sale con compra integrada, Apple se lleva 15% de lo que se venda por ahí. Sobre 890 pesos son 134, contra 40 por Stripe.</p>
+</section>
+
+<!-- ══════ 08 ══════ -->
+<section class="sec" id="decisiones">
+<p class="kicker">08</p>
+<h2>Las siete decisiones</h2>
+<p class="sub">Estas son las que faltan. En cuanto estén cerradas armo el paso a paso y nos ponemos a trabajar.</p>
+
+<div class="dec"><h3>1 · Qué es exactamente el 27 de agosto</h3>
+<p>Esto lo pregunto primero porque reordena todo lo demás. ¿El 27 es publicación en App Store y Google Play, o es el corte de los founders entrando por TestFlight y por el APK de Android?</p>
+<p>Si es lo segundo, la revisión de Apple no bloquea el 27 y todo el nudo de las tiendas se resuelve con calma en septiembre. Si es lo primero, la decisión número dos es lo más urgente de la semana.</p>
+</div>
+
+<div class="dec"><h3>2 · Cómo se resuelve iOS</h3>
+<p>Android puede salir con el modelo web sin problema. iOS es donde hay que escoger.</p>
+<div class="opc"><span class="rec">iOS con compra integrada, precio más alto que absorba el 15%, y Stripe para web y Android</span><span>iOS de solo inicio de sesión, sin precios ni ligas, aceptando el riesgo del revisor</span><span>Android y web primero, iOS en septiembre</span></div>
+</div>
+
+<div class="dec"><h3>3 · Cuál lista de precios</h3>
+<p>Siguen siendo dos listas con cuatro diferencias entre ellas, y el script de Stripe no contempla Familiar de tres plazas. La que se publique primero es la que queda.</p>
+</div>
+
+<div class="dec"><h3>4 · Cuenta primero o pago primero</h3>
+<p>Si la persona se registra gratis y desde ahí paga, el enlace lleva su identificador pegado y el sistema sabe de quién es el dinero sin adivinar. Si paga primero, hay que casar correos y eso falla seguido.</p>
+<div class="opc"><span class="rec">Cuenta primero</span><span>Pago primero, como está hoy</span></div>
+</div>
+
+<div class="dec"><h3>5 · Qué se vende el 27</h3>
+<p>Individual y Founder funcionan hoy. Dúo y Familiar necesitan que el webhook genere varios códigos en vez de uno.</p>
+<div class="opc"><span class="rec">Individual y Founder, los otros en septiembre</span><span>Los cuatro planes</span></div>
+</div>
+
+<div class="dec"><h3>6 · Si SPEI entra por Stripe</h3>
+<p>Es la decisión que más simplifica el embudo. Elimina la recepción de comprobantes a mano, elimina la verificación humana, y baja el costo de cobrar el anual de 340 pesos a 8. La única contra es que hay que activarlo y probarlo, y que la confirmación tarda lo que tarde la transferencia.</p>
+<div class="opc"><span class="rec">Sí, SPEI por Stripe</span><span>Transferencia a cuenta propia con comprobante a mano</span></div>
+</div>
+
+<div class="dec"><h3>7 · Facturación desde el día uno o después</h3>
+<p>Lo legal y lo práctico se pueden juntar: una casilla que pregunte si necesita factura y guarde los datos, factura global mensual para el resto, y las pocas nominativas a mano las primeras semanas. Eso no frena la venta y no deja a nadie sin comprobante.</p>
+<div class="opc"><span class="rec">Casilla desde el día uno, timbrado automático en septiembre</span><span>Facturapi conectado a Stripe desde el arranque</span><span>Todo a mano el primer mes</span></div>
+</div>
+
+<div class="cierre">
+<p>De las siete, la primera es la que desatora a las demás, y las decisiones tres, cuatro y cinco se pueden cerrar en quince minutos. Las otras tres necesitan que pienses un poco más, y está bien, porque ninguna bloquea el trabajo del fin de semana.</p>
+<p>Dime lo que decidas y armo el paso a paso.</p>
+</div>
+</section>
+
+</main>

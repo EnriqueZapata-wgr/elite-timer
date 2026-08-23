@@ -1,0 +1,419 @@
+<title>Qué pasa primero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{--canvas:#000;--card:#121212;--alto:#1A1A1A;--borde:#242424;
+ --tinta:#fff;--sec:#9A9A9A;--tenue:#767676;
+ --lima:#A8E02A;--teal:#1ABC9C;--ambar:#EFD54F;--rojo:#E74C3C;--violeta:#7F77DD;
+ --g1:#A8E02A;--g2:#6DCC48;--g3:#3DBF6E;--g4:#2EC28A;--g5:#1ABC9C}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--canvas);color:var(--tinta);font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+ font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;left:0;top:0;bottom:0;width:6px;z-index:60;
+ background:linear-gradient(180deg,var(--g1),var(--g2) 26%,var(--g3) 50%,var(--g4) 74%,var(--g5))}
+.wrap{max-width:1000px;margin:0 auto;padding:56px 26px 110px 34px}
+h1{font-size:clamp(30px,5.2vw,46px);line-height:1.12;font-weight:600;letter-spacing:-.024em;margin:0 0 18px}
+h2{font-size:clamp(22px,3.2vw,29px);line-height:1.22;font-weight:600;letter-spacing:-.018em;margin:0 0 8px}
+h3{font-size:17.5px;font-weight:600;margin:0 0 10px}
+p{margin:0 0 16px;color:var(--sec)}
+p.lead{color:var(--tinta);font-size:19px;line-height:1.62}
+strong{color:var(--tinta);font-weight:600}
+code{font-family:'SFMono-Regular',Consolas,monospace;font-size:.85em;background:var(--alto);border:1px solid var(--borde);border-radius:5px;padding:1px 6px;color:#CFCFCF;word-break:break-all}
+a{color:var(--teal);text-decoration:none}
+.kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--tenue);font-weight:500;margin:0 0 10px}
+.sec{margin:0 0 74px;scroll-margin-top:20px}
+.sub{color:var(--sec);font-size:16.5px;margin:0 0 26px;max-width:64ch}
+.indice{background:var(--card);border:1px solid var(--borde);border-radius:16px;padding:22px 24px;margin:0 0 60px}
+.indice ol{margin:0;padding:0;list-style:none;counter-reset:i}
+.indice li{counter-increment:i;margin:0 0 9px;display:flex;gap:13px;align-items:baseline}
+.indice li:last-child{margin:0}
+.indice li::before{content:counter(i,decimal-leading-zero);color:var(--tenue);font-size:12px;font-variant-numeric:tabular-nums;flex:0 0 20px}
+.indice a{color:var(--tinta);font-weight:500;font-size:16px}
+.alerta{background:var(--card);border:1px solid var(--borde);border-left:3px solid var(--rojo);border-radius:0 16px 16px 0;padding:22px 24px;margin:0 0 22px}
+.alerta h3{margin-bottom:9px}
+.alerta p{margin:0 0 13px}.alerta p:last-child{margin:0}
+.nota{border-left:3px solid var(--teal);padding:2px 0 2px 20px;margin:0 0 24px}
+.nota p{margin:0;font-size:15.5px}
+.bloque{background:var(--card);border:1px solid var(--borde);border-radius:18px;margin:0 0 16px;overflow:hidden}
+.bcab{padding:20px 26px 16px;border-bottom:1px solid var(--borde);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.bcab .n{font-size:19px;font-weight:600;letter-spacing:-.01em}
+.bcab .m{font-size:13.5px;color:var(--tenue)}
+.bloque.tu .bcab{background:linear-gradient(90deg,rgba(168,224,42,.08),transparent 60%)}
+.bloque.tu .bcab .n{color:var(--lima)}
+.bloque.dev .bcab{background:linear-gradient(90deg,rgba(127,119,221,.09),transparent 60%)}
+.bloque.dev .bcab .n{color:var(--violeta)}
+.tareas{padding:4px 26px 20px}
+.t{display:grid;grid-template-columns:24px 1fr;gap:0 15px;padding:16px 0;border-bottom:1px solid var(--borde)}
+.t:last-child{border-bottom:0;padding-bottom:4px}
+.t .c{width:16px;height:16px;border:2px solid #3C3C3C;border-radius:5px;margin-top:6px}
+.t b{display:block;color:var(--tinta);font-weight:600;font-size:16px;line-height:1.5;margin:0 0 6px}
+.t span{display:block;color:var(--sec);font-size:14.5px;line-height:1.64}
+.t .url{display:block;margin:8px 0 0;font-family:'SFMono-Regular',Consolas,monospace;font-size:12.5px;color:var(--teal);
+ background:#0C0C0C;border:1px solid var(--borde);border-radius:7px;padding:8px 11px;word-break:break-all;line-height:1.5}
+.et{display:inline-block;font-size:10px;letter-spacing:.09em;text-transform:uppercase;font-weight:600;padding:3px 8px;border-radius:4px;margin-left:8px;vertical-align:2px;white-space:nowrap}
+.et.hoy{color:var(--rojo);background:rgba(231,76,60,.13)}
+.et.ojo{color:var(--ambar);background:rgba(239,213,79,.12)}
+.tabla{overflow-x:auto;margin:0 0 22px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+.tabla table{min-width:600px}
+th{text-align:left;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tenue);font-weight:600;padding:0 16px 11px 0;border-bottom:1px solid var(--borde);white-space:nowrap}
+td{padding:13px 16px 13px 0;border-bottom:1px solid var(--borde);color:var(--sec);vertical-align:top;line-height:1.55}
+td:first-child{color:var(--tinta);font-weight:500}
+tr:last-child td{border-bottom:0}
+tr.suma td{border-bottom:0;border-top:1px solid #3A3A3A;padding-top:16px;color:var(--tinta);font-weight:600}
+.dec{background:var(--card);border:1px solid var(--borde);border-left:3px solid var(--lima);border-radius:0 14px 14px 0;padding:20px 24px;margin:0 0 14px}
+.dec h3{margin-bottom:8px}.dec p{margin:0 0 12px;font-size:15.5px}.dec p:last-child{margin:0}
+.opc{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0 0}
+.opc span{font-size:13.5px;color:var(--sec);background:var(--alto);border:1px solid var(--borde);border-radius:8px;padding:8px 13px}
+.opc span.rec{color:var(--tinta);border-color:#3A4A2A;background:rgba(168,224,42,.07)}
+.opc span.rec::before{content:'sugerido · ';color:var(--lima);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.cierre{border-top:1px solid var(--borde);margin-top:60px;padding-top:30px}
+@media(max-width:620px){.wrap{padding:40px 20px 80px 28px}.t{grid-template-columns:1fr}.t .c{display:none}}
+</style>
+<style>
+.ruta{counter-reset:paso}
+.paso{display:grid;grid-template-columns:34px 1fr;gap:0 16px;padding:0 0 26px;position:relative}
+.paso::before{counter-increment:paso;content:counter(paso);grid-column:1;width:34px;height:34px;border-radius:50%;
+ display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;
+ background:var(--alto);border:1px solid var(--borde);color:var(--tenue)}
+.paso::after{content:'';position:absolute;left:16.5px;top:34px;bottom:0;width:1px;background:var(--borde)}
+.paso:last-child::after{display:none}
+.paso.on::before{background:rgba(26,188,156,.14);border-color:#1F5F55;color:var(--teal)}
+.paso h3{margin:6px 0 8px}
+.paso p{font-size:15.5px;margin:0 0 10px}
+.paso p:last-child{margin:0}
+.rel{background:var(--card);border:1px solid var(--borde);border-radius:16px;padding:22px 24px;margin:0 0 14px}
+.rel .top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 10px}
+.rel h3{margin:0}
+.rel .tiempo{font-size:12px;letter-spacing:.09em;text-transform:uppercase;font-weight:600;color:var(--ambar);
+ background:rgba(239,213,79,.11);border-radius:4px;padding:3px 9px}
+.rel .tiempo.ok{color:var(--teal);background:rgba(26,188,156,.11)}
+.rel p{margin:0 0 12px;font-size:15.5px}.rel p:last-child{margin:0}
+.fuera{border-left:3px solid #3A3A3A;padding:2px 0 2px 20px;margin:0 0 18px}
+.fuera h3{color:var(--sec);font-weight:500;font-size:16px;margin:0 0 5px}
+.fuera p{margin:0;font-size:15px;color:var(--tenue)}
+.dias{display:grid;gap:12px}
+.dia{background:var(--card);border:1px solid var(--borde);border-radius:14px;padding:18px 22px;
+ display:grid;grid-template-columns:112px 1fr;gap:0 20px;align-items:start}
+.dia .f{font-size:13px;font-weight:600;color:var(--tinta);letter-spacing:-.01em;padding-top:2px}
+.dia .f em{display:block;font-style:normal;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tenue);font-weight:500;margin-top:2px}
+.dia ul{margin:0;padding:0 0 0 17px;color:var(--sec);font-size:15px;line-height:1.6}
+.dia li{margin:0 0 6px}.dia li:last-child{margin:0}
+.dia.hito{border-color:#3A4A2A;background:linear-gradient(90deg,rgba(168,224,42,.06),var(--card) 55%)}
+.dia.hito .f{color:var(--lima)}
+.t b .et{display:inline-block;width:auto;vertical-align:2px}
+.rel .url{display:block;margin:14px 0 0;font-family:'SFMono-Regular',Consolas,monospace;font-size:12.5px;color:var(--teal);
+ background:#0C0C0C;border:1px solid var(--borde);border-radius:7px;padding:9px 12px;word-break:break-all;line-height:1.6}
+@media(max-width:620px){.dia{grid-template-columns:1fr;gap:10px}.paso{grid-template-columns:28px 1fr;gap:0 13px}.paso::before{width:28px;height:28px;font-size:13px}.paso::after{left:13.5px;top:28px}}
+</style>
+
+<main class="wrap">
+<p class="kicker">ATP · preventa del 27 de agosto · v2 con la escalera</p>
+<h1>Qué pasa<br>primero</h1>
+<p class="lead">Alcance cerrado: un producto, una suscripción, y una escalera de tres precios que se cierra sola. Todo lo demás se corrió a septiembre y abajo está la lista de lo que se corrió, para que no te quede duda de qué soltamos.</p>
+
+<div class="indice"><ol>
+  <li><a href="#escalera">La escalera de tres precios</a></li>
+  <li><a href="#camino">El camino crítico son dos cosas</a></li>
+  <li><a href="#relojes">Hoy: los relojes que no controlas</a></li>
+  <li><a href="#manos">Hoy: lo que está en tus manos</a></li>
+  <li><a href="#mio">Lo que construyo yo</a></li>
+  <li><a href="#fuera">Lo que no va el 27</a></li>
+  <li><a href="#dias">Los cinco días</a></li>
+</ol></div>
+
+<!-- ═══ 00 ═══ -->
+<section class="sec" id="escalera">
+<p class="kicker">00</p>
+<h2>La escalera</h2>
+<p class="sub">Cambiaste el precio único por tres ventanas, y eso mejora el lanzamiento pero mete una operación nueva que hay que hacer bien o duele.</p>
+
+<div class="tabla"><table>
+<tr><th>Ventana</th><th>Precio mensual</th><th>Qué es</th></tr>
+<tr><td>27 al 30 de agosto</td><td>449</td><td>Cuatro días. La comunidad de Mariana, precio de fundadores de la comunidad.</td></tr>
+<tr><td>31 de agosto al 6 de septiembre</td><td>620</td><td>Una semana. El que se enteró tarde, o el que lo pensó.</td></tr>
+<tr><td>Del 7 de septiembre en adelante</td><td>890</td><td>Precio oficial. Sin fecha de término.</td></tr>
+</table></div>
+
+<div class="alerta" style="border-left-color:#EFD54F">
+<h3>Tres cosas que cambian, y una que puede salir cara</h3>
+<p><strong>Uno.</strong> Son tres precios sobre el mismo producto, no tres productos. Eso importa porque el derecho de acceso se ata al producto, así que los tres otorgan exactamente lo mismo y no hay que configurar nada tres veces.</p>
+<p><strong>Dos.</strong> Cada precio congela solo. Quien entra el 28 se queda en 449 mientras no cancele, aunque tú subas a 890 el día 7. Stripe no migra suscripciones a precios nuevos salvo que se lo pidas.</p>
+<p><strong>Tres, y este es el que puede salir caro.</strong> Cada precio necesita su propio enlace de pago, porque un enlace de Stripe nace amarrado a un precio y no se le cambia después. O sea que vas a tener tres enlaces vivos, y <strong>el enlace de 449 tiene que quedar desactivado el 31 de agosto a primera hora.</strong> Si no lo desactivas, sigue cobrando 449 a quien lo tenga, y en un lanzamiento de comunidad ese enlace se reenvía por WhatsApp sin que tú te enteres. Ponte alarma en el teléfono. No es una tarea de sistema, es una tarea tuya con hora exacta.</p>
+</div>
+
+<p>Lo bueno de la escalera es que resuelve algo que el precio único no resolvía: le da a Mariana una razón para escribir tres veces en vez de una, y la tercera vez que escribe la razón no es insistencia, es una fecha.</p>
+
+<div class="nota"><p>Una decisión que quedó suelta y hay que cerrar antes del lunes: <strong>si la preventa lleva garantía.</strong> Yo asumo que no hay periodo de prueba, porque una escalera con fecha y una prueba de catorce días se estorban entre sí. Pero recomiendo <strong>siete días de devolución sin preguntas</strong>, hecha a mano desde Stripe. A esta escala van a ser dos o tres casos, te blinda ante PROFECO, y en una preventa vende más de lo que cuesta. Si me dices que sí, lo escribo en los términos hoy mismo.</p></div>
+</section>
+
+<!-- ═══ 01 ═══ -->
+<section class="sec" id="camino">
+<p class="kicker">01</p>
+<h2>El camino crítico son dos cosas</h2>
+<p class="sub">Hice el ejercicio al revés: en lugar de listar todo lo que se puede hacer, quité una por una las piezas y me pregunté si el 27 seguía en pie sin ellas. Sobrevivieron dos.</p>
+
+<div class="alerta" style="border-left-color:#1ABC9C">
+<h3>La cuenta de Stripe en vivo, y los términos publicados</h3>
+<p>Sin la cuenta activada no puedes cobrar un peso, y la activación depende de que Stripe revise tus documentos, o sea que depende de alguien que no eres tú. Sin los términos publicados en una liga pública, Stripe no despliega la casilla de consentimiento en el cobro, y una suscripción recurrente sin consentimiento aceptado es justo el tipo de cosa que después se convierte en un contracargo que pierdes.</p>
+<p>Lo demás se puede improvisar el mismo día, hacer a mano la primera semana, o simplemente no existir todavía. Esas dos no.</p>
+</div>
+
+<p>La cadena completa del 27, de principio a fin, tiene seis eslabones. Los dos de arriba son los únicos que no admiten atajo.</p>
+
+<div class="ruta">
+  <div class="paso on"><div><h3>Mariana manda el enlace</h3>
+  <p>El enlace de pago de Stripe que corresponda a la ventana en la que estemos. En español, y el de 449 desactivado el día 31.</p></div></div>
+
+  <div class="paso on"><div><h3>La persona paga</h3>
+  <p>Ahí Stripe recoge correo, teléfono, consentimiento y tarjeta. No hay una segunda pantalla donde pedir datos, y ese es el punto: cada pantalla extra que agregas se lleva gente.</p></div></div>
+
+  <div class="paso"><div><h3>Un webhook crea la cuenta</h3>
+  <p>Una sola función, un solo evento. Recibe el pago, crea el usuario en Supabase y escribe una fila en la tabla de acceso. Unas ochenta líneas.</p></div></div>
+
+  <div class="paso"><div><h3>Salen dos avisos</h3>
+  <p>El correo de bienvenida por Resend, que ya está escrito y probado, y el WhatsApp con la liga. El WhatsApp automático no está en el camino crítico y abajo explico por qué.</p></div></div>
+
+  <div class="paso"><div><h3>La persona entra a /mi-acceso</h3>
+  <p>La página ya está escrita. Le falta que le llene las ligas finales y que la subas a Hostinger.</p></div></div>
+
+  <div class="paso"><div><h3>Descarga la app y entra</h3>
+  <p>Con su correo y su contraseña. La app ya existe, ya está publicada, y ya sabe validar sesión contra Supabase.</p></div></div>
+</div>
+
+<div class="nota"><p><strong>El WhatsApp automatizado no bloquea el lanzamiento.</strong> A la escala que definiste, entre cuarenta y sesenta movimientos al mes, mandar el mensaje a mano desde la app de WhatsApp Business la primera semana cuesta unos minutos al día. Y aquí me desdigo de algo que te dije antes: yo venía hablando de coexistencia como si fuera una migración con un momento de riesgo en medio. No lo es. El punto entero de la coexistencia es que <strong>el número sigue funcionando en la app de siempre y en la API al mismo tiempo</strong>, con los mensajes haciendo eco en las dos direcciones. No hay un estado intermedio donde el número quede a medias. El miedo que yo tenía era a la migración clásica, que es otra cosa.</p></div>
+</section>
+
+<!-- ═══ 02 ═══ -->
+<section class="sec" id="relojes">
+<p class="kicker">02</p>
+<h2>Hoy: los relojes que no controlas</h2>
+<p class="sub">Cuatro trámites donde tú aprietas un botón y después esperas a que alguien más responda. Por eso van hoy domingo aunque el resto pueda esperar. Van en orden de qué tanto duele si se atrasa.</p>
+
+<div class="rel">
+<div class="top"><h3>1 · Activar la cuenta de Stripe en vivo</h3><span class="tiempo">sin plazo publicado</span></div>
+<p>Es el único trámite que puede tirar la fecha, y Stripe no publica ningún plazo de activación, ni general ni por país. Solo dicen que revisan y te contactan si falta algo. Por eso va hoy y no mañana. Stripe te va a pedir identificación oficial, RFC, dirección del negocio, la cuenta bancaria donde quieres los depósitos y una descripción de qué vendes. Escribe esa descripción con cuidado, algo como suscripción mensual a una comunidad y una aplicación de acompañamiento en hábitos y rendimiento físico, y no menciones nada que suene a tratamiento médico, porque eso levanta revisión manual.</p>
+<p>Estás dando de alta como persona física con actividad empresarial, y Stripe México acepta ese tipo de cuenta. Un dato que sí está documentado y conviene tener claro antes de apretar: <strong>el país del negocio no se puede cambiar una vez activada la cuenta.</strong> El paso de física a moral no encontré que esté documentado en ningún lado, así que no te prometo que sea trivial.</p>
+<p class="url">https://dashboard.stripe.com/account/onboarding</p>
+</div>
+
+<div class="rel">
+<div class="top"><h3>2 · Verificación de negocio en Meta</h3><span class="tiempo">de un día a dos semanas</span></div>
+<p>Mientras no esté verificado, tu portafolio nuevo solo admite dos números de teléfono y tiene techo de 250 clientes únicos cada 24 horas. Para la preventa ese techo probablemente no te alcanza a molestar, pero es de esas cosas que si no arrancas hoy te va a estorbar en octubre.</p>
+<p>Se manda desde el administrador de negocios de Meta, en Configuración del negocio, Centro de seguridad. Te va a pedir un documento que pruebe el nombre legal y otro que pruebe el domicilio. Para persona física con actividad empresarial, la constancia de situación fiscal sirve para las dos cosas si trae el domicilio impreso.</p>
+<p class="url">https://business.facebook.com/settings/security</p>
+</div>
+
+<div class="rel">
+<div class="top"><h3>3 · El CSD del SAT</h3><span class="tiempo">de dos a cinco días hábiles</span></div>
+<p>Aquí me corrijo dos veces, así que te lo pongo derecho de una vez. La parte tuya sí es de una sesión: con la e.firma vigente generas el requerimiento en la aplicación Certifica y lo subes en CertiSAT Web en menos de una hora. Lo que no es de una sesión es <strong>lo que pasa después</strong>, que es el SAT emitiendo el certificado, entre 24 y 72 horas, y luego una maduración de unas 48 horas antes de que los timbres dejen de rebotar. De punta a punta, de dos a cinco días hábiles.</p>
+<p>Y el matiz importante: como la facturación timbrada la corrimos a septiembre, <strong>este trámite no bloquea el 27.</strong> Lo pongo en la lista del domingo solo porque son días de espera que no cuestan nada arrancar, y no quiero que en septiembre descubramos que la e.firma llevaba meses vencida. Ese es el primer paso real y son treinta segundos: validar si tu e.firma sigue viva. Si ya venció, necesitas cita presencial y esas sí traen semanas.</p>
+<p class="url">https://portalsat.plataforma.sat.gob.mx/certifica/  ·  generas el requerimiento<br>https://portalsat.plataforma.sat.gob.mx/Certisat/  ·  lo subes y descargas el certificado</p>
+</div>
+
+<div class="rel">
+<div class="top"><h3>4 · Resend a plan Pro</h3><span class="tiempo ok">inmediato</span></div>
+<p>El plan gratis tiene tope de cien correos al día. Con la preventa de Mariana concentrada en un par de horas, cien se acaban rapidísimo, y lo peor de topar es que los correos no se encolan, se rechazan. Son veinte dólares al mes y quita el tope diario.</p>
+<p class="url">https://resend.com/settings/billing</p>
+</div>
+
+<div class="nota"><p>El quinto trámite, dar de alta el número en 360dialog con coexistencia, lo dejé fuera de esta lista a propósito. Cuesta 49 euros al mes por número en su plan base, y requiere que el número ya esté activo en la app de WhatsApp Business. Como no bloquea el 27, prefiero que lo hagas con calma el lunes o el martes y no hoy entre trámites. El único compromiso permanente que adquieres es tonto pero real: <strong>hay que abrir la app de WhatsApp Business al menos una vez cada trece días</strong> o la cuenta se desactiva.</p></div>
+</section>
+
+<!-- ═══ 03 ═══ -->
+<section class="sec" id="manos">
+<p class="kicker">03</p>
+<h2>Hoy: lo que está en tus manos</h2>
+<p class="sub">Nada de esto depende de terceros. Todo junto es como hora y media si nadie te interrumpe, y desbloquea lo que yo tengo que programar.</p>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">Stripe, en el orden correcto</span><span class="m">45 minutos</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div>
+<b>Publica los términos y el aviso de privacidad<span class="et hoy">bloquea</span></b>
+<span>Los textos ya viven en la app, en <code>legal-texts.ts</code>. Yo los saco de ahí, los convierto en dos páginas HTML con la marca puesta y te las mando hoy. Tú las subes a Hostinger y quedan en somosatp.com/terminos y somosatp.com/privacidad. Falta llenar el campo de razón social, que hoy está como marcador de posición.</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>Pega esas dos ligas en los datos públicos de Stripe<span class="et hoy">bloquea</span></b>
+<span>Este es el paso que la gente se salta y luego no entiende por qué no aparece la casilla de consentimiento en el cobro. Sin las ligas puestas aquí, Stripe ni siquiera te ofrece la opción de pedirla.</span>
+<span class="url">https://dashboard.stripe.com/settings/public</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>Sube el logo y el color de marca</b>
+<span>El logo blanco sobre fondo oscuro, y el teal 1ABC9C como color de acento. Esto sale en la pantalla de cobro, en los recibos y en el portal del cliente. Es la diferencia entre parecer un negocio y parecer un enlace sospechoso.</span>
+<span class="url">https://dashboard.stripe.com/settings/branding<br>https://dashboard.stripe.com/account/branding/checkout  ·  esta segunda controla la pantalla de cobro</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>Crea el producto y los tres precios</b>
+<span>Un solo producto llamado ATP, y dentro de él tres precios recurrentes mensuales en pesos: 449, 620 y 890. Nada de cupones. Ponles nombre interno para no confundirte después, algo como <em>preventa 27-30 ago</em>, <em>segunda ventana</em> y <em>oficial</em>. Los precios separados son lo que hace que la promesa de precio congelado se cumpla sola, sin que nadie mueva un dedo el día que suba la escalera.</span>
+<span class="url">https://dashboard.stripe.com/products</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>Genera los tres enlaces de pago, y prende la casilla en cada uno<span class="et hoy">bloquea</span></b>
+<span>Uno por precio, los tres en modo suscripción. Genéralos hoy los tres aunque solo compartas el primero, porque el 31 a las siete de la mañana no quieres estar creando un enlace, quieres estar apagando uno y copiando otro.</span>
+<span>Y ojo con esto en cada uno de los tres: Y aquí va lo que casi se me va y una auditoría lo cachó: <strong>pegar las ligas en datos públicos no despliega la casilla por sí solo.</strong> Solo habilita la opción. Hay que prenderla además dentro de cada enlace de pago, en la sección de consentimiento, donde dice requerir la aceptación de términos. Si haces el primer paso y no el segundo, llegas al 27 con los términos publicados, las ligas pegadas, y sin casilla, que es el peor de los tres escenarios porque parece que sí quedó.</span>
+<span>El teléfono también se prende aquí y viene apagado de fábrica, pero considera esto antes: <strong>Stripe solo lo ofrece como campo obligatorio</strong>, no hay opción de pedirlo opcional. En un embudo de preventa un campo obligatorio más cuesta gente. Tú decides si el WhatsApp vale ese costo, y yo creo que sí, porque sin teléfono la mitad de tu operación de soporte no existe.</span>
+<span>Al final le pegas <code>?locale=es-419</code> para que la pantalla salga en español, y si el enlace ya trae otro parámetro, entonces va con <code>&amp;</code> en lugar de <code>?</code>. Ese enlace con esa cola es el que le pasas a Mariana.</span>
+<span class="url">https://dashboard.stripe.com/payment-links</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>Enciende el portal del cliente</b>
+<span>Ahí adentro hay un botón que dice activar liga. Eso te da una dirección pública donde cualquier suscriptor entra con su correo, cambia su tarjeta o cancela, sin que tú toques nada. Es la pieza que más trabajo manual te ahorra y se configura en tres minutos. Un detalle que sirve: esa liga acepta <code>?prefilled_email=</code>, así que la podemos pegar ya personalizada en el correo de bienvenida.</span>
+<span class="url">https://dashboard.stripe.com/settings/billing/portal</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>Revisa los reintentos, que son una pantalla</b>
+<span>Stripe reintenta ocho veces en dos semanas cuando una tarjeta falla. Ese es el valor que Stripe recomienda por omisión, no una constante del sistema, así que ábrelo y confirma que en tu cuenta esté así en vez de darlo por hecho.</span>
+<span class="url">https://dashboard.stripe.com/revenue_recovery/retries</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>Y los correos de cobranza, que son otra</b>
+<span>El interruptor de mandar correo cuando falla una tarjeta vive en su propia pantalla, aparte de los reintentos. Verifica que esté encendido.</span>
+<span class="url">https://dashboard.stripe.com/revenue_recovery/emails</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>Y el recordatorio de renovación, que vive en otro lado<span class="et ojo">ojo</span></b>
+<span>No está con los demás correos de cobranza, está en la configuración de facturación automática. Es una ruta que no adivinas.</span>
+<span class="url">https://dashboard.stripe.com/settings/billing/automatic</span></div></div>
+</div></div>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">Hostinger y Supabase</span><span class="m">30 minutos</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div>
+<b>Sube los archivos que ya te mandé</b>
+<span>Van <code>confirmar.html</code>, <code>reset-password.html</code>, <code>logo-atp-blanco.png</code> y el <code>htaccess.txt</code> renombrado a <code>.htaccess</code>. Después abre somosatp.com/confirmar.html en el navegador y confirma que carga con el logo bien puesto, aunque te diga que el enlace no es válido, porque sin token eso es justo lo que debe decir.</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>Pega la plantilla de confirmación de alta en Supabase</b>
+<span>Es <code>01-confirmar-alta.html</code>, en la plantilla Confirm signup, con el asunto <em>Confirma tu correo para entrar a ATP</em>. Y de paso verifica que el Site URL apunte a somosatp.com y que la dirección de confirmar esté en la lista de redirecciones permitidas, porque si no, el enlace del correo llega y rebota.</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>Prueba el alta con un correo genuinamente nuevo<span class="et ojo">ojo</span></b>
+<span>Que no sea ninguno que ya hayas usado. Si usas uno repetido, Supabase responde que todo salió bien y no manda nada, que es exactamente el error que nos costó dos horas encontrar la semana pasada. Usa algo como ezbiohacker+preventa1 con la arroba de siempre.</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>Contéstame si hola@somosatp.com existe como buzón<span class="et hoy">pendiente</span></b>
+<span>Te lo he preguntado varias veces y se nos ha ido cada vez. Importa porque si alguien contesta el correo de bienvenida, ese mensaje o llega a algún lado o se pierde en silencio. Si no existe, se crea en Hostinger en dos minutos.</span></div></div>
+</div></div>
+</section>
+
+<!-- ═══ 04 ═══ -->
+<section class="sec" id="mio">
+<p class="kicker">04</p>
+<h2>Lo que construyo yo</h2>
+<p class="sub">Cinco piezas. Ninguna es grande, y esa es la señal de que la arquitectura por fin quedó del tamaño correcto. Cuando eran siete piezas y ninguna era chica, algo estaba mal.</p>
+
+<div class="bloque dev">
+<div class="bcab"><span class="n">Las cinco piezas</span><span class="m">lo hago mientras tú haces trámites</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div>
+<b>Las páginas de términos y privacidad</b>
+<span>Primero, porque te bloquean. Salen de los textos que ya están en la app, con la marca puesta y la razón social llenada.</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>El webhook que crea la cuenta</b>
+<span>Una función de Supabase, un solo evento, <code>checkout.session.completed</code>. Verifica la firma de Stripe, crea el usuario, escribe la fila de acceso y dispara el correo. Si algo truena, escribe el error en una tabla en vez de tragárselo, para que el tablero de la mañana te lo enseñe.</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>La tabla de acceso y su vista</b>
+<span>Una tabla que dice quién pagó, qué plan, desde cuándo y en qué estado está. Y una vista que junta eso con el perfil, para que la app pregunte una sola cosa y sepa si deja pasar.</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>La página /mi-acceso terminada</b>
+<span>Ya está escrita y ya la viste. Le falta llenarle las ligas de descarga y conectarla con la tabla de acceso.</span></div></div>
+
+<div class="t"><div class="c"></div><div>
+<b>El tablero de la mañana</b>
+<span>Dos consultas y nada más: quién pagó y no ha entrado, y a quién se le cayó el cobro. Eso es lo que una persona revisa con su café y resuelve en veinte minutos.</span></div></div>
+</div></div>
+</section>
+
+<!-- ═══ 05 ═══ -->
+<section class="sec" id="fuera">
+<p class="kicker">05</p>
+<h2>Lo que no va el 27</h2>
+<p class="sub">Lo escribo explícito para que no te quede la duda de si se me olvidó. Nada de esto está muerto, todo tiene fecha en septiembre.</p>
+
+<div class="fuera"><h3>La página de precios con los cinco planes</h3>
+<p>El 27 hay un solo precio y un solo enlace. La página de precios entra cuando abran Individual, Dúo, Familiar y Founder.</p></div>
+
+<div class="fuera"><h3>Los meses sin intereses</h3>
+<p>Quedaron acotados a tres y seis meses, solo sobre el anual y el Founder, y esos planes no salen el 27. Además no funcionan en modo suscripción, así que su lugar natural es cuando exista el pago único del anual.</p></div>
+
+<div class="fuera"><h3>SPEI y OXXO</h3>
+<p>SPEI baja la comisión de cuarenta pesos a siete, pero hay que armarlo por código y no vale la pena meter esa complejidad esta semana. OXXO resultó estar más fuera de lo que yo creía: además de que un pago de OXXO no se puede reembolsar jamás, la tabla de capacidades de Stripe dice que <strong>OXXO no soporta pagos recurrentes, ni Billing, ni el portal del cliente.</strong> O sea que nunca pudo haber sido el método de cobro de una suscripción, con reembolso o sin él.</p></div>
+
+<div class="fuera"><h3>El modelo de plazas del Dúo y el Familiar</h3>
+<p>Es la pieza técnicamente más enredada de todo el sistema, porque implica que una suscripción sostenga varias cuentas. Con un solo plan individual el 27, simplemente no existe.</p></div>
+
+<div class="fuera"><h3>La facturación timbrada automática</h3>
+<p>Depende del CSD. Si el CSD sale esta semana, en septiembre conectamos Facturapi y se timbra solo. Mientras tanto, si alguien pide factura en la preventa, se la haces a mano, y a la escala de la preventa van a ser un puñado.</p></div>
+
+<div class="fuera"><h3>Las bajas automáticas en Skool</h3>
+<p>Es la que más vueltas nos costó y la que resultó más fácil de soltar. A cuarenta o sesenta movimientos al mes, invitar y quitar a mano es media hora a la semana. Automatizarlo cuesta más que hacerlo.</p></div>
+
+<div class="fuera"><h3>Mercado Pago</h3>
+<p>Segundo procesador. Tiene sentido cuando el volumen justifique tener respaldo si Stripe se cae, no antes.</p></div>
+</section>
+
+<!-- ═══ 06 ═══ -->
+<section class="sec" id="dias">
+<p class="kicker">06</p>
+<h2>Los cinco días</h2>
+<p class="sub">Del domingo al jueves. Lo tuyo se acaba el lunes por la tarde. De ahí al miércoles es mío, y el martes probamos con dinero de verdad.</p>
+
+<div class="dias">
+<div class="dia"><div class="f">23 de agosto<em>domingo, hoy</em></div>
+<ul>
+<li>Mandas los documentos de Stripe para activar la cuenta en vivo</li>
+<li>Mandas la verificación de negocio de Meta</li>
+<li>Validas si tu e.firma sigue vigente, y si sí, arrancas el CSD, que tarda días pero no bloquea el 27</li>
+<li>Subes Resend a Pro</li>
+<li>Yo te mando las páginas de términos y privacidad</li>
+</ul></div>
+
+<div class="dia"><div class="f">24 de agosto<em>lunes</em></div>
+<ul>
+<li>Subes términos y privacidad a Hostinger, y pegas las ligas en Stripe</li>
+<li>Creas los tres enlaces de pago y prendes la casilla de consentimiento en cada uno</li>
+<li>Branding, producto, los tres precios, portal del cliente, reintentos y correos</li>
+<li>Subes confirmar.html y el resto de archivos a Hostinger</li>
+<li>Pegas la plantilla de confirmación en Supabase y pruebas el alta</li>
+<li>Arrancas el alta del número en 360dialog</li>
+<li>Yo tengo listo el webhook y la tabla de acceso</li>
+</ul></div>
+
+<div class="dia"><div class="f">25 de agosto<em>martes</em></div>
+<ul>
+<li>Conectas el webhook en Stripe y me pasas la firma</li>
+<li>Prueba de punta a punta con tu tarjeta real, 449 pesos que después te reembolsas</li>
+<li>Verificamos que llegue el correo, que la cuenta exista, y que la app te deje entrar</li>
+<li>Yo termino /mi-acceso y el tablero</li>
+</ul></div>
+
+<div class="dia"><div class="f">26 de agosto<em>miércoles</em></div>
+<ul>
+<li>Las trece pruebas de la lista, incluida la de cancelar desde el portal</li>
+<li>Le pasas el enlace a Mariana para que ella misma lo compre y lo pruebe</li>
+<li>Guion de soporte por WhatsApp, para las cinco preguntas que van a llegar</li>
+<li>Arreglamos lo que salga, que siempre sale algo</li>
+</ul></div>
+
+<div class="dia hito"><div class="f">27 de agosto<em>jueves, sale</em></div>
+<ul>
+<li>Mariana manda el enlace</li>
+<li>Tú abres el tablero cada par de horas el primer día</li>
+<li>Contestas los WhatsApp a mano, que la primera semana así se hace</li>
+<li>Alarma para el 31 a primera hora: apagar el enlace de 449 y publicar el de 620</li>
+</ul></div>
+</div>
+
+<div class="nota" style="margin-top:26px"><p>Si el martes la cuenta de Stripe todavía no está activada, ahí sí hay que hablar, porque es lo único de esta lista que puede mover la fecha. Todo lo demás tiene salida manual.</p></div>
+</section>
+
+<div class="cierre">
+<p>Arranco por las páginas de términos y privacidad, que son las que te bloquean el paso de Stripe. Te las mando hoy mismo.</p>
+</div>
+</main>

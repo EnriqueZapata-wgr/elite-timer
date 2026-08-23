@@ -1,0 +1,417 @@
+<title>Runbook de la preventa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{--canvas:#000;--card:#121212;--alto:#1A1A1A;--borde:#242424;
+ --tinta:#fff;--sec:#9A9A9A;--tenue:#767676;
+ --lima:#A8E02A;--teal:#1ABC9C;--ambar:#EFD54F;--rojo:#E74C3C;--violeta:#7F77DD;
+ --g1:#A8E02A;--g2:#6DCC48;--g3:#3DBF6E;--g4:#2EC28A;--g5:#1ABC9C}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--canvas);color:var(--tinta);font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+ font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;left:0;top:0;bottom:0;width:6px;z-index:60;
+ background:linear-gradient(180deg,var(--g1),var(--g2) 26%,var(--g3) 50%,var(--g4) 74%,var(--g5))}
+.wrap{max-width:1000px;margin:0 auto;padding:56px 26px 110px 34px}
+h1{font-size:clamp(30px,5.2vw,46px);line-height:1.12;font-weight:600;letter-spacing:-.024em;margin:0 0 18px}
+h2{font-size:clamp(22px,3.2vw,29px);line-height:1.22;font-weight:600;letter-spacing:-.018em;margin:0 0 8px}
+h3{font-size:17.5px;font-weight:600;margin:0 0 10px}
+p{margin:0 0 16px;color:var(--sec)}
+p.lead{color:var(--tinta);font-size:19px;line-height:1.62}
+strong{color:var(--tinta);font-weight:600}
+code{font-family:'SFMono-Regular',Consolas,monospace;font-size:.85em;background:var(--alto);border:1px solid var(--borde);border-radius:5px;padding:1px 6px;color:#CFCFCF;word-break:break-all}
+a{color:var(--teal);text-decoration:none}
+.kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--tenue);font-weight:500;margin:0 0 10px}
+.sec{margin:0 0 74px;scroll-margin-top:20px}
+.sub{color:var(--sec);font-size:16.5px;margin:0 0 26px;max-width:64ch}
+.indice{background:var(--card);border:1px solid var(--borde);border-radius:16px;padding:22px 24px;margin:0 0 60px}
+.indice ol{margin:0;padding:0;list-style:none;counter-reset:i}
+.indice li{counter-increment:i;margin:0 0 9px;display:flex;gap:13px;align-items:baseline}
+.indice li:last-child{margin:0}
+.indice li::before{content:counter(i,decimal-leading-zero);color:var(--tenue);font-size:12px;font-variant-numeric:tabular-nums;flex:0 0 20px}
+.indice a{color:var(--tinta);font-weight:500;font-size:16px}
+.alerta{background:var(--card);border:1px solid var(--borde);border-left:3px solid var(--rojo);border-radius:0 16px 16px 0;padding:22px 24px;margin:0 0 22px}
+.alerta h3{margin-bottom:9px}
+.alerta p{margin:0 0 13px}.alerta p:last-child{margin:0}
+.nota{border-left:3px solid var(--teal);padding:2px 0 2px 20px;margin:0 0 24px}
+.nota p{margin:0;font-size:15.5px}
+.bloque{background:var(--card);border:1px solid var(--borde);border-radius:18px;margin:0 0 16px;overflow:hidden}
+.bcab{padding:20px 26px 16px;border-bottom:1px solid var(--borde);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.bcab .n{font-size:19px;font-weight:600;letter-spacing:-.01em}
+.bcab .m{font-size:13.5px;color:var(--tenue)}
+.bloque.tu .bcab{background:linear-gradient(90deg,rgba(168,224,42,.08),transparent 60%)}
+.bloque.tu .bcab .n{color:var(--lima)}
+.bloque.dev .bcab{background:linear-gradient(90deg,rgba(127,119,221,.09),transparent 60%)}
+.bloque.dev .bcab .n{color:var(--violeta)}
+.tareas{padding:4px 26px 20px}
+.t{display:grid;grid-template-columns:24px 1fr;gap:0 15px;padding:16px 0;border-bottom:1px solid var(--borde)}
+.t:last-child{border-bottom:0;padding-bottom:4px}
+.t .c{width:16px;height:16px;border:2px solid #3C3C3C;border-radius:5px;margin-top:6px}
+.t b{display:block;color:var(--tinta);font-weight:600;font-size:16px;line-height:1.5;margin:0 0 6px}
+.t span{display:block;color:var(--sec);font-size:14.5px;line-height:1.64}
+.t .url{display:block;margin:8px 0 0;font-family:'SFMono-Regular',Consolas,monospace;font-size:12.5px;color:var(--teal);
+ background:#0C0C0C;border:1px solid var(--borde);border-radius:7px;padding:8px 11px;word-break:break-all;line-height:1.5}
+.et{display:inline-block;font-size:10px;letter-spacing:.09em;text-transform:uppercase;font-weight:600;padding:3px 8px;border-radius:4px;margin-left:8px;vertical-align:2px;white-space:nowrap}
+.et.hoy{color:var(--rojo);background:rgba(231,76,60,.13)}
+.et.ojo{color:var(--ambar);background:rgba(239,213,79,.12)}
+.tabla{overflow-x:auto;margin:0 0 22px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+.tabla table{min-width:600px}
+th{text-align:left;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tenue);font-weight:600;padding:0 16px 11px 0;border-bottom:1px solid var(--borde);white-space:nowrap}
+td{padding:13px 16px 13px 0;border-bottom:1px solid var(--borde);color:var(--sec);vertical-align:top;line-height:1.55}
+td:first-child{color:var(--tinta);font-weight:500}
+tr:last-child td{border-bottom:0}
+tr.suma td{border-bottom:0;border-top:1px solid #3A3A3A;padding-top:16px;color:var(--tinta);font-weight:600}
+.dec{background:var(--card);border:1px solid var(--borde);border-left:3px solid var(--lima);border-radius:0 14px 14px 0;padding:20px 24px;margin:0 0 14px}
+.dec h3{margin-bottom:8px}.dec p{margin:0 0 12px;font-size:15.5px}.dec p:last-child{margin:0}
+.opc{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0 0}
+.opc span{font-size:13.5px;color:var(--sec);background:var(--alto);border:1px solid var(--borde);border-radius:8px;padding:8px 13px}
+.opc span.rec{color:var(--tinta);border-color:#3A4A2A;background:rgba(168,224,42,.07)}
+.opc span.rec::before{content:'sugerido · ';color:var(--lima);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.cierre{border-top:1px solid var(--borde);margin-top:60px;padding-top:30px}
+@media(max-width:620px){.wrap{padding:40px 20px 80px 28px}.t{grid-template-columns:1fr}.t .c{display:none}}
+</style>
+<style>
+.blq{background:var(--card);border:1px solid var(--borde);border-radius:18px;margin:0 0 18px;overflow:hidden}
+.bh{padding:18px 26px 15px;border-bottom:1px solid var(--borde);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.bh .num{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--tenue);font-weight:600}
+.bh .tit{font-size:19px;font-weight:600;letter-spacing:-.012em;color:var(--tinta)}
+.bh .min{font-size:13px;color:var(--tenue);margin-left:auto}
+.pasos{padding:6px 26px 22px}
+.pa{padding:20px 0;border-bottom:1px solid var(--borde)}
+.pa:last-child{border-bottom:0}
+.pa .id{font-size:11.5px;letter-spacing:.1em;color:var(--tenue);font-weight:600;font-variant-numeric:tabular-nums;margin:0 0 6px}
+.pa h4{margin:0 0 9px;font-size:16.5px;font-weight:600;color:var(--tinta);line-height:1.45}
+.pa p{margin:0 0 11px;font-size:15px;color:var(--sec);line-height:1.66}
+.pa p:last-child{margin:0}
+.ver{border-left:2px solid #2A6B60;padding:1px 0 1px 16px;margin:13px 0 0}
+.ver .lab{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--teal);font-weight:600;margin:0 0 5px}
+.ver p{font-size:14.5px;margin:0}
+.yo{border-left:2px solid #4A4470;padding:1px 0 1px 16px;margin:13px 0 0}
+.yo .lab{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--violeta);font-weight:600;margin:0 0 5px}
+.yo p{font-size:14.5px;margin:0}
+pre{margin:13px 0 0;background:#0A0A0A;border:1px solid var(--borde);border-radius:9px;padding:14px 15px;
+ overflow-x:auto;font-family:'SFMono-Regular',Consolas,monospace;font-size:12.5px;line-height:1.62;color:#C8C8C8}
+pre b{color:var(--lima);font-weight:400}
+pre i{color:var(--ambar);font-style:normal}
+pre .c{color:#5E5E5E}
+.ruta2{display:block;margin:11px 0 0;font-family:'SFMono-Regular',Consolas,monospace;font-size:12.5px;color:var(--teal);
+ background:#0C0C0C;border:1px solid var(--borde);border-radius:7px;padding:9px 12px;word-break:break-all}
+.stop{background:rgba(231,76,60,.07);border:1px solid #4A2622;border-radius:12px;padding:15px 18px;margin:13px 0 0}
+.stop p{margin:0;font-size:14.5px;color:#E8B4AE}
+.stop b{color:#F0938A}
+.pill{display:inline-block;font-size:10px;letter-spacing:.09em;text-transform:uppercase;font-weight:600;
+ padding:3px 8px;border-radius:4px;margin-left:9px;vertical-align:2px;width:auto}
+.pill.tu{color:var(--lima);background:rgba(168,224,42,.11)}
+.pill.mio{color:var(--violeta);background:rgba(127,119,221,.13)}
+.pill.dev{color:var(--ambar);background:rgba(239,213,79,.11)}
+@media(max-width:620px){.pasos{padding:4px 18px 18px}.bh{padding:16px 18px 13px}}
+</style>
+
+<main class="wrap">
+<p class="kicker">ATP · preventa · runbook</p>
+<h1>Paso a paso,<br>en orden</h1>
+<p class="lead">Siete bloques. Cada paso dice qué haces tú, qué debes ver, y qué verifico yo antes de seguir. El orden importa: hay tres lugares donde saltarse un paso hace que el siguiente no aparezca en pantalla.</p>
+
+<div class="alerta" style="border-left-color:#1ABC9C">
+<h3>Antes de empezar, lo que ya está hecho</h3>
+<p>Tu cuenta de Stripe está viva y recibiendo transferencias. El webhook <code>payment-webhook</code> ya está escrito, desplegado y conectado: ya maneja alta, renovación, cancelación y cobro fallido, ya genera el código de activación, ya escribe el permiso en <code>tier_grants</code> y ya manda el correo por Resend. No hay que programar nada nuevo para el 27.</p>
+<p>Lo único roto es un dato faltante en los enlaces de pago, y eso es el bloque 04.</p>
+</div>
+
+<div class="indice"><ol>
+  <li><a href="#b0">Los tres pagos huérfanos</a></li>
+  <li><a href="#b1">Legal, que va primero por una razón</a></li>
+  <li><a href="#b2">Producto y los tres precios</a></li>
+  <li><a href="#b3">Los tres enlaces de pago</a></li>
+  <li><a href="#b4">La metadata, que es el arreglo</a></li>
+  <li><a href="#b5">La prueba con dinero real</a></li>
+  <li><a href="#b6">Portal, reintentos y correos</a></li>
+  <li><a href="#b7">La maniobra del 31</a></li>
+</ol></div>
+
+<!-- 00 -->
+<section class="sec" id="b0">
+<div class="blq">
+<div class="bh"><span class="num">Bloque 00</span><span class="tit">Los tres pagos huérfanos</span><span class="min">5 minutos</span></div>
+<div class="pasos">
+
+<div class="pa"><p class="id">0.1</p>
+<h4>Dime qué eran estos tres cobros<span class="pill tu">tú</span></h4>
+<p>Entraron en vivo, el webhook los recibió, y los tres quedaron en <code>needs_review</code>. Ninguno generó código ni cuenta.</p>
+<p>5 de agosto, Enrique A Acuña, 940.00 · 10 de agosto, Paulina Escobedo, 940.00 · 21 de agosto, Paulina Escobedo, 750.00</p>
+<p>Si eran de la app, esas personas pagaron y no recibieron nada, y hay que darles acceso a mano hoy. Si eran de un programa, una consulta o cualquier otra cosa tuya, entonces del lado del cliente no hay nada roto y seguimos derecho. Los montos no cuadran con ninguna lista de precios de la app, así que me late que era otra cosa, pero no lo voy a asumir.</p>
+<div class="yo"><p class="lab">yo</p><p>Si eran de la app, te genero los códigos de activación a mano y el texto del mensaje para cada uno.</p></div>
+</div>
+
+</div></div>
+</section>
+
+<!-- 01 -->
+<section class="sec" id="b1">
+<div class="blq">
+<div class="bh"><span class="num">Bloque 01</span><span class="tit">Legal, que va primero por una razón</span><span class="min">20 minutos</span></div>
+<div class="pasos">
+
+<div class="pa"><p class="id">1.1</p>
+<h4>Mándame tus tres datos fiscales<span class="pill tu">tú</span></h4>
+<p>Nombre completo como aparece en tu constancia de situación fiscal, tu RFC, y tu domicilio fiscal completo con código postal. En un solo mensaje.</p>
+<p>Y de paso dime si va la garantía de siete días. Cambia un párrafo de la cláusula 5 y prefiero escribirlo una sola vez.</p>
+</div>
+
+<div class="pa"><p class="id">1.2</p>
+<h4>Regenero las dos páginas<span class="pill mio">yo</span></h4>
+<p>Términos y aviso de privacidad, sin marcadores amarillos, listas para subir. Te las mando en un zip con el logo.</p>
+</div>
+
+<div class="pa"><p class="id">1.3</p>
+<h4>Súbelas a Hostinger<span class="pill tu">tú</span></h4>
+<p>Van a la raíz del sitio, junto con <code>logo-atp-blanco.png</code>. El resultado son dos direcciones que abren sin contraseña.</p>
+<div class="ver"><p class="lab">qué debes ver</p><p>somosatp.com/terminos.html y somosatp.com/privacidad.html abren con el logo arriba y el texto completo. Ábrelas desde el celular con los datos prendidos, no desde tu compu, para asegurarte de que están públicas de verdad.</p></div>
+</div>
+
+<div class="pa"><p class="id">1.4</p>
+<h4>Pega las dos ligas en los datos públicos de Stripe<span class="pill tu">tú</span></h4>
+<p>Aquí está la razón de que legal vaya primero: <strong>mientras no existan estas ligas, Stripe ni siquiera te ofrece la opción de pedir consentimiento en el enlace de pago.</strong> No es que salga apagada, es que no aparece. Si haces los enlaces antes que esto, vas a tener que volver a editarlos.</p>
+<span class="ruta2">https://dashboard.stripe.com/settings/public</span>
+<div class="ver"><p class="lab">qué debes ver</p><p>Los campos de términos del servicio y política de privacidad guardados, y el sitio web puesto como somosatp.com.</p></div>
+</div>
+
+</div></div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="b2">
+<div class="blq">
+<div class="bh"><span class="num">Bloque 02</span><span class="tit">Producto y los tres precios</span><span class="min">15 minutos</span></div>
+<div class="pasos">
+
+<div class="pa"><p class="id">2.1</p>
+<h4>Revisa si ya tienes un producto de membresía<span class="pill tu">tú</span></h4>
+<p>Ya cobraste tres veces, así que probablemente hay productos viejos ahí. Si ya existe uno que sea la membresía de la app, úsalo. Si los que hay son de otra cosa, crea uno nuevo llamado simplemente ATP.</p>
+<p>Un solo producto para los tres precios, esto es importante. El derecho de acceso se ata al producto, no al precio, así que un producto con tres precios otorga lo mismo en los tres casos sin configurar nada extra.</p>
+<span class="ruta2">https://dashboard.stripe.com/products</span>
+</div>
+
+<div class="pa"><p class="id">2.2</p>
+<h4>Crea los tres precios<span class="pill tu">tú</span></h4>
+<p>Dentro de ese producto, tres precios recurrentes, mensuales, en pesos mexicanos:</p>
+<p><strong>449</strong> · <strong>620</strong> · <strong>890</strong></p>
+<p>Ponles apodo interno en el campo de descripción, porque en tres semanas los tres se van a ver iguales en una lista. Algo como <em>preventa Mariana 27-30 ago</em>, <em>segunda ventana 31 ago-6 sep</em>, <em>oficial</em>.</p>
+<div class="ver"><p class="lab">qué debes ver</p><p>Un producto con tres precios activos, los tres marcados como recurrentes mensuales. Copia los tres identificadores, los que empiezan con <code>price_</code>, y guárdalos en una nota. Los vas a necesitar dos veces.</p></div>
+</div>
+
+</div></div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="b3">
+<div class="blq">
+<div class="bh"><span class="num">Bloque 03</span><span class="tit">Los tres enlaces de pago</span><span class="min">20 minutos</span></div>
+<div class="pasos">
+
+<div class="pa"><p class="id">3.1</p>
+<h4>Crea los tres, hoy, aunque solo compartas el primero<span class="pill tu">tú</span></h4>
+<p>Uno por precio. El precio de un enlace no se puede cambiar después, verificado contra la documentación, por eso son tres y no uno. Y el 31 a las siete de la mañana no quieres estar creando un enlace, quieres estar apagando uno y copiando otro.</p>
+<span class="ruta2">https://dashboard.stripe.com/payment-links</span>
+</div>
+
+<div class="pa"><p class="id">3.2</p>
+<h4>En cada uno, prende tres cosas<span class="pill tu">tú</span></h4>
+<p><strong>Consentimiento de términos.</strong> Ahora sí aparece, porque hiciste el bloque 01. Es la casilla que el cliente marca aceptando los términos, y es tu defensa si alguien pelea un cargo recurrente.</p>
+<p><strong>Teléfono.</strong> Viene apagado de fábrica. Ojo con esto antes de prenderlo: Stripe solo lo ofrece como campo obligatorio, no hay opción de pedirlo opcional. Un campo obligatorio más cuesta gente en el embudo. Yo lo prendería igual, porque sin teléfono la mitad de tu operación de soporte no existe, pero es tu llamada.</p>
+<p><strong>Mensaje de desactivación.</strong> Cuando apagues el enlace de 449 el día 31, quien lo abra va a ver un mensaje. El de fábrica es seco. Pon algo como: <em>Esta promoción ya cerró. Escríbenos por WhatsApp y te pasamos el enlace vigente.</em></p>
+</div>
+
+<div class="pa"><p class="id">3.3</p>
+<h4>Ponle el idioma a la liga que vas a compartir<span class="pill tu">tú</span></h4>
+<p>Al final de la dirección le pegas <code>?locale=es-419</code>. Si la liga ya trae otro parámetro, entonces va con <code>&amp;</code> en vez de <code>?</code>.</p>
+<div class="ver"><p class="lab">qué debes ver</p><p>Abre la liga completa en una ventana de incógnito. La pantalla de cobro sale en español, pide teléfono, y abajo del botón hay una casilla de términos con tus dos ligas. Si falta la casilla, es que el bloque 01 no quedó guardado.</p></div>
+</div>
+
+<div class="pa"><p class="id">3.4</p>
+<h4>Guarda los tres identificadores<span class="pill tu">tú</span></h4>
+<p>Los que empiezan con <code>plink_</code>. Aparecen en la dirección del panel cuando abres cada enlace. Los necesitas en el siguiente bloque.</p>
+</div>
+
+</div></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="b4">
+<div class="blq">
+<div class="bh"><span class="num">Bloque 04</span><span class="tit">La metadata, que es el arreglo</span><span class="min">10 minutos</span></div>
+<div class="pasos">
+
+<div class="pa"><p class="id">4.0</p>
+<h4>Qué estamos arreglando exactamente</h4>
+<p>El webhook exige que cada pago traiga escrito qué plan compró la persona. Lo lee de <code>metadata.tier</code>. Los tres pagos que entraron venían con la metadata vacía, y por eso los tres se cayeron.</p>
+<p>El dato que no era obvio: <strong>la metadata de un enlace de pago no se pone desde el panel.</strong> La documentación de Stripe no expone ese campo en la interfaz, solo por API. Por eso este bloque es el único con terminal.</p>
+<p>Y son dos claves distintas, no una. Una viaja en el alta y otra en las renovaciones. No se cubren entre sí, así que si pones solo la primera, todo funciona el 27 y se cae el 27 de septiembre.</p>
+</div>
+
+<div class="pa"><p class="id">4.1</p>
+<h4>Saca tu llave secreta de Stripe<span class="pill tu">tú</span></h4>
+<p>Está en el panel, en desarrolladores, claves de API. Es la que empieza con <code>sk_live_</code> y hay que revelarla para verla.</p>
+<div class="stop"><p><b>No me la mandes.</b> No la pegues en este chat ni en ningún otro lado. Los comandos de abajo los corres tú en tu terminal, con tu llave, en tu máquina. Yo verifico el resultado leyendo la base, que es donde se ve si funcionó.</p></div>
+</div>
+
+<div class="pa"><p class="id">4.2</p>
+<h4>Corre esto una vez por cada enlace<span class="pill tu">tú</span></h4>
+<p>Sustituye el <code>plink_</code> y tu llave. Son tres corridas, una por cada enlace de la escalera.</p>
+<pre><span class="c"># PowerShell en Windows, o terminal en Mac</span>
+curl https://api.stripe.com/v1/payment_links/<i>plink_TU_ENLACE</i> `
+  -u "<i>sk_live_TU_LLAVE</i>:" `
+  -d "metadata[tier]=<b>pro</b>" `
+  -d "subscription_data[metadata][tier]=<b>pro</b>"</pre>
+<p><code>pro</code> y no otra cosa: el webhook solo acepta <code>base</code>, <code>pro</code> o <code>clinician</code>, y <code>pro</code> es el único que tu base de datos usa de verdad hoy. Los otros dos están definidos pero nadie los tiene.</p>
+<p>Si PowerShell se queja del acento grave al final de las líneas, junta todo en un solo renglón y quita los acentos.</p>
+</div>
+
+<div class="pa"><p class="id">4.3</p>
+<h4>Confirma que quedó<span class="pill tu">tú</span></h4>
+<pre>curl https://api.stripe.com/v1/payment_links/<i>plink_TU_ENLACE</i> `
+  -u "<i>sk_live_TU_LLAVE</i>:"</pre>
+<div class="ver"><p class="lab">qué debes ver</p><p>En la respuesta, <code>"metadata": {"tier": "pro"}</code> y también <code>"subscription_data": {"metadata": {"tier": "pro"}}</code>. Si la segunda no está, el alta va a funcionar y las renovaciones no.</p></div>
+</div>
+
+<div class="pa"><p class="id">4.4</p>
+<h4>Un hueco que muerde hasta septiembre<span class="pill dev">dev</span></h4>
+<p>El webhook lee las renovaciones de <code>invoice.subscription_details.metadata</code>. Stripe movió ese campo a <code>invoice.parent.subscription_details.metadata</code> en la versión de API de marzo del año pasado. Según a qué versión esté fijado tu endpoint, las renovaciones pueden llegar sin el tier y no extender el acceso de nadie.</p>
+<p>No estalla el 27, estalla el 27 de septiembre, que es peor porque para entonces ya hay gente adentro. El arreglo es leer los dos lados:</p>
+<pre>const subMeta = (
+  (object.parent as any)?.subscription_details?.metadata ??
+  (object.subscription_details as any)?.metadata ?? {}
+) as Record&lt;string, unknown&gt;;</pre>
+<div class="yo"><p class="lab">yo</p><p>Le escribo el reporte al dev con la cita de la documentación y la línea exacta, para que no tenga que investigar.</p></div>
+</div>
+
+</div></div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="b5">
+<div class="blq">
+<div class="bh"><span class="num">Bloque 05</span><span class="tit">La prueba con dinero real</span><span class="min">20 minutos</span></div>
+<div class="pasos">
+
+<div class="pa"><p class="id">5.0</p>
+<h4>Por qué con dinero de verdad</h4>
+<p>Porque el modo de prueba de Stripe no reproduce lo que se rompió. Los tres pagos que fallaron eran de verdad, con <code>livemode</code> en verdadero, y fallaron por un dato del enlace real. Un pago de prueba en un enlace de prueba no te dice nada sobre el enlace que va a usar Mariana.</p>
+<p>Son 449 pesos que te reembolsas al final. La comisión no se devuelve, así que la prueba te cuesta como veinte pesos.</p>
+</div>
+
+<div class="pa"><p class="id">5.1</p>
+<h4>Paga con un correo que nunca hayas usado<span class="pill tu">tú</span></h4>
+<p>Algo como <code>ezbiohacker+preventa1@gmail.com</code>. Tiene que ser nuevo de verdad: si usas uno repetido, Supabase responde que todo salió bien y no manda nada, que es el error que nos costó dos horas la semana pasada.</p>
+<p>Abre el enlace de 449 con la cola de idioma, marca la casilla de términos, pon el teléfono, y paga con tu tarjeta.</p>
+</div>
+
+<div class="pa"><p class="id">5.2</p>
+<h4>Me dices listo y verifico<span class="pill mio">yo</span></h4>
+<p>Corro estas tres consultas contra tu base. Es lectura, no toco nada.</p>
+<pre><span class="c">-- 1. ¿el webhook lo procesó?</span>
+select event_type, status, error, created_at
+from payment_webhook_events order by created_at desc limit 1;
+
+<span class="c">-- 2. ¿se generó el código?</span>
+select code, tier, issued_to_email, max_uses, used_count
+from activation_codes order by created_at desc limit 1;
+
+<span class="c">-- 3. ¿quedó el permiso?</span>
+select tier, source, expires_at, ref
+from tier_grants order by created_at desc limit 1;</pre>
+<div class="ver"><p class="lab">qué tiene que salir</p><p>La primera en <code>processed</code> y sin error. La segunda con una fila, tier <code>pro</code>, tu correo de prueba. La tercera probablemente vacía todavía, y eso está bien: el permiso solo se aplica si ya existe una cuenta con ese correo, y todavía no la creas.</p></div>
+</div>
+
+<div class="pa"><p class="id">5.3</p>
+<h4>Revisa que llegó el correo con el código<span class="pill tu">tú</span></h4>
+<p>Sale de <code>hola@somosatp.com</code> con el asunto <em>Tu acceso a ATP Pro</em>. Busca también en promociones y en spam.</p>
+<p>Te aviso desde ahora que ese correo es texto plano y bastante seco, y le dice a la gente que vaya a Ajustes, Suscripción, Tengo un código. Verifica que esa ruta exista tal cual en la app, porque si no, ahí se atora todo el mundo. El correo bonito ya lo tengo escrito y lo cambiamos después de que la cadena funcione, no antes.</p>
+</div>
+
+<div class="pa"><p class="id">5.4</p>
+<h4>Crea la cuenta en la app con ese mismo correo<span class="pill tu">tú</span></h4>
+<p>Descarga, regístrate con <code>ezbiohacker+preventa1</code>, confirma el correo, y entra.</p>
+<div class="ver"><p class="lab">qué debes ver</p><p>Que entres como <code>pro</code> sin haber pegado ningún código, porque el correo coincide. Si entras como <code>free</code>, ahí se rompió y yo te digo dónde.</p></div>
+<div class="yo"><p class="lab">yo</p><p>Verifico el perfil y el permiso efectivo en la base en cuanto me digas.</p></div>
+</div>
+
+<div class="pa"><p class="id">5.5</p>
+<h4>Cancela desde el portal y mira qué pasa<span class="pill tu">tú</span></h4>
+<p>Este paso se salta todo el mundo y es el que más caro sale. Cancela la suscripción de prueba desde el portal del cliente.</p>
+<div class="ver"><p class="lab">qué debes ver</p><p>Un evento <code>customer.subscription.deleted</code> en la tabla, y el permiso recortado al fin del periodo pagado, no borrado de golpe. La app debe seguir dejándote entrar hasta esa fecha, porque ya lo pagaste.</p></div>
+</div>
+
+<div class="pa"><p class="id">5.6</p>
+<h4>Reembólsate<span class="pill tu">tú</span></h4>
+<p>Desde el pago en el panel de Stripe. Y ese reembolso también sirve de prueba: es exactamente lo que vas a tener que hacer si alguien pide devolución en la preventa.</p>
+</div>
+
+</div></div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="b6">
+<div class="blq">
+<div class="bh"><span class="num">Bloque 06</span><span class="tit">Portal, reintentos y correos</span><span class="min">15 minutos</span></div>
+<div class="pasos">
+
+<div class="pa"><p class="id">6.1</p>
+<h4>Enciende la liga pública del portal<span class="pill tu">tú</span></h4>
+<p>Adentro hay un botón que dice activar liga. Eso te da una dirección donde cualquier suscriptor entra con su correo, cambia su tarjeta o cancela, sin que tú toques nada. Es la pieza que más trabajo manual te ahorra y son tres minutos.</p>
+<p>Acepta <code>?prefilled_email=</code>, así que la podemos mandar ya personalizada en el correo de bienvenida.</p>
+<span class="ruta2">https://dashboard.stripe.com/settings/billing/portal</span>
+</div>
+
+<div class="pa"><p class="id">6.2</p>
+<h4>Confirma los reintentos<span class="pill tu">tú</span></h4>
+<p>Ocho intentos en dos semanas. Ese es el valor que Stripe recomienda por omisión, no una constante del sistema, así que ábrelo y confirma que en tu cuenta esté así.</p>
+<span class="ruta2">https://dashboard.stripe.com/revenue_recovery/retries</span>
+</div>
+
+<div class="pa"><p class="id">6.3</p>
+<h4>Prende los correos de cobro fallido, que están en otra pantalla<span class="pill tu">tú</span></h4>
+<span class="ruta2">https://dashboard.stripe.com/revenue_recovery/emails</span>
+</div>
+
+<div class="pa"><p class="id">6.4</p>
+<h4>Y el aviso de renovación, que está en una tercera<span class="pill tu">tú</span></h4>
+<p>No está con los otros correos. Vive en la configuración de facturación automática, y es una ruta que no adivinas.</p>
+<span class="ruta2">https://dashboard.stripe.com/settings/billing/automatic</span>
+</div>
+
+<div class="pa"><p class="id">6.5</p>
+<h4>Logo y color<span class="pill tu">tú</span></h4>
+<p>El logo blanco y el teal como acento. Sale en la pantalla de cobro, en los recibos y en el portal.</p>
+<span class="ruta2">https://dashboard.stripe.com/settings/branding<br>https://dashboard.stripe.com/account/branding/checkout</span>
+</div>
+
+</div></div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="b7">
+<div class="blq">
+<div class="bh"><span class="num">Bloque 07</span><span class="tit">La maniobra del 31</span><span class="min">2 minutos, con hora exacta</span></div>
+<div class="pasos">
+
+<div class="pa"><p class="id">7.1</p>
+<h4>Alarma en el teléfono para el 31 de agosto a primera hora<span class="pill tu">tú</span></h4>
+<p>Dos movimientos: desactivas el enlace de 449 desde el menú de tres puntos, y publicas el de 620.</p>
+<p>Si se te pasa, el enlace de 449 sigue cobrando 449 a quien lo tenga, y ese precio se le congela de por vida. En un lanzamiento de comunidad ese enlace se reenvía por WhatsApp sin que tú te enteres. No es una tarea de sistema, es tuya y tiene hora.</p>
+<p>Lo mismo el 7 de septiembre: apagas el de 620 y queda vivo el de 890.</p>
+</div>
+
+<div class="pa"><p class="id">7.2</p>
+<h4>Un detalle que sirve saber</h4>
+<p>Un enlace desactivado no se borra y se puede reactivar. Así que si alguien te escribe el 2 de septiembre diciendo que se le pasó la preventa y tú quieres hacerle el favor, se puede. Reactivar está documentado solo por API, no por panel, así que sería otra corrida de terminal.</p>
+</div>
+
+</div></div>
+</section>
+
+<div class="cierre">
+<p>Empezamos por el bloque 00 y el 01, que son los dos que dependen de que me mandes algo. Mándame los tres datos fiscales y la respuesta sobre la garantía, y mientras tú avanzas con el producto y los precios yo te regenero las páginas legales.</p>
+</div>
+</main>

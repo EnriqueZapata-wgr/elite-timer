@@ -1,0 +1,160 @@
+<title>Cierre de correos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{--canvas:#000;--card:#121212;--alto:#1A1A1A;--borde:#242424;
+ --tinta:#fff;--sec:#9A9A9A;--tenue:#767676;
+ --lima:#A8E02A;--teal:#1ABC9C;--ambar:#EFD54F;--rojo:#E74C3C;--violeta:#7F77DD;
+ --g1:#A8E02A;--g2:#6DCC48;--g3:#3DBF6E;--g4:#2EC28A;--g5:#1ABC9C}
+body{margin:0;background:var(--canvas);color:var(--tinta);
+ font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+ font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;left:0;top:0;bottom:0;width:6px;z-index:50;
+ background:linear-gradient(180deg,var(--g1),var(--g2) 26%,var(--g3) 50%,var(--g4) 74%,var(--g5))}
+.wrap{max-width:880px;margin:0 auto;padding:56px 26px 100px 34px}
+h1{font-size:clamp(30px,5.2vw,44px);line-height:1.12;font-weight:600;letter-spacing:-.024em;margin:0 0 18px}
+h2{font-size:clamp(21px,3vw,26px);line-height:1.25;font-weight:600;letter-spacing:-.015em;margin:0 0 6px}
+p{margin:0 0 16px;color:var(--sec)}
+p.lead{color:var(--tinta);font-size:19px;line-height:1.62}
+strong{color:var(--tinta);font-weight:600}
+code{font-family:'SFMono-Regular',Consolas,monospace;font-size:.86em;background:var(--alto);
+ border:1px solid var(--borde);border-radius:5px;padding:1px 6px;color:#CFCFCF}
+.kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--tenue);font-weight:500;margin:0 0 10px}
+.sec{margin:0 0 56px}
+.sub{color:var(--sec);font-size:16.5px;margin:0 0 26px;max-width:62ch}
+.hallazgo{background:var(--card);border:1px solid var(--borde);border-left:3px solid var(--teal);
+ border-radius:0 16px 16px 0;padding:24px 26px;margin:0 0 40px}
+.hallazgo h2{margin-bottom:12px}
+.hallazgo p{margin:0 0 14px}
+.hallazgo p:last-child{margin:0}
+pre{background:#0C0C0C;border:1px solid var(--borde);border-radius:10px;padding:14px 16px;
+ overflow-x:auto;margin:0 0 16px;font-size:13.5px;line-height:1.6;color:#C8C8C8;
+ font-family:'SFMono-Regular',Consolas,monospace}
+.bloque{background:var(--card);border:1px solid var(--borde);border-radius:18px;margin:0 0 16px;overflow:hidden}
+.bcab{padding:20px 26px 16px;border-bottom:1px solid var(--borde);display:flex;
+ align-items:baseline;gap:14px;flex-wrap:wrap}
+.bcab .n{font-size:20px;font-weight:600;letter-spacing:-.01em}
+.bcab .m{font-size:13.5px;color:var(--tenue)}
+.bloque.ahora .bcab{background:linear-gradient(90deg,rgba(168,224,42,.09),transparent 62%)}
+.bloque.ahora .bcab .n{color:var(--lima)}
+.tareas{padding:6px 26px 20px}
+.t{display:grid;grid-template-columns:26px 1fr;gap:0 15px;padding:15px 0;border-bottom:1px solid var(--borde)}
+.t:last-child{border-bottom:0;padding-bottom:4px}
+.t .c{width:17px;height:17px;border:2px solid #3C3C3C;border-radius:5px;margin-top:5px}
+.t b{display:block;color:var(--tinta);font-weight:600;font-size:16px;line-height:1.5;margin:0 0 4px}
+.t span{display:block;color:var(--sec);font-size:14.5px;line-height:1.62}
+.t code{font-size:13px}
+.et{display:inline-block;font-size:10px;letter-spacing:.09em;text-transform:uppercase;font-weight:600;
+ padding:3px 8px;border-radius:4px;margin-left:8px;vertical-align:2px;white-space:nowrap}
+.et.dev{color:var(--violeta);background:rgba(127,119,221,.14)}
+.et.urg{color:var(--rojo);background:rgba(231,76,60,.13)}
+.et.ok{color:var(--teal);background:rgba(26,188,156,.12)}
+.cierre{border-top:1px solid var(--borde);margin-top:56px;padding-top:30px}
+.cierre p{font-size:16.5px}
+@media(max-width:600px){.wrap{padding:40px 20px 70px 28px}}
+</style>
+
+<main class="wrap">
+<p class="kicker">ATP · cierre de correos</p>
+<h1>Lo que falta,<br>en orden</h1>
+<p class="lead">Veinte minutos de trabajo tuyo. Todo lo demás de esta lista es para el dev o va al FIFO.</p>
+
+<div class="hallazgo">
+<h2>Primero: el correo no falló</h2>
+<p>Revisé la base y los registros. El alta que hiciste quedó así, a las 04:03:09 UTC:</p>
+<pre>"action": "user_repeated_signup"
+"actor_username": "enrique.outliers@gmail.com"
+"path": "/signup"   "status": 200</pre>
+<p>Ese correo ya tenía cuenta <strong>desde el 28 de marzo</strong>. Supabase detectó el alta repetida, contestó 200 sin crear nada, y no mandó correo. Es a propósito: si contestara con error, cualquiera podría averiguar qué direcciones tienen cuenta en ATP probando una por una.</p>
+<p>La base lo confirma: siguen siendo <strong>nueve usuarios</strong> y el último se dio de alta hace treinta y cinco días. No se creó nada, así que no había nada que mandar.</p>
+<p><strong>El problema real es que la app se cree ese 200</strong> y te manda a la pantalla del nombre a esperar una sesión que nunca existió. Eso sí es un bug, está documentado aparte, y en el corte del 27 va a pasarle a toda la gente de la beta que ya no se acuerde de que tiene cuenta.</p>
+</div>
+
+<!-- ══════ 1 ══════ -->
+<section class="sec">
+<div class="bloque ahora">
+  <div class="bcab"><span class="n">Bloque 1 · Hostinger</span><span class="m">cinco minutos</span></div>
+  <div class="tareas">
+    <div class="t"><div class="c"></div><div><b>Subir <code>confirmar.html</code> a la raíz de <code>public_html</code></b><span>Junto a <code>reset-password.html</code>, que ya está arriba. Ya trae los datos de tu proyecto puestos, no hay que editarlo.</span></div></div>
+    <div class="t"><div class="c"></div><div><b>Comprobar que quedó</b><span>Abre <code>somosatp.com/confirmar.html</code>. Te debe salir una página negra que dice "Este enlace ya venció". Eso es lo correcto, porque la estás abriendo sin token.</span></div></div>
+  </div>
+</div>
+
+<div class="bloque ahora">
+  <div class="bcab"><span class="n">Bloque 2 · Supabase</span><span class="m">diez minutos</span></div>
+  <div class="tareas">
+    <div class="t"><div class="c"></div><div><b>Revisar URL Configuration<span class="et urg">va primero</span></b><span>Que <strong>Site URL</strong> diga <code>https://somosatp.com</code> sin diagonal final, y que en <strong>Redirect URLs</strong> estén <code>https://somosatp.com/confirmar.html</code> y <code>https://somosatp.com/reset-password.html</code>.</span></div></div>
+    <div class="t"><div class="c"></div><div><b>Pegar la plantilla de Confirm signup</b><span>Authentication, Email Templates, Confirm signup. El archivo es <code>autenticacion/01-confirmar-alta.html</code>. Ábrelo con el Bloc de notas, copia todo, y reemplaza lo que hay.</span></div></div>
+    <div class="t"><div class="c"></div><div><b>Poner el asunto</b><span>Arriba del cuadro de contenido: <code>Confirma tu correo para entrar a ATP</code></span></div></div>
+  </div>
+</div>
+
+<div class="bloque ahora">
+  <div class="bcab"><span class="n">Bloque 3 · La prueba</span><span class="m">cinco minutos</span></div>
+  <div class="tareas">
+    <div class="t"><div class="c"></div><div><b>Date de alta con un correo que de verdad no exista<span class="et urg">clave</span></b><span>Anoche usaste uno que ya tenías. Usa uno nuevo de verdad, o el truco de Gmail: <code>ezbiohacker+prueba1@gmail.com</code> llega a tu misma bandeja pero para Supabase es otra dirección distinta.</span></div></div>
+    <div class="t"><div class="c"></div><div><b>Revisar que el correo llegue bien</b><span>En español, con el logo, sin banner rojo. Y que el botón lleve a <code>somosatp.com</code> y no al dominio de Supabase.</span></div></div>
+    <div class="t"><div class="c"></div><div><b>Confirmar que se creó la cuenta</b><span>Si el alta funcionó, en la base pasamos de nueve usuarios a diez. Yo te lo verifico desde aquí en cuanto me digas.</span></div></div>
+  </div>
+</div>
+
+<div class="bloque ahora">
+  <div class="bcab"><span class="n">Bloque 4 · Dos cosas sueltas</span><span class="m">cinco minutos</span></div>
+  <div class="tareas">
+    <div class="t"><div class="c"></div><div><b>Confirmar si <code>hola@somosatp.com</code> existe como buzón<span class="et urg">sin respuesta</span></b><span>Te lo he preguntado tres veces y no es terquedad: los trece correos dicen "responde a este correo". Si ese buzón no existe, cada persona que conteste recibe un rebote justo cuando algo le falló. Se crea en dos minutos en hPanel, sección de correos, y no toca DNS.</span></div></div>
+    <div class="t"><div class="c"></div><div><b>Subir Resend a plan Pro</b><span>Veinte dólares al mes. El plan gratis tiene tope de <strong>100 correos al día</strong>, y con dos correos por persona eso se acaba alrededor de las cuarenta altas. Súbelo antes del 27, no el mismo día.</span></div></div>
+  </div>
+</div>
+</section>
+
+<!-- ══════ dev ══════ -->
+<section class="sec">
+<p class="kicker">no es tuyo</p>
+<h2>Para quien programe</h2>
+<p class="sub">Va documentado con la evidencia completa en <code>BUG_REGISTRO_ALTA_DUPLICADA.md</code>.</p>
+<div class="bloque">
+  <div class="bcab"><span class="n">Bloque 5 · Código</span><span class="m">bloquea el 27</span></div>
+  <div class="tareas">
+    <div class="t"><div class="c"></div><div><b>Detectar el alta repetida<span class="et dev">dev</span></b><span>Después de <code>signUp()</code>, si <code>data.user.identities</code> viene vacío, el correo ya tiene cuenta. Hay que parar ahí y ofrecer entrar o recuperar contraseña, sin decir que la cuenta existe.</span></div></div>
+    <div class="t"><div class="c"></div><div><b>Confirmar si la pantalla del nombre es otro bug<span class="et dev">dev</span></b><span>Prueba de treinta segundos: repetir el alta con un correo que sí sea nuevo. Si ahí sí avanza, era el mismo problema. Si no, es un bug aparte del formulario.</span></div></div>
+    <div class="t"><div class="c"></div><div><b>Quitar la tienda de moneda virtual del binario<span class="et dev">dev</span></b><span><code>app/economy/shop.tsx</code> muestra precios en pesos y llama una función revocada. Ya estaba marcada como rechazo casi seguro en la auditoría de tiendas.</span></div></div>
+    <div class="t"><div class="c"></div><div><b>Llenar los corchetes legales<span class="et dev">dev</span></b><span><code>legal-texts.ts</code> tiene <code>[RAZÓN SOCIAL]</code> sin llenar y se renderiza antes de crear la cuenta.</span></div></div>
+  </div>
+</div>
+</section>
+
+<!-- ══════ despues ══════ -->
+<section class="sec">
+<p class="kicker">ya está escrito, no urge</p>
+<h2>Lo que queda en el FIFO</h2>
+<div class="bloque">
+  <div class="bcab"><span class="n">Bloque 6 · Después del 27</span></div>
+  <div class="tareas">
+    <div class="t"><div class="c"></div><div><b>Las otras cinco plantillas de autenticación<span class="et ok">ya construidas</span></b><span>Cambio de correo, enlace de entrada, invitación y reautenticación. Ninguna se usa hoy con el flujo de correo y contraseña.</span></div></div>
+    <div class="t"><div class="c"></div><div><b>Los siete avisos de seguridad<span class="et ok">ya construidos</span></b><span>De esos, el de contraseña cambiada es el que yo encendería en cuanto haya gente adentro.</span></div></div>
+    <div class="t"><div class="c"></div><div><b>BIMI, el ícono del remitente</b><span>Exige DMARC estricto y un certificado de paga anual. Se retoma en septiembre empezando por el DMARC, que mejora la entrega por sí solo.</span></div></div>
+  </div>
+</div>
+</section>
+
+<!-- ══════ decisiones ══════ -->
+<section class="sec">
+<p class="kicker">esto sí bloquea la semana</p>
+<h2>Las decisiones que siguen abiertas</h2>
+<p class="sub">Están completas en el documento de infraestructura. Estas tres son las que desatoran todo lo demás, y se cierran en quince minutos.</p>
+<div class="bloque">
+  <div class="bcab"><span class="n">Bloque 7 · Tú</span></div>
+  <div class="tareas">
+    <div class="t"><div class="c"></div><div><b>Qué es exactamente el 27</b><span>¿Publicación en tiendas, o corte de founders por TestFlight y APK? Si es lo segundo, todo el nudo de Apple se resuelve en septiembre.</span></div></div>
+    <div class="t"><div class="c"></div><div><b>Cuál lista de precios</b><span>Siguen siendo dos listas con cuatro diferencias. La que se publique primero es la que queda.</span></div></div>
+    <div class="t"><div class="c"></div><div><b>Cuenta primero o pago primero</b><span>De ahí cuelga cómo se escribe el resto del código del embudo.</span></div></div>
+  </div>
+</div>
+</section>
+
+<div class="cierre">
+<p>Cuando termines los bloques 1 al 4 me avisas y verifico desde aquí que la cuenta se haya creado de verdad. De ahí sigo solo con el guion de soporte de WhatsApp, la página de precios, la consulta del tablero de rezagados y el guion de las doce pruebas, que son cosas que puedo avanzar sin ti.</p>
+</div>
+</main>

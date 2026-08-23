@@ -1,0 +1,359 @@
+<title>Cómo entran sin tienda</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{--canvas:#000;--card:#121212;--alto:#1A1A1A;--borde:#242424;
+ --tinta:#fff;--sec:#9A9A9A;--tenue:#767676;
+ --lima:#A8E02A;--teal:#1ABC9C;--ambar:#EFD54F;--rojo:#E74C3C;--violeta:#7F77DD;
+ --g1:#A8E02A;--g2:#6DCC48;--g3:#3DBF6E;--g4:#2EC28A;--g5:#1ABC9C}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--canvas);color:var(--tinta);font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+ font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;left:0;top:0;bottom:0;width:6px;z-index:60;
+ background:linear-gradient(180deg,var(--g1),var(--g2) 26%,var(--g3) 50%,var(--g4) 74%,var(--g5))}
+.wrap{max-width:1000px;margin:0 auto;padding:56px 26px 110px 34px}
+h1{font-size:clamp(30px,5.2vw,46px);line-height:1.12;font-weight:600;letter-spacing:-.024em;margin:0 0 18px}
+h2{font-size:clamp(22px,3.2vw,29px);line-height:1.22;font-weight:600;letter-spacing:-.018em;margin:0 0 8px}
+h3{font-size:17.5px;font-weight:600;margin:0 0 10px}
+p{margin:0 0 16px;color:var(--sec)}
+p.lead{color:var(--tinta);font-size:19px;line-height:1.62}
+strong{color:var(--tinta);font-weight:600}
+code{font-family:'SFMono-Regular',Consolas,monospace;font-size:.85em;background:var(--alto);border:1px solid var(--borde);border-radius:5px;padding:1px 6px;color:#CFCFCF;word-break:break-all}
+a{color:var(--teal);text-decoration:none}
+.kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--tenue);font-weight:500;margin:0 0 10px}
+.sec{margin:0 0 74px;scroll-margin-top:20px}
+.sub{color:var(--sec);font-size:16.5px;margin:0 0 26px;max-width:64ch}
+.indice{background:var(--card);border:1px solid var(--borde);border-radius:16px;padding:22px 24px;margin:0 0 60px}
+.indice ol{margin:0;padding:0;list-style:none;counter-reset:i}
+.indice li{counter-increment:i;margin:0 0 9px;display:flex;gap:13px;align-items:baseline}
+.indice li:last-child{margin:0}
+.indice li::before{content:counter(i,decimal-leading-zero);color:var(--tenue);font-size:12px;font-variant-numeric:tabular-nums;flex:0 0 20px}
+.indice a{color:var(--tinta);font-weight:500;font-size:16px}
+.alerta{background:var(--card);border:1px solid var(--borde);border-left:3px solid var(--rojo);border-radius:0 16px 16px 0;padding:22px 24px;margin:0 0 22px}
+.alerta h3{margin-bottom:9px}
+.alerta p{margin:0 0 13px}.alerta p:last-child{margin:0}
+.nota{border-left:3px solid var(--teal);padding:2px 0 2px 20px;margin:0 0 24px}
+.nota p{margin:0;font-size:15.5px}
+.bloque{background:var(--card);border:1px solid var(--borde);border-radius:18px;margin:0 0 16px;overflow:hidden}
+.bcab{padding:20px 26px 16px;border-bottom:1px solid var(--borde);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.bcab .n{font-size:19px;font-weight:600;letter-spacing:-.01em}
+.bcab .m{font-size:13.5px;color:var(--tenue)}
+.bloque.tu .bcab{background:linear-gradient(90deg,rgba(168,224,42,.08),transparent 60%)}
+.bloque.tu .bcab .n{color:var(--lima)}
+.bloque.dev .bcab{background:linear-gradient(90deg,rgba(127,119,221,.09),transparent 60%)}
+.bloque.dev .bcab .n{color:var(--violeta)}
+.tareas{padding:4px 26px 20px}
+.t{display:grid;grid-template-columns:24px 1fr;gap:0 15px;padding:16px 0;border-bottom:1px solid var(--borde)}
+.t:last-child{border-bottom:0;padding-bottom:4px}
+.t .c{width:16px;height:16px;border:2px solid #3C3C3C;border-radius:5px;margin-top:6px}
+.t b{display:block;color:var(--tinta);font-weight:600;font-size:16px;line-height:1.5;margin:0 0 6px}
+.t span{display:block;color:var(--sec);font-size:14.5px;line-height:1.64}
+.t .url{display:block;margin:8px 0 0;font-family:'SFMono-Regular',Consolas,monospace;font-size:12.5px;color:var(--teal);
+ background:#0C0C0C;border:1px solid var(--borde);border-radius:7px;padding:8px 11px;word-break:break-all;line-height:1.5}
+.et{display:inline-block;font-size:10px;letter-spacing:.09em;text-transform:uppercase;font-weight:600;padding:3px 8px;border-radius:4px;margin-left:8px;vertical-align:2px;white-space:nowrap}
+.et.hoy{color:var(--rojo);background:rgba(231,76,60,.13)}
+.et.ojo{color:var(--ambar);background:rgba(239,213,79,.12)}
+.tabla{overflow-x:auto;margin:0 0 22px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+.tabla table{min-width:600px}
+th{text-align:left;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tenue);font-weight:600;padding:0 16px 11px 0;border-bottom:1px solid var(--borde);white-space:nowrap}
+td{padding:13px 16px 13px 0;border-bottom:1px solid var(--borde);color:var(--sec);vertical-align:top;line-height:1.55}
+td:first-child{color:var(--tinta);font-weight:500}
+tr:last-child td{border-bottom:0}
+tr.suma td{border-bottom:0;border-top:1px solid #3A3A3A;padding-top:16px;color:var(--tinta);font-weight:600}
+.dec{background:var(--card);border:1px solid var(--borde);border-left:3px solid var(--lima);border-radius:0 14px 14px 0;padding:20px 24px;margin:0 0 14px}
+.dec h3{margin-bottom:8px}.dec p{margin:0 0 12px;font-size:15.5px}.dec p:last-child{margin:0}
+.opc{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0 0}
+.opc span{font-size:13.5px;color:var(--sec);background:var(--alto);border:1px solid var(--borde);border-radius:8px;padding:8px 13px}
+.opc span.rec{color:var(--tinta);border-color:#3A4A2A;background:rgba(168,224,42,.07)}
+.opc span.rec::before{content:'sugerido · ';color:var(--lima);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.cierre{border-top:1px solid var(--borde);margin-top:60px;padding-top:30px}
+@media(max-width:620px){.wrap{padding:40px 20px 80px 28px}.t{grid-template-columns:1fr}.t .c{display:none}}
+</style>
+<style>
+.dosc{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0 0 24px}
+.col{background:var(--card);border:1px solid var(--borde);border-radius:16px;padding:22px 24px}
+.col.ios{border-top:3px solid var(--teal)}
+.col.and{border-top:3px solid var(--ambar)}
+.col .tt{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--tenue);font-weight:600;margin:0 0 8px}
+.col .gr{font-size:21px;font-weight:600;letter-spacing:-.015em;color:var(--tinta);margin:0 0 14px;line-height:1.2}
+.col.ios .gr{color:var(--teal)}
+.col.and .gr{color:var(--ambar)}
+.col p{font-size:15px;margin:0 0 12px}
+.col .ok,.col .mal{font-size:14px;font-weight:600;margin:14px 0 0;padding-top:13px;border-top:1px solid var(--borde)}
+.col .ok{color:var(--lima)}
+.col .mal{color:#E08A5F}
+.t b .et{display:inline-block;width:auto;vertical-align:2px}
+.fuera{border-left:3px solid #3A3A3A;padding:2px 0 2px 20px;margin:0 0 20px}
+.fuera h3{color:var(--sec);font-weight:500;font-size:16px;margin:0 0 5px}
+.fuera p{margin:0;font-size:15px;color:var(--tenue)}
+.dias{display:grid;gap:12px}
+.dia{background:var(--card);border:1px solid var(--borde);border-radius:14px;padding:18px 22px;display:grid;grid-template-columns:118px 1fr;gap:0 20px;align-items:start}
+.dia .f{font-size:13px;font-weight:600;color:var(--tinta);padding-top:2px}
+.dia .f em{display:block;font-style:normal;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tenue);font-weight:500;margin-top:2px}
+.dia ul{margin:0;padding:0 0 0 17px;color:var(--sec);font-size:15px;line-height:1.6}
+.dia li{margin:0 0 6px}.dia li:last-child{margin:0}
+.dia.hito{border-color:#3A4A2A;background:linear-gradient(90deg,rgba(168,224,42,.06),var(--card) 55%)}
+.dia.hito .f{color:var(--lima)}
+@media(max-width:700px){.dosc{grid-template-columns:1fr}.dia{grid-template-columns:1fr;gap:10px}}
+</style>
+
+<main class="wrap">
+<p class="kicker">ATP · app en tiendas · 6 de septiembre</p>
+<h1>Cómo entran<br>sin tienda</h1>
+<p class="lead">Las dos tiendas tienen canal de prueba, y ahí es donde van a vivir tus primeros clientes. Pero funcionan de forma tan distinta que la diferencia decide el plan entero. Todo lo de abajo está verificado contra documentación oficial de Apple y de Google, y donde no publican dato, lo digo en vez de inventarlo.</p>
+
+<div class="alerta" style="border-left-color:#1ABC9C">
+<h3>Tu decisión de ofrecer compra dentro de la app resuelve tres cosas de un golpe</h3>
+<p>La primera es la que te bloqueaba: Apple exige, en la guideline 3.1.3(b), que para dar acceso a lo comprado en tu web esos mismos artículos <strong>estén también disponibles como compra dentro de la app</strong>. Con tu decisión eso queda cumplido y deja de ser un problema.</p>
+<p>La segunda es que resuelve un bloqueador del preflight que no parecía relacionado. Hoy la app manda a login y luego a onboarding obligatorio, así que <strong>el reviewer no puede ver nada sin cuenta</strong>, y eso es rechazo por app incompleta. Con una versión gratuita que deje explorar y vaya pidiendo pago, el reviewer entra y ve producto.</p>
+<p>Y la tercera es que Google también lo agradece, aunque ahí no era obligatorio. Google permite el modelo de solo consumir lo comprado fuera, textual: <em>"a user could log in when the app opens and access content paid for somewhere else"</em>. Ofrecer las dos vías cumple en ambas y te quita el tema de encima para siempre.</p>
+</div>
+
+<div class="indice"><ol>
+  <li><a href="#asim">La asimetría que decide el plan</a></li>
+  <li><a href="#vive">Cómo lo vive tu cliente, paso a paso</a></li>
+  <li><a href="#plan">El plan recomendado</a></li>
+  <li><a href="#dinero">El dinero: qué se cobra de verdad</a></li>
+  <li><a href="#pasos">Los pasos, en orden</a></li>
+  <li><a href="#cal">El calendario al 6 de septiembre</a></li>
+  <li><a href="#nose">Lo que ninguna de las dos publica</a></li>
+</ol></div>
+
+<!-- 01 -->
+<section class="sec" id="asim">
+<p class="kicker">01</p>
+<h2>La asimetría que decide el plan</h2>
+<p class="sub">Si solo te quedas con un dato de todo este documento, que sea este.</p>
+
+<div class="dosc">
+<div class="col ios">
+<p class="tt">iOS · TestFlight</p>
+<p class="gr">Una liga pública</p>
+<p>Apple te da un <strong>enlace público</strong> que puedes mandar por WhatsApp, poner en un correo o pegar en la comunidad. Cualquiera lo abre y entra. <strong>No necesitas su correo.</strong> Hasta diez mil personas, con tope configurable.</p>
+<p>Los que entran por esa liga te aparecen como anónimos, o sea que ni siquiera sabes quiénes son, y eso está bien: no tienes que administrar nada.</p>
+<p class="ok">Cero fricción para ti y para el cliente.</p>
+</div>
+<div class="col and">
+<p class="tt">Android · prueba cerrada</p>
+<p class="gr">Lista de correos</p>
+<p>Google <strong>no tiene liga abierta</strong> para pruebas cerradas. Textual: la app queda disponible solo para quien esté en tu lista o en tu grupo. La liga existe, pero solo funciona para quien ya diste de alta.</p>
+<p>Y el correo tiene que ser <strong>la misma cuenta de Google que la persona usa en su teléfono</strong>, que muy seguido no es el correo con el que te pagó. Ahí se te va a atorar gente.</p>
+<p class="mal">Tienes que pedir y capturar correos.</p>
+</div>
+</div>
+
+<p>Esa diferencia es la que hace que el plan de Android no pueda ser el mismo que el de iOS. Y por eso la recomendación de la sección 03 usa un canal distinto en cada tienda, en vez del mismo en las dos.</p>
+
+<div class="nota"><p>Hay un patrón que mucha gente usa para esquivarlo: un Grupo de Google configurado como <em>cualquiera puede unirse</em>, y compartes la liga del grupo. Funciona en la práctica, pero <strong>Google no lo documenta como camino oficial</strong>, así que no te lo recomiendo como plan principal. Como plan B sí sirve.</p></div>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="vive">
+<p class="kicker">02</p>
+<h2>Cómo lo vive tu cliente, paso a paso</h2>
+<p class="sub">Esto es lo que importa de verdad, porque cada paso extra se lleva gente. Los conté.</p>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">Si tiene iPhone</span><span class="m">cuatro pasos</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>1 · Recibe tu liga</b>
+<span>Por WhatsApp o por correo. Una sola liga para todos, la misma siempre.</span></div></div>
+<div class="t"><div class="c"></div><div><b>2 · Instala TestFlight</b>
+<span>La liga lo manda a la App Store a bajar TestFlight, que es una app de Apple, gratis. Este es el único paso raro de todo el proceso: ya bajó una app que no es la tuya. Vale la pena explicárselo antes, en el mensaje.</span></div></div>
+<div class="t"><div class="c"></div><div><b>3 · Vuelve a abrir tu liga y acepta</b>
+<span>Ahí ya ve ATP, con tu ícono y tu descripción de prueba, y le da a aceptar.</span></div></div>
+<div class="t"><div class="c"></div><div><b>4 · Instala ATP desde TestFlight</b>
+<span>Y ya está adentro. Las actualizaciones le llegan por TestFlight, no por la App Store. Un detalle que hay que decirle: <strong>cada build expira a los noventa días</strong>, así que hay que ir subiendo versiones o se le apaga.</span></div></div>
+</div></div>
+
+<div class="bloque dev">
+<div class="bcab"><span class="n">Si tiene Android, con prueba cerrada</span><span class="m">seis pasos, dos de ellos tuyos</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>1 · Le pides su correo de Google</b>
+<span>No el de contacto: <strong>el de la cuenta de Google que usa en su teléfono.</strong> Esta pregunta es la que más confusión genera y hay que redactarla con cuidado.</span></div></div>
+<div class="t"><div class="c"></div><div><b>2 · Tú lo capturas en la lista</b>
+<span>En Play Console, en la lista de la prueba cerrada. Hasta dos mil por lista.</span></div></div>
+<div class="t"><div class="c"></div><div><b>3 · Le mandas la liga de inscripción</b>
+<span>Ojo con esto: <strong>esa liga solo aparece cuando la app está en estado publicado.</strong> Si está en borrador o pendiente, no hay liga.</span></div></div>
+<div class="t"><div class="c"></div><div><b>4 · Abre la liga y acepta ser tester</b>
+<span>Le sale una explicación de qué implica y un botón para aceptar. Tiene que estar con la misma cuenta de Google que le diste de alta.</span></div></div>
+<div class="t"><div class="c"></div><div><b>5 · Instala desde Play Store, normal</b>
+<span>Aquí sí es la Play Store de siempre, no hay app intermedia. Esa parte es mejor que en iOS.</span></div></div>
+<div class="t"><div class="c"></div><div><b>6 · Se actualiza solo</b>
+<span>Textual de Google: la app se actualiza sola a la versión de prueba en pocos minutos. No expira como TestFlight.</span></div></div>
+</div></div>
+
+<div class="alerta">
+<h3>Dónde se te va a caer gente en Android</h3>
+<p>En el paso 1 y en el paso 4, y por la misma razón: <strong>la cuenta de Google del teléfono.</strong> Mucha gente no sabe cuál es, muchos tienen dos, y el correo con el que te pagó en Stripe muy probablemente no es ese.</p>
+<p>Si tienes doscientos clientes y la mitad son Android, son cien correos que pedir, cien capturas, y un porcentaje que va a dar el correo equivocado y va a escribirte porque no le aparece. Eso no es un problema técnico, es media semana de trabajo de una persona.</p>
+<p>Por eso la recomendación de abajo evita ese camino.</p>
+</div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="plan">
+<p class="kicker">03</p>
+<h2>El plan recomendado</h2>
+<p class="sub">Canal distinto en cada tienda, más un tercer canal que corre en paralelo por una razón que no tiene nada que ver con tus clientes.</p>
+
+<div class="dec"><h3>iOS · TestFlight con liga pública</h3>
+<p>Una sola liga, la mandas y ya. Hasta diez mil personas. Pasa por <strong>Beta App Review</strong>, que es revisión de Apple sobre la build, aunque más ligera que la de tienda porque no hay ficha, ni capturas, ni precio que revisar. Apple <strong>no publica cuánto tarda</strong> esa revisión.</p>
+<p>Límite operativo: máximo seis builds enviadas a revisión en veinticuatro horas, y cada build expira a los noventa días.</p>
+</div>
+
+<div class="dec"><h3>Android · prueba abierta, no cerrada</h3>
+<p>Esta es la recomendación que probablemente no esperabas. La prueba abierta <strong>no necesita correos</strong>: la gente entra sola, y admite usuarios sin límite. Resuelve de un plumazo todo el problema de la sección anterior.</p>
+<p>El costo es que <strong>la app se vuelve pública en Play Store</strong> y cualquiera la puede encontrar buscando. Y honestamente, para un lanzamiento el 6 de septiembre, eso no es un costo, es lo que quieres. Que se pueda encontrar es el objetivo.</p>
+<p>Sí pasa por revisión de política, a diferencia de la prueba interna. Google <strong>no publica plazos</strong> de revisión para ningún canal.</p>
+</div>
+
+<div class="dec"><h3>Y en paralelo, una prueba cerrada con doce personas</h3>
+<p>Esta no es para tus clientes, es para el reloj. Google exige, a las cuentas personales creadas después de noviembre de 2023, que <strong>doce testers hayan estado inscritos de forma continua durante catorce días</strong> antes de poder solicitar el paso a producción.</p>
+<p>Cuenta el estar inscrito, no el usar la app. Textual: quien se inscribe, prueba menos de catorce días y se sale, no cuenta.</p>
+<p>Ese requisito <strong>no bloquea el 6 de septiembre</strong>, porque solo gatea producción, no las pruebas. Pero cada día que tardes en abrir esa prueba cerrada con doce conocidos recorre en la misma proporción el día en que puedes estar en la tienda de verdad. Ábrela con tu equipo, con Mariana, con doce amigos. Hoy o mañana.</p>
+<p><strong>Y falta confirmar si te aplica:</strong> las cuentas de organización quedan fuera, igual que las personales creadas antes de esa fecha. Google no publica una pantalla donde diga cuál tienes; la señal práctica es si te pidieron número D-U-N-S al darla de alta. Si te lo pidieron, es de organización y este párrafo entero no te aplica.</p>
+</div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="dinero">
+<p class="kicker">04</p>
+<h2>El dinero: qué se cobra de verdad</h2>
+<p class="sub">Aquí las dos tiendas también se comportan al revés, y es de las cosas que sorprenden en el peor momento.</p>
+
+<div class="tabla"><table>
+<tr><th></th><th>iOS · TestFlight</th><th>Android · pruebas</th></tr>
+<tr><td>Compras dentro de la app</td><td>Siempre en <strong>sandbox</strong>. Nunca cobra dinero real.</td><td><strong>Cobra de verdad</strong>, salvo que la persona esté en la lista de license testing.</td></tr>
+<tr><td>Suscripciones</td><td>Se renuevan aceleradas: un día por periodo, máximo seis renovaciones en una semana.</td><td>Reales y normales.</td></tr>
+<tr><td>Sirve para</td><td>Probar que el flujo de compra funciona.</td><td>Cobrar de verdad, si quieres.</td></tr>
+</table></div>
+
+<p>Traducción práctica para ti: <strong>en TestFlight no vas a facturar un peso por compra dentro de la app</strong>, y está bien, porque tu preventa ya cobró por web. La compra dentro de la app en iOS empieza a cobrar cuando publiques en tienda de verdad.</p>
+
+<p>En Android sí podrías cobrar desde la prueba abierta. Y para probarlo tú sin gastar, Play Console tiene <strong>license testing</strong> en su pantalla de configuración: los correos que pongas ahí pueden comprar suscripciones sin que se les cobre. Tu cuenta de publicación ya está incluida siempre.</p>
+
+<div class="nota"><p>Un dato que cambia tu margen y que conviene resolver esta semana: <strong>el Small Business Program de Apple baja la comisión de 30% a 15%</strong>, no es automático, se solicita, y aplica desde el mes siguiente a la aprobación. Google aplica el 15% solo sobre el primer millón de dólares al año, sin pedir nada. Cada semana que tardes en solicitar el de Apple es dinero.</p></div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="pasos">
+<p class="kicker">05</p>
+<h2>Los pasos, en orden</h2>
+<p class="sub">Tres montones. Los formularios no dependen de nadie y se pueden hacer hoy. El código depende del dev. Los productos dependen de que los contratos estén firmados.</p>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">A · Formularios y paneles</span><span class="m">tuyo · se puede empezar hoy</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>Contratos de App Store Connect<span class="et hoy">bloquea todo</span></b>
+<span>En App Store Connect, sección Business. Si hay un acuerdo pendiente de aceptar, <strong>no puedes crear productos ni recibir pagos</strong>, y nada de lo demás sirve. Es lo primero.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Solicitar el Small Business Program de Apple</b>
+<span>15% en vez de 30%. Se solicita en developer.apple.com y aplica desde el mes siguiente a la aprobación.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Verificar el tipo de cuenta de Play Console</b>
+<span>Personal u organización. Decide si te aplica el requisito de doce testers por catorce días.</span></div></div>
+<div class="t"><div class="c"></div><div><b>La declaración de apps de salud de Google<span class="et ojo">ojo</span></b>
+<span>Obligatoria y aplica también a los canales de prueba. Textual: todos los desarrolladores con app publicada en Google Play deben completarla, <strong>incluidas las apps en pruebas cerradas, abiertas o producción</strong>. Hay que justificar cada permiso de Health Connect explicando qué función visible para el usuario lo necesita.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Data safety de Google y etiquetas de privacidad de Apple</b>
+<span>Las dos son declaraciones obligatorias que bloquean el envío. El inventario ya está hecho: <code>COMPLIANCE_DATOS_STORES.md</code> tiene los datos tabla por tabla y encontró tres huecos que hay que arreglar antes de declarar, porque declarar algo que el código no cumple es lo que convierte un trámite en un problema.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Content rating IARC, público objetivo, y la política de privacidad en la ficha</b>
+<span>Sin el rating la app queda como sin clasificar y no publica.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Abrir la prueba cerrada de doce personas</b>
+<span>Para que el reloj de catorce días corra en paralelo. Cuanto antes, antes puedes ir a producción.</span></div></div>
+</div></div>
+
+<div class="bloque dev">
+<div class="bcab"><span class="n">B · Código</span><span class="m">dev · ya está diagnosticado</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>La versión gratuita con muros de pago</b>
+<span>Es tu decisión nueva y es la que más trabajo tiene. También es la que le da al reviewer algo que ver sin cuenta, así que resuelve dos cosas.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Sacar la tienda de H+ del binario</b>
+<span><code>app/economy/shop.tsx</code> muestra precios en pesos con un botón que dice "Comprar (dev)" y llama una función revocada, así que la compra siempre falla. Moneda virtual con precio en pesos fuera del sistema de pagos de la tienda. Es rechazo casi seguro.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Llenar los corchetes de <code>legal-texts.ts</code><span class="et hoy">ya tienes los datos</span></b>
+<span>Se renderizan en la pantalla de registro, <strong>antes de crear cuenta</strong>. Es lo primero que ve el reviewer. Los datos ya existen, son los que publicamos hoy en la web: Enrique Zapata Ezquerro, RFC ZAEE900718DG9, Circuito Petirrojo 129, Zibatá, El Marqués, Querétaro, C.P. 76269. Falta también decidir el <code>[10]</code> de la cláusula de Founders.</span></div></div>
+<div class="t"><div class="c"></div><div><b>El bloque de renovación automática en el paywall</b>
+<span>Duración del periodo, precio por periodo y la frase de renovación automática, pegados al botón de compra. Apple lo exige.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Los tres huecos de datos del compliance</b>
+<span>El borrado de cuenta no borra los archivos de storage, la exportación apunta a seis tablas que no existen, y las URLs firmadas de laboratorios duran un año. El tercero es el más feo: una URL firmada de un año sobre el PDF de un laboratorio es un enlace público durante ese año.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Los sueltos del preflight</b>
+<span>Quitar <code>ACCESS_FINE_LOCATION</code>, enrutar el permiso de Health Connect a la política de privacidad, los dos textos de permiso de voz y micrófono, el ícono de iOS opaco sobre negro, el adaptativo de Android 16% más chico, <code>autoIncrement</code> en el perfil beta, y build con perfil de producción porque <strong>Google ya no acepta APK</strong> para apps nuevas, solo AAB.</span></div></div>
+</div></div>
+
+<div class="bloque tu">
+<div class="bcab"><span class="n">C · Productos de suscripción</span><span class="m">tuyo, después de A</span></div>
+<div class="tareas">
+<div class="t"><div class="c"></div><div><b>Crear los productos en las dos tiendas y en RevenueCat</b>
+<span>Los nombres de los entitlements no son sugerencias, el código hace match exacto: <code>atp_base</code>, <code>atp_pro</code>, <code>atp_clinician</code>, con n al final. Está en <code>PASOS_CONFIGURACION_TIENDAS.md</code> con el detalle.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Confirmar que el paywall los ve<span class="et ojo">crítico</span></b>
+<span>Si los productos no están listos al momento de la revisión, el reviewer ve los planes en "Muy pronto" con los botones apagados, y eso es rechazo directo por app incompleta.</span></div></div>
+<div class="t"><div class="c"></div><div><b>Cuenta demo poblada y notas de revisión</b>
+<span>Con perfil completo, algún laboratorio, historial y Pro activo. Y explicarle al reviewer qué es ARGOS, que HealthKit es solo lectura, y el modelo de suscripción.</span></div></div>
+</div></div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="cal">
+<p class="kicker">06</p>
+<h2>El calendario al 6 de septiembre</h2>
+<p class="sub">Catorce días. No te voy a dar tiempos de revisión porque ni Apple ni Google los publican, así que el calendario deja margen para eso en vez de fingir que lo conozco.</p>
+
+<div class="dias">
+<div class="dia"><div class="f">23 al 25 ago<em>ahora</em></div>
+<ul>
+<li>Bloque A completo: contratos, Small Business, tipo de cuenta, declaración de salud, data safety, etiquetas de privacidad, rating</li>
+<li>Abrir la prueba cerrada de doce personas, para arrancar el reloj</li>
+<li>El dev arranca con la versión gratuita, que es lo más largo</li>
+</ul></div>
+
+<div class="dia"><div class="f">26 al 30 ago<em>y la preventa el 27</em></div>
+<ul>
+<li>Sale la preventa, que no depende de nada de esto</li>
+<li>El dev cierra los bloqueadores del preflight y los tres huecos de compliance</li>
+<li>Creas los productos de suscripción en las dos tiendas y en RevenueCat</li>
+</ul></div>
+
+<div class="dia"><div class="f">31 ago al 2 sep<em>margen de revisión</em></div>
+<ul>
+<li>Build de iOS a TestFlight, y build AAB a la prueba abierta de Android</li>
+<li>Aquí empieza la espera de revisión, que es la parte que no controlamos</li>
+<li>Cuenta demo poblada y notas de revisión escritas</li>
+</ul></div>
+
+<div class="dia hito"><div class="f">6 de septiembre<em>lanzamiento</em></div>
+<ul>
+<li>Mandas la liga de TestFlight a los de iPhone</li>
+<li>Y la liga de Play a los de Android, sin pedirle el correo a nadie</li>
+<li>Los que pagaron el 27 entran con el correo que ya usaron</li>
+</ul></div>
+</div>
+
+<div class="nota" style="margin-top:26px"><p>El riesgo real de esta fecha no son los trámites, es <strong>la versión gratuita</strong>. Es la única pieza que no está diagnosticada ni estimada, porque es nueva. Vale la pena que el dev te diga hoy cuánto le toma, porque si son más de cinco días, el 6 se aprieta y es mejor saberlo hoy.</p></div>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="nose">
+<p class="kicker">07</p>
+<h2>Lo que ninguna de las dos publica</h2>
+<p class="sub">Lo pongo explícito para que no planees con precisión donde no la hay, y para que si alguien te da estos números, sepas que se los inventó.</p>
+
+<div class="fuera"><h3>Cuánto tarda la revisión de TestFlight</h3>
+<p>Apple no lo publica. Lo único oficial que sí publica es que el 90% de los envíos a App Store se revisan en menos de 24 horas, pero eso es la revisión de tienda, no la beta.</p></div>
+
+<div class="fuera"><h3>Cuánto tarda cualquier revisión de Google</h3>
+<p>No hay plazo publicado para ningún canal. Lo único oficial dice que para ciertas cuentas la revisión puede tardar <em>hasta siete días o más en casos excepcionales</em>.</p></div>
+
+<div class="fuera"><h3>Si Google le pone etiqueta de beta al usuario en pruebas cerradas</h3>
+<p>No está documentado. La etiqueta de acceso anticipado solo se menciona para pruebas abiertas.</p></div>
+
+<div class="fuera"><h3>Dónde ver en Play Console si tu cuenta es personal o de organización</h3>
+<p>Google no publica una ruta. La señal práctica es si te pidieron número D-U-N-S al darla de alta.</p></div>
+
+<div class="fuera"><h3>Si Apple permite dar acceso beta a alguien que ya pagó por web</h3>
+<p>La guideline 2.2 prohíbe distribuir TestFlight <em>a cambio de compensación de cualquier tipo</em>. No hay documento oficial que aclare el caso de alguien que ya pagó antes y recibe el acceso beta sin costo. Es zona gris y así hay que tratarla: el acceso a la beta se da sin costo y sin condicionarlo al pago, y lo que se vendió el 27 fue la comunidad, no la app.</p></div>
+</section>
+
+<div class="cierre">
+<p>Lo que necesito de ti para seguir: el tipo de cuenta de Play Console, y que el dev te diga cuánto le toma la versión gratuita. Con esas dos cosas el calendario deja de tener supuestos.</p>
+</div>
+</main>

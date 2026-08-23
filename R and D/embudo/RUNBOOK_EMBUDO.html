@@ -1,0 +1,391 @@
+<title>Runbook del embudo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --canvas:#000; --card:#121212; --alto:#1A1A1A; --borde:#242424;
+  --tinta:#fff; --sec:#9A9A9A; --tenue:#6E6E6E;
+  --lima:#A8E02A; --teal:#1ABC9C; --ambar:#EFD54F; --rojo:#E74C3C;
+  --g1:#A8E02A; --g2:#6DCC48; --g3:#3DBF6E; --g4:#2EC28A; --g5:#1ABC9C;
+}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--canvas);color:var(--tinta);
+  font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;left:0;top:0;bottom:0;width:6px;z-index:50;
+  background:linear-gradient(180deg,var(--g1),var(--g2) 26%,var(--g3) 50%,var(--g4) 74%,var(--g5))}
+.wrap{max-width:900px;margin:0 auto;padding:60px 26px 110px 34px}
+h1{font-size:clamp(32px,5.6vw,50px);line-height:1.1;font-weight:600;letter-spacing:-.025em;margin:0 0 18px}
+h2{font-size:clamp(23px,3.4vw,30px);line-height:1.22;font-weight:600;letter-spacing:-.018em;margin:0 0 8px}
+h3{font-size:18px;line-height:1.35;font-weight:600;letter-spacing:-.006em;margin:0 0 10px}
+p{margin:0 0 17px;color:var(--sec)}
+p.lead{color:var(--tinta);font-size:19.5px;line-height:1.62}
+strong{color:var(--tinta);font-weight:600}
+code{font-family:'SFMono-Regular',Consolas,monospace;font-size:.88em;background:var(--alto);
+  border:1px solid var(--borde);border-radius:5px;padding:1px 6px;color:#CFCFCF}
+a{color:var(--teal);text-decoration:none}
+hr{border:0;height:1px;background:var(--borde);margin:0}
+
+.kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--tenue);
+  font-weight:500;margin:0 0 14px}
+.sec{margin:0 0 78px;scroll-margin-top:24px}
+.sec>.kicker{margin-bottom:10px}
+.sub{color:var(--sec);font-size:17px;margin:0 0 30px;max-width:62ch}
+
+/* ── indice ── */
+.indice{background:var(--card);border:1px solid var(--borde);border-radius:16px;padding:22px 24px;margin:0 0 74px}
+.indice ol{margin:0;padding:0 0 0 4px;list-style:none;counter-reset:i}
+.indice li{counter-increment:i;margin:0 0 9px;display:flex;gap:13px;align-items:baseline}
+.indice li:last-child{margin:0}
+.indice li::before{content:counter(i,decimal-leading-zero);color:var(--tenue);font-size:12px;
+  font-variant-numeric:tabular-nums;flex:0 0 20px}
+.indice a{color:var(--tinta);font-weight:500;font-size:16px}
+.indice a:hover{color:var(--teal)}
+
+/* ── momentos del embudo ── */
+.mom{display:grid;grid-template-columns:52px 1fr;gap:0 20px;position:relative}
+.mom+.mom{margin-top:2px}
+.eje{position:relative;display:flex;flex-direction:column;align-items:center}
+.bola{width:34px;height:34px;border-radius:50%;background:var(--alto);border:2px solid var(--borde);
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;
+  color:var(--sec);flex:0 0 auto;margin-top:22px;z-index:2}
+.linea{flex:1;width:2px;background:var(--borde);margin:4px 0 0}
+.mom:last-child .linea{display:none}
+.mcaja{background:var(--card);border:1px solid var(--borde);border-radius:14px;padding:20px 22px;margin:14px 0 0}
+.mcaja h3{margin-bottom:6px}
+.mcaja p{margin:0;font-size:15.5px}
+.mcaja p+p{margin-top:11px}
+.est{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;letter-spacing:.09em;
+  text-transform:uppercase;font-weight:600;padding:4px 11px;border-radius:99px;margin:0 0 11px}
+.est::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor}
+.ok{color:var(--teal);background:rgba(26,188,156,.11)}
+.medio{color:var(--ambar);background:rgba(239,213,79,.11)}
+.mal{color:var(--rojo);background:rgba(231,76,60,.12)}
+.mom.est-ok .bola{border-color:var(--teal);color:var(--teal)}
+.mom.est-medio .bola{border-color:var(--ambar);color:var(--ambar)}
+.mom.est-mal .bola{border-color:var(--rojo);color:var(--rojo)}
+
+/* ── tres columnas si/medias/no ── */
+.tres{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:16px}
+.col{background:var(--card);border:1px solid var(--borde);border-radius:16px;padding:24px 22px}
+.col.si{border-top:3px solid var(--teal)}
+.col.medias{border-top:3px solid var(--ambar)}
+.col.no{border-top:3px solid var(--rojo)}
+.col h3{font-size:16px;margin-bottom:16px}
+.col .item{margin:0 0 18px}
+.col .item:last-child{margin:0}
+.col .item b{display:block;color:var(--tinta);font-size:15px;font-weight:600;margin:0 0 4px;line-height:1.45}
+.col .item span{color:var(--sec);font-size:14.5px;line-height:1.6;display:block}
+
+/* ── dias ── */
+.dia{background:var(--card);border:1px solid var(--borde);border-radius:18px;padding:0;margin:0 0 16px;overflow:hidden}
+.dcab{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding:20px 26px 16px;border-bottom:1px solid var(--borde)}
+.dcab .fecha{font-size:21px;font-weight:600;letter-spacing:-.01em}
+.dcab .nota{font-size:14px;color:var(--tenue)}
+.dia.hoy .dcab{background:linear-gradient(90deg,rgba(168,224,42,.09),transparent 62%)}
+.dia.hoy .dcab .fecha{color:var(--lima)}
+.dia.meta .dcab{background:linear-gradient(90deg,rgba(26,188,156,.09),transparent 62%)}
+.tareas{padding:8px 26px 22px}
+.t{display:grid;grid-template-columns:64px 1fr;gap:0 16px;padding:16px 0;border-bottom:1px solid var(--borde)}
+.t:last-child{border-bottom:0;padding-bottom:4px}
+.tag{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;
+  padding:4px 0;border-radius:5px;text-align:center;height:fit-content;margin-top:2px}
+.tag.tu{color:var(--tinta);background:#2C2C2C;box-shadow:inset 2px 0 0 var(--lima)}
+.tag.dev{color:#7F77DD;background:rgba(127,119,221,.14)}
+.tag.yo{color:var(--tenue);background:#181818}
+.t b{display:block;color:var(--tinta);font-weight:600;font-size:16px;line-height:1.5;margin:0 0 5px}
+.t span{display:block;color:var(--sec);font-size:14.5px;line-height:1.62}
+.t.critico b::after{content:'bloquea todo';font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--rojo);background:rgba(231,76,60,.13);padding:3px 8px;border-radius:4px;margin-left:9px;
+  vertical-align:2px;font-weight:600;white-space:nowrap}
+
+/* ── decisiones ── */
+.dec{background:var(--card);border:1px solid var(--borde);border-left:3px solid var(--lima);
+  border-radius:0 14px 14px 0;padding:22px 24px;margin:0 0 16px}
+.dec h3{margin-bottom:8px}
+.dec p{margin:0;font-size:15.5px}
+.dec p+p{margin-top:11px}
+.opc{display:flex;gap:10px;flex-wrap:wrap;margin:15px 0 0}
+.opc span{font-size:13.5px;color:var(--sec);background:var(--alto);border:1px solid var(--borde);
+  border-radius:8px;padding:8px 13px}
+
+/* ── pruebas ── */
+.pr{display:grid;grid-template-columns:30px 1fr;gap:0 15px;padding:14px 0;border-bottom:1px solid var(--borde)}
+.pr:last-child{border-bottom:0}
+.pr .n{color:var(--tenue);font-size:12.5px;font-variant-numeric:tabular-nums;padding-top:3px}
+.pr b{display:block;color:var(--tinta);font-weight:500;font-size:15.5px;line-height:1.5;margin:0 0 3px}
+.pr span{display:block;color:var(--sec);font-size:14px;line-height:1.6}
+
+.nota{border-left:3px solid var(--teal);padding:2px 0 2px 20px;margin:0 0 24px}
+.nota p{margin:0;font-size:15.5px}
+.cierre{border-top:1px solid var(--borde);margin-top:70px;padding-top:34px}
+.cierre p{font-size:17px;line-height:1.7}
+@media(max-width:620px){
+  .wrap{padding:44px 20px 80px 28px}
+  .mom{grid-template-columns:40px 1fr;gap:0 14px}
+  .t{grid-template-columns:1fr;gap:8px}
+  .tag{width:fit-content;padding:4px 10px}
+  .t.critico b::after{display:block;width:fit-content;margin:7px 0 0}
+}
+</style>
+
+<main class="wrap">
+
+<p class="kicker">ATP · embudo de inscripción</p>
+<h1>Qué hay que hacer,<br>día por día</h1>
+<p class="lead">Faltan cinco días para el veintisiete, y dos de ellos son fin de semana. Esto es todo lo que hay que hacer, en el orden en que hay que hacerlo, con lo que se puede y lo que no separado desde el principio para que nadie descubra un límite el martes.</p>
+
+<div class="indice">
+  <ol>
+    <li><a href="#momentos">El embudo son cinco momentos, y hoy fallan cuatro</a></li>
+    <li><a href="#limites">Qué sí se puede, qué a medias, qué no se puede</a></li>
+    <li><a href="#dias">El paso a paso, día por día</a></li>
+    <li><a href="#decisiones">Las cuatro decisiones que solo tú puedes tomar</a></li>
+    <li><a href="#pruebas">Las doce pruebas antes de abrir</a></li>
+    <li><a href="#despues">Lo que no va a estar el 27, y por qué está bien</a></li>
+  </ol>
+</div>
+
+<!-- ═══════════ 1 ═══════════ -->
+<section class="sec" id="momentos">
+<p class="kicker">01</p>
+<h2>El embudo son cinco momentos, y hoy fallan cuatro</h2>
+<p class="sub">Antes de la lista de tareas conviene ver dónde se rompe hoy. Cada momento es un punto donde alguien que ya quiere pagarte puede perderse, y ninguno se arregla solo.</p>
+
+<div class="mom est-mal">
+  <div class="eje"><div class="bola">1</div><div class="linea"></div></div>
+  <div class="mcaja">
+    <div class="est mal">no existe</div>
+    <h3>Alguien decide comprar. ¿A dónde lo mandas?</h3>
+    <p>Los enlaces de pago todavía no existen. El script que los crea está escrito y probado, <code>stripe/crear-productos.mjs</code>, pero nunca se ha corrido en modo vivo. Hoy, si alguien te dice que sí, no tienes a dónde mandarlo.</p>
+    <p>Y hay un problema atrás de ese: hay dos listas de precios distintas en el repo, con cuatro diferencias entre ellas. La que corras primero es la que queda publicada.</p>
+  </div>
+</div>
+
+<div class="mom est-medio">
+  <div class="eje"><div class="bola">2</div><div class="linea"></div></div>
+  <div class="mcaja">
+    <div class="est medio">a medias</div>
+    <h3>Entra el dinero. ¿El sistema se entera?</h3>
+    <p>El webhook existe, está desplegado y funciona bien. Tiene idempotencia real, valida la firma de Stripe, y guarda el pago crudo aunque falle todo lo demás. Eso es más de lo que tiene mucha gente.</p>
+    <p>Pero exige un campo, <code>metadata.tier</code>, y si no viene lo marca para revisión y se detiene. Los tres pagos que han entrado en producción quedaron ahí. Ninguno era de ATP, eran consultas, pero el resultado es el mismo: una cola que nadie mira.</p>
+  </div>
+</div>
+
+<div class="mom est-medio">
+  <div class="eje"><div class="bola">3</div><div class="linea"></div></div>
+  <div class="mcaja">
+    <div class="est medio">a medias</div>
+    <h3>El sistema le da acceso. ¿Genera código y vigencia?</h3>
+    <p>Para Individual y para Founder, sí. Está escrito, funciona, y crea el <code>tier_grant</code> y el <code>activation_code</code> en la misma transacción.</p>
+    <p>Para Dúo y Familiar, no. El código genera exactamente un código por pago, y ahí hacen falta dos y cuatro. El arreglo es chico, leer <code>metadata.atp_plazas</code> y hacer un ciclo, pero mientras no se haga, esos dos planes no se pueden vender.</p>
+  </div>
+</div>
+
+<div class="mom est-mal">
+  <div class="eje"><div class="bola">4</div><div class="linea"></div></div>
+  <div class="mcaja">
+    <div class="est mal">casi nada</div>
+    <h3>Le avisas. ¿Llega el correo y el WhatsApp?</h3>
+    <p>Hay un correo, uno solo, en texto plano, que le da la bienvenida a un producto llamado ATP Pro que ya no existe desde que se unificó la membresía. Si Resend falla, el código lo anota y sigue, y nadie se entera.</p>
+    <p>De WhatsApp no hay una sola línea de código. Ni librería, ni endpoint, ni número dado de alta. Es lo que más trabajo tiene por delante y por eso encabeza la lista de hoy.</p>
+  </div>
+</div>
+
+<div class="mom est-medio">
+  <div class="eje"><div class="bola">5</div><div class="linea"></div></div>
+  <div class="mcaja">
+    <div class="est medio">a medias</div>
+    <h3>Entra de verdad. ¿Abre la app y la comunidad?</h3>
+    <p>La app sí. Con el código, o con el correo si coincide con el del pago, la persona queda dentro.</p>
+    <p>La comunidad no está conectada de ninguna forma. Hoy es una constante en el código con la liga de Skool, y nada más. Nadie sabe si la persona entró.</p>
+  </div>
+</div>
+
+<div class="mom est-mal">
+  <div class="eje"><div class="bola">6</div></div>
+  <div class="mcaja">
+    <div class="est mal">no existe</div>
+    <h3>Y el momento invisible: ¿alguien se entera cuando algo falla?</h3>
+    <p>No. El sistema escribe los estados de falla en la base, <code>needs_review</code>, <code>pending_manual</code>, <code>failed</code>, pero nada los lee. No hay alerta, no hay tarea programada, no hay pantalla. Nueve de cada diez formas de fallar son silenciosas.</p>
+    <p>Esto es lo más barato de arreglar y lo que más pesa. Una consulta diaria que diga quién pagó en los últimos siete días y sigue sin acceso convierte un desastre invisible en una lista de tres personas a las que hay que escribirles.</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ 2 ═══════════ -->
+<section class="sec" id="limites">
+<p class="kicker">02</p>
+<h2>Qué sí se puede, qué a medias, qué no se puede</h2>
+<p class="sub">Esto es lo que hay que tener claro antes de prometerle algo a alguien. Los límites de la columna de la derecha no se mueven con dinero ni con tiempo, son así.</p>
+
+<div class="tres">
+  <div class="col si">
+    <h3>Sí, sin que intervenga nadie</h3>
+    <div class="item"><b>Pago con tarjeta y acceso completo</b><span>La persona paga, y en menos de un minuto tiene su código, su correo, su WhatsApp y su página de acceso. Sin que nadie toque nada.</span></div>
+    <div class="item"><b>WhatsApp oficial, desde hoy</b><span>No hace falta verificación de negocio para empezar. Un portafolio nuevo arranca en 250 personas distintas cada 24 horas y sube solo. Para el primer corte sobra.</span></div>
+    <div class="item"><b>Recuperar contraseña</b><span>Con la página nueva, sin pasar por soporte.</span></div>
+    <div class="item"><b>Rescatar al que se atoró</b><span>Un recordatorio automático a quien pagó y no ha canjeado. Es la diferencia entre perder a esa persona o no.</span></div>
+  </div>
+
+  <div class="col medias">
+    <h3>A medias, y hay que saberlo</h3>
+    <div class="item"><b>Alta en la comunidad</b><span>Se puede disparar la invitación sola, pero la persona tiene que abrir su correo y darle a unirse. Ese clic no se puede saltar. Nunca queda dentro sin actuar.</span></div>
+    <div class="item"><b>Transferencias y depósitos</b><span>El acuse sale solo. La verificación del comprobante la hace un humano. Después de eso, todo lo demás vuelve a ser automático.</span></div>
+    <div class="item"><b>Dúo y Familiar</b><span>Se pueden vender el 27 solo si antes se toca el código para que genere dos y cuatro códigos. Si no da tiempo, se venden después.</span></div>
+    <div class="item"><b>Soporte por WhatsApp</b><span>Las respuestas dentro de las 24 horas no cuestan nada, pero alguien tiene que contestarlas. Se puede guiar con menús, no se puede dejar solo.</span></div>
+  </div>
+
+  <div class="col no">
+    <h3>No, y no es cuestión de presupuesto</h3>
+    <div class="item"><b>Meter a alguien a la comunidad sin que haga clic</b><span>Ni con Zapier, ni con la API, ni pagando el plan más caro. Skool manda una invitación por correo y la persona la acepta. Es así por diseño.</span></div>
+    <div class="item"><b>Usar tu número actual de WhatsApp</b><span>Si lo metes a la API, deja de funcionar en la app de WhatsApp Business y el historial no viaja. Es un camino de un solo sentido. Va número nuevo.</span></div>
+    <div class="item"><b>Librerías no oficiales de WhatsApp</b><span>El baneo llega en semanas, es permanente, sin aviso y sin apelación. Nuestro perfil de uso es justo el que detectan.</span></div>
+    <div class="item"><b>Mercado Pago para el 27</b><span>No hay una sola línea de código. Construirlo bien, con firma, idempotencia y reintentos, no cabe en cinco días.</span></div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ 3 ═══════════ -->
+<section class="sec" id="dias">
+<p class="kicker">03</p>
+<h2>El paso a paso, día por día</h2>
+<p class="sub">Cada tarea trae quién la hace. Lo marcado como tuyo son decisiones o trámites que nadie más puede firmar. Lo de desarrollo es código. Lo mío lo entrego yo y no te ocupa tiempo.</p>
+
+<div class="nota"><p>El orden importa más que la velocidad. Las tres primeras tareas de hoy desbloquean todo lo demás, y si se atrasan, el resto de la semana se recorre completo.</p></div>
+
+<div class="dia hoy">
+  <div class="dcab"><span class="fecha">Sábado 22</span><span class="nota">hoy</span></div>
+  <div class="tareas">
+    <div class="t critico"><span class="tag tu">Tú</span><div><b>Decidir la lista de precios</b><span>Dúo y Familiar tienen dos precios distintos en el repo, con cuatro diferencias. Escoge una y me dices cuál. Quince minutos, y sin esto no se puede publicar ningún enlace de pago.</span></div></div>
+    <div class="t critico"><span class="tag tu">Tú</span><div><b>Decidir cuenta primero o pago primero</b><span>Está explicado en la sección cuatro. De esta decisión cuelga cómo se escribe el resto del código, así que se toma antes de que alguien programe nada.</span></div></div>
+    <div class="t"><span class="tag tu">Tú</span><div><b>Dar de alta el número nuevo de WhatsApp y mandar las tres plantillas</b><span>Meta se reserva 24 horas para revisarlas, y si alguna rebota hay que corregirla y volverla a mandar. Mandándolas hoy, el peor caso todavía cabe. Las plantillas ya están escritas y listas para pegar.</span></div></div>
+    <div class="t"><span class="tag tu">Tú</span><div><b>Subir las páginas a Hostinger</b><span>Las tres páginas, el archivo de reglas renombrado a punto htaccess, y los dos logos en la carpeta correo. Sin el archivo de reglas, la página de acceso da error antes de cargar.</span></div></div>
+    <div class="t"><span class="tag yo">Yo</span><div><b>Guion de soporte de WhatsApp y guion de las doce pruebas</b><span>Entregado hoy mismo, para que el lunes solo sea ejecutar.</span></div></div>
+  </div>
+</div>
+
+<div class="dia">
+  <div class="dcab"><span class="fecha">Domingo 23</span><span class="nota">día de taller, sin trámites</span></div>
+  <div class="tareas">
+    <div class="t"><span class="tag dev">Código</span><div><b>Correr el script de productos en modo prueba</b><span>Crea productos, precios y enlaces de pago con la metadata correcta en los cuatro lugares donde tiene que ir. Es idempotente, se puede correr las veces que haga falta.</span></div></div>
+    <div class="t"><span class="tag dev">Código</span><div><b>Arreglar el correo de bienvenida</b><span>Que mande las dos partes, la de HTML y la de texto, y que la etiqueta del plan salga del catálogo real y no diga ATP Pro, que es un producto que ya no existe.</span></div></div>
+    <div class="t"><span class="tag dev">Código</span><div><b>Confirmar el endpoint del webhook en Stripe</b><span>Que apunte a la función correcta y escuche los cuatro eventos. Si esto está mal, no hay embudo, hay una caja registradora que nadie abre.</span></div></div>
+    <div class="t"><span class="tag yo">Yo</span><div><b>La página de precios y la consulta del tablero de rezagados</b><span>La primera es a dónde mandas a alguien que pregunta cuánto cuesta. La segunda es la que hace visibles las fallas silenciosas.</span></div></div>
+  </div>
+</div>
+
+<div class="dia">
+  <div class="dcab"><span class="fecha">Lunes 24</span><span class="nota">el día más pesado de código</span></div>
+  <div class="tareas">
+    <div class="t"><span class="tag dev">Código</span><div><b>El endpoint que alimenta la página de acceso</b><span>Recibe un token opaco y devuelve nombre, código, vigencia y plan. Nada más. Es la pieza que quita el punto único de falla del correo.</span></div></div>
+    <div class="t"><span class="tag dev">Código</span><div><b>Enganchar WhatsApp al webhook</b><span>Que cuando se confirme un pago salga el mensaje con la plantilla ya aprobada, igual que sale el correo.</span></div></div>
+    <div class="t"><span class="tag dev">Código</span><div><b>El ciclo de plazas para Dúo y Familiar</b><span>Si no da tiempo, el 27 se abre vendiendo Individual y Founder, y esos dos entran la semana siguiente. Es una decisión, no un accidente.</span></div></div>
+    <div class="t"><span class="tag tu">Tú</span><div><b>Empezar la verificación de negocio en Meta</b><span>Necesita la Constancia de Situación Fiscal y un comprobante de domicilio de menos de tres meses, con el nombre coincidiendo letra por letra, acentos incluidos. Tarda de uno a cinco días hábiles y no bloquea el lanzamiento, pero es lo que da la palomita verde.</span></div></div>
+  </div>
+</div>
+
+<div class="dia">
+  <div class="dcab"><span class="fecha">Martes 25</span><span class="nota">día de pruebas, no de construir</span></div>
+  <div class="tareas">
+    <div class="t"><span class="tag dev">Código</span><div><b>Las doce pruebas de punta a punta, en modo prueba</b><span>Están en la sección cinco. Si el circuito no cierra una vez, no cierra sesenta veces.</span></div></div>
+    <div class="t"><span class="tag tu">Tú</span><div><b>Decidir quién contesta el WhatsApp y desde dónde</b><span>La primera semana es la que más preguntas trae. Puede ser desde la app de Meta directo, sin costo, o desde una bandeja compartida si van a ser dos personas.</span></div></div>
+    <div class="t"><span class="tag tu">Tú</span><div><b>Revisar la categoría de las plantillas aprobadas</b><span>Si Meta movió alguna a marketing, se apela ese día. La apelación tarda cerca de un día y cuesta cuatro veces más si se queda así.</span></div></div>
+  </div>
+</div>
+
+<div class="dia">
+  <div class="dcab"><span class="fecha">Miércoles 26</span><span class="nota">el día de pasar a vivo</span></div>
+  <div class="tareas">
+    <div class="t critico"><span class="tag dev">Código</span><div><b>Correr el script de productos en vivo</b><span>Con la lista de precios que decidiste el sábado. De aquí salen los enlaces reales que vas a compartir.</span></div></div>
+    <div class="t critico"><span class="tag tu">Tú</span><div><b>Un pago real, con tu propia tarjeta, y reembolsarlo</b><span>Comprar Individual de verdad, ver llegar el correo y el WhatsApp, entrar a la app con el código, y después reembolsar desde Stripe. Es la única prueba que cuenta.</span></div></div>
+    <div class="t"><span class="tag dev">Código</span><div><b>El tablero de rezagados corriendo</b><span>Aunque sea una consulta que corres a mano cada mañana. Lo importante es que exista antes de que haya gente adentro.</span></div></div>
+  </div>
+</div>
+
+<div class="dia meta">
+  <div class="dcab"><span class="fecha">Jueves 27</span><span class="nota">se abre</span></div>
+  <div class="tareas">
+    <div class="t"><span class="tag tu">Tú</span><div><b>Revisar el tablero tres veces el primer día</b><span>Mañana, tarde y noche. El primer día es cuando aparecen las fallas que ninguna prueba encontró, y aparecen en forma de una persona que pagó y sigue afuera.</span></div></div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ 4 ═══════════ -->
+<section class="sec" id="decisiones">
+<p class="kicker">04</p>
+<h2>Las cuatro decisiones que solo tú puedes tomar</h2>
+<p class="sub">Ninguna es técnica. Todas cambian lo que se construye, así que se toman antes y no durante.</p>
+
+<div class="dec">
+  <h3>1 · Cuenta primero, o pago primero</h3>
+  <p>Hoy el flujo es que la persona paga y después reclama su acceso con un código. Eso obliga a que el correo con el que pagó coincida con el correo con el que se registra, y cuando no coincide, que pasa seguido, alguien tiene que arreglarlo a mano.</p>
+  <p>La alternativa es que se registre gratis primero, y desde ahí pague. El enlace de pago lleva pegado su identificador, así que cuando Stripe avisa, el sistema ya sabe de quién es el dinero y no tiene que adivinar. El código de activación deja de ser el mecanismo principal y se queda solo para ventas fuera de línea y regalos.</p>
+  <div class="opc"><span>Cuenta primero, más trabajo ahora, menos soporte después</span><span>Pago primero, se queda como está, y se vive con los desajustes</span></div>
+</div>
+
+<div class="dec">
+  <h3>2 · Cuál lista de precios</h3>
+  <p>Hay dos. En una, Dúo mensual cuesta mil cuatrocientos noventa. En la otra, mil quinientos ochenta. Y Familiar existe con tres plazas en una lista y no existe en la otra. Son cuatro diferencias en total.</p>
+  <p>La que se publique primero es la que queda, porque una vez creados los precios en Stripe con su clave, moverlos implica crear precios nuevos y desactivar los viejos.</p>
+</div>
+
+<div class="dec">
+  <h3>3 · Qué se vende el 27</h3>
+  <p>Individual y Founder funcionan hoy sin tocar código. Dúo y Familiar necesitan un cambio chico pero real, y ese cambio compite por el mismo lunes que el WhatsApp y la página de acceso.</p>
+  <p>Abrir con dos planes bien probados es mejor que abrir con cuatro y que dos se rompan. Los otros dos entran la semana siguiente sin que nadie lo note.</p>
+  <div class="opc"><span>Los cuatro planes</span><span>Individual y Founder, y los otros dos en septiembre</span></div>
+</div>
+
+<div class="dec">
+  <h3>4 · Si la comunidad se automatiza ahora o después</h3>
+  <p>Automatizar el alta en Skool cuesta noventa y nueve dólares al mes del plan Pro, más el conector. Y aun pagando eso, la persona sigue teniendo que darle clic a la invitación, así que lo que se compra es que la invitación salga sola, no que la persona entre sola.</p>
+  <p>Con los números del primer corte, mandar esa invitación a mano toma menos de un minuto por persona. Vale la pena preguntarse si eso justifica el gasto este mes o el que viene.</p>
+  <div class="opc"><span>Automatizarlo ahora</span><span>A mano el primer mes y se decide con datos</span></div>
+</div>
+</section>
+
+<!-- ═══════════ 5 ═══════════ -->
+<section class="sec" id="pruebas">
+<p class="kicker">05</p>
+<h2>Las doce pruebas antes de abrir</h2>
+<p class="sub">Todas en modo prueba de Stripe, salvo la última. No es una lista de buenas intenciones: si alguna falla, ese camino no se abre el 27.</p>
+
+<div class="col" style="border-top:3px solid var(--teal)">
+  <div class="pr"><span class="n">01</span><div><b>Compra de Individual mensual con tarjeta buena</b><span>Llega el evento, se crea la vigencia, sale el código, llega el correo, llega el WhatsApp.</span></div></div>
+  <div class="pr"><span class="n">02</span><div><b>La misma compra, repitiendo el evento a propósito</b><span>Stripe reintenta hasta tres días. El sistema tiene que ignorar el duplicado y no dar dos membresías.</span></div></div>
+  <div class="pr"><span class="n">03</span><div><b>Compra con tarjeta rechazada</b><span>No se crea nada, y el intento queda registrado.</span></div></div>
+  <div class="pr"><span class="n">04</span><div><b>Compra de Founder, que es pago único</b><span>La vigencia tiene que quedar en tres años, no en un mes.</span></div></div>
+  <div class="pr"><span class="n">05</span><div><b>Un evento sin la metadata del plan</b><span>Tiene que caer en revisión y aparecer en el tablero el mismo día. Esta es la prueba de que las fallas dejaron de ser silenciosas.</span></div></div>
+  <div class="pr"><span class="n">06</span><div><b>El correo apagado a propósito</b><span>Con la clave de Resend fuera. La persona tiene que seguir recibiendo su WhatsApp y su página de acceso. Ese es el punto de tener dos caminos.</span></div></div>
+  <div class="pr"><span class="n">07</span><div><b>Abrir la página de acceso con un token bueno</b><span>Muestra código, vigencia y plan, y borra el token del historial.</span></div></div>
+  <div class="pr"><span class="n">08</span><div><b>Abrirla con un token inventado</b><span>Sale la pantalla que ofrece WhatsApp, no un error en blanco.</span></div></div>
+  <div class="pr"><span class="n">09</span><div><b>Canjear el código en la app</b><span>Desde una cuenta nueva con un correo distinto al del pago. Es el caso que más se rompe en la vida real.</span></div></div>
+  <div class="pr"><span class="n">10</span><div><b>Pedir cambio de contraseña desde la app y terminarlo en la web</b><span>Y también abrir un enlace ya usado, para ver que sale la pantalla de vencido y no un error crudo.</span></div></div>
+  <div class="pr"><span class="n">11</span><div><b>Mandar las tres plantillas de WhatsApp a un número real</b><span>Y contestar una, para confirmar que la ventana de veinticuatro horas abre y que las respuestas no cuestan.</span></div></div>
+  <div class="pr"><span class="n">12</span><div><b>Un pago real, con tu tarjeta, y su reembolso</b><span>La única que prueba producción de verdad. Se hace el miércoles.</span></div></div>
+</div>
+</section>
+
+<!-- ═══════════ 6 ═══════════ -->
+<section class="sec" id="despues">
+<p class="kicker">06</p>
+<h2>Lo que no va a estar el 27, y por qué está bien</h2>
+
+<p><strong>Mercado Pago.</strong> No hay nada construido. Quien quiera pagar por ahí paga por transferencia, que es un camino que sí va a estar y que en México mucha gente prefiere de todos modos.</p>
+
+<p><strong>El panel de administración.</strong> No existe, y está documentado en el repo que quedó fuera de alcance a propósito. Dar de alta a alguien a mano se hace hoy con una consulta. Funciona, no es cómodo, y para las primeras semanas alcanza.</p>
+
+<p><strong>El alta consumada en la comunidad.</strong> No es que falte tiempo, es que Skool no lo permite. Lo que sí se puede es que la invitación salga sola y que el tablero te diga quién no la ha aceptado, que es el noventa por ciento del valor.</p>
+
+<p><strong>La palomita verde de WhatsApp.</strong> La verificación de negocio tarda de uno a cinco días hábiles y se empieza el lunes. Puede que llegue después del 27, y no pasa nada, porque no bloquea nada. Solo cambia cómo te ves.</p>
+
+<div class="cierre">
+  <p>El veintisiete no se gana construyendo más cosas. Se gana teniendo pocas rutas y que todas cierren. Un pago con tarjeta que termina en alguien adentro de la app, una transferencia que alguien verifica el mismo día, y un tablero que te diga cada mañana quién se quedó en el camino.</p>
+  <p>Todo lo demás se puede agregar con gente ya pagando.</p>
+</div>
+</section>
+
+</main>

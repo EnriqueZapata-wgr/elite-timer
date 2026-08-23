@@ -1,0 +1,408 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ATP · Qué es y por qué ahora</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--lime:#A8E02A;--teal:#1ABC9C;--grad:linear-gradient(135deg,#A8E02A,#3DBF6E,#1ABC9C);
+--n0:#000;--n1:#0A0A0A;--n2:#121212;--n3:#232323;--ink:#fff;--ink2:#D2D2D2;--muted:#A8A8A8;--line:#232323;
+--acero:#DBE2E7;--acero2:#E9EEF1;--tinta:#0F1518;--tinta2:#4A555C;--tenue:#7A868E;--tealC:#086A5E;
+--sans:'Poppins',system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#000;font-family:var(--sans);color:var(--ink);overflow-x:hidden}
+.slide::after{content:'';position:absolute;left:0;top:0;bottom:0;width:8px;z-index:6;
+  background:linear-gradient(180deg,#A8E02A,#6DCC48 26%,#3DBF6E 50%,#2EC28A 74%,#1ABC9C)}
+.light.slide::after{background:linear-gradient(180deg,#4E8C0F,#3A8028 26%,#1E7846 50%,#107458 74%,#086A5E)}
+.slide{width:100vw;height:100vh;min-height:560px;position:relative;overflow:hidden;display:flex;align-items:center;
+  scroll-snap-align:start;page-break-after:always;break-after:page}
+.deck{width:100vw;scroll-snap-type:y mandatory;height:100vh;overflow-y:scroll}
+.in{width:100%;max-width:1210px;margin:0 auto;padding:clamp(70px,9vh,92px) clamp(30px,4.4vw,64px) clamp(52px,7vh,70px) clamp(40px,5vw,72px);position:relative;z-index:3}
+.dark{background:var(--n0);color:var(--ink)}
+.light{background:var(--acero);color:var(--tinta)}
+.mesh{position:absolute;inset:-14%;z-index:0;filter:blur(10px)}
+.brand{position:absolute;top:clamp(34px,5vh,52px);left:clamp(30px,4.4vw,64px);display:flex;align-items:center;gap:11px;z-index:5;
+  font-weight:800;letter-spacing:-.04em;font-size:clamp(15px,1.5vw,19px)}
+.mol{width:clamp(26px,2.6vw,32px);height:auto}
+.molbig{position:absolute;right:-22%;top:42%;transform:translateY(-50%);width:min(44vw,560px);height:auto;z-index:1;opacity:.3;pointer-events:none}
+.light .molbig{opacity:.22}
+.num{position:absolute;bottom:clamp(22px,3.2vh,34px);right:clamp(30px,4.4vw,64px);font-family:var(--mono);font-size:15px;letter-spacing:.2em;z-index:5;color:var(--muted)}
+.light .num{color:var(--tenue)}
+.eyebrow{font-size:clamp(12px,1.15vw,15px);font-weight:700;letter-spacing:.22em;text-transform:uppercase;margin-bottom:clamp(14px,2.2vh,26px);
+  color:var(--teal);display:inline-block}
+.light .eyebrow{color:var(--tealC)}
+h1{font-size:clamp(30px,4.4vw,58px);font-weight:800;letter-spacing:-.04em;line-height:1.12;max-width:19ch;text-wrap:balance}
+h2{font-size:clamp(24px,3.3vw,45px);font-weight:800;letter-spacing:-.035em;line-height:1.14;max-width:20ch;text-wrap:balance}
+.lead{font-size:clamp(18px,2.05vw,28px);line-height:1.5;color:var(--ink2);max-width:46ch;margin-top:clamp(14px,2.4vh,26px)}
+.light .lead{color:var(--tinta2)}
+.punch{font-size:clamp(17px,1.75vw,24px);font-weight:500;letter-spacing:-.02em;line-height:1.4;max-width:38ch;
+  margin-top:clamp(16px,2.6vh,30px);border-left:3px solid var(--teal);padding-left:18px;color:var(--ink)}
+.light .punch{border-left-color:var(--tealC);color:var(--tinta)}
+.priv{font-size:clamp(14px,1.35vw,19px);font-weight:600;line-height:1.45;max-width:50ch;margin-top:clamp(14px,2.2vh,24px);
+  border-left:3px solid var(--teal);padding-left:18px;color:var(--ink)}
+.light .priv{color:var(--tinta);border-left-color:var(--tealC)}
+.two{display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(26px,4vw,64px);align-items:center}
+.two.rev{grid-template-columns:.85fr 1.15fr}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(12px,1.6vw,22px);margin-top:clamp(18px,3vh,34px)}
+.st{border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:16px;padding:clamp(14px,1.8vw,24px);
+  background:rgba(18,18,18,.6);backdrop-filter:blur(10px);display:flex;flex-direction:column}
+.light .st{border-color:#CBD5DC;border-left-color:var(--tealC);background:rgba(233,238,241,.75)}
+.st .n{font-family:var(--mono);font-size:clamp(20px,2.45vw,33px);font-weight:700;letter-spacing:-.045em;line-height:1.15;color:var(--ink)}
+.light .st .n{color:var(--tinta)}
+.st b{display:block;font-size:clamp(15px,1.5vw,21px);font-weight:600;margin-top:8px;line-height:1.3}
+.st span{display:block;font-size:clamp(13px,1.3vw,17px);color:var(--muted);margin-top:auto;padding-top:12px;line-height:1.35}
+.light .st span{color:var(--tinta2)}
+.pieces{display:grid;grid-template-columns:repeat(2,1fr);gap:clamp(10px,1.4vw,18px);margin-top:clamp(18px,2.8vh,30px)}
+.pc{border:1px solid var(--line);border-radius:14px;padding:clamp(14px,1.6vw,22px);background:rgba(18,18,18,.55);backdrop-filter:blur(10px);position:relative;overflow:hidden}
+.light .pc{border-color:#CBD5DC;background:rgba(233,238,241,.78)}
+.pc::after{content:'';position:absolute;left:0;top:0;width:100%;height:3px;background:var(--line)}
+.light .pc::after{background:#CBD5DC}
+
+.pc b{display:block;font-size:clamp(15px,1.5vw,20px);font-weight:700;margin-bottom:5px}
+.pc p{font-size:clamp(14px,1.4vw,19px);color:var(--ink2);line-height:1.4}
+.light .pc p{color:var(--tinta2)}
+.phone{border-radius:clamp(14px,1.6vw,22px);overflow:hidden;box-shadow:0 40px 90px -30px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.07);
+  display:block;width:100%;max-width:clamp(275px,30vw,410px);margin:0 auto;
+  object-fit:cover;object-position:top;
+  -webkit-mask-image:linear-gradient(#000 58%,rgba(0,0,0,.6) 84%,transparent 100%);mask-image:linear-gradient(#000 58%,rgba(0,0,0,.6) 84%,transparent 100%)}
+.light .phone{box-shadow:0 30px 70px -28px rgba(15,21,24,.4),0 0 0 1px rgba(15,21,24,.1)}
+.two.rev .phone{margin-left:0}
+.ask{border:2px solid transparent;border-radius:20px;padding:clamp(22px,2.8vw,38px);margin-top:clamp(16px,2.6vh,28px);
+  background-image:linear-gradient(150deg,#121212,#0B0B0B 60%,#121212),var(--grad);background-origin:border-box;background-clip:padding-box,border-box;
+  display:grid;grid-template-columns:1.2fr 1fr;grid-template-rows:min-content auto;gap:0 clamp(20px,3vw,44px);align-content:start;align-items:start}
+.light .ask{background-image:linear-gradient(150deg,#E9EEF1,#DDE5E9),linear-gradient(135deg,#4E8C0F,#1E7846,#086A5E)}
+.ask .k{font-size:clamp(14px,1.35vw,18px);letter-spacing:.2em;text-transform:uppercase;color:var(--ink2);font-weight:700}
+.light .ask .k{color:var(--tinta2)}
+.ask .v{font-size:clamp(20px,2.3vw,32px);font-weight:800;letter-spacing:-.03em;line-height:1.18;margin-top:10px;color:var(--ink)}
+.light .ask .v{color:var(--tinta)}
+.ask p{grid-column:2;grid-row:1 / span 2;align-self:center;font-size:clamp(15px,1.5vw,21px);color:var(--ink2);line-height:1.5;max-width:none;margin:0}
+.light .ask p{color:var(--tinta2)}
+.who{display:flex;gap:clamp(16px,2.4vw,36px);margin-top:clamp(16px,2.6vh,28px);flex-wrap:wrap;
+  border-top:1px solid var(--line);padding-top:clamp(14px,2.2vh,22px)}
+.light .who{border-top-color:#CBD5DC}
+.who div{flex:1;min-width:230px}
+.who b{display:block;font-size:clamp(13px,1.25vw,17px);font-weight:700}
+.who p{font-size:clamp(13px,1.25vw,17px);color:var(--ink2);line-height:1.4;margin-top:5px}
+.light .who p{color:var(--tinta2)}
+.src{font-size:clamp(15px,1.5vw,20px);color:var(--muted);margin-top:clamp(12px,2vh,22px);line-height:1.45;max-width:60ch}
+.light .src{color:var(--tinta2)}
+.nav{position:fixed;bottom:clamp(28px,4vh,44px);left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:99}
+.nav button{width:9px;height:9px;border-radius:50%;border:0;background:rgba(128,128,128,.45);cursor:pointer;padding:0}
+.nav button.on{background:#3DBF6E;width:26px;border-radius:6px}
+
+/* ---- bloques nuevos ---- */
+.secs{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(10px,1.3vw,18px);margin-top:clamp(16px,2.6vh,28px)}
+.sec{border:1px solid var(--line);border-radius:14px;padding:clamp(13px,1.5vw,20px);background:rgba(18,18,18,.6);backdrop-filter:blur(10px);
+  border-top:3px solid var(--c,#1ABC9C)}
+.light .sec{border-color:#CBD5DC;border-top-color:var(--c,#086A5E);background:rgba(233,238,241,.78)}
+.sec .q{font-family:var(--mono);font-size:clamp(22px,2.5vw,34px);font-weight:700;letter-spacing:-.04em;line-height:1}
+.sec b{display:block;font-size:clamp(13px,1.3vw,17px);font-weight:700;margin-top:6px}
+.secs.cinco{grid-template-columns:repeat(5,1fr);gap:clamp(8px,1vw,13px)}
+.secs.cinco .sec{padding:clamp(11px,1.25vw,17px)}
+.secs.cinco .sec p{font-size:clamp(11.5px,1.05vw,14.5px)}
+.sec p{font-size:clamp(12px,1.15vw,15.5px);color:var(--ink2);line-height:1.4;margin-top:7px}
+.light .sec p{color:var(--tinta2)}
+.capas{display:grid;gap:clamp(8px,1.1vh,13px);margin-top:clamp(16px,2.4vh,26px)}
+.capa{display:grid;grid-template-columns:auto 1fr;gap:clamp(14px,1.8vw,24px);align-items:baseline;
+  border-left:3px solid var(--c,#1ABC9C);padding:clamp(7px,1vh,11px) 0 clamp(7px,1vh,11px) clamp(14px,1.6vw,20px)}
+.light .capa{border-left-color:var(--c,#086A5E)}
+.capa .i{font-family:var(--mono);font-size:clamp(13px,1.25vw,17px);font-weight:700;color:var(--muted)}
+.light .capa .i{color:var(--tenue)}
+.capa b{font-size:clamp(15px,1.6vw,22px);font-weight:700;letter-spacing:-.02em}
+.capa span{display:block;font-size:clamp(13px,1.3vw,17.5px);color:var(--ink2);line-height:1.4;margin-top:3px}
+.light .capa span{color:var(--tinta2)}
+.kpis{display:flex;flex-wrap:wrap;gap:clamp(16px,2.4vw,38px);margin-top:clamp(14px,2.2vh,24px)}
+.kpi{min-width:120px}
+.kpi .q{font-family:var(--mono);font-size:clamp(24px,2.9vw,40px);font-weight:700;letter-spacing:-.045em;line-height:1}
+.kpi span{display:block;font-size:clamp(13px,1.3vw,17px);color:var(--ink2);line-height:1.35;margin-top:7px;max-width:22ch}
+.light .kpi span{color:var(--tinta2)}
+.tag{display:inline-block;font-size:clamp(11px,1.05vw,13.5px);font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  border:1px solid var(--teal);color:var(--teal);border-radius:100px;padding:5px 14px;margin-bottom:clamp(12px,1.8vh,20px)}
+.light .tag{border-color:var(--tealC);color:var(--tealC)}
+.tag.prop{color:#EFD54F}
+.tag.prop::after{background:linear-gradient(135deg,#EFD54F,#C9A81E)}
+.light .tag.prop{color:#8A6D00}
+.light .tag.prop::after{background:linear-gradient(135deg,#A88400,#6E5500)}
+.rows{display:grid;gap:clamp(9px,1.2vh,14px);margin-top:clamp(14px,2.2vh,24px)}
+.row{display:grid;grid-template-columns:minmax(150px,.34fr) 1fr;gap:clamp(14px,2vw,30px);align-items:baseline;
+  border-top:1px solid var(--line);padding-top:clamp(9px,1.2vh,14px)}
+.light .row{border-top-color:#CBD5DC}
+.row b{font-size:clamp(14px,1.45vw,19px);font-weight:700}
+.row p{font-size:clamp(13px,1.35vw,18px);color:var(--ink2);line-height:1.42}
+.light .row p{color:var(--tinta2)}
+.dense .lead{font-size:clamp(15px,1.6vw,21px);max-width:58ch}
+.dense h2{font-size:clamp(21px,2.75vw,36px)}
+.dense .kpis{gap:clamp(10px,1.5vw,22px)}
+.dense .kpis{display:grid;grid-template-columns:repeat(2,1fr)}
+.dense .kpi{min-width:0}
+.dense .kpi .q{font-size:clamp(20px,2.25vw,30px)}
+.dense .kpi span{font-size:clamp(12px,1.15vw,15.5px);max-width:18ch;margin-top:5px}
+.dense .punch{font-size:clamp(15px,1.5vw,20px);margin-top:clamp(12px,1.8vh,20px);padding-left:15px}
+.dense .priv{font-size:clamp(13px,1.25vw,17px);padding-left:15px;margin-top:clamp(11px,1.6vh,18px)}
+.dense .rows{gap:clamp(7px,1vh,11px);margin-top:clamp(11px,1.7vh,18px)}
+.dense .row p{font-size:clamp(12.5px,1.25vw,16.5px)}
+.dense .row b{font-size:clamp(13px,1.3vw,17px)}
+.dense .ask{padding:clamp(18px,2.2vw,30px);margin-top:clamp(13px,2vh,22px)}
+.dense .ask .v{font-size:clamp(18px,2vw,27px)}
+.dense .ask p{font-size:clamp(13px,1.3vw,18px)}
+.dense .who{margin-top:clamp(13px,2vh,22px);padding-top:clamp(11px,1.7vh,18px);gap:clamp(14px,1.9vw,28px)}
+.dense .who div{min-width:190px}
+.dense .who p{font-size:clamp(12px,1.15vw,15.5px)}
+.dense .src{font-size:clamp(12px,1.15vw,15.5px);margin-top:clamp(10px,1.5vh,17px)}
+
+@media (min-width:1000px){.nav{display:none}}
+
+/* ---- la escalera, con el degradado molecular como firma ---- */
+.pir{position:relative;display:flex;flex-direction:column;gap:2px;align-items:flex-end;margin-top:clamp(14px,2.2vh,24px)}
+.pir::before{content:'';position:absolute;inset:-6% -3%;z-index:0;border-radius:26px;
+  background:radial-gradient(58% 50% at 50% 60%,rgba(26,188,156,.10),transparent 70%);filter:blur(26px)}
+.esc{position:relative;z-index:1;width:var(--w);display:grid;grid-template-columns:auto auto 1fr;gap:clamp(10px,1.4vw,20px);align-items:center;
+  padding:clamp(9px,1.2vh,15px) clamp(14px,1.8vw,26px);border-radius:12px;
+  background:linear-gradient(100deg,rgba(20,20,20,.94),rgba(12,12,12,.88));
+  border:1px solid var(--line);border-radius:10px;box-shadow:inset 11px 0 0 var(--c)}
+.light .esc{background:linear-gradient(100deg,rgba(240,244,246,.95),rgba(226,232,236,.9));border-color:#CBD5DC}
+.light .rows.map .row{--luz:1}
+.esc.futuro{background:transparent;border:2px dashed #4A4A4A;box-shadow:inset 11px 0 0 #4A4A4A}
+.esc.futuro .i,.esc.futuro b{color:#8A8A8A}
+.esc.futuro em{color:#6E6E6E}
+.light .esc.futuro{border-color:#9AA6AE;box-shadow:inset 11px 0 0 #9AA6AE}
+.light .esc.futuro .i,.light .esc.futuro b,.light .esc.futuro em{color:#7A868E}
+.corte{width:100%;display:flex;align-items:center;gap:12px;margin:clamp(7px,1vh,11px) 0 clamp(5px,.7vh,8px);
+  font-size:clamp(12px,1.15vw,15px);font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.corte::after{content:'';flex:1;height:1px;background:var(--line)}
+.light .corte{color:var(--tenue)}
+.light .corte::after{background:#CBD5DC}
+.esc.sub{padding-top:clamp(6px,.8vh,10px);padding-bottom:clamp(6px,.8vh,10px);border-top-width:0;border-radius:0 10px 10px 0}
+.esc.sub b{font-size:clamp(12.5px,1.3vw,17px)}
+.esc .i{font-family:var(--mono);font-size:clamp(12px,1.15vw,16px);font-weight:700;color:var(--ink2);margin-left:3px}
+.light .esc .i{color:var(--tinta2)}
+.esc b{font-size:clamp(14px,1.5vw,21px);font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+.esc em{font-style:normal;font-size:clamp(12px,1.2vw,16.5px);color:var(--ink2);line-height:1.35}
+.light .esc em{color:var(--tinta2)}
+.esc.on{box-shadow:inset 11px 0 0 var(--c),0 0 0 1px var(--c),0 10px 28px -20px rgba(0,0,0,.9)}
+.esc.off{opacity:.4}
+/* ---- acentos de degradado ---- */
+.tag{position:relative;border:0;padding:0 0 9px 0;border-radius:0;color:var(--teal)}
+.tag::after{content:'';position:absolute;left:0;bottom:0;width:100%;height:3px;border-radius:2px;background:var(--grad)}
+.light .tag{color:var(--tealC)}
+.punch{border-left:0;padding-left:19px;position:relative}
+.punch::before{content:'';position:absolute;left:0;top:2px;bottom:2px;width:4px;border-radius:3px;background:var(--teal)}
+.light .punch::before{background:var(--tealC)}
+.priv{border-left:0;padding-left:19px;position:relative}
+.priv::before{content:'';position:absolute;left:0;top:2px;bottom:2px;width:4px;border-radius:3px;background:var(--teal)}
+.light .priv::before{background:var(--tealC)}
+.rows.map .row{grid-template-columns:minmax(200px,.3fr) 1fr;border-top:0;padding-top:0;padding-left:18px;position:relative;
+  padding-bottom:clamp(9px,1.3vh,15px)}
+.rows.map .row::before{content:'';position:absolute;left:0;top:0;bottom:6px;width:6px;border-radius:3px;background:var(--c,var(--teal))}
+.light .rows.map .row::before{background:color-mix(in srgb,var(--c,#1ABC9C) 48%,#06120F)}
+.ncaja{position:relative;display:flex;flex-direction:column;justify-content:center;min-height:clamp(270px,36vh,360px);padding:clamp(34px,4.4vw,64px);border-radius:22px;border:1.5px solid transparent;
+  background-image:linear-gradient(150deg,#101010,#080808),var(--grad);background-origin:border-box;background-clip:padding-box,border-box}
+.light .ncaja{background-image:linear-gradient(150deg,#E9EEF1,#DCE4E9),var(--grad)}
+.big{font-family:var(--mono);font-size:clamp(52px,9vw,140px);font-weight:700;letter-spacing:-.06em;line-height:.9;margin-bottom:clamp(10px,1.6vh,18px);
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.light .big{background:linear-gradient(135deg,#4E8C0F,#086A5E);-webkit-background-clip:text;background-clip:text}
+h1{position:relative}
+.ej{display:grid;gap:clamp(7px,1vh,12px);margin-top:clamp(14px,2.2vh,24px)}
+.ej div{font-size:clamp(14px,1.5vw,21px);line-height:1.4;color:var(--ink2);border-left:2px solid var(--n3);padding-left:clamp(12px,1.5vw,20px)}
+.light .ej div{color:var(--tinta2);border-left-color:#CBD5DC}
+.ej div b{color:var(--ink);font-weight:600}
+.light .ej div b{color:var(--tinta)}
+
+/* ---- tríada: cuerpo, mente, emoción ---- */
+.tri{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(12px,1.6vw,22px);margin-top:clamp(16px,2.6vh,28px)}
+.tri>div{border:1px solid var(--line);border-radius:16px;padding:clamp(15px,1.9vw,26px);
+  background:linear-gradient(160deg,rgba(20,20,20,.92),rgba(10,10,10,.86));box-shadow:inset 0 3px 0 var(--c)}
+.light .tri>div{border-color:#CBD5DC;background:linear-gradient(160deg,rgba(240,244,246,.95),rgba(226,232,236,.9));--c:#086A5E}
+.tri b{display:block;font-size:clamp(16px,1.75vw,25px);font-weight:800;letter-spacing:-.03em}
+.tri p{font-size:clamp(14px,1.35vw,19px);color:var(--ink2);line-height:1.42;margin-top:8px}
+.light .tri p{color:var(--tinta2)}
+/* ---- el arbolito ---- */
+.arbol{margin-top:clamp(14px,2.2vh,24px)}
+.raiz{display:flex;justify-content:center}
+.raiz span{font-size:clamp(15px,1.6vw,22px);font-weight:800;letter-spacing:-.02em;padding:9px 26px;border-radius:100px;
+  border:2px solid transparent;background-image:linear-gradient(#0C0C0C,#0C0C0C),var(--grad);
+  background-origin:border-box;background-clip:padding-box,border-box}
+.light .raiz span{background-image:linear-gradient(#E9EEF1,#E9EEF1),linear-gradient(135deg,#4E8C0F,#086A5E)}
+.tronco{height:clamp(16px,2.4vh,26px);width:2px;margin:0 auto;background:linear-gradient(180deg,#3DBF6E,#2EC28A)}
+.ramas{display:grid;grid-template-columns:1fr 1fr;gap:clamp(16px,2.6vw,44px);position:relative;padding-top:clamp(14px,2vh,22px)}
+.ramas::before{content:'';position:absolute;top:0;left:25%;right:25%;height:2px;background:linear-gradient(90deg,#2EC28A,#1ABC9C)}
+.rama{position:relative}
+.rama::before{content:'';position:absolute;top:calc(-1 * clamp(14px,2vh,22px));left:50%;width:2px;height:clamp(14px,2vh,22px);background:#2EC28A}
+.rama>b{display:block;text-align:center;font-size:clamp(14px,1.5vw,20px);font-weight:800;letter-spacing:-.02em;
+  padding:8px 0;border-radius:10px;border:1px solid var(--line);background:rgba(18,18,18,.85)}
+.light .rama>b{border-color:#CBD5DC;background:rgba(233,238,241,.9)}
+.hojas{display:grid;gap:6px;margin-top:clamp(10px,1.5vh,16px)}
+.hoja{display:block;
+  font-size:clamp(13.5px,1.3vw,18px);line-height:1.35;padding:clamp(6px,.9vh,10px) clamp(11px,1.3vw,17px);
+  border-radius:9px;background:rgba(18,18,18,.7);border:1px solid var(--line);box-shadow:inset 5px 0 0 var(--c,#1ABC9C)}
+.light .hoja{background:rgba(233,238,241,.8);border-color:#CBD5DC;--c:#086A5E}
+.hoja i{font-style:normal;font-family:var(--mono);font-size:clamp(11px,1.05vw,14px);color:var(--muted)}
+.light .hoja i{color:var(--tinta2)}
+.hoja em{font-style:normal;color:var(--ink2)}
+.light .hoja em{color:var(--tinta2)}
+/* ---- cifras en línea ---- */
+.tiras{display:flex;flex-wrap:wrap;gap:clamp(10px,1.4vw,20px);margin-top:clamp(14px,2.2vh,24px)}
+.tira{display:flex;align-items:baseline;gap:8px;font-size:clamp(13px,1.25vw,17px);color:var(--ink2);
+  border:1px solid var(--line);border-radius:100px;padding:7px 16px;background:rgba(18,18,18,.6)}
+.light .tira{border-color:#CBD5DC;background:rgba(233,238,241,.7);color:var(--tinta2)}
+.tira b{font-family:var(--mono);font-size:clamp(15px,1.5vw,20px);font-weight:700;color:var(--ink);letter-spacing:-.03em}
+.light .tira b{color:var(--tinta)}
+/* ---- vigilancia: pistas que suben a ARGOS ---- */
+.vigi{display:grid;gap:clamp(7px,1vh,11px);margin-top:clamp(14px,2.2vh,22px)}
+.pista{display:grid;grid-template-columns:minmax(120px,.22fr) 1fr;gap:clamp(12px,1.8vw,26px);align-items:baseline;
+  padding:clamp(7px,1vh,11px) 0 clamp(7px,1vh,11px) 16px;position:relative}
+.pista::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:4px;border-radius:3px;background:var(--c)}
+.pista b{font-size:clamp(14px,1.4vw,19px);font-weight:700}
+.pista p{font-size:clamp(13.5px,1.3vw,18px);color:var(--ink2);line-height:1.4}
+.light .pista p{color:var(--tinta2)}
+.light .pista{--c:#086A5E}
+.techo{margin-top:clamp(12px,1.8vh,20px);padding:clamp(13px,1.7vw,22px) clamp(15px,2vw,26px);border-radius:14px;
+  border:2px solid transparent;background-image:linear-gradient(120deg,#101010,#0A0A0A),var(--grad);
+  background-origin:border-box;background-clip:padding-box,border-box;
+  font-size:clamp(14px,1.45vw,20px);font-weight:600;line-height:1.4}
+.light .techo{background-image:linear-gradient(120deg,#E9EEF1,#DDE5E9),linear-gradient(135deg,#4E8C0F,#086A5E)}
+/* ---- dos mundos: persona e institución ---- */
+.mundos{display:grid;grid-template-columns:1fr 1fr;gap:clamp(16px,2.6vw,40px);margin-top:clamp(14px,2.2vh,24px)}
+.mundo{border:1px solid var(--line);border-radius:16px;padding:clamp(15px,1.9vw,26px);background:rgba(16,16,16,.8);
+  box-shadow:inset 0 3px 0 var(--c)}
+.light .mundo{border-color:#CBD5DC;background:rgba(233,238,241,.85);--c:#086A5E}
+.mundo>b{display:block;font-size:clamp(15px,1.6vw,22px);font-weight:800;letter-spacing:-.02em;margin-bottom:10px}
+.mundo p{font-size:clamp(13.5px,1.3vw,18px);color:var(--ink2);line-height:1.45}
+.light .mundo p{color:var(--tinta2)}
+.mundo p+p{margin-top:9px}
+
+@media (max-height:860px){
+  .brand{top:22px} .num{bottom:20px}
+  h1{font-size:clamp(28px,3.4vw,44px)}
+  h2{font-size:clamp(21px,2.5vw,34px)}
+  .dense h2{font-size:clamp(19px,2.2vw,29px)}
+  .lead{font-size:clamp(16px,1.6vw,22px);margin-top:14px}
+  .dense .lead{font-size:clamp(14px,1.35vw,18px)}
+  .punch,.priv{font-size:clamp(15px,1.45vw,20px);margin-top:14px}
+  .rows{margin-top:12px;gap:8px}
+  .row p{font-size:clamp(15px,1.35vw,18px)}
+  .esc em{font-size:clamp(15px,1.3vw,18px)}
+  .secs.cinco .sec p{font-size:clamp(14.5px,1.28vw,18px)}
+  .dense .who p{font-size:clamp(14px,1.25vw,17px)}
+  .dense .src{font-size:clamp(14px,1.3vw,18px)}
+  .src{font-size:clamp(14px,1.35vw,18px)}
+  .kpis{margin-top:12px} .capas{margin-top:12px;gap:7px} .secs{margin-top:14px}
+  .tri>div{padding:13px 16px} .tri p{font-size:clamp(13.5px,1.25vw,17px)}
+  .arbol{margin-top:10px} .tronco{height:14px} .ramas{padding-top:12px} .hojas{margin-top:9px;gap:5px}
+  .hoja{font-size:clamp(13px,1.22vw,17px);padding:6px 13px}
+  .vigi{margin-top:11px;gap:6px} .techo{margin-top:11px;padding:11px 16px}
+  .mundos{margin-top:11px} .mundo{padding:13px 17px} .mundo p{font-size:clamp(13px,1.22vw,17px)}
+  .tiras{margin-top:11px;gap:8px} .tira{padding:6px 13px}
+  .pir{margin-top:12px;gap:5px} .esc{padding:8px 18px} .esc em{font-size:clamp(11.5px,1.1vw,15px)}
+  .big{font-size:clamp(36px,5.4vw,76px)} .ej{margin-top:12px;gap:6px} .ej div{font-size:clamp(13px,1.35vw,18px)}
+}
+@media print{
+  .nav{display:none}
+  .deck{height:auto;overflow:visible}
+  .slide{height:100vh;page-break-after:always}
+  @page{size:landscape;margin:0}
+}
+</style></head><body>
+<div class="deck" id="deck"><section class="slide dark">
+  <div class="mesh" style="background:radial-gradient(46% 44% at 87% 15%, rgba(26,188,156,.20), transparent 66%),radial-gradient(42% 42% at 4% 85%, rgba(26,188,156,.22), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G1" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G1)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  <svg class="molbig" viewBox="0 0 955.42 853.46"><defs><linearGradient id="GB1" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#GB1)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg>
+  <div class="in"><p class="tag">Qué es estar sano</p>
+<h1>Salud no es que no te duela nada.</h1>
+<p class="lead">Salud es despertarte con energía, aguantar el día completo, dormir de corrido y traer la cabeza tranquila. Si te falta cualquiera de esas cuatro no estás enfermo, pero tampoco estás sano, y ahí es donde está casi todo el mundo: sin diagnóstico y sin fuerza.</p>
+<div class="tri">
+  <div style="--c:#A8E02A"><b>Cuerpo</b><p>Que aguantes. Fuerza, energía, buen dormir, análisis en orden.</p></div>
+  <div style="--c:#3DBF6E"><b>Mente</b><p>Que pienses claro. Foco, memoria, calma, ganas de hacer cosas.</p></div>
+  <div style="--c:#1ABC9C"><b>Emoción</b><p>Que te sostengas. Saber qué sientes y que no te tire lo que pasa.</p></div>
+</div>
+<p class="punch">Salud integral es que las tres jalen al mismo tiempo. Y las tres se pueden medir.</p></div>
+  <div class="num">1 / 5</div>
+</section>
+<section class="slide dark">
+  <div class="mesh" style="background:radial-gradient(46% 44% at 87% 15%, rgba(26,188,156,.20), transparent 66%),radial-gradient(42% 42% at 4% 85%, rgba(26,188,156,.22), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G2" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G2)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  
+  <div class="in"><p class="tag">Por qué ATP y por qué ahora</p>
+<h2>El cuidado de la salud subió cinco escalones. El quinto apenas se abrió.</h2>
+<div class="pir"><div class="corte">Lo que viene</div><div class="esc futuro" style="--w:58%;--c:#4A4A4A"><span class="i">06</span><b>Hibridación</b><em>Cuerpo y máquina trabajando juntos.</em></div><div class="esc futuro sub" style="--w:65%;--c:#4A4A4A"><span class="i">5.1</span><b>Big data</b><em>La ciencia dejando de esperar diez años por un estudio.</em></div><div class="corte">Lo que ya se puede usar</div><div class="esc" style="--w:72%;--c:#1ABC9C"><span class="i">05</span><b>Inteligencia artificial</b><em>Algo que lee todo eso por ti, todos los días.</em></div><div class="esc" style="--w:79%;--c:#2EC28A"><span class="i">04</span><b>Integración</b><em>Diez estudios, una conclusión.</em></div><div class="esc" style="--w:86%;--c:#3DBF6E"><span class="i">03</span><b>Medición</b><em>Medirte de verdad. Sangre, sueño, glucosa, peso.</em></div><div class="esc" style="--w:93%;--c:#6DCC48"><span class="i">02</span><b>Ciencia</b><em>Lo que ya se comprobó, para no descubrirlo a golpes.</em></div><div class="esc" style="--w:100%;--c:#A8E02A"><span class="i">01</span><b>Conocerte</b><em>Aprender a leerte, porque nadie más trae tus sensores.</em></div></div>
+<p class="punch">Cada escalón se para en el de abajo, y hasta hoy nadie había juntado los cinco en un solo lugar. Ahora caben en la bolsa de cualquiera.</p>
+<p class="src">Los dos de arriba son predicción de los fundadores de ATP. Son predicción, no calendario.</p></div>
+  <div class="num">2 / 5</div>
+</section>
+<section class="slide light">
+  <div class="mesh" style="background:radial-gradient(48% 46% at 88% 14%, rgba(26,188,156,.16), transparent 66%),radial-gradient(44% 42% at 3% 86%, rgba(168,224,42,.09), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G3" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G3)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  
+  <div class="in"><p class="tag">Qué es ATP</p>
+<h2>Los cinco escalones, juntos, en una sola plataforma.</h2>
+<div class="arbol">
+  <div class="raiz"><span>ATP</span></div>
+  <div class="tronco"></div>
+  <div class="ramas">
+    <div class="rama"><b>La aplicación</b><div class="hojas">
+      <div class="hoja" style="--c:#A8E02A"><b>Emociones</b> <em>ponerle nombre a lo que sientes y seguirlo en el tiempo</em></div>
+      <div class="hoja" style="--c:#6DCC48"><b>Fitness</b> <em>entrenar, cardio, fuerza, medidas</em></div>
+      <div class="hoja" style="--c:#3DBF6E"><b>Nutrición</b> <em>comida, agua, ayuno, suplementos</em></div>
+      <div class="hoja" style="--c:#2EC28A"><b>Laboratorios</b> <em>subes el PDF y la app lo acomoda sola</em></div>
+      <div class="hoja" style="--c:#1ABC9C"><b>Historia clínica</b> <em>síntomas, padecimientos y tu expediente</em></div>
+    </div></div>
+    <div class="rama"><b>La comunidad</b><div class="hojas">
+      <div class="hoja" style="--c:#6DCC48"><b>Gente como tú</b> <em>ranking y amigos dentro de la app, y la plática en Skool</em></div>
+      <div class="hoja" style="--c:#2EC28A"><b>Mentorías en vivo</b> <em>cada semana, con profesionales de salud</em></div>
+      <div class="hoja" style="--c:#1ABC9C"><b>Contenido y herramientas</b> <em>meditaciones, guías, protocolos y reportes</em></div>
+      <div class="hoja" style="--c:#1ABC9C"><b>Y nada clínico en el muro</b> <em>está prohibido por diseño, no por política</em></div>
+    </div></div>
+  </div>
+</div>
+<div class="tiras">
+  <div class="tira"><b>34</b> audios guiados</div>
+  <div class="tira"><b>144</b> emociones</div>
+  <div class="tira"><b>90</b> parámetros de laboratorio</div>
+  <div class="tira"><b>88</b> intervenciones</div>
+</div>
+<p class="punch">Treinta y cinco herramientas en un solo registro, y todas escriben en el mismo expediente.</p></div>
+  <div class="num">3 / 5</div>
+</section>
+<section class="slide dark">
+  <div class="mesh" style="background:radial-gradient(46% 44% at 87% 15%, rgba(26,188,156,.20), transparent 66%),radial-gradient(42% 42% at 4% 85%, rgba(26,188,156,.22), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G4" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G4)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  
+  <div class="in"><p class="tag">Cómo se ve por dentro</p>
+<h2>Cinco cosas que la persona registra, y una que las lee todas.</h2>
+<div class="vigi">
+  <div class="pista" style="--c:#A8E02A"><b>Lo emocional</b><p>Un mapa de 144 emociones para ponerle nombre a lo que sientes, 34 audios guiados y cuatro diarios. Y si alguien escribe frases de riesgo, la app reconoce el patrón y pone enfrente la Línea de la Vida.</p></div>
+  <div class="pista" style="--c:#6DCC48"><b>Los hábitos</b><p>Comida, agua, ayuno, sueño, sol y entrenamiento. Se marcan en el día y se ven en la racha.</p></div>
+  <div class="pista" style="--c:#3DBF6E"><b>Los suplementos</b><p>Qué tomas, a qué hora y si de verdad lo tomaste.</p></div>
+  <div class="pista" style="--c:#2EC28A"><b>Los síntomas</b><p>Lo que te pasa y cuándo te pasa, guardado con fecha para poder verlo en el tiempo.</p></div>
+  <div class="pista" style="--c:#1ABC9C"><b>Los laboratorios</b><p>Subes el PDF, la app reconoce 90 parámetros por su nombre, y ningún estudio nuevo borra a uno viejo.</p></div>
+</div>
+<div class="techo">Y encima de las cinco, ARGOS, que arma cada respuesta con veinticinco piezas de información de esa persona y recuerda solo lo que ella autorizó.</div></div>
+  <div class="num">4 / 5</div>
+</section>
+<section class="slide light">
+  <div class="mesh" style="background:radial-gradient(48% 46% at 88% 14%, rgba(26,188,156,.16), transparent 66%),radial-gradient(44% 42% at 3% 86%, rgba(168,224,42,.09), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G5" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G5)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  
+  <div class="in"><p class="tag prop">Propuesta, no producto</p>
+<h2>Un expediente sirve a una persona. Cien mil expedientes, con permiso, sirven a un estado.</h2>
+<div class="mundos">
+  <div class="mundo" style="--c:#3DBF6E"><b>Lo que ya recibe hoy un municipio</b>
+    <p>La herramienta ya está hecha y ya funciona. Las mentorías con profesionales de salud ya corren cada semana. Cada persona que la usa se lleva su expediente completo.</p>
+    <p>El municipio no monta servidores, no contrata desarrollo y no espera a que nadie construya nada.</p></div>
+  <div class="mundo" style="--c:#1ABC9C"><b>Lo que se podría construir encima</b>
+    <p>Con consentimiento y con los estándares legales y de salud que corresponden, esos datos permitirían hacer ciencia con gente de aquí: estudios de población y estudios de herencia familiar, no traducidos de otro país.</p>
+    <p>Y permitirían saber qué insumos va a necesitar el sistema de salud, dónde conviene poner una campaña y qué está pasando en una colonia antes de que llegue a la clínica.</p></div>
+</div>
+<p class="punch">Nadie va a tener esos datos si nadie empieza a levantarlos, y se levantan usando la herramienta, no comprándolos después. Una serie de tres años empieza hoy o empieza en tres años.</p>
+<p class="src">El día que entre la genética, el consejo deja de ser para gente parecida a ti y pasa a ser para ti. Ese módulo todavía no existe, y lo de esta lámina tampoco. Todo lo de las láminas 3 y 4 ya funciona hoy.</p></div>
+  <div class="num">5 / 5</div>
+</section></div>
+<div class="nav" id="nav"><button data-i="0" class="on"></button><button data-i="1" class=""></button><button data-i="2" class=""></button><button data-i="3" class=""></button><button data-i="4" class=""></button></div>
+<script>
+const deck=document.getElementById('deck'),ss=[...document.querySelectorAll('.slide')],dots=[...document.querySelectorAll('#nav button')];
+let i=0;
+function go(n){i=Math.max(0,Math.min(ss.length-1,n));ss[i].scrollIntoView({behavior:'smooth'});}
+dots.forEach(d=>d.onclick=()=>go(+d.dataset.i));
+document.addEventListener('keydown',e=>{
+  if(['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)){e.preventDefault();go(i+1);}
+  if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();go(i-1);}
+});
+ss.forEach(s=>new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){i=ss.indexOf(e.target);dots.forEach((d,k)=>d.classList.toggle('on',k===i));}}),{threshold:.5}).observe(s));
+</script></body></html>

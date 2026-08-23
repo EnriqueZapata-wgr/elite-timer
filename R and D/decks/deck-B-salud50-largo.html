@@ -1,0 +1,351 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ATP · Salud 5.0, versión larga</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--lime:#A8E02A;--teal:#1ABC9C;--grad:linear-gradient(135deg,#A8E02A,#3DBF6E,#1ABC9C);
+--n0:#000;--n1:#0A0A0A;--n2:#121212;--n3:#232323;--ink:#fff;--ink2:#D2D2D2;--muted:#A8A8A8;--line:#232323;
+--acero:#DBE2E7;--acero2:#E9EEF1;--tinta:#0F1518;--tinta2:#4A555C;--tenue:#7A868E;--tealC:#086A5E;
+--sans:'Poppins',system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#000;font-family:var(--sans);color:var(--ink);overflow-x:hidden}
+.slide{width:100vw;height:100vh;min-height:560px;position:relative;overflow:hidden;display:flex;align-items:center;
+  scroll-snap-align:start;page-break-after:always;break-after:page}
+.deck{width:100vw;scroll-snap-type:y mandatory;height:100vh;overflow-y:scroll}
+.in{width:100%;max-width:1210px;margin:0 auto;padding:0 clamp(30px,4.4vw,64px);position:relative;z-index:3}
+.dark{background:var(--n0);color:var(--ink)}
+.light{background:var(--acero);color:var(--tinta)}
+.mesh{position:absolute;inset:-14%;z-index:0;filter:blur(10px)}
+.brand{position:absolute;top:clamp(34px,5vh,52px);left:clamp(30px,4.4vw,64px);display:flex;align-items:center;gap:11px;z-index:5;
+  font-weight:800;letter-spacing:-.04em;font-size:clamp(15px,1.5vw,19px)}
+.mol{width:clamp(26px,2.6vw,32px);height:auto}
+.num{position:absolute;bottom:clamp(32px,4.6vh,48px);right:clamp(30px,4.4vw,64px);font-family:var(--mono);font-size:13px;letter-spacing:.2em;z-index:5;color:var(--muted)}
+.light .num{color:var(--tenue)}
+.eyebrow{font-size:clamp(12px,1.15vw,15px);font-weight:700;letter-spacing:.22em;text-transform:uppercase;margin-bottom:clamp(14px,2.2vh,26px);
+  color:var(--teal);display:inline-block}
+.light .eyebrow{color:var(--tealC)}
+h1{font-size:clamp(30px,4.4vw,58px);font-weight:800;letter-spacing:-.04em;line-height:1.12;max-width:19ch;text-wrap:balance}
+h2{font-size:clamp(24px,3.3vw,45px);font-weight:800;letter-spacing:-.035em;line-height:1.14;max-width:20ch;text-wrap:balance}
+.lead{font-size:clamp(18px,2.05vw,28px);line-height:1.5;color:var(--ink2);max-width:46ch;margin-top:clamp(14px,2.4vh,26px)}
+.light .lead{color:var(--tinta2)}
+.punch{font-size:clamp(17px,1.75vw,24px);font-weight:500;letter-spacing:-.02em;line-height:1.4;max-width:38ch;
+  margin-top:clamp(16px,2.6vh,30px);border-left:3px solid var(--teal);padding-left:18px;color:var(--ink)}
+.light .punch{border-left-color:var(--tealC);color:var(--tinta)}
+.priv{font-size:clamp(14px,1.35vw,19px);font-weight:600;line-height:1.45;max-width:50ch;margin-top:clamp(14px,2.2vh,24px);
+  border-left:3px solid var(--teal);padding-left:18px;color:var(--ink)}
+.light .priv{color:var(--tinta);border-left-color:var(--tealC)}
+.two{display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(26px,4vw,64px);align-items:center}
+.two.rev{grid-template-columns:.85fr 1.15fr}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(12px,1.6vw,22px);margin-top:clamp(18px,3vh,34px)}
+.st{border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:16px;padding:clamp(14px,1.8vw,24px);
+  background:rgba(18,18,18,.6);backdrop-filter:blur(10px);display:flex;flex-direction:column}
+.light .st{border-color:#CBD5DC;border-left-color:var(--tealC);background:rgba(233,238,241,.75)}
+.st .n{font-family:var(--mono);font-size:clamp(20px,2.45vw,33px);font-weight:700;letter-spacing:-.045em;line-height:1.15;color:var(--ink)}
+.light .st .n{color:var(--tinta)}
+.st b{display:block;font-size:clamp(15px,1.5vw,21px);font-weight:600;margin-top:8px;line-height:1.3}
+.st span{display:block;font-size:clamp(13px,1.3vw,17px);color:var(--muted);margin-top:auto;padding-top:12px;line-height:1.35}
+.light .st span{color:var(--tinta2)}
+.pieces{display:grid;grid-template-columns:repeat(2,1fr);gap:clamp(10px,1.4vw,18px);margin-top:clamp(18px,2.8vh,30px)}
+.pc{border:1px solid var(--line);border-radius:14px;padding:clamp(14px,1.6vw,22px);background:rgba(18,18,18,.55);backdrop-filter:blur(10px);position:relative;overflow:hidden}
+.light .pc{border-color:#CBD5DC;background:rgba(233,238,241,.78)}
+.pc::after{content:'';position:absolute;left:0;top:0;width:100%;height:3px;background:var(--line)}
+.light .pc::after{background:#CBD5DC}
+
+.pc b{display:block;font-size:clamp(15px,1.5vw,20px);font-weight:700;margin-bottom:5px}
+.pc p{font-size:clamp(14px,1.4vw,19px);color:var(--ink2);line-height:1.4}
+.light .pc p{color:var(--tinta2)}
+.phone{border-radius:clamp(14px,1.6vw,22px);overflow:hidden;box-shadow:0 40px 90px -30px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.07);
+  display:block;width:100%;max-width:clamp(275px,30vw,410px);margin:0 auto;
+  object-fit:cover;object-position:top;
+  -webkit-mask-image:linear-gradient(#000 58%,rgba(0,0,0,.6) 84%,transparent 100%);mask-image:linear-gradient(#000 58%,rgba(0,0,0,.6) 84%,transparent 100%)}
+.light .phone{box-shadow:0 30px 70px -28px rgba(15,21,24,.4),0 0 0 1px rgba(15,21,24,.1)}
+.two.rev .phone{margin-left:0}
+.ask{border:1.5px solid transparent;border-radius:20px;padding:clamp(22px,2.8vw,38px);margin-top:clamp(16px,2.6vh,28px);
+  background-image:linear-gradient(150deg,#121212,#0B0B0B 60%,#121212),linear-gradient(135deg,#3DBF6E,#1ABC9C);background-origin:border-box;background-clip:padding-box,border-box;
+  display:grid;grid-template-columns:1.2fr 1fr;grid-template-rows:min-content auto;gap:0 clamp(20px,3vw,44px);align-content:start;align-items:start}
+.light .ask{background-image:linear-gradient(150deg,#E9EEF1,#DDE5E9),linear-gradient(135deg,#3DBF6E,#086A5E)}
+.ask .k{font-size:clamp(14px,1.35vw,18px);letter-spacing:.2em;text-transform:uppercase;color:var(--ink2);font-weight:700}
+.light .ask .k{color:var(--tinta2)}
+.ask .v{font-size:clamp(20px,2.3vw,32px);font-weight:800;letter-spacing:-.03em;line-height:1.18;margin-top:10px;color:var(--ink)}
+.light .ask .v{color:var(--tinta)}
+.ask p{grid-column:2;grid-row:1 / span 2;align-self:center;font-size:clamp(15px,1.5vw,21px);color:var(--ink2);line-height:1.5;max-width:none;margin:0}
+.light .ask p{color:var(--tinta2)}
+.who{display:flex;gap:clamp(16px,2.4vw,36px);margin-top:clamp(16px,2.6vh,28px);flex-wrap:wrap;
+  border-top:1px solid var(--line);padding-top:clamp(14px,2.2vh,22px)}
+.light .who{border-top-color:#CBD5DC}
+.who div{flex:1;min-width:230px}
+.who b{display:block;font-size:clamp(13px,1.25vw,17px);font-weight:700}
+.who p{font-size:clamp(13px,1.25vw,17px);color:var(--ink2);line-height:1.4;margin-top:5px}
+.light .who p{color:var(--tinta2)}
+.src{font-size:clamp(13px,1.25vw,17px);color:var(--muted);margin-top:clamp(12px,2vh,22px);line-height:1.45;max-width:60ch}
+.light .src{color:var(--tinta2)}
+.nav{position:fixed;bottom:clamp(28px,4vh,44px);left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:99}
+.nav button{width:9px;height:9px;border-radius:50%;border:0;background:rgba(128,128,128,.45);cursor:pointer;padding:0}
+.nav button.on{background:#3DBF6E;width:26px;border-radius:6px}
+
+/* ---- bloques nuevos ---- */
+.secs{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(10px,1.3vw,18px);margin-top:clamp(16px,2.6vh,28px)}
+.sec{border:1px solid var(--line);border-radius:14px;padding:clamp(13px,1.5vw,20px);background:rgba(18,18,18,.6);backdrop-filter:blur(10px);
+  border-top:3px solid var(--c,#1ABC9C)}
+.light .sec{border-color:#CBD5DC;border-top-color:var(--c,#086A5E);background:rgba(233,238,241,.78)}
+.sec .q{font-family:var(--mono);font-size:clamp(22px,2.5vw,34px);font-weight:700;letter-spacing:-.04em;line-height:1}
+.sec b{display:block;font-size:clamp(13px,1.3vw,17px);font-weight:700;margin-top:6px}
+.secs.cinco{grid-template-columns:repeat(5,1fr);gap:clamp(8px,1vw,13px)}
+.secs.cinco .sec{padding:clamp(11px,1.25vw,17px)}
+.secs.cinco .sec p{font-size:clamp(11.5px,1.05vw,14.5px)}
+.sec p{font-size:clamp(12px,1.15vw,15.5px);color:var(--ink2);line-height:1.4;margin-top:7px}
+.light .sec p{color:var(--tinta2)}
+.capas{display:grid;gap:clamp(8px,1.1vh,13px);margin-top:clamp(16px,2.4vh,26px)}
+.capa{display:grid;grid-template-columns:auto 1fr;gap:clamp(14px,1.8vw,24px);align-items:baseline;
+  border-left:3px solid var(--c,#1ABC9C);padding:clamp(7px,1vh,11px) 0 clamp(7px,1vh,11px) clamp(14px,1.6vw,20px)}
+.light .capa{border-left-color:var(--c,#086A5E)}
+.capa .i{font-family:var(--mono);font-size:clamp(13px,1.25vw,17px);font-weight:700;color:var(--muted)}
+.light .capa .i{color:var(--tenue)}
+.capa b{font-size:clamp(15px,1.6vw,22px);font-weight:700;letter-spacing:-.02em}
+.capa span{display:block;font-size:clamp(13px,1.3vw,17.5px);color:var(--ink2);line-height:1.4;margin-top:3px}
+.light .capa span{color:var(--tinta2)}
+.kpis{display:flex;flex-wrap:wrap;gap:clamp(16px,2.4vw,38px);margin-top:clamp(14px,2.2vh,24px)}
+.kpi{min-width:120px}
+.kpi .q{font-family:var(--mono);font-size:clamp(24px,2.9vw,40px);font-weight:700;letter-spacing:-.045em;line-height:1}
+.kpi span{display:block;font-size:clamp(13px,1.3vw,17px);color:var(--ink2);line-height:1.35;margin-top:7px;max-width:22ch}
+.light .kpi span{color:var(--tinta2)}
+.tag{display:inline-block;font-size:clamp(11px,1.05vw,13.5px);font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  border:1px solid var(--teal);color:var(--teal);border-radius:100px;padding:5px 14px;margin-bottom:clamp(12px,1.8vh,20px)}
+.light .tag{border-color:var(--tealC);color:var(--tealC)}
+.tag.prop{border-color:#EFD54F;color:#EFD54F}
+.light .tag.prop{border-color:#8A6D00;color:#8A6D00}
+.rows{display:grid;gap:clamp(9px,1.2vh,14px);margin-top:clamp(14px,2.2vh,24px)}
+.row{display:grid;grid-template-columns:minmax(150px,.34fr) 1fr;gap:clamp(14px,2vw,30px);align-items:baseline;
+  border-top:1px solid var(--line);padding-top:clamp(9px,1.2vh,14px)}
+.light .row{border-top-color:#CBD5DC}
+.row b{font-size:clamp(14px,1.45vw,19px);font-weight:700}
+.row p{font-size:clamp(13px,1.35vw,18px);color:var(--ink2);line-height:1.42}
+.light .row p{color:var(--tinta2)}
+.dense .lead{font-size:clamp(15px,1.6vw,21px);max-width:58ch}
+.dense h2{font-size:clamp(21px,2.75vw,36px)}
+.dense .kpis{gap:clamp(10px,1.5vw,22px)}
+.dense .kpis{display:grid;grid-template-columns:repeat(2,1fr)}
+.dense .kpi{min-width:0}
+.dense .kpi .q{font-size:clamp(20px,2.25vw,30px)}
+.dense .kpi span{font-size:clamp(12px,1.15vw,15.5px);max-width:18ch;margin-top:5px}
+.dense .punch{font-size:clamp(15px,1.5vw,20px);margin-top:clamp(12px,1.8vh,20px);padding-left:15px}
+.dense .priv{font-size:clamp(13px,1.25vw,17px);padding-left:15px;margin-top:clamp(11px,1.6vh,18px)}
+.dense .rows{gap:clamp(7px,1vh,11px);margin-top:clamp(11px,1.7vh,18px)}
+.dense .row p{font-size:clamp(12.5px,1.25vw,16.5px)}
+.dense .row b{font-size:clamp(13px,1.3vw,17px)}
+.dense .ask{padding:clamp(18px,2.2vw,30px);margin-top:clamp(13px,2vh,22px)}
+.dense .ask .v{font-size:clamp(18px,2vw,27px)}
+.dense .ask p{font-size:clamp(13px,1.3vw,18px)}
+.dense .who{margin-top:clamp(13px,2vh,22px);padding-top:clamp(11px,1.7vh,18px)}
+.dense .who p{font-size:clamp(12px,1.15vw,15.5px)}
+.dense .src{font-size:clamp(12px,1.15vw,15.5px);margin-top:clamp(10px,1.5vh,17px)}
+
+@media (min-width:1000px){.nav{display:none}}
+
+/* ---- piramide de capas ---- */
+.pir{display:flex;flex-direction:column;gap:clamp(5px,.8vh,9px);align-items:center;margin-top:clamp(14px,2.2vh,24px)}
+.pirr{width:var(--w);display:grid;grid-template-columns:auto auto 1fr;gap:clamp(10px,1.4vw,20px);align-items:center;
+  padding:clamp(9px,1.2vh,15px) clamp(14px,1.8vw,26px);border-radius:12px;background:rgba(18,18,18,.72);
+  border:1px solid var(--line);border-left:4px solid var(--c,#1ABC9C);backdrop-filter:blur(8px)}
+.light .pirr{background:rgba(233,238,241,.82);border-color:#CBD5DC}
+.pirr .i{font-family:var(--mono);font-size:clamp(12px,1.15vw,16px);font-weight:700;color:var(--muted)}
+.light .pirr .i{color:var(--tenue)}
+.pirr b{font-size:clamp(14px,1.5vw,21px);font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+.pirr span{font-size:clamp(12px,1.2vw,16.5px);color:var(--ink2);line-height:1.35}
+.light .pirr span{color:var(--tinta2)}
+.pirr.on{border-width:1px 1px 1px 4px;box-shadow:0 0 0 1px var(--c,#1ABC9C)}
+.pirr.off{opacity:.42}
+.rows.map .row{grid-template-columns:minmax(180px,.28fr) 1fr}
+.big{font-family:var(--mono);font-size:clamp(44px,7vw,104px);font-weight:700;letter-spacing:-.06em;line-height:.95;
+  margin-top:clamp(10px,1.6vh,18px)}
+.ej{display:grid;gap:clamp(7px,1vh,12px);margin-top:clamp(14px,2.2vh,24px)}
+.ej div{font-size:clamp(14px,1.5vw,21px);line-height:1.4;color:var(--ink2);border-left:2px solid var(--n3);padding-left:clamp(12px,1.5vw,20px)}
+.light .ej div{color:var(--tinta2);border-left-color:#CBD5DC}
+.ej div b{color:var(--ink);font-weight:600}
+.light .ej div b{color:var(--tinta)}
+
+@media (max-height:860px){
+  .brand{top:22px} .num{bottom:20px}
+  h1{font-size:clamp(28px,3.4vw,44px)}
+  h2{font-size:clamp(21px,2.5vw,34px)}
+  .dense h2{font-size:clamp(19px,2.2vw,29px)}
+  .lead{font-size:clamp(16px,1.6vw,22px);margin-top:14px}
+  .dense .lead{font-size:clamp(14px,1.35vw,18px)}
+  .punch,.priv{font-size:clamp(15px,1.45vw,20px);margin-top:14px}
+  .rows{margin-top:12px;gap:8px}
+  .row p{font-size:clamp(12px,1.15vw,15.5px)}
+  .kpis{margin-top:12px} .capas{margin-top:12px;gap:7px} .secs{margin-top:14px}
+  .pir{margin-top:12px;gap:5px} .pirr{padding:8px 18px} .pirr span{font-size:clamp(11.5px,1.1vw,15px)}
+  .big{font-size:clamp(40px,6vw,84px)} .ej{margin-top:12px;gap:6px} .ej div{font-size:clamp(13px,1.35vw,18px)}
+}
+@media print{
+  .nav{display:none}
+  .deck{height:auto;overflow:visible}
+  .slide{height:100vh;page-break-after:always}
+  @page{size:landscape;margin:0}
+}
+</style></head><body>
+<div class="deck" id="deck"><section class="slide dark">
+  <div class="mesh" style="background:radial-gradient(46% 44% at 87% 15%, rgba(91,155,213,.15), transparent 66%),radial-gradient(42% 42% at 4% 85%, rgba(26,188,156,.13), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G1" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G1)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  <div class="in"><p class="tag">Salud 5.0</p>
+<h1>La salud no es la ausencia de enfermedad.</h1>
+<p class="lead">Suena obvio dicho así, pero casi todo el sistema está construido sobre esa definición. Por eso a una persona sin diagnóstico se le dice que está sana, aunque traiga la energía por el suelo, duerma mal, se despierte cansada y cargue un descontrol emocional que no sabe nombrar.</p>
+<p class="punch">Se puede estar sin enfermedad y sin salud al mismo tiempo. Ahí está hoy la mayoría de la gente, y ahí no la atiende nadie.</p></div>
+  <div class="num">1 / 11</div>
+</section>
+<section class="slide dark">
+  <div class="mesh" style="background:radial-gradient(46% 44% at 87% 15%, rgba(91,155,213,.15), transparent 66%),radial-gradient(42% 42% at 4% 85%, rgba(26,188,156,.13), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G2" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G2)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  <div class="in"><p class="tag">La definición que sí sirve</p>
+<h2>Salud es el estado óptimo. Vivir a tope, con toda la energía.</h2>
+<p class="lead">En términos del cuerpo ese estado tiene nombre: homeostasis, el equilibrio en el que el cuerpo funciona como está diseñado a funcionar. Y no es reposo. El cuerpo necesita estrés, pero el correcto y en la dosis correcta, el que lo rompe un poco para que reconstruya más fuerte.</p>
+<div class="ej">
+  <div><b>Lo que lo saca de ahí</b> es la vida moderna. Comer a deshoras y comer lo que el cuerpo no reconoce, moverse poco, dormir con luz, nunca pasar frío, nunca pasar hambre de verdad, y vivir en un estrés que nunca se descarga porque nunca hubo de qué correr.</div>
+  <div><b>Entonces la pregunta cambia.</b> No es cómo curar. Es cómo regresar a la homeostasis. Y a eso se le llama intervención.</div>
+</div></div>
+  <div class="num">2 / 11</div>
+</section>
+<section class="slide dark">
+  <div class="mesh" style="background:radial-gradient(46% 44% at 87% 15%, rgba(91,155,213,.15), transparent 66%),radial-gradient(42% 42% at 4% 85%, rgba(26,188,156,.13), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G3" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G3)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  <div class="in"><p class="tag">Cómo se logra</p>
+<h2>Cinco capas, y es una pirámide, no una lista.</h2>
+<p class="lead">Cada capa se edifica encima de la anterior, y ninguna sustituye a la que tiene debajo. Una capa de arriba sin la de abajo no se sostiene.</p>
+<div class="pir"><div class="pirr" style="--w:56%;--c:#7F77DD"><div class="i">05</div><b>Inteligencia artificial</b><span>Lee las otras cuatro, todos los días, para una sola persona.</span></div><div class="pirr" style="--w:67%;--c:#E74C3C"><div class="i">04</div><b>Integración</b><span>El cuerpo como un solo sistema, en una sola conclusión.</span></div><div class="pirr" style="--w:78%;--c:#EF9F27"><div class="i">03</div><b>Sensorización</b><span>Lo que no se mide no se puede mejorar. La ciencia se vuelve tuya.</span></div><div class="pirr" style="--w:89%;--c:#5B9BD5"><div class="i">02</div><b>Método científico</b><span>Lo que ya se comprobó, para no descubrirlo por prueba y error.</span></div><div class="pirr" style="--w:100%;--c:#A8E02A"><div class="i">01</div><b>Autoconocimiento</b><span>Nadie va a poder sentir lo que tú sientes. Tus sensores internos.</span></div></div>
+<p class="punch">Ahí cae casi todo lo que hoy se vende como salud digital: te venden la capa cinco sin la uno.</p></div>
+  <div class="num">3 / 11</div>
+</section>
+<section class="slide dark">
+  <div class="mesh" style="background:radial-gradient(46% 44% at 87% 15%, rgba(91,155,213,.15), transparent 66%),radial-gradient(42% 42% at 4% 85%, rgba(26,188,156,.13), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G4" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G4)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  <div class="in"><div class="two dense" style="grid-template-columns:1.25fr .75fr">
+<div><p class="tag">Capa 01 · Autoconocimiento</p>
+<h2>Nadie nunca va a poder sentir lo que tú sientes.</h2>
+
+<p class="lead">Ningún médico, ningún coach, ninguna aplicación, ninguna inteligencia artificial. Nadie nunca. Por eso tú eres la persona mejor capacitada para ser tu propio experto: tus sensores internos son la herramienta más confiable que existe para saber cómo estás.</p>
+<p class="punch">Es la base de todo, y no es negociable ni intercambiable.</p></div>
+<div><div class="pir"><div class="pirr off" style="--w:76%;--c:#7F77DD"><div class="i">05</div><b>Inteligencia artificial</b></div><div class="pirr off" style="--w:82%;--c:#E74C3C"><div class="i">04</div><b>Integración</b></div><div class="pirr off" style="--w:88%;--c:#EF9F27"><div class="i">03</div><b>Sensorización</b></div><div class="pirr off" style="--w:94%;--c:#5B9BD5"><div class="i">02</div><b>Método científico</b></div><div class="pirr on" style="--w:100%;--c:#A8E02A"><div class="i">01</div><b>Autoconocimiento</b></div></div></div></div></div>
+  <div class="num">4 / 11</div>
+</section>
+<section class="slide light">
+  <div class="mesh" style="background:radial-gradient(46% 44% at 88% 16%, rgba(8,106,94,.07), transparent 66%),radial-gradient(42% 40% at 4% 84%, rgba(15,21,24,.05), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G5" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G5)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  <div class="in"><div class="two dense" style="grid-template-columns:1.25fr .75fr">
+<div><p class="tag">Capa 01 · Autoconocimiento</p>
+<h2>El problema es que no están calibrados.</h2>
+
+<p class="lead">Se calibran con información, con introspección y con un estado natural, porque viviendo en un estado artificial esos sensores mandan señales cruzadas. Confundes hambre con sed, cansancio con tristeza, ansiedad con antojo. La forma de calibrarlos es la autoobservación a lo largo del tiempo.</p>
+<div class="ej">
+  <div>Comes cierta cosa y <b>te da dolor de cabeza</b>. Dejas de comerla y se va.</div>
+  <div>Combinas vodka con whisky y <b>al día siguiente te duele la cabeza</b>. Si no lo haces, no te duele.</div>
+  <div>Pasas de tres copas de vino y <b>empiezan las reacciones alérgicas</b>. Si no pasas de tres, no te pasa.</div>
+  <div>Tienes una discusión fuerte y <b>te da diarrea</b>. Si no la tienes, no te pasa.</div>
+</div>
+<p class="punch">Nada sustituye eso. Pero es lentísimo y tiene tope: una vida no alcanza para descubrir todo lo que ya se sabe.</p></div>
+<div><div class="pir"><div class="pirr off" style="--w:76%;--c:#7F77DD"><div class="i">05</div><b>Inteligencia artificial</b></div><div class="pirr off" style="--w:82%;--c:#E74C3C"><div class="i">04</div><b>Integración</b></div><div class="pirr off" style="--w:88%;--c:#EF9F27"><div class="i">03</div><b>Sensorización</b></div><div class="pirr off" style="--w:94%;--c:#5B9BD5"><div class="i">02</div><b>Método científico</b></div><div class="pirr on" style="--w:100%;--c:#A8E02A"><div class="i">01</div><b>Autoconocimiento</b></div></div></div></div></div>
+  <div class="num">5 / 11</div>
+</section>
+<section class="slide dark">
+  <div class="mesh" style="background:radial-gradient(46% 44% at 87% 15%, rgba(91,155,213,.15), transparent 66%),radial-gradient(42% 42% at 4% 85%, rgba(26,188,156,.13), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G6" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G6)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  <div class="in"><div class="two dense" style="grid-template-columns:1.25fr .75fr">
+<div><p class="tag">Capa 02 · Método científico</p>
+<h2>Aislar un fenómeno para poder repetirlo después.</h2>
+
+<p class="lead">Eso es el método científico dicho simple. Aislar las variables y entender que en cierta población, bajo ciertas circunstancias, comiendo esto y haciendo esto, se obtienen estos resultados.</p>
+<div class="ej">
+  <div><b>La perimenopausia.</b> Durante miles de años se les dijo locas. Ellas sí estaban en sintonía con sus sensores internos, la capa uno les funcionaba perfecto, pero la ciencia todavía no lo comprobaba. Y como los hombres no lo sienten, entonces las mujeres estaban locas. No.</div>
+  <div><b>La migraña y el café.</b> Se sabe que la deshidratación produce dolor de cabeza, y que en algunas personas la cafeína genera una vasoconstricción que baja la presión dentro del cráneo. Ya no hay que descubrirlo por azar del destino.</div>
+</div>
+<p class="punch">Sirve para eliminar iteraciones, eliminar sufrimiento, y saber de antemano qué probar.</p></div>
+<div><div class="pir"><div class="pirr off" style="--w:76%;--c:#7F77DD"><div class="i">05</div><b>Inteligencia artificial</b></div><div class="pirr off" style="--w:82%;--c:#E74C3C"><div class="i">04</div><b>Integración</b></div><div class="pirr off" style="--w:88%;--c:#EF9F27"><div class="i">03</div><b>Sensorización</b></div><div class="pirr on" style="--w:94%;--c:#5B9BD5"><div class="i">02</div><b>Método científico</b></div><div class="pirr off" style="--w:100%;--c:#A8E02A"><div class="i">01</div><b>Autoconocimiento</b></div></div></div></div></div>
+  <div class="num">6 / 11</div>
+</section>
+<section class="slide dark">
+  <div class="mesh" style="background:radial-gradient(46% 44% at 87% 15%, rgba(91,155,213,.15), transparent 66%),radial-gradient(42% 42% at 4% 85%, rgba(26,188,156,.13), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G7" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G7)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  <div class="in"><div class="two dense" style="grid-template-columns:1.15fr .85fr"><div>
+<p class="tag">Por qué la pirámide no se puede invertir</p>
+<h2>Los estudios dan un buen norte. Pero n siempre es igual a uno.</h2>
+<p class="lead">Los estudios poblacionales, las aleatorizaciones mendelianas, la epidemiología entera. Todo eso orienta. Ninguno de esos estudios eres tú.</p>
+<p class="punch">Por eso el método científico se edifica encima del autoconocimiento y no en su lugar. Nada vence a los sensores internos.</p>
+</div><div><div class="big" style="color:#5B9BD5">n = 1</div>
+<p class="src">Cuando se trata de intervenciones de salud efectivas, siempre hay que personalizar.</p>
+<div class="pir"><div class="pirr off" style="--w:76%;--c:#7F77DD"><div class="i">05</div><b>Inteligencia artificial</b></div><div class="pirr off" style="--w:82%;--c:#E74C3C"><div class="i">04</div><b>Integración</b></div><div class="pirr off" style="--w:88%;--c:#EF9F27"><div class="i">03</div><b>Sensorización</b></div><div class="pirr on" style="--w:94%;--c:#5B9BD5"><div class="i">02</div><b>Método científico</b></div><div class="pirr off" style="--w:100%;--c:#A8E02A"><div class="i">01</div><b>Autoconocimiento</b></div></div></div></div></div>
+  <div class="num">7 / 11</div>
+</section>
+<section class="slide light">
+  <div class="mesh" style="background:radial-gradient(46% 44% at 88% 16%, rgba(8,106,94,.07), transparent 66%),radial-gradient(42% 40% at 4% 84%, rgba(15,21,24,.05), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G8" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G8)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  <div class="in"><div class="two dense" style="grid-template-columns:1.25fr .75fr">
+<div><p class="tag">Capa 03 · Sensorización</p>
+<h2>Lo que no se mide no se puede mejorar.</h2>
+
+<p class="lead">Aquí empezamos a recopilar datos propios: oxigenación, peso, grasa corporal, grasa visceral, análisis de sangre, análisis genéticos, sueño, cuántas horas roncas, niveles de inflamación.</p>
+<div class="ej">
+  <div>Con esa información <b>la ciencia se vuelve personal</b>. Si tienes estos resultados de sangre, entonces sabemos que te tocan estos ajustes, con estilo de vida, alimentación, suplementos o incluso medicamentos.</div>
+  <div><b>La ciencia deja de ser n igual a ocho millones de personas.</b> Ahora es n igual a uno.</div>
+</div></div>
+<div><div class="pir"><div class="pirr off" style="--w:76%;--c:#7F77DD"><div class="i">05</div><b>Inteligencia artificial</b></div><div class="pirr off" style="--w:82%;--c:#E74C3C"><div class="i">04</div><b>Integración</b></div><div class="pirr on" style="--w:88%;--c:#EF9F27"><div class="i">03</div><b>Sensorización</b></div><div class="pirr off" style="--w:94%;--c:#5B9BD5"><div class="i">02</div><b>Método científico</b></div><div class="pirr off" style="--w:100%;--c:#A8E02A"><div class="i">01</div><b>Autoconocimiento</b></div></div></div></div></div>
+  <div class="num">8 / 11</div>
+</section>
+<section class="slide dark">
+  <div class="mesh" style="background:radial-gradient(46% 44% at 87% 15%, rgba(91,155,213,.15), transparent 66%),radial-gradient(42% 42% at 4% 85%, rgba(26,188,156,.13), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G9" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G9)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  <div class="in"><div class="two dense" style="grid-template-columns:1.25fr .75fr">
+<div><p class="tag">Capa 04 · Integración</p>
+<h2>El cuerpo deja de verse despiezado.</h2>
+
+<p class="lead">El sueño tiene que ver con la alimentación, y con el estado de ánimo, y con el contexto social, y con lo que te suplementas, y con tu genética. Todo eso se tiene que integrar. Ahí nacen la medicina y la nutrición funcional integrativa.</p>
+<div class="ej">
+  <div><b>Integrativo</b> quiere decir que todos los valores se agrupan en una sola conclusión, en una sola narrativa. No diez opiniones de diez especialidades. Una.</div>
+  <div><b>Funcional</b> quiere decir respetar la función. La naturaleza no hace las cosas al azar: si le regresas al cuerpo las condiciones naturales y aíslas las variables, el cuerpo debería reaccionar.</div>
+  <div><b>Y si aun así algo no funciona</b>, entonces sí toca la intervención más invasiva, y ahí entran medicamentos y cirugías. Lo invasivo no está prohibido. Está después.</div>
+</div></div>
+<div><div class="pir"><div class="pirr off" style="--w:76%;--c:#7F77DD"><div class="i">05</div><b>Inteligencia artificial</b></div><div class="pirr on" style="--w:82%;--c:#E74C3C"><div class="i">04</div><b>Integración</b></div><div class="pirr off" style="--w:88%;--c:#EF9F27"><div class="i">03</div><b>Sensorización</b></div><div class="pirr off" style="--w:94%;--c:#5B9BD5"><div class="i">02</div><b>Método científico</b></div><div class="pirr off" style="--w:100%;--c:#A8E02A"><div class="i">01</div><b>Autoconocimiento</b></div></div></div></div></div>
+  <div class="num">9 / 11</div>
+</section>
+<section class="slide dark">
+  <div class="mesh" style="background:radial-gradient(46% 44% at 87% 15%, rgba(91,155,213,.15), transparent 66%),radial-gradient(42% 42% at 4% 85%, rgba(26,188,156,.13), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G10" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G10)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  <div class="in"><div class="two dense" style="grid-template-columns:1.25fr .75fr">
+<div><p class="tag">Capa 05 · Inteligencia artificial</p>
+<h2>Un coach en tiempo real, que ningún humano puede ser.</h2>
+
+<p class="lead">Yo no puedo estar todo el tiempo leyendo los valores de mis clientes. Una inteligencia artificial sí, para cada uno, todos los días y a cada minuto. Por eso la quinta capa no sustituye a ninguna: las consolida.</p>
+<div class="ej">
+  <div><b>Consolida la uno</b> porque recibe cómo te sientes, cómo dormiste, cómo te cayó la intervención, tu entorno y tu contexto.</div>
+  <div><b>Consolida la dos</b> porque tiene el almanaque completo de la ciencia y no se le olvida nada, cosa que a cualquier experto sí le pasa.</div>
+  <div><b>Consolida la tres</b> porque revisa sangre, genética, sueño y frecuencia cardíaca todos los días y compara una cosa con la otra.</div>
+  <div><b>Y con eso llega a la cuatro</b>, que es integrarlo todo y verlo desde una perspectiva funcional.</div>
+</div></div>
+<div><div class="pir"><div class="pirr on" style="--w:76%;--c:#7F77DD"><div class="i">05</div><b>Inteligencia artificial</b></div><div class="pirr off" style="--w:82%;--c:#E74C3C"><div class="i">04</div><b>Integración</b></div><div class="pirr off" style="--w:88%;--c:#EF9F27"><div class="i">03</div><b>Sensorización</b></div><div class="pirr off" style="--w:94%;--c:#5B9BD5"><div class="i">02</div><b>Método científico</b></div><div class="pirr off" style="--w:100%;--c:#A8E02A"><div class="i">01</div><b>Autoconocimiento</b></div></div></div></div></div>
+  <div class="num">10 / 11</div>
+</section>
+<section class="slide dark">
+  <div class="mesh" style="background:radial-gradient(46% 44% at 87% 15%, rgba(91,155,213,.15), transparent 66%),radial-gradient(42% 42% at 4% 85%, rgba(26,188,156,.13), transparent 64%)"></div>
+  <div class="brand"><svg class="mol" viewBox="0 0 955.42 853.46"><defs><linearGradient id="G11" gradientUnits="userSpaceOnUse" x1="0" y1="120" x2="955" y2="700"><stop offset="0" stop-color="#A8E02A"/><stop offset=".5" stop-color="#3DBF6E"/><stop offset="1" stop-color="#1ABC9C"/></linearGradient></defs><path fill="url(#G11)" transform="translate(-29.93 -81.02)" d="M923.12,334.8c34.37,0,62.23-28.9,62.23-64.55s-27.86-64.56-62.23-64.56-62.24,28.9-62.24,64.56A66.2,66.2,0,0,0,868,300.17l-92,83.34a81,81,0,0,0-52.48-19.37c-45.9,0-83.12,38.6-83.12,86.22a91.24,91.24,0,0,0,.52,9.55L511.15,491.22A89,89,0,0,0,406,443.87L337.62,362a138.68,138.68,0,1,0-38.8,34.34l63.55,76.14a88.9,88.9,0,0,0-.92,112.42L307.58,697.4a122.84,122.84,0,1,0,39.58,25.33l52.72-110.1a88.93,88.93,0,0,0,119.68-78.74l136.68-33c15.1,21.59,39.61,35.64,67.3,35.64a80.49,80.49,0,0,0,21.9-3l38.46,66.62a89.86,89.86,0,1,0,31.83-14L776,517.26a88.49,88.49,0,0,0,16.46-115.18l90.8-82.31A60.64,60.64,0,0,0,923.12,334.8Z"/></svg><span>ATP</span></div>
+  <div class="in"><p class="tag">Ese paso es hoy</p>
+<h2>Cada capa tiene una pieza construida dentro de la aplicación.</h2>
+<div class="rows map">
+  <div class="row"><b>01 · Autoconocimiento</b><p>144 emociones sobre el modelo RULER de Yale, mapa corporal, check-in diario con dónde estabas y con quién, cuatro tipos de diario y registro de síntomas.</p></div>
+  <div class="row"><b>02 · Método científico</b><p>88 intervenciones catalogadas, matriz de referencia funcional por sexo, 39 fichas de biomarcador escritas a mano y cuestionarios funcionales.</p></div>
+  <div class="row"><b>03 · Sensorización</b><p>90 parámetros de laboratorio leídos de un PDF, composición corporal, glucosa, cetonas, sueño importado del teléfono y serie histórica donde nada se borra.</p></div>
+  <div class="row"><b>04 · Integración</b><p>La edad ATP con sus sub edades, el mapa funcional, los protocolos que cruzan pilares y el PDF de consulta que junta todo en un solo documento.</p></div>
+  <div class="row"><b>05 · Inteligencia artificial</b><p>ARGOS, que arma cada respuesta con cerca de 25 bloques de esa persona, con memoria autorizada y con vigencia de datos.</p></div>
+</div>
+<p class="punch">La app no es la capa cinco. La app son las cinco capas.</p></div>
+  <div class="num">11 / 11</div>
+</section></div>
+<div class="nav" id="nav"><button data-i="0" class="on"></button><button data-i="1" class=""></button><button data-i="2" class=""></button><button data-i="3" class=""></button><button data-i="4" class=""></button><button data-i="5" class=""></button><button data-i="6" class=""></button><button data-i="7" class=""></button><button data-i="8" class=""></button><button data-i="9" class=""></button><button data-i="10" class=""></button></div>
+<script>
+const deck=document.getElementById('deck'),ss=[...document.querySelectorAll('.slide')],dots=[...document.querySelectorAll('#nav button')];
+let i=0;
+function go(n){i=Math.max(0,Math.min(ss.length-1,n));ss[i].scrollIntoView({behavior:'smooth'});}
+dots.forEach(d=>d.onclick=()=>go(+d.dataset.i));
+document.addEventListener('keydown',e=>{
+  if(['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)){e.preventDefault();go(i+1);}
+  if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();go(i-1);}
+});
+ss.forEach(s=>new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){i=ss.indexOf(e.target);dots.forEach((d,k)=>d.classList.toggle('on',k===i));}}),{threshold:.5}).observe(s));
+</script></body></html>

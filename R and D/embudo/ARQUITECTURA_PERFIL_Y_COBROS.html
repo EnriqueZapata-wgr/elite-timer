@@ -1,0 +1,301 @@
+<title>Perfil y cobros</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{--canvas:#000;--card:#121212;--alto:#1A1A1A;--borde:#242424;
+ --tinta:#fff;--sec:#9A9A9A;--tenue:#767676;
+ --lima:#A8E02A;--teal:#1ABC9C;--ambar:#EFD54F;--rojo:#E74C3C;--violeta:#7F77DD;--azul:#5B9BD5;
+ --g1:#A8E02A;--g2:#6DCC48;--g3:#3DBF6E;--g4:#2EC28A;--g5:#1ABC9C}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--canvas);color:var(--tinta);font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+ font-size:16.5px;line-height:1.68;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;left:0;top:0;bottom:0;width:6px;z-index:50;
+ background:linear-gradient(180deg,var(--g1),var(--g2) 26%,var(--g3) 50%,var(--g4) 74%,var(--g5))}
+.wrap{max-width:940px;margin:0 auto;padding:56px 26px 110px 34px}
+h1{font-size:clamp(30px,5.2vw,46px);line-height:1.12;font-weight:600;letter-spacing:-.024em;margin:0 0 18px}
+h2{font-size:clamp(22px,3.2vw,29px);line-height:1.22;font-weight:600;letter-spacing:-.018em;margin:0 0 8px}
+h3{font-size:17.5px;font-weight:600;letter-spacing:-.006em;margin:0 0 10px}
+p{margin:0 0 16px;color:var(--sec)}
+p.lead{color:var(--tinta);font-size:19px;line-height:1.62}
+strong{color:var(--tinta);font-weight:600}
+code{font-family:'SFMono-Regular',Consolas,monospace;font-size:.86em;background:var(--alto);border:1px solid var(--borde);border-radius:5px;padding:1px 6px;color:#CFCFCF}
+a{color:var(--teal);text-decoration:none}
+.kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--tenue);font-weight:500;margin:0 0 10px}
+.sec{margin:0 0 72px;scroll-margin-top:20px}
+.sub{color:var(--sec);font-size:16.5px;margin:0 0 28px;max-width:64ch}
+.indice{background:var(--card);border:1px solid var(--borde);border-radius:16px;padding:22px 24px;margin:0 0 64px}
+.indice ol{margin:0;padding:0;list-style:none;counter-reset:i}
+.indice li{counter-increment:i;margin:0 0 9px;display:flex;gap:13px;align-items:baseline}
+.indice li:last-child{margin:0}
+.indice li::before{content:counter(i,decimal-leading-zero);color:var(--tenue);font-size:12px;font-variant-numeric:tabular-nums;flex:0 0 20px}
+.indice a{color:var(--tinta);font-weight:500;font-size:16px}
+.tabla{overflow-x:auto;margin:0 0 22px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+.tabla table{min-width:560px}
+th{text-align:left;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tenue);font-weight:600;padding:0 16px 11px 0;border-bottom:1px solid var(--borde);white-space:nowrap}
+td{padding:13px 16px 13px 0;border-bottom:1px solid var(--borde);color:var(--sec);vertical-align:top;line-height:1.55}
+td:first-child{color:var(--tinta);font-weight:500}
+tr:last-child td{border-bottom:0}
+pre{background:#0B0B0B;border:1px solid var(--borde);border-radius:12px;padding:18px 20px;overflow-x:auto;margin:0 0 20px;
+ font-size:13.5px;line-height:1.7;color:#C8C8C8;font-family:'SFMono-Regular',Consolas,monospace}
+.alerta{background:var(--card);border:1px solid var(--borde);border-left:3px solid var(--rojo);border-radius:0 16px 16px 0;padding:24px 26px;margin:0 0 26px}
+.alerta h3{margin-bottom:10px}
+.alerta p{margin:0 0 14px}.alerta p:last-child{margin:0}
+.nota{border-left:3px solid var(--teal);padding:2px 0 2px 20px;margin:0 0 24px}
+.nota p{margin:0;font-size:15.5px}
+.paso{display:grid;grid-template-columns:34px 1fr;gap:0 18px;margin:0 0 4px}
+.paso .n{width:30px;height:30px;border-radius:50%;background:var(--alto);border:1px solid var(--borde);
+ display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--sec);margin-top:3px}
+.paso .cont{padding:0 0 26px}
+.paso b{display:block;color:var(--tinta);font-size:16.5px;font-weight:600;margin:0 0 5px}
+.paso p{margin:0 0 10px;font-size:15.5px}.paso p:last-child{margin:0}
+.riesgo{background:var(--card);border:1px solid var(--borde);border-radius:14px;padding:20px 22px;margin:0 0 14px}
+.riesgo b{display:block;color:var(--tinta);font-size:16px;margin:0 0 6px}
+.riesgo p{margin:0;font-size:15px}
+.riesgo p+p{margin-top:10px}
+.riesgo .fix{color:var(--teal);font-weight:600;font-size:11px;letter-spacing:.09em;text-transform:uppercase}
+.est{display:inline-block;font-size:11px;letter-spacing:.07em;text-transform:uppercase;font-weight:600;padding:3px 9px;border-radius:5px;white-space:nowrap}
+.e1{color:var(--teal);background:rgba(26,188,156,.12)}
+.e2{color:var(--ambar);background:rgba(239,213,79,.12)}
+.e3{color:var(--rojo);background:rgba(231,76,60,.13)}
+.e4{color:var(--tenue);background:#1C1C1C}
+.cierre{border-top:1px solid var(--borde);margin-top:64px;padding-top:32px}
+@media(max-width:620px){.wrap{padding:40px 20px 80px 28px}.paso{grid-template-columns:1fr;gap:8px}.paso .n{display:none}}
+</style>
+
+<main class="wrap">
+<p class="kicker">ATP · arquitectura</p>
+<h1>Perfil, pago<br>y ciclo de vida</h1>
+<p class="lead">Cómo se junta la página de perfil con la comprobación de pagos, qué pasa cuando un cobro falla, y cómo se suspende sin borrarle nada a nadie.</p>
+
+<div class="indice"><ol>
+  <li><a href="#puerta">La decisión de mañana, que es puerta de un solo sentido</a></li>
+  <li><a href="#modelo">El modelo: persona, membresía y plaza</a></li>
+  <li><a href="#pagina">La página de perfil, paso a paso</a></li>
+  <li><a href="#seguridad">Los cinco riesgos de esa página</a></li>
+  <li><a href="#amarre">El amarre con el pago</a></li>
+  <li><a href="#ciclo">El ciclo de vida del cobro</a></li>
+  <li><a href="#suspension">La suspensión, que no es baja</a></li>
+  <li><a href="#orden">Qué se construye y en qué orden</a></li>
+</ol></div>
+
+<!-- 01 -->
+<section class="sec" id="puerta">
+<p class="kicker">01</p>
+<h2>La decisión de mañana, que es puerta de un solo sentido</h2>
+
+<div class="alerta">
+<h3>Si quieres código por WhatsApp, el número no puede ir a Cloud API directo</h3>
+<p>Verifiqué el camino y sí existe: Supabase soporta WhatsApp como canal de código de un solo uso. Pero su documentación dice textualmente que <strong>WhatsApp solo está soportado como canal para Twilio y Twilio Verify</strong>. No para Cloud API de Meta.</p>
+<p>Y un número de WhatsApp vive registrado en exactamente un lugar: o en Cloud API directo, o con un proveedor como Twilio. <strong>No en los dos.</strong> Migrarlo después es el mismo camino de un solo sentido del que ya hablamos, con el historial perdido de por medio.</p>
+<p>Por eso esto se decide antes de dar de alta el número, no después. Y cambia lo que yo te había recomendado el sábado, cuando la conversación todavía no incluía identidad por teléfono.</p>
+</div>
+
+<div class="tabla"><table>
+<tr><th></th><th>Cloud API directo</th><th>Twilio</th></tr>
+<tr><td>Costo de plataforma</td><td>cero</td><td>margen sobre cada mensaje</td></tr>
+<tr><td>Avisos del embudo</td><td>sí</td><td>sí</td></tr>
+<tr><td><strong>Código de entrada por WhatsApp</strong></td><td><strong>no</strong></td><td><strong>sí</strong></td></tr>
+<tr><td>Identidad por teléfono en Supabase</td><td>no</td><td>sí, nativo</td></tr>
+<tr><td>Bandeja de soporte</td><td>hace falta Chatwoot aparte</td><td>igual, hace falta aparte</td></tr>
+</table></div>
+
+<p><strong>Si la meta es entrar con teléfono, va Twilio y se acabó la discusión.</strong> Cuesta un poco más por mensaje y es un proveedor más en medio, pero es el único que te da las dos cosas con un solo número. Elegir Cloud API para ahorrarnos unos centavos y luego tener que migrar el número es exactamente el error que no queremos cometer.</p>
+</section>
+
+<!-- 02 -->
+<section class="sec" id="modelo">
+<p class="kicker">02</p>
+<h2>El modelo: persona, membresía y plaza</h2>
+<p class="sub">Esta separación es la que resuelve Dúo y Familiar de raíz, en vez de con el parche de generar varios códigos por pago.</p>
+
+<pre>perfil        la persona
+              nombre · correo · telefono · tel_verificado
+              consent_whatsapp · consent_correo
+
+membresia     lo que se paga
+              titular → perfil · plan · plazas · estado
+              vigencia_hasta · stripe_customer_id · stripe_subscription_id
+
+plaza         un asiento dentro de una membresía
+              membresia → perfil · estado
+              (Individual tiene 1. Dúo 2. Familiar 4.)
+
+acceso        vista derivada, es lo que leen la app y el tablero
+              perfil → tiene_app · tiene_comunidad · hasta_cuando</pre>
+
+<p>Con esto, el Dúo deja de ser dos códigos sueltos que alguien reenvía por WhatsApp y se vuelve <strong>una membresía con dos asientos</strong>. El titular invita al segundo, esa persona crea su propio perfil, y ocupa la plaza. Cada quien con su cuenta y su expediente privado, que es lo que ya promete el catálogo.</p>
+
+<div class="nota"><p>El acceso nunca se guarda como un campo suelto en el perfil. Se calcula. Así no puede quedar desincronizado, que es la falla clásica de los sistemas de membresía y la que hace que alguien siga entrando tres meses después de dejar de pagar.</p></div>
+</section>
+
+<!-- 03 -->
+<section class="sec" id="pagina">
+<p class="kicker">03</p>
+<h2>La página de perfil, paso a paso</h2>
+<p class="sub">El orden no es cosmético. Cada paso está donde está por un motivo.</p>
+
+<div class="paso"><div class="n">1</div><div class="cont">
+<b>Nombre y teléfono</b>
+<p>Se manda un código de seis dígitos por WhatsApp y se verifica ahí mismo. Con eso, el teléfono deja de ser un dato escrito a mano y pasa a ser un canal comprobado.</p>
+<p>Va primero a propósito. Es el paso de menor fricción, es el canal que de verdad se lee, y es el que queremos verificado sí o sí. Si alguien abandona el registro, al menos abandonamos con un teléfono bueno.</p>
+</div></div>
+
+<div class="paso"><div class="n">2</div><div class="cont">
+<b>Correo y contraseña</b>
+<p>La misma cuenta queda con las dos identidades: teléfono y correo. Supabase lo permite, y eso es lo que deja la puerta abierta para que en unos meses la identidad principal sea el teléfono sin migrar a nadie.</p>
+<p>El correo se queda como canal de recuperación, y aquí está el motivo técnico: <strong>en México los números se reciclan.</strong> Un correo abandonado se queda abandonado. Un número abandonado se lo dan a otra persona, y esa persona heredaría el canal de recuperación de una cuenta ajena.</p>
+</div></div>
+
+<div class="paso"><div class="n">3</div><div class="cont">
+<b>Los permisos, con casilla explícita</b>
+<p>Una casilla para recibir el acceso y el soporte por WhatsApp. No es burocracia: Meta exige consentimiento explícito y sin él la cuenta se castiga. Y tener el teléfono no equivale a tener permiso.</p>
+</div></div>
+
+<div class="paso"><div class="n">4</div><div class="cont">
+<b>Elegir plan y pagar</b>
+<p>Aquí el perfil ya existe, así que el enlace de pago se arma con su identificador pegado. Cuando Stripe avise, el sistema ya sabe de quién es el dinero sin tener que adivinar.</p>
+</div></div>
+
+<div class="paso"><div class="n">5</div><div class="cont">
+<b>Acceso</b>
+<p>El webhook confirma, la membresía se activa, sale el WhatsApp y el correo, y la invitación a la comunidad entra a la cola.</p>
+</div></div>
+</section>
+
+<!-- 04 -->
+<section class="sec" id="seguridad">
+<p class="kicker">04</p>
+<h2>Los cinco riesgos de esa página</h2>
+<p class="sub">Una página pública que crea cuentas y toca dinero es la superficie más expuesta de todo el sistema. Estos son los agujeros reales y cómo se tapan.</p>
+
+<div class="riesgo"><b>1 · Que sirva para averiguar quién es cliente</b>
+<p>Si al escribir un correo o un teléfono la página contesta distinto según exista o no, cualquiera puede ir probando direcciones y averiguar quién tiene cuenta en ATP. Tratándose de salud, eso es información sensible por sí sola.</p>
+<p><span class="fix">Se tapa así</span> la respuesta visible es idéntica en los dos casos. Lo que cambia es el correo que sale: si ya existe, va el de "ya tienes cuenta". La persona real se entera, el que fisgonea no.</p></div>
+
+<div class="riesgo"><b>2 · Que alguien reclame el pago de otro</b>
+<p>Este es el grave. Si la página deja amarrar un pago escribiendo el correo con el que se pagó, yo puedo reclamar tu membresía. Y no es teórico: el importe y el correo de un comprobante circulan.</p>
+<p><span class="fix">Se tapa así</span> el amarre nunca se hace hacia atrás. El perfil existe antes del pago y su identificador viaja pegado al enlace. Nadie reclama nada, porque no hay nada que reclamar.</p></div>
+
+<div class="riesgo"><b>3 · Que el identificador del perfil sea una llave</b>
+<p>Stripe advierte en su propia documentación que los enlaces con parámetros aparecen en lugares inesperados, y pide no meter ahí nada sensible. Ese identificador va a quedar en historiales, en capturas y en chats reenviados.</p>
+<p><span class="fix">Se tapa así</span> el identificador no abre nada por sí solo. Saberlo no da acceso, no muestra datos y no permite cobrar. Es una etiqueta, no una llave. Todo lo que sí abre algo viaja en tokens aparte, de un solo uso y con vencimiento.</p></div>
+
+<div class="riesgo"><b>4 · Altas basura y cobro de mensajes</b>
+<p>Cada intento de registro dispara un WhatsApp que se paga. Un robot dando de alta números al azar cuesta dinero de verdad y además tumba la calificación del número ante Meta.</p>
+<p><span class="fix">Se tapa así</span> límite por IP y por número, espera creciente entre reintentos, y una verificación de humano en el formulario. Turnstile de Cloudflare es gratis y no le pide al usuario resolver acertijos.</p></div>
+
+<div class="riesgo"><b>5 · Que el teléfono escrito no sea suyo</b>
+<p>Si el número no se verifica, el código de acceso de alguien termina en el teléfono de un desconocido por un dedazo.</p>
+<p><span class="fix">Se tapa así</span> el paso 1 no avanza sin código confirmado. Por eso va primero y no al final.</p></div>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="amarre">
+<p class="kicker">05</p>
+<h2>El amarre con el pago</h2>
+
+<p>Stripe permite colgar un identificador propio del enlace de pago, y lo devuelve en el aviso cuando el pago se completa. Acepta letras, números, guiones y guiones bajos, hasta doscientos caracteres, así que un identificador de perfil cabe de sobra.</p>
+
+<pre>https://buy.stripe.com/xxxx?client_reference_id=PERFIL_ID
+
+  ↓ la persona paga
+
+checkout.session.completed
+  client_reference_id: PERFIL_ID   ← el sistema ya sabe de quién es
+  customer_details.phone           ← si se activó su captura</pre>
+
+<p><strong>Hay que activar la captura del teléfono en el enlace de pago.</strong> Viene apagada por defecto y es un renglón en el script de productos. Aunque ya lo tengamos del paso 1, el de Stripe sirve para cotejar y para el comprobante fiscal.</p>
+
+<h3>El pago huérfano</h3>
+<p>Va a pasar: alguien reenvía un enlace de pago sin el identificador, y llega dinero sin dueño. Eso no puede quedarse en silencio como pasó con los tres pagos de agosto.</p>
+<p>El webhook lo guarda como pago sin perfil y aparece en el tablero el mismo día. La página de gracias, que sí sabe qué sesión de Stripe acaba de terminar, le ofrece crear su perfil ahí mismo con un token firmado de un solo uso. Y si nadie lo reclama, sale en la lista de la mañana con su correo y su importe para escribirle a mano.</p>
+
+<div class="alerta">
+<h3>SPEI y OXXO no confirman en el momento</h3>
+<p>La documentación de Stripe lo dice claro: con débitos bancarios y vales, la confirmación puede tardar <strong>de dos a catorce días</strong>, y hay que escuchar avisos adicionales, no solo el de sesión completada.</p>
+<p>O sea que con transferencia hay un hueco de días entre que la persona dice que pagó y que el dinero se confirma. Durante ese hueco necesita saber que su pago está en camino, y nosotros necesitamos verlo en el tablero. Si no se maneja, cada persona que pague por SPEI va a escribir preguntando si llegó su dinero.</p>
+</div>
+</section>
+
+<!-- 06 -->
+<section class="sec" id="ciclo">
+<p class="kicker">06</p>
+<h2>El ciclo de vida del cobro</h2>
+<p class="sub">Cuatro estados y los avisos que los mueven. Todo lo demás son variaciones de esto.</p>
+
+<div class="tabla"><table>
+<tr><th>Estado</th><th>Qué significa</th><th>¿Entra a la app?</th><th>¿Y a la comunidad?</th></tr>
+<tr><td><span class="est e1">activa</span></td><td>al corriente</td><td>sí</td><td>sí</td></tr>
+<tr><td><span class="est e2">en gracia</span></td><td>el cobro falló y Stripe sigue reintentando</td><td><strong>sí</strong></td><td>sí</td></tr>
+<tr><td><span class="est e3">suspendida</span></td><td>se acabó la gracia, o hubo contracargo</td><td>no</td><td>no</td></tr>
+<tr><td><span class="est e4">cancelada</span></td><td>se dio de baja por su cuenta</td><td>hasta fin de periodo</td><td>hasta fin de periodo</td></tr>
+</table></div>
+
+<div class="tabla"><table>
+<tr><th>Aviso de Stripe</th><th>Qué hace el sistema</th></tr>
+<tr><td><code>checkout.session.completed</code></td><td>activa la membresía y le abre las plazas</td></tr>
+<tr><td><code>invoice.paid</code></td><td>extiende la vigencia. Si venía en gracia, la regresa a activa</td></tr>
+<tr><td><code>invoice.payment_failed</code></td><td>la pasa a gracia y arranca los avisos</td></tr>
+<tr><td><code>customer.subscription.deleted</code></td><td>cancelada, con acceso hasta el fin del periodo pagado</td></tr>
+<tr><td><code>charge.dispute.created</code></td><td>suspende de inmediato, sin gracia. Es un contracargo</td></tr>
+<tr><td><code>charge.refunded</code></td><td>suspende y lo anota para la factura</td></tr>
+</table></div>
+
+<h3>La ventana de gracia, y por qué no la invento yo</h3>
+<p>Stripe reintenta los cobros fallidos con su propio calendario, configurable desde el panel. <strong>La gracia nuestra tiene que durar por lo menos lo que dure ese calendario</strong>, porque suspender a alguien mientras Stripe todavía está intentando cobrarle es la peor combinación posible: la persona pierde el acceso y al día siguiente le llega el cargo.</p>
+<p>Así que ese calendario se fija primero en el panel de Stripe, a mano, y de ahí sale nuestro número. No al revés.</p>
+
+<p>Durante la gracia salen tres avisos, por WhatsApp y por correo: el día del fallo, a mitad de la ventana, y el día antes de suspender. Los tres con el mismo botón para actualizar la tarjeta, que es el portal que Stripe da hecho.</p>
+</section>
+
+<!-- 07 -->
+<section class="sec" id="suspension">
+<p class="kicker">07</p>
+<h2>La suspensión, que no es baja</h2>
+
+<p class="lead">Suspender apaga el acceso. No borra nada, no cancela nada y no pierde nada. Y esto no es delicadeza, es una regla dura del producto.</p>
+
+<p>ATP guarda laboratorios, series de biomarcadores, registros emocionales y años de historia. <strong>Borrarle eso a alguien porque se le venció una tarjeta sería el peor error que podríamos cometer</strong>, y en México además nos mete en un problema de datos personales. La única forma de que algo se borre es que la persona lo pida, por el camino de eliminación de cuenta que ya existe.</p>
+
+<div class="tabla"><table>
+<tr><th>Al suspender</th><th>Qué pasa</th></tr>
+<tr><td>Acceso a la app</td><td>se apaga, con una pantalla que explica y ofrece reactivar</td></tr>
+<tr><td>Sus datos</td><td>intactos, completos, esperando</td></tr>
+<tr><td>Comunidad</td><td>se le quita el acceso</td></tr>
+<tr><td>Reactivar</td><td>un pago y vuelve todo, sin volver a configurar nada</td></tr>
+</table></div>
+
+<div class="alerta">
+<h3>Lo de la comunidad es a mano, y hay que asumirlo</h3>
+<p>Skool en el plan que tienes no ofrece forma programática de quitarle el acceso a alguien. Ni siquiera pagando el plan de noventa y nueve dólares, porque su integración solo sabe invitar y desbloquear cursos, no remover.</p>
+<p>Entonces la suspensión de la comunidad es una tarea humana, y la única forma honesta de manejarla es que el tablero saque cada mañana la lista de <strong>quién se suspendió ayer y sigue dentro de la comunidad</strong>. Alguien la ejecuta en dos minutos. Fingir que es automático es cómo se acumulan cincuenta personas sin pagar adentro del grupo.</p>
+</div>
+</section>
+
+<!-- 08 -->
+<section class="sec" id="orden">
+<p class="kicker">08</p>
+<h2>Qué se construye y en qué orden</h2>
+<p class="sub">Cada renglón depende del anterior. El orden es la parte importante.</p>
+
+<div class="tabla"><table>
+<tr><th>#</th><th>Qué</th><th>Por qué va ahí</th></tr>
+<tr><td>1</td><td>Decidir Twilio o Cloud API</td><td>el número se registra una sola vez</td></tr>
+<tr><td>2</td><td>Las tablas: perfil, membresía, plaza, y la vista de acceso</td><td>todo lo demás escribe o lee de aquí</td></tr>
+<tr><td>3</td><td>Alta del número y las plantillas a aprobación</td><td>Meta se reserva 24 horas</td></tr>
+<tr><td>4</td><td>Código por WhatsApp funcionando de punta a punta</td><td>es el paso 1 de la página de perfil</td></tr>
+<tr><td>5</td><td>La página de perfil, con sus cinco defensas</td><td>necesita el paso 4 vivo</td></tr>
+<tr><td>6</td><td>Productos en Stripe con teléfono y calendario de reintentos</td><td>necesita la lista de precios decidida</td></tr>
+<tr><td>7</td><td>El webhook ampliado: los seis avisos y las plazas</td><td>necesita las tablas del 2</td></tr>
+<tr><td>8</td><td>El tablero: huérfanos, rezagados, suspendidos, SPEI en camino</td><td>necesita que existan esos estados</td></tr>
+<tr><td>9</td><td>Las doce pruebas de punta a punta</td><td>al final, sobre todo lo anterior</td></tr>
+</table></div>
+
+<div class="cierre">
+<p><strong>Lo único que necesito de ti para empezar es el punto 1</strong>, porque el número se da de alta mañana y no se puede mover después. Los puntos 2 y 7 los puedo escribir yo esta noche como migración y como brief, para que Claude Code los ejecute en cuanto despiertes.</p>
+<p>Y sigue abierta la lista de precios, que bloquea el punto 6.</p>
+</div>
+</section>
+</main>

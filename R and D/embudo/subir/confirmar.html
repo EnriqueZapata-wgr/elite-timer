@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Confirmación · ATP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --canvas:#000000; --card:#121212; --alto:#232323; --borde:#1F1F1F;
+  --tinta:#FFFFFF; --sec:#999999; --tenue:#8E8E8E;
+  --lima:#A8E02A; --teal:#1ABC9C;
+  --g1:#A8E02A; --g2:#6DCC48; --g3:#3DBF6E; --g4:#2EC28A; --g5:#1ABC9C;
+}
+html,body{margin:0;padding:0}
+body{
+  background:var(--canvas); color:var(--tinta); min-height:100vh;
+  font-family:'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  font-size:17px; line-height:1.65; -webkit-font-smoothing:antialiased;
+}
+/* riel de firma: el degradado recorre toda la altura de la pagina */
+body::before{
+  content:''; position:fixed; left:0; top:0; bottom:0; width:6px; z-index:10;
+  background:linear-gradient(180deg,var(--g1),var(--g2) 26%,var(--g3) 50%,var(--g4) 74%,var(--g5));
+}
+.wrap{max-width:680px;margin:0 auto;padding:56px 24px 80px 30px}
+.marca{display:block;width:132px;height:auto;margin:0 0 44px}
+h1{font-size:clamp(30px,5.4vw,42px);line-height:1.14;font-weight:600;letter-spacing:-.022em;margin:0 0 20px}
+h2{font-size:19px;line-height:1.35;font-weight:600;letter-spacing:-.008em;margin:0 0 14px}
+p{margin:0 0 18px;color:var(--sec)}
+p.lead{color:var(--tinta);font-size:19px;line-height:1.6}
+strong{color:var(--tinta);font-weight:600}
+a{color:var(--teal);text-decoration:none;font-weight:500}
+a:hover{text-decoration:underline}
+.tarjeta{background:var(--card);border:1px solid var(--borde);border-radius:16px;padding:28px 26px;margin:0 0 18px}
+.campo{background:var(--alto);border:1px solid var(--borde);border-radius:12px;padding:18px 20px;margin:0 0 14px}
+.etiqueta{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tenue);margin:0 0 7px;font-weight:500}
+.codigo{font-family:'SFMono-Regular',Consolas,'Liberation Mono',monospace;font-size:26px;font-weight:600;letter-spacing:.06em;color:var(--tinta);word-break:break-all}
+.valor{font-size:18px;font-weight:600;color:var(--tinta)}
+.btn{display:inline-flex;align-items:center;gap:10px;background:var(--lima);color:#000;font-weight:600;font-size:16px;
+  padding:15px 28px;border-radius:12px;border:0;cursor:pointer;text-decoration:none;transition:transform .12s ease}
+.btn:hover{transform:translateY(-1px);text-decoration:none}
+.btn.fantasma{background:transparent;color:var(--tinta);border:1px solid #4A4A4A}
+.fila{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 8px}
+.hr{height:1px;background:var(--borde);margin:34px 0 30px}
+.pie{color:var(--tenue);font-size:14px;line-height:1.6;margin-top:44px}
+.pie a{color:var(--sec)}
+.paso{display:flex;gap:16px;margin:0 0 20px;align-items:flex-start}
+.num{flex:0 0 30px;height:30px;border-radius:50%;background:var(--alto);color:var(--sec);
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;margin-top:2px}
+.paso div p{margin:0}
+.aviso{border-left:3px solid var(--teal);padding:2px 0 2px 18px;margin:0 0 22px}
+.aviso p{margin:0}
+.oculto{display:none !important}
+@media(max-width:520px){.wrap{padding:40px 20px 64px 26px} .codigo{font-size:21px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<img class="marca" src="/correo/logo-atp-blanco.png" alt="ATP">
+
+<div id="cargando"><p class="lead">Confirmando...</p></div>
+
+<div id="listo" class="oculto">
+  <h1 id="titulo">Tu correo quedó confirmado</h1>
+  <p class="lead" id="detalle">Tu cuenta ya está lista. Vuelve a la app y entra con tu correo y tu contraseña.</p>
+  <p>Ya puedes cerrar esta página.</p>
+  <div class="hr"></div>
+  <h2>Si es tu primer día</h2>
+  <p>Entra con el teléfono cargado y veinte minutos libres. La app pregunta bastante al principio, y de esas respuestas sale todo lo que hace después. Contestar de prisa la primera vez se paga caro más adelante.</p>
+</div>
+
+<div id="vencido" class="oculto">
+  <h1>Este enlace ya venció</h1>
+  <p class="lead">Los enlaces de confirmación sirven una sola vez y duran poco, a propósito.</p>
+  <p>Vuelve a la app y pide otro desde la pantalla de entrada. Te llega en menos de un minuto. Si ya lo intentaste y sigue sin funcionar, respóndele al correo que te mandamos y lo resolvemos contigo.</p>
+</div>
+
+</main>
+<script>var ATP_SUPABASE_URL="https://itqkfozqvpwikogggqng.supabase.co";var ATP_SUPABASE_ANON="sb_publishable_qF8333oyrnIVV3ckoRPqGw_18lfGPKT";</script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  function ver(cual){
+    ['cargando','listo','vencido'].forEach(function(id){ $(id).classList.toggle('oculto', id !== cual); });
+  }
+  function limpiarURL(){ try { history.replaceState(null,'',location.pathname); } catch(e){} }
+
+  var q  = new URLSearchParams(location.search);
+  var th = q.get('token_hash');
+  var tipo = q.get('type') || 'email';
+
+  // Textos por tipo, para que la pantalla diga lo que de verdad pasó
+  var COPY = {
+    'email':        { t:'Tu correo quedó confirmado',  d:'Tu cuenta ya está lista. Vuelve a la app y entra con tu correo y tu contraseña.' },
+    'email_change': { t:'Tu correo nuevo quedó',       d:'A partir de ahora entras con la dirección nueva. La anterior deja de servir para entrar.' },
+    'magiclink':    { t:'Listo, ya te reconocimos',    d:'Vuelve a la app en este mismo teléfono y ya deberías estar dentro.' }
+  };
+
+  if (!th) { ver('vencido'); return; }
+
+  var API = ATP_SUPABASE_URL.replace(/\/+$/,'') + '/auth/v1';
+  var reloj = setTimeout(function(){ ver('vencido'); }, 15000);
+
+  fetch(API + '/verify', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'apikey': ATP_SUPABASE_ANON },
+    body: JSON.stringify({ type: tipo, token_hash: th })
+  })
+  .then(function(r){ return r.json().then(function(j){ return { ok:r.ok, j:j }; }); })
+  .then(function(r){
+    clearTimeout(reloj); limpiarURL();
+    if (!r.ok || !r.j.access_token) { ver('vencido'); return; }
+    var c = COPY[tipo] || COPY['email'];
+    $('titulo').textContent = c.t;
+    $('detalle').textContent = c.d;
+    ver('listo');
+  })
+  .catch(function(){ clearTimeout(reloj); limpiarURL(); ver('vencido'); });
+})();
+</script>
+</body>
+</html>
