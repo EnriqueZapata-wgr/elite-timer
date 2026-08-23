@@ -99,7 +99,7 @@ export default function SleepSessionScreen() {
 function PantallaSinAudio() {
   const router = useRouter();
   return (
-    <Screen edges={[]}>
+    <Screen edges={[]} fondo={NIGHT.bg}>
       <View style={s.centro}>
         <EliteText style={s.configKicker}>SLEEP CYCLE</EliteText>
         <EliteText style={s.avisoTexto}>
@@ -315,7 +315,7 @@ function SesionNocturna({ audio }: { audio: ExpoAudio }) {
 
   if (fase === 'config') {
     return (
-      <Screen edges={[]}>
+      <Screen edges={[]} fondo={NIGHT.bg}>
         <View style={s.configWrap}>
           <EliteText style={s.configKicker}>SLEEP CYCLE</EliteText>
           <EliteText style={s.configTitulo}>Esta noche</EliteText>
@@ -394,7 +394,7 @@ function SesionNocturna({ audio }: { audio: ExpoAudio }) {
 
   if (fase === 'noche' || fase === 'alarma') {
     return (
-      <Screen edges={[]}>
+      <Screen edges={[]} fondo={NIGHT.bg}>
         <View style={s.centro}>
           {fase === 'alarma' && <EliteText style={s.buenosDias}>Buenos días</EliteText>}
           <EliteText style={s.relojGrande}>{reloj}</EliteText>
@@ -424,7 +424,7 @@ function SesionNocturna({ audio }: { audio: ExpoAudio }) {
   // fase === 'fin'
   const min = resumen?.noche.durationMinutes ?? 0;
   return (
-    <Screen edges={[]}>
+    <Screen edges={[]} fondo={NIGHT.bg}>
       <View style={s.centro}>
         <EliteText style={s.configKicker}>TU NOCHE</EliteText>
         {resumen?.corta ? (

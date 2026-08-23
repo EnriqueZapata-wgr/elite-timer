@@ -29,7 +29,7 @@ import {
   ORB_TOUR_DONE_KEY,
 } from '@/src/components/tour/orb-tour-core';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { ATP_BRAND, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 
 interface Props {
   /** Espacio inferior (alto de la tab bar) para no taparla. */
@@ -171,8 +171,14 @@ const s = StyleSheet.create({
     left: Spacing.md,
     right: Spacing.md,
   },
+  // ACERO (22-ago-2026): las tres superficies del tour estaban en #0d0d0d, un
+  // hex huérfano que no correspondía a ningún nivel de la escala. Con el
+  // lienzo en negro puro pasaba desapercibido; con el lienzo en acero
+  // (#0F1114) quedaba MÁS OSCURO que la pantalla sobre la que flota y el tour
+  // se leía hundido en vez de encima. Pasan a ELEVATION[1], que es lo que
+  // siempre quisieron ser: una card flotando sobre el contenido real.
   bubble: {
-    backgroundColor: '#0d0d0d',
+    backgroundColor: ELEVATION[1].bg,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: withOpacity(ATP_BRAND.lime, 0.35),
@@ -243,7 +249,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    backgroundColor: '#0d0d0d',
+    backgroundColor: ELEVATION[1].bg,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: withOpacity(ATP_BRAND.lime, 0.35),
@@ -259,7 +265,7 @@ const s = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#0d0d0d',
+    backgroundColor: ELEVATION[1].bg,
     borderWidth: 0.5,
     borderColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',

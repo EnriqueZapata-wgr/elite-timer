@@ -54,7 +54,18 @@ export const NIGHT_FILTER_FALLBACK_CUTOFF = 21 * 60 + 45; // '21:45'
  * el fondo es negro puro y el texto ES el color).
  */
 export const NIGHT = {
-  /** Fondo: negro absoluto (OLED apagado). */
+  /**
+   * Fondo: negro absoluto (OLED apagado).
+   *
+   * ACERO (22-ago-2026): este token existía desde MB-30A y NO lo consumía
+   * nadie. La pantalla del buró tomaba su lienzo del tema global y coincidía
+   * en #000000 de pura casualidad. Al aclarar el modo oscuro a acero, la
+   * casualidad se habría acabado y el teléfono del buró habría amanecido
+   * gris azulado a media noche, que es justo lo contrario de para lo que se
+   * diseñó. Ahora `app/sleep-session.tsx` lo pasa explícito por el prop
+   * `fondo` de <Screen> y el negro de esta pantalla es una decisión escrita,
+   * no un accidente.
+   */
   bg: '#000000',
   /** Rojo brasa — texto protagonista (la hora). */
   ember: '#B4443A',

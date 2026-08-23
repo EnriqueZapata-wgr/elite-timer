@@ -36,12 +36,26 @@ interface ScreenProps {
   keyboard?: boolean;
   /** MB-31A: esta pantalla ya migró sus colores y sigue el tema global. */
   themed?: boolean;
+  /**
+   * ACERO (22-ago-2026): lienzo FIJO, fuera de la rampa y fuera del tema.
+   *
+   * Es para las superficies inmersivas donde el color de fondo es la función
+   * y no el estilo. Hoy la usa una sola: la sesión de sueño, que es un
+   * teléfono encendido toda la noche en el buró y tiene su propia paleta
+   * (NIGHT). Esa pantalla venía heredando el lienzo global por accidente —
+   * coincidía en #000000 y nadie lo notó — así que al aclarar el oscuro se
+   * habría vuelto acero en silencio.
+   *
+   * No es una puerta trasera al ratchet: el valor tiene que venir de una
+   * paleta declarada, nunca de un hex escrito aquí.
+   */
+  fondo?: string;
 }
 
-export function Screen({ children, edges = ['top'], keyboard = false, themed = false }: ScreenProps) {
+export function Screen({ children, edges = ['top'], keyboard = false, themed = false, fondo: fondoFijo }: ScreenProps) {
   const global = useAppTheme().tokens;
   const scoped = useSurfaceTokens();
-  const fondo = (themed ? global : scoped).fondo;
+  const fondo = fondoFijo ?? (themed ? global : scoped).fondo;
 
   const inner = keyboard ? (
     <KeyboardAvoidingView
