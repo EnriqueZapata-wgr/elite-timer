@@ -412,3 +412,78 @@ es decisión de dominio (fitness), no de higiene.
 
 ⚠️ **Este archivo se actualiza al cerrar cada MB.** Si dejamos de mantenerlo, volvemos a
 tener los pendientes regados, que es exactamente el problema que vino a resolver.
+
+---
+
+# 📧 CORREOS DE AUTENTICACIÓN · pendiente abierto 22-ago-2026
+
+## Lo que ya quedó, para no rehacerlo
+
+Resend verificado sobre `somosatp.com` con DKIM, SPF y DMARC pasando en Gmail.
+SMTP propio conectado en Supabase Auth, remitente `ATP <hola@somosatp.com>`.
+Límite de correos subido de **2 por hora** (el valor de fábrica, que llevaba
+meses ahí cortando en silencio) a 300. Límite de altas por IP subido a 100 por
+la concentración de usuarios detrás de las IP de Telcel. `RESEND_API_KEY` puesto
+como secreto de Edge Functions, que es lo que destraba el correo del webhook de
+pagos. Plantilla de **Reset password** ya reemplazada por la versión en español
+con marca, y `reset-password.html` publicado en Hostinger junto con los dos
+logos en `/correo/`.
+
+## La regla que salió de romperlo hoy
+
+La plantilla de fábrica de Supabase se fue a spam con banner rojo de alerta.
+La causa no fue el dominio ni la configuración: **el enlace apuntaba a
+`ivtvypgjalkcsmaqpsyn.supabase.co` mientras el remitente decía `somosatp.com`.**
+Un correo que dice venir de una marca, pide cambiar una contraseña, y manda a
+otro dominio, es la definición de phishing y Gmail lo clasifica sin dudarlo.
+
+> **Toda plantilla de autenticación tiene que llevar el enlace a `somosatp.com`,
+> nunca al dominio de Supabase.** Se arma con `{{ .SiteURL }}` y `{{ .TokenHash }}`
+> en vez de `{{ .ConfirmationURL }}`. Eso además evita que los escáneres de
+> seguridad de correo corporativo quemen el enlace de un solo uso antes de que
+> la persona lo abra.
+
+## 🔴 Lo que NO es FIFO: Confirm sign up
+
+Verificado contra `auth.users`: hay altas con 81, 86 y 95 segundos entre
+`created_at` y `email_confirmed_at`. Eso significa que **la confirmación por
+correo está encendida y la gente sí hace clic**. O sea que cada persona que se
+registre el 27 va a recibir esa plantilla, que hoy sigue en inglés y con el
+enlace al dominio de Supabase.
+
+Es exactamente el correo que ya sabemos que se va a spam, multiplicado por todos
+los founders. **Esto se arregla antes del 27**, no después. Es la misma
+operación que se hizo con Reset password y toma el mismo rato.
+
+## El resto, esto sí es FIFO
+
+| Plantilla | Estado | Cuándo se usa hoy |
+|---|---|---|
+| Confirm sign up | inglés, enlace a Supabase | **cada alta. Antes del 27** |
+| Reset password | ✅ español, con marca | ya resuelto |
+| Change email address | inglés, enlace a Supabase | cuando alguien cambia su correo |
+| Magic link u OTP | inglés | sin usar, la app entra con contraseña |
+| Invite user | inglés | sin usar |
+| Reauthentication | inglés | sin usar |
+
+Y aparte, las **siete notificaciones de seguridad** están todas apagadas:
+contraseña cambiada, correo cambiado, teléfono cambiado, método de entrada
+agregado o quitado, MFA agregado o quitado. La de contraseña cambiada vale la
+pena encenderla porque es práctica estándar y es la que le avisa a alguien que
+le tocaron la cuenta. Las demás se encienden conforme existan esas funciones.
+Cada una que se prenda es otra plantilla que hay que traducir y maquetar, así
+que van en la misma tanda.
+
+## Parqueado a propósito
+
+**BIMI**, o sea que salga la molécula en vez de la letra gris en el avatar del
+remitente. Verificado contra la documentación de Google: exige DMARC en
+`quarantine` o `reject` al cien por ciento, un SVG en perfil Tiny PS cuadrado, y
+un certificado de paga anual, VMC si la marca está registrada en el IMPI o CMC
+si no. Ninguna de las tres cabe antes del 27, y apretar el DMARC en semana de
+lanzamiento puede tumbar el correo de otros sistemas que manden con
+`@somosatp.com`. Se retoma en septiembre, empezando por el DMARC, que mejora la
+entrega por sí solo aunque nunca se haga lo del ícono.
+
+⚠️ Pregunta abierta para cuando toque: **¿ATP está registrada como marca en el
+IMPI?** De eso depende si va VMC o CMC.

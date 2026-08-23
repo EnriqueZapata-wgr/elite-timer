@@ -75,3 +75,34 @@ Roadmap → v2.0.0 (julio-agosto 2026 — publicación a stores)
 ## Observabilidad activa
 - Sentry: errors + sessions, project atp-mobile en atp-v5 org
 - PostHog: events + lifecycle, project ATP en us.posthog.com
+
+## Lanzamiento y cobros (leer antes de tocar pagos, precios o legal)
+
+**Fuente única:** `R and D/embudo/DECISIONES_PREVENTA.md`
+
+Ahí viven la escalera de precios, quién firma los términos, el contrato de
+metadata con Stripe, qué ya existe y no hay que volver a construir, y qué está
+explícitamente fuera del alcance. Si algo contradice ese archivo, gana ese
+archivo. Antes de proponer construir cualquier pieza de cobro, buscarla ahí y
+en `supabase/functions/`.
+
+Tres datos que se han vuelto a preguntar más de una vez:
+- La cuenta de Stripe **está viva** desde antes de agosto. No hay activación
+  pendiente.
+- `supabase/functions/payment-webhook` **ya existe**, está desplegado y recibe
+  eventos en vivo. Maneja alta, renovación, cancelación y cobro fallido.
+- Los pagos de agosto en `needs_review` son **consultas de Mariana**, no
+  suscripciones. No hay nada roto ahí.
+
+## Calibración al proponer planes
+
+Regla de Enrique, 23 de agosto de 2026: el exceso de cautela ha costado
+semanas. Ver sección 10 de `DECISIONES_PREVENTA.md`. En corto:
+
+- Verificar en repo, base y panel **antes** de proponer.
+- Supuesto por omisión: ya existe y ya está resuelto.
+- Tiempos solo con fuente. Sin fuente, decir "no sé".
+- Riesgos legales o fiscales solo si bloquean algo **esta semana**, y siempre
+  diciendo qué evidencia los tumba.
+- Costos con números de documentación, sin colchón.
+- Una decisión tomada no se reabre sin evidencia nueva.
