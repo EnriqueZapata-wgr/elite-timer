@@ -18,7 +18,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import {
-  THEME_DARK, THEME_LIGHT, CATEGORY_COLORS, ATP_BRAND,
+  THEME_DARK, THEME_LIGHT, CATEGORY_COLORS, ATP_BRAND, RAMPAS_OSCURAS,
 } from '@/src/constants/brand';
 import { SECCION_COLORS } from '@/src/constants/concept-colors';
 import { contrastRatio } from '@/src/utils/contrast';
@@ -81,9 +81,18 @@ const IDENTIDAD = new Set(
   ].map((v) => normaliza(v)),
 );
 
-/** Valores de token de tema: tampoco se escriben como literal en pantallas. */
+/** Valores de token de tema: tampoco se escriben como literal en pantallas.
+ *
+ *  ACERO (22-ago-2026): entran LAS DOS rampas oscuras, no solo la vigente.
+ *  Mirando solo los tokens vivos, mover la bandera desarmaría medio candado:
+ *  los doce grises de la rampa dormida dejarían de estar bloqueados, y los
+ *  del acero NO son neutros, así que se colarían sin que nadie se enterara. */
 const VALORES_TOKEN = new Set(
-  [...Object.values(THEME_DARK), ...Object.values(THEME_LIGHT)]
+  [
+    ...Object.values(THEME_DARK),
+    ...Object.values(THEME_LIGHT),
+    ...RAMPAS_OSCURAS.flatMap((r) => Object.values(r)),
+  ]
     .filter((v): v is string => typeof v === 'string' && v.startsWith('#'))
     .map((v) => normaliza(v))
     .filter((v) => !IDENTIDAD.has(v)),

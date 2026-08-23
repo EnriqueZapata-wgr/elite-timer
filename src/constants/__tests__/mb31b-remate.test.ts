@@ -23,7 +23,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  THEME_DARK, THEME_LIGHT, CATEGORY_COLORS, ATP_BRAND,
+  THEME_DARK, THEME_LIGHT, CATEGORY_COLORS, ATP_BRAND, RAMPAS_OSCURAS,
 } from '@/src/constants/brand';
 import { SECCION_COLORS } from '@/src/constants/concept-colors';
 import { contrastRatio } from '@/src/utils/contrast';
@@ -116,9 +116,21 @@ const IDENTIDAD = new Set(
   ].map((v) => normaliza(v)),
 );
 
-/** Valores de token de tema: tampoco se escriben como literal en pantallas. */
+/** Valores de token de tema: tampoco se escriben como literal en pantallas.
+ *
+ *  ACERO (22-ago-2026): se miran LAS DOS rampas oscuras, no solo la vigente.
+ *  Si la lista saliera únicamente de los tokens vivos, mover la bandera
+ *  desarmaría medio candado: con el acero encendido dejarían de estar
+ *  bloqueados los doce grises del negro (que sí siguen bloqueados por
+ *  neutros, pero solo por casualidad) y con el acero apagado dejarían de
+ *  estar bloqueados los doce del acero, que NO son neutros y se colarían sin
+ *  que nadie se enterara. El candado se reapunta, no se debilita. */
 const VALORES_TOKEN = new Set(
-  [...Object.values(THEME_DARK), ...Object.values(THEME_LIGHT)]
+  [
+    ...Object.values(THEME_DARK),
+    ...Object.values(THEME_LIGHT),
+    ...RAMPAS_OSCURAS.flatMap((r) => Object.values(r)),
+  ]
     .filter((v): v is string => typeof v === 'string' && v.startsWith('#'))
     .map((v) => normaliza(v))
     .filter((v) => !IDENTIDAD.has(v)),

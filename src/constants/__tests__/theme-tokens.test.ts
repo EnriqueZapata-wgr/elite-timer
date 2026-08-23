@@ -12,9 +12,12 @@
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { THEME_DARK, THEME_LIGHT, ATP_BRAND } from '@/src/constants/brand';
+import {
+  THEME_DARK, THEME_LIGHT, ATP_BRAND, OSCURO, RAMPAS_OSCURAS, ELEVATION, BG, SURFACES, PILL,
+} from '@/src/constants/brand';
+import { ACERO_OSCURO } from '@/src/constants/flags';
 import { SECCION_COLORS, textoSobreSeccion } from '@/src/constants/concept-colors';
-import { contrastRatio } from '@/src/utils/contrast';
+import { contrastRatio, relativeLuminance } from '@/src/utils/contrast';
 
 describe('1 · paridad de tokens', () => {
   it('los dos temas tienen EXACTAMENTE las mismas llaves', () => {
@@ -65,6 +68,107 @@ describe('2 · los contrastes del manual, calculados', () => {
     expect(contrastRatio(THEME_LIGHT.tealTexto, THEME_LIGHT.card)).toBeCloseTo(5.56, 1);
     expect(contrastRatio(THEME_LIGHT.tealTexto, THEME_LIGHT.fondo)).toBeCloseTo(4.96, 1);
     expect(contrastRatio('#FFFFFF', SECCION_COLORS.ayuno)).toBeCloseTo(6.42, 1);
+  });
+});
+
+// ─── ACERO (22-ago-2026) · el candado de la rampa oscura ──────────────────
+//
+// El candado viejo decía que el lienzo de quien no elige tema era #000000
+// para siempre. El dueño cambió esa decisión: el negro puro se lee demasiado
+// profundo. Aquí se REAPUNTA al valor nuevo, y de paso se refuerza, porque lo
+// que de verdad hay que proteger no es un hex: es que la escalera de
+// elevación no se invierta. Ese es el modo de falla que un cambio de lienzo
+// introduce y que ningún test cubría.
+
+describe('ACERO 1 · la escalera de elevación no se invierte NUNCA', () => {
+  // Se prueban LAS DOS rampas, no solo la vigente: apagar la bandera tampoco
+  // puede dejar una escalera rota.
+  it.each(RAMPAS_OSCURAS.map((r, i) => [i === 0 ? 'negro' : 'acero', r] as const))(
+    'rampa %s: fondo < chrome < card < flotante < popover',
+    (_nombre, r) => {
+      const escalones = [r.fondo, r.chrome, r.card, r.flotante, r.popover];
+      const lums = escalones.map((c) => relativeLuminance(c));
+      for (let i = 1; i < lums.length; i++) {
+        expect(lums[i], `el escalón ${i} no es más claro que el ${i - 1}`).toBeGreaterThan(lums[i - 1]);
+      }
+    },
+  );
+
+  it.each(RAMPAS_OSCURAS.map((r, i) => [i === 0 ? 'negro' : 'acero', r] as const))(
+    'rampa %s: el campo se HUNDE respecto a la card (es su único trabajo)',
+    (_nombre, r) => {
+      expect(relativeLuminance(r.campo)).toBeLessThan(relativeLuminance(r.card));
+    },
+  );
+
+  it.each(RAMPAS_OSCURAS.map((r, i) => [i === 0 ? 'negro' : 'acero', r] as const))(
+    'rampa %s: cada borde se despega de la superficie que contornea',
+    (_nombre, r) => {
+      const pares: [string, string, string][] = [
+        ['borde de card', r.bordeCard, r.card],
+        ['borde de campo', r.bordeCampo, r.campo],
+        ['borde de píldora', r.bordePildora, r.chrome],
+        ['borde marcado', r.bordeMarcado, r.flotante],
+        ['borde de popover', r.bordePopover, r.popover],
+      ];
+      for (const [nombre, borde, superficie] of pares) {
+        // Y además el borde tiene que ser MÁS CLARO, no solo distinto: un
+        // borde más oscuro que su superficie lee como sombra, no como filo.
+        expect(relativeLuminance(borde), `${nombre} no es más claro que su superficie`)
+          .toBeGreaterThan(relativeLuminance(superficie));
+        expect(contrastRatio(borde, superficie), `${nombre} desaparece`).toBeGreaterThan(1.04);
+      }
+    },
+  );
+});
+
+describe('ACERO 2 · un solo lugar decide el color del oscuro', () => {
+  it('la rampa vigente es la que dice la bandera', () => {
+    expect(OSCURO.fondo).toBe(ACERO_OSCURO ? '#0F1114' : '#000000');
+    expect(OSCURO.card).toBe(ACERO_OSCURO ? '#1A1D22' : '#121212');
+    expect(OSCURO.campo).toBe(ACERO_OSCURO ? '#0A0C0F' : '#0a0a0a');
+  });
+
+  it('los tokens de superficie SALEN de la rampa, no de un hex suelto', () => {
+    // Si alguien vuelve a escribir un gris a mano en brand.ts, esto truena.
+    expect(THEME_DARK.fondo).toBe(OSCURO.fondo);
+    expect(THEME_DARK.card).toBe(OSCURO.card);
+    expect(THEME_DARK.hundido).toBe(OSCURO.campo);
+    expect(THEME_DARK.flotante).toBe(OSCURO.flotante);
+    expect(THEME_DARK.borde).toBe(OSCURO.bordeCard);
+    expect(THEME_DARK.bordeMarcado).toBe(OSCURO.bordeMarcado);
+    expect(BG.screen).toBe(OSCURO.fondo);
+    expect(BG.card).toBe(OSCURO.card);
+    expect(BG.input).toBe(OSCURO.campo);
+    expect(ELEVATION[0].bg).toBe(OSCURO.fondo);
+    expect(ELEVATION[1].bg).toBe(OSCURO.card);
+    expect(ELEVATION[2].bg).toBe(OSCURO.flotante);
+    expect(ELEVATION[3].bg).toBe(OSCURO.popover);
+  });
+
+  it('el chrome vive SOBRE el lienzo, así que no puede ser el campo', () => {
+    // El bug que este desacople evita: tab bar y píldoras de filtro se
+    // pintaban con el mismo valor que un campo hundido. Con el lienzo en
+    // negro puro daba igual; con el lienzo en acero quedaban por DEBAJO del
+    // fondo sobre el que flotan.
+    expect(SURFACES.base).toBe(OSCURO.chrome);
+    expect(PILL.bg).toBe(OSCURO.chrome);
+    expect(relativeLuminance(OSCURO.chrome)).toBeGreaterThan(relativeLuminance(OSCURO.fondo));
+  });
+});
+
+describe('ACERO 3 · los números del oscuro, calculados', () => {
+  it('el texto sobre el lienzo y sobre la card sigue muy por encima de AAA', () => {
+    expect(contrastRatio(THEME_DARK.texto, THEME_DARK.fondo)).toBeGreaterThanOrEqual(18);
+    expect(contrastRatio(THEME_DARK.texto, THEME_DARK.card)).toBeGreaterThanOrEqual(16);
+  });
+
+  it('los del manual cap. 4, medidos el 22-ago-2026 (±0.05)', () => {
+    if (!ACERO_OSCURO) return; // con la bandera apagada rigen los de siempre
+    expect(contrastRatio(THEME_DARK.texto, THEME_DARK.fondo)).toBeCloseTo(18.91, 1);
+    expect(contrastRatio(THEME_DARK.texto, THEME_DARK.card)).toBeCloseTo(16.90, 1);
+    expect(contrastRatio(THEME_DARK.textoSecundario, THEME_DARK.card)).toBeCloseTo(4.77, 1);
+    expect(contrastRatio(ATP_BRAND.lime, THEME_DARK.fondo)).toBeCloseTo(12.03, 1);
   });
 });
 
