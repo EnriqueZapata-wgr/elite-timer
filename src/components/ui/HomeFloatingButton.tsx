@@ -10,6 +10,7 @@ import { Keyboard, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { SURFACES } from '@/src/constants/brand';
 import { shouldHideHomeButton } from './home-floating-core';
 import { useHasOwnNav } from './useOwnNavPresence';
 import { HomeIcon } from './HomeIcon';
@@ -56,7 +57,11 @@ export function HomeFloatingButton() {
           width: 44,
           height: 44,
           borderRadius: 22,
-          backgroundColor: '#0A0A0A',
+          // ACERO: mismo caso que la orbe de ARGOS. El '#0A0A0A' a mano quedaba
+          // más oscuro que el lienzo de acero y la casita se hundía en vez de
+          // flotar. `SURFACES.base` es el escalón de chrome, que es justo lo
+          // que este botón es: algo que flota sobre la pantalla.
+          backgroundColor: SURFACES.base,
           borderWidth: 1,
           // 19.1 (1.2): la casita deja el lima — es acento y aquí no hay dato
           // heroico. Mismo vocabulario glass que HomeChip.

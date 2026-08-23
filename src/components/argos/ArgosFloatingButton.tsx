@@ -18,7 +18,7 @@ import { useArgosPresence } from './ArgosPresenceContext';
 import { shouldHideFloatingButton } from './argos-floating-core';
 import { screenFromPath } from '@/src/hooks/argos-screen-context-core';
 import { openArgosChat } from '@/src/services/argos-nav';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, SURFACES } from '@/src/constants/brand';
 
 /**
  * OLA0 QW-1: espacio que la orbe ocupa sobre el borde inferior. Las pantallas
@@ -82,7 +82,12 @@ export function ArgosFloatingButton() {
           width: 56,
           height: 56,
           borderRadius: 28,
-          backgroundColor: '#0A0A0A',
+          // ACERO: era '#0A0A0A' escrito a mano. Sobre el lienzo negro quedaba
+          // más claro y el botón se despegaba; sobre el acero quedó más OSCURO
+          // que el fondo, o sea invertido. Es el mismo caso `chrome` que ya se
+          // desacopló en brand.ts, y esta orbe flota sobre el lienzo igual que
+          // la tab bar. El ratchet no lo cazó porque solo vigila `app/`.
+          backgroundColor: SURFACES.base,
           borderWidth: 1,
           borderColor: `${ATP_BRAND.lime}55`,
           alignItems: 'center',
