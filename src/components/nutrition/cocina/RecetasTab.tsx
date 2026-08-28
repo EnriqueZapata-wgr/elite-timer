@@ -23,6 +23,9 @@ import {
   saveMealAsRecipe, fetchRecentLogsForRecipe, type RecentLogForRecipe,
 } from '@/src/services/recipe-save-service';
 import { defaultMealTypeByHour } from '@/src/services/meal-times-core';
+import {
+  catalogoARecipe, textoIngrediente, textoPaso,
+} from '@/src/services/nutrition/catalogo-recetas-core';
 import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -43,6 +46,21 @@ interface Recipe {
   created_at: string;
   /** T5 (#56): favoritos (migración 168). */
   is_favorite: boolean;
+  /**
+   * 28-ago-2026: de dónde viene la receta.
+   *  'user'     → user_recipes, es suya: se edita, se borra, se marca favorita.
+   *  'catalogo' → recipes con is_public, es de todos: SOLO LECTURA.
+   * Sin esta marca, tocar el corazón de una receta del catálogo hacía un UPDATE
+   * sobre user_recipes que afecta cero filas y NO devuelve error: el corazón se
+   * quedaba pintado y no persistía. Mentir en silencio es peor que fallar.
+   */
+  origin: 'user' | 'catalogo';
+  /** Solo el catálogo: lo que hace que la receta sirva para cocinar. */
+  description?: string | null;
+  instructions?: any[];
+  prep_time_min?: number | null;
+  cook_time_min?: number | null;
+  servings?: number | null;
 }
 
 interface Props {
@@ -84,18 +102,65 @@ export function RecetasTab({ onIrALista }: Props) {
     loadRecipes();
   }, [user?.id]));
 
+  /**
+   * 28-ago-2026: la pantalla ahora une LAS DOS fuentes. Las 10 recetas del
+   * catálogo vivían solo en un archivo TS y la tabla estaba vacía; y aunque se
+   * hubieran sembrado, esta pantalla leía de otra tabla.
+   *
+   * Los dos errores se manejan por separado a propósito (doctrina MB-8 Track B
+   * de este mismo archivo: "un 400 no es sin recetas"): que falle el catálogo no
+   * puede borrar las recetas de la persona, y al revés tampoco.
+   */
   async function loadRecipes() {
     if (!user?.id) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from('user_recipes')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    // MB-8 Track B (G4): un 400 no es "sin recetas".
-    if (error) logWarn('[cocina:recetas] load failed:', error.message);
-    else setRecipes((data as Recipe[]) ?? []);
+    const [mias, publicas] = await Promise.all([
+      supabase.from('user_recipes').select('*')
+        .eq('user_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('recipes').select('*')
+        .eq('is_public', true).order('name'),
+    ]);
+    const propias: Recipe[] = mias.error
+      ? (logWarn('[cocina:recetas] load propias failed:', mias.error.message), [])
+      : ((mias.data as any[]) ?? []).map((r) => ({ ...r, origin: 'user' as const }));
+    const catalogo: Recipe[] = publicas.error
+      ? (logWarn('[cocina:recetas] load catalogo failed:', publicas.error.message), [])
+      : ((publicas.data as any[]) ?? []).map(catalogoARecipe);
+    // Las suyas primero: lo propio manda sobre lo de la casa.
+    setRecipes([...propias, ...catalogo]);
     setLoading(false);
+  }
+
+  /**
+   * 28-ago: tocar una receta del CATÁLOGO abre su detalle en vez de registrarla.
+   * Registrar 550 kcal de un bowl que no has visto es mal comportamiento, y el
+   * catálogo existe justamente para que se puedan leer ingredientes y pasos.
+   *
+   * Provisional a propósito: esto merece una hoja propia con su tipografía, no
+   * un Alert. Va así hoy porque no hay compilador esta noche para validar una
+   * hoja nueva completa, y un Alert correcto vale más que una hoja sin probar.
+   */
+  function verDetalle(recipe: Recipe) {
+    haptic.light();
+    const partes: string[] = [];
+    if (recipe.description) partes.push(recipe.description);
+    const tiempos = [
+      recipe.prep_time_min ? `${recipe.prep_time_min} min de preparación` : null,
+      recipe.cook_time_min ? `${recipe.cook_time_min} min de cocción` : null,
+      recipe.servings ? `${recipe.servings} porción${recipe.servings > 1 ? 'es' : ''}` : null,
+    ].filter(Boolean).join(' · ');
+    if (tiempos) partes.push(tiempos);
+    const ingr = (recipe.ingredients ?? []).map(textoIngrediente).filter(Boolean);
+    if (ingr.length) partes.push('INGREDIENTES\n' + ingr.map(x => `· ${x}`).join('\n'));
+    const pasos = (recipe.instructions ?? []).map(textoPaso).filter(Boolean);
+    if (pasos.length) partes.push('PASOS\n' + pasos.map((x, i) => `${i + 1}. ${x}`).join('\n'));
+    // Mandar a la lista de súper vive en la pestaña Lista, que ya lo hace bien
+    // con sendRecipeToList. Duplicarlo aquí a medias sería un segundo camino
+    // para lo mismo, que es justo lo que esta casa lleva semanas matando.
+    Alert.alert(recipe.name, partes.join('\n\n'), [
+      { text: 'Cerrar', style: 'cancel' },
+      { text: 'Registrar hoy', onPress: () => registerRecipe(recipe) },
+    ]);
   }
 
   async function registerRecipe(recipe: Recipe) {
@@ -126,6 +191,11 @@ export function RecetasTab({ onIrALista }: Props) {
 
   // T5 (#56): toggle favorito (optimista)
   async function toggleFavorite(recipe: Recipe) {
+    // 28-ago: el catálogo NO se marca favorito. Sin este candado, el UPDATE
+    // sobre user_recipes afecta cero filas y NO devuelve error, así que el
+    // `if (error) loadRecipes()` de abajo nunca revertía: el corazón se quedaba
+    // pintado y no persistía. Mentir en silencio es peor que fallar.
+    if (recipe.origin === 'catalogo') return;
     haptic.light();
     setRecipes(prev => prev.map(r => r.id === recipe.id ? { ...r, is_favorite: !r.is_favorite } : r));
     const { error } = await supabase
@@ -136,6 +206,8 @@ export function RecetasTab({ onIrALista }: Props) {
   }
 
   async function deleteRecipe(recipe: Recipe) {
+    // El catálogo es de todos: no es suyo para borrarlo.
+    if (recipe.origin === 'catalogo') return;
     haptic.heavy();
     Alert.alert('Eliminar receta', `¿Eliminar "${recipe.name}"?`, [
       { text: 'Cancelar', style: 'cancel' },
@@ -276,8 +348,17 @@ export function RecetasTab({ onIrALista }: Props) {
       {/* Lista de recetas (filtrada) */}
       {recipes.filter(r => filter === 'all' || r.is_favorite).map((recipe, idx) => (
         <Animated.View key={recipe.id} entering={FadeInUp.delay(idx * 50).springify()}>
-          <SwipeToDeleteRow onConfirmDelete={() => deleteRecipe(recipe)}>
-            <AnimatedPressable onPress={() => registerRecipe(recipe)} onLongPress={() => deleteRecipe(recipe)}>
+          {/* 28-ago: el catálogo no se desliza para borrar ni se borra con tap
+              largo. No es suyo. Y tocarlo abre el detalle en vez de registrar:
+              nadie registra 550 kcal de un bowl que no ha visto. */}
+          <SwipeToDeleteRow
+            onConfirmDelete={() => deleteRecipe(recipe)}
+            disabled={recipe.origin === 'catalogo'}
+          >
+            <AnimatedPressable
+              onPress={() => (recipe.origin === 'catalogo' ? verDetalle(recipe) : registerRecipe(recipe))}
+              onLongPress={recipe.origin === 'catalogo' ? undefined : () => deleteRecipe(recipe)}
+            >
               <View style={[s.recipeCard, { backgroundColor: t.card }]}>
                 <View style={s.recipeHeader}>
                   <Ionicons name="bookmark" size={16} color={ATP_BRAND.amber} />

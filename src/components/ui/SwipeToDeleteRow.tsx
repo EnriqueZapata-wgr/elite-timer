@@ -25,9 +25,15 @@ interface Props {
   children: React.ReactNode;
   /** Texto del botón (default: "Eliminar"). */
   deleteLabel?: string;
+  /**
+   * 28-ago-2026: filas que NO son del usuario y por tanto no se borran (el
+   * catálogo público de recetas, por ejemplo). Con esto la fila se pinta igual
+   * pero no ofrece la acción, en vez de ofrecerla y fallar después.
+   */
+  disabled?: boolean;
 }
 
-export function SwipeToDeleteRow({ onConfirmDelete, children, deleteLabel = 'Eliminar' }: Props) {
+export function SwipeToDeleteRow({ onConfirmDelete, children, deleteLabel = 'Eliminar', disabled = false }: Props) {
   const swipeRef = useRef<Swipeable | null>(null);
 
   function handleDelete() {
@@ -45,6 +51,9 @@ export function SwipeToDeleteRow({ onConfirmDelete, children, deleteLabel = 'Eli
       </Pressable>
     );
   }
+
+  // Sin swipe: la fila se devuelve tal cual, sin envolverla en el gesto.
+  if (disabled) return <>{children}</>;
 
   return (
     <Swipeable
