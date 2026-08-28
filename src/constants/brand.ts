@@ -657,6 +657,27 @@ export interface AppThemeTokens {
   /** Error de interfaz. Coral apagado en oscuro; #B03A2E en claro (el coral
    *  no se lee). Nunca grita más que un biomarcador crítico. */
   error: string;
+  // Los tres estados como TINTA, calibrados por tema. El `error` de
+  // arriba es el error de INTERFAZ (un campo mal llenado); `critico` es
+  // el estado CLÍNICO, y son colores distintos a propósito.
+  //
+  // AVISO medido: en tema claro los tres se separan por TONO, no por
+  // luminancia (contraste mutuo de 1.03 a 1.40, porque los tres están
+  // oscurecidos para sentarse sobre la misma superficie clara). Por eso
+  // el color NUNCA puede ser el único portador de la señal en claro:
+  // siempre va con etiqueta de texto o icono (WCAG 1.4.1).
+  /** Éxito / óptimo como TINTA. En oscuro es el lima de marca (10.75);
+   *  en claro el lima es invisible (1.34), así que baja a lima
+   *  oscurecido #4F6B0D (5.22 card · 4.66 fondo · AA). */
+  exito: string;
+  /** Advertencia como TINTA. #EF9F27 en oscuro (7.77); en claro ese
+   *  ámbar da 1.86 y no se lee, así que baja a #8A5A00 (5.07 card ·
+   *  4.53 fondo · AA). */
+  advertencia: string;
+  /** Crítico CLÍNICO como TINTA. #FF3B30 en oscuro (4.76); en claro da
+   *  3.03, que no alcanza AA para letra chica, así que baja a #991B1B
+   *  (7.11 card · 6.35 fondo · AA). */
+  critico: string;
   /** Sin datos. */
   sinDatos: string;
   /** Información como texto. */
@@ -681,6 +702,9 @@ export const THEME_DARK: AppThemeTokens = {
   textoSobreLima: TEXT_COLORS.onAccent,   // #000000
   tealTexto: '#1ABC9C',
   error: SEMANTIC.error,        // #E8877F coral apagado
+  exito: ATP_BRAND.lime,        // #A8E02A · 10.75 sobre card
+  advertencia: SEMANTIC.warning, // #EF9F27 · 7.77 sobre card
+  critico: SCORE_COLORS.critical, // #FF3B30 · 4.76 sobre card
   sinDatos: SEMANTIC.noData,    // #444444
   info: SEMANTIC.info,          // #5B9BD5
   bordeEditorial: 'transparent',
@@ -701,12 +725,54 @@ export const THEME_LIGHT: AppThemeTokens = {
   textoSobreLima: '#000000',    // 13.36 · AAA
   tealTexto: '#086A5E',         // 5.56 sobre card · 4.96 sobre fondo · AA
   error: '#B03A2E',
+  exito: '#4F6B0D',             // lima oscurecido · 5.22 card · 4.66 fondo · AA
+  advertencia: '#8A5A00',       // 5.07 card · 4.53 fondo · AA
+  critico: '#991B1B',           // 7.11 card · 6.35 fondo · AA
   sinDatos: '#A9B4BC',
   info: '#2E6DA4',
   bordeEditorial: '#CBD5DC',
 } as const;
 
 export const APP_THEMES = { dark: THEME_DARK, light: THEME_LIGHT } as const;
+
+/**
+ * ESCALA_NIVEL — la rampa de CINCO pasos para escalas de grado (índice UV,
+ * grado de deficiencia, nivel de riesgo). No es lo mismo que los tres
+ * tokens de estado: aquí el dato tiene grados, no estados.
+ *
+ * Por qué existe: la rampa que la app traía es la familia por defecto de
+ * Tailwind (#22c55e #fbbf24 #fb923c #ef4444 #dc2626), y sobre superficie
+ * CLARA da de 1.19 a 3.45 de contraste, o sea que la barra desaparece.
+ * Medido con contrast.ts, no estimado. El lado oscuro se queda tal cual
+ * porque ahí sí funciona (3.50 a 11.73).
+ *
+ * Los pasos 0, 1 y 3 del lado claro son exactamente THEME_LIGHT.exito,
+ * .advertencia y .critico; los pasos 2 y 4 son los dos intermedios que
+ * una escala de cinco necesita y un juego de tres estados no tiene.
+ *
+ * REGLA que sale de la medición: en claro los tres primeros pasos se
+ * separan por TONO, no por luminancia (1.03 y 1.04 entre vecinos). Así
+ * que una barra de esta rampa en tema claro SIEMPRE va acompañada de su
+ * cifra o su etiqueta. El color solo NO comunica el grado (WCAG 1.4.1).
+ */
+export const ESCALA_NIVEL = {
+  //        0 bajo     1 moderado 2 alto     3 muy alto 4 extremo
+  dark:  ['#22c55e', '#fbbf24', '#fb923c', '#ef4444', '#dc2626'],
+  light: ['#4F6B0D', '#8A5A00', '#A34500', '#991B1B', '#6B0F0F'],
+} as const;
+
+/** Contrastes del lado claro sobre card · fondo · hundido · borde:
+ *  paso 0  5.22 · 4.66 · 4.36 · 4.09
+ *  paso 1  5.07 · 4.53 · 4.23 · 3.98
+ *  paso 2  5.27 · 4.71 · 4.40 · 4.13
+ *  paso 3  7.11 · 6.35 · 5.93 · 5.58
+ *  paso 4 10.57 · 9.44 · 8.82 · 8.29
+ *  Los cinco pasan AA sobre card y sobre fondo, y 3:1 sobre borde. */
+export function colorNivel(paso: number, kind: 'dark' | 'light'): string {
+  const rampa = kind === 'light' ? ESCALA_NIVEL.light : ESCALA_NIVEL.dark;
+  const i = Math.max(0, Math.min(rampa.length - 1, Math.round(paso)));
+  return rampa[i];
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // HOY BACKGROUNDS — Imagenes de fondo dinamicas por hora

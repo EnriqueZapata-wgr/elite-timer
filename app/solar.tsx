@@ -29,7 +29,7 @@ import {
   type UVData,
 } from '../src/services/uv-service';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
-import { TEXT_COLORS } from '@/src/constants/brand';
+import { TEXT_COLORS, colorNivel } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 
 export default function Solar() {
@@ -219,7 +219,7 @@ export default function Solar() {
 
       {loading ? (
         <View style={{ alignItems: 'center', paddingVertical: 80 }}>
-          <ActivityIndicator size="large" color="#fbbf24" />
+          <ActivityIndicator size="large" color={dark ? '#fbbf24' : t.advertencia} />
           <Text style={{ color: t.textoSecundario, fontSize: 13, marginTop: 12 }}>Obteniendo datos UV...</Text>
         </View>
       ) : uvData ? (
@@ -257,7 +257,7 @@ export default function Solar() {
           {uvData.vitaminDWindow ? (
             <View style={{ backgroundColor: 'rgba(251,191,36,0.06)', borderRadius: 16, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.12)' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <Ionicons name="sunny" size={18} color="#fbbf24" />
+                <Ionicons name="sunny" size={18} color={dark ? '#fbbf24' : t.advertencia} />
                 <Text style={{ color: dark ? '#fbbf24' : t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>VENTANA DE VITAMINA D</Text>
               </View>
               <Text style={{ color: t.texto, fontSize: 24, fontWeight: '800' }}>{uvData.vitaminDWindow.start} – {uvData.vitaminDWindow.end}</Text>
@@ -309,7 +309,7 @@ export default function Solar() {
           <Pressable onPress={() => { setShowProtection(!showProtection); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
             <View style={{ backgroundColor: t.hundido, borderRadius: 16, padding: 16, marginBottom: showProtection ? 0 : 12, borderWidth: 1, borderColor: t.borde, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Ionicons name="shield-checkmark-outline" size={20} color="#22c55e" />
+                <Ionicons name="shield-checkmark-outline" size={20} color={dark ? '#22c55e' : t.exito} />
                 <Text style={{ color: t.texto, fontSize: 14, fontWeight: '700' }}>Protección inteligente</Text>
               </View>
               {/* MB-29 P5 (#18): lo expandible SE DICE, no se adivina. */}
@@ -328,7 +328,7 @@ export default function Solar() {
                   <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: dark ? 'rgba(34,197,94,0.1)' : '#22c55e', justifyContent: 'center', alignItems: 'center' }}>
                     <Text style={{ color: dark ? '#22c55e' : TEXT_COLORS.onAccent, fontSize: 11, fontWeight: '700' }}>{item.priority}</Text>
                   </View>
-                  <Ionicons name={item.icon as any} size={20} color="#22c55e" />
+                  <Ionicons name={item.icon as any} size={20} color={dark ? '#22c55e' : t.exito} />
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: t.texto, fontSize: 13, fontWeight: '600' }}>{item.text}</Text>
                     <Text style={{ color: t.textoTenue, fontSize: 11 }}>{item.sub}</Text>
@@ -360,7 +360,7 @@ export default function Solar() {
           <Pressable onPress={() => { setShowHourly(!showHourly); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}>
             <View style={{ backgroundColor: t.hundido, borderRadius: 16, padding: 16, marginBottom: showHourly ? 0 : 12, borderWidth: 1, borderColor: t.borde, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Ionicons name="bar-chart-outline" size={18} color="#fbbf24" />
+                <Ionicons name="bar-chart-outline" size={18} color={dark ? '#fbbf24' : t.advertencia} />
                 <Text style={{ color: t.texto, fontSize: 14, fontWeight: '700' }}>UV por hora</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -388,7 +388,7 @@ export default function Solar() {
                     >
                       <Text style={{ color: isNow ? (dark ? '#fbbf24' : t.texto) : t.textoTenue, fontSize: 11, width: 38, textAlign: 'right', fontWeight: isNow ? '700' : '400' }}>{h.time}</Text>
                       <View style={{ flex: 1, height: 14, backgroundColor: t.hundido, borderRadius: 7, overflow: 'hidden' }}>
-                        <View style={{ width: `${Math.max(width, 2)}%`, height: '100%', backgroundColor: lvl.color, borderRadius: 7 }} />
+                        <View style={{ width: `${Math.max(width, 2)}%`, height: '100%', backgroundColor: dark ? lvl.color : colorNivel(lvl.paso, 'light'), borderRadius: 7 }} />
                       </View>
                       {/* La barra ya trae el color del nivel: la cifra sigue el tema. */}
                       <Text style={{ color: dark ? lvl.color : t.textoSecundario, fontSize: 11, width: 26, textAlign: 'right', fontWeight: '600' }}>{h.uv}</Text>
@@ -419,20 +419,20 @@ export default function Solar() {
       ) : errorState === 'fetch' ? (
         // #v13d 2.3: fallo de red / timeout 10s → reintentar (no quedar en loading forever).
         <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 }}>
-          <Ionicons name="cloud-offline-outline" size={48} color="#fb923c" />
+          <Ionicons name="cloud-offline-outline" size={48} color={dark ? '#fb923c' : t.advertencia} />
           <Text style={{ color: t.texto, fontSize: 16, fontWeight: '700', marginTop: 16, textAlign: 'center' }}>No pudimos obtener datos UV</Text>
           <Text style={{ color: t.textoSecundario, fontSize: 13, textAlign: 'center', marginTop: 8 }}>Revisa tu conexión e inténtalo de nuevo</Text>
-          <Pressable onPress={loadUV} style={{ backgroundColor: '#fbbf24', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 24, marginTop: 20 }}>
-            <Text style={{ color: TEXT_COLORS.onAccent, fontSize: 14, fontWeight: '800' }}>REINTENTAR</Text>
+          <Pressable onPress={loadUV} style={{ backgroundColor: dark ? '#fbbf24' : t.advertencia, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 24, marginTop: 20 }}>
+            <Text style={{ color: dark ? TEXT_COLORS.onAccent : TEXT_COLORS.primary, fontSize: 14, fontWeight: '800' }}>REINTENTAR</Text>
           </Pressable>
         </View>
       ) : (
         <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 }}>
-          <Ionicons name="location-outline" size={48} color="#fbbf24" />
+          <Ionicons name="location-outline" size={48} color={dark ? '#fbbf24' : t.advertencia} />
           <Text style={{ color: t.texto, fontSize: 16, fontWeight: '700', marginTop: 16, textAlign: 'center' }}>Necesitamos tu ubicación</Text>
           <Text style={{ color: t.textoSecundario, fontSize: 13, textAlign: 'center', marginTop: 8 }}>Para mostrar el índice UV de tu zona</Text>
-          <Pressable onPress={loadUV} style={{ backgroundColor: '#fbbf24', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 24, marginTop: 20 }}>
-            <Text style={{ color: TEXT_COLORS.onAccent, fontSize: 14, fontWeight: '800' }}>PERMITIR UBICACIÓN</Text>
+          <Pressable onPress={loadUV} style={{ backgroundColor: dark ? '#fbbf24' : t.advertencia, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 24, marginTop: 20 }}>
+            <Text style={{ color: dark ? TEXT_COLORS.onAccent : TEXT_COLORS.primary, fontSize: 14, fontWeight: '800' }}>PERMITIR UBICACIÓN</Text>
           </Pressable>
         </View>
       )}

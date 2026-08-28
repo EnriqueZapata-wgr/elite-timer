@@ -130,11 +130,21 @@ export const DEFICIENCY_LABELS = {
   major: 'Déficit mayor',
 } as const;
 
+/** Valores del tema OSCURO. En claro dan de 1.43 a 3.22 y la barra se
+ *  pierde, así que la pantalla resuelve por tema con DEFICIENCY_PASO. */
 export const DEFICIENCY_COLORS = {
   none: '#22c55e',
   minor: '#fbbf24',
   moderate: '#f97316',
   major: '#ef4444',
+} as const;
+
+/** Índice de cada grado en ESCALA_NIVEL (brand.ts), para colorNivel(). */
+export const DEFICIENCY_PASO = {
+  none: 0,
+  minor: 1,
+  moderate: 2,
+  major: 3,
 } as const;
 
 // Perfiles detallados por neurotransmisor (para resultados expandidos)

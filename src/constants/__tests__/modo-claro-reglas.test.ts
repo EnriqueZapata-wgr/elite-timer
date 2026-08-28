@@ -12,6 +12,12 @@
  *   3 · Nueve de diez secciones llevan texto NEGRO como relleno; la única
  *       excepción es ayuno (#6B46C1) con blanco. Y ninguna sirve de LETRA
  *       sobre claro salvo ayuno.
+ *   4 · Los tres estados como TINTA (exito, advertencia, critico) pasan AA
+ *       sobre card y sobre fondo en LOS DOS temas. El error de INTERFAZ y
+ *       el critico CLÍNICO son colores distintos, y el test lo exige.
+ *       Nota medida, no aserción: en claro los tres se separan por TONO
+ *       (contraste mutuo 1.03 a 1.40), así que el color nunca es el único
+ *       portador de la señal; siempre lleva etiqueta o icono (WCAG 1.4.1).
  */
 import { describe, it, expect } from 'vitest';
 import { ATP_BRAND, THEME_LIGHT, THEME_DARK } from '@/src/constants/brand';
@@ -30,6 +36,7 @@ describe('Regla 1 — el lima jamás es texto en modo claro', () => {
     const rolesDeTexto = [
       THEME_LIGHT.texto, THEME_LIGHT.textoSecundario, THEME_LIGHT.textoTenue,
       THEME_LIGHT.tealTexto, THEME_LIGHT.error, THEME_LIGHT.info, THEME_LIGHT.sinDatos,
+      THEME_LIGHT.exito, THEME_LIGHT.advertencia, THEME_LIGHT.critico,
     ];
     for (const c of rolesDeTexto) {
       expect(c.toUpperCase()).not.toBe(ATP_BRAND.lime.toUpperCase());
@@ -87,5 +94,48 @@ describe('Regla 3 — el texto encima de un relleno de sección ya está decidid
         expect(comoTexto, `${s} como texto sobre card clara`).toBeLessThan(AA);
       }
     }
+  });
+});
+
+describe('Regla 4 — los tres estados como tinta se leen en los dos temas', () => {
+  const ESTADOS = ['exito', 'advertencia', 'critico'] as const;
+
+  it('en tema CLARO cada estado pasa AA sobre card y sobre fondo', () => {
+    for (const k of ESTADOS) {
+      const c = THEME_LIGHT[k];
+      expect(contrastRatio(c, THEME_LIGHT.card), `${k} ${c} sobre card clara`)
+        .toBeGreaterThanOrEqual(AA);
+      expect(contrastRatio(c, THEME_LIGHT.fondo), `${k} ${c} sobre fondo claro`)
+        .toBeGreaterThanOrEqual(AA);
+    }
+  });
+
+  it('en tema OSCURO cada estado pasa AA sobre card y sobre fondo', () => {
+    for (const k of ESTADOS) {
+      const c = THEME_DARK[k];
+      expect(contrastRatio(c, THEME_DARK.card), `${k} ${c} sobre card oscura`)
+        .toBeGreaterThanOrEqual(AA);
+      expect(contrastRatio(c, THEME_DARK.fondo), `${k} ${c} sobre fondo oscuro`)
+        .toBeGreaterThanOrEqual(AA);
+    }
+  });
+
+  it('sobre relleno de estado, la tinta que se decidió es la que pasa', () => {
+    // Los tres claros están calibrados para llevar BLANCO encima cuando se
+    // usan como relleno, no negro. Medido: 6.10 / 5.93 / 8.31.
+    for (const k of ESTADOS) {
+      expect(contrastRatio('#FFFFFF', THEME_LIGHT[k]), `blanco sobre ${k}`)
+        .toBeGreaterThanOrEqual(AA);
+    }
+  });
+
+  it('el crítico CLÍNICO no es el error de INTERFAZ, en ningún tema', () => {
+    expect(THEME_LIGHT.critico.toUpperCase()).not.toBe(THEME_LIGHT.error.toUpperCase());
+    expect(THEME_DARK.critico.toUpperCase()).not.toBe(THEME_DARK.error.toUpperCase());
+  });
+
+  it('el éxito claro NO es el lima de marca (1.34: sería invisible)', () => {
+    expect(THEME_LIGHT.exito.toUpperCase()).not.toBe(ATP_BRAND.lime.toUpperCase());
+    expect(THEME_DARK.exito.toUpperCase()).toBe(ATP_BRAND.lime.toUpperCase());
   });
 });

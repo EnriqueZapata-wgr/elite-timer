@@ -36,12 +36,18 @@ export function getBurnTimeMinutes(uvIndex: number, fitzpatrick: number): number
   return Math.round(type.burnBase / uvIndex);
 }
 
-export function getUVLevel(uv: number): { level: string; color: string; emoji: string; advice: string } {
-  if (uv <= 2) return { level: 'Bajo', color: '#22c55e', emoji: '☀️', advice: 'Ideal para exponerte 15-20 min y sintetizar vitamina D' };
-  if (uv <= 5) return { level: 'Moderado', color: '#fbbf24', emoji: '🌤️', advice: 'Ventana óptima de vitamina D: 10-15 min sin protección' };
-  if (uv <= 7) return { level: 'Alto', color: '#fb923c', emoji: '🔆', advice: 'Limita exposición directa. Busca sombra después de 15 min' };
-  if (uv <= 10) return { level: 'Muy Alto', color: '#ef4444', emoji: '⚠️', advice: 'Sombra, ropa protectora y sombrero. Evita 11-15h' };
-  return { level: 'Extremo', color: '#dc2626', emoji: '🚨', advice: 'Evita el sol directo. Riesgo de quemadura en minutos' };
+/**
+ * `color` son los valores del tema OSCURO, que es donde funcionan. En claro
+ * dan de 1.19 a 3.45 de contraste, o sea que la barra desaparece; por eso
+ * también se devuelve `paso`, el índice en ESCALA_NIVEL (brand.ts), y la
+ * pantalla resuelve el color con colorNivel(paso, t.kind).
+ */
+export function getUVLevel(uv: number): { level: string; color: string; paso: number; emoji: string; advice: string } {
+  if (uv <= 2) return { level: 'Bajo', color: '#22c55e', paso: 0, emoji: '☀️', advice: 'Ideal para exponerte 15-20 min y sintetizar vitamina D' };
+  if (uv <= 5) return { level: 'Moderado', color: '#fbbf24', paso: 1, emoji: '🌤️', advice: 'Ventana óptima de vitamina D: 10-15 min sin protección' };
+  if (uv <= 7) return { level: 'Alto', color: '#fb923c', paso: 2, emoji: '🔆', advice: 'Limita exposición directa. Busca sombra después de 15 min' };
+  if (uv <= 10) return { level: 'Muy Alto', color: '#ef4444', paso: 3, emoji: '⚠️', advice: 'Sombra, ropa protectora y sombrero. Evita 11-15h' };
+  return { level: 'Extremo', color: '#dc2626', paso: 4, emoji: '🚨', advice: 'Evita el sol directo. Riesgo de quemadura en minutos' };
 }
 
 export function getProtectionAdvice(uv: number): { icon: string; text: string; sub: string; priority: number }[] {

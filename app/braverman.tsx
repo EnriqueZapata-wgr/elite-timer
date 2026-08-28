@@ -20,7 +20,7 @@ import Animated, {
 import { supabase } from '../src/lib/supabase';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
-import { TEXT, ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { TEXT, ATP_BRAND, withOpacity, colorNivel } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, Spacing } from '@/constants/theme';
 import {
@@ -32,6 +32,7 @@ import {
   getDeficiencyLevel,
   DEFICIENCY_LABELS,
   DEFICIENCY_COLORS,
+  DEFICIENCY_PASO,
   type Neurotransmitter,
 } from '../src/constants/braverman-questions';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
@@ -62,6 +63,11 @@ function BravermanTest() {
   const dark = t.kind === 'dark';
   /** Color de acento como LETRA: solo en oscuro; sobre acero pasa a texto. */
   const colTxt = (c: string) => (dark ? c : t.texto);
+  // El grado como FORMA (barra, filo). La rampa oscura sobre superficie
+  // clara da de 1.43 a 3.22, o sea que la barra se pierde; en claro se
+  // resuelve con ESCALA_NIVEL, que sí está calibrada. Medido, no estimado.
+  const colGrado = (k: keyof typeof DEFICIENCY_COLORS) =>
+    (dark ? DEFICIENCY_COLORS[k] : colorNivel(DEFICIENCY_PASO[k], 'light'));
   const [screen, setScreen] = useState<Screen>('intro');
   const [currentPart, setCurrentPart] = useState(1);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -719,7 +725,7 @@ function BravermanTest() {
                 <View style={{ height: 6, backgroundColor: t.borde, borderRadius: 3 }}>
                   <View style={{
                     height: 6, borderRadius: 3,
-                    backgroundColor: DEFICIENCY_COLORS[level],
+                    backgroundColor: colGrado(level),
                     width: `${Math.min((score / 25) * 100, 100)}%`,
                   }} />
                 </View>
@@ -756,7 +762,7 @@ function BravermanTest() {
               <View style={{
                 backgroundColor: t.card, borderRadius: 16, padding: 20, marginBottom: 12,
                 borderWidth: 1, borderColor: t.borde,
-                borderLeftWidth: 3, borderLeftColor: DEFICIENCY_COLORS[defLevel],
+                borderLeftWidth: 3, borderLeftColor: colGrado(defLevel),
               }}>
                 <Text style={{ color: colTxt(DEFICIENCY_COLORS[defLevel]), fontSize: 14, fontFamily: Fonts.bold, marginBottom: 8 }}>
                   Deficiencia de {defMeta.name}
