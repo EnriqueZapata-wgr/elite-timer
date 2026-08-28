@@ -1537,16 +1537,27 @@ export default function FastingScreen() {
       )}
 
       {/* ── Ajustar la hora de FIN al terminar (28-ago-2026) ──
-          El mínimo es el inicio del ayuno y el máximo es ahora: por
-          construcción no se puede elegir una hora que dé horas negativas ni
-          una en el futuro. La validación de breakFastWithTime queda como
-          segunda red, no como única. */}
+          El mínimo es el inicio del ayuno MÁS UN MINUTO, y el máximo es ahora.
+
+          El minuto extra no es capricho: 4EP encontró que con el inicio exacto
+          como piso, un preset fuera de rango se acotaba JUSTO al inicio, daba
+          cero horas, y breakFastWithTime lo rebotaba con "la hora de fin debe
+          ser después del inicio". Callejón sin salida: la rueda enseñaba algo
+          que Aceptar siempre rechazaba, y la única salida era cancelar.
+
+          Con el piso corrido y el acotado del picker redondeando hacia ADENTRO
+          del rango, ahora sí es cierto que no se puede elegir una hora que dé
+          horas negativas ni una en el futuro. La validación de
+          breakFastWithTime queda como segunda red, no como única. */}
       {activeFast && (
         <TimeWheelPicker
           visible={breakEndOpen}
           initialValue={new Date()}
           title="¿Cuándo rompiste el ayuno?"
-          minDate={safeDate(activeFast.fast_start) ?? undefined}
+          minDate={(() => {
+            const ini = safeDate(activeFast.fast_start);
+            return ini ? new Date(ini.getTime() + 60000) : undefined;
+          })()}
           maxDate={new Date()}
           presets={BREAK_END_PRESETS}
           onConfirm={handleBreakEndConfirm}

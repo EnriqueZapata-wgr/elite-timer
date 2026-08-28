@@ -60,6 +60,23 @@ export function TimeWheelPicker({
     out.setMinutes(idxMinuto(d) * 5, 0, 0);
     return out;
   };
+  /**
+   * 4EP: acotar NO puede usar el redondeo al más cercano, porque redondear un
+   * límite puede CRUZARLO. Con minDate 20:58 daba 20:55, tres minutos por debajo
+   * del mínimo; con maxDate 12:03 daba 12:05, dos minutos en el futuro. Al acotar
+   * se redondea SIEMPRE hacia adentro del rango.
+   */
+  const pisoRejilla = (d: Date) => {
+    const out = new Date(d);
+    out.setMinutes(Math.floor(d.getMinutes() / 5) * 5, 0, 0);
+    return out;
+  };
+  const techoRejilla = (d: Date) => {
+    const out = new Date(d);
+    out.setSeconds(0, 0);
+    out.setMinutes(Math.ceil(d.getMinutes() / 5) * 5);
+    return out;
+  };
 
   // Estado interno de la wheel (no se commitea hasta Aceptar)
   const [draftDate, setDraftDate] = React.useState(() => pegarARejilla(initialValue));
@@ -167,8 +184,8 @@ export function TimeWheelPicker({
    * el valor real. Lo que se ve es siempre lo que se confirma.
    */
   const acotar = (d: Date): Date => {
-    if (maxDate && d > maxDate) return pegarARejilla(maxDate);
-    if (minDate && d < minDate) return pegarARejilla(minDate);
+    if (maxDate && d > maxDate) return pisoRejilla(maxDate);
+    if (minDate && d < minDate) return techoRejilla(minDate);
     return d;
   };
   const fijarDraft = (candidato: Date, animado: boolean) => {
@@ -195,13 +212,15 @@ export function TimeWheelPicker({
   };
   const handleHourChange = (h: number) => {
     const newDate = new Date(draftDate);
-    newDate.setHours(h);
+    // 4EP: con overscroll el índice puede salirse; sin acotar, h=24 avanzaba un
+    // día entero y mIdx=-1 retrocedía una hora.
+    newDate.setHours(Math.min(23, Math.max(0, h)));
     fijarDraft(newDate, true);
     Haptics.selectionAsync();
   };
   const handleMinuteChange = (mIdx: number) => {
     const newDate = new Date(draftDate);
-    newDate.setMinutes(Math.min(11, mIdx) * 5, 0, 0);
+    newDate.setMinutes(Math.min(11, Math.max(0, mIdx)) * 5, 0, 0);
     fijarDraft(newDate, true);
     Haptics.selectionAsync();
   };

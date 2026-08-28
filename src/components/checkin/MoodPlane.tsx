@@ -44,7 +44,7 @@ import {
   QUADRANT_ZOOM_FACTOR, FOCUS_ZOOM_FACTOR,
 } from '@/src/services/emotion-plane-core';
 import { haptic } from '@/src/utils/haptics';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useSurfaceTokens, useAppTheme } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { TEXT, withOpacity } from '@/src/constants/brand';
 
@@ -90,7 +90,13 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
   { selectedIds, highlightIds, onEmotionPress, interactive = true },
   ref,
 ) {
-  const t = useSurfaceTokens();
+  // 4EP 28-ago: useSurfaceTokens() devuelve THEME_DARK si el componente NO está
+  // dentro de un <ThemeReady>, y app/checkin.tsx no lo tiene en ninguna parte:
+  // el chip "claro" salía oscuro y el 18.41 que prometí no se pintaba nunca.
+  // Se lee el tema REAL, igual que hace la pantalla anfitriona (checkin usa
+  // useAppTheme). La celda de abajo sigue con useSurfaceTokens a propósito: ese
+  // scope es suyo y no lo toco aquí.
+  const t = useAppTheme().tokens;
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
   const ready = viewport.w > 0 && viewport.h > 0;
   const fit = ready ? planeFitScale(viewport.w, viewport.h) : PLANE_MIN_SCALE;
@@ -427,8 +433,11 @@ const styles = StyleSheet.create({
     // El fondo y el borde llegan por props: dependen del tema.
   },
   labelFila: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  labelPunto: { width: 7, height: 7, borderRadius: 4 },
+  labelPunto: { width: 8, height: 8, borderRadius: 4 },
   labelText: {
+    // 4EP: dentro de la fila con el punto, sin flexShrink el texto no encoge y
+    // desborda el maxWidth del chip en pantallas angostas.
+    flexShrink: 1,
     fontSize: FontSizes.sm,
     lineHeight: 18,
     fontFamily: Fonts.bold,
