@@ -1,10 +1,21 @@
-# ATP · Manual de marca aplicada
+> # Retrato del cambio de lienzo · 22 de agosto de 2026
+>
+> **Qué es esto.** La copia del manual de marca tal como quedó el día en que el lienzo del
+> modo oscuro pasó de negro puro a acero. Conserva las columnas comparativas que muestran,
+> lado a lado, el valor de hoy y el valor anterior.
+>
+> **Por qué existe.** Esas columnas fueron útiles mientras el cambio estaba fresco: dejaban
+> ver de dónde salió cada número derivado. Ya no lo son para trabajar. Se guardan aquí para
+> quien necesite reconstruir la derivación o entender por qué un escalón vale lo que vale.
+>
+> **NO es la referencia vigente.** No trabajes contra este documento y no cites sus capítulos.
+> La referencia viva es `docs/MANUAL_DE_MARCA.md`, en esa ruta y sin comparativas.
+>
+> Este archivo no se edita. Su valor es ser el retrato de un momento.
 
-> **Lee esto aunque no leas nada más.** Este es el sistema visual vigente de la app ATP, y es
-> la referencia con la que trabaja cualquiera que toque una pantalla. La regla de oro del
-> proyecto es **medir, no copiar**: cada número de aquí salió de un archivo del repo o de una
-> medición fechada, y ninguno se reproduce de memoria. Si vas a mover un valor, mídelo primero
-> y deja la fecha.
+---
+
+# ATP · Manual de marca aplicada
 
 > **Qué es este documento.** El sistema visual de ATP ya existe y funciona. Lo que no existía
 > era el documento que lo explica. Esto no diseña nada nuevo: **documenta lo que el código ya
@@ -25,9 +36,7 @@
 > - Este manual es la capa que faltaba entre los dos: las reglas de color, imagen, tema y
 >   movimiento tal como están implementadas hoy.
 >
-> Estado del código verificado contra la rama `main`. Los contrastes y los grises del modo
-> oscuro se midieron el **22 de agosto de 2026**; el capítulo 14 se recomprobó contra el código
-> el **27 de agosto de 2026**.
+> Estado del código al momento de escribirlo: rama `main`.
 
 ---
 
@@ -49,9 +58,6 @@
 14. [Dónde el sistema se contradice a sí mismo](#14-dónde-el-sistema-se-contradice-a-sí-mismo)
 15. [Costumbre sin regla, y lo que no se verificó](#15-costumbre-sin-regla-y-lo-que-no-se-verificó)
 
-Anexo: [Valores que quedaron con duda](#anexo--valores-que-quedaron-con-duda) (sin número: los
-capítulos se citan del 1 al 15 y esa numeración no se mueve).
-
 ---
 
 ## 1. Los tres colores de marca
@@ -67,8 +73,8 @@ capítulos se citan del 1 al 15 y esa numeración no se mueve).
 Intermedios del degradado de marca, que no se usan sueltos: `green1 #6DCC48`, `green2 #3DBF6E`,
 `teal1 #2EC28A`.
 
-**De dónde sale.** `src/constants/brand.ts` líneas 18 a 35. La doctrina está escrita en el
-comentario de las líneas 13 a 17: *"3 colores, lime + teal PRINCIPALES, amarillo (amber)
+**De dónde sale.** `src/constants/brand.ts` líneas 17 a 34. La doctrina está escrita en el
+comentario de las líneas 12 a 16: *"3 colores, lime + teal PRINCIPALES, amarillo (amber)
 SECUNDARIO. Nada de 4º color de marca."*
 
 **Un solo amarillo.** `SEMANTIC.acceptable` y `SCORE_COLORS.stable` **no son colores propios**:
@@ -76,18 +82,18 @@ apuntan al mismo `ATP_BRAND.amber`. Cualquier otro amarillo en una pantalla es d
 decisión. Lo protege `src/constants/__tests__/brand-tokens.test.ts`, que falla si los tres
 dejan de ser el mismo hex.
 
-**Cuándo se usa el lima.** Solo tres casos, declarados en `ACCENT_ROLES` (`brand.ts` 470-481):
+**Cuándo se usa el lima.** Solo tres casos, declarados en `ACCENT_ROLES` (`brand.ts` 291-302):
 1. Acción primaria o CTA.
 2. Dato heroico (uno por pantalla).
 3. Estado semántico "hecho" (palomitas de completado). Eso es feedback, no adorno.
 
 **Cuándo NO.** Como fondo de una superficie grande. El comentario de `BUTTON_STYLES.primary`
-(`brand.ts` 301-303) es explícito: *"Para superficies grandes, preferir brandGradient()
+(`brand.ts` 129-131) es explícito: *"Para superficies grandes, preferir brandGradient()
 sobre el lime plano; el sólido es para botones compactos, no fondos."*
 
 **La heurística de campo.** Si en una captura de pantalla cuentas **más de dos o tres elementos
 lima** que no sean CTA, héroe o estado, sobra acento y hay que pasarlos a gris
-(`TEXT.secondary`). Está escrita en `brand.ts` 474-475.
+(`TEXT.secondary`). Está escrita en `brand.ts` 293-294.
 
 **Lo que NO cuenta como exceso.** El lima cuando es color de categoría (fitness) o estado
 semántico. Eso es el sistema funcionando.
@@ -191,24 +197,24 @@ pantalla.
 
 ### 3.2 Categorías y pilares
 
-`brand.ts` 212-221, `CATEGORY_COLORS`:
+`brand.ts` 63-72, `CATEGORY_COLORS`:
 
 `fitness #8CBF24` · `nutrition #5B9BD5` · `mind #7F77DD` · `optimization #EF9F27` ·
 `metrics #1D9E75` · `rest #E0E0E0` · `cycle #D4537E`
 
 El lima de categoría es **desaturado a propósito** (`#8CBF24` en vez de `#A8E02A`): el lima puro
-queda reservado a acción primaria y dato heroico (comentario en `brand.ts` 213-214).
+queda reservado a acción primaria y dato heroico (comentario en `brand.ts` 64-65).
 **Ojo: esto choca con la sección `fitness` del capítulo anterior. Ver capítulo 14.**
 
-`APP_SECTION_COLORS` (`brand.ts` 241-250) mapea las cinco secciones de la sala ATP a esos colores.
-La regla de aplicación está escrita en el docblock de las líneas 223-240: se aplica **en capas**,
+`APP_SECTION_COLORS` (`brand.ts` 83-92) mapea las cinco secciones de la sala ATP a esos colores.
+La regla de aplicación está escrita en el docblock de las líneas 74-82: se aplica **en capas**,
 fondo del mosaico al 10 por ciento, borde al 22 por ciento, icono y encabezado de sección al 100
 por ciento, y **la etiqueta se queda gris** (`TEXT.secondary`). El criterio: *"Cinco bloques de
 color se leen como sistema; veinticinco serían confeti."*
 
 ### 3.3 Semáforo de salud
 
-`brand.ts` 488-513, `SCORE_COLORS` + `getScoreColor(score)`:
+`brand.ts` 309-334, `SCORE_COLORS` + `getScoreColor(score)`:
 
 | Tramo | Etiqueta | Color |
 |---|---|---|
@@ -223,14 +229,10 @@ color se leen como sistema; veinticinco serían confeti."*
 **Los dos rojos están separados a propósito.** `SEMANTIC.error = #E8877F` es un coral apagado y
 es el error de **interfaz** (un formulario mal llenado). `SCORE_COLORS.critical = #FF3B30` es
 rojo pleno y es el dato **de salud** en estado crítico. El criterio, escrito en `brand.ts`
-272-274 y 493-494: *"el dato crítico de salud grita MÁS que un error de formulario."* Un campo
+100-102 y 314-315: *"el dato crítico de salud grita MÁS que un error de formulario."* Un campo
 de captura vacío no puede verse tan grave como un biomarcador fuera de rango.
-
-**Lo cuida un candado.** `src/constants/__tests__/rojo-clinico.test.ts` exige que los dos rojos
-sigan existiendo y distintos, y que el peor estado clínico de las cuatro tablas de salud
-(`lab-rating.ts`, `edad-atp/tokens.ts`, `condition-catalog.ts`, `functional-health-engine.ts`)
-use `SCORE_COLORS.critical` y nunca el coral. Existe un tercer rojo suelto en el repo,
-`#E24B4A`, que **no** debe usarse para estado clínico.
+Esta regla estaba rota en el semáforo de labs y en tres tablas más. **Ya se corrigió**
+(commit `MARCA:`, ver 14.3), y ahora la cuida un candado: `src/constants/__tests__/rojo-clinico.test.ts`.
 
 ### 3.4 Fases del ciclo
 
@@ -290,141 +292,137 @@ componente (no exportada, no hay fuente única):
 **Un token nombra un rol, no un color.** Los dos temas tienen exactamente las mismas llaves, y
 un test lo verifica. Fuente: `src/constants/brand.ts`, interfaz `AppThemeTokens`.
 
-> **El lienzo del modo oscuro es un acero oscuro, no negro puro. Medido el 22 de agosto de 2026.**
-> El negro puro se lee demasiado profundo y cansa a la lectura. La pizca de azul del acero es a
-> propósito: es lo que el ojo lee como acero y no como gris sucio. Vive detrás de la bandera
-> `ACERO_OSCURO` en `src/constants/flags.ts` (hoy en `true`), así que el lienzo se puede mover
-> por OTA sin compilar.
+> **El oscuro dejó de ser negro puro. Medido y aplicado el 22 de agosto de 2026.**
+> Decisión del dueño: el negro puro se lee demasiado profundo y cansa a la lectura. El lienzo
+> es ahora un **acero oscuro**. La pizca de azul es a propósito: es lo que el ojo lee como
+> acero y no como gris sucio. Vive detrás de la bandera `ACERO_OSCURO` en
+> `src/constants/flags.ts`, así que se puede volver al negro por OTA sin compilar.
 
-| Token | Rol | Oscuro (acero) | Claro (acero) |
-|---|---|---|---|
-| `fondo` | El lienzo de la pantalla | `#0F1114` | `#DBE2E7` |
-| `card` | Superficie de card | `#1A1D22` | `#E9EEF1` |
-| `hundido` | Dato dentro de card, campo de captura | `#0A0C0F` | `#D3DBE1` |
-| `flotante` | Hoja modal, menú emergente | `#292E36` | `#F2F5F7` |
-| `borde` | Separador, contorno de card | `#252931` | `#CBD5DC` |
-| `bordeMarcado` | Campo con foco, selección | `#383F4A` | `#B4C1CA` |
-| `texto` | Texto principal | `#FFFFFF` | `#0F1518` |
-| `textoSecundario` | Texto secundario | `#909090` | `#4A555C` |
-| `textoTenue` | Etiquetas grandes o deshabilitadas | `#555555` | `#7A868E` |
-| `textoSobreLima` | Texto sobre relleno lima | `#000000` | `#000000` |
-| `tealTexto` | Acento de texto y enlace | `#1ABC9C` | `#086A5E` |
-| `error` | Error de interfaz | `#E8877F` | `#B03A2E` |
-| `sinDatos` | Sin datos | `#444444` | `#A9B4BC` |
-| `info` | Información como texto | `#5B9BD5` | `#2E6DA4` |
-| `bordeEditorial` | Borde de la card editorial | `transparent` | `#CBD5DC` |
+| Token | Rol | Oscuro (acero) | Oscuro anterior | Claro (acero) |
+|---|---|---|---|---|
+| `fondo` | El lienzo de la pantalla | `#0F1114` | `#000000` | `#DBE2E7` |
+| `card` | Superficie de card | `#1A1D22` | `#121212` | `#E9EEF1` |
+| `hundido` | Dato dentro de card, campo de captura | `#0A0C0F` | `#0A0A0A` | `#D3DBE1` |
+| `flotante` | Hoja modal, menú emergente | `#292E36` | `#232323` | `#F2F5F7` |
+| `borde` | Separador, contorno de card | `#252931` | `#1F1F1F` | `#CBD5DC` |
+| `bordeMarcado` | Campo con foco, selección | `#383F4A` | `#333333` | `#B4C1CA` |
+| `texto` | Texto principal | `#FFFFFF` | `#FFFFFF` | `#0F1518` |
+| `textoSecundario` | Texto secundario | `#909090` | `#888888` | `#4A555C` |
+| `textoTenue` | Etiquetas grandes o deshabilitadas | `#555555` | `#555555` | `#7A868E` |
+| `textoSobreLima` | Texto sobre relleno lima | `#000000` | `#000000` | `#000000` |
+| `tealTexto` | Acento de texto y enlace | `#1ABC9C` | `#1ABC9C` | `#086A5E` |
+| `error` | Error de interfaz | `#E8877F` | `#E8877F` | `#B03A2E` |
+| `sinDatos` | Sin datos | `#444444` | `#444444` | `#A9B4BC` |
+| `info` | Información como texto | `#5B9BD5` | `#5B9BD5` | `#2E6DA4` |
+| `bordeEditorial` | Borde de la card editorial | `transparent` | `transparent` | `#CBD5DC` |
 
 ### 4.1 La rampa oscura se mueve completa
 
 Esta es la regla que ordena todo el capítulo, y la que más caro se paga si se ignora: **la
 escala de elevación se mueve entera o no se mueve.** Aclarar solo el lienzo deja la card más
 oscura que el fondo sobre el que flota, y con eso el modelo de elevación se invierte en las 142
-pantallas de un golpe. Lo mismo con cada borde: cada uno está calibrado contra la superficie que
-contornea, así que si esa superficie se mueve y el borde no, unos desaparecen y otros gritan.
+pantallas de un golpe. Lo mismo con cada borde, que estaba calibrado contra negro.
 
 Los doce valores viven en `OSCURO` (`src/constants/brand.ts`) y de ahí los consumen `SURFACES`,
 `BG`, `BORDER`, `PILL`, `CARD`, `ELEVATION` y `THEME_DARK`. **Ningún gris del modo oscuro se
 escribe a mano en ningún otro archivo.**
 
-| Escalón | Rol | Valor |
-|---|---|---|
-| `campo` | Campo de captura, hundido dentro de una card | `#0A0C0F` |
-| `fondo` | El lienzo, o sea `ELEVATION[0]` | `#0F1114` |
-| `chrome` | Tab bar, sidebar, píldoras de filtro | `#16191D` |
-| `card` | Card estándar, o sea `ELEVATION[1]` | `#1A1D22` |
-| `flotante` | Card sobre card u hoja modal, o sea `ELEVATION[2]` | `#292E36` |
-| `popover` | Menú flotante, o sea `ELEVATION[3]` | `#343A45` |
-| `bordeSutil` | Separador interno de card | `#1E2228` |
-| `bordeCampo` | Contorno de campo de captura | `#23272E` |
-| `bordePildora` | Contorno de píldora de filtro | `#242830` |
-| `bordeCard` | Contorno de card, o sea `ELEVATION[1].border` | `#252931` |
-| `bordeMarcado` | Foco, selección, deshabilitado | `#383F4A` |
-| `bordePopover` | Contorno de popover | `#404854` |
+| Escalón | Rol | Acero | Anterior |
+|---|---|---|---|
+| `campo` | Campo de captura, hundido dentro de una card | `#0A0C0F` | `#0a0a0a` |
+| `fondo` | El lienzo, o sea `ELEVATION[0]` | `#0F1114` | `#000000` |
+| `chrome` | Tab bar, sidebar, píldoras de filtro | `#16191D` | `#0A0A0A` |
+| `card` | Card estándar, o sea `ELEVATION[1]` | `#1A1D22` | `#121212` |
+| `flotante` | Card sobre card u hoja modal, o sea `ELEVATION[2]` | `#292E36` | `#232323` |
+| `popover` | Menú flotante, o sea `ELEVATION[3]` | `#343A45` | `#2F2F2F` |
+| `bordeSutil` | Separador interno de card | `#1E2228` | `#141414` |
+| `bordeCampo` | Contorno de campo de captura | `#23272E` | `#222222` |
+| `bordePildora` | Contorno de píldora de filtro | `#242830` | `#1a1a1a` |
+| `bordeCard` | Contorno de card, o sea `ELEVATION[1].border` | `#252931` | `#1F1F1F` |
+| `bordeMarcado` | Foco, selección, deshabilitado | `#383F4A` | `#333333` |
+| `bordePopover` | Contorno de popover | `#404854` | `#3D3D3D` |
 
-**Las tres reglas que sostienen la rampa.** Ninguno de estos valores se eligió a ojo, y quien
-mueva uno tiene que respetar las tres:
+**Cómo se derivaron los nueve valores que el dueño no dictó.** No a ojo:
 
-1. **El tinte de acero es una función, no un gusto:** `G = R + 0.12·R` y `B = R + 0.32·R`.
-   Reproduce `#0F1114` y `#1A1D22` exactos, y por eso la pizca de azul crece con la luminancia
-   en todos los escalones por igual. Un escalón nuevo se calcula con esa función.
-2. **Los saltos de contraste WCAG entre escalones se conservan:** card→flotante 1.238,
-   flotante→popover 1.194. La escalera es monótona creciente y hay un candado en
-   `theme-tokens.test.ts` que lo exige.
-3. **Cada borde conserva el salto que tiene sobre la superficie que contornea**, que es lo que
-   lo hace leerse como filo y no como halo.
+1. El tinte de acero que él eligió resultó ser una función limpia, `G = R + 0.12·R` y
+   `B = R + 0.32·R`, que reproduce `#0F1114` y `#1A1D22` exactos. Los escalones derivados usan
+   esa misma función, así que la pizca de azul crece con la luminancia igual que en sus valores.
+2. Cada escalón conserva el **mismo salto de contraste WCAG** que ya tenía sobre negro:
+   card→flotante pasa de 1.192 a 1.238, flotante→popover de 1.174 a 1.194. No se inventó
+   separación nueva.
+3. Cada borde conserva el salto que tenía sobre la superficie que contornea, que es lo que lo
+   hace leerse como filo y no como halo.
 
-**`campo` y `chrome` son escalones distintos a propósito.** No es cosmética: son roles opuestos.
-El campo vive **dentro** de una card y su trabajo es hundirse (1.159 de contraste contra esa
-card, o sea se lee como pozo). El chrome (tab bar, sidebar, píldoras) vive **sobre** el lienzo y
-tiene que estar por encima de él. Si alguien los vuelve a igualar, el chrome queda más oscuro que
-el lienzo y la tab bar se lee hundida.
+**Un desacople deliberado.** `campo` y `chrome` compartían `#0A0A0A` por accidente: con el
+lienzo en negro puro no había hacia dónde bajar, así que lo hundido y el chrome tuvieron que
+subir los dos. Ahora se separan. El campo se queda hundido, que es su rol, y por fin se lee como
+campo: su contraste contra la card pasa de 1.057 a 1.159. El chrome, que vive **sobre** el
+lienzo, sube a su propio escalón; si se hubiera quedado en `#0A0A0A` habría quedado más oscuro
+que el lienzo y la tab bar se habría leído hundida.
 
 ### 4.2 Los números del oscuro, medidos el 22-ago-2026
 
 Calculados con `contrastRatio` de `src/utils/contrast.ts` (WCAG 2.x real) y anclados en
 `src/constants/__tests__/theme-tokens.test.ts`.
 
-| Par | Medido | Nivel |
-|---|---|---|
-| Texto blanco sobre lienzo | **18.91** | AAA de sobra |
-| Texto blanco sobre card | **16.90** | AAA de sobra |
-| Texto secundario sobre card | **5.29** | AA (ver 4.2.1) |
-| Lima sobre lienzo | **12.03** | AAA |
-| Teal sobre card | **7.01** | AAA |
+| Par | Antes | Ahora | Nivel |
+|---|---|---|---|
+| Texto blanco sobre lienzo | 21.00 | **18.91** | AAA de sobra |
+| Texto blanco sobre card | 18.73 | **16.90** | AAA de sobra |
+| Texto secundario sobre card | 5.28 | **5.29** | AA (ver 4.2.1) |
+| Lima sobre lienzo | 13.36 | **12.03** | AAA |
+| Teal sobre card | 7.78 | **7.01** | AAA |
 
-**El filo del campo de captura es suave a propósito.** Su contorno contra la card mide 1.127,
-que es poco. No lo subas para "arreglarlo": el campo ya se distingue por hundimiento (1.159
-contra esa misma card), y ese es el mecanismo que lo hace leerse como campo. El filo solo lo
-remata.
+**Qué se debilitó, dicho sin adornos.** El contorno del campo de captura contra la card baja de
+1.177 a 1.127. Se aceptó porque el propio campo se hunde el doble que antes contra esa misma
+card (1.057 a 1.159): el campo se distingue mejor aunque su filo sea más suave.
 
-#### 4.2.1 El gris secundario vale `#909090`, y no es un número redondeable
+#### 4.2.1 El gris secundario se recalibró, y no por gusto
 
-`textoSecundario` del modo oscuro es `#909090`. Es un valor raro y la tentación de redondearlo a
-`#888888` es real, porque a la vista son ocho puntos de canal y no se distinguen. **No lo bajes.**
-La razón no es estética.
+`textoSecundario` pasa de `#888888` a `#909090` **solo en el modo oscuro**. Ocho puntos de canal,
+imperceptibles a la vista. Se hizo por una razón que no es estética y que costó encontrar.
 
-Un gris más oscuro sigue pasando AA: `#888888` contra la card de acero da 4.767, así que a
-simple vista no hay problema. El problema aparece en otro lado. **El velo nocturno in-app tiene
-un contrato duro** (cap. 4 y `night-veil-core.ts`): nunca puede tumbar un par de texto por debajo
-de AA, y si lo tumbaría, se recorta a sí mismo. Ese recorte se come la holgura del par **más
-apretado de la paleta**, y el más apretado es justo este. Con `#888888` la holgura cae a 0.267 y
-el velo se estrangula: el rojo pleno del final de la curva se queda en alpha 0.046 en vez de
-0.113, o sea **60% menos filtro justo a la hora en que el filtro sirve para algo**.
+`#888888` contra la card de acero da 4.767. Sigue siendo AA, así que a simple vista no había
+problema. Pero **el velo nocturno in-app tiene un contrato duro** (cap. 4 y
+`night-veil-core.ts`): nunca puede tumbar un par de texto por debajo de AA, y si lo tumbaría, se
+recorta a sí mismo. Ese recorte se come la holgura del par **más apretado**, y el más apretado
+es justo este. La holgura pasaba de 0.785 a 0.267, y con eso el velo se estrangulaba: el rojo
+pleno del final de la curva caía de alpha 0.116 a 0.046, o sea **60% menos filtro justo a la
+hora en que el filtro sirve para algo**.
 
-`#909090` devuelve 5.293 contra la card y 5.923 contra el lienzo, y con eso el velo entrega sus
-0.113 completos. Si alguien oscurece este gris, la app se sigue viendo bien y el filtro de luz
-azul deja de funcionar sin que nada truene a la vista.
+`#909090` devuelve 5.293 contra la card (era 5.285) y 5.923 contra el lienzo (era 5.924), y con
+eso el velo vuelve a 0.113. Los mismos números de antes del cambio, que era el objetivo.
 
 La regla general que deja este caso: **al mover el lienzo hay que remedir también los textos,
 no solo las superficies y los bordes.** Un token puede seguir pasando AA y aun así romper algo
 que depende de su holgura.
 
-**Los colores de dominio no se calibran contra el fondo.** Son señal, no decoración (cap. 2 y 3).
-Sobre el lienzo los diez de sección son legibles; el más bajo es ciclo con 4.81. Como **texto
-sobre una card de acero** hay tres que quedan un pelo bajo AA: mente 4.49, ciclo 4.30, cardio
-4.42. No se tocan: se usan al 100% para icono y encabezado, que es texto grande y ahí el mínimo
-es 3:1, y al 10% y 22% como fondo y borde del mosaico. Ayuno (`#6B46C1`, 2.63) y `sinDatos`
-(`#444444`, 1.73) también están bajo AA y por la misma razón: el morado de ayuno es relleno con
-texto blanco encima, no tinta.
+**Los colores de dominio no se recalibran.** Son señal, no decoración (cap. 2 y 3). Contra el
+lienzo nuevo los diez de sección siguen igual de legibles que antes; el más bajo es ciclo con
+4.81. Pero como **texto sobre una card de acero** hay tres que quedan un pelo bajo AA: mente
+4.49, ciclo 4.30, cardio 4.42. No se tocan: se usan al 100% para icono y encabezado, que es
+texto grande y ahí el mínimo es 3:1, y al 10% y 22% como fondo y borde del mosaico. Ayuno
+(`#6B46C1`, 2.63) y `sinDatos` (`#444444`, 1.73) ya estaban bajo AA antes de este cambio y por
+las mismas razones: el morado de ayuno es relleno con texto blanco encima, no tinta.
 
 ### 4.3 Dónde el negro se queda, y por qué
 
 El acero es el lienzo general. Hay superficies donde el negro profundo **es la función**:
 
 - **La sesión de sueño** (`app/sleep-session.tsx`). Un teléfono encendido toda la noche junto a
-  la cama. Tiene su paleta propia (`NIGHT`, en `night-curve.ts`) y pasa `NIGHT.bg` **explícito**
-  por el prop `fondo` de `<Screen>`. Que sea explícito importa: si heredara el lienzo global,
-  bastaría mover el lienzo para arruinar una superficie que existe para no despertar a nadie.
+  la cama. Tiene su paleta propia (`NIGHT`, en `night-curve.ts`) y ahora pasa `NIGHT.bg`
+  explícito por el prop `fondo` de `<Screen>`. Antes heredaba el lienzo global y coincidía en
+  `#000000` de casualidad.
 - **El reproductor de mente** (`app/mente/player.tsx`). Superficie editorial full-bleed, negra
-  en los dos temas (cap. 7). También anclada.
+  en los dos temas (cap. 7). Ya estaba anclada.
 - **La card editorial**. Oscura en los dos temas, con velo constante. Solo su borde cambia.
 
 **No** se quedan en negro, y es correcto: la respiración y la meditación leen el tema dentro de
 `<ThemeReady>` y en modo claro salen claras. Son pantallas de sesión, no superficies de noche.
 
-**Dónde el negro todavía asoma, y no se puede evitar por OTA.** El splash **nativo** vive en
-`app.json` con `backgroundColor: #000000` y es recurso compilado: no viaja por OTA, así que el
-arranque en frío pasa del negro del splash al acero de la app. Se cierra en el próximo build
+**Lo que este cambio no alcanza.** El splash **nativo** vive en `app.json` con
+`backgroundColor: #000000` y es recurso compilado: no viaja por OTA. Con la bandera encendida,
+el arranque en frío pasa del negro del splash al acero de la app. Se cierra en el próximo build
 nativo, no antes. Lo mismo el fondo del widget de Android (`widget_bg_dark.xml`), que además
 vive en la pantalla de inicio del teléfono y no participa de la rampa de la app.
 
@@ -520,7 +518,7 @@ es la variante calibrada `tealTexto = #086A5E` (5.56 sobre card, 4.96 sobre fond
 
 En oscuro el teal de marca **sí** es el acento de texto y no se toca.
 
-El criterio, escrito en `brand.ts` 654-655: *"el teal, calibrado por fondo como una tinta según
+El criterio, escrito en `brand.ts` 466-467: *"el teal, calibrado por fondo como una tinta según
 el papel."* El color de marca no cambia; cambia la tinta con la que se escribe.
 
 ### Regla 3: el texto sobre relleno de sección ya está decidido
@@ -536,7 +534,7 @@ Ver capítulo 3.1. Ayuno blanco, las otras nueve negro.
 deshabilitados. **Cualquier texto chico que en oscuro usaba `textoTenue` tiene que subir a
 `textoSecundario`** (`#4A555C`, 6.54, AA).
 
-De dónde sale: la declaración del token en `brand.ts` 650 (*"solo etiquetas grandes o
+De dónde sale: la declaración del token en `brand.ts` 462 (*"solo etiquetas grandes o
 deshabilitadas (3.19 en claro)"*), el par de `theme-tokens.test.ts` que le pone piso 3 en vez de
 4.5, y `night-veil-core.test.ts`, que anota que el tenue *"casi no tiene holgura sobre su piso
 de 3.0"* cuando entra el velo nocturno.
@@ -654,8 +652,8 @@ fija:
 | `hero` | 16:9 (1.78) | Próximo evento |
 | `pillar` | 4:3 (1.33) | Frente completo, alrededor del 45 por ciento de la pantalla |
 
-**Por qué proporción y no altura mínima fija** (comentario 28-32): con alturas fijas (210/260/340)
-la card sale más cuadrada que la foto, así que `cover` recorta tanto que solo se ve el degradado.
+Historia útil, del comentario 28-32: antes se usaba altura mínima fija (210/260/340) y las cards
+salían más cuadradas que la foto, así que `cover` recortaba tanto que solo se veía el degradado.
 
 Radio: `Radius.card` = **12**. Fondo base de la card: `#000`.
 
@@ -691,7 +689,7 @@ relleno `rgba(255,255,255,0.85)`; acciones rápidas y CTA `rgba(255,255,255,0.15
 
 Aparte, `assets/backgrounds/` tiene los cuatro fondos del HOY por franja horaria
 (`bg-morning`, `bg-midday-medium`, `bg-night-low`, `bg-sleep`), resueltos por
-`getHoyBackgroundRequire(hour)` en `brand.ts` 720-727.
+`getHoyBackgroundRequire(hour)` en `brand.ts` 532-539.
 
 **Tres reglas de selección de imagen:**
 
@@ -715,7 +713,7 @@ resolver binarios.
 ## 8. Degradados
 
 **La doctrina.** Una superficie heroica de ATP es un **degradado**, nunca lima plano. El lima
-sólido es micro-acento (pastilla, palomita, botón compacto). `brand.ts` 13-17 y 542-547.
+sólido es micro-acento (pastilla, palomita, botón compacto). `brand.ts` 12-16 y 363-368.
 
 ### 8.1 El degradado de marca
 
@@ -728,7 +726,7 @@ termine en teal.
 
 ### 8.2 La función que elige
 
-`brandGradient(pilar?)` (`brand.ts` 548-554):
+`brandGradient(pilar?)` (`brand.ts` 369-375):
 - **Sin pilar** devuelve el `moleculeGradient` completo.
 - **Con pilar** devuelve la tupla `[start, end]` de `PILLAR_GRADIENTS[pilar]`.
 
@@ -736,7 +734,7 @@ termine en teal.
 
 ### 8.3 Degradados de pilar
 
-`PILLAR_GRADIENTS` (`brand.ts` 557-569). Todos tienen la misma forma: **color de categoría
+`PILLAR_GRADIENTS` (`brand.ts` 378-390). Todos tienen la misma forma: **color de categoría
 translúcido → casi negro**. Es un tinte de fondo, no un degradado de color a color.
 
 | Pilar | Inicio | Fin |
@@ -825,8 +823,8 @@ representar una función. Todas pasan por `<AppIcon name="meditar" />`.
 ```
 
 `src/components/ui/AppIcon.tsx`. El nombre está **tipado** contra la lista real
-(`app-icon-names`): `<AppIcon name="meditarr" />` no compila. Sin ese tipado, un nombre mal
-escrito pinta un signo de interrogación en silencio y nadie se entera.
+(`app-icon-names`): `<AppIcon name="meditarr" />` ya no compila. Antes pintaba un signo de
+interrogación en silencio.
 
 **La excepción declarada:** los iconos de **chrome** (flechas, cerrar, chevrons, lupa) no son
 funciones y se quedan como están. Un `<Ionicons>` suelto dibujando "Meditar" sí es deuda.
@@ -892,10 +890,10 @@ Escala (`FontSizes`, `constants/theme.ts` 52-64):
 `xs 10` · `sm 12` · `md 14` · `lg 16` · `xl 18` · `xxl 24` · `hero 28` · `display 32` ·
 `mega 42` · `stat 24` · `timer 56`
 
-**Título de sección**, estilo único (`SECTION_TITLE`, `brand.ts` 364-371): 11px, peso 600,
+**Título de sección**, estilo único (`SECTION_TITLE`, `brand.ts` 192-199): 11px, peso 600,
 `letterSpacing 2`, mayúsculas, color `#888`, `marginBottom 12`.
 
-Escala de `letterSpacing` (`brand.ts` 410-415): `tight 0.5` para párrafo · `normal 1` para
+Escala de `letterSpacing` (`brand.ts` 235-240): `tight 0.5` para párrafo · `normal 1` para
 etiquetas · `wide 2` para títulos de sección y encabezados · `xwide 3` **solo** para la palabra
 "ATP" en el logotipo.
 
@@ -903,38 +901,40 @@ etiquetas · `wide 2` para títulos de sección y encabezados · `xwide 3` **sol
 
 `Spacing` (`constants/theme.ts` 68-75): `xs 4` · `sm 8` · `md 16` · `lg 24` · `xl 32` · `xxl 48`
 
-`SECTION_SPACING` (`brand.ts` 403-407): `sm 16` entre cards del mismo grupo · `md 24` entre
+`SECTION_SPACING` (`brand.ts` 228-232): `sm 16` entre cards del mismo grupo · `md 24` entre
 secciones · `lg 32` entre grupos grandes.
 
 ### 10.3 Elevación: la profundidad es una escala, no un color suelto
 
-`ELEVATION` (`brand.ts` 431-442). **Código nuevo elige un nivel; no escribe fondo y borde
+`ELEVATION` (`brand.ts` 256-263). **Código nuevo elige un nivel; no escribe fondo y borde
 sueltos.**
 
-Los cuatro niveles no escriben su color: lo toman de `OSCURO`, la rampa única del cap. 4.1.
+Los cuatro niveles ya no escriben su color: lo toman de `OSCURO`, la rampa única del cap. 4.1.
+Valores vigentes con `ACERO_OSCURO` encendido, y entre paréntesis los de antes del 22-ago-2026.
 
 | Nivel | Fondo | Borde | Para qué |
 |---|---|---|---|
-| 0 | `#0F1114` | `transparent` | Fondo de pantalla |
-| 1 | `#1A1D22` | `#252931` | **Card estándar, el default** |
-| 2 | `#292E36` | `#383F4A` | Card sobre card, hoja modal |
-| 3 | `#343A45` | `#404854` | Popover, menú flotante |
+| 0 | `#0F1114` (`#000000`) | `transparent` | Fondo de pantalla |
+| 1 | `#1A1D22` (`#121212`) | `#252931` (`#1F1F1F`) | **Card estándar, el default** |
+| 2 | `#292E36` (`#232323`) | `#383F4A` (`#333333`) | Card sobre card, hoja modal |
+| 3 | `#343A45` (`#2F2F2F`) | `#404854` (`#3D3D3D`) | Popover, menú flotante |
 
-**Los niveles están separados a propósito y no se pueden cerrar.** Hoy 1→2 mide 1.238 y 2→3 mide
-1.194. Con saltos de 1.08 a 1.12, que es de donde vienen, la diferencia es imperceptible y un
-modal sobre una card no se distingue de la card. Si alguien acerca dos escalones, la profundidad
-desaparece aunque cada color por separado se vea bien.
+**Los niveles se abrieron a propósito.** El comentario del archivo explica que antes estaban
+a 1.08 y 1.12 de luminancia entre sí, o sea imperceptibles, y un modal sobre una card no se
+distinguía de la card. El paso a acero conserva esos saltos ya abiertos: 1→2 pasa de 1.192 a
+1.238 y 2→3 de 1.174 a 1.194.
 
-Los inputs van a `OSCURO.campo`, `#0A0C0F`: **recedidos**, se leen como pozo frente a la card
-elevada. El campo queda por debajo del fondo de pantalla, así que el pozo es real y no una
-convención.
+Los inputs van a `OSCURO.campo`, hoy `#0A0C0F` (antes `#0a0a0a`): **recedidos**, se leen como
+pozo frente a la card elevada. Con el lienzo en acero el pozo es de verdad, no una convención:
+el campo queda por debajo del fondo de pantalla y no por encima como antes.
 
-**La tab bar y las píldoras de filtro NO son inputs.** Van a `OSCURO.chrome`, `#16191D`. Viven
-sobre el lienzo, así que tienen que estar por encima de él (ver el cap. 4.1).
+**La tab bar y las píldoras de filtro NO son inputs**, aunque compartieran su color hasta el
+22-ago-2026. Van a `OSCURO.chrome`, hoy `#16191D`. Viven sobre el lienzo, así que tienen que
+estar por encima de él (ver el desacople en el cap. 4.1).
 
 ### 10.4 Halo
 
-`GLOW.accent` y `withGlow(color)` (`brand.ts` 449-468). Perfil idéntico en los dos:
+`GLOW.accent` y `withGlow(color)` (`brand.ts` 270-289). Perfil idéntico en los dos:
 `shadowOpacity 0.35`, `shadowRadius 24`, offset 0, `elevation 12`.
 
 **Máximo un uso por pantalla.** Es lo que hace que el protagonista brille; dos halos y ninguno
@@ -952,15 +952,16 @@ concéntricos, dos arcos más anchos a baja opacidad.
 | `Radius.card` | **12** | Radio de card según `constants/theme.ts` |
 | `Radius.md` / `lg` | 16 / 24 | |
 | `Radius.pill` | 50 | |
-| `CARD_STYLE.borderRadius` | **12** | `brand.ts` 294 |
-| `CARD.borderRadius` | **16** | `brand.ts` 398 |
+| `CARD_STYLE.borderRadius` | **12** | `brand.ts` 122 |
+| `CARD.borderRadius` | **16** | `brand.ts` 223 |
 | `PILL.borderRadius` | 17 | altura 34, o sea cápsula exacta |
 
 **Hay dos radios de card conviviendo (12 y 16). Ver capítulo 14.**
 
 Pastilla estándar (`PILL`): alto 34, `paddingHorizontal 16`, borde 0.5, fondo `OSCURO.chrome`
-(`#16191D`), borde `OSCURO.bordePildora` (`#242830`), texto `#666`; activa fondo y borde
-`#a8e02a` con texto `#000`; 11px, peso 600, `letterSpacing 1`.
+(hoy `#16191D`, antes `#0a0a0a`), borde `OSCURO.bordePildora` (hoy `#242830`, antes `#1a1a1a`),
+texto `#666`; activa fondo y borde `#a8e02a` con texto `#000`; 11px, peso 600,
+`letterSpacing 1`.
 
 ---
 
@@ -1138,15 +1139,10 @@ mejor.
 
 Todo lo de aquí está verificado en código. **Son contradicciones reales, no estilo.**
 
-**Recomprobado archivo por archivo el 27-ago-2026.** Las que aparecen sin marca siguen vivas hoy
-y se pueden tomar como trabajo. La única que ya se resolvió es la 14.3, y se deja escrita para
-que nadie la vuelva a abrir. Si arreglas una, márcala aquí igual que la 14.3: los números de
-apartado no se reciclan.
-
 ### 14.1 Hay dos limas de fitness
 
 - `CONCEPT_COLORS.fitness.color = '#A8E02A'` (`concept-colors.ts` 28)
-- `CATEGORY_COLORS.fitness = '#8CBF24'` (`brand.ts` 213)
+- `CATEGORY_COLORS.fitness = '#8CBF24'` (`brand.ts` 64)
 
 La cabecera de `concept-colors.ts` **afirma estar alineada** a los colores de categoría de
 `brand.ts`. En fitness no lo está. Los dos lados tienen su razón escrita: el de sección quiere el
@@ -1164,34 +1160,47 @@ El comentario de `concept-colors.ts` lista `electrons.ts` como consumidor. Cardi
 mismo con `sueno`: mismo valor pero escrito a mano en vez de importado, y el candado de
 `concept-colors.test.ts` solo cubre cinco electrones, así que no lo detecta.
 
-### 14.3 El rojo crítico en las tablas de estado clínico · RESUELTA
+### 14.3 Los dos rojos críticos estaban invertidos en labs · RESUELTO
 
-**No la vuelvas a arreglar.** Verificado en código el 27-ago-2026: las cuatro tablas de estado
-clínico apuntan a `SCORE_COLORS.critical` (`#FF3B30`) y sus fondos derivan por canales rgb de
-ese mismo rojo. Son `src/utils/lab-rating.ts`, `src/components/edad-atp/tokens.ts`,
-`src/data/condition-catalog.ts` y `src/data/functional-health-engine.ts`. Lo sostiene
-`src/constants/__tests__/rojo-clinico.test.ts`, que existe y cubre las cuatro.
+**Era cierta, y era más ancha de lo que decía este capítulo.** Se corrigió completa.
 
-Vale la pena saber por qué no lo detectaba nada antes de ese test: **el ratchet de MB-31B solo
-escanea `.tsx`, y las cuatro tablas viven en `.ts`.** Cualquier tabla de color nueva en `.ts`
-tiene el mismo punto ciego.
+Lo que estaba pasando: `brand.ts` dice que el dato crítico de salud grita más que el error de
+formulario y le asigna `#FF3B30`, pero `src/utils/lab-rating.ts` pintaba el nivel `critical` con
+`SEMANTIC.error = #E8877F`, el coral apagado reservado a errores de interfaz. Y el `bgColor` de
+esa misma fila era `rgba(226,75,74,…)`, o sea `#E24B4A`, **un tercer rojo**: fondo y texto del
+estado crítico venían de rojos distintos.
 
-**Lo que sigue vivo** son los usos EN LÍNEA de `t.error` sobre estado clínico dentro de
-pantallas. Verificados hoy:
+Al ir a arreglarlo aparecieron **cuatro tablas** con el mismo error, no una:
 
-| Archivo | Estado |
+| Tabla | Qué pintaba mal |
 |---|---|
-| `src/components/reports/domains/labs.tsx` | Vivo. Un uso, el estado `atencion` pintado con `t.error` |
-| `src/screens/coach/ClientDetailScreen.tsx` | Vivo, y es el nido grande: alrededor de 40 usos de `t.error`, buena parte de ellos estado clínico puro (condiciones presentes, zona roja, presión arterial, edad biológica, score funcional) |
+| `src/utils/lab-rating.ts` | `critical` y `out_of_range` con el coral + fondo del tercer rojo |
+| `src/components/edad-atp/tokens.ts` | `EDAD_STATUS.bad = '#E24B4A'` a mano |
+| `src/data/condition-catalog.ts` | la bandera clínica `present`, coral + tercer rojo de fondo |
+| `src/data/functional-health-engine.ts` | `RATING_COLORS`, tabla gemela hoy sin consumidores |
 
-No son tablas: son decisiones sueltas archivo por archivo, y en modo claro `#FF3B30` sobre card
-da alrededor de 3.1:1, así que migrarlos toca contraste y es trabajo aparte.
+La de mayor alcance no era la de labs sino `EDAD_STATUS.bad`: es la que ve el usuario final en
+ATP Labs, `ParameterChart` y las sub-edades. `good` ya se había anclado al token semántico en
+MB-11 D.3 y `bad` se quedó atrás.
+
+Por qué no lo detectaba nada: **el ratchet de MB-31B solo escanea `.tsx`, y las cuatro tablas
+viven en `.ts`.** Ahora lo cuida `src/constants/__tests__/rojo-clinico.test.ts`, que afirma que
+los dos rojos siguen existiendo y distintos, que el peor estado clínico de las cuatro tablas usa
+el rojo de salud y nunca el coral, que los fondos derivan por canales rgb del mismo color que el
+texto, y que el resto del semáforo sigue anclado a `SEMANTIC`.
+
+**Lo que sigue pendiente** son los usos EN LÍNEA de `t.error` sobre estado clínico dentro de
+pantallas (presión arterial en `app/health-input.tsx`, el reporte de labs en
+`src/components/reports/domains/labs.tsx`, y un nido grande en
+`src/screens/coach/ClientDetailScreen.tsx`). No son tablas: son decisiones sueltas archivo por
+archivo, y en modo claro `#FF3B30` sobre card da ~3.1:1, así que migrarlos toca contraste y es
+trabajo aparte.
 
 ### 14.4 Hay cuatro escalas rivales de "score de salud"
 
 | Fuente | Tramos | Colores |
 |---|---|---|
-| `getScoreColor` (`brand.ts` 498) | 5 | `#4ade80 / #a8e02a / #EFD54F / #f97316 / #FF3B30` |
+| `getScoreColor` (`brand.ts` 319) | 5 | `#4ade80 / #a8e02a / #EFD54F / #f97316 / #FF3B30` |
 | `scoreColor` (`src/services/daily-health-score.ts` 66) | 3 | `#A8E02A / #EF9F27 / #E24B4A` |
 | `SCORE_LEVELS` (`src/utils/nutrition-scoring.ts` 24) | 6 | `#639922 / #a8e02a / #97C459 / #EF9F27 / #D85A30 / #E24B4A` |
 | `ExplanationModal.tsx` 34 | 3 | en línea, lima / `#EF9F27` / `#E24B4A` |
@@ -1222,12 +1231,8 @@ dominios.
 
 El documento sigue siendo la guía de criterio, pero estos números ya no son ciertos:
 
-El documento no se ha tocado desde el 6-ago-2026, así que nada de lo posterior está reflejado.
-Las siete filas se recomprobaron el 27-ago-2026 y las siete siguen literalmente en el documento.
-
 | Dice DESIGN_SYSTEM.md | Dice el código |
 |---|---|
-| `ELEVATION[0] = #000000`, `ELEVATION[1] = #121212` | `#0F1114` / `#1A1D22` (acero, 22-ago-2026) |
 | `ELEVATION[2] = #1A1A1A` / borde `#2A2A2A` | `#292E36` / `#383F4A` (acero, 22-ago-2026) |
 | `ELEVATION[3] = #222222` / borde `#323232` | `#343A45` / `#404854` (acero, 22-ago-2026) |
 | `SEMANTIC.error = #FB7185` | `#E8877F` |
@@ -1285,9 +1290,8 @@ Esta es la diferencia entre un manual y un inventario: decir dónde no hay regla
 
 ### Lo que le falta a este manual para estar completo
 
-1. **Resolver las contradicciones que siguen vivas en el capítulo 14**, sobre todo las cuatro
-   escalas rivales de score (14.4) y los usos en línea de `t.error` sobre estado clínico que
-   quedaron fuera de las tablas (14.3). Un manual no puede documentar dos verdades.
+1. **Resolver las contradicciones del capítulo 14**, sobre todo el rojo crítico de labs y las
+   cuatro escalas de score. Un manual no puede documentar dos verdades.
 2. **Tokens de movimiento.** Un `motion.ts` con las cuatro duraciones vivas y los dos resortes
    convertiría el capítulo 12 de inventario en regla.
 3. **Fuente única para cronotipos y fases del ciclo**, con su candado.
@@ -1298,33 +1302,3 @@ Esta es la diferencia entre un manual y un inventario: decir dónde no hay regla
    lenguaje de cumplimiento viven en otros documentos y no se integraron aquí.
 7. **Actualizar `docs/DESIGN_SYSTEM.md`** con los valores del capítulo 14.8, o marcarlo como
    documento de criterio y mover todos sus valores numéricos a este manual.
-
----
-
-## Anexo · Valores que quedaron con duda
-
-Salieron al recomprobar el documento contra el código el 27-ago-2026. **Ninguno se corrigió**,
-a propósito: son decisiones de diseño, no erratas de redacción, y quien decide no es quien
-documenta. Se anotan para que alguien las resuelva o las declare intencionales.
-
-1. **En tres secciones, el color sólido no es el primer stop de su propio degradado.** `agua`
-   vale `#60A5FA` y su degradado arranca en `#3498DB`; `sol` vale `#FBBF24` y arranca en
-   `#FFD700`; `sueno` vale `#818CF8` y arranca en `#3B82F6`. En las otras seis sí coinciden. O
-   sea que una card de agua con foto y una barra de agua sin foto no pintan el mismo azul.
-2. **`CONCEPT_COLORS` tiene nueve entradas, no diez.** `ciclo` existe solo en `SECCION_COLORS`,
-   tomado de `CATEGORY_COLORS.cycle`, y es la única sección sin degradado propio. La tabla del
-   cap. 3.1 lista las diez porque diez son las secciones, pero quien busque `ciclo` dentro de
-   `CONCEPT_COLORS` no lo va a encontrar.
-3. **El tercer rojo `#E24B4A` sigue vivo con otro rol.** `EDAD_STATUS` lo usa en `labs` y en
-   `riesgos` como color de dimensión, no de estado clínico, así que el candado del cap. 14.3 no
-   lo toca y es correcto que no lo toque. Pero convive en pantalla con el rojo clínico `#FF3B30`.
-4. **`ELECTRON_WEIGHTS.sleep` vale `#818cf8` escrito a mano**, el mismo valor que
-   `CONCEPT_COLORS.sueno` pero en minúsculas y sin importarlo. Hoy no diverge; nada impide que
-   diverja mañana.
-5. **`THEME_DARK.textoSecundario` arrastra un comentario que dice `// #888888`** al lado del
-   token, cuando con `ACERO_OSCURO` encendido vale `#909090`. El código es correcto; el
-   comentario contradice al cap. 4.2.1.
-6. **`EDAD_TIMING.staggerMs` vale 80**, fuera del rango de 30 a 60 que documenta el cap. 12.2 y
-   lejos de los 40 que recomienda `DESIGN_SYSTEM.md`. Puede ser deliberado para esa pantalla.
-7. **Las referencias de línea a archivos que no son `brand.ts` no se reverificaron una por una.**
-   Los archivos se mueven. Si una cita de línea no cuadra, gana el símbolo, no el número.
