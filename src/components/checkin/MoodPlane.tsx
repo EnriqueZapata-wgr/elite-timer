@@ -46,7 +46,7 @@ import {
 import { haptic } from '@/src/utils/haptics';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { BG, TEXT, withOpacity } from '@/src/constants/brand';
+import { TEXT, withOpacity } from '@/src/constants/brand';
 
 const EASE_OUT = Easing.out(Easing.cubic);
 /** Rango del fundido de las etiquetas de cuadrante, relativo al fit. */
@@ -90,6 +90,7 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
   { selectedIds, highlightIds, onEmotionPress, interactive = true },
   ref,
 ) {
+  const t = useSurfaceTokens();
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
   const ready = viewport.w > 0 && viewport.h > 0;
   const fit = ready ? planeFitScale(viewport.w, viewport.h) : PLANE_MIN_SCALE;
@@ -295,15 +296,33 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
                   style={[styles.labelHalf, { top: top ? 0 : '50%', left: right ? '50%' : 0 }]}
                   pointerEvents="box-none"
                 >
+                  {/* 28-ago-2026 · reporte de Enrique: "las palabras que dicen
+                      con mucha energía y no se siente bien, esas no se alcanzan a
+                      leer". Y no era percepción. La etiqueta se pintaba CON EL
+                      COLOR DE SU PROPIO CUADRANTE encima de celdas de ese mismo
+                      color, sobre un chip translúcido al 62 %. Medido:
+
+                        tema oscuro  5.70 / 4.22 / 5.25   se lee
+                        tema claro   1.17 / 1.74 / 1.30   invisible
+
+                      El chip pasa a ser OPACO con token de tema y el texto usa el
+                      texto del tema: 18.41 en claro, 15.43 en oscuro. La identidad
+                      del cuadrante no se pierde, se muda al punto de color, que no
+                      tiene que cargar con la legibilidad. Además el chip usaba
+                      BG.screen, un hex OSCURO fijo: en tema claro era una mancha
+                      negra sobre lienzo claro. */}
                   <Pressable
                     onPress={() => zoomToQuadrant(q)}
-                    style={styles.labelChip}
+                    style={[styles.labelChip, { backgroundColor: t.card, borderColor: t.borde }]}
                     accessibilityRole="button"
                     accessibilityLabel={QUADRANT_FEEL[q]}
                   >
-                    <EliteText style={[styles.labelText, { color: QUADRANTS[q].color }]}>
-                      {QUADRANT_FEEL[q]}
-                    </EliteText>
+                    <View style={styles.labelFila}>
+                      <View style={[styles.labelPunto, { backgroundColor: QUADRANTS[q].color }]} />
+                      <EliteText style={[styles.labelText, { color: t.texto }]}>
+                        {QUADRANT_FEEL[q]}
+                      </EliteText>
+                    </View>
                   </Pressable>
                 </View>
               ))}
@@ -404,8 +423,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm + 2,
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radius.md,
-    backgroundColor: withOpacity(BG.screen, 0.62),
+    borderWidth: StyleSheet.hairlineWidth,
+    // El fondo y el borde llegan por props: dependen del tema.
   },
+  labelFila: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  labelPunto: { width: 7, height: 7, borderRadius: 4 },
   labelText: {
     fontSize: FontSizes.sm,
     lineHeight: 18,

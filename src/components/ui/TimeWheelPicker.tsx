@@ -47,8 +47,22 @@ export function TimeWheelPicker({
   // sólido con negro y el título al teal calibrado (regla 1 del manual 3.6).
   const t = useSurfaceTokens();
   const dark = t.kind === 'dark';
+  /**
+   * 4EP 28-ago: la rueda de minutos solo tiene 12 posiciones (0,5,...,55). Con
+   * 58 o 59 minutos, Math.round(m/5) daba 12 — fuera de rango — y la rueda abria
+   * descentrada. Ademas el draft guardaba 58 mientras la rueda ensenaba 55: otra
+   * forma de confirmar algo distinto de lo que se ve. Se acota el indice y se
+   * pega el draft a la rejilla desde el arranque.
+   */
+  const idxMinuto = (d: Date) => Math.min(11, Math.round(d.getMinutes() / 5));
+  const pegarARejilla = (d: Date) => {
+    const out = new Date(d);
+    out.setMinutes(idxMinuto(d) * 5, 0, 0);
+    return out;
+  };
+
   // Estado interno de la wheel (no se commitea hasta Aceptar)
-  const [draftDate, setDraftDate] = React.useState(initialValue);
+  const [draftDate, setDraftDate] = React.useState(() => pegarARejilla(initialValue));
 
   // Generación de opciones para cada wheel
   const dayOptions = useMemo(() => {
@@ -81,7 +95,7 @@ export function TimeWheelPicker({
   }, [draftDate, dayOptions]);
 
   const hourIdx = draftDate.getHours();
-  const minuteIdx = Math.round(draftDate.getMinutes() / 5);
+  const minuteIdx = idxMinuto(draftDate);
 
   // Refs para scroll programático en presets
   const dayRef = useRef<FlatList>(null);
@@ -91,39 +105,84 @@ export function TimeWheelPicker({
   // Al abrir el modal: reset del draft + scroll programático de cada wheel a su
   // índice inicial. initialScrollIndex de FlatList es flakey con getItemLayout +
   // padding → centramos manualmente (bug 2: "Hoy" salía al final del wheel).
+  /**
+   * 4EP 28-ago GRAVE: este efecto tenia `initialValue` en las deps, y varios
+   * llamadores le pasan `new Date()` en linea — un objeto NUEVO en cada render
+   * del padre. La pantalla de ayuno re-renderiza cada 30 s por el cronometro,
+   * asi que el efecto volvia a correr con el modal ABIERTO, tiraba la eleccion
+   * del usuario y recorria las tres ruedas solo. Quien ajustaba la hora a la que
+   * rompio el ayuno veia como se le deshacia, y si el tick caia justo antes de
+   * Aceptar, cerraba con la hora equivocada sin un solo aviso.
+   *
+   * Ahora el reset ocurre SOLO en el flanco de apertura. Con el modal abierto,
+   * lo que el usuario giro es sagrado.
+   */
+  const estabaAbierto = useRef(false);
   useEffect(() => {
-    if (!visible) return;
-    setDraftDate(initialValue);
+    if (!visible) { estabaAbierto.current = false; return; }
+    if (estabaAbierto.current) return;
+    estabaAbierto.current = true;
+    const base = pegarARejilla(initialValue);
+    setDraftDate(base);
     requestAnimationFrame(() => {
-      const newDay = new Date(initialValue);
+      const newDay = new Date(base);
       newDay.setHours(0, 0, 0, 0);
       const dIdx = dayOptions.findIndex(o => o.value.getTime() === newDay.getTime());
       try {
         if (dIdx >= 0) dayRef.current?.scrollToIndex({ index: dIdx, animated: false });
-        hourRef.current?.scrollToIndex({ index: initialValue.getHours(), animated: false });
-        minuteRef.current?.scrollToIndex({ index: Math.round(initialValue.getMinutes() / 5), animated: false });
+        hourRef.current?.scrollToIndex({ index: base.getHours(), animated: false });
+        minuteRef.current?.scrollToIndex({ index: idxMinuto(base), animated: false });
       } catch { /* onScrollToIndexFailed en cada Wheel maneja el reintento */ }
     });
-  }, [visible, initialValue, dayOptions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, dayOptions]);
 
   // Aplica preset llenando las 3 wheels al instante
-  const applyPreset = (getDate: () => Date) => {
-    const newDate = getDate();
-    if (maxDate && newDate > maxDate) return;
-    if (minDate && newDate < minDate) return;
-    setDraftDate(newDate);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Scroll cada wheel a su nuevo índice
+  /** Recoloca las tres ruedas sobre una fecha dada. */
+  const reposicionar = (d: Date, animado: boolean) => {
     requestAnimationFrame(() => {
-      const newDay = new Date(newDate);
-      newDay.setHours(0, 0, 0, 0);
-      const newDayIdx = dayOptions.findIndex(o => o.value.getTime() === newDay.getTime());
+      const dia = new Date(d);
+      dia.setHours(0, 0, 0, 0);
+      const dIdx = dayOptions.findIndex(o => o.value.getTime() === dia.getTime());
       try {
-        if (newDayIdx >= 0) dayRef.current?.scrollToIndex({ index: newDayIdx, animated: true });
-        hourRef.current?.scrollToIndex({ index: newDate.getHours(), animated: true });
-        minuteRef.current?.scrollToIndex({ index: Math.round(newDate.getMinutes() / 5), animated: true });
-      } catch { /* índice fuera de rango — el snap manual lo corrige */ }
+        if (dIdx >= 0) dayRef.current?.scrollToIndex({ index: dIdx, animated: animado });
+        hourRef.current?.scrollToIndex({ index: d.getHours(), animated: animado });
+        minuteRef.current?.scrollToIndex({ index: idxMinuto(d), animated: animado });
+      } catch { /* onScrollToIndexFailed en cada Wheel maneja el reintento */ }
     });
+  };
+
+  /**
+   * 4EP 28-ago GRAVE: los tres manejadores hacían `return` cuando el candidato
+   * caía fuera de [minDate, maxDate]. Pero la rueda YA se había movido, y como el
+   * draft no cambiaba, nadie la regresaba a su sitio: la pantalla enseñaba una
+   * hora y Aceptar mandaba otra.
+   *
+   * Caso real del ayuno: inicio ayer 20:00, ahora 12:00. Quien quería "ayer
+   * 22:00" movía el día (rechazado en silencio), movía la hora (rechazado en
+   * silencio), leía "Ayer 22:00" en pantalla y cerraba con HOY 12:00. Registraba
+   * 16 h donde quiso 2, en una app de salud, sin un mensaje.
+   *
+   * Ahora se ACOTA al límite en vez de rechazar, y las ruedas se recolocan sobre
+   * el valor real. Lo que se ve es siempre lo que se confirma.
+   */
+  const acotar = (d: Date): Date => {
+    if (maxDate && d > maxDate) return pegarARejilla(maxDate);
+    if (minDate && d < minDate) return pegarARejilla(minDate);
+    return d;
+  };
+  const fijarDraft = (candidato: Date, animado: boolean) => {
+    const bueno = acotar(candidato);
+    setDraftDate(bueno);
+    if (bueno.getTime() !== candidato.getTime()) reposicionar(bueno, animado);
+  };
+
+  const applyPreset = (getDate: () => Date) => {
+    const newDate = pegarARejilla(getDate());
+    const bueno = acotar(newDate);
+    setDraftDate(bueno);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    reposicionar(bueno, true);
   };
 
   const handleDayChange = (idx: number) => {
@@ -131,25 +190,19 @@ export function TimeWheelPicker({
     if (!day) return;
     const newDate = new Date(draftDate);
     newDate.setFullYear(day.getFullYear(), day.getMonth(), day.getDate());
-    if (maxDate && newDate > maxDate) return;
-    if (minDate && newDate < minDate) return;
-    setDraftDate(newDate);
+    fijarDraft(newDate, true);
     Haptics.selectionAsync();
   };
   const handleHourChange = (h: number) => {
     const newDate = new Date(draftDate);
     newDate.setHours(h);
-    if (maxDate && newDate > maxDate) return;
-    if (minDate && newDate < minDate) return;
-    setDraftDate(newDate);
+    fijarDraft(newDate, true);
     Haptics.selectionAsync();
   };
   const handleMinuteChange = (mIdx: number) => {
     const newDate = new Date(draftDate);
-    newDate.setMinutes(mIdx * 5);
-    if (maxDate && newDate > maxDate) return;
-    if (minDate && newDate < minDate) return;
-    setDraftDate(newDate);
+    newDate.setMinutes(Math.min(11, mIdx) * 5, 0, 0);
+    fijarDraft(newDate, true);
     Haptics.selectionAsync();
   };
 

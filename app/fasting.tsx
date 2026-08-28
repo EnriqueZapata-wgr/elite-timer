@@ -4,8 +4,8 @@
  * 3 estados: IDLE (selector + preview), ACTIVE (ring timer + zonas), HISTORY.
  * Columnas DB: fast_start, target_hours, actual_hours, status, date.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, Alert, Dimensions, DeviceEventEmitter, Modal } from 'react-native';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { View, Text, ScrollView, Pressable, Alert, Dimensions, DeviceEventEmitter, Modal, StyleSheet } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -40,6 +40,7 @@ import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 // MB-22: la lista de protocolos vive en constants (fuente única, compartida
 // con la ficha de Ayuno del Centro).
 import { FASTING_PROTOCOLS } from '@/src/constants/fasting-protocols';
+import { calcularEstadisticas, formatearHoras } from '@/src/services/fasting-stats-core';
 
 // Presets rápidos para los wheel pickers (reemplazan mode="datetime").
 const START_PRESETS = [
@@ -51,9 +52,21 @@ const PAST_END_PRESETS = [
   { label: 'Ahora', getDate: () => new Date() },
   { label: 'Hace 1h', getDate: () => new Date(Date.now() - 60 * 60 * 1000) },
 ];
-// MB-8 Track F: BREAK_END_PRESETS se retiró — TERMINAR cierra al momento
-// (SPEC: sin diálogo de confirmación); corregir un fin olvidado vive en el
-// historial (editar ayuno).
+// 28-ago-2026: BREAK_END_PRESETS VUELVE. Se había retirado citando el SPEC de
+// Zero, que dice "no te avienta un diálogo de confirmación". Pero preguntar
+// "¿ahora o ajustas la hora?" NO es un diálogo de confirmación: es una
+// bifurcación de captura. Son cosas distintas y la diferencia se pagaba cara.
+//
+// Enrique, textual: "termino dándole aceptar, termina el ayuno, y después me
+// tengo que ir a mi historial, y dentro de mi historial pongo editar ayuno, y
+// entonces tengo que poner la hora de inicio, la hora de fin, y es más
+// complicado, y eso genera fricción". Cinco pasos para corregir una hora.
+const BREAK_END_PRESETS = [
+  { label: 'Ahora', getDate: () => new Date() },
+  { label: 'Hace 1h', getDate: () => new Date(Date.now() - 60 * 60 * 1000) },
+  { label: 'Hace 2h', getDate: () => new Date(Date.now() - 2 * 60 * 60 * 1000) },
+  { label: 'Hace 3h', getDate: () => new Date(Date.now() - 3 * 60 * 60 * 1000) },
+];
 
 /** Mapea el reason de un MutationResult fallido a copy en español para el usuario. */
 function fastErrorCopy(reason: fastingService.MutationReason): string {
@@ -240,6 +253,21 @@ export default function FastingScreen() {
   const [editMode, setEditMode] = useState<'start' | 'end' | null>(null);
   // Editar SOLO la hora de inicio del ayuno activo (1 paso).
   const [activeStartEditOpen, setActiveStartEditOpen] = useState(false);
+  // Bifurcación al terminar: elegir la hora sin salir de la pantalla.
+  const [breakEndOpen, setBreakEndOpen] = useState(false);
+  /**
+   * 4EP: `cerrando` era estado de React, y el estado se lee del closure del
+   * render: dos invocaciones en el mismo tick pasaban las dos. Como mutex no
+   * servía. El ref decide (se lee y escribe al instante) y el estado solo pinta
+   * el botón atenuado.
+   *
+   * Importa de verdad: `breakFast` actualiza por id SIN filtrar por estado
+   * (fasting-service.ts), así que un segundo cierre SOBREESCRIBE las horas de un
+   * ayuno ya cerrado. El backlog ya lo reporta, y meter un paso intermedio
+   * alarga justo esa ventana.
+   */
+  const cerrandoRef = useRef(false);
+  const [cerrando, setCerrando] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -474,8 +502,27 @@ export default function FastingScreen() {
     setActiveFast(data);
   }
 
+  /**
+   * 28-ago: el tope por defecto del servicio son 20 ayunos, y de aquí salen
+   * también las estadísticas. Con 20, a quien lleva 44 ayunos la app le diría
+   * "tu ayuno más largo" mirando solo el último mes: un dato falso presentado
+   * como histórico. 200 cubre años de uso y sigue siendo una sola query.
+   */
+  const HISTORIAL_TOPE = 200;
+  /**
+   * Las cuentas viven en fasting-stats-core, que es puro y tiene su propia
+   * prueba. Aquí solo se lee. La higiene (fuera los de 0 h y los de más de
+   * 120) pasa allá adentro: con la basura real de la base, el promedio crudo
+   * sale en 23.8 h cuando el ayuno típico es de 16, y el "más largo" saldría
+   * 263 h, que es imposible y además irresponsable en una app de salud.
+   */
+  const stats = useMemo(
+    () => calcularEstadisticas(history, toLocalDateString(new Date())),
+    [history],
+  );
+
   async function loadHistory() {
-    const data = await fastingService.loadHistory(userId);
+    const data = await fastingService.loadHistory(userId, HISTORIAL_TOPE);
     setHistory(data);
   }
 
@@ -524,10 +571,45 @@ export default function FastingScreen() {
     DeviceEventEmitter.emit('day_changed');
   }
 
-  async function breakFastWithTime(endTime: Date) {
-    if (!activeFast) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  /**
+   * La bifurcación que pidió Enrique. NO es un diálogo de confirmación (eso lo
+   * prohíbe el SPEC de Zero y con razón): es preguntar UN dato que la app antes
+   * daba por sentado. Quien rompió el ayuno hace tres horas ya no tiene que
+   * cerrar mal, irse al historial, entrar a editar y recapturar inicio y fin.
+   */
+  function preguntarHoraDeCierre() {
+    if (!activeFast || cerrandoRef.current) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      '¿Cuándo rompiste el ayuno?',
+      'Si fue hace rato, ajusta la hora para que tus horas queden bien.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Ajustar la hora', onPress: () => {
+          analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { picker: 'break_end' });
+          setBreakEndOpen(true);
+        } },
+        { text: 'Ahora', onPress: () => breakFastWithTime(new Date()) },
+      ],
+    );
+  }
 
+  /** Confirmación del selector: cierra con la hora elegida. */
+  function handleBreakEndConfirm(fecha: Date) {
+    setBreakEndOpen(false);
+    breakFastWithTime(fecha);
+  }
+
+  async function breakFastWithTime(endTime: Date) {
+    if (!activeFast || cerrandoRef.current) return;
+    cerrandoRef.current = true;
+    setCerrando(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    // try/finally: el guard contra doble cierre se suelta SIEMPRE, por
+    // cualquiera de las cinco salidas. Un guard que se queda tomado deja el
+    // botón muerto sin decir nada, que es la enfermedad que ya nos costó caro
+    // esta semana en Mi Salud.
+    try {
     const start = safeDate(activeFast.fast_start);
     if (!start) {
       Alert.alert('Ayuno inválido', 'Este ayuno tiene una hora de inicio corrupta. Vamos a cancelarlo.');
@@ -580,11 +662,15 @@ export default function FastingScreen() {
     setElapsed(0);
     loadHistory();
     DeviceEventEmitter.emit('day_changed');
+    } finally {
+      cerrandoRef.current = false;
+      setCerrando(false);
+    }
   }
 
-  // MB-8 Track F.0: TERMINAR ya no confirma con diálogo (SPEC: el botón baja
-  // de énfasis visual, no se esconde) — llama breakFastWithTime(new Date())
-  // directo. El cierre guiado (BreakFastGuide) es la pantalla de aterrizaje.
+  // 28-ago-2026: TERMINAR ahora pregunta la HORA (preguntarHoraDeCierre), no la
+  // intención. El botón conserva su lugar y su peso visual; el cierre guiado
+  // (BreakFastGuide) sigue siendo la pantalla de aterrizaje.
 
   // === META EDITABLE (F.2) ===
   /** Aplica la meta elegida: estado + goal persistido + target del ayuno activo. */
@@ -1208,6 +1294,42 @@ export default function FastingScreen() {
             </View>
           </View>
 
+          {/* ── Estadísticas rápidas (28-ago-2026) ──
+              Enrique: "no me está dando estadísticas rápidas acerca de mis
+              ayunos, mi promedio de ayunos, mi ayuno más largo".
+
+              Van SIN iconos a propósito, y no por estética: el censo de iconos
+              (icon-censo.test.ts) tiene vetados en GLIFOS_DE_FUNCION justo los
+              que uno elegiría aquí — stats-chart, trending-up, bar-chart,
+              analytics, flame, calendar. Y sin superficies presionables, que es
+              la doctrina de contención del SPEC de Zero: la pantalla ya tiene
+              demasiadas decisiones. Son tres números, no tres botones. */}
+          {stats.total > 0 && (
+            <View style={{ flexDirection: 'row', width: '100%', marginTop: 18 }}>
+              {([
+                { et: 'PROMEDIO', v: formatearHoras(stats.promedio) },
+                { et: 'MÁS LARGO', v: formatearHoras(stats.masLargo) },
+                { et: 'RACHA', v: stats.racha > 0 ? `${stats.racha} d` : '—' },
+              ] as const).map((x, i) => (
+                <View
+                  key={x.et}
+                  style={{
+                    flex: 1, alignItems: 'center',
+                    borderLeftWidth: i === 0 ? 0 : StyleSheet.hairlineWidth,
+                    borderLeftColor: t.borde,
+                  }}
+                >
+                  <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>
+                    {x.et}
+                  </Text>
+                  <Text style={{ color: t.texto, fontSize: 18, fontWeight: '800', marginTop: 4 }}>
+                    {x.v}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* F.4: tu semana de un vistazo */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingHorizontal: 10, marginTop: 18 }}>
             {week.map((d) => (
@@ -1216,14 +1338,16 @@ export default function FastingScreen() {
           </View>
 
           {/* BOTÓN PRIMARIO — mismo lugar, mismo tamaño; solo cambia el peso
-              visual (F.0.1). Terminar NO pide confirmación: el cierre guiado
-              (BreakFastGuide) es el aterrizaje. */}
+              visual (F.0.1). Ahora pregunta la HORA, no la intención: el cierre
+              guiado (BreakFastGuide) sigue siendo el aterrizaje. */}
           {activeFast ? (
             <Pressable
-              onPress={() => breakFastWithTime(new Date())}
+              onPress={preguntarHoraDeCierre}
+              disabled={cerrando}
               style={{
                 width: '100%', borderRadius: 18, paddingVertical: 18, alignItems: 'center', marginTop: 22,
                 backgroundColor: 'rgba(168,224,42,0.13)', borderWidth: 1, borderColor: 'rgba(168,224,42,0.35)',
+                opacity: cerrando ? 0.5 : 1,
               }}
             >
               <Text style={{ color: acento, fontSize: 17, fontWeight: '800', letterSpacing: 1 }}>TERMINAR AYUNO</Text>
@@ -1409,6 +1533,24 @@ export default function FastingScreen() {
           presets={START_PRESETS}
           onConfirm={handleActiveStartEditConfirm}
           onCancel={() => setActiveStartEditOpen(false)}
+        />
+      )}
+
+      {/* ── Ajustar la hora de FIN al terminar (28-ago-2026) ──
+          El mínimo es el inicio del ayuno y el máximo es ahora: por
+          construcción no se puede elegir una hora que dé horas negativas ni
+          una en el futuro. La validación de breakFastWithTime queda como
+          segunda red, no como única. */}
+      {activeFast && (
+        <TimeWheelPicker
+          visible={breakEndOpen}
+          initialValue={new Date()}
+          title="¿Cuándo rompiste el ayuno?"
+          minDate={safeDate(activeFast.fast_start) ?? undefined}
+          maxDate={new Date()}
+          presets={BREAK_END_PRESETS}
+          onConfirm={handleBreakEndConfirm}
+          onCancel={() => setBreakEndOpen(false)}
         />
       )}
 
