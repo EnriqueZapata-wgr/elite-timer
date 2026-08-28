@@ -1181,11 +1181,22 @@ pantallas. Verificados hoy:
 
 | Archivo | Estado |
 |---|---|
-| `src/components/reports/domains/labs.tsx` | Vivo. Un uso, el estado `atencion` pintado con `t.error` |
-| `src/screens/coach/ClientDetailScreen.tsx` | Vivo, y es el nido grande: alrededor de 40 usos de `t.error`, buena parte de ellos estado clínico puro (condiciones presentes, zona roja, presión arterial, edad biológica, score funcional) |
+| `src/components/reports/domains/labs.tsx` | **Cerrado el 28-ago-2026.** `atencion` usa `t.critico` |
+| `src/screens/coach/ClientDetailScreen.tsx` | **Parcial.** Eran 45 usos, no 40. Cerrados los de estado clínico puro (punto e insignia de zona, salud funcional, envejecimiento, edad biológica, calidad de evaluación, barra de dominio). Sigue vivo el nido de nutrición, que necesita decisión de producto antes que código |
 
-No son tablas: son decisiones sueltas archivo por archivo, y en modo claro `#FF3B30` sobre card
-da alrededor de 3.1:1, así que migrarlos toca contraste y es trabajo aparte.
+No son tablas: son decisiones sueltas archivo por archivo. La razón por la que estaban ahí es
+que **`t.error` era el único color de estado legible en los dos temas**, así que no era pereza,
+era falta de herramienta. Eso se resolvió el 28-ago-2026 añadiendo `exito`, `advertencia` y
+`critico` a `AppThemeTokens`, calibrados por tema: en claro `#FF3B30` da 3.03 y no alcanza AA
+para letra chica, y por eso `THEME_LIGHT.critico` vale `#991B1B` (7.11).
+
+Dos hallazgos del mismo barrido que NO eran contraste sino significado, y que valen más que
+todo lo anterior:
+- **La ausencia de dato se pintaba de rojo de alarma.** Sin presión arterial y sin tasa de
+  envejecimiento capturadas, la pantalla del coach gritaba en rojo donde el mensaje correcto es
+  "todavía no se sabe". Dato del usuario sagrado: la ausencia no es una alarma.
+- **La tarjeta "Condiciones" tenía el rojo FIJO**, sin depender del valor: seguía roja con cero
+  condiciones activas.
 
 ### 14.4 Hay cuatro escalas rivales de "score de salud"
 
@@ -1200,30 +1211,80 @@ Y las etiquetas tampoco coinciden: `ÓPTIMO/CARGADO/ESTABLE/BAJO/CRÍTICO` contr
 `Óptimo/Excelente/Bueno/Regular/Bajo`. **El mismo número puede salir de dos colores y dos palabras
 distintas según la pantalla.**
 
-### 14.5 Braverman y UV usan una paleta ajena
+### 14.5 Braverman y UV usan una paleta ajena · RESUELTA EN PANTALLA, VIVA EN LA FUENTE
 
 `DEFICIENCY_COLORS` y `getUVLevel` usan `#22c55e`, `#fbbf24`, `#f97316`, `#ef4444`, `#dc2626`.
 **Ninguno existe en `SEMANTIC` ni en `SCORE_COLORS`.** Son de la familia por defecto de Tailwind,
 no de ATP. Comparten valores entre sí pero no con la marca.
+
+**Dos correcciones al texto de arriba, medidas el 28-ago-2026.** `getUVLevel` NO usa `#f97316`
+para "Alto": usa `#fb923c`. Y `#f97316` sí existe en la marca desde hace tiempo, es
+`SCORE_COLORS.low`. O sea que de los cinco "ajenos", uno ya estaba adoptado.
+
+**Lo que importaba no era la procedencia, era que no se veían.** Medido sobre superficie clara:
+`#fbbf24` da 1.19 sobre `hundido`, `#22c55e` 1.63, `#fb923c` 1.62. La barra de UV por hora, la
+barra de grado de Braverman y seis iconos de la pantalla solar sencillamente **no se veían en
+tema claro**. Eso es un fallo de accesibilidad, no una discusión de familia tipográfica.
+
+Arreglado el 28-ago-2026: `ESCALA_NIVEL` en `brand.ts` es la rampa de cinco pasos POR TEMA, con
+`colorNivel(paso, kind)`. El lado oscuro se queda exactamente igual (3.50 a 11.73, ahí funciona);
+el claro está calibrado y los cinco pasos pasan AA sobre card y sobre fondo. `getUVLevel` ahora
+devuelve también `paso`, y `braverman-questions` exporta `DEFICIENCY_PASO`, para que el color lo
+resuelva la pantalla y no el servicio.
+
+**Lo que sigue vivo:** los hexes de `DEFICIENCY_COLORS` y de `getUVLevel` siguen siendo los de
+Tailwind, a propósito, porque son los valores del tema oscuro y ahí sí sirven. Y el problema es
+estructural, no de dos símbolos: los mismos hexes aparecen en unos treinta archivos más
+(`electrons.ts`, `fasting-phases.ts`, `assessments/registry.ts`, `reports/domains/ciclo.tsx`...),
+que **no** se auditaron.
 
 ### 14.6 Dos radios de card
 
 `CARD_STYLE.borderRadius = 12` y `Radius.card = 12`, contra `CARD.borderRadius = 16`. Los dos
 están vivos. `EditorialCard` usa 12.
 
-### 14.7 El cronotipo delfín se pinta de dos colores en el mismo archivo
+### 14.7 El cronotipo delfín se pinta de dos colores en el mismo archivo · DESMENTIDA
 
-`ANIMAL_COLORS.dolphin = '#5B9BD5'`, pero la caja explicativa del delfín en el mismo componente
-usa `#EF9F27` (`ChronotypeReveal.tsx` 162-165). Además `#5B9BD5` es exactamente el azul de
-nutrición y `#7F77DD` (lobo) es exactamente el morado de mente: colisión de significado entre
-dominios.
+**Este apartado estaba equivocado y se deja escrito para que nadie lo "arregle".** Verificado en
+código el 28-ago-2026: `#EF9F27` NO es un segundo color del delfín. Es `SEMANTIC.warning`, el
+ámbar de advertencia (`brand.ts` 271), y la `dolphinBox` es la ÚNICA caja de ese tipo en el
+archivo: se renderiza solo cuando el resultado es delfín, porque la doctrina dice que Delfín es
+un ESTADO TEMPORAL, no un cronotipo raíz. Que una advertencia use el color de advertencia es el
+sistema funcionando. Los otros tres cronotipos no tienen caja.
 
-### 14.8 Valores desactualizados en `docs/DESIGN_SYSTEM.md`
+El delfín sí lleva su azul donde le toca identidad: el nombre grande y su barra de score.
+**Pintar la caja de `#5B9BD5` habría borrado la señal** de "esto es temporal, no lo que eres".
 
-El documento sigue siendo la guía de criterio, pero estos números ya no son ciertos:
+Lo único que se hizo el 28-ago-2026 fue higiene sin cambio de pixel: las tres apariciones del
+hex escrito a mano pasan a `SEMANTIC.warning`, para que si alguien recalibra el ámbar, la caja
+lo siga.
 
-El documento no se ha tocado desde el 6-ago-2026, así que nada de lo posterior está reflejado.
-Las siete filas se recomprobaron el 27-ago-2026 y las siete siguen literalmente en el documento.
+**Lo que sí sigue vivo del apartado original:** `#5B9BD5` es exactamente el azul de nutrición
+(y `SEMANTIC.info`), y `#7F77DD` (lobo) es exactamente el morado de mente. Esa colisión de
+significado entre dominios es real y no se ha tocado.
+
+### 14.8 Valores desactualizados en `docs/DESIGN_SYSTEM.md` · CORREGIDA EL 28-AGO-2026
+
+El documento sigue siendo la guía de criterio, y **ya no debe contener valores**: el 28-ago-2026
+se le aplicaron las correcciones y se le puso en la cabecera que los números viven aquí.
+
+⚠️ **Dos erratas de este mismo apartado**, encontradas al aplicarlo. Se dejan escritas porque
+son la prueba de por qué un documento no se recomprueba contra otro documento:
+1. Decía "las siete filas" y la tabla tiene **nueve**.
+2. La fila del escalón de lista decía "ninguno de los 8 usos encontrados usa 40". **Es falso en
+   las dos mitades:** hay **40** sitios con escalón, no 8, y **40 ms es el valor más usado**, 15
+   veces, contra 7 en 30 ms y 6/6/4 en 50/60/80. O sea que el `DESIGN_SYSTEM` acertaba y este
+   apartado, que lo denunciaba, era el que estaba mal.
+
+Al aplicarlo aparecieron **22 filas más** que nadie había detectado, entre ellas: `ui/Card.tsx`
+ya no apunta a un token fijo sino a `useSurfaceTokens()`; la variante `glass` no usa
+`ELEVATION[1]`; `SUPP_TIMINGS` no existe (es `TIMING_OPTIONS`); el héroe sobre foto ya no vive
+en el HOY y `getHoyBackgroundRequire` se quedó sin un solo consumidor; y `EliteCard` tiene cero
+importadores. La causa raíz es una sola: **`ELEVATION` dejó de tener hexes**, sale de `OSCURO`,
+que es un ternario sobre `ACERO_OSCURO`, una bandera que se mueve por OTA. Un documento que
+escribe `ELEVATION[1] = #121212` no puede estar bien nunca más.
+
+La tabla original se conserva abajo como registro de lo que decía antes del 28-ago-2026.
 
 | Dice DESIGN_SYSTEM.md | Dice el código |
 |---|---|
@@ -1239,9 +1300,57 @@ Las siete filas se recomprobaron el 27-ago-2026 y las siete siguen literalmente 
 
 ### 14.9 El velo de `AgendaMiniCard` usa hex neutros escritos a mano
 
-`['#151515', '#0E0E0E']`. Son neutros, o sea justo lo que el ratchet prohíbe. No truena porque
-ese archivo no está en la lista escaneada (que solo enumera `app/`). **Es una regla que se
-cumple por dónde vive el archivo, no por lo que hace.**
+`['#151515', '#0E0E0E']`. Son neutros, o sea justo lo que el ratchet prohíbe.
+
+⚠️ **La explicación que daba este apartado era falsa**, verificado el 28-ago-2026. No es que el
+archivo esté fuera de la lista: `src/constants/__tests__/mb31b1-ambito.test.ts` 152-156 **clava
+ese literal exacto** y además exige que el archivo tenga exactamente una condición
+`kind === 'light'`. O sea que cambiar esos dos hex sin tocar el test rompe la suite hoy mismo.
+El archivo está doblemente candado, no desprotegido.
+
+Y la card **sí** reacciona al tema: queda oscura en los dos modos a propósito (es la ventana, no
+el marco, cap. 7.1) y lo que se tematiza es su borde, vía `bordeEditorial`. Convertir el
+gradiente a `rgba` sería un error: no es un velo sobre foto, es el fondo OPACO de la card, y
+dejaría ver el lienzo claro por debajo.
+
+**Lo que queda de verdad** es solo darles nombre: un `SUPERFICIE_EDITORIAL` en `brand.ts` y
+actualizar la línea 154 del test en el mismo commit. Cambio de cero pixeles. Quedan además dos
+neutros más en el mismo archivo que el apartado no menciona: `photo` (`#000`) y
+`photoPlaceholder` (`#141414`).
+
+### 14.10 Hay pantallas grandes que ningún candado mira
+
+Los ratchets de literales (`mb31b1-ambito`, `mb31b-remate`, `barrido-d-builder`) trabajan sobre
+**listas curadas de archivos**, y hay dos ausencias que pesan: `src/screens/coach` y
+`src/components/reports`. Son de las pantallas más grandes del producto (`ClientDetailScreen.tsx`
+pasa de 4,200 líneas) y **no hay un solo test que mire su color**.
+
+Lo que eso costó, medido el 28-ago-2026 y ya arreglado: 64 sitios de `ClientDetailScreen`
+pintaban estado con hexes de la familia Tailwind escritos a mano, invisibles en tema claro; y
+`AdherenceCalendar` pintaba el nombre del mes con `#fff` clavado, que sobre la card clara da
+**1.38**: en tema claro no se podía leer en qué mes estabas.
+
+**Todo eso lo encontró alguien leyendo. No lo encontró ninguna máquina.**
+
+El ensanche está medido y no cabía en una noche: llevar el escaneo a `app/` completa más
+`src/components/` daría **125 violaciones en 47 archivos**, y un candado que deja la suite roja
+no protege nada. Pero hay dos etapas gratis que sí caben:
+- añadir `.ts` a las extensiones escaneadas: **2 violaciones** (`argos-avatar-core.ts` 53 y
+  `logo-atp-geometria.ts` 58);
+- añadir `src/screens/`: **0 violaciones**.
+Antes de las etapas grandes hace falta una exención de superficie editorial, porque si no el
+candado marcaría como violación a los tres archivos que él mismo bendice.
+
+### 14.11 La tinta sobre su propio tinte no es la tinta sobre la card
+
+Patrón repetido por toda la app: un texto de color encima de un fondo que es ESE MISMO color con
+alfa (`color + '20'`, `withOpacity(color, 0.14)`). El tinte sube la luminancia del fondo, así que
+el contraste real es menor que el que se mide contra la card limpia. Medido: entre 0.6 y 1.2
+puntos menos, suficiente para tumbar pares que "pasaban".
+
+Al 12.5% (`+ '20'`) varios pares caen bajo AA en claro (4.28) y uno cayó bajo AA en OSCURO
+(4.21). Al 6% (`+ '10'`) los tres tokens de estado aguantan en los dos temas, con 4.52 como el
+par más apretado. **Regla: si el fondo es un tinte del mismo color, mide contra el papel teñido.**
 
 ---
 

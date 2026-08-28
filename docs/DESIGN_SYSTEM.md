@@ -4,6 +4,11 @@
 > rediseño UI/UX de junio 2026. **Léela antes de tocar cualquier pantalla.** El objetivo
 > del producto es que la UI/UX sea el argumento de venta: el listón es "wow", no "está bien".
 >
+> **Valores recomprobados contra el código el 28-ago-2026.** Todo hex y todo conteo de aquí
+> lleva fecha; si vas a citar uno, mídelo antes de usarlo. La marca APLICADA y medida vive en
+> `docs/MANUAL_DE_MARCA.md`, y **ahí es donde deben vivir los valores**: este documento es el
+> criterio (por qué), no la tabla (cuánto).
+>
 > Fuente del diagnóstico original: `UIUX a corregir con design/INFORME_UIUX_ATP.md`.
 
 ---
@@ -12,7 +17,10 @@
 
 **`ATP_Manual_de_Marca.pdf`** (carpeta ATP · versión 2 · julio 2026) es la autoridad de
 marca: símbolo, variantes del logo, área de respeto, doctrina de color, voz verbal y lo
-que la marca nunca hace. Este documento cubre la **aplicación** de esa marca en producto.
+que la marca nunca hace. **No está en el repositorio**, así que aquí solo se cita.
+
+**`docs/MANUAL_DE_MARCA.md`** es la marca APLICADA y medida contra el código, con archivo y
+fecha por cada número. Este documento cubre el **criterio** de aplicación en producto.
 
 **Si el manual y el código se contradicen, gana el manual y el código se corrige.**
 
@@ -26,19 +34,24 @@ que la marca nunca hace. Este documento cubre la **aplicación** de esa marca en
    *"activa tu energía y salud"*, mientras el producto usa *"tu sistema operativo de
    rendimiento"*. **Mientras no se resuelva, usar el ícono sin firma.**
 
-### Deuda medida contra estas reglas (julio 2026)
+### Deuda medida contra estas reglas (28-ago-2026)
 
 | Qué | Cuánto |
 |---|---|
-| Colores escritos a mano en `app/` + `src/components/` | **1,782** ocurrencias |
-| Pantallas con el kit viejo (`elite-*`) | 141, contra 154 con el kit nuevo |
+| Hex escritos a mano en `app/` + `src/components/` | **679** ocurrencias, más **594** de `rgb()`/`rgba()` |
+| Archivos de `app/` con el kit viejo (`elite-*`) | **119**, contra **132** con el kit nuevo (`@/src/components/ui`) |
 | Radios de card distintos en `brand.ts` | 2 (`CARD_STYLE` 12 · `CARD` 16) |
-| Rojos sin criterio que los separe | 2 (`SEMANTIC.error` #FB7185 · `SCORE_COLORS.critical` #EF4444) |
-| Modo claro | No existe |
+| Los dos rojos | **Ya tienen criterio:** `SEMANTIC.error` `#E8877F` es error de INTERFAZ · `SCORE_COLORS.critical` `#FF3B30` es dato CLÍNICO, y grita más a propósito |
+| Modo claro | **Existe.** `THEME_LIGHT`, cuatro modos y tests de contraste |
 
-Fuera de paleta, los más repetidos: `#FBBF24` (49), `#38BDF8` (18), `#22C55E` (16),
-`#C084FC` (14), `#FB923C` (12). **Estandarizar = cambiarlos por tokens, por pantalla,
-no de golpe.**
+⚠️ El **1,782** de julio 2026 no se pudo reproducir: no quedó escrito con qué se contó, así
+que **679 no es "bajó de 1,782"**, es otra medición. Si se vuelve a contar, que quede el
+comando al lado del número.
+
+Fuera de paleta, los más repetidos: `#FBBF24` (53), `#EF4444` (32), `#FB923C` (15),
+`#22C55E` (15), `#38BDF8` (14), `#C084FC` (13), `#FB7185` (12). **Estandarizar = cambiarlos
+por tokens, por pantalla, no de golpe.** Los cinco de la familia Tailwind ya tienen destino:
+`ESCALA_NIVEL` en `brand.ts` es la rampa que los reemplaza.
 
 ---
 
@@ -77,16 +90,24 @@ para deprecación).
   (lime-brutalist heredado de ELITE = borrador).
 
 ### Elevación — da profundidad (no usar bg/borde sueltos)
-```ts
-ELEVATION[0] = { bg: '#000000', border: 'transparent' }  // fondo de pantalla
-ELEVATION[1] = { bg: '#121212', border: '#1F1F1F' }       // card estándar ← el default
-ELEVATION[2] = { bg: '#1A1A1A', border: '#2A2A2A' }       // card sobre card / sheet / modal
-ELEVATION[3] = { bg: '#222222', border: '#323232' }       // popover / menú flotante
-```
-- **Cards = `ELEVATION[1]` (#121212).** Se despega del negro puro. (Antes había dos colores
-  conviviendo: #0a0a0a invisible y #1a1a1a — unificados aquí.)
-- **Inputs = #0a0a0a** (recedidos, leen como "pozo" frente a la card elevada).
-- `BG.card`, `CARD.bg`, `SURFACES.card` y `ui/Card.tsx` ya apuntan todos a este valor.
+
+**Los cuatro escalones ya no son hexes escritos a mano.** Salen de `OSCURO`, la rampa única
+de `brand.ts`, y `OSCURO` depende de la bandera `ACERO_OSCURO` (`src/constants/flags.ts`).
+Hoy la bandera está **encendida**: manda la rampa de acero.
+
+| Nivel | ACERO (vivo hoy) | NEGRO (`ACERO_OSCURO = false`) | Para qué |
+|---|---|---|---|
+| `ELEVATION[0]` | `#0F1114` · borde `transparent` | `#000000` · borde `transparent` | fondo de pantalla |
+| `ELEVATION[1]` | `#1A1D22` · borde `#252931` | `#121212` · borde `#1F1F1F` | card estándar ← el default |
+| `ELEVATION[2]` | `#292E36` · borde `#383F4A` | `#232323` · borde `#333333` | card sobre card / sheet / modal |
+| `ELEVATION[3]` | `#343A45` · borde `#404854` | `#2F2F2F` · borde `#3D3D3D` | popover / menú flotante |
+
+- **Cards = `ELEVATION[1]`.** Se despega del lienzo, sea acero o negro. **Escribe el nivel,
+  nunca el hex:** el hex correcto depende de una bandera que se mueve por OTA.
+- **Inputs = `BG.input`** (`OSCURO.campo`: `#0A0C0F` en acero, `#0a0a0a` en negro). Recedidos,
+  leen como "pozo" frente a la card elevada.
+- `BG.card`, `CARD.bg` y `SURFACES.card` apuntan todos a `OSCURO.card`. **`ui/Card.tsx` ya no:**
+  lee `useSurfaceTokens()` y pinta el token del tema, que en claro es `#E9EEF1`.
 
 ### Glow — el bloom del elemento heroico
 ```ts
@@ -119,7 +140,38 @@ categoría siempre **desaturados**, nunca a tope.
 
 ### Score → color semántico (no elegir a mano)
 `getScoreColor(score)` y `getScoreLabel(score)`: optimal 85+ (#4ade80) · charged 70+ (lima) ·
-stable 55+ (#fbbf24) · low 40+ (#f97316) · critical (#ef4444).
+stable 55+ (`ATP_BRAND.amber` #EFD54F, el único amarillo de marca) · low 40+ (#f97316) ·
+critical (#FF3B30).
+
+**`critical` es rojo pleno a propósito:** el dato clínico grita MÁS que un error de formulario
+(`SEMANTIC.error` #E8877F, coral apagado). Son dos rojos con criterio, no un descuido.
+
+### Estado como TINTA — un token por tema, no un hex de Tailwind
+
+`AppThemeTokens` trae los cuatro estados calibrados por tema (`brand.ts`, `THEME_DARK` y
+`THEME_LIGHT`). Se leen con `useSurfaceTokens()`. **Nunca se escriben a mano.**
+
+| Token | Oscuro | Claro | Qué dice |
+|---|---|---|---|
+| `error` | `#E8877F` | `#B03A2E` | error de INTERFAZ (un campo mal llenado) |
+| `exito` | `#A8E02A` | `#4F6B0D` | éxito / óptimo |
+| `advertencia` | `#EF9F27` | `#8A5A00` | advertencia |
+| `critico` | `#FF3B30` | `#991B1B` | estado CLÍNICO |
+
+**`error` y `critico` son colores distintos a propósito**, y hay test que lo exige.
+
+Para escalas de GRADO (índice UV, grado de deficiencia, nivel de riesgo) no se usan estos
+cuatro: se usa `ESCALA_NIVEL` con `colorNivel(paso, kind)`, la rampa de cinco pasos por tema.
+Los pasos 0, 1 y 3 del claro SON `exito`, `advertencia` y `critico`; los pasos 2 y 4 son los
+intermedios que una escala de cinco necesita y un juego de tres estados no tiene.
+
+⚠️ **Dos reglas que salen de la medición, no del gusto.**
+1. En tema claro los tres primeros pasos se separan por TONO, no por luminancia (1.03 y 1.04
+   entre vecinos). Una barra de esta rampa en claro SIEMPRE va acompañada de su cifra o su
+   etiqueta. El color solo no comunica el grado (WCAG 1.4.1).
+2. **La tinta sobre su propio tinte no es la tinta sobre la card.** Un texto de color encima
+   de `color + '20'` pierde entre 0.6 y 1.2 puntos de contraste, y varios pares caen bajo AA.
+   Al 6% (`+ '10'`) los cuatro tokens aguantan en los dos temas. Mide contra el papel TEÑIDO.
 
 ### Tipografía y espaciado
 - Familia única: **Poppins** (`Fonts.regular/semiBold/bold/extraBold`). El contraste de PESO
@@ -145,15 +197,33 @@ Cohesivo, tokens canónicos, spring + haptics. Lo que debes usar y componer:
   `ExpandableSheet`, `EmptyState`, etc.
 
 ### Kit viejo (legacy) → `components/elite-*`
-`EliteButton`, `EliteCard`, `EliteText`, `ScreenContainer`… Aún usados en ~11 pantallas
-(login, register, ejecución de rutinas). Ya migrados a spring scale y a `ELEVATION[1]`.
-**No construir pantallas nuevas con estos**; al tocar una pantalla legacy, preferir migrar
-al kit nuevo si el cambio es acotado.
+
+Recontado el 28-ago-2026, y el número real es otro: **119 archivos de `app/` importan algo del
+kit viejo**, no once. Pero casi todo es un solo componente:
+
+| Componente | Importadores en `app/` | Total en el repo |
+|---|---|---|
+| `EliteText` | 119 | 246 |
+| `EliteToggle` | 5 | 6 |
+| `EliteButton` | 3 | 7 |
+| `EliteInput` | 3 | 3 |
+| `ScreenContainer` | 0 | 1 (`src/components/tests/TestQuestionScreen.tsx`) |
+| `EliteCard` | 0 | **0. Nadie lo importa** |
+
+Las **8 pantallas** con kit viejo ESTRUCTURAL (algo que no sea `EliteText`) son: `login`,
+`register`, `forgot-password`, `night-filter`, `salud/ficha-emergencia`,
+`settings/experiencia`, `settings/salud` y `tutorial`. Ya migrados a spring scale.
+
+**No construir pantallas nuevas con estos**; al tocar una pantalla legacy, preferir migrar al
+kit nuevo si el cambio es acotado. La migración de verdad es `EliteText`, y son 119 archivos:
+eso es un plan, no un cambio. **`EliteCard` está muerto y se puede borrar.**
 
 ### Movimiento (lo "fluido")
 - Todo lo táctil responde con **spring scale + haptic**. Prohibido el `opacity: 0.7` plano.
 - Listas entran **escalonadas**: `Animated.View entering={FadeInDown.delay(i*40).springify()}`
-  (o `FadeInUp`). Nada aparece de golpe.
+  (o `FadeInUp`). Nada aparece de golpe. **40 ms es la recomendación y también lo que más se
+  usa:** 15 de los 40 escalones contados el 28-ago-2026, contra 7 en 30 ms y 6/6/4 en 50/60/80.
+  Para listas ya envueltas está `StaggerItem`, cuyo `delay` por defecto es 50.
 - Usar `LayoutAnimation.configureNext(...easeInEaseOut)` al expandir/colapsar.
 
 ---

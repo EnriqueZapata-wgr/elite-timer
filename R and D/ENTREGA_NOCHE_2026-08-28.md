@@ -165,3 +165,135 @@ siquiera tiene columnas para los pasos.
 - **La racha usa la fecha de inicio del ayuno**, con la consecuencia ya descrita.
 - **Súper, protocolo, suplementación, tribu, agenda, ARGOS, mapa funcional y
   ajustes** siguen en el backlog sin empezar.
+
+---
+
+# Segunda mitad de la noche · los visuales y el manual de marca
+
+Leí `docs/MANUAL_DE_MARCA.md` (el actualizado, 1,330 líneas). Su capítulo 14 es
+una lista de contradicciones **ya verificadas en código**, así que la tomé como
+lista de trabajo en vez de inventar una. Lo que sigue sale de ahí.
+
+## La causa raíz que apareció al medir
+
+El sistema tenía `error` calibrado por tema, pero **no tenía con qué decir
+"advertencia" ni "crítico" ni "éxito"**. Esos tres vivían como hexes de la
+familia Tailwind escritos a mano por toda la app. Sobre superficie clara dan
+entre **1.19 y 3.03** de contraste, o sea que en tema claro sencillamente no se
+veían.
+
+Eso explica de golpe tres cosas que parecían separadas: por qué `cycle.tsx`
+necesitó una paleta a mano hace dos días, por qué la pantalla del coach usaba
+`t.error` para todo (era el único color de estado legible en los dos temas), y
+por qué la barra de UV desaparecía en claro.
+
+**Lo que entró:** `exito`, `advertencia` y `critico` en `AppThemeTokens`, y
+`ESCALA_NIVEL` + `colorNivel()` para las escalas de grado de cinco pasos. En
+tema OSCURO valen exactamente lo que ya valían, así que ese tema no se movió.
+
+## Lo que quedó arreglado, con el número al lado
+
+| Dónde | Qué pasaba | Medido |
+|---|---|---|
+| `app/solar.tsx` | La barra de UV por hora, el spinner, seis iconos y los dos botones de acción no se veían en claro | 1.19 a 1.73 → todos sobre 4.5 |
+| `app/braverman.tsx` | La barra de grado de deficiencia y el filo de la card | 1.43 a 3.22 → sobre 4.5 |
+| `AdherenceCalendar` | **"Agosto 2026" era invisible en tema claro**, y el día de hoy también. No se podía saber ni el mes ni el día | 1.38 y 1.14 → 15.75 y 5.56 |
+| `reports/domains/labs.tsx` | `atencion` usaba el coral de INTERFAZ, el de un campo mal llenado, para un biomarcador fuera de ventana | ahora `t.critico` |
+| `ClientDetailScreen` | 64 sitios pintaban estado con hexes invisibles en claro; el coach veía huecos donde hay semáforo | 1.34 a 1.86 → sobre 4.5 |
+
+Y tres arreglos que no son de contraste sino de significado, que valen más:
+
+1. **La ausencia de dato se pintaba de rojo de alarma.** Un cliente sin presión
+   arterial y sin tasa de envejecimiento capturadas hacía que la pantalla del
+   coach gritara en rojo, donde el mensaje correcto es "todavía no se sabe".
+2. **La tarjeta "Condiciones" tenía el rojo fijo:** seguía roja con cero
+   condiciones activas.
+3. **Dos rojos distintos, uno al lado del otro,** describiendo el mismo hecho
+   clínico dentro de la misma tarjeta.
+
+## El error que cometí y que los cuatro ojos cazaron
+
+Vale la pena que lo leas, porque es la clase de error que se repite.
+
+**Medí la tinta contra el papel, no contra el papel teñido.** Verifiqué los tres
+tokens nuevos contra la card limpia (5.22 / 5.07 / 7.11) y di el trabajo por
+bueno. Pero en trece sitios el texto va encima de un tinte **del mismo color**,
+y eso sube la luminancia del fondo: al 12.5% varios pares caían a 4.28 en claro,
+y uno **bajó el tema oscuro** de 5.41 a 4.21, justo lo que mi propio mensaje de
+commit decía no haber tocado. Corregido al 6%, donde los tres aguantan en los
+dos temas.
+
+Y una peor: puse `t.sinDatos` como color de LETRA en el campo de presión
+arterial. Es un color de punto (1.73). Mientras el coach teclea corren 500 ms de
+rebote más el guardado, y en todo ese rato **los dígitos que acababa de escribir
+eran invisibles**; si el guardado tronaba, se quedaban invisibles hasta salir de
+la pantalla. Corregido.
+
+Las dos las encontró un agente revisor, no yo. El commit `103bbe2` es la
+corrección completa, con los números.
+
+## Lo que corregí en los documentos
+
+- **`docs/DESIGN_SYSTEM.md`**: nueve filas que el manual denunciaba, más **22
+  que nadie había detectado**. La causa raíz es que `ELEVATION` dejó de tener
+  hexes: sale de una bandera que se mueve por OTA, así que un documento que
+  escriba `ELEVATION[1] = #121212` no puede estar bien nunca más. Le puse en la
+  cabecera que los valores viven en el manual y él es el criterio.
+- **`docs/MANUAL_DE_MARCA.md`**: marqué 14.5 y 14.8 como trabajadas, **desmentí
+  14.7** (el ámbar del delfín no era un segundo color del delfín, era el color de
+  advertencia haciendo su trabajo) y **desmentí la explicación de 14.9** (ese
+  archivo sí está candado, y por partida doble). Añadí 14.10 y 14.11.
+- **Dos erratas del propio manual**, que dejo escritas porque son la prueba de
+  por qué un documento no se recomprueba contra otro documento: 14.8 decía
+  "las siete filas" y la tabla tiene nueve; y afirmaba que ningún escalón de
+  lista usa 40 ms cuando 40 ms es **el más usado**, 15 de 40 sitios.
+
+## Lo que NO hice, y por qué
+
+- **No ensanché los ratchets de literales.** Está medido: llevar el escaneo a
+  `app/` completa más `src/components/` daría **125 violaciones en 47 archivos**.
+  Un candado que deja la suite roja no protege nada. Hay dos etapas gratis que sí
+  caben y las dejo listas: añadir `.ts` a las extensiones (**2 violaciones**:
+  `argos-avatar-core.ts` 53 y `logo-atp-geometria.ts` 58) y añadir `src/screens/`
+  (**0 violaciones**). Antes de las etapas grandes hace falta una exención de
+  superficie editorial, o el candado marcaría a los tres archivos que él mismo
+  bendice.
+- **No toqué el nido de nutrición** de `ClientDetailScreen` (unos 10 usos de rojo
+  para scores de comida y macros). No es un problema de token, es de doctrina:
+  hay que decidir si un score de nutrición de 45 merece el mismo rojo que una
+  condición cardíaca presente. Yo creo que no, pero esa no es mi decisión y
+  cambiarlo sin regla sería sustituir una arbitrariedad por otra.
+- **No recalibré los quince colores de dominio.** Los quince fallan el 3:1 como
+  icono en tema claro (de 1.17 a 2.90). Van siempre con su título al lado, así
+  que no se pierde significado. Recalibrar quince colores de identidad sin poder
+  ver un dispositivo, a nueve días de tienda, es exactamente el cambio que no se
+  hace de noche.
+- **`AgendaMiniCard`** solo necesita nombre (`SUPERFICIE_EDITORIAL` en
+  `brand.ts`) y tocar la línea 154 de `mb31b1-ambito.test.ts` en el mismo commit.
+  Cero pixeles de cambio. Lo dejo escrito en el manual, sin aplicar, porque toca
+  un test y prefiero que corra la suite primero.
+
+## Lo que más me preocupa que revises
+
+**`src/screens/coach` y `src/components/reports` no los mira ningún candado.**
+Son de las pantallas más grandes del producto y todo lo de esta noche lo
+encontró alguien leyendo, no una máquina. Es la deuda estructural que queda.
+
+## Los comandos de la mañana
+
+```
+npx tsc --noEmit
+npm test
+```
+
+Nada de esta noche pasó por un compilador: en este entorno `tsc` no cabe en el
+techo de 45 segundos. Lo que sí hice, en cada pieza, fue pasar el **parser de
+TypeScript** (sintaxis limpia en los diez archivos), **ejecutar** la lógica pura
+transpilándola, y calcular cada contraste con el `contrastRatio` del propio
+repositorio, no con una copia. Suman **212 aserciones ejecutadas, cero fallas**.
+Pero eso no es un type check, y lo digo claro: **el primer comando de tu mañana
+tiene que ser `npx tsc --noEmit`.**
+
+Si algo truena, el orden de sospecha es este: `ClientDetailScreen.tsx` (64
+sustituciones, el cambio más masivo), luego `brand.ts` (tres claves nuevas en
+una interfaz que otros archivos anotan), luego el resto.
