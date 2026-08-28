@@ -17,7 +17,7 @@
  * CIERRE-6: los componentes que quedaron sin montar tras ese corte
  * (AgendaPreviewCard, HoyDayCardEditorial) ya no existen en el árbol.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, Text, Image,
   DeviceEventEmitter, AppState,
@@ -92,8 +92,34 @@ export default function TodayScreen() {
   // MB-20: la card AHORA (hero-recommendation) y la racha salieron de HOY con
   // el hero; compileDay queda como la única carga. El parámetro se conserva
   // por los listeners (day_changed/electrons_changed fuerzan recarga igual).
+  // HID-2: un solo toque de agua emite day_changed Y electrons_changed, y los
+  // dos listeners llamaban loadDay: DOS recompilaciones completas del dia, en
+  // paralelo, por un boton. Cada compileDay son 23 queries en paralelo mas una
+  // docena de viajes SERIALES. Y hay 36 sitios en la app que emiten
+  // day_changed, asi que esto no es solo del agua.
+  //
+  // No se quita el evento: doce pantallas escuchan electrons_changed y se
+  // quedarian sin refrescar. Lo que se arregla es que HOY no compile dos veces.
+  // 4EP: el guard sin caducidad podia congelar HOY PARA SIEMPRE. compileDay no
+  // tiene timeout ni AbortController, y con un fetch colgado enVuelo se quedaba
+  // en true: los tres listeners y el intervalo de 5 min entraban al return de
+  // arriba indefinidamente, sin spinner, sin error y sin salida. Antes del guard,
+  // una peticion colgada no envenenaba a las siguientes. Ahora el guard caduca.
+  const COMPILE_MAX_MS = 30_000;
+  const enVueloDesdeRef = useRef(0);   // 0 = libre; si no, cuando arranco
+  const pendienteRef = useRef(false);
+  const rebotarRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const primerEventoRef = useRef(0);
+
   const loadDay = useCallback(async (_force = false) => {
     if (!user?.id) return;
+    const ahora = Date.now();
+    if (enVueloDesdeRef.current && ahora - enVueloDesdeRef.current < COMPILE_MAX_MS) {
+      // Ya hay un compile vivo: no se encima otro, se anota que falta uno mas.
+      pendienteRef.current = true;
+      return;
+    }
+    enVueloDesdeRef.current = ahora;
     try {
       const compiled = await compileDay(user.id, (pct, label) => { setProgress(pct); setProgressLabel(label); });
       if (compiled) {
@@ -110,9 +136,49 @@ export default function TodayScreen() {
       }
     } catch (e) {
       console.warn('Error compiling day:', e);
+    } finally {
+      enVueloDesdeRef.current = 0;
+      // 4EP: el reintento pasa por el MISMO rebote que los eventos. Antes salia
+      // por un setTimeout(0) propio que se lo saltaba, encadenaba compiles y
+      // ademas no se limpiaba al desmontar.
+      if (pendienteRef.current) {
+        pendienteRef.current = false;
+        recargarRef.current();
+      }
+      setLoading(false);
     }
-    setLoading(false);
   }, [user?.id]);
+
+  // Refs a las ultimas versiones, para poder llamarlas desde el finally sin que
+  // la funcion se referencie a si misma dentro del useCallback.
+  const loadDayRef = useRef(loadDay);
+  useEffect(() => { loadDayRef.current = loadDay; }, [loadDay]);
+
+  // Los eventos llegan en rafaga (day_changed y electrons_changed a
+  // milisegundos de distancia). Un rebote corto los junta en UN solo compile.
+  //
+  // 4EP: con rebote puro, una rafaga sostenida a menos de 150 ms (una
+  // sincronizacion que emite por item, por ejemplo) reprogramaba el timer para
+  // siempre y HOY no recargaba NUNCA. Hay 36 emisores de day_changed y 38 de
+  // electrons_changed, asi que no es hipotetico. El techo lo cierra.
+  const REBOTE_MS = 150;
+  const REBOTE_TECHO_MS = 600;
+  const recargar = useCallback(() => {
+    const ahora = Date.now();
+    if (!primerEventoRef.current) primerEventoRef.current = ahora;
+    const vencido = ahora - primerEventoRef.current >= REBOTE_TECHO_MS;
+    if (rebotarRef.current) clearTimeout(rebotarRef.current);
+    const disparar = () => {
+      rebotarRef.current = null;
+      primerEventoRef.current = 0;
+      loadDayRef.current(true);
+    };
+    if (vencido) { disparar(); return; }
+    rebotarRef.current = setTimeout(disparar, REBOTE_MS);
+  }, []);
+  const recargarRef = useRef(recargar);
+  useEffect(() => { recargarRef.current = recargar; }, [recargar]);
+
 
   useEffect(() => {
     setLoading(true);
@@ -122,26 +188,27 @@ export default function TodayScreen() {
     // toggles viven en las cards editoriales, que emiten estos eventos al final.
     const sub1 = DeviceEventEmitter.addListener('day_changed', () => {
       // #136: el día cambió de verdad → HERO recomputa YA (sin cache)
-      loadDay(true);
+      recargar();
       // H7: el contexto del día cambió → invalida el insight cacheado (se regenera
       // en la próxima carga del Home). Lazy: no dispara LLM aquí.
       if (user?.id) invalidateDailyInsight(user.id);
     });
     const sub2 = DeviceEventEmitter.addListener('electrons_changed', () => {
-      loadDay(true);
+      recargar();
     });
     // Mega-Sprint A B4.1: re-hacer el test de cronotipo cambia wake/sleep → HOY
     // recompila su timing sin depender del re-focus del tab.
     const sub3 = DeviceEventEmitter.addListener('chronotype_changed', () => {
-      loadDay(true);
+      recargar();
     });
     return () => {
       clearInterval(interval);
+      if (rebotarRef.current) { clearTimeout(rebotarRef.current); rebotarRef.current = null; }
       sub1.remove();
       sub2.remove();
       sub3.remove();
     };
-  }, [loadDay]);
+  }, [loadDay, recargar]);
 
   // F04.8 + F01.4: re-render ligero cada 60s (sin refetch) para que el divisor "AHORA" y el
   // fondo dinámico por hora se actualicen en vivo al cruzar el minuto/franja (REFRESH_INTERVAL

@@ -38,8 +38,14 @@ import { addWater } from '@/src/services/hydration-service';
 import {
   canShowNudge, markNudgeShown, NUDGE_THRESHOLD, RECHECK_ACCIDENTE_MS,
 } from '@/src/services/hoy/nudge-store';
-import type { CompiledDay } from '@/src/services/day-compiler';
+import { fmtQuant, type CompiledDay } from '@/src/services/day-compiler';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+
+/** Optimismo local del agua: de que dia es, cuanto, y desde cuando. */
+interface AguaOverride { fecha: string; ml: number; desde: number }
+/** Techo del optimismo. Un compile normal tarda mucho menos; pasado esto, la
+ *  verdad de la base manda aunque no coincida con lo que pintamos. */
+const AGUA_OVERRIDE_MAX_MS = 20_000;
 import { APP_SECTION_COLORS, ATP_BRAND, withOpacity } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
@@ -66,6 +72,26 @@ export function TareasView({ day, userId, uvMini }: Props) {
   const acento = dark ? ATP_BRAND.lime : t.tealTexto;
   const [lens, setLens] = useState<Lens>('tareas');
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  // HID-1: el agua no tenia optimismo local. handleInline solo esperaba a la
+  // red, y el numero salia de CompiledDay, asi que era fisicamente imposible
+  // que subiera antes de que terminara el recompile del dia entero. La prueba
+  // de que ese era el problema: /hydration SI es optimista y de esa pantalla
+  // nadie se quejo nunca. Aqui se replica el mismo patron que ya usan los
+  // palomeos tres lineas abajo.
+  // 4EP: el override es DUENO DE SU FECHA. Sin eso, al cruzar la medianoche el
+  // compilado del dia nuevo traia 0 ml, la liberacion por `real >= override` no
+  // se cumplia nunca, y HOY se quedaba pintando el agua de AYER como si fuera de
+  // hoy, con la tarea marcada como cumplida y sin botones para corregirla
+  // (las tareas hechas no reciben onInline). Un numero inventado que no se podia
+  // quitar. Eso es exactamente lo que la doctrina del dato sagrado prohibe.
+  const [aguaOverride, setAguaOverride] = useState<AguaOverride | null>(null);
+  // Espejo en ref: handleInline necesita el valor VIGENTE, no el del closure.
+  const aguaOverrideRef = useRef<AguaOverride | null>(null);
+  const aplicarAgua = useCallback((v: Omit<AguaOverride, 'desde'> | null) => {
+    const con = v == null ? null : { ...v, desde: Date.now() };
+    aguaOverrideRef.current = con;
+    setAguaOverride(con);
+  }, []);
   const [nudgeVisible, setNudgeVisible] = useState(false);
 
   // ── Fuente única + overrides optimistas ──
@@ -73,14 +99,39 @@ export function TareasView({ day, userId, uvMini }: Props) {
     const boolWithOverrides = day.booleanElectrons.map((e) =>
       overrides[e.source] != null ? { ...e, completed: overrides[e.source] } : e,
     );
+    // El override solo pinta si es del MISMO dia que el compilado.
+    const agua = aguaOverride && aguaOverride.fecha === day.date ? aguaOverride.ml : null;
+    const quantWithOverrides = agua == null
+      ? day.quantitativeElectrons
+      : day.quantitativeElectrons.map((q) => (q.source === 'water'
+        ? { ...q, current: agua, displayCurrent: fmtQuant('water', agua) }
+        : q));
     return buildTareas({
       booleanElectrons: boolWithOverrides,
-      quantitativeElectrons: day.quantitativeElectrons,
+      quantitativeElectrons: quantWithOverrides,
       agendaItems: day.agendaItems,
       habitTimes: day.habitTimes,
       horaFuentes: day.horaFuentes,
     });
-  }, [day, overrides]);
+  }, [day, overrides, aguaOverride]);
+
+  // 4EP: se suelta por IGUALDAD y SOLO con un `day` nuevo. Antes tenia
+  // `aguaOverride` en las deps y comparaba con `>=`, asi que al restar 250 el
+  // efecto corria en el mismo render que lo puso, veia que el compilado (1000)
+  // era mayor que el optimista (750) y lo mataba en el acto: el boton de menos
+  // parecia no responder, y la persona volvia a picarlo. La UI provocaba que se
+  // restara el doble.
+  useEffect(() => {
+    const ov = aguaOverrideRef.current;
+    if (ov == null) return;
+    if (ov.fecha !== day.date) { aplicarAgua(null); return; }
+    const real = day.quantitativeElectrons.find((q) => q.source === 'water')?.current;
+    // Caduca: si el compilado trae OTRO numero (agua registrada desde
+    // /hydration o desde otro telefono), la igualdad no se cumpliria nunca y el
+    // override taparia la verdad para siempre. Pasado el techo, manda la base.
+    if (Date.now() - ov.desde > AGUA_OVERRIDE_MAX_MS) { aplicarAgua(null); return; }
+    if (real != null && real === ov.ml) aplicarAgua(null);
+  }, [day, aplicarAgua]);
 
   // Los overrides se sueltan cuando el compilado los alcanza.
   useEffect(() => {
@@ -170,14 +221,26 @@ export function TareasView({ day, userId, uvMini }: Props) {
   // Enrique) pasan su delta con signo; addWater clampa en 0.
   const handleInline = useCallback(async (t: Tarea, deltaMl: number) => {
     if (!userId || t.key !== 'water') return;
+    const fecha = day.date;
+    const compilado = day.quantitativeElectrons.find((q) => q.source === 'water')?.current ?? 0;
+    // Del REF, no del closure: dos toques seguidos dentro del mismo batch leian
+    // los dos el mismo valor viejo y el segundo pisaba al primero.
+    const previo = aguaOverrideRef.current;
+    const antes = previo && previo.fecha === fecha ? previo.ml : compilado;
+    // addWater clampa en 0 del lado del servicio; aqui se clampa igual para que
+    // lo que se ve y lo que se guarda no puedan discrepar.
+    aplicarAgua({ fecha, ml: Math.max(0, antes + deltaMl) });
     try {
       const r = await addWater(userId, deltaMl);
       if (r === null) throw new Error('addWater returned null');
+      // El servidor manda: si clampo distinto, gana su numero.
+      aplicarAgua({ fecha, ml: r });
     } catch (e) {
-      logWarn('[TareasView] addWater failed', e);
+      aplicarAgua(antes === compilado ? null : { fecha, ml: antes });
+      logWarn('[TareasView] addWater failed, reverted', e);
       Alert.alert('No se pudo registrar', 'Inténtalo de nuevo en un momento.');
     }
-  }, [userId]);
+  }, [userId, day, aplicarAgua]);
 
   const rowProps = {
     onNavigate: handleNavigate,

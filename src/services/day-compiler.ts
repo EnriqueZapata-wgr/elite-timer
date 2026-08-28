@@ -673,7 +673,12 @@ async function reconcileVerifiedLedger(
   }
 }
 
-function fmtQuant(key: string, v: number): string {
+/**
+ * HID-1: se exporta para que el optimismo local de HOY pinte el MISMO texto
+ * que va a pintar el compilado cuando llegue. Duplicar el formato haria que
+ * el numero parpadee de "750ml" a "750 ml" al confirmarse.
+ */
+export function fmtQuant(key: string, v: number): string {
   if (key === 'protein') return `${Math.round(v)}g`;
   if (key === 'water') return v >= 1000 ? `${(v / 1000).toFixed(1)}L` : `${v}ml`;
   if (key === 'steps') return v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`;
