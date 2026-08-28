@@ -41,6 +41,13 @@ Roadmap → v2.0.0 (julio-agosto 2026 — publicación a stores)
     - Después del merge: `npx supabase db push` aplica al remoto (Supabase CLI linkeado al proyecto)
     - SQL Editor solo para queries puntuales / debug, no para migraciones rutinarias
 
+13. Comandos para Enrique: terminal PowerShell en Windows.
+    - SIEMPRE abrir cada bloque con `cd "D:\Proyectos_ClaudeCode\ELITE_Timer\EliteTimer"`,
+      aunque el bloque anterior ya estuviera ahí. Cada bloque se lee solo.
+    - Un comando por línea. NUNCA `&&`.
+    - Y decir SIEMPRE en qué rama se corre, verificándolo antes con
+      `git branch --show-current`, no de memoria.
+
 ## Documentos clave
 - docs/DESIGN_SYSTEM.md — criterio UI/UX, tokens, reglas de diseño (LEER antes de tocar pantallas)
 - ATP_MASTER_DOC_MAY2026.md — estado completo
