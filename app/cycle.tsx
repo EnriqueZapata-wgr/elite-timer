@@ -767,7 +767,7 @@ export default function CycleScreen() {
                       bg = isFut ? withOpacity(PURPLE_PHASE, 0.06) : withOpacity(PURPLE_PHASE, 0.2);
                     }
                     // 4EP 23-ago: aquí se pintaba también un tinte amarillo para
-                    // `fase === 'ovulation'`, que sale de PHASE_OVULATION_END = 0.57,
+                    // `fase === 'ovulation'`, que sale del umbral PHASE_OVULATION_END,
                     // o sea una SEGUNDA fórmula de ovulación sobre el mismo
                     // calendario. Con ciclo de 35 marcaba los días 17-20 mientras
                     // predecirOvulacion pone el punto en 21: tres señales, dos

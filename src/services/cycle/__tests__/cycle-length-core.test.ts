@@ -45,11 +45,14 @@ describe('observedCycleLength', () => {
 
   it('con 2+ ciclos válidos devuelve el promedio redondeado y cuántos lo alimentan', () => {
     // El caso de la usuaria de 31: 31 y 31 → 31, no "de 28".
+    // min y max alimentan la banda de la ventana fértil (predecirOvulacion):
+    // con dos ciclos de 31 no hay variabilidad que declarar.
     expect(observedCycleLength(p(['2026-08-02', '2026-07-02', '2026-06-01'])))
-      .toEqual({ length: 31, cyclesUsed: 2 });
-    // 31 y 30 → 30.5 redondea a 31.
+      .toEqual({ length: 31, cyclesUsed: 2, min: 31, max: 31 });
+    // 31 y 30 → 30.5 redondea a 31. Aquí min y max SÍ difieren, y esa
+    // diferencia es la que ensancha la banda de menor probabilidad.
     expect(observedCycleLength(p(['2026-08-01', '2026-07-01', '2026-06-01'])))
-      .toEqual({ length: 31, cyclesUsed: 2 });
+      .toEqual({ length: 31, cyclesUsed: 2, min: 30, max: 31 });
   });
 
   it('los gaps inválidos no cuentan como evidencia', () => {

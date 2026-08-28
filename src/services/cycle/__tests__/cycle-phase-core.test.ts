@@ -219,8 +219,16 @@ describe('mutación 9: los umbrales viven en UN solo lugar', () => {
   ];
 
   it('ningún consumidor redefine 0.46/0.57 ni el ovDay = len/2 viejo', () => {
+    // 23-ago: este candado escaneaba el archivo CRUDO, comentarios incluidos,
+    // así que DOCUMENTAR la fórmula muerta ('sale de PHASE_OVULATION_END = 0.57')
+    // ponía la prueba en rojo con un mensaje que acusaba de redefinir umbrales a
+    // quien acababa de matarlos. Un candado que castiga documentar el porqué
+    // enseña a no documentarlo. Ahora mira solo el código.
+    const sinComentarios = (txt: string) => txt
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/(^|[^:])\/\/.*$/gm, '$1');
     for (const rel of CONSUMIDORES) {
-      const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+      const src = sinComentarios(fs.readFileSync(path.join(ROOT, rel), 'utf8'));
       expect(src, `${rel} redefine umbrales de fase`).not.toMatch(/0\.46|0\.57/);
       // 23-ago-2026: este candado anclaba el NOMBRE DE LA VARIABLE
       // (`const ovDay = ...`) y el código real decía `const ovDate = ...`,
