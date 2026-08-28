@@ -24,7 +24,7 @@ import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, toLocalDateString } from '@/src/utils/date-helpers';
 import { getMonthDays, getWeekdayMondayFirst } from '@/src/utils/cycle-calendar';
-import { getPhase, resolverCiclo, largoDeCiclo } from '@/src/services/cycle/cycle-phase-core';
+import { getPhase, resolverCiclo, largoDeCiclo, predecirOvulacion } from '@/src/services/cycle/cycle-phase-core';
 import { agruparPeriodos } from '@/src/services/cycle/cycle-periods-core';
 import { haptic } from '@/src/utils/haptics';
 import { InfoButton } from '@/src/components/InfoButton';
@@ -44,6 +44,24 @@ const ROSE = '#fb7185';
 const RED = '#ef4444';
 const YELLOW = '#fbbf24';
 const GREEN = '#22c55e';
+
+/**
+ * 4EP 23-ago-2026: el verde y el ambar de la app estan calibrados para lienzo
+ * OSCURO. Medidos contra la card del tema CLARO (#E9EEF1) dan 1.95 y 1.43, muy
+ * por debajo del 3:1 que necesita una forma para ser identificable, y eso es al
+ * 100% de opacidad: NINGUNA alfa lo arregla. Era exactamente la queja de Enrique,
+ * y no era percepcion, era fisica. En tema claro van las versiones oscuras del
+ * mismo tono, y la tinta del numero se invierte con ellas.
+ *
+ *   claro:  #15803d sobre card 4.29 · blanco encima 5.02
+ *           #b45309 sobre card 4.30 · blanco encima 5.02
+ *   oscuro: #22c55e sobre card 7.42 · tinta #1A1A1A encima 8.62
+ *           #fbbf24 sobre card 10.12 · tinta #1A1A1A encima 10.43
+ */
+const FERTIL_CLARO = { fondo: '#15803d', tinta: '#FFFFFF' };
+const FERTIL_OSCURO = { fondo: '#22c55e', tinta: '#1A1A1A' };
+const OVULA_CLARO = { fondo: '#b45309', tinta: '#FFFFFF' };
+const OVULA_OSCURO = { fondo: '#fbbf24', tinta: '#1A1A1A' };
 const VIOLET = '#a78bfa';
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -183,7 +201,10 @@ export default function CycleScreen() {
   // MB-31B2: tokens del tema. Las GradientCard de fase van con gradiente de
   // pilar (fondo oscuro anclado en el kit): su interior conserva texto claro
   // estático; todo lo demás (calendario, sheet, navegación) sigue el tema.
-  const t = useAppTheme().tokens;
+  const { kind: temaKind, tokens: t } = useAppTheme();
+  const temaClaro = temaKind === 'light';
+  const cFertil = temaClaro ? FERTIL_CLARO : FERTIL_OSCURO;
+  const cOvula = temaClaro ? OVULA_CLARO : OVULA_OSCURO;
   const st = useMemo(() => makeStyles(t), [t]);
   // MB-7: gate biological_sex — cierra el deep-link a /cycle para no-female.
   // MB-22 P4: el gate trae el MODO; en acompañante el calendario es de OTRA
@@ -318,20 +339,42 @@ export default function CycleScreen() {
   // Predicciones: próximo período, ovulación y ventana fértil
   const predictions = useMemo(() => {
     // MB-7: en modo embarazo NO se predice menstruación (doctrina 080).
-    if (pregnancy) return { periodDays: new Set<string>(), ovDay: '', fertileDays: new Set<string>() };
-    if (!inicioCalendario) return { periodDays: new Set<string>(), ovDay: '', fertileDays: new Set<string>() };
+    const vacio = {
+      periodDays: new Set<string>(), ovDay: '',
+      altaDays: new Set<string>(), bajaDays: new Set<string>(),
+      ventana: null as ReturnType<typeof predecirOvulacion>,
+    };
+    if (pregnancy) return vacio;
+    if (!inicioCalendario) return vacio;
     const cl = cycleLen;
     const pl = settings.avg_period_length;
     // Próximo período predicho
     const nextStart = addDays(inicioCalendario, cl);
     const pDays = new Set<string>();
     for (let i = 0; i < pl; i++) pDays.add(addDays(nextStart, i));
-    // Ovulación y ventana fértil (predicción de concepción, no fase)
-    const ovDate = addDays(inicioCalendario, Math.round(cl / 2) - 1);
-    const fDays = new Set<string>();
-    for (let i = -3; i <= 1; i++) fDays.add(addDays(ovDate, i));
-    return { periodDays: pDays, ovDay: ovDate, fertileDays: fDays };
-  }, [inicioCalendario, settings, cycleLen, pregnancy]);
+
+    // Ovulación y ventana fértil. MURIÓ aquí la fórmula `round(cl / 2) - 1`
+    // con ventana de -3 a +1: no tenía respaldo en ninguna fuente y le
+    // faltaban dos días fértiles reales por delante mientras le sobraba uno
+    // por detrás, en el que Wilcox no registró ni un embarazo. Ahora sale
+    // completa de predecirOvulacion, que es aritmética pura y con prueba.
+    const ventana = predecirOvulacion({
+      cycleLen: cl,
+      minLen: largo.minLen,
+      maxLen: largo.maxLen,
+      cyclesUsed: largo.cyclesUsed,
+    });
+    const altaDays = new Set<string>();
+    const bajaDays = new Set<string>();
+    let ovDay = '';
+    if (ventana) {
+      // Día 1 del ciclo = el inicio, por eso el -1 al convertir a fecha.
+      ovDay = addDays(inicioCalendario, ventana.diaOvulacion - 1);
+      for (let d = ventana.altaInicio; d <= ventana.altaFin; d++) altaDays.add(addDays(inicioCalendario, d - 1));
+      for (let d = ventana.bajaInicio; d <= ventana.bajaFin; d++) bajaDays.add(addDays(inicioCalendario, d - 1));
+    }
+    return { periodDays: pDays, ovDay, altaDays, bajaDays, ventana };
+  }, [inicioCalendario, settings, cycleLen, pregnancy, largo]);
 
   // Calendario: días del mes visible
   const monthDays = useMemo(() => getMonthDays(calMonth.year, calMonth.month), [calMonth]);
@@ -684,18 +727,30 @@ export default function CycleScreen() {
                 const isPer = log?.is_period;
                 const predPer = !isPer && predictions.periodDays.has(dateStr);
                 const isOv = dateStr === predictions.ovDay;
-                const isFert = predictions.fertileDays.has(dateStr) && !isOv;
+                const isAlta = !isOv && predictions.altaDays.has(dateStr);
+                const isBaja = !isOv && !isAlta && predictions.bajaDays.has(dateStr);
 
-                // Calcular día del ciclo para colorear fases
+                // Las tres capas se distinguen SIN depender del color, porque en
+                // daltonismo rojo-verde el verde fértil y el rose de HOY dan
+                // contraste 1.00 entre sí:
+                //   relleno + número en negritas + punto  = ovulación
+                //   relleno                               = mayor probabilidad
+                //   punto hueco, sin relleno              = menor probabilidad
+                // La banda baja NO toca el fondo, y eso resuelve tres cosas de
+                // un golpe: no borra el color de fase (llega a cubrir 22 de 28
+                // celdas), no pelea con el borde de HOY (que iba después en el
+                // array de estilos y lo hacía desaparecer justo hoy), y no
+                // depende del tono para leerse.
                 let bg = 'transparent';
+                let tinta: string | null = null;
                 if (isPer) {
                   bg = isFut ? withOpacity(RED, 0.3) : RED;
                 } else if (predPer && isFut) {
-                  bg = withOpacity(RED, 0.15);
+                  bg = withOpacity(RED, temaClaro ? 0.28 : 0.15);
                 } else if (isOv) {
-                  bg = isFut ? withOpacity(YELLOW, 0.15) : withOpacity(YELLOW, 0.4);
-                } else if (isFert) {
-                  bg = isFut ? withOpacity(GREEN, 0.1) : withOpacity(GREEN, 0.35);
+                  bg = cOvula.fondo; tinta = cOvula.tinta;
+                } else if (isAlta) {
+                  bg = cFertil.fondo; tinta = cFertil.tinta;
                 } else if (inicioCalendario) {
                   // Audit B1: las bandas cortan con LA MISMA resolución que
                   // la card Y la misma ancla que las predicciones
@@ -710,9 +765,16 @@ export default function CycleScreen() {
                       bg = isFut ? withOpacity(BLUE_PHASE, 0.08) : withOpacity(BLUE_PHASE, 0.25);
                     } else if (fase === 'luteal') {
                       bg = isFut ? withOpacity(PURPLE_PHASE, 0.06) : withOpacity(PURPLE_PHASE, 0.2);
-                    } else if (fase === 'ovulation') {
-                      bg = isFut ? withOpacity(YELLOW, 0.08) : withOpacity(YELLOW, 0.2);
                     }
+                    // 4EP 23-ago: aquí se pintaba también un tinte amarillo para
+                    // `fase === 'ovulation'`, que sale de PHASE_OVULATION_END = 0.57,
+                    // o sea una SEGUNDA fórmula de ovulación sobre el mismo
+                    // calendario. Con ciclo de 35 marcaba los días 17-20 mientras
+                    // predecirOvulacion pone el punto en 21: tres señales, dos
+                    // cuentas. En el calendario manda la predicción, que es la que
+                    // tiene fuente. La FASE sigue viva para la tarjeta y para
+                    // Entrenar, que es lo que sí describe: en qué parte del ciclo
+                    // va el cuerpo, no qué día se ovula.
                   }
                 }
 
@@ -720,12 +782,24 @@ export default function CycleScreen() {
                   <Pressable
                     key={dateStr}
                     onPress={() => openEditor(dateStr)}
-                    style={[st.dayCell, { width: cellSize, height: cellSize, borderRadius: cellSize / 2, backgroundColor: bg }, isT && st.dayToday]}
+                    style={[
+                      st.dayCell,
+                      { width: cellSize, height: cellSize, borderRadius: cellSize / 2, backgroundColor: bg },
+                      isT && st.dayToday,
+                    ]}
                   >
                     <EliteText style={[
                       st.dayText,
                       isPer && !isFut && { color: TEXT_COLORS.primary, fontFamily: Fonts.bold },
-                      isFut && { opacity: 0.3 },
+                      // La tinta se resuelve contra el RELLENO del chip, no contra el
+                      // tema: el fondo del chip es el mismo en ambos. Por eso viaja
+                      // junto al color de fondo y no se decide aquí.
+                      tinta ? { color: tinta } : null,
+                      isOv && { fontFamily: Fonts.bold },
+                      // 0.3 dejaba el número del futuro en 2.9 de contraste, debajo de
+                      // AA. Las celdas con relleno ya no se atenúan porque el relleno
+                      // mismo las marca; el resto sube a 0.7, que sí se lee.
+                      isFut && !tinta && { opacity: 0.7 },
                     ]}>
                       {num}
                     </EliteText>
@@ -733,6 +807,11 @@ export default function CycleScreen() {
                     <View style={st.dotRow}>
                       {isPer && <View style={[st.dot, { backgroundColor: RED }]} />}
                       {log?.had_sex && <View style={[st.dot, { backgroundColor: ROSE }]} />}
+                      {/* Menor probabilidad: punto HUECO. Es la única marca de la
+                          fila que no está rellena, así que se distingue de las otras
+                          dos sin depender del tono. */}
+                      {isBaja && <View style={[st.dot, st.dotHueco, { borderColor: cFertil.fondo }]} />}
+                      {isOv && <View style={[st.dot, { backgroundColor: cOvula.tinta }]} />}
                     </View>
                   </Pressable>
                 );
@@ -741,15 +820,25 @@ export default function CycleScreen() {
 
             {/* Leyenda */}
             <View style={st.legend}>
+              {/* 4EP: la leyenda tenía UN solo punto 'Fértil' y ahora hay dos
+                  capas distintas en el calendario. Sin esto, las bandas nuevas
+                  no están explicadas en ningún lado. El punto hueco de 'menor
+                  probabilidad' se dibuja igual que en la celda. */}
               {[
-                { c: RED, t: 'Período' },
-                { c: '#38bdf8', t: 'Folicular' },
-                { c: GREEN, t: 'Fértil' },
-                { c: YELLOW, t: 'Ovulación' },
-                { c: '#c084fc', t: 'Lútea' },
+                { c: RED, t: 'Período', hueco: false },
+                { c: '#38bdf8', t: 'Folicular', hueco: false },
+                { c: cFertil.fondo, t: 'Mayor probabilidad', hueco: false },
+                { c: cFertil.fondo, t: 'Menor probabilidad', hueco: true },
+                { c: cOvula.fondo, t: 'Ovulación estimada', hueco: false },
+                { c: '#c084fc', t: 'Lútea', hueco: false },
               ].map(l => (
                 <View key={l.t} style={st.legendItem}>
-                  <View style={[st.legendDot, { backgroundColor: l.c }]} />
+                  <View style={[
+                    st.legendDot,
+                    l.hueco
+                      ? { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: l.c }
+                      : { backgroundColor: l.c },
+                  ]} />
                   <EliteText style={st.legendText}>{l.t}</EliteText>
                 </View>
               ))}
@@ -1055,6 +1144,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   dayText: { color: t.texto, fontSize: FontSizes.sm },
   dotRow: { flexDirection: 'row', gap: 2, position: 'absolute', bottom: 3 },
   dot: { width: 4, height: 4, borderRadius: 2 },
+  dotHueco: { borderWidth: 1, backgroundColor: 'transparent' },
   legend: {
     flexDirection: 'row', justifyContent: 'center', gap: Spacing.md,
     marginTop: Spacing.sm, paddingTop: Spacing.sm,

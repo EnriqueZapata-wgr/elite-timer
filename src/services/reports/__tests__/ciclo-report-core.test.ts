@@ -44,6 +44,28 @@ describe('cycleAverages', () => {
     expect(r.variance).toBe(2);
   });
 
+  it('un HUECO de registro no es un ciclo: fuera de la ventana fisiológica', () => {
+    // Caso real de la base (23-ago-2026): una usuaria con un ciclo de 29 días y
+    // un gap de 106 porque dejó de registrar cuatro meses. Sin filtro, el
+    // reporte le decía «ciclo promedio 68 días, variabilidad 39», y ese es el
+    // número que se imprime para llevar al médico.
+    const r = cycleAverages([
+      cycle({ id: 'a', cycle_length: 29, period_length: 4 }),
+      cycle({ id: 'b', cycle_length: 106, period_length: 4 }),
+    ]);
+    expect(r.avgCycle).toBe(29);
+    // Con un solo ciclo válido tampoco hay variabilidad que declarar.
+    expect(r.variance).toBeNull();
+  });
+
+  it('los ciclos demasiado cortos tampoco cuentan', () => {
+    const r = cycleAverages([
+      cycle({ id: 'a', cycle_length: 28 }),
+      cycle({ id: 'b', cycle_length: 12 }),
+    ]);
+    expect(r.avgCycle).toBe(28);
+  });
+
   it('los ciclos sin largo no cuentan en el promedio', () => {
     const r = cycleAverages([
       cycle({ id: 'a', cycle_length: 28, period_length: null }),

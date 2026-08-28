@@ -6,6 +6,7 @@
  * una cifra que la usuaria compara con su médico no es un lujo.
  */
 import type { ExportRow } from './report-domain-core';
+import { MIN_CYCLE_DAYS, MAX_CYCLE_DAYS } from '@/src/services/cycle/cycle-length-core';
 
 export interface CyclePeriodRow {
   id: string;
@@ -39,7 +40,15 @@ export interface CycleAverages {
 }
 
 export function cycleAverages(cycles: readonly CyclePeriodRow[]): CycleAverages {
-  const cycleLengths = cycles.map((c) => c.cycle_length).filter((v): v is number => !!v);
+  // 23-ago-2026: este promedio NO aplicaba la ventana fisiológica, mientras
+  // cycle-length-core sí. Con datos reales de la app, una usuaria con un ciclo
+  // de 29 días y un HUECO de 106 (dejó de registrar cuatro meses) veía
+  // «ciclo promedio 68 días, variabilidad 39» — y este es el número que se
+  // imprime para llevar al médico. Un gap no es un ciclo. Misma ventana que
+  // el resto de la app, importada, no copiada.
+  const cycleLengths = cycles
+    .map((c) => c.cycle_length)
+    .filter((v): v is number => !!v && v > MIN_CYCLE_DAYS && v < MAX_CYCLE_DAYS);
   const periodLengths = cycles.map((c) => c.period_length).filter((v): v is number => !!v);
 
   const avgCycle = cycleLengths.length > 0

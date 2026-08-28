@@ -1,5 +1,14 @@
 # Ciclo · base documental para ovulación y ventana fértil
 
+> **Corregido el mismo 23-ago tras el cuatro ojos.** La banda de menor
+> probabilidad ya NO usa la fórmula de calendario rítmico de la OMS. Esa fórmula
+> está diseñada para EVITAR embarazo, es deliberadamente ancha, y por eso metía
+> tres días posteriores a la ovulación, en los que Wilcox no registró un solo
+> embarazo. Meter días post-ovulación fue una de las razones por las que se mató
+> la fórmula anterior: el argumento aplicaba más fuerte a su reemplazo. La versión
+> implementada está abajo y en
+> `R and D/EXPEDIENTE_CIENCIA_VENTANA_FERTIL_2026-08-23.md`.
+
 Investigado el 23-ago-2026 a pedido de Enrique: *"quiero que tomemos documentación
 real, no estar inventando, deben haber fórmulas reales"*. Cada número aquí tiene
 fuente. Lo que no la tiene, se dice.
@@ -105,15 +114,18 @@ el texto tiene que decirlo.
     día_ovulación = L − 14                                       [ASRM]
     si día_ovulación < 8: día_ovulación = 8                      [ver salvedad abajo]
 
-    ventana = [ovulación − 5 , ovulación]                        [Wilcox 1995]
-    días pico = [ovulación − 2 , ovulación]                      [ASRM]
+    banda alta = [ovulacion - 2 , ovulacion]                      [ASRM]
 
-    ventana ancha (para irregulares) = [minL − 18 , maxL − 11]    [OMS, calendario rítmico]
+
+    banda baja = [ovulacion(minL) - 5 , ovulacion(maxL)]         [Wilcox 1995]
+    // La ventana de Wilcox aplicada a TODO el rango de ciclos observado.
+    // Se ensancha sola con la variabilidad y NUNCA pasa de la ovulacion.
+    // Con ciclos parejos de 28 da 9..14: los seis dias de Wilcox exactos.
 
     QUÉ MOSTRAR:
       alta       -> día puntual (etiquetado estimado) + ventana + días pico
       media      -> ventana como elemento principal; día puntual atenuado
-      irregular  -> SOLO ventana ancha. Sin día puntual.
+      irregular  -> SOLO banda baja. Sin dia puntual.
       fuera_de_rango -> nada, con explicación
       sin_datos  -> nada, pedir 2 ciclos
 

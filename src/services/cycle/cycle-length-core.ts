@@ -13,8 +13,8 @@
 import { parseLocalDate } from '@/src/utils/date-helpers';
 
 /** Ventana fisiológica: un gap fuera de (20, 45) días no es un ciclo confiable. */
-const MIN_CYCLE_DAYS = 20;
-const MAX_CYCLE_DAYS = 45;
+export const MIN_CYCLE_DAYS = 20;
+export const MAX_CYCLE_DAYS = 45;
 /** Cuántos periodos recientes se miran (hasta 5 gaps entre 6 inicios). */
 const MAX_PERIODS = 6;
 /** Con menos de 2 ciclos válidos no se aprende: manda el ajuste manual. */
@@ -43,6 +43,12 @@ export interface ObservedCycle {
   length: number;
   /** Cuántos ciclos alimentan el promedio (para poder decir de dónde sale). */
   cyclesUsed: number;
+  /** El ciclo más corto observado. La ventana fértil se ensancha con él. */
+  min: number;
+  /** El más largo. Junto con `min` da la variabilidad real de ESTE cuerpo,
+   *  que es lo que decide qué tan ancha se pinta la banda de menor
+   *  probabilidad (fórmula de calendario rítmico de la OMS). */
+  max: number;
 }
 
 /**
@@ -55,5 +61,7 @@ export function observedCycleLength(periods: PeriodStartLike[]): ObservedCycle |
   return {
     length: Math.round(lengths.reduce((a, b) => a + b, 0) / lengths.length),
     cyclesUsed: lengths.length,
+    min: Math.min(...lengths),
+    max: Math.max(...lengths),
   };
 }
