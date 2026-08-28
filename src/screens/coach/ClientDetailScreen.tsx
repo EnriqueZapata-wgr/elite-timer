@@ -215,7 +215,7 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
         ) : stats && (
           <View style={s.statsRow}>
             <StatCard label="Sesiones" value={String(stats.sessions_this_month)} sub="este mes" color={TEAL} />
-            <StatCard label="Condiciones" value={stats.conditions_present > 0 || stats.conditions_observation > 0 ? `${stats.conditions_present}🔴 ${stats.conditions_observation}🟡` : '0'} sub="activas" color={t.error} />
+            <StatCard label="Condiciones" value={stats.conditions_present > 0 || stats.conditions_observation > 0 ? `${stats.conditions_present}🔴 ${stats.conditions_observation}🟡` : '0'} sub="activas" color={stats.conditions_present > 0 ? t.critico : stats.conditions_observation > 0 ? t.advertencia : t.textoSecundario} />
             <StatCard label="Consultas" value={String(stats.total_consultations)} sub="totales" color={t.info} />
             <StatCard label="Racha entreno" value={String(stats.exercise_streak_days)} sub="días" color={Colors.neonGreen} />
           </View>
@@ -387,8 +387,8 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
                     </ScrollView>
                     <View style={s.aiActions}>
                       <Pressable onPress={handleSaveAiReport} style={[s.aiActionBtn, aiSaved && { opacity: 0.5 }]} disabled={aiSaved}>
-                        <Ionicons name={aiSaved ? 'checkmark-circle' : 'save-outline'} size={14} color={aiSaved ? ATP_BRAND.lime : TEAL} />
-                        <EliteText variant="caption" style={{ color: aiSaved ? ATP_BRAND.lime : TEAL, fontFamily: Fonts.semiBold }}>
+                        <Ionicons name={aiSaved ? 'checkmark-circle' : 'save-outline'} size={14} color={aiSaved ? t.exito : TEAL} />
+                        <EliteText variant="caption" style={{ color: aiSaved ? t.exito : TEAL, fontFamily: Fonts.semiBold }}>
                           {aiSaved ? 'Guardado' : 'Guardar reporte'}
                         </EliteText>
                       </Pressable>
@@ -501,7 +501,7 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
     const redCount = zone.conditions.filter(c => getFlag(c.key) === 'present').length;
     const orangeCount = zone.conditions.filter(c => getFlag(c.key) === 'observation').length;
     const greenCount = zone.conditions.filter(c => getFlag(c.key) === 'normal').length;
-    const statusDotColor = redCount > 0 ? t.error : orangeCount > 0 ? SEMANTIC.warning : greenCount > 0 ? ATP_BRAND.lime : t.sinDatos;
+    const statusDotColor = redCount > 0 ? t.critico : orangeCount > 0 ? t.advertencia : greenCount > 0 ? t.exito : t.sinDatos;
     const visiblePills = isExpanded ? zone.conditions : zone.conditions.slice(0, 8);
     const hiddenCount = isExpanded ? 0 : Math.max(0, zone.conditions.length - 8);
 
@@ -514,8 +514,8 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
           </EliteText>
           {(redCount > 0 || orangeCount > 0) && (
             <View style={s.zoneBadges}>
-              {redCount > 0 && <View style={[s.zoneBadge, { backgroundColor: t.error + '20' }]}><EliteText variant="caption" style={{ color: t.error, fontSize: 9, fontFamily: Fonts.bold }}>{redCount}</EliteText></View>}
-              {orangeCount > 0 && <View style={[s.zoneBadge, { backgroundColor: SEMANTIC.warning + '20' }]}><EliteText variant="caption" style={{ color: SEMANTIC.warning, fontSize: 9, fontFamily: Fonts.bold }}>{orangeCount}</EliteText></View>}
+              {redCount > 0 && <View style={[s.zoneBadge, { backgroundColor: t.critico + '20' }]}><EliteText variant="caption" style={{ color: t.critico, fontSize: 9, fontFamily: Fonts.bold }}>{redCount}</EliteText></View>}
+              {orangeCount > 0 && <View style={[s.zoneBadge, { backgroundColor: t.advertencia + '20' }]}><EliteText variant="caption" style={{ color: t.advertencia, fontSize: 9, fontFamily: Fonts.bold }}>{orangeCount}</EliteText></View>}
             </View>
           )}
         </Pressable>
@@ -591,11 +591,11 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
               const sx = (profile?.biological_sex as Sex) ?? 'male';
               const sysR = rateBioValue('blood_pressure_sys', profile?.blood_pressure_sys ? Number(profile.blood_pressure_sys) : null, sx);
               const diaR = rateBioValue('blood_pressure_dia', profile?.blood_pressure_dia ? Number(profile.blood_pressure_dia) : null, sx);
-              const bpColor = sysR.level !== 'no_data' ? sysR.color : diaR.level !== 'no_data' ? diaR.color : t.error;
+              const bpColor = sysR.level !== 'no_data' ? sysR.color : diaR.level !== 'no_data' ? diaR.color : t.sinDatos;
               const bpRating = sysR.level !== 'no_data' ? sysR : diaR.level !== 'no_data' ? diaR : null;
               return (
               <View style={s.bioGrid}>
-                <BioField label="F. Agarre" unit="kg" color={ATP_BRAND.lime}
+                <BioField label="F. Agarre" unit="kg" color={t.exito}
                   value={profile?.grip_strength_kg?.toString() ?? ''}
                   onSave={v => saveProfileField('grip_strength_kg', v)}
                   saved={bioSavedKey === 'grip_strength_kg'}
@@ -614,7 +614,7 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
                   onSave={v => saveProfileField('vo2_max', v)}
                   saved={bioSavedKey === 'vo2_max'}
                   rating={rateBioValue('vo2_max', profile?.vo2_max ? Number(profile.vo2_max) : null, sx)} />
-                <BioField label="Edad metab." unit="años" color={SEMANTIC.warning}
+                <BioField label="Edad metab." unit="años" color={t.advertencia}
                   value={profile?.metabolic_age_impedance?.toString() ?? ''}
                   onSave={v => saveProfileField('metabolic_age_impedance', v)}
                   saved={bioSavedKey === 'metabolic_age_impedance'} />
@@ -656,32 +656,32 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
             value={healthScore?.biologicalAge ? Math.round(healthScore.biologicalAge).toString() : '—'}
             unit="años"
             color={healthScore?.biologicalAge && profile?.date_of_birth
-              ? healthScore.biologicalAge < Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / 31557600000) ? ATP_BRAND.lime : t.error
+              ? healthScore.biologicalAge < Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / 31557600000) ? t.exito : t.error
               : CATEGORY_COLORS.mind}
           />
           <ScoreCard
             label="Calidad evaluación"
             value={healthScore?.evaluationQuality != null ? `${Math.round(healthScore.evaluationQuality)}` : '—'}
             unit="%"
-            color={healthScore?.evaluationQuality ? (healthScore.evaluationQuality > 70 ? ATP_BRAND.lime : healthScore.evaluationQuality > 40 ? SEMANTIC.warning : t.error) : TEAL}
+            color={healthScore?.evaluationQuality ? (healthScore.evaluationQuality > 70 ? t.exito : healthScore.evaluationQuality > 40 ? t.advertencia : t.error) : TEAL}
           />
           <ScoreCard
             label="Envejecimiento"
             value={healthScore?.agingRate ? healthScore.agingRate.toFixed(2) : '—'}
             unit="x"
-            color={healthScore?.agingRate ? (healthScore.agingRate < 1.0 ? ATP_BRAND.lime : healthScore.agingRate < 1.1 ? SEMANTIC.warning : t.error) : t.error}
+            color={healthScore?.agingRate ? (healthScore.agingRate < 1.0 ? t.exito : healthScore.agingRate < 1.1 ? t.advertencia : t.critico) : t.sinDatos}
           />
           <ScoreCard
             label="Salud funcional"
             value={healthScore?.functionalHealthScore ? Math.round(healthScore.functionalHealthScore).toString() : '—'}
             unit="/100"
-            color={healthScore?.functionalHealthScore ? (healthScore.functionalHealthScore > 80 ? ATP_BRAND.lime : healthScore.functionalHealthScore > 60 ? SEMANTIC.warning : t.error) : TEAL}
+            color={healthScore?.functionalHealthScore ? (healthScore.functionalHealthScore > 80 ? t.exito : healthScore.functionalHealthScore > 60 ? t.advertencia : t.critico) : TEAL}
           />
         </View>
         {/* Faltan datos para PhenoAge */}
         {healthScore && !healthScore.biologicalAge && healthScore.phenoAgeMissing && healthScore.phenoAgeMissing.length > 0 && (
           <View style={{ marginTop: Spacing.sm, backgroundColor: t.flotante, borderRadius: 6, padding: Spacing.sm }}>
-            <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontSize: 10, marginBottom: 2 }}>
+            <EliteText variant="caption" style={{ color: t.advertencia, fontSize: 10, marginBottom: 2 }}>
               Faltan {healthScore.phenoAgeMissing.length} de 9 biomarcadores para PhenoAge:
             </EliteText>
             <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10 }}>
@@ -713,7 +713,7 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
                 {healthScore.domains.map(d => {
                   const sf = Math.round(d.functionalScore);
                   const ce = Math.round(d.evaluationQuality * 100);
-                  const barColor = sf >= 80 ? ATP_BRAND.lime : sf >= 60 ? SEMANTIC.warning : t.error;
+                  const barColor = sf >= 80 ? t.exito : sf >= 60 ? t.advertencia : t.critico;
                   return (
                     <View key={d.key} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
                       <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 10, width: 90 }}>{d.name}</EliteText>
@@ -1390,7 +1390,7 @@ function WeightContextBar({ lowest, current, highest, ideal }: {
     <View style={s.weightBar}>
       <View style={s.weightBarTrack}>
         {/* Points */}
-        <View style={[s.weightBarPoint, { left: '0%', backgroundColor: ATP_BRAND.lime }]} />
+        <View style={[s.weightBarPoint, { left: '0%', backgroundColor: t.exito }]} />
         {current != null && (
           <View style={[s.weightBarPointLg, { left: `${pct(current)}%` }]} />
         )}
@@ -1400,7 +1400,7 @@ function WeightContextBar({ lowest, current, highest, ideal }: {
         )}
       </View>
       <View style={s.weightBarLabels}>
-        <EliteText variant="caption" style={{ color: ATP_BRAND.lime, fontSize: 10 }}>{lowest}kg</EliteText>
+        <EliteText variant="caption" style={{ color: t.exito, fontSize: 10 }}>{lowest}kg</EliteText>
         {current != null && <EliteText variant="caption" style={{ color: t.texto, fontSize: 10 }}>{current}kg</EliteText>}
         {ideal && <EliteText variant="caption" style={{ color: TEAL, fontSize: 10 }}>Meta: {ideal}kg</EliteText>}
         <EliteText variant="caption" style={{ color: t.error, fontSize: 10 }}>{highest}kg</EliteText>
@@ -1428,7 +1428,7 @@ function BioField({ label, unit, color, value, onSave, rating, saved }: {
   return (
     <View style={[s.bioItem, hasRating ? { backgroundColor: rating.bgColor, borderRadius: 6 } : undefined]}>
       <EliteText variant="caption" style={s.bioLabel}>
-        {saved && <EliteText style={{ fontSize: 10, color: ATP_BRAND.lime }}>{'✓ '}</EliteText>}
+        {saved && <EliteText style={{ fontSize: 10, color: t.exito }}>{'✓ '}</EliteText>}
         {hasRating && <EliteText style={{ fontSize: 12, color: rating.color }}>{rating.arrow} </EliteText>}
         {label}
       </EliteText>
@@ -1478,7 +1478,7 @@ function DebouncedBPField({ sysValue, diaValue, onSaveSys, onSaveDia, bpColor, b
   return (
     <View style={[s.bioFieldWide, hasRating ? { backgroundColor: bpRating.bgColor, borderRadius: 6 } : undefined]}>
       <EliteText variant="caption" style={s.bioLabel}>
-        {saved && <EliteText style={{ fontSize: 10, color: ATP_BRAND.lime }}>{'✓ '}</EliteText>}
+        {saved && <EliteText style={{ fontSize: 10, color: t.exito }}>{'✓ '}</EliteText>}
         {hasRating && <EliteText style={{ fontSize: 12, color: bpRating.color }}>{bpRating.arrow} </EliteText>}
         Presión arterial
       </EliteText>
@@ -1543,8 +1543,8 @@ function RecentStudies({ clientId }: { clientId: string }) {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm }}>
         <EliteText variant="caption" style={s.rowLabel}>ESTUDIOS RECIENTES</EliteText>
         {pending > 0 && (
-          <View style={{ backgroundColor: SEMANTIC.warning + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
-            <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontSize: 9, fontFamily: Fonts.bold }}>{pending} pendiente{pending > 1 ? 's' : ''}</EliteText>
+          <View style={{ backgroundColor: t.advertencia + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+            <EliteText variant="caption" style={{ color: t.advertencia, fontSize: 9, fontFamily: Fonts.bold }}>{pending} pendiente{pending > 1 ? 's' : ''}</EliteText>
           </View>
         )}
       </View>
@@ -1609,8 +1609,8 @@ function ProfileRow({ label, value }: { label: string; value: string }) {
 // MB-31B: color por estado de consulta — "signed" usa t.info (cambia claro↔
 // oscuro), así que es función de t, no constante de módulo.
 const statusBadgeColors = (t: AppThemeTokens): Record<string, { label: string; color: string; bg: string }> => ({
-  draft: { label: 'Borrador', color: SEMANTIC.warning, bg: SEMANTIC.warning + '15' },
-  completed: { label: 'Completada', color: ATP_BRAND.lime, bg: ATP_BRAND.lime + '15' },
+  draft: { label: 'Borrador', color: t.advertencia, bg: t.advertencia + '15' },
+  completed: { label: 'Completada', color: t.exito, bg: t.exito + '15' },
   signed: { label: 'Firmada', color: t.info, bg: t.info + '15' },
 });
 
@@ -1761,7 +1761,7 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
                   {CONDITION_ZONES.map(zone => {
                     const redC = zone.conditions.filter(co => getConsultFlag(co.key) === 'present').length;
                     const orangeC = zone.conditions.filter(co => getConsultFlag(co.key) === 'observation').length;
-                    const statusDot = redC > 0 ? t.error : orangeC > 0 ? SEMANTIC.warning : t.sinDatos;
+                    const statusDot = redC > 0 ? t.critico : orangeC > 0 ? t.advertencia : t.sinDatos;
                     return (
                       <View key={zone.key} style={isWide ? s.condGridItem : undefined}>
                         <View style={[s.zoneCard, { borderLeftColor: zone.color, marginBottom: Spacing.xs }]}>
@@ -1919,9 +1919,9 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
   // Vista de lista
   return (
     <View>
-      <Pressable onPress={handleNew} disabled={creating} style={[s.newConsultBtn, creating && { opacity: 0.5 }, draft && { borderColor: SEMANTIC.warning + '30', backgroundColor: SEMANTIC.warning + '08' }]}>
-        <Ionicons name={draft ? 'create-outline' : 'add-circle-outline'} size={18} color={draft ? SEMANTIC.warning : Colors.neonGreen} />
-        <EliteText variant="body" style={[s.newConsultBtnText, draft && { color: SEMANTIC.warning }]}>
+      <Pressable onPress={handleNew} disabled={creating} style={[s.newConsultBtn, creating && { opacity: 0.5 }, draft && { borderColor: t.advertencia + '30', backgroundColor: t.advertencia + '08' }]}>
+        <Ionicons name={draft ? 'create-outline' : 'add-circle-outline'} size={18} color={draft ? t.advertencia : Colors.neonGreen} />
+        <EliteText variant="body" style={[s.newConsultBtnText, draft && { color: t.advertencia }]}>
           {creating ? 'Creando...' : draft ? `Continuar consulta #${draft.consultation_number}` : 'Nueva Consulta'}
         </EliteText>
       </Pressable>
@@ -2046,7 +2046,7 @@ function LabsTab({ clientId }: { clientId: string }) {
         if ('error' in result) {
           setUploadMsg({ text: `Error: ${result.error}`, color: t.error });
         } else {
-          setUploadMsg({ text: `¡Listo! ${result.extractedCount} valores extraídos`, color: ATP_BRAND.lime });
+          setUploadMsg({ text: `¡Listo! ${result.extractedCount} valores extraídos`, color: t.exito });
           loadLabs();
         }
       } catch (err: any) {
@@ -2073,8 +2073,8 @@ function LabsTab({ clientId }: { clientId: string }) {
 
   const statusBadge = (labStatus: string) => {
     const map: Record<string, { label: string; color: string; bg: string }> = {
-      draft: { label: 'Borrador', color: SEMANTIC.warning, bg: SEMANTIC.warning + '15' },
-      approved: { label: 'Aprobado', color: ATP_BRAND.lime, bg: ATP_BRAND.lime + '15' },
+      draft: { label: 'Borrador', color: t.advertencia, bg: t.advertencia + '15' },
+      approved: { label: 'Aprobado', color: t.exito, bg: t.exito + '15' },
     };
     const b = map[labStatus] ?? map.draft;
     return (
@@ -2112,7 +2112,7 @@ function LabsTab({ clientId }: { clientId: string }) {
           </EliteText>
           {failedUploads.map(u => (
             <View key={u.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: rojoTenue(t), borderRadius: 8, padding: Spacing.sm, marginBottom: 4 }}>
-              <Ionicons name={u.status === 'failed' ? 'alert-circle' : 'hourglass-outline'} size={14} color={u.status === 'failed' ? t.error : SEMANTIC.warning} />
+              <Ionicons name={u.status === 'failed' ? 'alert-circle' : 'hourglass-outline'} size={14} color={u.status === 'failed' ? t.error : t.advertencia} />
               <View style={{ flex: 1, marginLeft: Spacing.sm }}>
                 <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 11 }}>
                   {u.file_name ?? 'Archivo'} — {u.status === 'failed' ? 'Fallido' : u.status === 'processing' ? 'Procesando' : 'Subido'}
@@ -2195,13 +2195,13 @@ function LabsTab({ clientId }: { clientId: string }) {
                   {/* Otros valores (no mapeados) */}
                   {lab.other_values && Array.isArray(lab.other_values) && lab.other_values.length > 0 && (
                     <View style={{ marginBottom: Spacing.sm }}>
-                      <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 4 }}>
+                      <EliteText variant="caption" style={{ color: t.advertencia, fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 4 }}>
                         OTROS VALORES
                       </EliteText>
                       {lab.other_values.map((ov: any, idx: number) => (
                         <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: t.card }}>
                           <EliteText variant="caption" style={{ flex: 1, color: t.textoSecundario, fontSize: 12 }}>{ov.name}</EliteText>
-                          <EliteText variant="body" style={{ color: SEMANTIC.warning, fontFamily: Fonts.bold, fontSize: 14 }}>{ov.value}</EliteText>
+                          <EliteText variant="body" style={{ color: t.advertencia, fontFamily: Fonts.bold, fontSize: 14 }}>{ov.value}</EliteText>
                           <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginLeft: 4 }}>{ov.unit}</EliteText>
                         </View>
                       ))}
@@ -2775,7 +2775,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
   const getTagColor = (tag: string) => {
     const positive = ['alta_proteina', 'grasas_saludables', 'ingredientes_naturales', 'fibra', 'omega3', 'antioxidantes', 'comida_real'];
     const negative = ['ultra_procesado', 'alto_azucar', 'grasa_trans', 'harinas_refinadas', 'exceso_sodio'];
-    if (positive.some(p => tag.includes(p))) return SEMANTIC.success;
+    if (positive.some(p => tag.includes(p))) return t.exito;
     if (negative.some(n => tag.includes(n))) return t.error;
     return CATEGORY_COLORS.nutrition;
   };
@@ -2821,11 +2821,11 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
   } : null;
 
   // Macros con porcentaje para barras de progreso
-  const scoreCol = dayScore?.overall_score >= 75 ? SEMANTIC.success : dayScore?.overall_score >= 50 ? SEMANTIC.warning : dayScore?.overall_score ? t.error : tenue(t);
+  const scoreCol = dayScore?.overall_score >= 75 ? t.exito : dayScore?.overall_score >= 50 ? t.advertencia : dayScore?.overall_score ? t.error : tenue(t);
   const macros = [
     { label: 'Calorías', value: Math.round(dayTotals.calories), target: plan?.calorie_target ?? 0, unit: '', color: CATEGORY_COLORS.nutrition, pct: plan?.calorie_target ? (dayTotals.calories / plan.calorie_target) * 100 : 0 },
-    { label: 'Proteína', value: Math.round(dayTotals.protein), target: plan?.protein_target ?? 0, unit: 'g', color: SEMANTIC.success, pct: plan?.protein_target ? (dayTotals.protein / plan.protein_target) * 100 : 0 },
-    { label: 'Carbos', value: Math.round(dayTotals.carbs), target: plan?.carb_target ?? 0, unit: 'g', color: SEMANTIC.warning, pct: plan?.carb_target ? (dayTotals.carbs / plan.carb_target) * 100 : 0 },
+    { label: 'Proteína', value: Math.round(dayTotals.protein), target: plan?.protein_target ?? 0, unit: 'g', color: t.exito, pct: plan?.protein_target ? (dayTotals.protein / plan.protein_target) * 100 : 0 },
+    { label: 'Carbos', value: Math.round(dayTotals.carbs), target: plan?.carb_target ?? 0, unit: 'g', color: t.advertencia, pct: plan?.carb_target ? (dayTotals.carbs / plan.carb_target) * 100 : 0 },
     { label: 'Grasa', value: Math.round(dayTotals.fat), target: plan?.fat_target ?? 0, unit: 'g', color: t.error, pct: plan?.fat_target ? (dayTotals.fat / plan.fat_target) * 100 : 0 },
   ];
 
@@ -2951,7 +2951,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
         dayFoods.map(food => {
           const ai = food.ai_analysis;
           const sc = ai?.score;
-          const foodScoreCol = sc >= 80 ? SEMANTIC.success : sc >= 60 ? SEMANTIC.warning : sc ? t.error : tenue(t);
+          const foodScoreCol = sc >= 80 ? t.exito : sc >= 60 ? t.advertencia : sc ? t.error : tenue(t);
           const isExpanded = expandedFoodId === food.id;
 
           // Modo edición inline
@@ -2968,7 +2968,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
                   const subKey = Object.keys(SUBSTITUTIONS).find(k => ing.name.toLowerCase().includes(k));
                   return (
                     <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: t.borde }}>
-                      <Ionicons name="checkmark-circle" size={14} color={SEMANTIC.success} />
+                      <Ionicons name="checkmark-circle" size={14} color={t.exito} />
                       <View style={{ flex: 1 }}>
                         <EliteText variant="caption" style={{ color: t.texto, fontSize: 12 }}>{ing.name}</EliteText>
                         <EliteText variant="caption" style={{ color: tenue(t), fontSize: 9 }}>{ing.portion} · {ing.calories ?? 0}cal · {ing.protein ?? 0}g prot</EliteText>
@@ -2978,8 +2978,8 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
                           const updated = [...editIngredients];
                           updated[idx] = { ...updated[idx], name: SUBSTITUTIONS[subKey] };
                           setEditIngredients(updated);
-                        }} style={{ backgroundColor: SEMANTIC.success + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm }}>
-                          <EliteText variant="caption" style={{ color: SEMANTIC.success, fontSize: 8 }}>{'→'} {SUBSTITUTIONS[subKey]}</EliteText>
+                        }} style={{ backgroundColor: t.exito + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm }}>
+                          <EliteText variant="caption" style={{ color: t.exito, fontSize: 8 }}>{'→'} {SUBSTITUTIONS[subKey]}</EliteText>
                         </Pressable>
                       )}
                       <Pressable onPress={() => setEditIngredients(editIngredients.filter((_, i) => i !== idx))}>
@@ -3168,7 +3168,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
           <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
             {/* Left: deficit */}
             <View style={{ flex: 1, backgroundColor: t.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: t.borde, padding: Spacing.sm }}>
-              <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontFamily: Fonts.bold, fontSize: 10, marginBottom: Spacing.xs }}>DEFICIT</EliteText>
+              <EliteText variant="caption" style={{ color: t.advertencia, fontFamily: Fonts.bold, fontSize: 10, marginBottom: Spacing.xs }}>DEFICIT</EliteText>
               {[
                 { label: 'Cal', value: deficit.calories, unit: '' },
                 { label: 'Prot', value: Math.round(deficit.protein), unit: 'g' },
@@ -3177,7 +3177,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
               ].map(m => (
                 <View key={m.label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
                   <EliteText variant="caption" style={{ color: tenue(t), fontSize: 9 }}>{m.label}</EliteText>
-                  <EliteText variant="caption" style={{ color: m.value > 0 ? SEMANTIC.warning : SEMANTIC.success, fontFamily: Fonts.bold, fontSize: 11 }}>
+                  <EliteText variant="caption" style={{ color: m.value > 0 ? t.advertencia : t.exito, fontFamily: Fonts.bold, fontSize: 11 }}>
                     {m.value > 0 ? `-${Math.round(m.value)}` : '0'}{m.unit}
                   </EliteText>
                 </View>
@@ -3220,7 +3220,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
           const ds = scores.find(s => s.date === day.date);
           const df = foods.filter(f => f.date === day.date);
           const scVal = ds?.overall_score;
-          const color = scVal >= 75 ? SEMANTIC.success : scVal >= 50 ? SEMANTIC.warning : scVal ? t.error : tenue(t);
+          const color = scVal >= 75 ? t.exito : scVal >= 50 ? t.advertencia : scVal ? t.error : tenue(t);
           const isToday = day.date === today();
           const isSelected = day.date === selectedDate;
           return (
@@ -3239,7 +3239,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
         <View>
           <EliteText variant="caption" style={sectionLabelStyle}>PATRONES DETECTADOS</EliteText>
           {patterns.map((p, i) => {
-            const bg = p.type === 'success' ? SEMANTIC.success : p.type === 'warning' ? SEMANTIC.warning : t.error;
+            const bg = p.type === 'success' ? t.exito : p.type === 'warning' ? t.advertencia : t.error;
             return (
               <View key={i} style={{
                 backgroundColor: bg + '10', borderRadius: Radius.card, borderLeftWidth: 3, borderLeftColor: bg,
@@ -3327,7 +3327,7 @@ function StudyNotesField({ studyId, initial, onSave }: { studyId: string; initia
     <View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
         <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 10 }}>Notas del coach</EliteText>
-        {saved && <EliteText variant="caption" style={{ color: ATP_BRAND.lime, fontSize: 9 }}>✓ Guardado</EliteText>}
+        {saved && <EliteText variant="caption" style={{ color: t.exito, fontSize: 9 }}>✓ Guardado</EliteText>}
       </View>
       <TextInput
         style={{ backgroundColor: t.flotante, borderRadius: 8, padding: Spacing.sm, color: t.texto, fontSize: 12, minHeight: 40 }}
@@ -3422,9 +3422,9 @@ function StudiesTab({ clientId }: { clientId: string }) {
   const statusBadge = (status: string) => {
     const map: Record<string, { label: string; color: string }> = {
       uploaded: { label: 'Pendiente', color: tenue(t) },
-      processing: { label: 'Procesando...', color: SEMANTIC.warning },
+      processing: { label: 'Procesando...', color: t.advertencia },
       interpreted: { label: 'Interpretado', color: t.info },
-      reviewed: { label: 'Revisado ✓', color: SEMANTIC.success },
+      reviewed: { label: 'Revisado ✓', color: t.exito },
     };
     const s = map[status] ?? map.uploaded;
     return (
@@ -3559,9 +3559,9 @@ function StudiesTab({ clientId }: { clientId: string }) {
                   {study.status === 'interpreted' && (
                     <>
                       <Pressable onPress={() => handleReview(study.id)}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: SEMANTIC.success + '20', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
-                        <Ionicons name="checkmark-circle-outline" size={14} color={SEMANTIC.success} />
-                        <EliteText variant="caption" style={{ color: SEMANTIC.success, fontSize: 11 }}>Marcar revisado</EliteText>
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: t.exito + '20', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
+                        <Ionicons name="checkmark-circle-outline" size={14} color={t.exito} />
+                        <EliteText variant="caption" style={{ color: t.exito, fontSize: 11 }}>Marcar revisado</EliteText>
                       </Pressable>
                       <Pressable onPress={() => handleInterpret(study.id)} disabled={isInterpreting}
                         style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6 }}>

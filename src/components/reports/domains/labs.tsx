@@ -37,6 +37,34 @@ import { SectionHeader, Stat, StatsRow } from '../ReportStats';
 import type { ReportDomainDefinition } from '../ReportDomainShell';
 
 const META = REPORT_DOMAINS.labs;
+
+/**
+ * El acento del dominio, calibrado por tema. El verde de labs (#1d9e75) da
+ * 2.90 sobre card clara, o sea que como LETRA no se lee en tema claro. En
+ * claro baja a `t.exito` (5.22 card · 4.66 fondo). Medido, no estimado.
+ */
+function acentoLabs(t: AppThemeTokens): string {
+  return t.kind === 'dark' ? META.accent : t.exito;
+}
+
+/**
+ * El color de cada estado de laboratorio. Dos correcciones sobre lo que
+ * había, y las dos importan:
+ *
+ *  1. `atencion` se pintaba con `t.error`, que es el coral de INTERFAZ, el
+ *     de un campo mal llenado. Un biomarcador fuera de su ventana es estado
+ *     CLINICO y le toca `t.critico`. Son dos rojos distintos a proposito.
+ *  2. `aceptable` y `sin_banda` compartian el mismo gris, y dicen cosas
+ *     opuestas: "estas dentro de banda" contra "no hay banda, no se sabe".
+ *     Ahora `aceptable` es dato firme y el gris queda solo para el que de
+ *     verdad no se sabe.
+ */
+function colorEstadoLab(estado: string, t: AppThemeTokens): string {
+  if (estado === 'atencion') return t.critico;
+  if (estado === 'optimo') return acentoLabs(t);
+  if (estado === 'aceptable') return t.texto;
+  return t.textoSecundario;
+}
 const SPARK_W = 200;
 const SPARK_H = 44;
 
@@ -80,11 +108,11 @@ export function LabsContent({ data }: { data: LabsReportData }) {
         <AnimatedPressable onPress={() => { haptic.light(); setSoloAtencion((v) => !v); }}>
           <View style={[
             s.filtro,
-            { borderColor: soloAtencion ? META.accent : t.bordeMarcado },
-            soloAtencion && { backgroundColor: withOpacity(META.accent, 0.14) },
+            { borderColor: soloAtencion ? acentoLabs(t) : t.bordeMarcado },
+            soloAtencion && { backgroundColor: withOpacity(acentoLabs(t), 0.14) },
           ]}>
-            <Ionicons name="funnel-outline" size={14} color={soloAtencion ? META.accent : t.textoSecundario} />
-            <EliteText style={[s.filtroText, { color: soloAtencion ? META.accent : t.textoSecundario }]}>
+            <Ionicons name="funnel-outline" size={14} color={soloAtencion ? acentoLabs(t) : t.textoSecundario} />
+            <EliteText style={[s.filtroText, { color: soloAtencion ? acentoLabs(t) : t.textoSecundario }]}>
               {soloAtencion ? 'Viendo solo lo que pide atención' : `Ver solo lo que pide atención (${resumen.atencion})`}
             </EliteText>
           </View>
@@ -97,14 +125,14 @@ export function LabsContent({ data }: { data: LabsReportData }) {
         onPress={() => { haptic.light(); router.push('/edad-atp/labs'); }}
       >
         <View style={[s.enlace, { borderColor: t.bordeMarcado }]}>
-          <Ionicons name="albums-outline" size={16} color={META.accent} />
+          <Ionicons name="albums-outline" size={16} color={acentoLabs(t)} />
           <View style={{ flex: 1 }}>
             <EliteText style={[s.cardTitle, { color: t.texto }]}>Ver el panel completo</EliteText>
             <EliteText style={[s.sub, { color: t.textoSecundario }]}>
               Aquí ves cómo se movió cada valor. En el panel ves dónde estás hoy, con su banda y su explicación.
             </EliteText>
           </View>
-          <Ionicons name="chevron-forward" size={14} color={META.accent} />
+          <Ionicons name="chevron-forward" size={14} color={acentoLabs(t)} />
         </View>
       </AnimatedPressable>
     </View>
@@ -112,9 +140,7 @@ export function LabsContent({ data }: { data: LabsReportData }) {
 }
 
 function FilaLab({ h, s, t }: { h: HistoriaLab; s: Styles; t: AppThemeTokens }) {
-  const color = h.ultimo.estado === 'atencion'
-    ? t.error
-    : h.ultimo.estado === 'optimo' ? META.accent : t.textoSecundario;
+  const color = colorEstadoLab(h.ultimo.estado, t);
 
   return (
     <View style={[s.card, { backgroundColor: t.card, borderColor: t.borde }]}>
