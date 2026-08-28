@@ -42,11 +42,18 @@ Roadmap → v2.0.0 (julio-agosto 2026 — publicación a stores)
     - SQL Editor solo para queries puntuales / debug, no para migraciones rutinarias
 
 13. Comandos para Enrique: terminal PowerShell en Windows.
-    - SIEMPRE abrir cada bloque con `cd "D:\Proyectos_ClaudeCode\ELITE_Timer\EliteTimer"`,
-      aunque el bloque anterior ya estuviera ahí. Cada bloque se lee solo.
-    - Un comando por línea. NUNCA `&&`.
-    - Y decir SIEMPRE en qué rama se corre, verificándolo antes con
+    - UN solo bloque: el `cd` arriba y los comandos debajo, uno por línea.
+      No repetir el `cd` en cada comando ni partirlo en bloques sueltos.
+      ```
+      cd "D:\Proyectos_ClaudeCode\ELITE_Timer\EliteTimer"
+      npx tsc --noEmit
+      npm test
+      ```
+    - NUNCA `&&`.
+    - Decir en qué RAMA se corre, verificándolo antes con
       `git branch --show-current`, no de memoria.
+    - Si el bloque cambia de rama a medias, decirlo en una línea antes,
+      no dejarlo escondido entre comandos.
 
 ## Documentos clave
 - docs/DESIGN_SYSTEM.md — criterio UI/UX, tokens, reglas de diseño (LEER antes de tocar pantallas)
