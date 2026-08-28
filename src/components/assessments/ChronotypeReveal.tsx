@@ -159,10 +159,10 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   revealName: { fontFamily: Fonts.extraBold, fontSize: 34, textAlign: 'center', marginTop: Spacing.sm },
   revealDesc: { color: t.textoSecundario, fontSize: FontSizes.sm, textAlign: 'center', lineHeight: 21, marginTop: Spacing.xs },
   dolphinBox: {
-    backgroundColor: withOpacity('#EF9F27', 0.08), borderRadius: Radius.lg, padding: Spacing.md,
-    borderWidth: 1, borderColor: withOpacity('#EF9F27', 0.25), marginTop: Spacing.md,
+    backgroundColor: withOpacity(SEMANTIC.warning, 0.08), borderRadius: Radius.lg, padding: Spacing.md,
+    borderWidth: 1, borderColor: withOpacity(SEMANTIC.warning, 0.25), marginTop: Spacing.md,
   },
-  dolphinKicker: { color: '#EF9F27', letterSpacing: 2, fontSize: 10, marginBottom: 6 },
+  dolphinKicker: { color: SEMANTIC.warning, letterSpacing: 2, fontSize: 10, marginBottom: 6 },
   dolphinBody: { fontSize: 13, lineHeight: 19, color: t.textoSecundario },
   scores: { gap: Spacing.xs, marginTop: Spacing.lg },
   scoreRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },

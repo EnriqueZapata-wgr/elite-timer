@@ -28,7 +28,7 @@ import { useAppTheme } from '@/src/contexts/theme-context';
 import { REPORT_DOMAINS, type ExportRow } from '@/src/services/reports/report-domain-core';
 import {
   construirHistorias, resumirLabs, fraseResumenLabs, RUMBO_LABEL,
-  type HistoriaLab,
+  type HistoriaLab, type EstadoLab,
 } from '@/src/services/reports/labs-report-core';
 import {
   loadLabsReport, type LabsReportData,
@@ -59,7 +59,7 @@ function acentoLabs(t: AppThemeTokens): string {
  *     Ahora `aceptable` es dato firme y el gris queda solo para el que de
  *     verdad no se sabe.
  */
-function colorEstadoLab(estado: string, t: AppThemeTokens): string {
+function colorEstadoLab(estado: EstadoLab, t: AppThemeTokens): string {
   if (estado === 'atencion') return t.critico;
   if (estado === 'optimo') return acentoLabs(t);
   if (estado === 'aceptable') return t.texto;
@@ -109,7 +109,7 @@ export function LabsContent({ data }: { data: LabsReportData }) {
           <View style={[
             s.filtro,
             { borderColor: soloAtencion ? acentoLabs(t) : t.bordeMarcado },
-            soloAtencion && { backgroundColor: withOpacity(acentoLabs(t), 0.14) },
+            soloAtencion && { backgroundColor: withOpacity(acentoLabs(t), 0.08) },
           ]}>
             <Ionicons name="funnel-outline" size={14} color={soloAtencion ? acentoLabs(t) : t.textoSecundario} />
             <EliteText style={[s.filtroText, { color: soloAtencion ? acentoLabs(t) : t.textoSecundario }]}>

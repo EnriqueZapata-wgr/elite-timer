@@ -62,7 +62,9 @@ export function AdherenceCalendar({ year, month0, flags, onShift, atCurrentMonth
   // Los puntos llevan color de dominio, que en claro no alcanza 3:1. La
   // identidad se respeta y se le suma un filo tenue (3.19) para que el punto
   // al menos SE VEA; si no, en claro se pierde un dato sin avisar.
-  const filoPunto = oscuro ? null : { borderWidth: 1, borderColor: t.textoTenue };
+  const filoPunto = oscuro
+    ? null
+    : { width: 7, height: 7, borderRadius: 3.5, borderWidth: 1, borderColor: t.textoTenue };
 
   return (
     <View>

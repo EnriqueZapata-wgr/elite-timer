@@ -387,8 +387,8 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
                     </ScrollView>
                     <View style={s.aiActions}>
                       <Pressable onPress={handleSaveAiReport} style={[s.aiActionBtn, aiSaved && { opacity: 0.5 }]} disabled={aiSaved}>
-                        <Ionicons name={aiSaved ? 'checkmark-circle' : 'save-outline'} size={14} color={aiSaved ? t.exito : TEAL} />
-                        <EliteText variant="caption" style={{ color: aiSaved ? t.exito : TEAL, fontFamily: Fonts.semiBold }}>
+                        <Ionicons name={aiSaved ? 'checkmark-circle' : 'save-outline'} size={14} color={aiSaved ? acento(t) : TEAL} />
+                        <EliteText variant="caption" style={{ color: aiSaved ? acento(t) : TEAL, fontFamily: Fonts.semiBold }}>
                           {aiSaved ? 'Guardado' : 'Guardar reporte'}
                         </EliteText>
                       </Pressable>
@@ -514,8 +514,8 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
           </EliteText>
           {(redCount > 0 || orangeCount > 0) && (
             <View style={s.zoneBadges}>
-              {redCount > 0 && <View style={[s.zoneBadge, { backgroundColor: t.critico + '20' }]}><EliteText variant="caption" style={{ color: t.critico, fontSize: 9, fontFamily: Fonts.bold }}>{redCount}</EliteText></View>}
-              {orangeCount > 0 && <View style={[s.zoneBadge, { backgroundColor: t.advertencia + '20' }]}><EliteText variant="caption" style={{ color: t.advertencia, fontSize: 9, fontFamily: Fonts.bold }}>{orangeCount}</EliteText></View>}
+              {redCount > 0 && <View style={[s.zoneBadge, { backgroundColor: t.critico + '10' }]}><EliteText variant="caption" style={{ color: t.critico, fontSize: 9, fontFamily: Fonts.bold }}>{redCount}</EliteText></View>}
+              {orangeCount > 0 && <View style={[s.zoneBadge, { backgroundColor: t.advertencia + '10' }]}><EliteText variant="caption" style={{ color: t.advertencia, fontSize: 9, fontFamily: Fonts.bold }}>{orangeCount}</EliteText></View>}
             </View>
           )}
         </Pressable>
@@ -591,7 +591,7 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
               const sx = (profile?.biological_sex as Sex) ?? 'male';
               const sysR = rateBioValue('blood_pressure_sys', profile?.blood_pressure_sys ? Number(profile.blood_pressure_sys) : null, sx);
               const diaR = rateBioValue('blood_pressure_dia', profile?.blood_pressure_dia ? Number(profile.blood_pressure_dia) : null, sx);
-              const bpColor = sysR.level !== 'no_data' ? sysR.color : diaR.level !== 'no_data' ? diaR.color : t.sinDatos;
+              const bpColor = sysR.level !== 'no_data' ? sysR.color : diaR.level !== 'no_data' ? diaR.color : t.texto;
               const bpRating = sysR.level !== 'no_data' ? sysR : diaR.level !== 'no_data' ? diaR : null;
               return (
               <View style={s.bioGrid}>
@@ -656,26 +656,26 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
             value={healthScore?.biologicalAge ? Math.round(healthScore.biologicalAge).toString() : '—'}
             unit="años"
             color={healthScore?.biologicalAge && profile?.date_of_birth
-              ? healthScore.biologicalAge < Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / 31557600000) ? t.exito : t.error
-              : CATEGORY_COLORS.mind}
+              ? healthScore.biologicalAge < Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / 31557600000) ? t.exito : t.critico
+              : t.textoSecundario}
           />
           <ScoreCard
             label="Calidad evaluación"
             value={healthScore?.evaluationQuality != null ? `${Math.round(healthScore.evaluationQuality)}` : '—'}
             unit="%"
-            color={healthScore?.evaluationQuality ? (healthScore.evaluationQuality > 70 ? t.exito : healthScore.evaluationQuality > 40 ? t.advertencia : t.error) : TEAL}
+            color={healthScore?.evaluationQuality ? (healthScore.evaluationQuality > 70 ? t.exito : healthScore.evaluationQuality > 40 ? t.advertencia : t.critico) : t.textoSecundario}
           />
           <ScoreCard
             label="Envejecimiento"
             value={healthScore?.agingRate ? healthScore.agingRate.toFixed(2) : '—'}
             unit="x"
-            color={healthScore?.agingRate ? (healthScore.agingRate < 1.0 ? t.exito : healthScore.agingRate < 1.1 ? t.advertencia : t.critico) : t.sinDatos}
+            color={healthScore?.agingRate ? (healthScore.agingRate < 1.0 ? t.exito : healthScore.agingRate < 1.1 ? t.advertencia : t.critico) : t.textoSecundario}
           />
           <ScoreCard
             label="Salud funcional"
             value={healthScore?.functionalHealthScore ? Math.round(healthScore.functionalHealthScore).toString() : '—'}
             unit="/100"
-            color={healthScore?.functionalHealthScore ? (healthScore.functionalHealthScore > 80 ? t.exito : healthScore.functionalHealthScore > 60 ? t.advertencia : t.critico) : TEAL}
+            color={healthScore?.functionalHealthScore ? (healthScore.functionalHealthScore > 80 ? t.exito : healthScore.functionalHealthScore > 60 ? t.advertencia : t.critico) : t.textoSecundario}
           />
         </View>
         {/* Faltan datos para PhenoAge */}
@@ -1428,7 +1428,7 @@ function BioField({ label, unit, color, value, onSave, rating, saved }: {
   return (
     <View style={[s.bioItem, hasRating ? { backgroundColor: rating.bgColor, borderRadius: 6 } : undefined]}>
       <EliteText variant="caption" style={s.bioLabel}>
-        {saved && <EliteText style={{ fontSize: 10, color: t.exito }}>{'✓ '}</EliteText>}
+        {saved && <EliteText style={{ fontSize: 10, color: acento(t) }}>{'✓ '}</EliteText>}
         {hasRating && <EliteText style={{ fontSize: 12, color: rating.color }}>{rating.arrow} </EliteText>}
         {label}
       </EliteText>
@@ -1478,7 +1478,7 @@ function DebouncedBPField({ sysValue, diaValue, onSaveSys, onSaveDia, bpColor, b
   return (
     <View style={[s.bioFieldWide, hasRating ? { backgroundColor: bpRating.bgColor, borderRadius: 6 } : undefined]}>
       <EliteText variant="caption" style={s.bioLabel}>
-        {saved && <EliteText style={{ fontSize: 10, color: t.exito }}>{'✓ '}</EliteText>}
+        {saved && <EliteText style={{ fontSize: 10, color: acento(t) }}>{'✓ '}</EliteText>}
         {hasRating && <EliteText style={{ fontSize: 12, color: bpRating.color }}>{bpRating.arrow} </EliteText>}
         Presión arterial
       </EliteText>
@@ -1543,7 +1543,7 @@ function RecentStudies({ clientId }: { clientId: string }) {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm }}>
         <EliteText variant="caption" style={s.rowLabel}>ESTUDIOS RECIENTES</EliteText>
         {pending > 0 && (
-          <View style={{ backgroundColor: t.advertencia + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+          <View style={{ backgroundColor: t.advertencia + '10', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
             <EliteText variant="caption" style={{ color: t.advertencia, fontSize: 9, fontFamily: Fonts.bold }}>{pending} pendiente{pending > 1 ? 's' : ''}</EliteText>
           </View>
         )}
@@ -2046,7 +2046,7 @@ function LabsTab({ clientId }: { clientId: string }) {
         if ('error' in result) {
           setUploadMsg({ text: `Error: ${result.error}`, color: t.error });
         } else {
-          setUploadMsg({ text: `¡Listo! ${result.extractedCount} valores extraídos`, color: t.exito });
+          setUploadMsg({ text: `¡Listo! ${result.extractedCount} valores extraídos`, color: acento(t) });
           loadLabs();
         }
       } catch (err: any) {
@@ -3327,7 +3327,7 @@ function StudyNotesField({ studyId, initial, onSave }: { studyId: string; initia
     <View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
         <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 10 }}>Notas del coach</EliteText>
-        {saved && <EliteText variant="caption" style={{ color: t.exito, fontSize: 9 }}>✓ Guardado</EliteText>}
+        {saved && <EliteText variant="caption" style={{ color: acento(t), fontSize: 9 }}>✓ Guardado</EliteText>}
       </View>
       <TextInput
         style={{ backgroundColor: t.flotante, borderRadius: 8, padding: Spacing.sm, color: t.texto, fontSize: 12, minHeight: 40 }}
@@ -3559,7 +3559,7 @@ function StudiesTab({ clientId }: { clientId: string }) {
                   {study.status === 'interpreted' && (
                     <>
                       <Pressable onPress={() => handleReview(study.id)}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: t.exito + '20', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: t.exito + '10', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
                         <Ionicons name="checkmark-circle-outline" size={14} color={t.exito} />
                         <EliteText variant="caption" style={{ color: t.exito, fontSize: 11 }}>Marcar revisado</EliteText>
                       </Pressable>
