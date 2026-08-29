@@ -5,6 +5,13 @@ Enrique Zapata — Ingeniero en automatización, coach de rendimiento humano,
 Guinness World Record en pull-ups. Co-fundo ATP con Mariana Zapata
 (Co-Founder & Chief Science Officer, PhD en Ciencias Biomédicas).
 
+## Quién prueba la app (y cómo se llaman en Sentry)
+- **Enrique** — Android. El build que trae actualizado es el suyo.
+- **Mariana Zapata** — iPhone. Co-founder y CSO.
+- **Pato = Paty = Patricia Aguilar** — iPhone. Es UNA sola persona con tres
+  nombres. En Sentry aparece como `d.i.patriciaaguilar@gmail.com`. Anotado
+  porque ya la trate como dos personas distintas una vez.
+
 ## Visión
 ATP es el sistema operativo de rendimiento humano: integra fitness,
 nutrición, mente, salud funcional, ciclo menstrual y gamificación con
