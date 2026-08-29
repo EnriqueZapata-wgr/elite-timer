@@ -1,5 +1,5 @@
 /**
- * Historial de Sesiones — Lista cronológica de execution_logs
+ * Historial de Sesiones — Lista cronológica de workout_sessions
  * agrupada por fecha, con cards premium por modo (timer/rutina).
  */
 import { useState, useEffect, useCallback } from 'react';

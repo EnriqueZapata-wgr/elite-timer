@@ -202,13 +202,18 @@ export async function getExerciseReport(period: ReportPeriod): Promise<ExerciseR
     const startISO = new Date(startDate + 'T00:00:00').toISOString();
 
     const [execRes, logsRes, prsRes, cardioRes] = await Promise.all([
-      supabase.from('execution_logs').select('id').eq('user_id', userId).gte('started_at', startISO),
+      // execution_logs no la escribe nadie desde c4f846f: daba cero siempre.
+      // workout_sessions guarda `date` en fecha LOCAL (migracion 222).
+      supabase.from('workout_sessions').select('date').eq('user_id', userId).gte('date', startDate),
       supabase.from('exercise_logs').select('reps, weight_kg').eq('user_id', userId).gte('logged_at', startISO),
       supabase.from('personal_records').select('id', { count: 'exact', head: true }).eq('user_id', userId).gte('achieved_at', startDate),
       supabase.from('cardio_sessions').select('id').eq('user_id', userId).gte('date', startDate),
     ]);
 
-    const sessions = execRes.data?.length ?? 0;
+    // Dias entrenados, no filas: mismo criterio que fitness-hub.
+    const sessions = new Set(
+      (execRes.data ?? []).map((r: any) => String(r.date).slice(0, 10))
+    ).size;
     const sessionsPerWeek = days > 0 ? Math.round((sessions / days) * 7 * 10) / 10 : 0;
 
     const totalVolumeKg = (logsRes.data ?? []).reduce((sum: number, r: any) => {

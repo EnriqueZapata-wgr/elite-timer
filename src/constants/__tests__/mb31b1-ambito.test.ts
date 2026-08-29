@@ -28,8 +28,13 @@ import { contrastRatio } from '@/src/utils/contrast';
 /** La lista B1 del brief: (tabs)/*, _layout, agenda, centro/*, packs/*,
  *  settings (hub + subpantallas) y onboarding (v2 + voice-config). */
 function listaB1(): string[] {
+  // Tambien .ts: un modulo puro que escribe un hex de token a mano hace el
+  // mismo dano que una pantalla, y hasta hoy ese era un punto ciego del
+  // candado (las cuatro tablas de estado clinico vivian ahi y no las veia).
   const dir = (d: string) =>
-    readdirSync(d).filter((f) => f.endsWith('.tsx')).map((f) => `${d}/${f}`);
+    readdirSync(d)
+      .filter((f) => f.endsWith('.tsx') || f.endsWith('.ts'))
+      .map((f) => `${d}/${f}`);
   return [
     ...dir('app/(tabs)'),
     'app/_layout.tsx',

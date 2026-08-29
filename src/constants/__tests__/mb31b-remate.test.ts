@@ -30,13 +30,19 @@ import { contrastRatio } from '@/src/utils/contrast';
 
 // ─── la lista del remate ───────────────────────────────────────────────────
 
-/** Recorre un directorio completo (subcarpetas incluidas) juntando .tsx. */
+/** Recorre un directorio completo (subcarpetas incluidas) juntando .tsx y .ts.
+ *  Los modulos puros .ts tambien pintan: un hex de token escrito a mano ahi
+ *  hace el mismo dano, y era un punto ciego del candado.
+ *  Los __tests__ quedan fuera a proposito: un fixture puede llevar hexes de
+ *  ejemplo sin que eso sea una violacion. Verificado el 29-ago-2026: hoy no
+ *  hay ni un .tsx bajo __tests__ en lo que se camina, asi que excluirlos NO
+ *  quita ni un archivo de la cobertura que ya existia. */
 function walk(dir: string): string[] {
   const out: string[] = [];
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
-    if (statSync(p).isDirectory()) out.push(...walk(p));
-    else if (name.endsWith('.tsx')) out.push(p.replace(/\\/g, '/'));
+    if (statSync(p).isDirectory()) { if (name !== '__tests__') out.push(...walk(p)); }
+    else if (name.endsWith('.tsx') || name.endsWith('.ts')) out.push(p.replace(/\\/g, '/'));
   }
   return out;
 }
@@ -61,8 +67,11 @@ function listaRemate(): string[] {
     'app/register.tsx',
     // La frontera B2 cerrada: el cuerpo del tab SALUD y su montura. OLA6 B:
     // /health-hub dejó de ser montura y pasó a ser redirect a /salud, así que
-    // ya no tiene tema que declarar.
-    'src/screens/salud/SaludHub.tsx',
+    // ya no tiene tema que declarar. SaludHub ya no se nombra suelto: entra
+    // por el walk de src/screens, junto con el resto de los cuerpos de
+    // pantalla, que eran de las superficies mas grandes del producto sin un
+    // solo candado que las mirara.
+    ...walk('src/screens'),
     'app/(tabs)/salud.tsx',
     // Legal: cuerpo compartido de las dos rutas.
     'src/components/legal/LegalDocScreen.tsx',

@@ -225,16 +225,24 @@ export async function getWeeklyStats(): Promise<WeeklyStats> {
     monday.setHours(0, 0, 0, 0);
     const mondayISO = monday.toISOString();
 
-    // Entrenos + duración total de execution_logs
+    // execution_logs murio con /execution (commit c4f846f): NADIE la escribe
+    // desde entonces, asi que leerla daba cero para siempre. La fuente viva es
+    // workout_sessions, que guarda `date` en fecha LOCAL (migracion 222) y que
+    // ya usan fitness-hub y el reporte de entrenamiento.
+    // Se cuentan DIAS ENTRENADOS, no filas: dos sesiones el mismo dia son un
+    // entreno. Mismo criterio que fitness-hub, para que dos pantallas no
+    // digan numeros distintos del mismo mes.
     const { data: execData } = await supabase
-      .from('execution_logs')
-      .select('id, total_duration_seconds')
+      .from('workout_sessions')
+      .select('date, duration_seconds')
       .eq('user_id', user.id)
-      .gte('started_at', mondayISO);
+      .gte('date', toLocalDateString(monday));
 
-    const workouts = execData?.length ?? 0;
+    const workouts = new Set(
+      (execData ?? []).map((r: any) => String(r.date).slice(0, 10))
+    ).size;
     const totalSeconds = execData?.reduce(
-      (sum: number, r: any) => sum + (r.total_duration_seconds ?? 0), 0
+      (sum: number, r: any) => sum + (r.duration_seconds ?? 0), 0
     ) ?? 0;
 
     // Volumen de exercise_logs esta semana
@@ -332,15 +340,24 @@ export async function getMonthlyStats(): Promise<MonthlyStats> {
     first.setHours(0, 0, 0, 0);
     const firstISO = first.toISOString();
 
+    // execution_logs murio con /execution (commit c4f846f): NADIE la escribe
+    // desde entonces, asi que leerla daba cero para siempre. La fuente viva es
+    // workout_sessions, que guarda `date` en fecha LOCAL (migracion 222) y que
+    // ya usan fitness-hub y el reporte de entrenamiento.
+    // Se cuentan DIAS ENTRENADOS, no filas: dos sesiones el mismo dia son un
+    // entreno. Mismo criterio que fitness-hub, para que dos pantallas no
+    // digan numeros distintos del mismo mes.
     const { data: execData } = await supabase
-      .from('execution_logs')
-      .select('id, total_duration_seconds')
+      .from('workout_sessions')
+      .select('date, duration_seconds')
       .eq('user_id', user.id)
-      .gte('started_at', firstISO);
+      .gte('date', toLocalDateString(first));
 
-    const workouts = execData?.length ?? 0;
+    const workouts = new Set(
+      (execData ?? []).map((r: any) => String(r.date).slice(0, 10))
+    ).size;
     const totalSeconds = execData?.reduce(
-      (sum: number, r: any) => sum + (r.total_duration_seconds ?? 0), 0
+      (sum: number, r: any) => sum + (r.duration_seconds ?? 0), 0
     ) ?? 0;
 
     const { data: logData } = await supabase
@@ -394,11 +411,12 @@ export async function getWeeklyFrequencyChart(weeks = 8): Promise<WeekChartData[
     const startDate = new Date(currentMonday);
     startDate.setDate(startDate.getDate() - (weeks - 1) * 7);
 
+    // Misma correccion que arriba: workout_sessions con `date` local.
     const { data } = await supabase
-      .from('execution_logs')
-      .select('started_at')
+      .from('workout_sessions')
+      .select('date')
       .eq('user_id', user.id)
-      .gte('started_at', startDate.toISOString());
+      .gte('date', toLocalDateString(startDate));
 
     const result: WeekChartData[] = [];
     for (let w = 0; w < weeks; w++) {
@@ -407,10 +425,15 @@ export async function getWeeklyFrequencyChart(weeks = 8): Promise<WeekChartData[
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 7);
 
-      const count = (data ?? []).filter(r => {
-        const d = new Date(r.started_at);
-        return d >= weekStart && d < weekEnd;
-      }).length;
+      // Dias unicos: la barra dice cuantos DIAS entrenaste esa semana.
+      const count = new Set(
+        (data ?? [])
+          .map((r: any) => String(r.date).slice(0, 10))
+          .filter((k: string) => {
+            const d = parseLocalDate(k);
+            return d >= weekStart && d < weekEnd;
+          })
+      ).size;
 
       const isCurrent = weekStart.getTime() === currentMonday.getTime();
       const label = `${weekStart.getDate()}/${weekStart.getMonth() + 1}`;
@@ -513,11 +536,13 @@ export async function getSessionHistory(limit = 50): Promise<SessionHistoryEntry
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
+    // execution_logs no la escribe nadie desde c4f846f: el historial salia
+    // vacio siempre. La fuente viva es workout_sessions.
     const { data, error } = await supabase
-      .from('execution_logs')
-      .select('*')
+      .from('workout_sessions')
+      .select('id, date, routine_name, source, started_at, ended_at, duration_seconds')
       .eq('user_id', user.id)
-      .order('started_at', { ascending: false })
+      .order('date', { ascending: false })
       .limit(limit);
 
     if (error || !data) return [];
@@ -525,11 +550,13 @@ export async function getSessionHistory(limit = 50): Promise<SessionHistoryEntry
     return data.map((row: any) => ({
       id: row.id,
       routineName: row.routine_name ?? 'Sesión',
-      mode: row.mode ?? 'timer',
-      startedAt: row.started_at,
-      completedAt: row.completed_at ?? null,
-      totalDurationSeconds: row.total_duration_seconds ?? 0,
-      status: row.status ?? 'completed',
+      mode: row.source ?? 'manual',
+      // `date` es la fecha LOCAL del cierre (migracion 222). Si started_at
+      // falta, parseLocalDate evita que el agrupador corra el dia.
+      startedAt: row.started_at ?? parseLocalDate(String(row.date).slice(0, 10)).toISOString(),
+      completedAt: row.ended_at ?? null,
+      totalDurationSeconds: row.duration_seconds ?? 0,
+      status: 'completed',
     }));
   } catch {
     return [];
