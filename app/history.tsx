@@ -1,6 +1,6 @@
 /**
  * Historial de Sesiones — Lista cronológica de workout_sessions
- * agrupada por fecha, con cards premium por modo (timer/rutina).
+ * agrupada por fecha, con cards premium por modo (rutina/manual).
  */
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -107,8 +107,16 @@ export default function HistoryScreen() {
             Tu historial no se pudo leer
           </EliteText>
           <EliteText variant="caption" style={[styles.emptySubtext, { color: t.textoSecundario }]}>
-            Tus sesiones siguen guardadas. Revisa tu conexión y vuelve a entrar.
+            Tus sesiones siguen guardadas.
           </EliteText>
+          <Pressable
+            onPress={() => { setLoading(true); loadData(); }}
+            style={{ marginTop: 20, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 24, borderWidth: 1, borderColor: t.bordeMarcado }}
+          >
+            <EliteText variant="caption" style={{ color: t.texto, fontWeight: '700', letterSpacing: 1 }}>
+              REINTENTAR
+            </EliteText>
+          </Pressable>
         </View>
       ) : sessions.length === 0 ? (
         <View style={styles.centered}>

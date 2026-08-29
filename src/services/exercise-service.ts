@@ -566,8 +566,13 @@ export async function getSessionHistory(limit = 50): Promise<SessionHistoryEntry
       totalDurationSeconds: row.duration_seconds ?? 0,
       status: 'completed',
     }));
-  } catch {
-    return [];
+  } catch (e) {
+    // Se re-lanza a proposito. Antes este catch devolvia [] y con eso la
+    // pantalla no tenia forma de distinguir "no has entrenado" de "no se
+    // pudo leer": le decia lo primero a alguien que llevaba meses
+    // entrenando y solo habia perdido la senal. El `throw` de arriba caia
+    // aqui mismo y quedaba anulado.
+    throw e;
   }
 }
 

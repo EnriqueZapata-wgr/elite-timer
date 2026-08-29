@@ -16,6 +16,7 @@ import { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { warn as logWarn } from '@/src/lib/logger';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -287,7 +288,11 @@ export default function ReportsScreen() {
       setFasting(fa); setExercise(ex); setGlucose(gl); setCompliance(co);
       setMind(mi); setCycle(cy); setIdentity(id); setNback(nb); setLabs(lb);
       setFalloCarga(false);
-    }).catch(() => setFalloCarga(true)).finally(() => setLoading(false));
+    }).catch((e) => {
+      // Con rastro: un reporte que falla en produccion tiene que dejar linea.
+      logWarn('[reports] carga del periodo fallida:', e?.message ?? e);
+      setFalloCarga(true);
+    }).finally(() => setLoading(false));
   }, [period, user?.id]));
 
   // Flags del mes visible (independiente del período de las gráficas).

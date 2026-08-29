@@ -103,8 +103,15 @@ export default function SupplementsScreen() {
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) setUserId(user.id);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) { setUserId(user.id); return; }
+      } catch { /* cae abajo */ }
+      // Sin sesion resuelta, loadAll nunca corre y `cargado` nunca se pone,
+      // asi que la pantalla se quedaba en blanco PARA SIEMPRE: ni vacio, ni
+      // error, ni spinner. Peor que el bug que este arreglo persigue.
+      setFalloCarga(true);
+      setCargado(true);
     })();
   }, []);
 
@@ -130,7 +137,10 @@ export default function SupplementsScreen() {
     ]);
     // MB-8 Track B: supabase no lanza en 4xx — un error aquí se veía como
     // "plan vacío / 0% adherencia" sin señal alguna.
-    setFalloCarga(!!suppsRes.error);
+    // Tambien los LOGS: si fallan, las tomas de hoy salen sin palomear
+    // aunque el usuario ya las haya tomado (riesgo real de doble toma) y la
+    // adherencia semanal se pinta en 0% como si fuera dato bueno.
+    setFalloCarga(!!(suppsRes.error || logsRes.error));
     setCargado(true);
     if (suppsRes.error) logWarn('[supplements] fichas load failed:', suppsRes.error.message);
     if (logsRes.error) logWarn('[supplements] logs load failed:', logsRes.error.message);
