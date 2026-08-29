@@ -38,10 +38,32 @@ if (Platform.OS === 'web') {
   };
 } else {
   const SecureStore = require('expo-secure-store');
+
+  // ATP-MOBILE-N (Sentry): "Calling the 'getValueWithKeyAsync' function has
+  // failed -> User interaction is not allowed."
+  //
+  // El llavero de iOS, por DEFAULT, solo deja leer un item con el telefono
+  // DESBLOQUEADO (kSecAttrAccessibleWhenUnlocked). Cuando la app despierta en
+  // segundo plano con la pantalla bloqueada (una notificacion, un refresh de
+  // token) la lectura de la sesion truena, y sale como promesa no manejada.
+  // Coincide con la evidencia: cuatro eventos, dos personas, iOS, y los dos
+  // con `in_foreground: false`.
+  //
+  // AFTER_FIRST_UNLOCK deja leerlo desde el primer desbloqueo tras encender
+  // el telefono, aunque la pantalla este bloqueada. NO baja la seguridad de
+  // forma relevante: el item sigue sin salir del dispositivo y sigue sin
+  // viajar a otro telefono en un backup.
+  //
+  // OJO, y esto importa para medir si sirvio: la accesibilidad se graba JUNTO
+  // con el item, asi que las sesiones ya guardadas conservan la vieja hasta
+  // que se REESCRIBEN, o sea hasta el proximo refresh de token. El arreglo no
+  // es retroactivo y no se ve el mismo dia.
+  const LLAVERO = { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK };
+
   storageAdapter = {
-    getItem: (key: string) => SecureStore.getItemAsync(key),
-    setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-    removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+    getItem: (key: string) => SecureStore.getItemAsync(key, LLAVERO),
+    setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value, LLAVERO),
+    removeItem: (key: string) => SecureStore.deleteItemAsync(key, LLAVERO),
   };
 }
 
