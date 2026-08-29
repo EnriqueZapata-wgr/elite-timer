@@ -15,6 +15,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 import { useAuth } from '@/src/contexts/auth-context';
 import { drainWidgetActions } from '@/src/services/widgets/widget-actions';
 import { clearWidgets } from '@/src/services/widgets/widget-sync-service';
@@ -22,6 +23,18 @@ import { clearWidgets } from '@/src/services/widgets/widget-sync-service';
 export function WidgetSyncBridge() {
   const { user } = useAuth();
   const prevUserId = useRef<string | null>(null);
+
+  // ATP-MOBILE-P y ATP-MOBILE-N: los dos crashes abiertos pasaron con la app
+  // en SEGUNDO PLANO. Este efecto es aparte del de los widgets a proposito:
+  // aquel arranca despues de resolver la sesion, y el estado de la app hay
+  // que anotarlo aunque no haya usuario.
+  useEffect(() => {
+    Sentry.setTag('app_state', AppState.currentState);
+    const sub = AppState.addEventListener('change', (s) => {
+      Sentry.setTag('app_state', s);
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     const userId = user?.id ?? null;

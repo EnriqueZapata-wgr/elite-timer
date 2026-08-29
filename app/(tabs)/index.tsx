@@ -221,6 +221,12 @@ export default function TodayScreen() {
     // reloj de anoche hasta que el intervalo reanude. AppState es la única
     // señal de "volví al frente": useFocusEffect es foco de NAVEGACIÓN y no
     // dispara si HOY ya era la pantalla activa.
+    //
+    // MATIZ (29-ago-2026): eso es cierto en el caso NORMAL, pero no siempre.
+    // app.json declara UIBackgroundModes: ["audio"], así que si hay una pieza
+    // de Mente sonando el proceso NO se suspende y los timers de JS SIGUEN
+    // corriendo. Este belt no sobra por eso, pero no des por hecho en otro
+    // lado que "en background nada corre": aquí sí puede correr.
     const sub = AppState.addEventListener('change', (estado) => {
       if (estado === 'active') setMinuteTick((n) => n + 1);
     });

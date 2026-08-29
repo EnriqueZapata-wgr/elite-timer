@@ -16,6 +16,7 @@
  * /paywall (este sprint no construye pantalla de compra nueva).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import * as Sentry from '@sentry/react-native';
 import {
   ActivityIndicator, Alert, Image, ImageBackground, Linking, PanResponder, StyleSheet, View,
   type ImageSourcePropType,
@@ -138,6 +139,17 @@ export default function MenteAudioPlayerScreen() {
       effectiveListenedAt(positionSeg, startPosRef.current, netSkipRef.current, priorListenedRef.current),
     [],
   );
+
+  // ATP-MOBILE-P: esta es la UNICA pantalla que enciende audio en segundo
+  // plano (shouldPlayInBackground), y con eso el hilo de JS NO se suspende:
+  // el listener de progreso sigue disparando setState dos veces por segundo
+  // con la app fuera de pantalla. Es la hipotesis con mejor encaje para el
+  // crash de render en background, y este tag la confirma o la mata en un
+  // solo evento. Efecto aislado a proposito: no toca nada del player.
+  useEffect(() => {
+    Sentry.setTag('audio_bg', 'on');
+    return () => { Sentry.setTag('audio_bg', 'off'); };
+  }, []);
 
   // ── Carga: pieza → URL firmada (gate server-side) → player ──
   useEffect(() => {
