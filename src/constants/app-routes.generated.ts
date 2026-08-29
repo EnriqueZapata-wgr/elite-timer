@@ -391,7 +391,7 @@ export const APP_ROUTE_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "/health-hub": "/health-hub — ya no es pantalla, es un puente. OLA6 PIEZA B: eran 32 líneas que montaban el MISMO cuerpo del tab SALUD, con",
   "/health-input": "health-input: RETIRADA A ALIAS (Barrido D, 20-ago-2026). El formulario general de salud fue absorbido por /salud/mis-datos (que",
   "/historia-clinica": "Redirect legacy (Ola 4, Anexo C, pieza 5). El indice de historia clinica listaba sus categorias. Lo absorbio el hub unico /tests, que lee",
-  "/history": "Historial de Sesiones — Lista cronológica de execution_logs agrupada por fecha, con cards premium por modo (timer/rutina).",
+  "/history": "Historial de Sesiones — Lista cronológica de workout_sessions agrupada por fecha, con cards premium por modo (timer/rutina).",
   "/hoy-habitos": "Mis hábitos del HOY (MB-12 · E-3) — la puerta perdida de los electrones. Aquí el usuario decide qué hábitos booleanos y cuantitativos trackea su",
   "/hydration": "Hidratación — Registro de agua con meta diaria, botones rápidos y barra de progreso.",
   "/journal": "Journal — Escritura reflexiva con 4 tipos: Gratitud, Visión, Estoico, Descarga. Selector de tipo + formulario específico + mood tracking + historial.",

@@ -61,6 +61,14 @@ export default function SupplementsScreen() {
   const conceptTx = (c: string) => (kind === 'dark' ? c : t.texto);
   const [userId, setUserId] = useState('');
   const [supplements, setSupplements] = useState<any[]>([]);
+  // La pantalla no tenia NINGUNA senal de carga: en cada entrada, mientras
+  // la consulta iba y venia, un usuario con ocho fichas veia el estado
+  // vacio completo, con el boton "CREAR MI PRIMERA FICHA". Y si la
+  // consulta fallaba, ese vacio se quedaba para siempre. El comentario de
+  // MB-8 ya lo habia diagnosticado; el logWarn avisa al desarrollador, no
+  // al usuario.
+  const [cargado, setCargado] = useState(false);
+  const [falloCarga, setFalloCarga] = useState(false);
   // Multi-dosis (188): por suplemento, los dose_index tomados hoy.
   const [todayLogs, setTodayLogs] = useState<Record<string, number[]>>({});
   const [showAdd, setShowAdd] = useState(false);
@@ -122,6 +130,8 @@ export default function SupplementsScreen() {
     ]);
     // MB-8 Track B: supabase no lanza en 4xx — un error aquí se veía como
     // "plan vacío / 0% adherencia" sin señal alguna.
+    setFalloCarga(!!suppsRes.error);
+    setCargado(true);
     if (suppsRes.error) logWarn('[supplements] fichas load failed:', suppsRes.error.message);
     if (logsRes.error) logWarn('[supplements] logs load failed:', logsRes.error.message);
     if (historyRes.error) logWarn('[supplements] history load failed:', historyRes.error.message);
@@ -460,8 +470,22 @@ export default function SupplementsScreen() {
         </View>
       </View>
 
-      {/* Estado vacío — biblioteca vacía por default (doctrina: el user crea sus fichas) */}
-      {supplements.length === 0 && (
+      {/* D-2: el fallo de lectura NO se pinta como "todavia no tienes". */}
+      {cargado && falloCarga && supplements.length === 0 && (
+        <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 40 }}>
+          <Ionicons name="cloud-offline-outline" size={48} color={t.textoSecundario} />
+          <Text style={{ color: t.texto, fontSize: 18, fontWeight: '700', marginTop: 16, textAlign: 'center' }}>
+            Tus fichas no se pudieron leer
+          </Text>
+          <Text style={{ color: t.textoSecundario, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 19 }}>
+            Siguen guardadas. Revisa tu conexión y vuelve a entrar.
+          </Text>
+        </View>
+      )}
+
+      {/* Estado vacío — biblioteca vacía por default (doctrina: el user crea sus fichas).
+          Solo DESPUES de cargar y solo si no hubo fallo. */}
+      {cargado && !falloCarga && supplements.length === 0 && (
         <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 40 }}>
           <Ionicons name="flask-outline" size={48} color={t.bordeMarcado} />
           <Text style={{ color: t.texto, fontSize: 18, fontWeight: '700', marginTop: 16 }}>Tu registro de suplementos</Text>

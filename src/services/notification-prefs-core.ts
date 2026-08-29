@@ -44,7 +44,7 @@ export const MODE_META: { value: NotificationMode; title: string; description: s
 export const CHANNEL_META: { key: NotificationChannel; column: keyof NotificationPrefs; title: string; description: string }[] = [
   { key: 'agenda', column: 'agenda_enabled', title: 'Agenda', description: 'Próximo evento y recordatorios de tu día.' },
   { key: 'argos', column: 'argos_enabled', title: 'ARGOS', description: 'Insights y mensajes proactivos.' },
-  { key: 'streak', column: 'streak_enabled', title: 'Rachas', description: 'Avisos para no perder tu racha.' },
+  { key: 'streak', column: 'streak_enabled', title: 'Rachas', description: 'Un recordatorio para mantener tu constancia.' },
   { key: 'community', column: 'community_enabled', title: 'Community', description: 'Challenges, referidos y tu clínico.' },
   { key: 'system', column: 'system_enabled', title: 'Sistema', description: 'Renovaciones y actualizaciones importantes.' },
 ];

@@ -543,9 +543,17 @@ export async function getSessionHistory(limit = 50): Promise<SessionHistoryEntry
       .select('id, date, routine_name, source, started_at, ended_at, duration_seconds')
       .eq('user_id', user.id)
       .order('date', { ascending: false })
+      // Desempate dentro del mismo dia: `date` solo tiene el dia, y la card
+      // imprime la hora, asi que sin esto dos sesiones del mismo dia salian
+      // en orden arbitrario.
+      .order('started_at', { ascending: false, nullsFirst: false })
       .limit(limit);
 
-    if (error || !data) return [];
+    // "No hay sesiones" y "no se pudo leer" NO son lo mismo. Devolver [] en
+    // los dos casos hacia que la pantalla le dijera al usuario que no ha
+    // entrenado cuando lo que paso es que la app no pudo preguntar.
+    if (error) throw error;
+    if (!data) return [];
 
     return data.map((row: any) => ({
       id: row.id,

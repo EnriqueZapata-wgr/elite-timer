@@ -67,12 +67,15 @@ export default function HistoryScreen() {
   const [sessions, setSessions] = useState<SessionHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // D-2: un fallo de red no se pinta como "no has entrenado".
+  const [fallo, setFallo] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
       const data = await getSessionHistory(50);
       setSessions(data);
-    } catch { /* silencioso */ }
+      setFallo(false);
+    } catch { setFallo(true); }
     setLoading(false);
     setRefreshing(false);
   }, []);
@@ -97,14 +100,24 @@ export default function HistoryScreen() {
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={acento} />
         </View>
+      ) : fallo ? (
+        <View style={styles.centered}>
+          <Ionicons name="cloud-offline-outline" size={48} color={t.textoSecundario} />
+          <EliteText variant="body" style={[styles.emptyText, { color: t.texto }]}>
+            Tu historial no se pudo leer
+          </EliteText>
+          <EliteText variant="caption" style={[styles.emptySubtext, { color: t.textoSecundario }]}>
+            Tus sesiones siguen guardadas. Revisa tu conexión y vuelve a entrar.
+          </EliteText>
+        </View>
       ) : sessions.length === 0 ? (
         <View style={styles.centered}>
           <Ionicons name="time-outline" size={48} color={t.textoSecundario} />
           <EliteText variant="body" style={[styles.emptyText, { color: t.textoSecundario }]}>
-            Sin sesiones registradas
+            Aquí va a vivir tu historial
           </EliteText>
           <EliteText variant="caption" style={[styles.emptySubtext, { color: t.textoSecundario }]}>
-            Completa una rutina para ver tu historial aquí
+            En cuanto cierres tu primer entrenamiento aparece aquí.
           </EliteText>
         </View>
       ) : (
@@ -120,14 +133,18 @@ export default function HistoryScreen() {
               <EliteText variant="caption" style={[styles.dateLabel, { color: t.textoSecundario }]}>{dateLabel}</EliteText>
 
               {daySessions.map((session) => {
-                const isTimer = session.mode === 'timer';
+                // `mode` viene de workout_sessions.source, cuyos unicos
+                // valores son 'generada' y 'manual'. Comparar contra 'timer'
+                // (el vocabulario de la tabla muerta) dejaba la insignia
+                // clavada en RUTINA y mentia en las sesiones manuales.
+                const esManual = session.mode === 'manual';
                 // MB-31B3: el degradado tintado es del oscuro; en claro la card
                 // es superficie del tema y el modo lo dice la barra + el badge.
                 const gradColors: readonly [string, string] = kind === 'dark'
-                  ? (isTimer ? ['#1a2a1a', '#0a1a0a'] : ['#1a1a2a', '#0a0a1a'])
+                  ? (esManual ? ['#1a2a1a', '#0a1a0a'] : ['#1a1a2a', '#0a0a1a'])
                   : [t.card, t.card];
-                const accentColor = isTimer ? Colors.neonGreen : CATEGORY_COLORS.mind;
-                const modeLabel = isTimer ? 'TIMER' : 'RUTINA';
+                const accentColor = esManual ? Colors.neonGreen : CATEGORY_COLORS.mind;
+                const modeLabel = esManual ? 'MANUAL' : 'RUTINA';
 
                 return (
                   <LinearGradient key={session.id} colors={gradColors} style={[styles.sessionCard, { borderColor: t.borde }]}>

@@ -167,6 +167,12 @@ export default function ReportsScreen() {
   const [compliance, setCompliance] = useState<ComplianceReport>({ daily: [], avgPct: 0 });
   const [mind, setMind] = useState<MindReport>({ breathingSessions: 0, meditationSessions: 0, totalMinutes: 0, journalEntries: 0, checkins: 0 });
   const [cycle, setCycle] = useState<CycleReport>({ periodDays: 0, avgEnergy: 0, avgMood: 0, logsCount: 0 });
+  // D-2: si una sola lectura truena, Promise.all no entra al `then` y las
+  // once secciones se quedaban en su valor inicial, que es CERO en todas.
+  // O sea que un reporte vacio por falta de senal se veia igual que el de
+  // alguien que no hizo nada en 30 dias, y encima con boton de exportar a
+  // PDF "para tu consulta". Eso no se le entrega a nadie.
+  const [falloCarga, setFalloCarga] = useState(false);
   const [identity, setIdentity] = useState<IdentityStats | null>(null);
   const [nback, setNback] = useState<NBackUserState | null>(null);
   // NOCHE-REP: dos cifras de labs, de UNA consulta. Ver el comentario de
@@ -280,7 +286,8 @@ export default function ReportsScreen() {
       setElectrons(el); setNutrition(nu); setHydration(hy);
       setFasting(fa); setExercise(ex); setGlucose(gl); setCompliance(co);
       setMind(mi); setCycle(cy); setIdentity(id); setNback(nb); setLabs(lb);
-    }).finally(() => setLoading(false));
+      setFalloCarga(false);
+    }).catch(() => setFalloCarga(true)).finally(() => setLoading(false));
   }, [period, user?.id]));
 
   // Flags del mes visible (independiente del período de las gráficas).
@@ -456,6 +463,20 @@ export default function ReportsScreen() {
           <EliteText style={s.loadingText}>Juntando tus registros del período…</EliteText>
         )}
 
+        {/* D-2: el reporte NO se pinta en ceros por un fallo de lectura.
+            Mismo criterio y mismo copy que /cycle. */}
+        {!loading && falloCarga && (
+          <View style={{ alignItems: 'center', paddingVertical: 48, paddingHorizontal: 24 }}>
+            <Ionicons name="cloud-offline-outline" size={44} color={t.textoSecundario} />
+            <EliteText style={{ color: t.texto, fontSize: 16, fontWeight: '700', marginTop: 14, textAlign: 'center' }}>
+              Tu reporte no se pudo armar
+            </EliteText>
+            <EliteText style={{ color: t.textoSecundario, fontSize: 13, marginTop: 8, textAlign: 'center', lineHeight: 19 }}>
+              Tus registros siguen guardados. Revisa tu conexión y vuelve a entrar.
+            </EliteText>
+          </View>
+        )}
+
         {/* IDENTIDAD — tu historia completa, siempre arriba (MB-11 C) */}
         <Animated.View entering={FadeInUp.delay(30).springify()} style={s.cardWrap}>
           <GradientCard gradient={{ start: 'rgba(26,188,156,0.10)', end: 'rgba(26,188,156,0.02)' }}>
@@ -547,7 +568,9 @@ export default function ReportsScreen() {
           </GradientCard>
         </Animated.View>
 
-        {order.map((key, i) => {
+        {/* Ni durante la carga ni con fallo: un cero que el usuario alcanza
+            a leer se lo cree, y despues salta al valor real. */}
+        {!loading && !falloCarga && order.map((key, i) => {
           const k = key as SectionKey;
           const hidden = isHidden(prefs, k);
           if (hidden && !editMode) return null;

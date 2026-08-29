@@ -561,6 +561,23 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   });
 
   // Quantitative electrons
+  //
+  // D-3: supabase-js NO lanza en 4xx ni 5xx, devuelve { data: null, error }.
+  // Estas dos son las unicas fuentes que se convierten en NUMERO visible
+  // (agua y proteina) y ademas alimentan el ATP Score, asi que un `?? []`
+  // silencioso hacia que un fallo de red se viera exactamente igual que un
+  // dia sin registrar: "0 ml de 2500" a alguien que ya tomo dos litros.
+  // Este archivo ya revisa el error de suplementos, de estados de habito y
+  // del perfil; estas dos se habian quedado fuera.
+  //
+  // Se lanza en vez de degradar porque HOY ya tiene pantalla de error con
+  // reintento, y porque es el mismo criterio que fitness-hub dejo escrito:
+  // jamas pintar ceros por error. Lo correcto a mediano plazo es que
+  // `current` sea anulable y la fila pinte un guion, pero eso toca el tipo
+  // y el core de tareas, y no es cambio de vispera de lanzamiento.
+  if (foodRes.error || hydRes.error) {
+    throw new Error('[compileDay] no se pudieron leer las fuentes cuantitativas');
+  }
   const proteinTotal = (foodRes.data ?? []).reduce((s: number, r: any) => s + (Number(r.protein_g) || 0), 0);
   const waterTotal = Number(hydRes.data?.total_ml) || 0;
 
