@@ -197,7 +197,7 @@ export default function NightFilterScreen() {
           <AppIcon name="off-pantallas" size={40} color={ATP_BRAND.amber} />
           <EliteText variant="subtitle" style={styles.heroTitle}>Luz cálida encima de todo</EliteText>
           <EliteText variant="caption" style={styles.heroBody}>
-            Un filtro de color sobre todo el teléfono — no solo sobre ATP. Empieza en
+            Un filtro de color sobre todo el teléfono, no solo sobre ATP. Empieza en
             ámbar suave una hora antes de tu corte de pantallas, pasa por naranja y
             se asienta en rojo, hasta las {minutesToHHMM(NIGHT_FILTER_END_MINUTES)} de la mañana.
           </EliteText>
@@ -208,7 +208,7 @@ export default function NightFilterScreen() {
             <Ionicons name="cube-outline" size={18} color={ATP_BRAND.amber} />
             <EliteText variant="caption" style={styles.warnText}>
               Tu versión instalada de ATP aún no trae el módulo del filtro. Llega con la
-              próxima actualización de la tienda — no hay nada que configurar todavía.
+              próxima actualización de la tienda. No hay nada que configurar todavía.
             </EliteText>
           </Animated.View>
         )}
@@ -232,7 +232,7 @@ export default function NightFilterScreen() {
                 <View style={{ flex: 1 }}>
                   <EliteText variant="caption" style={styles.warnText}>
                     {enabled
-                      ? 'El permiso de superposición ya no está concedido: el filtro no puede pintar. Concédelo de nuevo o apágalo — la app funciona igual.'
+                      ? 'El permiso de superposición ya no está concedido: el filtro no puede pintar. Concédelo de nuevo o apágalo. La app funciona igual.'
                       : 'Para pintar encima de otras apps, Android pide el permiso de superposición. Se pide solo si enciendes el filtro, y ATP funciona completa sin él.'}
                   </EliteText>
                   <AnimatedPressable
@@ -265,7 +265,7 @@ export default function NightFilterScreen() {
               <Ionicons name="notifications-outline" size={16} color={t.textoSecundario} />
               <EliteText variant="caption" style={styles.noteText}>
                 Mientras el filtro está encendido, Android muestra un aviso fijo con el
-                botón "Apagar filtro". Ese aviso no se puede ocultar — es tu salida de
+                botón "Apagar filtro". Ese aviso no se puede ocultar: es tu salida de
                 un toque, siempre.
               </EliteText>
             </Animated.View>

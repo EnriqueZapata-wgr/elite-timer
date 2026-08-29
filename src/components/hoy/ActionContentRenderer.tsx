@@ -226,7 +226,7 @@ function renderJournaling(a: ActionData, t: AppThemeTokens) {
         <EliteText style={[s.label, { color: tenue(t) }]}>Prompt de hoy:</EliteText>
         <EliteText style={[s.promptText, { color: t.textoSecundario }]}>¿Qué fue lo más estresante de hoy? Escríbelo sin filtro. No busques soluciones — solo sácalo de la cabeza al papel.</EliteText>
       </View>
-      <Tip text="Escribir lo que te preocupa reduce cortisol en 24 horas. No es terapia — es fisiología." t={t} />
+      <Tip text="Escribir lo que te preocupa reduce cortisol en 24 horas. No es terapia: es fisiología." t={t} />
     </View>
   );
 }
@@ -298,10 +298,10 @@ function extractSupplements(text: string): Supp[] {
   const patterns: { rx: RegExp; name: string; why: string }[] = [
     { rx: /L-teanina\s*(\d+[-–]?\d*\s*mg)/i, name: 'L-teanina', why: 'Reduce cortisol sin somnolencia' },
     { rx: /Magnesio\s*(?:glicinato|treonato|bisglicinato)?\s*(\d+[-–]?\d*\s*mg)/i, name: 'Magnesio', why: 'Relajante muscular + mejor sueño' },
-    { rx: /Ashwagandha\s*(?:KSM-66)?\s*(\d+[-–]?\d*\s*mg)/i, name: 'Ashwagandha', why: 'Adaptógeno — baja cortisol crónico' },
+    { rx: /Ashwagandha\s*(?:KSM-66)?\s*(\d+[-–]?\d*\s*mg)/i, name: 'Ashwagandha', why: 'Adaptógeno: baja cortisol crónico' },
     { rx: /Omega[\s-]*3?\s*(\d+[-–]?\d*\s*g)/i, name: 'Omega 3', why: 'Anti-inflamatorio de primera línea' },
     { rx: /Curcumina\s*(?:liposomal)?\s*(\d+[-–]?\d*\s*mg)/i, name: 'Curcumina', why: 'Anti-inflamatorio potente' },
-    { rx: /Vitamina?\s*D\s*(\d+[-–]?\d*\s*(?:IU|UI))/i, name: 'Vitamina D3', why: 'Hormona solar — inmunidad' },
+    { rx: /Vitamina?\s*D\s*(\d+[-–]?\d*\s*(?:IU|UI))/i, name: 'Vitamina D3', why: 'Hormona solar: inmunidad' },
     { rx: /CoQ10\s*(?:ubiquinol)?\s*(\d+[-–]?\d*\s*mg)/i, name: 'CoQ10', why: 'Energía mitocondrial' },
     { rx: /Berberina\s*(?:HCl)?\s*(\d+[-–]?\d*\s*mg)/i, name: 'Berberina', why: 'Sensibilidad a insulina' },
     { rx: /Zinc\s*(?:carnosina)?\s*(\d+[-–]?\d*\s*mg)/i, name: 'Zinc', why: 'Reparación intestinal + inmunidad' },

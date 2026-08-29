@@ -6,7 +6,7 @@
 
 /** Texto único de leyenda — fuente de verdad del copy de CE. */
 export const CE_STARS_LEGEND =
-  'Calidad de la Evaluación — qué tan completos y recientes están tus datos. ' +
+  'Calidad de la Evaluación: qué tan completos y recientes están tus datos. ' +
   'Más datos y más frescos = más estrellas.';
 
 /** CE 0-100 → estrellas 0-5 en pasos de 0.5. `stars = round(ce/100*5*2)/2`. */

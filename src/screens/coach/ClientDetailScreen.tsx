@@ -2752,7 +2752,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
     // Highlights positivos
     const goodDays = last14Scores.filter(s => (s.overall_score ?? 0) >= 75);
     if (goodDays.length >= 5) {
-      patterns.push({ text: `${goodDays.length} días con score >= 75 — buena adherencia`, type: 'success' });
+      patterns.push({ text: `${goodDays.length} días con score >= 75, buena adherencia`, type: 'success' });
     }
 
     return patterns;

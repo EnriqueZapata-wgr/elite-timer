@@ -69,7 +69,7 @@ export function ProcessingMiniBanner() {
   const borderColor = isFailed ? SEMANTIC.error : isExtracted ? Colors.neonGreen : Colors.neonGreen + '4D';
   const label = isProcessing
     ? (count > 1 ? `Procesando ${count} labs… ${elapsed}s` : `Procesando lab… ${elapsed}s`)
-    : isExtracted ? 'Lab listo — Toca para revisar' : 'No pudimos leer el archivo';
+    : isExtracted ? 'Lab listo. Toca para revisar' : 'No pudimos leer el archivo';
 
   return (
     <Animated.View

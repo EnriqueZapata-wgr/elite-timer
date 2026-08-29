@@ -231,7 +231,7 @@ export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, on
         </View>
         <Text style={s.headerBody}>
           {config.rounds} rondas × {config.targetReps} reps por minuto. El reloj no espera:{'\n'}
-          marca tus reps cuando termines — la ronda cierra al minuto.{'\n'}
+          marca tus reps cuando termines. La ronda cierra al minuto.{'\n'}
           Reps faltantes = deuda. Al final, serie de paga.
         </Text>
       </View>
@@ -294,7 +294,7 @@ export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, on
 
           {/* Selección de la ronda actual (corregible hasta el minuto) */}
           <Text style={s.hintText}>
-            {seleccion == null ? '¿Cuántas reps completaste? (tocar selecciona)' : `Seleccionaste ${seleccion} — se registra al cerrar el minuto. Corrige si quieres.`}
+            {seleccion == null ? '¿Cuántas reps completaste? (tocar selecciona)' : `Seleccionaste ${seleccion}. Se registra al cerrar el minuto. Corrige si quieres.`}
           </Text>
           {botonesReps((r) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSeleccion(r); }, seleccion)}
           {seleccion != null && ajusteFino(seleccion, setSeleccion)}
@@ -327,7 +327,7 @@ export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, on
         <View style={{ alignItems: 'center' }}>
           <Ionicons name="help-circle-outline" size={32} color={NARANJA} />
           <Text style={s.pendienteTitle}>RONDA {(pendientes[0] ?? 0) + 1} SIN REGISTRO</Text>
-          <Text style={s.pendienteBody}>El EMOM terminó — ¿cuántas reps hiciste en esa ronda?</Text>
+          <Text style={s.pendienteBody}>El EMOM terminó. ¿Cuántas reps hiciste en esa ronda?</Text>
           {botonesReps((r) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCapturaSel(r); }, capturaSel)}
           {capturaSel != null && (
             <>
@@ -349,7 +349,7 @@ export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, on
           <Ionicons name="warning" size={32} color={NARANJA} />
           <Text style={s.debtTitle}>SERIE DE PAGA</Text>
           <Text style={s.debtNumber}>{totalDebt}</Text>
-          <Text style={s.debtHint}>reps de deuda — mínimo descanso</Text>
+          <Text style={s.debtHint}>reps de deuda · mínimo descanso</Text>
           <Pressable onPress={completeDebtPayment} style={s.ctaBtn}>
             <Text style={s.ctaText}>DEUDA PAGADA</Text>
           </Pressable>

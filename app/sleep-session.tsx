@@ -310,7 +310,7 @@ function SesionNocturna({ audio }: { audio: ExpoAudio }) {
 
   const ventanaTexto = (() => {
     const inicio = ajustarHora(horaLimite, -anchoMin);
-    return `${fmt12h(inicio)} — ${fmt12h(horaLimite)}`;
+    return `${fmt12h(inicio)} a ${fmt12h(horaLimite)}`;
   })();
 
   if (fase === 'config') {

@@ -320,7 +320,7 @@ export function BlockCard({
             <Pressable onPress={() => setEditing(true)}>
               <EliteText variant="body" style={s.leafName} numberOfLines={1}>
                 {block.label}
-                {block.exercise_name ? ` — ${block.exercise_name}` : ''}
+                {block.exercise_name ? ` · ${block.exercise_name}` : ''}
               </EliteText>
             </Pressable>
           )}

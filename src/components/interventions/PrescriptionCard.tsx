@@ -143,7 +143,7 @@ export function PrescriptionCard({ prescription, index, isActive, busy, onActiva
                 })}
               </View>
               <EliteText style={s.tierHint}>
-                {tier === 1 ? 'Accesibles — panel básico común.'
+                {tier === 1 ? 'Accesibles: panel básico común.'
                   : tier === 2 ? 'Pídelos si hay señal específica.'
                     : 'Solo para diferencial crítico (costosos).'}
               </EliteText>

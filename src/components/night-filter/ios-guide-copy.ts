@@ -16,7 +16,7 @@ export const IOS_GUIDE_INTRO = {
     'Apple no permite que una app dibuje un filtro encima de otras. ' +
     'Lo que sí existe: los Atajos del sistema pueden encender los filtros ' +
     'de color a una hora programada, todos los días. Aquí te guiamos para ' +
-    'dejarlo configurado una sola vez — desde entonces lo ejecuta tu ' +
+    'dejarlo configurado una sola vez. Desde entonces lo ejecuta tu ' +
     'iPhone solo, sin que ATP intervenga.',
 };
 

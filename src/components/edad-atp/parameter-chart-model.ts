@@ -175,5 +175,5 @@ export function interpretValue(value: number, bandLimits: (number | null)[] | nu
   if (score >= 80) return 'En rango funcional óptimo.';
   const side = value < band.lo ? 'por debajo' : value > band.hi ? 'por arriba' : 'en el límite';
   if (score >= 50) return `Aceptable, pero ${side} del óptimo funcional.`;
-  return `Fuera de rango funcional (${side}) — priorízalo con tu protocolo.`;
+  return `Fuera de rango funcional (${side}). Priorízalo con tu protocolo.`;
 }

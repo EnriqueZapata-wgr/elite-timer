@@ -110,7 +110,7 @@ export function Method35({ exerciseName, userLevel, lastWeight, onComplete, onCu
 
       {/* Set actual */}
       <Text style={s.setHint}>
-        Set {completedSets.length + 1} de 3-5 · {seleccion == null ? '¿Cuántas reps? (tocar selecciona)' : `${seleccion} reps — confirma o corrige`}
+        Set {completedSets.length + 1} de 3-5 · {seleccion == null ? '¿Cuántas reps? (tocar selecciona)' : `${seleccion} reps. Confirma o corrige`}
       </Text>
 
       {/* Botones de reps — tap = seleccionar (corregible), no cerrar */}

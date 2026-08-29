@@ -24,7 +24,7 @@ export function DatosNuevosBadge({ visible, onPress }: Props) {
     <Pressable onPress={onPress} style={styles.badge} accessibilityRole="button">
       <View style={styles.dot} />
       <EliteText variant="caption" style={styles.text}>
-        Datos nuevos — puedes recalcular tu Edad ATP
+        Datos nuevos: puedes recalcular tu Edad ATP
       </EliteText>
     </Pressable>
   );

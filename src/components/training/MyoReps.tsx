@@ -161,9 +161,9 @@ export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
             ))}
           </View>
           <Text style={{ color: dark ? t.textoTenue : t.textoSecundario, fontSize: 11, marginTop: 10 }}>
-            {seleccion == null ? 'Tocar selecciona — confirma para cerrar.'
-              : seleccion === 5 ? '5 reps completas — confirma para seguir.'
-                : `${seleccion} reps = fallo controlado — confirma para cerrar.`}
+            {seleccion == null ? 'Tocar selecciona. Confirma para cerrar.'
+              : seleccion === 5 ? '5 reps completas. Confirma para seguir.'
+                : `${seleccion} reps = fallo controlado. Confirma para cerrar.`}
           </Text>
           {seleccion != null && (
             <Pressable
