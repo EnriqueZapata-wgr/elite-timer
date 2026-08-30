@@ -22,7 +22,8 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { AppIcon } from '@/src/components/ui/AppIcon';
 import { useAuth } from '@/src/contexts/auth-context';
 import {
-  visibleApps, searchApps, type AppEntry,
+  visibleApps, searchApps, normalizeForSearch,
+  APPS_PROXIMAMENTE, type AppEntry,
 } from '@/src/constants/app-registry';
 import { PACKS, PAQUETES_SALUD } from '@/src/constants/packs';
 import { groupBySection } from '@/src/services/atp-room-core';
@@ -34,6 +35,17 @@ import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { APP_SECTION_COLORS, ATP_BRAND, ELEVATION, withOpacity } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
+
+/**
+ * El glifo de cada fila de PROXIMAMENTE. Vive aqui y no en app-registry porque
+ * el registro declara que existe, no como se ve, y el candado icon-censo veta
+ * los nombres de Ionicon en los archivos de registro. No pueden ser AppIcon:
+ * estas entradas no son apps y no estan en el mapa de iconos.
+ */
+const ICONO_PROXIMA: Record<string, keyof typeof Ionicons.glyphMap> = {
+  genetica: 'git-branch-outline',
+};
+const ICONO_PROXIMA_DEFECTO = 'ellipsis-horizontal' as const;
 
 const STATE_LABEL: Record<InstallState, string> = {
   instalada: 'En tu cuadrícula',
@@ -80,6 +92,18 @@ export default function CentroScreen() {
   const listed = useMemo(() => searchApps(apps, query), [apps, query]);
   const groups = useMemo(() => groupBySection(listed), [listed]);
 
+  /**
+   * Lo que viene pero no existe. Se busca con las mismas reglas que las apps
+   * de verdad, así que "adn" o "genetica" la encuentran en vez de contestar
+   * "nada con ese nombre", que sería mentir por omisión.
+   */
+  const proximas = useMemo(() => {
+    const qn = normalizeForSearch(query);
+    if (!qn) return APPS_PROXIMAMENTE;
+    return APPS_PROXIMAMENTE.filter((a) =>
+      [a.label, a.key, ...(a.alias ?? [])].some((h) => normalizeForSearch(h).includes(qn)));
+  }, [query]);
+
   const stateOf = (app: AppEntry): InstallState =>
     installPrefs ? appInstallState(app.key, installPrefs) : 'no';
 
@@ -100,7 +124,8 @@ export default function CentroScreen() {
           <EliteText style={{
             fontFamily: Fonts.regular,
             fontSize: FontSizes.xs,
-            color: state === 'instalada' ? tenueInformativo : tokens.sinDatos,
+            // sinDatos es token de punto apagado, no de tinta (contraste ~1.8).
+            color: tenueInformativo,
           }}>
             {STATE_LABEL[state]}
           </EliteText>
@@ -237,7 +262,8 @@ export default function CentroScreen() {
             value={query}
             onChangeText={setQuery}
             placeholder="Buscar una función"
-            placeholderTextColor={tokens.sinDatos}
+            // 30-ago: era tokens.sinDatos, que como tinta no se lee (~1.8).
+            placeholderTextColor={tokens.textoSecundario}
             style={[s.searchInput, { color: tokens.texto }]}
             autoCorrect={false}
             returnKeyType="search"
@@ -251,7 +277,7 @@ export default function CentroScreen() {
         </Animated.View>
 
         {groups.map((g, gi) => (
-          <Animated.View key={g.section} entering={FadeInUp.delay(60 + gi * 40).springify()}>
+          <Animated.View key={g.section} entering={searching ? undefined : FadeInUp.delay(60 + gi * 40).springify()}>
             <EliteText style={[s.sectionTitle, { color: APP_SECTION_COLORS[g.section] }]}>
               {g.label.toUpperCase()}
             </EliteText>
@@ -261,7 +287,39 @@ export default function CentroScreen() {
           </Animated.View>
         ))}
 
-        {searching && listed.length === 0 && (
+        {/* Lo que viene. Fila apagada y sin chevron a propósito: no es una
+            puerta, es un aviso. Nada que tocar, nada que instalar. */}
+        {proximas.length > 0 && (
+          <Animated.View entering={searching ? undefined : FadeInUp.delay(60 + groups.length * 40).springify()}>
+            <EliteText style={[s.sectionTitle, { color: tenueInformativo }]}>PRÓXIMAMENTE</EliteText>
+            <View style={[s.group, grupo]}>
+              {proximas.map((app, i) => (
+                <View
+                  key={app.key}
+                  style={[s.row, i < proximas.length - 1 && [s.rowDivider, { borderBottomColor: tokens.borde }]]}
+                >
+                  <View style={[s.packIcon, iconoNeutro]}>
+                    <Ionicons
+                      name={ICONO_PROXIMA[app.key] ?? ICONO_PROXIMA_DEFECTO}
+                      size={16}
+                      color={tokens.textoSecundario}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <EliteText style={[s.rowLabel, { color: tokens.textoSecundario }]} numberOfLines={1}>
+                      {app.label}
+                    </EliteText>
+                    <EliteText style={[s.packParaQuien, { color: tokens.textoSecundario }]}>
+                      {app.nota}
+                    </EliteText>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+        )}
+
+        {searching && listed.length === 0 && proximas.length === 0 && (
           <View style={s.empty}>
             <EliteText style={[s.emptyText, { color: tenueInformativo }]}>Nada con ese nombre</EliteText>
           </View>

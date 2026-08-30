@@ -223,3 +223,41 @@ export function searchApps(apps: AppEntry[], query: string): AppEntry[] {
     return haystack.some((h) => h.includes(q));
   });
 }
+
+/* ---------------------------------------------------------------------------
+ * Lo que todavía no existe (30-ago-2026)
+ *
+ * Genética no es una app: hoy no hay pantalla, ni ruta, ni icono, ni nada que
+ * instalar. Por eso NO entra en APP_REGISTRY. Meterla ahí la haría instalable,
+ * la pondría en la cuadrícula, la ofrecería en los packs y rompería los censos
+ * de rutas e iconos, que exigen que cada entrada del registro apunte a una
+ * pantalla real. Todo eso para una puerta que no lleva a ningún lado.
+ *
+ * Vive aquí, en su propia lista, y el Centro la pinta al final como una fila
+ * apagada que no se puede tocar. Es la misma doctrina de nav honesta de
+ * economy/admin.tsx: se anuncia lo que viene, sin fingir que ya está.
+ *
+ * AQUI NO HAY DIBUJO. El candado icon-censo prohibe nombres de Ionicon en los
+ * archivos de registro, y tiene razon: un registro declara QUE existe, no como
+ * se ve. Como estas entradas no tienen AppIconName (no son apps, no estan en el
+ * mapa de iconos), el glifo lo elige quien las pinta, en app/centro/index.tsx.
+ * ------------------------------------------------------------------------ */
+export interface AppProxima {
+  key: string;
+  label: string;
+  /** Qué se puede hacer HOY, que no es nada inventado. */
+  nota: string;
+  alias?: string[];
+}
+
+export const APPS_PROXIMAMENTE: AppProxima[] = [
+  {
+    key: 'genetica',
+    label: 'Genética',
+    // Verificable: upload-types.ts tiene el tipo 'genetico' con target
+    // 'context' y writesValues false, y se sube desde my-health. La lectura
+    // no existe, y así se dice.
+    nota: 'Tu RAW de genotipado ya se puede subir en Mis datos como contexto. La lectura llega después del lanzamiento.',
+    alias: ['adn', 'dna', 'genetico', 'genotipado', 'snp', '23andme'],
+  },
+];

@@ -30,7 +30,7 @@ export interface LegalSection {
   body: string;
 }
 
-export const AVISO_INTEGRAL_TITLE = 'Aviso de Privacidad — ATP';
+export const AVISO_INTEGRAL_TITLE = 'Aviso de Privacidad de ATP';
 export const AVISO_INTEGRAL_VERSION_LABEL = 'Versión 1.0 · 2026';
 
 export const AVISO_INTEGRAL_SECTIONS: LegalSection[] = [
@@ -52,7 +52,7 @@ export const AVISO_INTEGRAL_SECTIONS: LegalSection[] = [
   },
   {
     heading: '5. Transferencias y encargados (proveedores en el extranjero)',
-    body: 'Para prestarte el servicio, ATP se apoya en proveedores tecnológicos que pueden tratar tus datos, incluidos datos sensibles, en Estados Unidos de América. Cada proveedor ha asumido, mediante contrato, obligaciones equivalentes a las del Responsable bajo la Ley mexicana, incluyendo confidencialidad, medidas de seguridad y la prohibición de usar tus datos para entrenar sus modelos de inteligencia artificial.\n\nProveedores: Supabase (base de datos, EE.UU.) · Anthropic — Claude (asistente ARGOS, EE.UU.) · Google — Gemini (ARGOS respaldo, EE.UU.) · ElevenLabs (funciones de voz, si las activas, EE.UU.) · Sentry (detección de errores técnicos, EE.UU.) · PostHog (analítica de uso, EE.UU.) · RevenueCat (gestión de suscripciones, EE.UU.) · Apple / Google Play (pagos in-app, EE.UU.) · Stripe / Conekta (pagos web, EE.UU./MX) · Vercel (alojamiento del sitio web, EE.UU.).\n\nLa transferencia internacional de tus datos sensibles requiere tu consentimiento específico, que otorgas mediante la casilla correspondiente. Puedes solicitar el detalle de las salvaguardas contractuales escribiendo a privacidad@somosatp.com.',
+    body: 'Para prestarte el servicio, ATP se apoya en proveedores tecnológicos que pueden tratar tus datos, incluidos datos sensibles, en Estados Unidos de América. Cada proveedor ha asumido, mediante contrato, obligaciones equivalentes a las del Responsable bajo la Ley mexicana, incluyendo confidencialidad, medidas de seguridad y la prohibición de usar tus datos para entrenar sus modelos de inteligencia artificial.\n\nProveedores: Supabase (base de datos, EE.UU.) · Anthropic, con Claude (asistente ARGOS, EE.UU.) · Google, con Gemini (ARGOS respaldo, EE.UU.) · ElevenLabs (funciones de voz, si las activas, EE.UU.) · Sentry (detección de errores técnicos, EE.UU.) · PostHog (analítica de uso, EE.UU.) · RevenueCat (gestión de suscripciones, EE.UU.) · Apple / Google Play (pagos in-app, EE.UU.) · Stripe / Conekta (pagos web, EE.UU./MX) · Vercel (alojamiento del sitio web, EE.UU.).\n\nLa transferencia internacional de tus datos sensibles requiere tu consentimiento específico, que otorgas mediante la casilla correspondiente. Puedes solicitar el detalle de las salvaguardas contractuales escribiendo a privacidad@somosatp.com.',
   },
   {
     heading: '6. Funciones de inteligencia artificial y decisiones automatizadas',
@@ -84,7 +84,7 @@ export const AVISO_INTEGRAL_SECTIONS: LegalSection[] = [
   },
 ];
 
-export const TERMS_TITLE = 'Términos y Condiciones de Uso — ATP';
+export const TERMS_TITLE = 'Términos y Condiciones de Uso de ATP';
 export const TERMS_VERSION_LABEL = 'Versión 1.0 · 2026';
 
 export const TERMS_SECTIONS: LegalSection[] = [
@@ -93,7 +93,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
     body: 'Estos Términos y Condiciones (los "Términos") rigen el uso de la aplicación y sitio web ATP, operados por [RAZÓN SOCIAL, S.A.S. de C.V.] ("ATP", "nosotros"), con domicilio en [DOMICILIO, QUERÉTARO, MÉXICO] y contacto hola@somosatp.com.\n\nAl crear una cuenta, suscribirte o usar ATP, aceptas estos Términos y nuestro Aviso de Privacidad. Si no estás de acuerdo, no uses el servicio.',
   },
   {
-    heading: '2. Qué es ATP (y qué NO es) — Aviso médico',
+    heading: '2. Qué es ATP (y qué NO es). Aviso médico',
     body: 'ATP es una aplicación de bienestar, educación y estilo de vida. ATP no es medicina para enfermos: es una herramienta de optimización, autoconocimiento y rendimiento. No diagnostica ni trata enfermedades. Te ayuda a entender y optimizar tu cuerpo, y a llegar mejor preparado a tu médico. Si tienes una condición de salud, ATP trabaja junto a tu médico, no en su lugar.\n\nATP NO es un dispositivo médico. No diagnostica, no trata, no cura ni previene ninguna enfermedad. La información, evaluaciones, sugerencias, rutinas y contenidos generados por ATP y por su asistente de inteligencia artificial ARGOS son de carácter exclusivamente educativo y no sustituyen la consulta, diagnóstico o tratamiento de un profesional de la salud con cédula.\n\nLa "Edad ATP" y todos los indicadores del producto son estimaciones educativas basadas en la información que tú aportas. No constituyen un diagnóstico médico ni una promesa de resultados.\n\nAntes de iniciar cualquier programa nutricional, de ejercicio, ayuno, exposición a frío/calor, respiración o suplementación, consulta con tu médico, especialmente si tienes condiciones preexistentes, tomas medicamentos, tienes antecedentes cardiacos, epilepsia, o estás embarazada o en lactancia.\n\nSituaciones de emergencia: ATP no es un servicio de urgencias ni de atención en crisis. Si presentas una emergencia médica o de salud mental, llama de inmediato a los servicios de emergencia (911) o a la Línea de la Vida: 800-911-2000 (24/7, gratuito).',
   },
   {
@@ -106,7 +106,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   },
   {
     heading: '5. Membresía y pagos',
-    body: 'ATP ofrece UNA sola membresía, sin niveles ni versiones distintas: todas las funciones están incluidas para toda persona miembro. Por tiempo limitado existe además el Programa Founders (sección 6). Los precios y periodos de cobro vigentes se muestran en la app y en somosatp.com/precios, en pesos mexicanos (MXN).\n\nLos pagos se procesan mediante App Store (Apple), Google Play, o pasarelas web (Stripe/Conekta). Al suscribirte autorizas el cargo recurrente correspondiente.\n\nPeriodo de prueba: si contratas con periodo de prueba de 14 días, podrás cancelar sin costo durante ese periodo. El primer cargo se realizará al término de la prueba, salvo que canceles antes.\n\nRenovación automática: la membresía se renueva automáticamente al final de cada periodo, al precio vigente. Te notificaremos al menos 5 días naturales antes de cada renovación, indicando monto y fecha. Puedes cancelar la renovación en cualquier momento, con un solo toque, desde la app (Ajustes → Suscripción, para compras web) o desde la gestión de suscripciones de App Store / Google Play. La cancelación surte efecto al final del periodo ya pagado; conservas el acceso hasta entonces.\n\nReembolsos: durante los 14 días de prueba, la cancelación no genera cargo. Una vez transcurridos, los pagos no son reembolsables, salvo obligación legal expresa. Los reembolsos de compras realizadas en App Store o Google Play se rigen adicionalmente por las políticas de dichas tiendas.',
+    body: 'ATP ofrece UNA sola membresía, sin niveles ni versiones distintas: todas las funciones están incluidas para toda persona miembro. Por tiempo limitado existe además el Programa Founders (sección 6), que es un pago único y no se renueva ni genera cargos recurrentes. Los precios y periodos de cobro vigentes se muestran en la app y en somosatp.com/precios, en pesos mexicanos (MXN).\n\nLos pagos se procesan mediante App Store (Apple), Google Play, o pasarelas web (Stripe/Conekta). Al suscribirte autorizas el cargo recurrente correspondiente.\n\nSin periodo de prueba: la membresía se cobra desde el primer día.\n\nGarantía de siete días: si cancelas dentro de los siete días naturales siguientes a tu primer pago, te devolvemos el importe completo sin preguntarte nada. Basta con que lo solicites a hola@somosatp.com desde el correo con el que contrataste. Si contrataste por la web, la devolución se procesa por la misma vía del pago y puede tardar hasta diez días hábiles en reflejarse, según tu banco. Si contrataste dentro de App Store o Google Play, el reembolso lo procesa la tienda conforme a sus políticas: escríbenos y te acompañamos en la gestión. Esta garantía aplica una sola vez por persona y cubre el primer pago de tu membresía, incluido el pago único del Programa Founders.\n\nRenovación automática: la membresía se renueva automáticamente al final de cada periodo, al precio que contrataste. Precio congelado: ese precio se te respeta mientras tu membresía siga activa y sin interrupción, aunque el precio de lista suba después. Si cancelas y vuelves más adelante, contratas al precio vigente en ese momento. Te notificaremos al menos 5 días naturales antes de cada renovación, indicando monto y fecha. Puedes cancelar la renovación en cualquier momento, con un solo toque, desde la app (Ajustes → Suscripción, para compras web) o desde la gestión de suscripciones de App Store / Google Play. La cancelación surte efecto al final del periodo ya pagado; conservas el acceso hasta entonces.\n\nReembolsos fuera de esa garantía: los pagos ya realizados no son reembolsables, salvo (i) lo previsto en la cláusula 6 para el Programa Founders, (ii) lo previsto en la cláusula 12 si modificamos estos Términos, y (iii) obligación legal expresa. Lo anterior no limita los derechos irrenunciables que la Ley Federal de Protección al Consumidor te otorga. Los reembolsos de compras realizadas en App Store o Google Play se rigen adicionalmente por las políticas de dichas tiendas.',
   },
   {
     heading: '6. Programa Founders',
@@ -146,7 +146,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   },
   {
     heading: '14. Ley aplicable y jurisdicción',
-    body: 'Estos Términos se rigen por las leyes de los Estados Unidos Mexicanos. Para cualquier controversia, el consumidor podrá acudir, a su elección, ante la Procuraduría Federal del Consumidor (PROFECO) —incluida la plataforma Concilianet— o ante los tribunales competentes de [Querétaro / Ciudad de México].',
+    body: 'Estos Términos se rigen por las leyes de los Estados Unidos Mexicanos. Para cualquier controversia, el consumidor podrá acudir, a su elección, ante la Procuraduría Federal del Consumidor (PROFECO), incluida la plataforma Concilianet, o ante los tribunales competentes de [Querétaro / Ciudad de México].',
   },
   {
     heading: '15. Contacto',

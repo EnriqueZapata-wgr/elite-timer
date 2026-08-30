@@ -32,10 +32,20 @@ export interface RecetaEnPantalla {
   id: string;
   name: string;
   ingredients: any[];
-  total_calories: number;
-  total_protein: number;
-  total_carbs: number;
-  total_fat: number;
+  /**
+   * 30-ago-2026: pasaron de `number` a `number | null`.
+   *
+   * Antes num() devolvia 0 para el nulo y la pantalla pintaba "0 kcal · 0g
+   * prot". Con las 10 recetas de la 309, que venian completas, nunca se noto.
+   * Las 93 de la 310 no vienen completas: 8 tarjetas no traen macros y 5
+   * traen calorias pero no el desglose. "0 g de proteina" en un pescado no es
+   * un dato faltante, es un dato falso, y ademas se registraba asi en
+   * food_logs. null significa "la ficha no lo dice" y la pantalla pinta raya.
+   */
+  total_calories: number | null;
+  total_protein: number | null;
+  total_carbs: number | null;
+  total_fat: number | null;
   meal_type: string | null;
   created_at: string;
   is_favorite: boolean;
@@ -68,10 +78,17 @@ export function comidaDeCategoria(categoria?: string | null): string | null {
   return CATEGORIA_A_COMIDA[categoria] ?? 'snack_pm';
 }
 
-/** Números que pueden venir nulos y la pantalla pinta sin comprobar. */
-function num(v: unknown): number {
+/**
+ * Numero de la base, o null si la ficha no lo trae.
+ *
+ * Se distingue el cero real del ausente a proposito: hay recetas con 0 g de
+ * carbohidratos de verdad, y hay recetas cuya tarjeta no imprimio el dato.
+ * Pintarlos igual las hace indistinguibles.
+ */
+function numONulo(v: unknown): number | null {
+  if (v == null || v === '') return null;
   const n = typeof v === 'number' ? v : Number(v);
-  return Number.isFinite(n) ? Math.round(n) : 0;
+  return Number.isFinite(n) ? Math.round(n) : null;
 }
 
 function comoArreglo(v: unknown): any[] {
@@ -83,10 +100,10 @@ export function catalogoARecipe(fila: FilaCatalogo): RecetaEnPantalla {
     id: fila.id,
     name: fila.name,
     ingredients: comoArreglo(fila.ingredients),
-    total_calories: num(fila.calories),
-    total_protein: num(fila.protein_g),
-    total_carbs: num(fila.carbs_g),
-    total_fat: num(fila.fat_g),
+    total_calories: numONulo(fila.calories),
+    total_protein: numONulo(fila.protein_g),
+    total_carbs: numONulo(fila.carbs_g),
+    total_fat: numONulo(fila.fat_g),
     meal_type: comidaDeCategoria(fila.category),
     created_at: fila.created_at ?? '',
     // El catálogo no tiene favoritos: es de todos, no de nadie.
@@ -119,4 +136,105 @@ export function textoPaso(i: unknown): string {
   if (!i || typeof i !== 'object') return '';
   const o = i as Record<string, unknown>;
   return typeof o.text === 'string' ? o.text : '';
+}
+
+/* ---------------------------------------------------------------------------
+ * Buscador y filtros (30-ago-2026)
+ *
+ * Con 10 recetas la pestana se leia de un vistazo. Con 103 no: hay que poder
+ * llegar a una. Toda la decision de que se ve y que no vive AQUI, en funciones
+ * puras, porque es logica con casos de borde (acentos, mayusculas, momento
+ * ausente) y en la pantalla no se puede probar sin montar React.
+ * ------------------------------------------------------------------------ */
+
+/** El unico vocabulario de momento que existe rio abajo (defaultMealTypeByHour). */
+export const MOMENTOS = [
+  { id: 'todas', etiqueta: 'Todas' },
+  { id: 'breakfast', etiqueta: 'Desayuno' },
+  { id: 'lunch', etiqueta: 'Comida' },
+  { id: 'dinner', etiqueta: 'Cena' },
+  { id: 'snack_pm', etiqueta: 'Snack' },
+] as const;
+
+export type FiltroMomento = (typeof MOMENTOS)[number]['id'];
+
+/**
+ * "salmon" tiene que encontrar "Salmón" y "PIÑA" tiene que encontrarse con
+ * "pina". Sin esto el buscador falla justo en el idioma en el que esta escrito
+ * el catalogo: 62 de las 93 recetas nuevas llevan acento en el titulo.
+ */
+export function normalizar(s: unknown): string {
+  return String(s ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')  // acentos fuera
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * El cajon al que va una receta, venga su meal_type de donde venga.
+ *
+ * Comprobado contra la base el 30-ago-2026: user_recipes tiene una fila con
+ * 'snack_am' y food_logs tiene 30 con 'snack_am' y 2 con 'snack'. Ninguno de
+ * los dos esta en MOMENTOS, asi que comparar con !== hacia que esas recetas
+ * desaparecieran de TODOS los chips menos "Todas", sin aviso: el contador
+ * decia "12 de 103" y la persona no encontraba su receta.
+ *
+ * Los tres snacks caen en el mismo cajon porque el chip se llama "Snack" y a
+ * nadie le importa si era de la manana. Lo que NO se hace es inventarle cajon
+ * a quien no trae meal_type: esa se ve en Todas y en la busqueda, y ya.
+ */
+export function momentoDeReceta(mealType: string | null | undefined): FiltroMomento | null {
+  const m = String(mealType ?? '').trim().toLowerCase();
+  if (!m) return null;
+  if (m === 'breakfast' || m === 'lunch' || m === 'dinner') return m;
+  if (m === 'snack' || m.startsWith('snack_')) return 'snack_pm';
+  // Vocabulario desconocido: MISMO trato que el nulo. Un cajon de sastre que
+  // se traga cualquier cadena archivaria un 'Dinner' o un 'desayuno' bajo
+  // Snack, que es mentir en silencio; desaparecer del chip se nota y la
+  // busqueda por texto lo sigue encontrando.
+  return null;
+}
+
+/** Forma minima que necesita el filtro. No pide la receta entera a proposito. */
+export interface RecetaFiltrable {
+  name: string;
+  meal_type: string | null;
+  is_favorite: boolean | null;
+  ingredients?: unknown;
+}
+
+export interface OpcionesFiltro {
+  texto?: string;
+  momento?: FiltroMomento;
+  soloFavoritas?: boolean;
+}
+
+/**
+ * Busca por nombre Y por ingrediente. Lo segundo es la mitad del valor: con el
+ * refri abierto uno busca "nopales", no el titulo de la receta.
+ *
+ * Las favoritas son un filtro APARTE del momento, no otro momento. Antes el
+ * chip "Favoritas" ocupaba el mismo lugar que "Todas", asi que no se podian
+ * ver las cenas favoritas. Ahora si.
+ */
+export function filtrarRecetas<T extends RecetaFiltrable>(
+  recetas: T[],
+  opciones: OpcionesFiltro = {},
+): T[] {
+  const q = normalizar(opciones.texto);
+  const momento = opciones.momento ?? 'todas';
+  return recetas.filter((r) => {
+    // is_favorite es nullable en user_recipes: se compara por verdad, no por
+    // identidad, que es lo unico correcto cuando puede llegar null.
+    if (opciones.soloFavoritas && r.is_favorite !== true) return false;
+    // Sin momento en la ficha, la receta NO se cuela en un momento que no le
+    // toca: se ve en Todas y en la busqueda, y nada mas. Inventarle uno seria
+    // meter un dato que nadie escribio.
+    if (momento !== 'todas' && momentoDeReceta(r.meal_type) !== momento) return false;
+    if (!q) return true;
+    if (normalizar(r.name).includes(q)) return true;
+    return (Array.isArray(r.ingredients) ? r.ingredients : [])
+      .some((i) => normalizar(textoIngrediente(i)).includes(q));
+  });
 }

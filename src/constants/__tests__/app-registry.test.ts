@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   APP_REGISTRY, APP_BY_KEY, SECTION_ORDER, SECTION_LABELS,
+  APPS_PROXIMAMENTE,
   visibleApps, searchApps, normalizeForSearch,
 } from '../app-registry';
 import { hasAppIcon, APP_ICON_NAMES } from '@/src/components/ui/app-icon-names';
@@ -184,5 +185,41 @@ describe('searchApps', () => {
 
   it('sin resultados devuelve lista vacía, no todo', () => {
     expect(searchApps(all, 'zzzzz')).toHaveLength(0);
+  });
+});
+
+/**
+ * 30-ago-2026: Genética se anuncia en el Centro pero NO es una app.
+ * Este candado existe para que el día que sí lo sea, alguien tenga que
+ * borrarla de aquí a propósito en vez de dejar dos entradas conviviendo.
+ */
+describe('APPS_PROXIMAMENTE', () => {
+  it('ninguna llave choca con una app de verdad', () => {
+    const reales = new Set(APP_REGISTRY.map((a) => a.key));
+    for (const p of APPS_PROXIMAMENTE) expect(reales.has(p.key), p.key).toBe(false);
+  });
+
+  it('las llaves son únicas entre sí', () => {
+    const keys = APPS_PROXIMAMENTE.map((a) => a.key);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('cada una dice qué se puede hacer hoy, sin prometer lo que no existe', () => {
+    for (const p of APPS_PROXIMAMENTE) {
+      expect(p.label.trim().length, p.key).toBeGreaterThan(0);
+      expect(p.nota.trim().length, p.key).toBeGreaterThan(20);
+      // Sin em dash en copy de cara al usuario.
+      expect(p.nota.includes('—'), p.key).toBe(false);
+      expect(p.label.includes('—'), p.key).toBe(false);
+    }
+  });
+
+  it('no declara dibujos: el glifo lo elige quien la pinta', () => {
+    // El candado icon-censo veta nombres de Ionicon en los archivos de
+    // registro. Esta lista vivio media hora con un 'git-branch-outline' dentro
+    // y lo tumbo, con razon: un registro declara qué existe, no cómo se ve.
+    for (const p of APPS_PROXIMAMENTE) {
+      expect(Object.keys(p), p.key).not.toContain('icon');
+    }
   });
 });

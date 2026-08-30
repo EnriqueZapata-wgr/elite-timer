@@ -8,7 +8,7 @@
  * user_recipes tiene un dueño: esta pestaña. Todo lo que ARGOS genera entra
  * por aquí, y de aquí sale a la lista por sendRecipeToList — nunca en memoria.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Alert, TextInput, Modal, Pressable, ScrollView } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +25,7 @@ import {
 import { defaultMealTypeByHour } from '@/src/services/meal-times-core';
 import {
   catalogoARecipe, textoIngrediente, textoPaso,
+  filtrarRecetas, MOMENTOS, type FiltroMomento,
 } from '@/src/services/nutrition/catalogo-recetas-core';
 import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
@@ -38,10 +39,14 @@ interface Recipe {
   id: string;
   name: string;
   ingredients: any[];
-  total_calories: number;
-  total_protein: number;
-  total_carbs: number;
-  total_fat: number;
+  /**
+   * 30-ago: null = la ficha no lo dice. Ver catalogo-recetas-core. Las recetas
+   * de la persona siempre traen numero; las del catalogo no siempre.
+   */
+  total_calories: number | null;
+  total_protein: number | null;
+  total_carbs: number | null;
+  total_fat: number | null;
   meal_type: string | null;
   created_at: string;
   /** T5 (#56): favoritos (migración 168). */
@@ -81,8 +86,14 @@ export function RecetasTab({ onIrALista }: Props) {
   const suave = t.texto;
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
-  // T5 (#56): filtro de favoritas
-  const [filter, setFilter] = useState<'all' | 'favorites'>('all');
+  // T5 (#56): filtro de favoritas. 30-ago: dejo de ser excluyente con "Todas"
+  // (antes ocupaban el mismo chip, asi que no se podian ver las cenas
+  // favoritas). Ahora es un interruptor aparte que se combina con el momento.
+  const [soloFavoritas, setSoloFavoritas] = useState(false);
+  // 30-ago: buscador y filtro por momento. Con 103 recetas en el catalogo la
+  // lista dejo de poder leerse de un vistazo.
+  const [busqueda, setBusqueda] = useState('');
+  const [momento, setMomento] = useState<FiltroMomento>('todas');
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newCalories, setNewCalories] = useState('');
@@ -93,6 +104,9 @@ export function RecetasTab({ onIrALista }: Props) {
   const [showFromLogs, setShowFromLogs] = useState(false);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsFailed, setLogsFailed] = useState(false);
+  // 30-ago: las dos fuentes cayeron. No es "no tienes recetas", es "no se
+  // pudieron leer", y son estados distintos.
+  const [cargaFallida, setCargaFallida] = useState(false);
   const [recentLogs, setRecentLogs] = useState<RecentLogForRecipe[]>([]);
   const [savingLogId, setSavingLogId] = useState<string | null>(null);
   // El generador de ARGOS vive dentro de la pestaña, no en otra ruta.
@@ -112,20 +126,37 @@ export function RecetasTab({ onIrALista }: Props) {
    * puede borrar las recetas de la persona, y al revés tampoco.
    */
   async function loadRecipes() {
-    if (!user?.id) return;
+    // Sin sesion tambien hay que apagar el spinner: loading arranca en true y
+    // este return es anterior al setLoading(true), asi que la pestaña se
+    // quedaba en "Cargando..." para siempre cuando la sesion no llegaba.
+    if (!user?.id) { setLoading(false); return; }
     setLoading(true);
-    const [mias, publicas] = await Promise.all([
+    // allSettled, no all. supabase-js no rechaza en 4xx, pero SI rechaza cuando
+    // falla el fetch (modo avion, DNS caido). Con Promise.all eso lanzaba dentro
+    // del useFocusEffect, setLoading(false) no corria nunca y la pestana se
+    // quedaba en blanco para siempre: sin lista, sin vacio y sin error. Es el
+    // mismo fallo que ya nos comimos en suplementos.
+    const [rMias, rPublicas] = await Promise.allSettled([
       supabase.from('user_recipes').select('*')
         .eq('user_id', user.id).order('created_at', { ascending: false }),
       supabase.from('recipes').select('*')
         .eq('is_public', true).order('name'),
     ]);
+    const caida = (r: PromiseSettledResult<any>) =>
+      r.status === 'fulfilled' ? r.value : { data: null, error: { message: String(r.reason) } };
+    const mias = caida(rMias);
+    const publicas = caida(rPublicas);
     const propias: Recipe[] = mias.error
       ? (logWarn('[cocina:recetas] load propias failed:', mias.error.message), [])
       : ((mias.data as any[]) ?? []).map((r) => ({ ...r, origin: 'user' as const }));
     const catalogo: Recipe[] = publicas.error
       ? (logWarn('[cocina:recetas] load catalogo failed:', publicas.error.message), [])
       : ((publicas.data as any[]) ?? []).map(catalogoARecipe);
+    // Si fallaron LAS DOS, la lista queda vacia y sin esta marca la pantalla
+    // pinta "Sin recetas guardadas" e invita a crearlas de nuevo: a alguien con
+    // 40 recetas se le estaria diciendo que no tiene ninguna. Doctrina MB-8
+    // Track B, la misma que ya aplica el modal de registros recientes.
+    setCargaFallida(!!mias.error && !!publicas.error);
     // Las suyas primero: lo propio manda sobre lo de la casa.
     setRecipes([...propias, ...catalogo]);
     setLoading(false);
@@ -154,6 +185,9 @@ export function RecetasTab({ onIrALista }: Props) {
     if (ingr.length) partes.push('INGREDIENTES\n' + ingr.map(x => `· ${x}`).join('\n'));
     const pasos = (recipe.instructions ?? []).map(textoPaso).filter(Boolean);
     if (pasos.length) partes.push('PASOS\n' + pasos.map((x, i) => `${i + 1}. ${x}`).join('\n'));
+    // Con las 93 nuevas entran fichas incompletas. Si no hay NADA que contar,
+    // un Alert con solo el título y dos botones es peor que no abrirlo.
+    if (!partes.length) partes.push('Esta ficha todavía no trae ingredientes ni pasos.');
     // Mandar a la lista de súper vive en la pestaña Lista, que ya lo hace bien
     // con sendRecipeToList. Duplicarlo aquí a medias sería un segundo camino
     // para lo mismo, que es justo lo que esta casa lleva semanas matando.
@@ -175,6 +209,8 @@ export function RecetasTab({ onIrALista }: Props) {
       mealType: recipe.meal_type || defaultMealTypeByHour(),
       description: recipe.name,
       source: 'recipe',
+      // 30-ago: van tal cual, null incluido. Mandar 0 porque la ficha no traia
+      // el dato metia un cero falso en food_logs y estropeaba el dia entero.
       calories: recipe.total_calories,
       proteinG: recipe.total_protein,
       carbsG: recipe.total_carbs,
@@ -268,6 +304,17 @@ export function RecetasTab({ onIrALista }: Props) {
     }
   }
 
+  /** Campo de macro en blanco = no lo sé = null. Nunca 0. */
+  function opcional(bruto: string, leer: (s: string) => number): number | null {
+    // El decimal-pad en teclado mexicano escribe COMA. parseFloat('1,5') da 1,
+    // que es finito, así que pasaba el guardia y guardaba 1 g en vez de 1.5:
+    // el mismo pecado que este arreglo vino a matar, pero por redondeo.
+    const limpio = bruto.trim().replace(',', '.');
+    if (!limpio || !/^\d+(\.\d+)?$/.test(limpio)) return null;
+    const v = leer(limpio);
+    return Number.isFinite(v) ? v : null;
+  }
+
   async function createRecipe() {
     if (!user?.id || !newName.trim()) return;
     haptic.medium();
@@ -275,10 +322,14 @@ export function RecetasTab({ onIrALista }: Props) {
     const { error } = await supabase.from('user_recipes').insert({
       user_id: user.id,
       name: newName.trim(),
-      total_calories: parseInt(newCalories) || 0,
-      total_protein: parseFloat(newProtein) || 0,
-      total_carbs: parseFloat(newCarbs) || 0,
-      total_fat: parseFloat(newFat) || 0,
+      // 30-ago: en blanco es null, no 0. El formulario no podia decir "no lo
+      // sé" y escribia un 0 que la tarjeta pintaba como medido, justo lo que
+      // acabamos de arreglar del lado del catálogo. Las cuatro columnas de
+      // user_recipes son nullable (comprobado contra la base).
+      total_calories: opcional(newCalories, (x) => parseInt(x, 10)),
+      total_protein: opcional(newProtein, parseFloat),
+      total_carbs: opcional(newCarbs, parseFloat),
+      total_fat: opcional(newFat, parseFloat),
     });
     if (error) {
       logWarn('[cocina:recetas] create failed:', error.message);
@@ -290,6 +341,23 @@ export function RecetasTab({ onIrALista }: Props) {
     setNewName(''); setNewCalories(''); setNewProtein(''); setNewCarbs(''); setNewFat('');
     loadRecipes();
   }
+
+  /**
+   * Todo el filtrado vive en el nucleo puro, que si se puede probar. Aqui solo
+   * se llama. Ver filtrarRecetas en catalogo-recetas-core.
+   */
+  const visibles = useMemo(
+    () => filtrarRecetas(recipes, { texto: busqueda, momento, soloFavoritas }),
+    [recipes, busqueda, momento, soloFavoritas],
+  );
+
+  /**
+   * Raya cuando la ficha no trae el dato. NO cero: "0 g de proteina" en un
+   * pescado es un dato falso, no un dato faltante. La raya va en gris
+   * secundario, nunca en t.sinDatos, que como tinta no se lee.
+   */
+  const macro = (v: number | null | undefined, sufijo: string) =>
+    v == null ? '—' : `${v}${sufijo}`;
 
   if (generando) {
     return (
@@ -306,17 +374,68 @@ export function RecetasTab({ onIrALista }: Props) {
         Guarda tus comidas frecuentes para registrar con un toque
       </EliteText>
 
-      {/* T5 (#56): filtro Todas | Favoritas + acceso a la lista */}
-      <View style={s.filterRow}>
-        {([['all', 'Todas'], ['favorites', '❤️ Favoritas']] as const).map(([id, label]) => (
+      {/* 30-ago: buscador. Busca por nombre Y por ingrediente, que es la mitad
+          del valor: con el refri abierto uno busca "nopales", no el titulo. */}
+      <View style={[s.buscadorCaja, { backgroundColor: t.hundido, borderColor: t.borde }]}>
+        <Ionicons name="search" size={16} color={t.textoSecundario} />
+        <TextInput
+          value={busqueda}
+          onChangeText={setBusqueda}
+          placeholder="Buscar por nombre o ingrediente"
+          placeholderTextColor={t.textoSecundario}
+          autoCorrect={false}
+          autoCapitalize="none"
+          spellCheck={false}
+          returnKeyType="search"
+          /* El texto que se teclea va en t.texto. Nunca en t.sinDatos: ese
+             token es para puntos apagados y como tinta es ilegible. */
+          style={[s.buscadorInput, { color: t.texto }]}
+        />
+        {busqueda.length > 0 && (
+          <Pressable onPress={() => { haptic.light(); setBusqueda(''); }} hitSlop={10}>
+            <Ionicons name="close-circle" size={16} color={t.textoSecundario} />
+          </Pressable>
+        )}
+      </View>
+
+      {/* T5 (#56) + 30-ago: momento y favoritas. Favoritas ya no compite con
+          "Todas": se combinan, asi que "cenas favoritas" por fin existe. */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={s.filterRow}
+      >
+        {/* Favoritas va PRIMERO: los seis chips miden ~490 px sobre ~358 utiles
+            en un telefono de 390, asi que al final nacia fuera del borde y con
+            showsHorizontalScrollIndicator en false no habia ni pista de que
+            hubiera mas. El interruptor que acabamos de rescatar de competir con
+            "Todas" habria quedado invisible. */}
+        <Pressable
+          onPress={() => { haptic.light(); setSoloFavoritas(v => !v); }}
+          style={[s.filterPill, { backgroundColor: t.hundido, borderColor: t.borde }, soloFavoritas && s.filterPillOn]}
+        >
+          <EliteText style={[s.filterText, { color: t.textoSecundario }, soloFavoritas && s.filterTextOn]}>❤️ Favoritas</EliteText>
+        </Pressable>
+        <View style={[s.filterSep, { backgroundColor: t.borde }]} />
+        {MOMENTOS.map(({ id, etiqueta }) => (
           <Pressable
             key={id}
-            onPress={() => { haptic.light(); setFilter(id); }}
-            style={[s.filterPill, { backgroundColor: t.hundido, borderColor: t.borde }, filter === id && s.filterPillOn]}
+            onPress={() => { haptic.light(); setMomento(id); }}
+            style={[s.filterPill, { backgroundColor: t.hundido, borderColor: t.borde }, momento === id && s.filterPillOn]}
           >
-            <EliteText style={[s.filterText, { color: t.textoSecundario }, filter === id && s.filterTextOn]}>{label}</EliteText>
+            <EliteText style={[s.filterText, { color: t.textoSecundario }, momento === id && s.filterTextOn]}>{etiqueta}</EliteText>
           </Pressable>
         ))}
+      </ScrollView>
+
+      <View style={s.contadorRow}>
+        <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 11 }}>
+          {loading ? 'Cargando...'
+            : visibles.length === recipes.length
+              ? `${recipes.length} receta${recipes.length === 1 ? '' : 's'}`
+              : `${visibles.length} de ${recipes.length}`}
+        </EliteText>
         <View style={{ flex: 1 }} />
         <Pressable onPress={() => { haptic.light(); onIrALista(); }} style={s.shoppingBtn}>
           <Ionicons name="basket-outline" size={14} color={acento} />
@@ -339,15 +458,22 @@ export function RecetasTab({ onIrALista }: Props) {
         <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />
       </AnimatedPressable>
 
-      {recipes.length > 0 && (
+      {/* Solo si hay recetas SUYAS a la vista. El catalogo no se desliza ni se
+          borra (SwipeToDeleteRow va disabled), asi que a alguien recien llegado,
+          con 0 propias y 103 del catalogo, la instruccion le mentia. */}
+      {visibles.some(r => r.origin === 'user') && (
         <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 11, marginBottom: 8 }}>
           Desliza ← o mantén presionado para eliminar
         </EliteText>
       )}
 
-      {/* Lista de recetas (filtrada) */}
-      {recipes.filter(r => filter === 'all' || r.is_favorite).map((recipe, idx) => (
-        <Animated.View key={recipe.id} entering={FadeInUp.delay(idx * 50).springify()}>
+      {/* Lista de recetas (filtrada en el núcleo) */}
+      {visibles.map((recipe, idx) => (
+        // Tope de 8: con 10 recetas la última entraba a 450 ms y nadie lo notó;
+        // con 103 eran 102 * 50 = 5100 ms, y como `entering` se dispara al
+        // montar, borrar el texto de búsqueda volvía a escalonar toda la lista
+        // a cámara lenta.
+        <Animated.View key={recipe.id} entering={FadeInUp.delay(Math.min(idx, 8) * 50).springify()}>
           {/* 28-ago: el catálogo no se desliza para borrar ni se borra con tap
               largo. No es suyo. Y tocarlo abre el detalle en vez de registrar:
               nadie registra 550 kcal de un bowl que no ha visto. */}
@@ -374,28 +500,36 @@ export function RecetasTab({ onIrALista }: Props) {
                 </View>
                 <View style={s.macroRow}>
                   <View style={s.macroItem}>
-                    <EliteText style={[s.macroValue, { color: suave }]}>{recipe.total_calories}</EliteText>
+                    <EliteText style={[s.macroValue, { color: recipe.total_calories == null ? t.textoSecundario : suave }]}>{macro(recipe.total_calories, '')}</EliteText>
                     <EliteText style={[s.macroLabel, { color: t.textoSecundario }]}>kcal</EliteText>
                   </View>
                   <View style={[s.macroDivider, { backgroundColor: t.borde }]} />
                   <View style={s.macroItem}>
-                    <EliteText style={[s.macroValue, { color: azulTx }]}>{recipe.total_protein}g</EliteText>
+                    <EliteText style={[s.macroValue, { color: recipe.total_protein == null ? t.textoSecundario : azulTx }]}>{macro(recipe.total_protein, 'g')}</EliteText>
                     <EliteText style={[s.macroLabel, { color: t.textoSecundario }]}>prot</EliteText>
                   </View>
                   <View style={[s.macroDivider, { backgroundColor: t.borde }]} />
                   <View style={s.macroItem}>
-                    <EliteText style={[s.macroValue, { color: suave }]}>{recipe.total_carbs}g</EliteText>
+                    <EliteText style={[s.macroValue, { color: recipe.total_carbs == null ? t.textoSecundario : suave }]}>{macro(recipe.total_carbs, 'g')}</EliteText>
                     <EliteText style={[s.macroLabel, { color: t.textoSecundario }]}>carbs</EliteText>
                   </View>
                   <View style={[s.macroDivider, { backgroundColor: t.borde }]} />
                   <View style={s.macroItem}>
-                    <EliteText style={[s.macroValue, { color: suave }]}>{recipe.total_fat}g</EliteText>
+                    <EliteText style={[s.macroValue, { color: recipe.total_fat == null ? t.textoSecundario : suave }]}>{macro(recipe.total_fat, 'g')}</EliteText>
                     <EliteText style={[s.macroLabel, { color: t.textoSecundario }]}>grasa</EliteText>
                   </View>
                 </View>
                 <View style={[s.useRow, { borderTopColor: t.borde }]}>
-                  <Ionicons name="add-circle" size={16} color={acento} />
-                  <EliteText style={[s.useText, { color: acento }]}>Toca para registrar hoy</EliteText>
+                  {/* Cromo de navegación a propósito. El glifo de libro que
+                      pedía el diseño es glifo de FUNCIÓN y esos se dibujan con
+                      AppIcon, no a mano: el censo de iconos lo tumba, y cuenta
+                      el nombre en cualquier parte del archivo, comentarios
+                      incluidos. El chevron dice lo mismo y es el mismo gesto
+                      que ya usan las filas del Centro. */}
+                  <Ionicons name={recipe.origin === 'catalogo' ? 'chevron-forward' : 'add-circle'} size={16} color={acento} />
+                  <EliteText style={[s.useText, { color: acento }]}>
+                    {recipe.origin === 'catalogo' ? 'Toca para ver ingredientes y pasos' : 'Toca para registrar hoy'}
+                  </EliteText>
                 </View>
               </View>
             </AnimatedPressable>
@@ -403,8 +537,44 @@ export function RecetasTab({ onIrALista }: Props) {
         </Animated.View>
       ))}
 
+      {/* Vacío POR EL FILTRO. Es otro estado: hay recetas, no se ven. Decirle
+          "sin recetas guardadas" a alguien que acaba de teclear "nopal" es
+          mandarlo a crear una que ya existe. */}
+      {!loading && recipes.length > 0 && visibles.length === 0 && (
+        <View style={s.emptyState}>
+          <Ionicons name="search-outline" size={40} color={t.bordeMarcado} />
+          <EliteText style={[s.emptyTitle, { color: t.texto }]}>Ninguna receta coincide</EliteText>
+          <EliteText style={[s.emptySubtitle, { color: t.textoSecundario }]}>
+            Prueba con otra palabra o quita los filtros
+          </EliteText>
+          <Pressable
+            onPress={() => { haptic.light(); setBusqueda(''); setMomento('todas'); setSoloFavoritas(false); }}
+            style={[s.filterPill, { backgroundColor: t.hundido, borderColor: t.borde }]}
+          >
+            <EliteText style={[s.filterText, { color: t.textoSecundario }]}>Quitar filtros</EliteText>
+          </Pressable>
+        </View>
+      )}
+
+      {/* No se pudo leer. Va antes del vacío porque no es lo mismo. */}
+      {!loading && cargaFallida && recipes.length === 0 && (
+        <View style={s.emptyState}>
+          <Ionicons name="cloud-offline-outline" size={44} color={t.bordeMarcado} />
+          <EliteText style={[s.emptyTitle, { color: t.texto }]}>No se pudieron leer tus recetas</EliteText>
+          <EliteText style={[s.emptySubtitle, { color: t.textoSecundario }]}>
+            Tus recetas siguen guardadas. Revisa tu conexión e intenta de nuevo.
+          </EliteText>
+          <Pressable
+            onPress={() => { haptic.light(); loadRecipes(); }}
+            style={[s.filterPill, { backgroundColor: t.hundido, borderColor: t.borde }]}
+          >
+            <EliteText style={[s.filterText, { color: t.textoSecundario }]}>Reintentar</EliteText>
+          </Pressable>
+        </View>
+      )}
+
       {/* Estado vacío */}
-      {!loading && recipes.length === 0 && (
+      {!loading && !cargaFallida && recipes.length === 0 && (
         <View style={s.emptyState}>
           <Ionicons name="bookmark-outline" size={48} color={t.bordeMarcado} />
           <EliteText style={[s.emptyTitle, { color: t.texto }]}>Sin recetas guardadas</EliteText>
@@ -499,24 +669,24 @@ export function RecetasTab({ onIrALista }: Props) {
               <View style={{ flex: 1 }}>
                 <EliteText variant="caption" style={[s.inputLabel, { color: t.textoSecundario }]}>Calorías</EliteText>
                 <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={newCalories} onChangeText={setNewCalories}
-                  placeholder="0" placeholderTextColor={t.textoTenue} keyboardType="number-pad" />
+                  placeholder="opcional" placeholderTextColor={t.textoTenue} keyboardType="number-pad" />
               </View>
               <View style={{ flex: 1 }}>
                 <EliteText variant="caption" style={[s.inputLabel, { color: t.textoSecundario }]}>Proteína (g)</EliteText>
                 <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={newProtein} onChangeText={setNewProtein}
-                  placeholder="0" placeholderTextColor={t.textoTenue} keyboardType="decimal-pad" />
+                  placeholder="opcional" placeholderTextColor={t.textoTenue} keyboardType="decimal-pad" />
               </View>
             </View>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: Spacing.sm }}>
               <View style={{ flex: 1 }}>
                 <EliteText variant="caption" style={[s.inputLabel, { color: t.textoSecundario }]}>Carbs (g)</EliteText>
                 <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={newCarbs} onChangeText={setNewCarbs}
-                  placeholder="0" placeholderTextColor={t.textoTenue} keyboardType="decimal-pad" />
+                  placeholder="opcional" placeholderTextColor={t.textoTenue} keyboardType="decimal-pad" />
               </View>
               <View style={{ flex: 1 }}>
                 <EliteText variant="caption" style={[s.inputLabel, { color: t.textoSecundario }]}>Grasa (g)</EliteText>
                 <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto }]} value={newFat} onChangeText={setNewFat}
-                  placeholder="0" placeholderTextColor={t.textoTenue} keyboardType="decimal-pad" />
+                  placeholder="opcional" placeholderTextColor={t.textoTenue} keyboardType="decimal-pad" />
               </View>
             </View>
 
@@ -543,7 +713,16 @@ const velo = (t: AppThemeTokens) =>
 const s = StyleSheet.create({
   subtitle: { fontSize: FontSizes.sm, marginBottom: Spacing.md },
 
-  filterRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.md },
+  buscadorCaja: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderRadius: Radius.sm, borderWidth: 0.5,
+    paddingHorizontal: Spacing.sm, marginBottom: Spacing.sm,
+  },
+  // La altura es fija: sin ella el TextInput mide distinto en Android y en iOS.
+  buscadorInput: { flex: 1, height: 40, fontSize: FontSizes.sm, padding: 0 },
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: Spacing.md },
+  filterSep: { width: 1, height: 20, marginHorizontal: 2 },
+  contadorRow: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.sm, marginBottom: Spacing.md },
   filterPill: {
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 17,
     borderWidth: 0.5,
