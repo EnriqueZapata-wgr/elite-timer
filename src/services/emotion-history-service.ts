@@ -14,6 +14,8 @@ import { parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { warn as logWarn } from '@/src/lib/logger';
 import type { QuadrantKey } from '@/src/data/emotions-library';
 import { type CorrelationDef } from './emotion-history-core';
+// 31-ago-2026 (decisión 15.1): el día del ayuno es el de FIN. `date` es inicio.
+import { diaCanonico, diasAntes, VENTANA_DIA_CANONICO_DIAS } from '@/src/services/fasting-cumplido-core';
 
 /** Check-in completo para historial (incluye ejes y contexto). */
 export interface HistoryCheckinRecord {
@@ -174,12 +176,16 @@ async function fetchFasting(userId: string, since: string): Promise<string[]> {
   try {
     const { data, error } = await supabase
       .from('fasting_logs')
-      .select('date')
+      .select('date, fast_start, fast_end')
       .eq('user_id', userId)
       .eq('status', 'completed')
-      .gte('date', since);
+      // 6 dias mas atras: el ayuno que empezo antes de `since` y termino dentro cuenta.
+      .gte('date', diasAntes(since, VENTANA_DIA_CANONICO_DIAS));
     if (error) throw error;
-    return [...new Set((data ?? []).map((r: any) => r.date as string))];
+    const dias = (data ?? [])
+      .map((r: any) => diaCanonico(r))
+      .filter((d): d is string => !!d && d >= since);
+    return [...new Set(dias)];
   } catch (e) {
     logWarn('[emotion-history] fasting fetch failed', e);
     return [];

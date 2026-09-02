@@ -6,27 +6,31 @@
 export const CYCLE_INFO = {
   // MB-7: copy BIDIRECCIONAL — folicular/ovulatoria empujan, lútea/menstrual
   // se ajustan (nunca "descanso"/limitación). El ciclo es una ventaja, no una lista de límites.
+  // 31-ago-2026 (17.2): los rangos de días describen un ciclo de 28 con periodo
+  // de 5 y salen de getPhase (cycle-phase-core): ovulatoria 12-14 (banda alta
+  // de ventanaOvulatoria), lútea 15-28. Antes decían 6-13 / 13-15 / 16-28 y no
+  // coincidían ni entre sí ni con la tarjeta. Em dashes fuera del copy (regla 2).
   phases: {
     menstrual: {
       title: 'Fase menstrual',
-      text: 'Días 1-5. Empieza tu ciclo nuevo. Tu cuerpo te da señales muy claras — es la fase para afinar: entrena con lo que tienes hoy (fuerza técnica, movilidad, hierro en el plato) y baja el ego, no la ambición.',
+      text: 'En un ciclo de 28 días: del 1 al 5. Empieza tu ciclo nuevo. Tu cuerpo te da señales muy claras: es la fase para afinar, entrena con lo que tienes hoy (fuerza técnica, movilidad, hierro en el plato) y baja el ego, no la ambición.',
     },
     follicular: {
       title: 'Fase folicular',
-      text: 'Días 6-13. Los estrógenos suben: tu ventana de construir. El cuerpo responde mejor al estímulo — mete los bloques duros, lo nuevo, la progresión. Metabolismo eficiente y energía en subida.',
+      text: 'En un ciclo de 28 días: del 6 al 11. Los estrógenos suben: tu ventana de construir. El cuerpo responde mejor al estímulo. Mete los bloques duros, lo nuevo, la progresión. Metabolismo eficiente y energía en subida.',
     },
     ovulation: {
       title: 'Ovulación',
-      text: 'Días 13-15. Pico de estrógenos y LH: fuerza, potencia y confianza al máximo. Es LA ventana para ir por un récord. Aprovéchala.',
+      text: 'En un ciclo de 28 días: del 12 al 14, los dos días previos a la ovulación estimada y el día mismo. Pico de estrógenos y LH: fuerza, potencia y confianza al máximo. Es LA ventana para ir por un récord. Aprovéchala.',
     },
     luteal: {
       title: 'Fase lútea',
-      text: 'Días 16-28. La progesterona toma el mando: fase de sostener y consolidar. Sigues fuerte, con otra marcha — ajusta el volumen si un día lo pide, no la intención. Los antojos son hormonales, no falta de carácter.',
+      text: 'En un ciclo de 28 días: del 15 al 28. La progesterona toma el mando: fase de sostener y consolidar. Sigues fuerte, con otra marcha: ajusta el volumen si un día lo pide, no la intención. Los antojos son hormonales, no falta de carácter.',
     },
   },
   fertileWindow: {
     title: 'Ventana fértil',
-    text: 'Los 5-6 días alrededor de la ovulación donde es más probable concebir. Incluye los 3-4 días antes de ovular (los espermatozoides sobreviven hasta 5 días) y 1-2 días después.',
+    text: 'Los seis días en que es más probable concebir: los cinco previos a la ovulación estimada y el día mismo (los espermatozoides sobreviven hasta 5 días). El calendario marca con relleno los de mayor probabilidad y con punto hueco los de menor, y la banda se ensancha si tus ciclos varían. Es una estimación, no una confirmación de ovulación.',
   },
   temperature: {
     title: '¿Para qué registrar temperatura?',

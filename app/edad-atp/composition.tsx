@@ -261,7 +261,10 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   sumRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.xs },
   sumLabel: { color: t.textoSecundario },
   sumValue: { color: t.texto, fontFamily: Fonts.semiBold },
-  updateBtn: { marginTop: Spacing.sm, borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)', borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center' },
+  // 31-ago-2026 (21.3): el borde lima al 40% sobre la card clara mide 1.14,
+  // el botón no se veía como forma. En claro el contorno es el teal calibrado
+  // (4.64 sobre card); en oscuro queda el lima translúcido de siempre.
+  updateBtn: { marginTop: Spacing.sm, borderWidth: 1, borderColor: t.kind === 'dark' ? 'rgba(168,224,42,0.4)' : t.tealTexto, borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center' },
   updateBtnText: { color: t.textoSecundario, fontFamily: Fonts.semiBold },
   note: { color: t.textoSecundario, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.xs },
   saveBtn: { marginTop: Spacing.sm },

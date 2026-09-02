@@ -26,9 +26,15 @@ interface Props {
   /** Cerró sin aceptar (la función no se activa). */
   onDecline: () => void;
   saving?: boolean;
+  /**
+   * 31-ago-2026 (17.5): líneas en lenguaje llano ARRIBA del checkbox (qué se
+   * guarda, para qué, cómo se retira). El texto del checkbox sigue siendo el
+   * legal exacto; esto solo lo explica. Opcional: CB-6 y el onboarding no lo usan.
+   */
+  details?: readonly string[];
 }
 
-export function ContextualConsentModal({ visible, checkboxId, title, onAccept, onDecline, saving }: Props) {
+export function ContextualConsentModal({ visible, checkboxId, title, onAccept, onDecline, saving, details }: Props) {
   const [checked, setChecked] = useState(false);
   const t = useSurfaceTokens();
   const s = useMemo(() => makeStyles(t), [t]);
@@ -45,6 +51,17 @@ export function ContextualConsentModal({ visible, checkboxId, title, onAccept, o
             Tú tienes el control: esta función solo se activa con tu consentimiento
             expreso, y puedes revocarlo cuando quieras desde Perfil → Privacidad.
           </EliteText>
+
+          {details && details.length > 0 && (
+            <View style={s.details}>
+              {details.map((d) => (
+                <View key={d} style={s.detailRow}>
+                  <View style={s.detailDot} />
+                  <EliteText style={s.detailText}>{d}</EliteText>
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={{ alignSelf: 'stretch', marginTop: Spacing.md }}>
             <ConsentCheckboxRow
@@ -94,6 +111,14 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   body: {
     fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: t.textoSecundario,
     textAlign: 'center', marginTop: 10, lineHeight: 20,
+  },
+  details: { alignSelf: 'stretch', marginTop: Spacing.md, gap: 8 },
+  detailRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  // La viñeta va con la tinta del texto que acompaña: el lima sobre la card
+  // clara no llega a 3:1 como forma (manual 3.6, regla 1).
+  detailDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: t.textoSecundario, marginTop: 7 },
+  detailText: {
+    flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: t.textoSecundario, lineHeight: 20,
   },
   primaryBtn: {
     alignSelf: 'stretch', backgroundColor: ATP_BRAND.lime, borderRadius: Radius.lg,

@@ -37,7 +37,7 @@ import { routeUploadByType, type UploadType } from '@/src/constants/upload-types
 import { captureRouteFor } from '@/src/constants/data-capture-routes';
 import { validateLabFile } from '@/src/utils/lab-file-validator';
 import { needsCompression } from '@/src/services/lab-compressor';
-import { warn as logWarn } from '@/src/lib/logger';
+import { warn as logWarn, error as logError } from '@/src/lib/logger';
 import { useLabProcessing } from '@/src/hooks/useLabProcessing';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, withOpacity, TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
@@ -129,6 +129,28 @@ function MyHealthScreen() {
   }, []);
   const soltarCandado = useCallback((token: number) => {
     if (!token || eligiendoRef.current === token) eligiendoRef.current = 0;
+  }, []);
+
+  /**
+   * 31-ago-2026 (pendiente 18.3): lo que pasa cuando subir un estudio falla.
+   * Decision de Enrique: se cancela la operacion, se suelta todo el estado y
+   * el candado, se le dice a la persona "vuelvelo a intentar", y el fallo se
+   * manda a Sentry CON contexto (tipo, tamano, etapa) para poder corregir la
+   * causa raiz cuando llegue. Antes cada catch hacia una cosa distinta y
+   * ninguno avisaba a Sentry: el error se veia en pantalla y se perdia.
+   */
+  const fallaSubida = useCallback((err: unknown, etapa: string, extra: Record<string, unknown> = {}) => {
+    const e = err instanceof Error ? err : new Error(String(err));
+    // El nombre se prefija para que en Sentry se agrupe por etapa y no por
+    // el mensaje suelto de supabase.
+    e.name = `SubidaEstudio[${etapa}]`;
+    // warn deja breadcrumb en Sentry (el contexto viaja ahi); error captura.
+    logWarn('[labs] subida fallo', { etapa, ...extra, mensaje: e.message });
+    logError(e);
+    eligiendoRef.current = 0;
+    setUploading(false);
+    setProcessing(false);
+    setResult({ error: 'No se pudo subir el archivo. Vuélvelo a intentar.' });
   }, []);
 
   useFocusEffect(
@@ -365,8 +387,7 @@ function MyHealthScreen() {
         labProcessing.startProcessing(uploadId, fileName, fileSize, v.pageCount);
         loadData();
       } catch (err: any) {
-        setUploading(false);
-        setResult({ error: userErrorMessage(err, 'No se pudo subir el archivo.') });
+        fallaSubida(err, 'labs', { fileType, fileSize, uploadType: type?.id ?? 'labs', pageCount: v.pageCount });
       }
       return;
     }
@@ -392,7 +413,8 @@ function MyHealthScreen() {
       }
       loadData();
     } catch (err: any) {
-      setResult({ error: userErrorMessage(err, 'No se pudo subir el archivo.') });
+      fallaSubida(err, 'contexto', { fileType, uploadType: type?.id ?? 'contexto' });
+      return;
     }
     setUploading(false);
     setProcessing(false);

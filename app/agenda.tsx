@@ -29,38 +29,20 @@ import {
   generateAgendaEvents, getAgendaForDate, getRestrictionsForDate, createCustomEvent, updateAgendaEvent,
   deleteAgendaEvent, setEventStatus, snoozeEvent, syncElectronFromEvent, type AgendaEventInstance,
 } from '@/src/services/agenda-service';
-import { completeInterventionByKey } from '@/src/services/interventions/intervention-service';
+import { completeInterventionByKey, adjustIntervention } from '@/src/services/interventions/intervention-service';
 import { findUserDuplicateGroups, type UserDupCandidate } from '@/src/services/interventions/intervention-agenda-core';
 import { hasNotificationPermission, registerForPushNotificationsAsync } from '@/src/services/push-notification-service';
 import { syncAgendaLocalNotifications } from '@/src/services/agenda-local-notifications';
+// 31-ago-2026 (12.1): el orden y los divisores viven en el núcleo puro con
+// test — pospuestos donde cayeron, sin hora al final bajo SIN HORA.
+import { insertDayPartDividers, localHHMM } from '@/src/services/agenda-core';
+import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
 
 function formatToday(): string {
   const d = new Date(getLocalToday() + 'T12:00:00');
   const days = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
   const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
-}
-
-/** Item de la lista: un evento o un divisor de franja horaria. */
-type AgendaListItem = AgendaEventInstance | { divider: string };
-
-/**
- * Inserta divisores MAÑANA (5-12h) / TARDE (12-18h) / NOCHE (18h+) donde cambia el rango horario.
- * NO reordena (los eventos ya vienen por hora), solo intercala labels.
- */
-function insertDayPartDividers(events: AgendaEventInstance[]): AgendaListItem[] {
-  const out: AgendaListItem[] = [];
-  let lastPart: 'morning' | 'afternoon' | 'evening' | null = null;
-  for (const ev of events) {
-    const h = parseInt(ev.time.split(':')[0], 10);
-    const part = h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
-    if (part !== lastPart) {
-      out.push({ divider: part === 'morning' ? 'MAÑANA' : part === 'afternoon' ? 'TARDE' : 'NOCHE' });
-      lastPart = part;
-    }
-    out.push(ev);
-  }
-  return out;
 }
 
 export default function AgendaScreen() {
@@ -76,6 +58,10 @@ export default function AgendaScreen() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<AgendaEventInstance | null>(null);
   const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null);
+  // 12.1: "Cambiar hora" abre la rueda (TimeWheelPicker, la misma de journal y
+  // Centro ATP) como hermana de los modales: el de acciones se oculta mientras
+  // la rueda está abierta para no anidar Modal dentro de Modal.
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
 
   const reload = useCallback(async () => {
     if (!userId) { setEvents([]); setRestrictions([]); setLoading(false); return; }
@@ -181,6 +167,40 @@ export default function AgendaScreen() {
       },
     ]);
   };
+  /**
+   * 12.1: a dónde va "Cambiar hora" según la fuente del evento.
+   *  · supplement → la ficha de Suplementos (la hora real vive en dose_times;
+   *    editar aquí la agenda la reconciliaría de vuelta al minuto siguiente).
+   *  · lo demás → la rueda.
+   */
+  const handleChangeTime = () => {
+    if (!selected) return;
+    if (selected.source === 'supplement') {
+      setSelected(null);
+      router.push('/supplements');
+      return;
+    }
+    setTimePickerOpen(true);
+  };
+  const handleTimeConfirm = async (date: Date) => {
+    const time = localHHMM(date);
+    setTimePickerOpen(false);
+    if (!userId || !selected) return;
+    const ev = selected;
+    setSelected(null);
+    if (ev.source === 'intervention' && ev.interventionKey) {
+      // Una sola verdad: la hora de una intervención es su custom_time (F3).
+      // HOY y la agenda la leen de ahí; el sync de agenda la reconcilia.
+      const ok = await adjustIntervention(userId, ev.interventionKey, { custom_time: time });
+      if (!ok) { Alert.alert('No se pudo', 'Inténtalo de nuevo en un momento.'); return; }
+      await generateAgendaEvents(userId, getLocalToday());
+    } else {
+      await updateAgendaEvent(userId, ev.eventId, { time });
+    }
+    haptic.success();
+    DeviceEventEmitter.emit('day_changed');
+    reload();
+  };
   const handleSaveForm = async (value: EventFormValue) => {
     if (!userId) return;
     if (formMode === 'edit' && selected) {
@@ -283,14 +303,31 @@ export default function AgendaScreen() {
         <Ionicons name="add" size={28} color={tokens.textoSobreLima} />
       </AnimatedPressable>
 
-      {/* Modal de acciones al tocar una card */}
+      {/* Modal de acciones al tocar una card. Una toma de suplemento se edita
+          en su ficha (dose_times manda): editar aquí la copia de agenda se
+          reconciliaría de vuelta, así que Editar también lleva a Suplementos. */}
       <EventActionModal
-        event={formMode ? null : selected}
-        onEdit={() => setFormMode('edit')}
+        event={formMode || timePickerOpen ? null : selected}
+        onEdit={() => (selected?.source === 'supplement' ? handleChangeTime() : setFormMode('edit'))}
+        onChangeTime={handleChangeTime}
         onComplete={handleComplete}
         onSnooze={handleSnooze}
         onDelete={handleDelete}
         onClose={() => setSelected(null)}
+      />
+
+      {/* 12.1: rueda de hora (hermana de los modales, nunca anidada). */}
+      <TimeWheelPicker
+        visible={timePickerOpen}
+        initialValue={(() => {
+          const d = new Date();
+          const [h, m] = (selected?.effectiveTime ?? selected?.time ?? '08:00').split(':').map(Number);
+          d.setHours(Number.isFinite(h) ? h : 8, Number.isFinite(m) ? m : 0, 0, 0);
+          return d;
+        })()}
+        title={selected ? `Hora de ${selected.name}` : 'Hora del evento'}
+        onConfirm={handleTimeConfirm}
+        onCancel={() => setTimePickerOpen(false)}
       />
 
       {/* Modal crear/editar */}

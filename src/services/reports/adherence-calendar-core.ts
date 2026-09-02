@@ -7,6 +7,8 @@
  * AUSENTE (sin datos). "Sin datos" y "no cumplió" jamás se pintan igual.
  */
 
+import { ayunoCumplido } from '../fasting-cumplido-core';
+
 export type MetricKey = 'ayuno' | 'proteina' | 'agua' | 'actividad' | 'sueno';
 
 /** Métricas del calendario en orden de render. `sueno` existe en el modelo
@@ -23,11 +25,12 @@ export type FlagsByDate = Record<string, DayFlags>;
 // ── Reglas de "meta cumplida" por métrica (puras, testeables) ──
 
 /** Ayuno: sesión completada; si tenía meta, cuenta al alcanzarla (con 5% de
- *  tolerancia — terminar en 15.3h un 16:8 arrancado tarde sigue siendo el hábito). */
+ *  tolerancia — terminar en 15.3h un 16:8 arrancado tarde sigue siendo el hábito).
+ *  31-ago-2026: la aritmética vive en fasting-cumplido-core (una sola definición
+ *  de "cumplí mi ayuno" para toda la app). Esta firma se conserva por sus
+ *  llamadores y su test, que sigue siendo el candado de la tolerancia. */
 export function fastingMet(status: string, actualHours: number | null, targetHours: number | null): boolean {
-  if (status !== 'completed' || actualHours == null || actualHours <= 0) return false;
-  if (targetHours == null || targetHours <= 0) return true;
-  return actualHours >= targetHours * 0.95;
+  return ayunoCumplido({ status, actual_hours: actualHours, target_hours: targetHours });
 }
 
 export function proteinMet(totalG: number, goalG: number): boolean {

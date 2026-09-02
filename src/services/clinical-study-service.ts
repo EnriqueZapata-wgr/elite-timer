@@ -10,6 +10,12 @@ import { ATP_LLM } from '@/src/constants/llm-config';
 // === TYPES ===
 
 export interface StudyFile {
+  /**
+   * El PATH de storage, no una URL. Se llamaba url y guardaba una URL firmada
+   * de un ano; desde el 30-ago-2026 guarda el path y se firma al usarse. El
+   * nombre se conserva porque las filas viejas ya escritas traen la URL
+   * completa, y getFreshSignedUrl se traga las dos formas.
+   */
   url: string;
   type: 'image' | 'pdf';
   name: string;
@@ -143,13 +149,23 @@ export async function addFileToStudy(
     });
   if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
-  const { data: urlData } = await supabase.storage
-    .from('clinical-studies')
-    .createSignedUrl(storagePath, 365 * 24 * 60 * 60);
-
-  const fileUrl = urlData?.signedUrl ?? '';
+  /**
+   * 30-ago-2026: aqui se firmaba una URL de 365 dias y se guardaba en la fila.
+   * Una URL firmada es un enlace PUBLICO mientras dura: no se revoca, y el PDF
+   * de un laboratorio filtrado en un log, una captura o un respaldo queda
+   * expuesto un ano. Hueco 3 de COMPLIANCE_DATOS_STORES.
+   *
+   * Y no servia para nada: se comprobo que NADIE lee StudyFile.url. Se creaba
+   * el riesgo sin ganar la funcion.
+   *
+   * Ahora se guarda el PATH, que es la doctrina de la casa desde MB-13 5.3.
+   * Quien construya el visor firma al momento con getFreshSignedUrl (10 min):
+   *   getFreshSignedUrl('clinical-studies', archivo.storage_path ?? archivo.url)
+   * Esa funcion acepta tanto un path crudo como una URL firmada vieja, asi que
+   * las filas de antes siguen funcionando sin migracion.
+   */
   const newFile: StudyFile = {
-    url: fileUrl,
+    url: storagePath,
     type: fileType,
     name: fileName ?? `study_${Date.now()}.${ext}`,
     uploaded_at: new Date().toISOString(),

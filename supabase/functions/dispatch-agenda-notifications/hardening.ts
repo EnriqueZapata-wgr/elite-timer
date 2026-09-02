@@ -196,3 +196,30 @@ export function isPendingAnomalous(
 ): boolean {
   return pendingCount > threshold;
 }
+
+// ── T6: recordatorios vencidos (31-ago-2026, pendiente 12.3) ────────────────
+
+/**
+ * Un recordatorio se manda si su notify_at cayó hace menos de esto. Más viejo
+ * = vencido: se marca notified sin enviar. 20 min cubre un cron pausado un
+ * rato; no cubre "el usuario abrió la app 8 horas después" (ese era el bug).
+ */
+export const STALE_NOTIFY_MINUTES = 20;
+
+/**
+ * true si el recordatorio ya no tiene sentido mandarlo. Evidencia en la base
+ * del dueño: las instancias del dia nacen cuando abre /agenda; abriendo a las
+ * 21:49, el log de las 07:30 nacia con notify_at 07:20 y este despachador lo
+ * mandaba a las 21:50 ("Luz roja · en breve" de noche, 7 dias distintos).
+ * notify_at ilegible = vencido (ante la duda, silencio).
+ */
+export function isStaleNotify(
+  notifyAtIso: string | null | undefined,
+  nowMs: number,
+  maxAgeMinutes: number = STALE_NOTIFY_MINUTES,
+): boolean {
+  if (!notifyAtIso) return true;
+  const t = new Date(notifyAtIso).getTime();
+  if (!Number.isFinite(t)) return true;
+  return nowMs - t > maxAgeMinutes * 60_000;
+}

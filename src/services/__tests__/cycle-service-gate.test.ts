@@ -30,11 +30,27 @@ vi.mock('@/src/services/app-mode-service', () => ({
 
 import { getCycleInfo } from '@/src/services/cycle-service';
 
+/**
+ * 1-sep-2026: el periodo del fixture era una fecha FIJA (2026-07-20) y
+ * getCycleInfo usa el reloj real. La guarda de frescura de resolverCiclo
+ * (cycleLen + FRESCURA_DIAS_EXTRA = 42 dias) es correcta y no cambio, pero el
+ * test caducaba solo: el 30 de agosto era el dia 42 y pasaba, el 1 de
+ * septiembre era el 44 y devolvia null. Un test que se rompe por el calendario
+ * no vigila nada. Ahora el periodo empezo hace 12 dias, siempre.
+ */
+function fechaHaceDias(dias: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - dias);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 function setup(sex: string | null, mode: 'propio' | 'acompanante' | null): FakeSupabase {
   const fake = makeFakeSupabase({
     client_profiles: { data: sex ? { biological_sex: sex } : null, error: null },
     cycle_periods: {
-      data: [{ start_date: '2026-07-20', end_date: '2026-07-24' }],
+      data: [{ start_date: fechaHaceDias(12), end_date: fechaHaceDias(8) }],
       error: null,
     },
     cycle_settings: {
@@ -49,7 +65,7 @@ function setup(sex: string | null, mode: 'propio' | 'acompanante' | null): FakeS
 
 beforeEach(() => { state.fake = null; });
 
-describe('getCycleInfo — la raíz del ciclo hacia salud', () => {
+describe('getCycleInfo: la raíz del ciclo hacia salud', () => {
   it('female en modo propio devuelve datos (lo de siempre)', async () => {
     setup('female', 'propio');
     const info = await getCycleInfo('user-test');
@@ -63,7 +79,7 @@ describe('getCycleInfo — la raíz del ciclo hacia salud', () => {
     expect(await getCycleInfo('user-test')).not.toBeNull();
   });
 
-  it('ACOMPAÑANTE devuelve null AUNQUE sea female — y ni siquiera consulta las tablas de ciclo', async () => {
+  it('ACOMPAÑANTE devuelve null AUNQUE sea female, y ni siquiera consulta las tablas de ciclo', async () => {
     // LA mutación que este test entierra: quitarle el modo al gate de la
     // raíz. Si esto pasa, los datos del calendario de otra persona entran a
     // ARGOS, day-compiler, recetas y prescripción como salud del usuario.

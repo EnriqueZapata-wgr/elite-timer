@@ -107,12 +107,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: fullName } },
     });
     if (error) return { error: translateError(error.message) };
+    /**
+     * 30-ago-2026: con la confirmacion por correo activada, Supabase NO falla
+     * cuando el correo ya tiene cuenta. Contesta 200, no crea nada y no manda
+     * correo: es su proteccion contra enumeracion de usuarios, y es deliberada.
+     * Mirando solo `error`, la app daba "Cuenta creada exitosamente" y mandaba
+     * a la persona a esperar un correo que no existe. Cada quien de la beta que
+     * ya tuviera cuenta y no se acordara chocaba con esa pared.
+     *
+     * La senal es `identities`: viene vacia cuando el correo ya estaba tomado,
+     * y con un elemento cuando el alta es de verdad. Si el arreglo no viene
+     * (version distinta del SDK), NO se bloquea: mejor dejar pasar un alta
+     * legitima que inventar un error que no ocurrio.
+     */
+    if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      return { error: 'Ya existe una cuenta con ese correo. Inicia sesión, o usa "Olvidé mi contraseña" si no la recuerdas.' };
+    }
     return { error: null };
   }, []);
 

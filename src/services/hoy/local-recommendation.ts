@@ -4,6 +4,8 @@
  * cae a un mensaje por defecto. Función PURA (sin React Native ni supabase) → 100% testeable.
  */
 
+import { metaAlcanzada } from '@/src/services/fasting-cumplido-core';
+
 /** Evento mínimo que necesita la recomendación (subset de AgendaItem de day-compiler). */
 export interface AgendaEventLike {
   category: string;            // 'meal' | 'exercise' | 'rhythm' | 'mind' | 'supplement' | 'recovery' | …
@@ -37,7 +39,8 @@ export function generateLocalRecommendation(event: AgendaEventLike, ctx: Recomme
   if (cat === 'meal' && has(event.name, 'desayuno', 'romper', 'ayuno')) {
     const fh = ctx.fastingHours ?? 0;
     const ft = ctx.fastingTarget ?? 0;
-    if (ft > 0 && fh >= ft) return `Es momento de romper tu ayuno, vas en ${Math.round(fh)}h`;
+    // 31-ago-2026: "ya llegué" se decide en fasting-cumplido-core, no aquí.
+    if (metaAlcanzada(fh, ft)) return `Es momento de romper tu ayuno, vas en ${Math.round(fh)}h`;
     if (ft > 0) return `Falta para tu ventana, vas en ${Math.round(fh)}h de ${ft}h`;
     return 'Arranca el día con una comida con buena proteína';
   }
@@ -57,9 +60,9 @@ export function generateLocalRecommendation(event: AgendaEventLike, ctx: Recomme
 
   // ── Ejercicio ──
   if (cat === 'exercise') {
-    if (ctx.exerciseDoneToday) return 'Ya entrenaste hoy — recupera y muévete suave';
+    if (ctx.exerciseDoneToday) return 'Ya entrenaste hoy: recupera y muévete suave';
     if (has(event.name, 'cardio')) return 'Zona 2 hoy: ritmo cómodo, nariz, sin reventar';
-    if (has(event.name, 'fuerza', 'push', 'pull', 'pierna')) return 'Energía en pico — dale con todo, técnica primero';
+    if (has(event.name, 'fuerza', 'push', 'pull', 'pierna')) return 'Energía en pico: dale con todo, técnica primero';
     return 'Muévete: hasta 10 min cuentan';
   }
 
@@ -78,7 +81,7 @@ export function generateLocalRecommendation(event: AgendaEventLike, ctx: Recomme
     return 'Cerca del atardecer, prepara tus lentes rojos';
   }
   if (cat === 'rhythm' && has(event.name, 'grounding')) {
-    return 'Pies en el pasto unos minutos — reconecta';
+    return 'Pies en el pasto unos minutos: reconecta';
   }
 
   // ── Mente ──
@@ -96,13 +99,13 @@ export function generateLocalRecommendation(event: AgendaEventLike, ctx: Recomme
   // ── Métrica (UV, etc.) ──
   if (cat === 'metric' && has(event.name, 'uv')) {
     const ss = ctx.sunsetHour ?? 19;
-    if (ctx.hour > ss) return 'El sol ya bajó — revisa el UV mañana';
+    if (ctx.hour > ss) return 'El sol ya bajó: revisa el UV mañana';
     return 'Revisa el índice UV antes de exponerte';
   }
 
   // ── Fallback por hora del día ──
   if (event.defaultMessage) return event.defaultMessage;
   if (ctx.hour < 12) return 'Sigue tu plan de la mañana';
-  if (ctx.hour < 18) return 'Vas a la mitad del día — mantén el ritmo';
+  if (ctx.hour < 18) return 'Vas a la mitad del día: mantén el ritmo';
   return 'Cierra bien el día, prepárate para descansar';
 }

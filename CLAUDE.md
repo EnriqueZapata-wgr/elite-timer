@@ -88,7 +88,7 @@ Roadmap → v2.0.0 (julio-agosto 2026 — publicación a stores)
 7. TESTS (Braverman 313Q + 5 quizzes funcionales)
 
 ## ARGOS
-- Modelo: claude-sonnet-4-20250514 (TODO: migrar a 4-6 en PROMPT_004)
+- Modelo: claude-sonnet-5 vía argos-proxy (PRIMARY_MODEL en src/constants/llm-config.ts y supabase/functions/argos-proxy/index.ts), fallback gemini-2.5-flash. Corregido 31-ago-2026: decía claude-sonnet-4-20250514.
 - Edge Function: anthropic-proxy (TODO: argos-proxy + fallback OpenAI)
 - Contexto: Braverman + quizzes + glucosa + UV + ejercicio + ayuno + protocolo + cronotipo
 - Rate limits per tier — pendiente PROMPT_004
@@ -127,3 +127,23 @@ semanas. Ver sección 10 de `DECISIONES_PREVENTA.md`. En corto:
   diciendo qué evidencia los tumba.
 - Costos con números de documentación, sin colchón.
 - Una decisión tomada no se reabre sin evidencia nueva.
+
+## Migraciones: el CLI NO abre transaccion
+
+`npx supabase db push` (CLI 2.102) corre cada sentencia en autocommit. Se
+descubrio el 1-sep-2026 cuando un `LOCK TABLE` trono en la sentencia 1 de la
+311. Consecuencia: una migracion con varias sentencias que dependan unas de
+otras, o con un bloque final que valide y lance excepcion, debe traer su
+propio `BEGIN;` al principio y `COMMIT;` al final. Sin eso, la excepcion no
+revierte lo anterior. Las migraciones de una sola sentencia o de puros
+`ADD COLUMN IF NOT EXISTS` no lo necesitan.
+
+## Antes de escribir copy
+
+`R and D/embudo/narrativa/MANUAL_DE_COMUNICACION.md` tiene el porqué de ATP en
+palabras de Mariana y Enrique, de su conversación del 27 de agosto de 2026. Las
+frases marcadas como cita son textuales y no se reescriben.
+
+La idea que sostiene el producto: **se monitorea porque se perdió la intuición,
+y se monitorea para volver a necesitar menos.** ATP no es una cosa más que
+agregar a la lista, es la que te deja quitar cosas.

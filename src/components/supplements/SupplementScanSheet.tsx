@@ -208,6 +208,13 @@ export function SupplementScanSheet({ visible, userId, onClose, onPlanChanged }:
       name: String(result.supplement_name ?? productName ?? 'Suplemento'),
       dosage: result.daily_dose ? String(result.daily_dose) : null,
       form: result.form ? String(result.form) : null,
+      // 312 (10.2): la porcion y los activos por porcion que leyo la IA
+      // llegan a la ficha; la pantalla los muestra bajo el nombre.
+      // daily_dose NO es porcion (es la dosis diaria): sin serving_size, null.
+      scanServing: result.serving_size ? String(result.serving_size) : null,
+      scanActives: Array.isArray(result.active_ingredients)
+        ? result.active_ingredients.map((ing: any) => ({ name: String(ing?.name ?? ''), amount: ing?.amount != null ? String(ing.amount) : null }))
+        : null,
     });
     setAddingToPlan(false);
     if (outcome.status === 'created') {

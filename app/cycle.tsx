@@ -34,6 +34,7 @@ import { PILLAR_GRADIENTS, TEXT_COLORS, withOpacity, type AppThemeTokens } from 
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { useCycleGate } from '@/src/hooks/use-cycle-gate';
+import { useCycleConsent, CycleConsentBlock } from '@/src/components/cycle/CycleConsentGate';
 import { derivePregnancyProgress, type PregnancyStatus } from '@/src/utils/pregnancy';
 import { userErrorMessage } from '@/src/utils/user-error';
 import { type PeriodStartLike } from '@/src/services/cycle/cycle-length-core';
@@ -214,6 +215,10 @@ export default function CycleScreen() {
   const acompanante = gate.mode === 'acompanante';
   const userId = user?.id ?? '';
   const today = getLocalToday();
+  // 17.5 (31-ago): CB-7 en la puerta. Sin consentimiento aceptado no se LEE
+  // ni se ESCRIBE nada de ciclo: loadData solo corre con granted, y el
+  // registro (editor) vive dentro del render que exige granted.
+  const consent = useCycleConsent(user?.id);
 
   // Estado principal
   const [loading, setLoading] = useState(true);
@@ -280,7 +285,7 @@ export default function CycleScreen() {
     setLoading(false);
   }, [userId, today]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { if (consent.state === 'granted') loadData(); }, [loadData, consent.state]);
 
   // ── Datos derivados ──
 
@@ -558,7 +563,9 @@ export default function CycleScreen() {
   // ═══ RENDER: LOADING ═══
   // MB-7: mientras el gate verifica o bloquea (no-female), no renderizar
   // contenido de ciclo — solo el loader neutro.
-  if (loading || gate.state !== 'allowed') {
+  // 17.5: mientras se lee el consentimiento, lo mismo. `loading` solo cuenta
+  // con consentimiento dado (antes de eso no hay carga que esperar).
+  if (gate.state !== 'allowed' || consent.state === 'checking' || (consent.state === 'granted' && loading)) {
     return (
       <Screen themed>
         <PillarHeader pillar="cycle" title="Ciclo" />
@@ -567,6 +574,27 @@ export default function CycleScreen() {
           <View style={{ height: Spacing.md }} />
           <SkeletonLoader width="100%" height={300} style={{ borderRadius: Radius.card }} />
         </View>
+      </Screen>
+    );
+  }
+
+  // ═══ RENDER: CONSENTIMIENTO (17.5) ═══
+  // pending → modal UNA vez; declined → card que lo dice sin insistir;
+  // fallo → no se pudo leer, con reintentar. Nada de ciclo debajo.
+  if (consent.state !== 'granted') {
+    return (
+      <Screen themed>
+        <PillarHeader pillar="cycle" title="Ciclo" />
+        {/* Debajo del modal va el mismo skeleton del loader: la pantalla no
+            cambia de forma entre "leyendo" y "preguntando". */}
+        {consent.state === 'pending' && (
+          <View style={{ padding: Spacing.md }}>
+            <SkeletonLoader width="100%" height={140} style={{ borderRadius: Radius.card }} />
+            <View style={{ height: Spacing.md }} />
+            <SkeletonLoader width="100%" height={300} style={{ borderRadius: Radius.card }} />
+          </View>
+        )}
+        <CycleConsentBlock consent={consent} acompanante={acompanante} />
       </Screen>
     );
   }
@@ -767,14 +795,15 @@ export default function CycleScreen() {
                       bg = isFut ? withOpacity(PURPLE_PHASE, 0.06) : withOpacity(PURPLE_PHASE, 0.2);
                     }
                     // 4EP 23-ago: aquí se pintaba también un tinte amarillo para
-                    // `fase === 'ovulation'`, que sale del umbral PHASE_OVULATION_END,
-                    // o sea una SEGUNDA fórmula de ovulación sobre el mismo
-                    // calendario. Con ciclo de 35 marcaba los días 17-20 mientras
-                    // predecirOvulacion pone el punto en 21: tres señales, dos
-                    // cuentas. En el calendario manda la predicción, que es la que
-                    // tiene fuente. La FASE sigue viva para la tarjeta y para
-                    // Entrenar, que es lo que sí describe: en qué parte del ciclo
-                    // va el cuerpo, no qué día se ovula.
+                    // `fase === 'ovulation'`, que salía de un umbral propio (0.57
+                    // del largo), o sea una SEGUNDA fórmula de ovulación sobre el
+                    // mismo calendario. Con ciclo de 35 marcaba los días 17-20
+                    // mientras predecirOvulacion ponía el punto en 21.
+                    // 31-ago (17.2): esa segunda fórmula MURIÓ en el core. Ahora
+                    // `fase === 'ovulation'` es exactamente la banda alta de
+                    // predecirOvulacion (ventanaOvulatoria), así que esos días ya
+                    // llegan pintados por los chips de arriba (isOv / isAlta) y no
+                    // hace falta un tinte de fase: una cuenta, una señal.
                   }
                 }
 
@@ -1033,7 +1062,7 @@ export default function CycleScreen() {
                   <TextInput
                     style={st.input}
                     placeholder="36.5"
-                    placeholderTextColor={t.sinDatos}
+                    placeholderTextColor={t.textoTenue}
                     keyboardType="decimal-pad"
                     value={editorData.temperature_c != null ? String(editorData.temperature_c) : ''}
                     onChangeText={t => { const n = parseFloat(t); updateEditor('temperature_c', isNaN(n) ? null : n); }}
@@ -1044,7 +1073,7 @@ export default function CycleScreen() {
                   <TextInput
                     style={st.input}
                     placeholder="45"
-                    placeholderTextColor={t.sinDatos}
+                    placeholderTextColor={t.textoTenue}
                     keyboardType="number-pad"
                     value={editorData.hrv_ms != null ? String(editorData.hrv_ms) : ''}
                     onChangeText={t => { const n = parseInt(t, 10); updateEditor('hrv_ms', isNaN(n) ? null : n); }}
@@ -1056,7 +1085,7 @@ export default function CycleScreen() {
                 <TextInput
                   style={st.notes}
                   placeholder="¿Cómo te sientes hoy?"
-                  placeholderTextColor={t.sinDatos}
+                  placeholderTextColor={t.textoTenue}
                   multiline
                   numberOfLines={3}
                   textAlignVertical="top"

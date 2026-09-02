@@ -338,7 +338,7 @@ export default function LogCardioScreen() {
                     onChangeText={setDistance}
                     keyboardType="decimal-pad"
                     placeholder={ultima?.distance_meters ? `${(ultima.distance_meters / 1000).toFixed(2)}` : '0.00'}
-                    placeholderTextColor={tk.sinDatos}
+                    placeholderTextColor={tk.textoTenue}
                   />
                   <View style={s.unitRow}>
                     {(['km', 'm'] as const).map(u => (
@@ -368,7 +368,7 @@ export default function LogCardioScreen() {
                     onChangeText={setHr}
                     keyboardType="number-pad"
                     placeholder="—"
-                    placeholderTextColor={tk.sinDatos}
+                    placeholderTextColor={tk.textoTenue}
                     maxLength={3}
                   />
                   <EliteText style={[s.unitSuffix, secTxt]}>BPM</EliteText>
@@ -396,7 +396,7 @@ export default function LogCardioScreen() {
                   value={notes}
                   onChangeText={setNotes}
                   placeholder="¿Cómo te sentiste?"
-                  placeholderTextColor={tk.sinDatos}
+                  placeholderTextColor={tk.textoTenue}
                   multiline
                   textAlignVertical="top"
                 />
@@ -413,6 +413,17 @@ export default function LogCardioScreen() {
             >
               <Ionicons name="download-outline" size={18} color={acento} />
               <EliteText style={[s.importText, { color: acento }]}>IMPORTAR DE TU APP DE SALUD</EliteText>
+            </AnimatedPressable>
+            {/* BETA cardio (31-ago-2026): el perfil vivo (FC máxima, zonas,
+                VO2max estimado, minutos por zona) vive en /fitness-cardio.
+                El hub y el registro de apps siguen entrando por aquí, así
+                que esta fila es la puerta al perfil hasta que se re-apunten. */}
+            <AnimatedPressable
+              style={[s.importRow, { borderColor: tk.borde }]}
+              onPress={() => { haptic.light(); router.push('/fitness-cardio'); }}
+            >
+              <Ionicons name="chevron-forward" size={18} color={acento} />
+              <EliteText style={[s.importText, { color: acento }]}>TU PERFIL DE CARDIO: ZONAS Y VO2MAX</EliteText>
             </AnimatedPressable>
           </Animated.View>
 
@@ -446,7 +457,7 @@ function TimeBox({ value, onChange, label }: { value: string; onChange: (v: stri
         onChangeText={onChange}
         keyboardType="number-pad"
         placeholder="00"
-        placeholderTextColor={tk.sinDatos}
+        placeholderTextColor={tk.textoTenue}
         maxLength={2}
       />
       <EliteText style={[s.timeLabel, { color: tk.textoSecundario }]}>{label}</EliteText>

@@ -10,70 +10,17 @@ import {
   PrinciplesMap,
   InsightRouter,
   type CoachGateResult,
-  type Principle,
 } from '@/src/lib/coach-engine';
 import { error as logError } from '@/src/lib/logger';
 
 /**
- * Heurística v2 (Step COACH 7.1/N): detecta el principio invocado por el LLM con
- * patrones de FRASE (no palabras sueltas, que el LLM rara vez usa explícitas).
- * Sigue siendo imperfecta — si un mensaje toca varios principios, solo persiste el
- * primero que matchea. Upgrade, no perfección. TODO Mariana: clasificador semántico.
+ * 13.4 (31-ago-2026): el clasificador del principio ya no es "el primero que
+ * matchea": puntúa por ocurrencias y especificidad. Vive en
+ * coach-principio-core (puro, con test) y se re-exporta aquí para no mover a
+ * quien lo importaba.
  */
-const PRINCIPLE_PATTERNS: { principle: Principle; patterns: RegExp[] }[] = [
-  {
-    principle: 'identidad',
-    patterns: [
-      /\b(qui[eé]n\s+eres|qui[eé]n\s+crees\s+ser|tu\s+identidad|c[oó]mo\s+te\s+ves)\b/i,
-      /\b(no\s+es\s+lo\s+que\s+haces|es\s+lo\s+que\s+eres)\b/i,
-    ],
-  },
-  {
-    principle: 'estandar',
-    patterns: [
-      /\b(tu\s+est[aá]ndar|sube\s+(el|tu)\s+est[aá]ndar|nivel\s+de\s+exigencia)\b/i,
-      /\b(piso\s+no\s+negociable|m[ií]nimo\s+no\s+negociable)\b/i,
-    ],
-  },
-  {
-    principle: 'proposito',
-    patterns: [/\b(tu\s+prop[oó]sito|para\s+qu[eé]\s+lo\s+haces|motivaci[oó]n\s+ra[ií]z)\b/i],
-  },
-  {
-    principle: 'filosofia',
-    patterns: [
-      /\b(tu\s+(filosof[ií]a|cosmovisi[oó]n)|c[oó]mo\s+ves\s+(el|tu)\s+mundo)\b/i,
-      /\b(el\s+lenguaje\s+construye|c[oó]mo\s+lo\s+nombras)\b/i,
-    ],
-  },
-  {
-    principle: 'fisiologia',
-    patterns: [
-      /\b(eje\s+(hormonal|HHG|HHS|HHT)|ritmo\s+circadiano|regulaci[oó]n\s+gluc[eé]mica)\b/i,
-      /\b(sistema\s+inmune|sistema\s+nervioso\s+aut[oó]nomo)\b/i,
-    ],
-  },
-  {
-    principle: 'biomecanica',
-    patterns: [/\b(biomec[aá]nica|palanca|vector\s+de\s+fuerza|integridad\s+articular|postura)\b/i],
-  },
-  {
-    principle: 'mecanismos_biologicos',
-    patterns: [
-      /\b(mitocondria|aut[oó]fagia|AMPK|mTOR|v[ií]a\s+metab[oó]lica|cadena\s+de\s+transporte)\b/i,
-      /\b(se[nñ]alizaci[oó]n\s+celular|metilaci[oó]n|HOMA-?IR)\b/i,
-    ],
-  },
-];
-
-export function detectPrincipleInResponse(text: string): Principle | null {
-  for (const { principle, patterns } of PRINCIPLE_PATTERNS) {
-    for (const pattern of patterns) {
-      if (pattern.test(text)) return principle;
-    }
-  }
-  return null;
-}
+import { detectPrincipleInResponse } from './coach-principio-core';
+export { detectPrincipleInResponse };
 
 /**
  * Persiste la auditoría del turno: intervention_logs (principal) + freno +
@@ -122,7 +69,8 @@ export async function persistTurnAudit(
       await RedFlagsDetector.persistRedFlag(userId, flag);
       await InsightRouter.emitInsight(userId, {
         type: 'red_flag_alert',
-        content: `Bandera roja: ${flag.category} — ${flag.evidenceText}`,
+        // 31-ago-2026: sin em dash (regla de la casa; este texto llega a insights).
+        content: `Bandera roja: ${flag.category}. ${flag.evidenceText}`,
         payload: { interventionLogId, flag },
       });
     }

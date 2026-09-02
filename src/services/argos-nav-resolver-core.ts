@@ -119,6 +119,7 @@ export function rutaVetada(ruta: string): string | null {
 export const TITULOS_RUTA: Readonly<Record<string, string>> = {
   '/': 'HOY, tu checklist del día',
   '/agenda': 'Agenda del día',
+  '/argos': 'ARGOS, tu asistente',
   '/argos-chat': 'Chat con ARGOS',
   '/argos/conversations': 'Historial de conversaciones',
   '/atp-orden': 'Mi orden de la sala ATP',
@@ -148,6 +149,8 @@ export const TITULOS_RUTA: Readonly<Record<string, string>> = {
   '/fasting': 'Ayuno',
   '/ficha-emergencia': 'Ficha de emergencia',
   '/fitness-hub': 'Fitness',
+  '/fitness-cardio': 'Tu perfil de cardio',
+  '/log-cardio': 'Registrar cardio',
   '/fitness-train': 'Entrenar ahora',
   '/food-log': 'Registrar comida',
   '/food-preferences': 'Preferencias de alimentación',
@@ -276,7 +279,13 @@ export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = {
   '/my-routines': ['mis rutinas', 'rutinas', 'rutina'],
   '/exercise-library': ['biblioteca de ejercicios', 'como se hace', 'tecnica'],
   '/plan-entrenamiento': ['plan de entrenamiento', 'mi plan'],
-  '/fitness-cardio': ['cardio', 'correr', 'caminar', 'trote'],
+  // 31-ago-2026: /fitness-cardio dejó de ser alias de /log-cardio (ahora es
+  // el perfil vivo: zonas, FC máxima, VO2max). Sin este reparto "salir a
+  // correr" caía en el perfil en vez de en el registro.
+  '/fitness-cardio': ['cardio', 'perfil de cardio', 'zonas de cardio', 'zonas de frecuencia cardiaca', 'vo2max'],
+  // Sin 'registrar cardio' aqui: el titulo ya lo aporta y duplicarlo empataba
+  // "quiero registrar lo que comi" con /food-log (4EP B1).
+  '/log-cardio': ['correr', 'caminar', 'trote', 'salir a correr'],
   '/fitness-strength': ['fuerza', 'pesas', 'levantamiento'],
   '/fitness-hiit': ['hiit', 'intervalos'],
   '/cycle': ['ciclo', 'menstruacion', 'regla', 'periodo', 'ciclo menstrual'],
@@ -318,6 +327,8 @@ export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = {
   '/profile': ['perfil', 'mi perfil', 'mis datos personales'],
   '/redeem-code': ['canjear', 'codigo', 'codigo de activacion'],
   '/argos-chat': ['argos', 'chat', 'hablar con argos', 'preguntar'],
+  // HUB-ARGOS (31-ago-2026): la pestana ya no es el chat, es el hub.
+  '/argos': ['hub de argos', 'menu de argos', 'que puede hacer argos', 'asistente'],
   '/argos/conversations': ['conversaciones', 'historial de chat'],
   // Afiliados salió del vocabulario el 21-ago-2026: el programa entra al
   // lanzamiento solo por invitación, y ARGOS vive DENTRO de la app, así que

@@ -98,6 +98,40 @@ export const CONSENT_SHORT_TITLES: Record<ConsentCheckboxId, string> = {
   'CB-7': 'Módulo Ciclo',
 };
 
+/**
+ * CB-7 en contexto (pendiente 17.5, 31-ago-2026). El texto del checkbox es el
+ * legal exacto (se hashea) y NO se toca; esto es la explicación en lenguaje
+ * llano que va arriba: qué se guarda, para qué y cómo se retira. Se pide UNA
+ * vez, al entrar a Ciclo. Si la persona dice que no, Ciclo no guarda nada y lo
+ * dice sin insistir. Sin promesas médicas. Sin em dashes.
+ */
+export const CYCLE_CONSENT_COPY = {
+  title: 'Tus datos de ciclo, bajo tu control',
+  /** Ciclo propio. */
+  propio: [
+    'Qué se guarda: las fechas de tu periodo, lo que registres cada día (flujo, energía, ánimo, temperatura, HRV, notas) y la fase estimada que sale de eso.',
+    'Para qué: pintar tu calendario, estimar tu siguiente periodo y tu ventana fértil, y adaptar lo que ATP te sugiere en Entrenar y en ARGOS.',
+    'Puedes retirarlo cuando quieras en Ajustes → Privacidad. Al retirarlo, Ciclo deja de guardar registros nuevos.',
+  ],
+  /** Modo acompañante: el calendario es de otra persona. */
+  acompanante: [
+    'Qué se guarda: las fechas y los síntomas que registres del calendario que llevas de otra persona, y la fase estimada que sale de eso.',
+    'Para qué: pintar ese calendario y estimar el siguiente periodo. No entra a tu Edad ATP ni a ARGOS.',
+    'Puedes retirarlo cuando quieras en Ajustes → Privacidad. Al retirarlo, Ciclo deja de guardar registros nuevos.',
+  ],
+  declined: {
+    title: 'Ciclo está apagado',
+    body: 'No aceptaste el tratamiento de datos de ciclo. Ciclo deja de guardar registros nuevos y no muestra tu calendario ni tus reportes de ciclo. Si cambias de idea, actívalo abajo o desde Ajustes → Privacidad.',
+    cta: 'Activar Ciclo',
+    ctaPrivacidad: 'Ir a Privacidad',
+  },
+  fallo: {
+    title: 'No pudimos comprobar tu consentimiento',
+    body: 'Sin esa lectura no abrimos tu ciclo. Revisa tu conexión y vuelve a intentar.',
+    cta: 'Reintentar',
+  },
+} as const;
+
 /** Aviso al revocar CB-2/CB-3 (nota de revocación, Parte 3). */
 export const REVOKE_CORE_WARNING =
   'Si revocas este consentimiento, el núcleo de ATP (Edad ATP, contenido personalizado y ARGOS) dejará de operar para tu cuenta. ¿Quieres continuar?';

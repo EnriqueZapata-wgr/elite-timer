@@ -54,7 +54,8 @@ export function applyVisibility(row: PublicProfileRow): VisiblePublicProfile {
   return {
     user_id: row.user_id,
     username: row.username,
-    display_name: row.display_name ?? row.username,
+    // 7.1 (31-ago-2026): '' no es nombre; cae a username como en el resto.
+    display_name: (row.display_name ?? '').trim() ? row.display_name : row.username,
     avatar_url: row.show_photo ? row.avatar_url : null,
     country: row.show_country ? row.country : null,
     chronotype: row.show_chronotype ? row.chronotype : null,

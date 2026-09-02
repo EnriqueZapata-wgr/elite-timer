@@ -8,6 +8,16 @@
  *  - Lista virtualizada (FlatList inverted — el auto-scroll sale gratis).
  *  - Teclado con el patrón estándar de la app (KEY-1), no listener propio.
  *  - Sesiones (P2): abrir en frío = en blanco; mismo proceso = retoma.
+ *
+ * CONTRATO DE APERTURA (HUB-ARGOS, 31-ago-2026):
+ *   /argos-chat?contexto=<clave>&ref=<id>
+ * Claves: edad_atp · labs · electrones · receta (esta exige ref = uuid de
+ * `recipes` o `user_recipes`). El chat resuelve el contexto al montar, lo
+ * manda como bloque de sistema en CADA turno de esa conversación y prellena
+ * la pregunta inicial SIN enviarla. Arranca conversación nueva. La lógica del
+ * contrato vive en src/services/argos-contexto-core.ts (pura, con tests).
+ * Otros params: q (prellenar), conversationId, new=1, from, voz=1 (abre el
+ * modo voz; si aún no hay consentimiento CB-6, pide el consentimiento).
  */
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Alert, View, FlatList, KeyboardAvoidingView, Platform, AppState } from 'react-native';
@@ -60,6 +70,8 @@ import { planearAjuste, construirPregunta, type PlanAjuste } from '@/src/service
 import { aplicarAjuste } from '@/src/services/argos-settings-service';
 import { resolverConModelo } from '@/src/services/argos-nav-model-service';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { parsearContextoDeRuta, preguntaInicialDe } from '@/src/services/argos-contexto-core';
+import { resolverInyeccionDeContexto } from '@/src/services/argos-contexto-service';
 
 /**
  * Cuánto se ve el "te llevo a X" antes de que la pantalla cambie debajo.
@@ -83,7 +95,24 @@ function ArgosChat() {
   // mandar una pregunta que la persona no escribió, desde un botón que tocó
   // para "ver qué es", es ponerle palabras en la boca. Así la ve escrita, la
   // puede editar, y decide ella si la manda.
-  const params = useLocalSearchParams<{ conversationId?: string; new?: string; from?: string; q?: string }>();
+  const params = useLocalSearchParams<{
+    conversationId?: string; new?: string; from?: string; q?: string;
+    contexto?: string; ref?: string; voz?: string;
+  }>();
+  // HUB-ARGOS: el contexto de apertura, validado. Null = chat normal. Se
+  // calcula una vez: los params no cambian mientras la pantalla vive.
+  const contextoApertura = useMemo(
+    () => parsearContextoDeRuta(params.contexto, params.ref),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  // El bloque de sistema ya resuelto (receta cargada, etc.). Viaja en cada
+  // turno vía options.extraContext. Se guarda la PROMESA además del valor:
+  // si la persona manda la pregunta prellenada antes de que la receta termine
+  // de leerse, el turno espera al bloque en vez de salir sin él.
+  const contextoRef = useRef<{ promesa: Promise<string> | null; valor: string | null }>({ promesa: null, valor: null });
+  const quiereVoz = params.voz === '1';
+  const vozAtendidaRef = useRef(false);
   // Guard de re-entrada (#71) — la lógica vive en argos-chat-core (con tests);
   // aquí solo la instancia por pantalla.
   const sendGuard = useRef(createSendGuard()).current;
@@ -135,10 +164,34 @@ function ArgosChat() {
   useEffect(() => {
     if (qPrellenadaRef.current) return;
     const q = typeof params.q === 'string' ? params.q.trim() : '';
-    if (!q) return;
+    // HUB-ARGOS: sin `q`, el contexto de apertura trae su propia pregunta.
+    // Misma regla: se escribe, no se manda.
+    const texto = q || (contextoApertura ? preguntaInicialDe(contextoApertura) : '');
+    if (!texto) return;
     qPrellenadaRef.current = true;
-    setInput(q);
-  }, [params.q]);
+    setInput(texto);
+  }, [params.q, contextoApertura]);
+
+  // HUB-ARGOS: abrir con contexto es abrir una conversación NUEVA. Se rota el
+  // ancla al montar (mismo camino que "nueva" del panel) para que el foco no
+  // retome la anterior debajo de una pregunta sobre otra cosa. Y se resuelve
+  // el bloque de sistema (la receta se lee de la base aquí, una sola vez).
+  useEffect(() => {
+    if (!contextoApertura) return;
+    startNewArgosSession();
+    screenSessionRef.current = null;
+    const promesa = resolverInyeccionDeContexto(contextoApertura)
+      .then((bloque) => { contextoRef.current.valor = bloque; return bloque; });
+    contextoRef.current.promesa = promesa;
+  }, [contextoApertura]);
+
+  /** El bloque de apertura para este turno (o undefined si el chat es normal). */
+  async function contextoDelTurno(): Promise<string | undefined> {
+    const c = contextoRef.current;
+    if (c.valor != null) return c.valor;
+    if (!c.promesa) return undefined;
+    try { return await c.promesa; } catch { return undefined; }
+  }
 
   useEffect(() => () => {
     if (navTimerRef.current) clearTimeout(navTimerRef.current);
@@ -154,8 +207,24 @@ function ArgosChat() {
         getArgosVoice(user.id).then(setArgosVoice).catch(() => {});
         // CB-6: ¿ya consintió el tratamiento de voz?
         getConsentStatus(user.id)
-          .then(st => setVoiceConsented(st['CB-6']?.action === 'accepted'))
-          .catch(() => {});
+          .then(st => {
+            const ok = st['CB-6']?.action === 'accepted';
+            setVoiceConsented(ok);
+            // HUB-ARGOS: `voz=1` abre el modo voz al llegar. Se decide AQUÍ,
+            // con el consentimiento ya leído, para no pedirlo dos veces.
+            if (quiereVoz && !vozAtendidaRef.current) {
+              vozAtendidaRef.current = true;
+              stopSpeaking();
+              if (ok) setVoiceMode(true); else setVoiceConsentModal(true);
+            }
+          })
+          .catch(() => {
+            // No se pudo leer el consentimiento: pedirlo es lo seguro.
+            if (quiereVoz && !vozAtendidaRef.current) {
+              vozAtendidaRef.current = true;
+              setVoiceConsentModal(true);
+            }
+          });
         // Sugerencias de HOY (fail-soft: quedan los defaults).
         loadTodaySignals(user.id)
           .then(signals => setSuggestions(buildTodaySuggestions(signals)))
@@ -218,7 +287,8 @@ function ArgosChat() {
       // Abrir una conversación específica del panel manda: autoLoadRecent no
       // debe pisarla (llegaba después y la sobrescribía).
       requestedConversation: params.conversationId != null,
-      requestedNew: params.new === '1',
+      // HUB-ARGOS: abrir con contexto también es "nueva".
+      requestedNew: params.new === '1' || contextoApertura != null,
     })) return;
     const { rows, error } = await loadConversations(userId, 1);
     if (error) return; // no pude leer ≠ no hay nada: sin resume, sin romper.
@@ -240,6 +310,7 @@ function ArgosChat() {
     cleanForLLM: ArgosMessage[],
     idempotencyKey: string,
     turnConversationId: string | null,
+    extraContext: string | undefined,
   ): Promise<string | null> {
     if (!userId) return null;
     let full = '';
@@ -249,6 +320,7 @@ function ArgosChat() {
         conversationId: turnConversationId,
         idempotencyKey,
         screenContext: coerceScreen(params.from),
+        extraContext,
       });
       for await (const chunk of stream) {
         full += chunk;
@@ -522,18 +594,22 @@ function ArgosChat() {
 
     // ARG-1/ARG-8: turnos degradados fuera del contexto del modelo.
     const cleanForLLM = filterForLLM(newMessages);
+    // HUB-ARGOS: el bloque de apertura, ya resuelto o esperado aquí.
+    const extraContext = await contextoDelTurno();
 
     let resolved: ReturnType<typeof resolveTurn> | null = null;
     try {
       // T2: la orquestación stream→no-stream vive en argos-chat-core (con
       // tests); aquí solo los efectos de pantalla por desenlace.
       const run = await runTurnWithFallback({
-        stream: () => tryStreamingTurn(cleanForLLM, idempotencyKey, turnConversationId),
+        stream: () => tryStreamingTurn(cleanForLLM, idempotencyKey, turnConversationId, extraContext),
         reply: () => chatWithArgosEx(userId, cleanForLLM, {
           conversationId: turnConversationId,
           idempotencyKey,
           // T4: si el chat se abrió desde una pantalla, ARGOS lo sabe.
           screenContext: coerceScreen(params.from),
+          // HUB-ARGOS: el contexto de apertura (mismo bloque que el stream).
+          extraContext,
         }),
         // El intento de stream pudo haber apagado el indicador "pensando".
         onFallback: () => setLoading(true),
@@ -594,6 +670,10 @@ function ArgosChat() {
     setMessages([]);
     setConversationId(null);
     screenSessionRef.current = null; // pantalla en blanco: sin ancla.
+    // HUB-ARGOS (4EP M1): el contexto de apertura muere con la conversación.
+    // Sin esto, quien llegó con contexto=receta y toca "Nueva" seguía
+    // mandando la receta en cada turno de la conversación nueva.
+    contextoRef.current = { promesa: null, valor: null };
     // MB-21 P2: cerrar DE VERDAD. Rotar el ancla de sesión hace que la
     // conversación anterior deje de ser retomable por foco. No se borra nada.
     startNewArgosSession();

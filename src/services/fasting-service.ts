@@ -28,7 +28,10 @@ export interface FastingLog {
   created_at: string;
 }
 
-export type MutationReason = 'rls' | 'no_rows' | 'network' | 'constraint' | 'unknown';
+export type MutationReason =
+  | 'rls' | 'no_rows' | 'network' | 'constraint' | 'unknown' | 'already_closed'
+  /** 4EP 31-ago: CHECK de la base (23514): fin antes o igual al inicio, horas fuera de rango. */
+  | 'fin_antes_de_inicio';
 
 export type MutationResult<T = FastingLog> =
   | { ok: true; data: T }
@@ -40,7 +43,9 @@ function classifyError(op: string, error: { code?: string; message: string }): {
   message: string;
 } {
   if (error.code === '23505') return { reason: 'constraint', message: error.message }; // unique_violation
-  if (error.code === '23514') return { reason: 'constraint', message: error.message }; // check_violation
+  // check_violation: en fasting_logs los CHECK son de tiempos y horas (070, 313),
+  // no de unicidad. Decirle al usuario "registro en conflicto" era falso.
+  if (error.code === '23514') return { reason: 'fin_antes_de_inicio', message: error.message };
   logWarn(`[fasting-service] ${op} error:`, error);
   return { reason: 'unknown', message: error.message };
 }
@@ -100,6 +105,31 @@ export async function getFastingLogsRange(
 
 // === MUTATIONS (todas verifican filas) ===
 
+/**
+ * 31-ago-2026 (backlog 15.3, "se puede cerrar dos veces el mismo ayuno"):
+ * breakFast, cancelActiveFast y autoCloseAtLimit actualizaban por id SIN
+ * filtrar por estado, así que un segundo cierre (doble toque, la pantalla y
+ * el compilador del día corriendo a la vez, un reintento de red) pisaba
+ * fast_end y actual_hours de un ayuno ya cerrado. Ahora los tres filtran
+ * `status = 'active'`: el primer cierre gana y el segundo no toca nada.
+ *
+ * Cuando el UPDATE no afecta filas, esta función distingue "ya estaba
+ * cerrado" (idempotente: la fila existe y no está activa) de "no hay fila"
+ * (RLS o borrada), para que la UI no le diga al usuario que reinicie la app
+ * por un cierre que ya ocurrió.
+ */
+async function razonDeCeroFilas(fastId: string): Promise<{ reason: MutationReason; message: string }> {
+  const { data, error } = await supabase
+    .from('fasting_logs')
+    .select('id, status')
+    .eq('id', fastId)
+    .maybeSingle();
+  if (!error && data && data.status !== 'active') {
+    return { reason: 'already_closed', message: `El ayuno ya estaba ${data.status}` };
+  }
+  return { reason: 'no_rows', message: 'Row not found or RLS blocked' };
+}
+
 export async function startFast(params: {
   userId: string;
   targetHours: number;
@@ -149,13 +179,14 @@ export async function breakFast(params: {
       ...(params.energyDuring !== undefined ? { energy_during: params.energyDuring } : {}),
     })
     .eq('id', params.fastId)
+    .eq('status', 'active')
     .select();
   if (error) {
     const c = classifyError('breakFast', error);
     return { ok: false, ...c };
   }
   if (!data || data.length === 0) {
-    return { ok: false, reason: 'no_rows', message: 'Row not found or RLS blocked' };
+    return { ok: false, ...(await razonDeCeroFilas(params.fastId)) };
   }
   return { ok: true, data: data[0] as FastingLog };
 }
@@ -165,13 +196,14 @@ export async function cancelActiveFast(fastId: string): Promise<MutationResult> 
     .from('fasting_logs')
     .update({ status: 'cancelled' })
     .eq('id', fastId)
+    .eq('status', 'active')
     .select();
   if (error) {
     const c = classifyError('cancelActiveFast', error);
     return { ok: false, ...c };
   }
   if (!data || data.length === 0) {
-    return { ok: false, reason: 'no_rows', message: 'Row not found or RLS blocked' };
+    return { ok: false, ...(await razonDeCeroFilas(fastId)) };
   }
   return { ok: true, data: data[0] as FastingLog };
 }
@@ -301,13 +333,14 @@ export async function autoCloseAtLimit(params: {
       fast_end: params.fastEnd.toISOString(),
     })
     .eq('id', params.fastId)
+    .eq('status', 'active')
     .select();
   if (error) {
     const c = classifyError('autoCloseAtLimit', error);
     return { ok: false, ...c };
   }
   if (!data || data.length === 0) {
-    return { ok: false, reason: 'no_rows', message: 'Row not found or RLS blocked' };
+    return { ok: false, ...(await razonDeCeroFilas(params.fastId)) };
   }
   return { ok: true, data: data[0] as FastingLog };
 }

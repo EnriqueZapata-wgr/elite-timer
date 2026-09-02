@@ -105,12 +105,13 @@ export function EventFormModal({ visible, title, initial, onSave, onClose }: Pro
         >
           <EliteText style={[styles.title, { color: dark ? ATP_BRAND.lime : t.tealTexto }]}>{title}</EliteText>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* Nombre */}
+            {/* Nombre. 31-ago-2026: el placeholder en claro usa textoSecundario;
+                sinDatos es tinta prohibida (contraste ~1.8, regla 4 de la casa). */}
             <EliteText style={[styles.label, { color: labelColor }]}>NOMBRE</EliteText>
             <TextInput
               value={name} onChangeText={setName}
               placeholder="Ej. Meditación matutina"
-              placeholderTextColor={dark ? 'rgba(255,255,255,0.3)' : t.sinDatos}
+              placeholderTextColor={dark ? 'rgba(255,255,255,0.3)' : t.textoSecundario}
               style={[styles.input, inputTheme]}
             />
 
@@ -119,7 +120,7 @@ export function EventFormModal({ visible, title, initial, onSave, onClose }: Pro
             <TextInput
               value={time} onChangeText={setTime}
               onBlur={() => setTime((prev) => normalizeTime(prev) || prev)}
-              placeholder="07:00" placeholderTextColor={dark ? 'rgba(255,255,255,0.3)' : t.sinDatos}
+              placeholder="07:00" placeholderTextColor={dark ? 'rgba(255,255,255,0.3)' : t.textoSecundario}
               keyboardType="numbers-and-punctuation" maxLength={5}
               style={[styles.input, inputTheme]}
             />

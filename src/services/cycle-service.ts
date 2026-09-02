@@ -29,6 +29,11 @@ export interface PhaseInfo {
   labsAvoid: string[];
 }
 
+// 31-ago-2026 (17.2): dayRange describe un ciclo de 28 con periodo de 5 y
+// sale de getPhase (cycle-phase-core): ovulatoria = banda alta de
+// ventanaOvulatoria (12-14) y lutea = los 14 de convencion (15-28). Antes decia
+// 6-13 / 14-16 / 17-28, de los umbrales 0.46/0.57 que murieron. Hoy ningun
+// consumidor pinta dayRange; se corrige para que no mienta cuando alguien lo use.
 // MB-7: copy BIDIRECCIONAL (doctrina). Folicular + ovulatoria = INTENSIFICAR
 // (la app empuja: PRs, bloques duros, aprovechar la ventana). Lútea + menstrual
 // = ESCUCHAR (ajustar y afinar, NUNCA prohibir ni "descansar"). Una mujer lo
@@ -36,27 +41,27 @@ export interface PhaseInfo {
 export const PHASES: Record<string, PhaseInfo> = {
   menstrual: {
     phase: 'menstrual', label: 'Menstrual', dayRange: 'Días 1-5', color: '#E24B4A', icon: 'water-outline',
-    description: 'Empieza un ciclo nuevo. Tu cuerpo te habla más claro que nunca — es la fase para afinar y escuchar señales.',
+    description: 'Empieza un ciclo nuevo. Tu cuerpo te habla más claro que nunca: es la fase para afinar y escuchar señales.',
     energy: 'Sensibilidad alta. Muévete con lo que tienes hoy: hay días fuertes y días de calibrar.',
-    exercise: 'Fuerza técnica, movilidad, zona 2. Si tu energía está, entrena — solo baja el ego, no la ambición.',
+    exercise: 'Fuerza técnica, movilidad, zona 2. Si tu energía está, entrena. Solo baja el ego, no la ambición.',
     nutrition: ['Hierro: carne roja, espinacas, lentejas', 'Magnesio: chocolate negro 85%+', 'Omega 3 anti-inflamatorio', 'Cafeína con criterio'],
     supplements: ['Hierro bisglicinato 25mg', 'Magnesio glicinato 400mg', 'Omega 3 2g', 'Vitamina C 500mg'],
     labsBest: ['Química sanguínea general', 'Perfil lipídico', 'FSH/LH/estradiol (día 2-4, valores basales)'],
-    labsAvoid: ['Progesterona (será baja — normal aquí)'],
+    labsAvoid: ['Progesterona (será baja, normal aquí)'],
   },
   follicular: {
-    phase: 'follicular', label: 'Folicular', dayRange: 'Días 6-13', color: '#a8e02a', icon: 'leaf-outline',
-    description: 'Estrógenos en ascenso: tu ventana de construir. Es cuando el cuerpo responde mejor al estímulo — aprovéchala.',
+    phase: 'follicular', label: 'Folicular', dayRange: 'Días 6-11', color: '#a8e02a', icon: 'leaf-outline',
+    description: 'Estrógenos en ascenso: tu ventana de construir. Es cuando el cuerpo responde mejor al estímulo. Aprovéchala.',
     energy: 'Alta y en subida. Métele a los bloques duros y a lo nuevo.',
-    exercise: 'Fuerza pesada. HIIT. Cardio intenso. Full power — busca progresión.',
+    exercise: 'Fuerza pesada. HIIT. Cardio intenso. Full power: busca progresión.',
     nutrition: ['Carbos complejos para energía', 'Proteína alta para músculo', 'Crucíferas: brócoli, coliflor, kale'],
     supplements: ['Creatina 5g', 'Vitamina D 5000IU', 'DIM 200mg', 'Proteína whey post-entreno'],
     labsBest: ['Biometría hemática', 'Tiroides', 'FSH/LH día 3'],
     labsAvoid: ['Progesterona (será baja, normal)'],
   },
   ovulation: {
-    phase: 'ovulation', label: 'Ovulación', dayRange: 'Días 14-16', color: '#EF9F27', icon: 'sunny-outline',
-    description: 'Tu pico. Fuerza, potencia y confianza al máximo — es LA ventana para ir por un récord.',
+    phase: 'ovulation', label: 'Ovulación', dayRange: 'Días 12-14', color: '#EF9F27', icon: 'sunny-outline',
+    description: 'Tu pico. Fuerza, potencia y confianza al máximo: es LA ventana para ir por un récord.',
     energy: 'Máxima. Ve por tus PRs.',
     exercise: 'Tu mejor momento para PRs y competir. No lo desperdicies.',
     nutrition: ['Antioxidantes: berries, vegetales coloridos', 'Zinc para ovulación', 'Hidratación extra'],
@@ -65,10 +70,10 @@ export const PHASES: Record<string, PhaseInfo> = {
     labsAvoid: ['Progesterona (aún no sube)', 'Labs generales (mejor folicular)'],
   },
   luteal: {
-    phase: 'luteal', label: 'Lútea', dayRange: 'Días 17-28', color: '#7F77DD', icon: 'moon-outline',
-    description: 'Progesterona al mando: fase de sostener y consolidar. Menos picos, más constancia — sigues fuerte, con otra marcha.',
+    phase: 'luteal', label: 'Lútea', dayRange: 'Días 15-28', color: '#7F77DD', icon: 'moon-outline',
+    description: 'Progesterona al mando: fase de sostener y consolidar. Menos picos, más constancia. Sigues fuerte, con otra marcha.',
     energy: 'Alta al inicio, más pareja al final. Ajusta el volumen, no la intención.',
-    exercise: 'Fuerza sólida, tempo, resistencia. Si un día pide bajar intensidad, baja volumen — no pares.',
+    exercise: 'Fuerza sólida, tempo, resistencia. Si un día pide bajar intensidad, baja volumen, no pares.',
     nutrition: ['Carbos complejos sostienen energía', 'Magnesio extra', 'Calcio reduce PMS', 'Chocolate negro 85%+ válido'],
     supplements: ['Magnesio glicinato 600mg', 'Calcio 500mg', 'Vitamina B6 50mg', 'Vitex 400mg'],
     labsBest: ['Progesterona día 19-22', 'Ratio estrógeno/progesterona'],

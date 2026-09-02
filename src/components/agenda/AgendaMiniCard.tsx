@@ -156,9 +156,11 @@ export function AgendaMiniCard({ event, onTap, compact, seedKey }: Props) {
             ) : null}
           </View>
 
-          {/* Hora — dato crítico: display XL lima. */}
+          {/* Hora — dato crítico: display XL lima. 31-ago-2026 (12.1): un
+              pospuesto enseña la hora a la que cayó, que es donde la lista lo
+              coloca; sin hora válida pinta la raya de "sin dato". */}
           <EliteText style={[styles.time, compact && styles.timeCompact, skipped && styles.nameMuted]}>
-            {event.time}
+            {event.effectiveTime ?? '—'}
           </EliteText>
         </View>
       </View>

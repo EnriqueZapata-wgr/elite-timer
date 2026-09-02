@@ -41,6 +41,15 @@ import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 // con la ficha de Ayuno del Centro).
 import { FASTING_PROTOCOLS } from '@/src/constants/fasting-protocols';
 import { calcularEstadisticas, formatearHoras } from '@/src/services/fasting-stats-core';
+// 31-ago-2026 (backlog 15.2 / 15.3 / 15.6): una sola definición de "cumplí",
+// el cierre del olvidado en un servicio idempotente, y las piezas puras de la
+// pantalla fuera del archivo. Todo con prueba ejecutada en node.
+import { ayunoCumplido, metaAlcanzada } from '@/src/services/fasting-cumplido-core';
+import { MAX_FAST_HOURS, HUELLA_AUTOCIERRE_KEY, leerHuella } from '@/src/services/fasting-autoclose-core';
+import { reconciliarAyunoActivo } from '@/src/services/fasting-autoclose-service';
+import {
+  fastErrorCopy, formatDuration, formatSince, formatTime, safeDate, construirSemana,
+} from '@/src/services/fasting-screen-core';
 
 // Presets rápidos para los wheel pickers (reemplazan mode="datetime").
 const START_PRESETS = [
@@ -68,25 +77,12 @@ const BREAK_END_PRESETS = [
   { label: 'Hace 3h', getDate: () => new Date(Date.now() - 3 * 60 * 60 * 1000) },
 ];
 
-/** Mapea el reason de un MutationResult fallido a copy en español para el usuario. */
-function fastErrorCopy(reason: fastingService.MutationReason): string {
-  switch (reason) {
-    case 'no_rows': return 'La fila no se encontró. Cierra y abre la app.';
-    case 'constraint': return 'Hay un registro en conflicto. Revisa tu historial de ayunos.';
-    case 'rls': return 'No tienes permiso para esta operación. Vuelve a iniciar sesión.';
-    case 'network': return 'Problema de conexión. Revisa tu internet e intenta de nuevo.';
-    default: return 'Ocurrió un error. Intenta de nuevo.';
-  }
-}
+// MAX_FAST_HOURS (120) y el umbral de olvidado (144) viven en
+// fasting-autoclose-core desde el 31-ago-2026: la regla de cierre ya no es de
+// esta pantalla.
 
-// Decisión de producto: el ayuno máximo en ATP es 120 horas. Protocolos
-// funcionales no proponen ayunos más largos; ayunos mayores requieren
-// supervisión médica.
-const MAX_FAST_HOURS = 120;
-// Margen para detectar ayunos olvidados/corruptos (> límite + 24h).
-const FAST_CORRUPT_THRESHOLD_HOURS = MAX_FAST_HOURS + 24;
-
-// CONTENIDO MÉDICO — pendiente validación de Mariana antes de Founders M1
+// CONTENIDO MÉDICO — PENDIENTE FIRMA MARIANA (31-ago-2026: son afirmaciones
+// fisiológicas con reloj, mismas fuentes que fasting-phases.ts; no se tocaron)
 // Sprint Compliance 3: los hitos de CELEBRACIÓN terminan en 48h. A partir de
 // 36h corren las ALERTAS DE SEGURIDAD escalantes del sign-off legal
 // (FASTING_ALERTS §2.5), no celebraciones — 72h/96h se eliminaron.
@@ -122,22 +118,8 @@ const OVERTIME_CIRCUMFERENCE = 2 * Math.PI * OVERTIME_RADIUS;
 const getCurrentZone = getCurrentPhase;
 const getNextZone = getNextPhase;
 
-function formatDuration(totalMinutes: number): string {
-  const h = Math.floor(totalMinutes / 60);
-  const m = Math.floor(totalMinutes % 60);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
-}
-
-/** F.3: "desde tu último ayuno" — en días cuando ya son ≥48 h. */
-function formatSince(totalMinutes: number): string {
-  const days = Math.floor(totalMinutes / 1440);
-  if (days >= 2) return `${days} días`;
-  return formatDuration(totalMinutes);
-}
+// formatDuration, formatTime, formatSince y safeDate viven en
+// fasting-screen-core (puros, con prueba en node).
 
 /** F.4: anillo chico de la tira semanal (consistencia de un vistazo). */
 function DayRing({ letter, pct, isToday, t }: { letter: string; pct: number; isToday: boolean; t: AppThemeTokens }) {
@@ -163,17 +145,6 @@ function DayRing({ letter, pct, isToday, t }: { letter: string; pct: number; isT
       </Text>
     </View>
   );
-}
-
-/**
- * Devuelve un Date válido o null. Evita `Invalid Date` propagándose a
- * `toLocaleTimeString`/`toLocaleDateString` (RangeError) o a props
- * numéricas de SVG (NaN → crash de react-native-svg).
- */
-function safeDate(value: unknown): Date | null {
-  if (value == null) return null;
-  const d = value instanceof Date ? value : new Date(value as any);
-  return isNaN(d.getTime()) ? null : d;
 }
 
 export default function FastingScreen() {
@@ -366,7 +337,7 @@ export default function FastingScreen() {
     // Auto-cierre en vivo al alcanzar 120h.
     if (hours >= MAX_FAST_HOURS && !autoCloseTriggeredRef.current) {
       autoCloseTriggeredRef.current = true;
-      autoCloseAtLimit(start);
+      autoCloseAtLimit();
       return;
     }
 
@@ -398,108 +369,69 @@ export default function FastingScreen() {
     ).catch(() => {});
   }
 
-  async function autoCloseAtLimit(start: Date) {
+  /**
+   * 31-ago-2026 (backlog 15.3): el cierre del ayuno olvidado ya NO vive aquí.
+   * reconciliarAyunoActivo (fasting-autoclose-service) decide y ejecuta, y lo
+   * llama también compileDay, así que el olvidado se cierra aunque nadie abra
+   * esta pantalla. Es idempotente: si HOY lo cerró un segundo antes, aquí
+   * llega `ya_cerrado` y no se toca nada ni se avisa dos veces.
+   *
+   * Política sin cambio: inicio corrupto o > 144 h cancela; 120 a 144 h
+   * cierra como completado a 120 h exactas con el texto §2.5 del sign-off.
+   */
+  async function reconciliar(): Promise<fastingService.FastingLog | null> {
+    const r = await reconciliarAyunoActivo(userId, { emitir: true });
+    if (r.evento === 'cerrado_en_limite' || r.evento === 'cancelado_olvidado' || r.evento === 'cancelado_invalido' || r.evento === 'ya_cerrado') {
+      if (r.fastId) AsyncStorage.removeItem(milestoneStorageKey(r.fastId)).catch(() => {});
+      loadHistory();
+    }
+    if (r.evento === 'fallo') {
+      // No se pudo escribir: se deja el ayuno visible para reintentar, no se pierde la fila.
+      logWarn('[fasting] reconciliar falló; el ayuno sigue activo para reintentar');
+    }
+    // El aviso sale de la HUELLA, no del evento de esta llamada: así se
+    // muestra igual si el cierre lo hizo esta pantalla o HOY al arrancar.
+    await mostrarAvisoDeAutocierre();
+    return r.fast;
+  }
+
+  /**
+   * 4EP 31-ago-2026: el auto-cierre puede ocurrir en compileDay (HOY) sin que
+   * esta pantalla esté abierta, y el aviso §2.5 del sign-off es compliance:
+   * tiene que verse. El servicio deja huella en AsyncStorage; aquí se lee,
+   * se avisa y se borra. Una sola vez por cierre.
+   */
+  async function mostrarAvisoDeAutocierre() {
+    let raw: string | null = null;
+    try { raw = await AsyncStorage.getItem(HUELLA_AUTOCIERRE_KEY); } catch { return; }
+    const huella = leerHuella(raw);
+    if (raw != null) AsyncStorage.removeItem(HUELLA_AUTOCIERRE_KEY).catch(() => {});
+    if (!huella) return;
+    if (huella.evento === 'cerrado_en_limite') {
+      // Texto EXACTO §2.5 del sign-off (auto-cierre obligatorio a 120h).
+      Alert.alert(FASTING_ALERTS.autoClose120h.title, FASTING_ALERTS.autoClose120h.message);
+    } else {
+      Alert.alert('Ayuno limpiado', 'Encontramos un ayuno sin cerrar y lo limpiamos.');
+    }
+  }
+
+  /** Cierre en vivo al llegar a 120 h con la pantalla abierta (tick del cronómetro). */
+  async function autoCloseAtLimit() {
     if (!activeFast) return;
-    const fastEnd = new Date(start.getTime() + MAX_FAST_HOURS * 60 * 60 * 1000);
-    const result = await fastingService.autoCloseAtLimit({ fastId: activeFast.id, hours: MAX_FAST_HOURS, fastEnd });
-    if (!result.ok) {
-      logWarn('Live auto-close at limit failed:', result.message);
-      // No limpiar estado: dejar al usuario reintentar manualmente.
+    const fast = await reconciliar();
+    if (fast) {
+      // Siguió activo (fallo de red o de RLS): dejar reintentar en el siguiente tick.
       autoCloseTriggeredRef.current = false;
       return;
     }
-    try {
-      const tier = getFastingTier(MAX_FAST_HOURS);
-      if (tier) {
-        await awardBooleanElectron(userId, tier);
-        DeviceEventEmitter.emit('electrons_changed');
-      }
-    } catch { /* opcional */ }
-    if (activeFast.id) {
-      AsyncStorage.removeItem(milestoneStorageKey(activeFast.id)).catch(() => {});
-    }
     setActiveFast(null);
     setElapsed(0);
-    DeviceEventEmitter.emit('day_changed');
-    loadHistory();
-    // Texto EXACTO §2.5 del sign-off (auto-cierre obligatorio a 120h).
-    Alert.alert(FASTING_ALERTS.autoClose120h.title, FASTING_ALERTS.autoClose120h.message);
   }
 
   async function loadActiveFast() {
-    const data = await fastingService.getActiveFast(userId);
-
-    // Reemplaza AY-6: alineado al límite duro de 120h.
-    // - fast_start inválido/nulo → ayuno corrupto → cancelar.
-    // - 120h ≤ duración ≤ 144h → ayuno alcanzó el límite → cerrar como
-    //   COMPLETADO a 120h exactas + aviso.
-    // - duración > 144h → ayuno olvidado/corrupto → cancelar (NO inflar logros).
-    if (data) {
-      const start = safeDate(data.fast_start);
-      if (!start) {
-        const r = await fastingService.cancelActiveFast(data.id);
-        if (!r.ok) {
-          // No se pudo limpiar en DB → mantener el estado para reintentar (no perder la fila).
-          logWarn('Auto-cancel invalid-start fast failed:', r.message);
-          setActiveFast(data);
-          return;
-        }
-        setActiveFast(null);
-        return;
-      }
-      const hoursElapsed = (Date.now() - start.getTime()) / (1000 * 60 * 60);
-      if (!isFinite(hoursElapsed)) {
-        const r = await fastingService.cancelActiveFast(data.id);
-        if (!r.ok) {
-          logWarn('Auto-cancel non-finite fast failed:', r.message);
-          setActiveFast(data);
-          return;
-        }
-        setActiveFast(null);
-        return;
-      }
-      if (hoursElapsed > FAST_CORRUPT_THRESHOLD_HOURS) {
-        // > 144h: olvidado, no es un ayuno real.
-        const r = await fastingService.cancelActiveFast(data.id);
-        if (!r.ok) {
-          logWarn('Auto-cancel forgotten fast failed:', r.message);
-          setActiveFast(data);
-          return;
-        }
-        setActiveFast(null);
-        Alert.alert('Ayuno limpiado', 'Encontramos un ayuno sin cerrar y lo limpiamos.');
-        return;
-      }
-      if (hoursElapsed >= MAX_FAST_HOURS) {
-        // 120h ≤ duración ≤ 144h: cerrar como completado a 120h exactas.
-        const fastEnd = new Date(start.getTime() + MAX_FAST_HOURS * 60 * 60 * 1000);
-        const closeResult = await fastingService.autoCloseAtLimit({ fastId: data.id, hours: MAX_FAST_HOURS, fastEnd });
-        if (!closeResult.ok) {
-          // Cierre falló → mantener el ayuno activo visible para reintentar (no perderlo).
-          logWarn('Auto-close at limit failed:', closeResult.message);
-          setActiveFast(data);
-          return;
-        }
-        // Electrón por tier de ayuno
-        try {
-          const tier = getFastingTier(MAX_FAST_HOURS);
-          if (tier) {
-            await awardBooleanElectron(userId, tier);
-            DeviceEventEmitter.emit('electrons_changed');
-          }
-        } catch { /* opcional */ }
-        DeviceEventEmitter.emit('day_changed');
-        // Texto EXACTO §2.5 del sign-off (auto-cierre obligatorio a 120h).
-        Alert.alert(FASTING_ALERTS.autoClose120h.title, FASTING_ALERTS.autoClose120h.message);
-        setActiveFast(null);
-        loadHistory();
-        return;
-      }
-    }
-
     // AY-G1: el protocolo ya no se escribe aquí. Lo deriva el efecto (a) desde
     // activeFast.target_hours, que cubre también las salidas tempranas de error.
-    setActiveFast(data);
+    setActiveFast(await reconciliar());
   }
 
   /**
@@ -638,6 +570,10 @@ export default function FastingScreen() {
     if (!result.ok) {
       analytics.track(ATP_EVENTS.FAST_BREAK_FAILED, { reason: result.reason });
       Alert.alert('No se pudo cerrar el ayuno', fastErrorCopy(result.reason));
+      // 31-ago-2026: si otro camino (HOY, otro dispositivo) ya lo cerró, la
+      // pantalla se pone al día en vez de seguir enseñando un cronómetro
+      // de un ayuno que ya no existe. Sin electrón: lo dio quien cerró.
+      if (result.reason === 'already_closed') { setActiveFast(null); setElapsed(0); loadHistory(); }
       return; // CRITICAL: no limpiar estado, no premiar electrón.
     }
     analytics.track(ATP_EVENTS.FAST_BREAK_SUCCEEDED, { durationHours: Math.round(actualHours * 10) / 10 });
@@ -787,6 +723,7 @@ export default function FastingScreen() {
           if (!result.ok) {
             analytics.track(ATP_EVENTS.FAST_CANCEL_FAILED, { reason: result.reason });
             Alert.alert('No se pudo cancelar', fastErrorCopy(result.reason));
+            if (result.reason === 'already_closed') { setActiveFast(null); setElapsed(0); loadHistory(); }
             return; // NO limpiar estado si falló.
           }
           analytics.track(ATP_EVENTS.FAST_CANCEL_SUCCEEDED, { fastId: cancelledId });
@@ -919,23 +856,14 @@ export default function FastingScreen() {
   // F.2: hora meta proyectada del ayuno activo (recálculo en vivo).
   const activeStart = activeFast ? safeDate(activeFast.fast_start) : null;
   const goalEnd = activeStart ? new Date(activeStart.getTime() + selectedProtocol.hours * 3600000) : null;
-  // F.4: tira de la semana (7 días terminando hoy; hoy incluye el ayuno en curso).
-  const WEEK_LETTERS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
-  const week: { key: string; letter: string; pct: number; isToday: boolean }[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const key = toLocalDateString(d);
-    let pct = 0;
-    for (const f of history) {
-      if (f.date !== key) continue;
-      const t = f.target_hours || 16;
-      pct = Math.max(pct, Math.min(1, (f.actual_hours || 0) / t));
-    }
-    const isToday = i === 0;
-    if (isToday && activeFast) pct = Math.max(pct, progress);
-    week.push({ key, letter: WEEK_LETTERS[d.getDay()], pct, isToday });
-  }
+  // F.4: tira de la semana (7 días terminando hoy; hoy incluye el ayuno en
+  // curso). 31-ago-2026: se arma en fasting-screen-core y cada ayuno cae en su
+  // día canónico (el de FIN, decisión 15.1), no en `date` (inicio). Antes el
+  // 16:8 de anoche pintaba AYER mientras HOY lo daba por cumplido hoy.
+  const week = useMemo(
+    () => construirSemana(history, new Date(), activeFast ? progress : null, toLocalDateString),
+    [history, activeFast, progress],
+  );
 
   // === RENDER ===
   return (
@@ -1016,8 +944,12 @@ export default function FastingScreen() {
                     <Text style={{ color: zone.color, fontSize: 11, fontWeight: '600' }}>
                       {fast.target_hours}h objetivo
                     </Text>
-                    <Text style={{ color: hours >= fast.target_hours ? verdeOk : ambarParcial, fontSize: 10, marginTop: 2 }}>
-                      {hours >= fast.target_hours ? '✓ Completado' : 'Parcial'}
+                    {/* 31-ago-2026: la misma regla que el calendario de adherencia
+                        (ayunoCumplido: 95 % de la meta). Antes era estricta aquí y
+                        con tolerancia allá: el mismo ayuno salía "Parcial" en esta
+                        lista y verde en Reportes. */}
+                    <Text style={{ color: ayunoCumplido(fast) ? verdeOk : ambarParcial, fontSize: 10, marginTop: 2 }}>
+                      {ayunoCumplido(fast) ? '✓ Completado' : 'Parcial'}
                     </Text>
                   </View>
                   {/* CIERRE-1: borrar un ayuno solo existía como tap largo. Un
@@ -1039,7 +971,9 @@ export default function FastingScreen() {
               );
             })
           )}
-          <Text style={{ color: t.sinDatos, fontSize: 9, textAlign: 'center', marginTop: 8 }}>
+          {/* 31-ago-2026: era t.sinDatos como tinta (contraste ~1.8, regla 4);
+              textoTenue a 9 px tampoco llega (2.27 en oscuro). */}
+          <Text style={{ color: t.textoSecundario, fontSize: 9, textAlign: 'center', marginTop: 8 }}>
             Toca para editar · el bote elimina
           </Text>
 
@@ -1186,7 +1120,9 @@ export default function FastingScreen() {
                   <Text style={{ color: t.texto, fontSize: 44, fontWeight: '900', fontVariant: ['tabular-nums'], marginTop: 2 }}>
                     {formatDuration(elapsed)}
                   </Text>
-                  {remainingMinutes > 0 ? (
+                  {/* 31-ago-2026: "ya llegaste" lo decide metaAlcanzada (estricta,
+                      minuto a minuto), la misma regla que HOY y ARGOS. */}
+                  {!metaAlcanzada(elapsedHours, selectedProtocol.hours) ? (
                     <Text style={{ color: currentZone.color, fontSize: 12, fontWeight: '600', marginTop: 6 }}>
                       Faltan {formatDuration(remainingMinutes)}
                     </Text>
@@ -1253,6 +1189,8 @@ export default function FastingScreen() {
             >
               <Ionicons name={currentZone.icon} size={15} color={currentZone.color} />
               <Text style={{ color: currentZone.color, fontSize: 13, fontWeight: '700' }}>{currentZone.label}</Text>
+              {/* 31-ago-2026 (backlog 15.5): ventana sin firma de Mariana. */}
+              <Text style={{ color: t.textoSecundario, fontSize: 11 }}>aproximado</Text>
               <Ionicons name="chevron-up" size={13} color={t.textoSecundario} />
             </Pressable>
           )}
@@ -1306,8 +1244,12 @@ export default function FastingScreen() {
               demasiadas decisiones. Son tres números, no tres botones. */}
           {stats.total > 0 && (
             <View style={{ flexDirection: 'row', width: '100%', marginTop: 18 }}>
+              {/* 31-ago-2026 (backlog 15.4): la mediana se calculaba y no se
+                  pintaba. Es el número honesto cuando hay un ayuno raro en la
+                  lista; va junto al promedio para que se lean juntos. */}
               {([
                 { et: 'PROMEDIO', v: formatearHoras(stats.promedio) },
+                { et: 'MEDIANA', v: formatearHoras(stats.mediana) },
                 { et: 'MÁS LARGO', v: formatearHoras(stats.masLargo) },
                 { et: 'RACHA', v: stats.racha > 0 ? `${stats.racha} d` : '—' },
               ] as const).map((x, i) => (
@@ -1319,10 +1261,10 @@ export default function FastingScreen() {
                     borderLeftColor: t.borde,
                   }}
                 >
-                  <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>
+                  <Text style={{ color: t.textoSecundario, fontSize: 9, fontWeight: '700', letterSpacing: 1.5 }}>
                     {x.et}
                   </Text>
-                  <Text style={{ color: t.texto, fontSize: 18, fontWeight: '800', marginTop: 4 }}>
+                  <Text style={{ color: t.texto, fontSize: 16, fontWeight: '800', marginTop: 4 }}>
                     {x.v}
                   </Text>
                 </View>
@@ -1433,7 +1375,7 @@ export default function FastingScreen() {
                   </Text>
                 ) : (
                   <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginTop: 2 }}>
-                    ESTIMADO POR TIEMPO
+                    ESTIMADO POR TIEMPO · APROXIMADO
                   </Text>
                 )}
               </View>
@@ -1444,8 +1386,10 @@ export default function FastingScreen() {
                 niveles por desbloquear más allá de lo que te propusiste. */}
             {nextZone && nextZone.hours < selectedProtocol.hours && (
               <View style={{ backgroundColor: t.hundido, borderRadius: 12, padding: 12, marginTop: 14 }}>
+                {/* 31-ago-2026 (backlog 15.5): las ventanas de fase no están
+                    firmadas por Mariana; se dicen como aproximadas. */}
                 <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>
-                  SIGUIENTE · {nextZone.label.toUpperCase()} · EN {formatDuration(timeToNext).toUpperCase()}
+                  SIGUIENTE · {nextZone.label.toUpperCase()} · EN {formatDuration(timeToNext).toUpperCase()} (APROXIMADO)
                 </Text>
                 <Text style={{ color: t.textoSecundario, fontSize: 12, marginTop: 4, lineHeight: 18 }}>{nextZone.description}</Text>
               </View>
@@ -1464,7 +1408,7 @@ export default function FastingScreen() {
                         : <Text style={{ color: t.textoTenue, fontSize: 8, fontWeight: '700' }}>{p.hours}h</Text>}
                     </View>
                     <Text style={{ color: reached ? t.texto : t.textoSecundario, fontSize: 12, flex: 1 }}>{p.label}</Text>
-                    <Text style={{ color: t.textoTenue, fontSize: 10 }}>{p.hours} h</Text>
+                    <Text style={{ color: t.textoSecundario, fontSize: 10 }}>{p.hours} h · aproximado</Text>
                   </View>
                 );
               })}
@@ -1515,7 +1459,10 @@ export default function FastingScreen() {
           visible
           initialValue={editingFast.fast_end ? new Date(editingFast.fast_end) : new Date()}
           title="Edita la hora de FIN"
-          minDate={editingFast.fast_start ? new Date(editingFast.fast_start) : undefined}
+          // 4EP 31-ago: con el inicio exacto como piso, el picker permitía fin ==
+          // inicio, la base rechazaba con 23514 y el copy decía "registro en
+          // conflicto". Mismo remedio que el cierre: un minuto después del inicio.
+          minDate={editingFast.fast_start ? new Date(new Date(editingFast.fast_start).getTime() + 60000) : undefined}
           maxDate={new Date()}
           presets={PAST_END_PRESETS}
           onConfirm={handleEditEndConfirm}

@@ -1,8 +1,8 @@
 {
   "scheme": "atp",
-  "generado": "2026-08-21T03:09:00.443Z",
+  "generado": "2026-08-31T13:49:51.189Z",
   "resumen": {
-    "estaticas": 191,
+    "estaticas": 192,
     "dinamicas": 87,
     "variantes": 8
   },
@@ -1680,6 +1680,12 @@
       "archivo": "app/supplements.tsx",
       "tipo": "estatica",
       "slug": "supplements"
+    },
+    {
+      "ruta": "/supplements/historial",
+      "archivo": "app/supplements/historial.tsx",
+      "tipo": "estatica",
+      "slug": "supplements-historial"
     },
     {
       "ruta": "/tests",

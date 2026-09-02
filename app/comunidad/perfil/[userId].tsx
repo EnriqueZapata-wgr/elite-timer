@@ -17,7 +17,7 @@ import { EliteText } from '@/components/elite-text';
 import { UserAvatar } from '@/src/components/ui/UserAvatar';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
-import { getPublicProfile } from '@/src/services/community/public-profile-service';
+import { getPublicProfile, ensureOwnPublicName } from '@/src/services/community/public-profile-service';
 import { type VisiblePublicProfile } from '@/src/services/community/public-profile-core';
 import {
   sendFriendRequest,
@@ -79,6 +79,8 @@ export default function CommunityPublicProfileScreen() {
 
   const load = useCallback(async () => {
     if (!userId) return;
+    // 7.1 (31-ago-2026): mi propia fila sin nombre se cura antes de leerla.
+    if (isMe) await ensureOwnPublicName(userId);
     const [p, blocked, friends, pending] = await Promise.all([
       getPublicProfile(userId),
       isBlockedByMe(userId),
@@ -99,7 +101,7 @@ export default function CommunityPublicProfileScreen() {
       });
     }
     setLoading(false);
-  }, [userId]);
+  }, [userId, isMe]);
 
   useEffect(() => {
     load();

@@ -18,7 +18,7 @@ import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import {
-  getMyPublicProfile, updateVisibility, setUsername, syncPublicProfile,
+  getMyPublicProfile, updateVisibility, setUsername, syncPublicProfile, ensureOwnPublicName,
 } from '@/src/services/community/public-profile-service';
 import { type PublicProfileRow } from '@/src/services/community/public-profile-core';
 import { type VisibilityFlags } from '@/src/constants/community';
@@ -71,6 +71,8 @@ export default function SettingsComunidadScreen() {
         const created = await syncPublicProfile({});
         if (created) p = await getMyPublicProfile(user.id);
       }
+      // 7.1 (31-ago-2026): fila sin nombre visible → se cura con mi full_name.
+      if (p && await ensureOwnPublicName(user.id)) p = await getMyPublicProfile(user.id);
       setProfile(p);
       if (p?.username) setUsernameInput(p.username);
     })();
@@ -147,7 +149,8 @@ export default function SettingsComunidadScreen() {
             value={usernameInput}
             onChangeText={(t) => { setUsernameInput(t); setUsernameMsg(null); }}
             placeholder="tu_usuario"
-            placeholderTextColor={tokens.sinDatos}
+            // 31-ago-2026: sinDatos es tinta prohibida (regla 4, contraste ~1.8).
+            placeholderTextColor={tokens.textoSecundario}
             autoCapitalize="none"
             autoCorrect={false}
             maxLength={20}

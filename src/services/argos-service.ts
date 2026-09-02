@@ -33,6 +33,8 @@ import {
   type PersonalRecord, type UserContext,
 } from './argos-context-core';
 import { computeStreak } from './adherence-service';
+import { contarHabitosHoy } from './argos-habitos-hoy-core';
+import type { HabitEstadoRow } from './hoy/habit-states-core';
 
 // === MODELOS ===
 const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
@@ -127,7 +129,7 @@ reconocibles del método:
 - "Principios hay pocos, métodos hay muchos."
 - "Principio gana a método."
 - "Si no cabe, se avisa."
-- "Subumbral siempre — queremos adaptación, no esfuerzo vacío."
+- "Subumbral siempre: queremos adaptación, no esfuerzo vacío."
 - "El mejor cliente es el que hace más acciones efectivas."
 - "Más vale documentar que alejarse del cliente."
 - "Brújula, no diagnóstico."
@@ -860,14 +862,59 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
   } catch (e) { registrarBloqueDeContexto('protocolo-activo', 'error', e); }
 
   try {
-    // Electrones de hoy
-    const { data: electrons } = await supabase
-      .from('electron_logs')
-      .select('electrons')
-      .eq('user_id', userId)
-      .eq('date', today);
-    const earned = (electrons || []).reduce((s, e) => s + Number(e.electrons), 0);
-    context.todayElectrons = { earned: Math.round(earned * 10) / 10, total: 20 };
+    // Electrones de hoy + hábitos de hoy (13.2, 31-ago-2026).
+    //
+    // Antes: `total: 20` clavado en código, y ningún conteo de hábitos. ARGOS
+    // contestaba "cuántos hábitos llevo" con electrones sobre un 20 que no
+    // era de nadie. Ahora el ledger solo da lo GANADO (sin denominador
+    // inventado) y el conteo de hábitos sale de la misma derivación del
+    // renglón de HOY (ver argos-habitos-hoy-core). Cinco lecturas en paralelo;
+    // si alguna falla, ese bloque no viaja: "no pude leer" nunca es "cero".
+    const [logsRes, prefsRes, statesRes, blobRes, cycleModeRes] = await Promise.all([
+      supabase.from('electron_logs')
+        .select('electrons, source, category')
+        .eq('user_id', userId)
+        .eq('date', today),
+      supabase.from('user_day_preferences')
+        .select('active_boolean_electrons')
+        .eq('user_id', userId)
+        .maybeSingle(),
+      supabase.from('user_habit_states')
+        .select('habit_key, state')
+        .eq('user_id', userId),
+      supabase.from('daily_electrons')
+        .select('electrons')
+        .eq('user_id', userId)
+        .eq('date', today)
+        .maybeSingle(),
+      supabase.from('user_app_modes')
+        .select('mode')
+        .eq('user_id', userId)
+        .eq('app_key', 'ciclo')
+        .maybeSingle(),
+    ]);
+    if (logsRes.error) {
+      registrarBloqueDeContexto('electrones-hoy', 'error', logsRes.error.message);
+    } else {
+      const logs = (logsRes.data ?? []) as { electrons: number; source: string; category: string | null }[];
+      const earned = logs.reduce((acc, e) => acc + Number(e.electrons), 0);
+      context.todayElectrons = { earned: Math.round(earned * 10) / 10, total: null };
+      // El renglón de hábitos necesita prefs y blob legibles; estados y modo
+      // Ciclo son opcionales (tabla ausente o error → como HOY: todos activos,
+      // modo null). context.gender ya se leyó arriba de client_profiles.
+      if (prefsRes.error || blobRes.error) {
+        registrarBloqueDeContexto('habitos-hoy', 'error', (prefsRes.error ?? blobRes.error)?.message);
+      } else {
+        context.habitosHoy = contarHabitosHoy({
+          persistedBoolKeys: (prefsRes.data?.active_boolean_electrons as string[] | null | undefined) ?? null,
+          habitStates: statesRes.error ? null : (statesRes.data as HabitEstadoRow[] | null),
+          biologicalSex: context.gender ?? null,
+          cycleMode: cycleModeRes.error ? null : ((cycleModeRes.data as { mode?: string } | null)?.mode ?? null),
+          blob: (blobRes.data?.electrons as Record<string, boolean> | null | undefined) || null,
+          ledgerHoy: logs.filter((l) => l.category === 'boolean_daily').map((l) => l.source),
+        });
+      }
+    }
   } catch (e) { registrarBloqueDeContexto('electrones-hoy', 'error', e); }
 
   try {
@@ -1487,6 +1534,14 @@ interface ArgosChatOptions {
    *  Ya no tarifica nada; sigue viva porque con ella el proxy elige el modelo y la
    *  registra en la bitácora de uso. */
   requestType?: string;
+  /**
+   * HUB-ARGOS (31-ago-2026): bloque de sistema del CONTEXTO DE APERTURA
+   * (`/argos-chat?contexto=...`, ver argos-contexto-core). Ya viene armado; el
+   * chat lo resolvió al montar y lo manda en cada turno de esa conversación.
+   * Va al final de la capa dinámica, después del contexto del usuario, para
+   * que califique lo que ya se dijo ("de TODO esto, la persona pregunta por X").
+   */
+  extraContext?: string;
 }
 
 /**
@@ -1563,7 +1618,8 @@ async function prepareChatTurn(
   const dynamicSystem =
     cycleGuard + protocolGuard + voiceInjection +
     coachGateInjection + presenceInjection + timeInjection + screenInjection +
-    alcanceInjection + historyWindow.summaryInjection + contextPrompt;
+    alcanceInjection + historyWindow.summaryInjection + contextPrompt +
+    (options?.extraContext ?? '');
   const systemPrompt = ARGOS_SYSTEM_PROMPT + dynamicSystem;
 
   return { systemPrompt, dynamicSystem, gateResult, conversationId, llmMessages: historyWindow.messages };

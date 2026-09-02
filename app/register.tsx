@@ -23,10 +23,12 @@ import { supabase } from '@/src/lib/supabase';
 import { logConsent } from '@/src/services/consent-log-service';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
-// MB-31B remate: esta pantalla vive DENTRO de <AuthScreen> (compartido, gradiente
-// oscuro #0A0E14→#000 constante + StatusBar light fija) — frontera del tema: el
-// interior queda oscuro en los dos modos (como la card editorial), por eso los
-// neutros van anclados a THEME_DARK y no al tema efectivo.
+// MB-31B remate dejó esta pantalla anclada a THEME_DARK como frontera oscura.
+// BLOQ-3 (16-ago) la pasó a `useAuthTheme`, y MARCA (17-ago) encendió
+// AUTH_RESPETA_EL_TEMA: hoy AuthScreen abre <ThemeReady>, pinta el gradiente
+// con tokens (flotante→fondo en claro) y pone el StatusBar por tema. Aquí no
+// queda un solo neutro a mano; el lima solo vive como RELLENO (checkbox) y
+// el acento de letra en claro es tealTexto. Verificado el 31-ago-2026 (21.3).
 import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { Spacing, Fonts } from '@/constants/theme';
 import { BackButton } from '@/src/components/ui/BackButton';

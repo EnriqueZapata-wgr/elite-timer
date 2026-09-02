@@ -72,7 +72,10 @@ export function NumberInputRow({ label, unit, value, onChangeText, helper, place
 const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xs },
   rowHighlight: { backgroundColor: 'rgba(168,224,42,0.06)', borderRadius: Radius.sm, paddingHorizontal: Spacing.xs, marginHorizontal: -Spacing.xs },
-  inputHighlight: { borderColor: ATP_BRAND.lime },
+  // 31-ago-2026 (21.3): el lima como borde sobre el campo hundido claro mide
+  // 1.12: el ?focus resaltaba un campo que nadie veía resaltado. En claro el
+  // filo es el teal calibrado (4.64 sobre hundido, forma >= 3).
+  inputHighlight: { borderColor: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   labelCol: { flex: 1 },
   label: { color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   helper: { color: t.textoSecundario, fontSize: FontSizes.xs, marginTop: 1 },
@@ -87,5 +90,5 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.md,
     borderWidth: 1, borderColor: t.borde,
   },
-  inputReadOnly: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, borderColor: 'rgba(168,224,42,0.3)' },
+  inputReadOnly: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, borderColor: t.kind === 'dark' ? 'rgba(168,224,42,0.3)' : t.tealTexto },
 });

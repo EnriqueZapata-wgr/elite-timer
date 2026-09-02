@@ -275,7 +275,7 @@ export async function syncAppAvisos(
     ]);
     // Prefs ilegibles = no se agenda nada (regla dura: ante la duda, silencio).
     if (!prefs) {
-      logWarn('[app-avisos] prefs ilegibles — no se agenda nada');
+      logWarn('[app-avisos] prefs ilegibles: no se agenda nada');
       return;
     }
     if (rowsRes.error) {

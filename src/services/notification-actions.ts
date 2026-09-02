@@ -10,7 +10,9 @@
  *   - meditar   → registrarExperiencia (tarea-actions, el writer de
  *                 "Ya medité" del módulo Mente)
  *   - respirar  → registrarExperiencia (mismo writer, source breathwork)
- * Ambos writers emiten sus DeviceEventEmitter y premian electrones por su
+ *   - sol       → persistBooleanToggle (tarea-actions, el writer del palomeo
+ *                 de HOY; atómico desde MB-32 P0, por eso ya cabe aquí)
+ * Todos los writers emiten sus DeviceEventEmitter y premian electrones por su
  * propia puerta. Una ruta paralela aquí = ledger roto (test de mutación).
  *
  * ⚠️ SNOOZE — EL MAESTRO MANDA: "Recordar en 15" pasa por canSnoozeAt
@@ -23,7 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { warn as logWarn } from '@/src/lib/logger';
 import { addWater } from '@/src/services/hydration-service';
-import { registrarExperiencia } from '@/src/services/hoy/tarea-actions';
+import { registrarExperiencia, persistBooleanToggle } from '@/src/services/hoy/tarea-actions';
 import { getNotificationPrefs } from '@/src/services/notification-prefs-service';
 import {
   NOTIFICATION_CATEGORIES, SNOOZE_MINUTES,
@@ -127,6 +129,13 @@ export async function handleNotificationResponse(
       case 'log_breathwork': {
         const res = await registrarExperiencia(userId, 'breathwork', intent.minutes);
         if (!res.ok) logWarn('[notif-actions] registrarExperiencia breathwork falló', res.error);
+        break;
+      }
+      case 'log_boolean': {
+        // MISMO camino que el palomeo de la fila de HOY. El mapa vacío es solo
+        // el respaldo de la primera escritura del día: el writer lee el blob
+        // fresco bajo candado y mezcla sobre él.
+        await persistBooleanToggle(userId, intent.source, true, {});
         break;
       }
       case 'snooze':

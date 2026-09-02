@@ -4,9 +4,15 @@
  * PREMIUM (16-ago-2026): una sola membresía. Se fueron el nombre del plan, el
  * color por nivel y el countdown del Boost H+.
  *
- * La cancelación real vive en Apple/Google (no se puede cancelar in-app por
- * política de stores): el botón confirma y deep-linkea a la gestión de
- * suscripciones. Historial desde subscription_events (webhook de Cowork).
+ * La cancelación real vive donde se compró: App Store, Google Play o el
+ * portal de Stripe (compra web, que es la de la preventa). 31-ago-2026: antes
+ * esta pantalla decía "Apple/Google" por plataforma, pero la preventa cobra
+ * por Stripe, así que a quien pagó en la web le mandaba a una tienda donde no
+ * hay nada que cancelar. Ahora el nombre sale del `store` del entitlement de
+ * RevenueCat (APP_STORE | PLAY_STORE | STRIPE | ...) y el enlace de
+ * `managementURL`, que para Stripe es el portal del cliente. El copy es el
+ * mismo que los términos publicados (cláusula 5). Historial desde
+ * subscription_events (webhook de Cowork).
  */
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
@@ -106,6 +112,20 @@ export default function SubscriptionSettingsScreen() {
 
   const managementUrl = customerInfo?.managementURL ?? STORE_SUBSCRIPTIONS_URL;
 
+  /**
+   * Dónde se gestiona de verdad esta suscripción. Sale del entitlement, no de
+   * la plataforma: alguien con iPhone que compró en la web tiene Stripe.
+   * Si RevenueCat no lo dice, no se adivina: se habla del "proveedor de pago".
+   */
+  const proveedor = (() => {
+    const store = String(activeEntitlement?.store ?? '').toUpperCase();
+    if (store === 'APP_STORE' || store === 'MAC_APP_STORE') return 'App Store';
+    if (store === 'PLAY_STORE') return 'Google Play';
+    if (store === 'STRIPE') return 'el portal de suscripción';
+    if (store === 'PROMOTIONAL') return null;
+    return 'tu proveedor de pago';
+  })();
+
   function onManagePayment() {
     haptic.medium();
     if (managementUrl) Linking.openURL(managementUrl);
@@ -115,7 +135,9 @@ export default function SubscriptionSettingsScreen() {
     haptic.medium();
     Alert.alert(
       'Cancelar suscripción',
-      `La cancelación se gestiona en ${Platform.OS === 'ios' ? 'Apple' : 'Google'}. Mantienes acceso hasta el fin del periodo pagado.`,
+      proveedor
+        ? `La cancelación se hace en ${proveedor}, sin penalización. Mantienes el acceso hasta el fin del periodo ya pagado.`
+        : 'Esta membresía es promocional y no tiene cobro que cancelar.',
       [
         { text: 'Volver', style: 'cancel' },
         {
@@ -191,7 +213,7 @@ export default function SubscriptionSettingsScreen() {
                 <EliteText style={[styles.rowLabel, { color: tokens.texto }]}>Método de pago</EliteText>
                 <View style={styles.rowRight}>
                   <EliteText style={[styles.rowValue, { color: tokens.textoSecundario }]}>
-                    Gestionar en {Platform.OS === 'ios' ? 'Apple' : 'Google'}
+                    {proveedor ? `Gestionar en ${proveedor}` : 'Sin cobro'}
                   </EliteText>
                   <Ionicons name="open-outline" size={14} color={tokens.textoSecundario} />
                 </View>

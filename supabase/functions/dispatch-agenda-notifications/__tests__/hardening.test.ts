@@ -8,6 +8,7 @@ import {
   DEFAULT_RETRY,
   isPendingAnomalous,
   isRetryableStatus,
+  isStaleNotify,
   sendPushBatchWithRetry,
   tokensToInvalidate,
 } from '../hardening';
@@ -19,7 +20,7 @@ const okResponse = (tickets: unknown[] = [{ status: 'ok' }]) => ({
 });
 
 describe('T1 · sendPushBatchWithRetry', () => {
-  it('éxito al primer intento — sin sleeps', async () => {
+  it('éxito al primer intento, sin sleeps', async () => {
     const fetchFn = vi.fn(async () => okResponse());
     const sleep = vi.fn(async () => {});
     const result = await sendPushBatchWithRetry([{ to: 'tok' }], fetchFn, DEFAULT_RETRY, sleep);
@@ -29,7 +30,7 @@ describe('T1 · sendPushBatchWithRetry', () => {
     expect(sleep).not.toHaveBeenCalled();
   });
 
-  it('éxito al tercer intento tras dos 500 — backoff 500ms y 2s', async () => {
+  it('éxito al tercer intento tras dos 500: backoff 500ms y 2s', async () => {
     const fetchFn = vi.fn()
       .mockResolvedValueOnce({ status: 500, json: async () => ({}) })
       .mockResolvedValueOnce({ status: 503, json: async () => ({}) })
@@ -179,5 +180,31 @@ describe('T3 · buildLogEntry', () => {
     const parsed = JSON.parse(JSON.stringify(entry));
     expect(parsed.buckets).toBe(12);
     expect(parsed.component).toBe('dispatch-agenda-notifications');
+  });
+});
+
+describe('T6 · isStaleNotify (31-ago-2026: recordatorios vencidos no se mandan)', () => {
+  const now = new Date('2026-08-23T03:50:00Z').getTime(); // 21:50 CDMX
+
+  it('EL CASO DEL DUEÑO: notify_at de las 07:20 despachado a las 21:50 → vencido', () => {
+    expect(isStaleNotify('2026-08-22T13:20:00Z', now)).toBe(true);
+  });
+
+  it('4EP M1: un notify_at = ahora (evento inminente abierto tarde) sí se manda', () => {
+    expect(isStaleNotify(new Date(now).toISOString(), now)).toBe(false);
+  });
+
+  it('un recordatorio de hace 5 min (cron con retraso) sí se manda', () => {
+    expect(isStaleNotify(new Date(now - 5 * 60_000).toISOString(), now)).toBe(false);
+  });
+
+  it('el borde: 20 min exactos se manda, 20 min y un ms no', () => {
+    expect(isStaleNotify(new Date(now - 20 * 60_000).toISOString(), now)).toBe(false);
+    expect(isStaleNotify(new Date(now - 20 * 60_000 - 1).toISOString(), now)).toBe(true);
+  });
+
+  it('notify_at ilegible o vacío = vencido (ante la duda, silencio)', () => {
+    expect(isStaleNotify(null, now)).toBe(true);
+    expect(isStaleNotify('nada', now)).toBe(true);
   });
 });

@@ -12,6 +12,7 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -29,12 +30,18 @@ import {
   type MedicionRow, type PuntoPeso, type UltimoPeso, type MedidaResumen,
 } from '@/src/services/cuerpo/medidas-core';
 import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 export default function MedidasScreen() {
   const { user } = useAuth();
-  const t = useSurfaceTokens();
+  // 31-ago-2026 (21.3): la migración del 21-ago dejó la pantalla leyendo
+  // useSurfaceTokens a nivel de RUTA. El <ThemeReady> que abre el claro lo
+  // monta <Screen themed> más abajo, así que a esta altura el scope no existe
+  // y el hook devolvía THEME_DARK siempre: lienzo claro con cards y texto del
+  // oscuro encima. Por eso "seguía en negro". La ruta lee el tema GLOBAL
+  // (manual cap. 5, candado 3a de mb31b-remate).
+  const { kind, tokens: t } = useAppTheme();
   const s = useMemo(() => makeStyles(t), [t]);
   const [serie, setSerie] = useState<PuntoPeso[]>([]);
   const [ultimo, setUltimo] = useState<UltimoPeso | null>(null);
@@ -70,6 +77,7 @@ export default function MedidasScreen() {
 
   return (
     <Screen edges={[]} themed>
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Medidas" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         {/* ── El dato: tu peso, y cómo se ha movido ── */}
@@ -100,7 +108,7 @@ export default function MedidasScreen() {
                 data={serie.map(({ label, value }) => ({ label, value }))}
                 // El lima contrasta 1.34 sobre fondo claro: una línea de
                 // gráfica en lima ahí es una línea invisible.
-                color={t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto}
+                color={kind === 'dark' ? ATP_BRAND.lime : t.tealTexto}
                 height={120}
               />
             </View>

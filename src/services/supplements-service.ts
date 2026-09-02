@@ -8,6 +8,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supplementsTodayProgress } from './supplements-adherence-core';
+import { esPlan } from './supplements/adherencia-core';
 import { resolvePregnancyActive } from './pregnancy-gate-core';
 
 export interface SupplementsToday {
@@ -21,12 +22,15 @@ export interface SupplementsToday {
 export async function getSupplementsTodayCount(userId: string): Promise<SupplementsToday> {
   try {
     const today = getLocalToday();
+    // 312 (10.4): el conteo del dia es del PLAN; las eventuales no entran en
+    // "X / Y". select('*') para que la columna nueva no rompa a un cliente
+    // que corra antes del db push (sin is_plan, esPlan() trata la fila como plan).
     const [suppsRes, logsRes] = await Promise.all([
-      supabase.from('user_supplements').select('id, dose_times').eq('user_id', userId).eq('is_active', true),
+      supabase.from('user_supplements').select('*').eq('user_id', userId).eq('is_active', true),
       supabase.from('supplement_logs').select('supplement_id, dose_index, taken').eq('user_id', userId).eq('date', today),
     ]);
     return supplementsTodayProgress(
-      (suppsRes.data ?? []) as { id: string; dose_times?: string[] | null }[],
+      ((suppsRes.data ?? []) as { id: string; dose_times?: string[] | null; is_plan?: boolean | null }[]).filter(esPlan),
       (logsRes.data ?? []) as { supplement_id: string; dose_index?: number | null; taken: boolean }[],
     );
   } catch {

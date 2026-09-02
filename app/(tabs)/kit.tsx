@@ -52,6 +52,7 @@ import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { APP_SECTION_COLORS, ATP_BRAND, PILL } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
+import { warn as logWarn } from '@/src/lib/logger';
 
 export default function SalaAtpScreen() {
   const router = useRouter();
@@ -84,33 +85,69 @@ export default function SalaAtpScreen() {
   // MB-22 P4: con modo instalado (acompañante) el Ciclo también se ve, sea
   // quien sea — el modo viene de user_app_modes (fail-soft null = solo female).
   const [cycleModeSet, setCycleModeSet] = useState(false);
+  // 17.4 (31-ago-2026): "no se pudo leer" ≠ "no aplica". Antes, si la lectura
+  // del perfil fallaba (supabase-js devuelve {data:null, error} en 4xx, y el
+  // catch tragaba el fetch rechazado), Ciclo desaparecía de la cuadrícula sin
+  // hueco ni aviso, y peor: seedInitialApps corría con female=false y dejaba
+  // la siembra one-shot SIN Ciclo para siempre. Ahora el fallo se declara en
+  // pantalla con reintentar, no se siembra a ciegas, y si la persona ya tenía
+  // Ciclo instalado (evidencia propia, no del perfil) el mosaico se queda.
+  const [perfilFallo, setPerfilFallo] = useState(false);
+  const [perfilIntento, setPerfilIntento] = useState(0);
   useEffect(() => {
     if (!user?.id) return;
     let alive = true;
     (async () => {
       try {
-        const [{ data }, mode] = await Promise.all([
+        const [{ data, error }, mode] = await Promise.all([
           supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle(),
           getCycleAppMode(user.id),
         ]);
         if (!alive) return;
+        setCycleModeSet(mode != null);
+        if (error) {
+          logWarn('[kit] perfil no se pudo leer', error);
+          setPerfilFallo(true);
+          return;
+        }
+        setPerfilFallo(false);
+        // 4EP M-2: maybeSingle() sin fila devuelve {data:null, error:null}.
+        // Eso tampoco es un perfil leído: sin fila no se sabe el sexo y la
+        // siembra one-shot quedaría sin Ciclo para siempre. Sin card de fallo
+        // (no falló nada): solo no se siembra hasta que el perfil exista.
+        if (data == null) {
+          logWarn('[kit] perfil sin fila: no se siembra');
+          return;
+        }
         const female = (data as any)?.biological_sex === 'female';
         setIsFemale(female);
-        setCycleModeSet(mode != null);
         // MB-22.1 P3: siembra one-shot del set inicial (Respirar + Ciclo para
         // usuarias). Si escribió, se releen prefs para pintar la cuadrícula.
+        // Solo con perfil LEÍDO: sembrar con un sexo adivinado es irreversible.
         const seeded = await seedInitialApps(user.id, female);
         if (!alive) return;
         if (seeded) {
           setInstallPrefs(await getInstallPrefs(user.id));
           if (female && mode == null) setCycleModeSet(true);
         }
-      } catch { /* sin perfil: el ciclo queda oculto */ }
+      } catch (e) {
+        // Fetch rechazado (modo avión): tampoco es "no aplica".
+        if (!alive) return;
+        logWarn('[kit] perfil lanzó', e);
+        setPerfilFallo(true);
+      }
     })();
     return () => { alive = false; };
-  }, [user?.id]);
+  }, [user?.id, perfilIntento]);
 
-  const apps = useMemo(() => visibleApps(isFemale || cycleModeSet), [isFemale, cycleModeSet]);
+  // Con el perfil caído, lo instalado es la evidencia que sí tenemos: Ciclo
+  // solo pudo instalarse si le tocaba. /cycle trae su propio gate de todos
+  // modos (useCycleGate), así que aquí nunca se abre de más.
+  const cicloInstalado = installPrefs?.installedApps.includes('ciclo') ?? false;
+  const apps = useMemo(
+    () => visibleApps(isFemale || cycleModeSet || (perfilFallo && cicloInstalado)),
+    [isFemale, cycleModeSet, perfilFallo, cicloInstalado],
+  );
 
   // MB-22: el deep link viejo de "+ agregar" aterriza donde hoy se instala.
   useEffect(() => {
@@ -259,6 +296,32 @@ export default function SalaAtpScreen() {
           </AnimatedPressable>
         </Animated.View>
 
+        {/* 17.4: el perfil no se pudo leer. Se dice, con reintentar, en vez de
+            esconder apps en silencio. */}
+        {perfilFallo && (
+          <Animated.View entering={FadeInUp.delay(75).springify()}>
+            <View style={[s.centroCard, { backgroundColor: tokens.card, borderColor: tokens.borde }]}>
+              <View style={s.centroIcon}>
+                <Ionicons name="cloud-offline-outline" size={18} color={tokens.textoSecundario} />
+              </View>
+              <View style={s.centroBody}>
+                <EliteText style={[s.centroTitle, { color: tokens.texto }]}>No pudimos leer tu perfil</EliteText>
+                <EliteText style={[s.centroSub, { color: tenueInformativo }]}>
+                  {cicloInstalado
+                    ? 'Tus funciones siguen aquí. Revisa tu conexión.'
+                    : 'Alguna función (como Ciclo) puede faltar hasta que se vuelva a leer.'}
+                </EliteText>
+              </View>
+              <AnimatedPressable
+                style={[s.emptyCta, kind === 'light' && { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime }]}
+                onPress={() => { haptic.light(); setPerfilIntento((n) => n + 1); }}
+              >
+                <EliteText style={[s.emptyCtaText, kind === 'light' && { color: tokens.textoSobreLima }]}>Reintentar</EliteText>
+              </AnimatedPressable>
+            </View>
+          </Animated.View>
+        )}
+
         {/* El momento con foto de esta pantalla. UNA card: ni carrusel ni feed. */}
         {!searching && editorial && (
           <Animated.View entering={FadeInUp.delay(80).springify()}>
@@ -282,7 +345,7 @@ export default function SalaAtpScreen() {
             value={query}
             onChangeText={setQuery}
             placeholder="Buscar una función"
-            placeholderTextColor={tokens.sinDatos}
+            placeholderTextColor={tokens.textoTenue}
             style={[s.searchInput, { color: tokens.texto }]}
             autoCorrect={false}
             returnKeyType="search"

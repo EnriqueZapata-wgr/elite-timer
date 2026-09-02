@@ -24,7 +24,7 @@ import {
 } from '@/src/services/recipe-save-service';
 import { defaultMealTypeByHour } from '@/src/services/meal-times-core';
 import {
-  catalogoARecipe, textoIngrediente, textoPaso,
+  catalogoARecipe,
   filtrarRecetas, MOMENTOS, type FiltroMomento,
 } from '@/src/services/nutrition/catalogo-recetas-core';
 import { warn as logWarn } from '@/src/lib/logger';
@@ -34,6 +34,7 @@ import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { GeneradorArgos } from './GeneradorArgos';
+import { HojaReceta } from './HojaReceta';
 
 interface Recipe {
   id: string;
@@ -111,6 +112,8 @@ export function RecetasTab({ onIrALista }: Props) {
   const [savingLogId, setSavingLogId] = useState<string | null>(null);
   // El generador de ARGOS vive dentro de la pestaña, no en otra ruta.
   const [generando, setGenerando] = useState(false);
+  // 31-ago: la ficha abierta en HojaReceta. null = cerrada.
+  const [recetaAbierta, setRecetaAbierta] = useState<Recipe | null>(null);
 
   useFocusEffect(useCallback(() => {
     loadRecipes();
@@ -167,34 +170,14 @@ export function RecetasTab({ onIrALista }: Props) {
    * Registrar 550 kcal de un bowl que no has visto es mal comportamiento, y el
    * catálogo existe justamente para que se puedan leer ingredientes y pasos.
    *
-   * Provisional a propósito: esto merece una hoja propia con su tipografía, no
-   * un Alert. Va así hoy porque no hay compilador esta noche para validar una
-   * hoja nueva completa, y un Alert correcto vale más que una hoja sin probar.
+   * 31-ago: el detalle dejó de ser un Alert (pendiente 16.2) y es HojaReceta:
+   * la ficha completa con sus tres salidas (registrar, mandar a la lista y
+   * pedirle a ARGOS que la modifique). Las suyas también la abren, desde el
+   * botón "Ficha" de la tarjeta, porque el toque corto sigue registrando.
    */
   function verDetalle(recipe: Recipe) {
     haptic.light();
-    const partes: string[] = [];
-    if (recipe.description) partes.push(recipe.description);
-    const tiempos = [
-      recipe.prep_time_min ? `${recipe.prep_time_min} min de preparación` : null,
-      recipe.cook_time_min ? `${recipe.cook_time_min} min de cocción` : null,
-      recipe.servings ? `${recipe.servings} porción${recipe.servings > 1 ? 'es' : ''}` : null,
-    ].filter(Boolean).join(' · ');
-    if (tiempos) partes.push(tiempos);
-    const ingr = (recipe.ingredients ?? []).map(textoIngrediente).filter(Boolean);
-    if (ingr.length) partes.push('INGREDIENTES\n' + ingr.map(x => `· ${x}`).join('\n'));
-    const pasos = (recipe.instructions ?? []).map(textoPaso).filter(Boolean);
-    if (pasos.length) partes.push('PASOS\n' + pasos.map((x, i) => `${i + 1}. ${x}`).join('\n'));
-    // Con las 93 nuevas entran fichas incompletas. Si no hay NADA que contar,
-    // un Alert con solo el título y dos botones es peor que no abrirlo.
-    if (!partes.length) partes.push('Esta ficha todavía no trae ingredientes ni pasos.');
-    // Mandar a la lista de súper vive en la pestaña Lista, que ya lo hace bien
-    // con sendRecipeToList. Duplicarlo aquí a medias sería un segundo camino
-    // para lo mismo, que es justo lo que esta casa lleva semanas matando.
-    Alert.alert(recipe.name, partes.join('\n\n'), [
-      { text: 'Cerrar', style: 'cancel' },
-      { text: 'Registrar hoy', onPress: () => registerRecipe(recipe) },
-    ]);
+    setRecetaAbierta(recipe);
   }
 
   async function registerRecipe(recipe: Recipe) {
@@ -489,6 +472,21 @@ export function RecetasTab({ onIrALista }: Props) {
                 <View style={s.recipeHeader}>
                   <Ionicons name="bookmark" size={16} color={ATP_BRAND.amber} />
                   <EliteText style={[s.recipeName, { color: t.texto }]} numberOfLines={1}>{recipe.name}</EliteText>
+                  {/* 31-ago: en las suyas el toque corto registra (Enrique lo
+                      pidió así) y el largo borra, así que la ficha necesita su
+                      propio botón. Va como chip de texto con chevron, que es
+                      cromo: un glifo de "ver" sería de función y no hay
+                      AppIcon para eso. */}
+                  {recipe.origin === 'user' && (
+                    <Pressable
+                      onPress={() => verDetalle(recipe)}
+                      hitSlop={8}
+                      style={[s.fichaBtn, { backgroundColor: t.hundido, borderColor: t.borde }]}
+                    >
+                      <EliteText style={[s.fichaText, { color: t.textoSecundario }]}>Ficha</EliteText>
+                      <Ionicons name="chevron-forward" size={12} color={t.textoSecundario} />
+                    </Pressable>
+                  )}
                   {/* T5: corazón de favorito */}
                   <Pressable onPress={() => toggleFavorite(recipe)} hitSlop={10}>
                     <Ionicons
@@ -654,6 +652,14 @@ export function RecetasTab({ onIrALista }: Props) {
         </Pressable>
       </Modal>
 
+      {/* 31-ago: la ficha como hoja. Recibe la receta ya cargada y el mismo
+          registerRecipe de arriba: un solo camino a food_logs. */}
+      <HojaReceta
+        receta={recetaAbierta}
+        onCerrar={() => setRecetaAbierta(null)}
+        onRegistrar={registerRecipe}
+      />
+
       {/* Modal crear receta */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
         <Pressable style={[s.modalOverlay, { backgroundColor: velo(t) }]} onPress={() => setShowCreate(false)}>
@@ -752,6 +758,12 @@ const s = StyleSheet.create({
   },
   recipeHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   recipeName: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, flex: 1 },
+  fichaBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 2,
+    paddingLeft: 8, paddingRight: 4, paddingVertical: 3,
+    borderRadius: 12, borderWidth: 0.5,
+  },
+  fichaText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
   macroRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 10 },
   macroItem: { alignItems: 'center' },
   macroValue: { fontSize: FontSizes.md, fontFamily: Fonts.bold },

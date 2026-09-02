@@ -130,6 +130,36 @@ export function textoIngrediente(i: unknown): string {
   return cant ? `${nombre} · ${cant}` : nombre;
 }
 
+/**
+ * 31-ago-2026: la linea SECUNDARIA de un ingrediente en la ficha.
+ *
+ * Las 93 recetas de la 310 traen dos llaves extra que la tarjeta no pintaba:
+ * `sustituto` ("cilantro fresco" para la albahaca) y `nota` ("en cubos de
+ * 1 cm"). Son la mitad del valor de la ficha cuando alguien esta cocinando y
+ * no tiene el ingrediente. Van juntas en una linea en gris secundario:
+ * "o cilantro fresco · en hojas". Vacio si el ingrediente no trae ninguna.
+ * Nunca revienta: string suelto, null o basura devuelven ''.
+ */
+export function detalleIngrediente(i: unknown): string {
+  if (!i || typeof i !== 'object') return '';
+  const o = i as Record<string, unknown>;
+  const limpio = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+  const sustituto = limpio(o.sustituto) || limpio(o.substitute);
+  const nota = limpio(o.nota) || limpio(o.note);
+  return [sustituto ? `o ${sustituto}` : '', nota].filter(Boolean).join(' · ');
+}
+
+/**
+ * La etiqueta humana del momento ("Comida"), o null si la ficha no lo trae o
+ * no se entiende. Reusa el mismo cajon que los chips para no tener dos
+ * vocabularios: lo que se filtra como Snack se lee como Snack.
+ */
+export function etiquetaMomento(mealType: string | null | undefined): string | null {
+  const id = momentoDeReceta(mealType);
+  if (!id) return null;
+  return MOMENTOS.find((m) => m.id === id)?.etiqueta ?? null;
+}
+
 /** El texto de un paso, venga como objeto {step,text} o como string suelto. */
 export function textoPaso(i: unknown): string {
   if (typeof i === 'string') return i;

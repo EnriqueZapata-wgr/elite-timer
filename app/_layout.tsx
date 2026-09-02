@@ -6,9 +6,9 @@
  */
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Platform } from 'react-native';
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack, router } from 'expo-router';
 import * as Linking from 'expo-linking';
@@ -38,8 +38,8 @@ import { ProcessingMiniBanner } from '@/src/components/labs/ProcessingMiniBanner
 import { parseResetPasswordUrl, isResetPasswordLink } from '@/src/utils/reset-password-link';
 import { RevenueCatSync } from '@/src/components/RevenueCatSync';
 import { NightFilterBridge } from '@/src/components/NightFilterBridge';
-import { AtpThemeProvider } from '@/src/contexts/theme-context';
-import { THEME_DARK } from '@/src/constants/brand';
+import { AtpThemeProvider, useAppTheme } from '@/src/contexts/theme-context';
+import { THEME_DARK, THEME_LIGHT } from '@/src/constants/brand';
 import { NightVeil } from '@/src/components/theme/NightVeil';
 import { NotificationActionsBridge } from '@/src/components/NotificationActionsBridge';
 import { WidgetSyncBridge } from '@/src/components/WidgetSyncBridge';
@@ -67,17 +67,48 @@ Sentry.init({
 // Mantenemos la splash screen visible mientras cargan las fuentes.
 SplashScreen.preventAutoHideAsync();
 
-// Tema oscuro personalizado: fondo negro puro en vez del gris oscuro default.
-// Tránsito MB-31B: el contenedor de navegación se queda en el oscuro canónico
-// (las pantallas sin migrar lo necesitan); cada pantalla migrada pinta su
-// propio fondo desde el tema, así que aquí solo se ve en las transiciones.
-const EliteTheme = {
+// Tema del contenedor de navegación. Su `background` es lo que se ve ENTRE dos
+// pantallas (la transición) y detrás de cualquiera que no pinte el suyo.
+//
+// 31-ago-2026 (21.1): dejó de ser el oscuro canónico fijo del tránsito MB-31B.
+// Con el usuario en claro, ese negro era el destello de cada navegación y las
+// capturas 100% negras de la auditoría del 16-ago (L-7). Ahora sigue al tema
+// global: en oscuro es byte por byte lo de siempre (solo se movía
+// `background`); en claro son las superficies de THEME_LIGHT sobre el
+// DefaultTheme de navegación. El costo, a conciencia: una pantalla sin migrar
+// (oscura a mano) navegada en claro transiciona sobre acero claro en vez de
+// sobre negro. Es el mismo contraste que ya tiene contra el tab bar claro.
+const NAV_THEME_OSCURO = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
     background: THEME_DARK.fondo,
   },
 };
+const NAV_THEME_CLARO = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: THEME_LIGHT.fondo,
+    card: THEME_LIGHT.card,
+    text: THEME_LIGHT.texto,
+    border: THEME_LIGHT.borde,
+    primary: THEME_LIGHT.tealTexto,
+    notification: THEME_LIGHT.error,
+  },
+};
+
+// Lee el tema global, así que tiene que vivir DENTRO de AtpThemeProvider: por
+// eso envuelve al Stack y no al árbol entero como antes. Nada entre el root y
+// el Stack consumía el tema de navegación (bridges invisibles y providers).
+function NavThemeProvider({ children }: { children: ReactNode }) {
+  const { kind } = useAppTheme();
+  return (
+    <ThemeProvider value={kind === 'light' ? NAV_THEME_CLARO : NAV_THEME_OSCURO}>
+      {children}
+    </ThemeProvider>
+  );
+}
 
 function RootLayout() {
   // Splash cinemático (T2 ONBOARDING épico): overlay que toma el relevo del
@@ -145,7 +176,6 @@ function RootLayout() {
         SIEMPRE visible; los insets nativos no bastaron en device. Dep NATIVA →
         requiere build. */}
     <KeyboardProvider>
-    <ThemeProvider value={EliteTheme}>
       <PostHogProvider
         apiKey={Constants.expoConfig?.extra?.posthogKey}
         options={{
@@ -192,6 +222,8 @@ function RootLayout() {
               Vive DENTRO de AuthProvider: adaptativo necesita el horario
               real del usuario (despertar + corte de pantallas). */}
           <AtpThemeProvider>
+          {/* 21.1: el fondo del contenedor de navegación sigue al tema. */}
+          <NavThemeProvider>
           <SettingsProvider>
             <ProgramsProvider>
               <SessionsProvider>
@@ -383,10 +415,10 @@ function RootLayout() {
               </SessionsProvider>
             </ProgramsProvider>
           </SettingsProvider>
+          </NavThemeProvider>
           </AtpThemeProvider>
         </AuthProvider>
       </PostHogProvider>
-    </ThemeProvider>
     </KeyboardProvider>
     </GestureHandlerRootView>
     </ErrorBoundary>

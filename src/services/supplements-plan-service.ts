@@ -12,12 +12,17 @@
 import { supabase } from '@/src/lib/supabase';
 import { buildScoreSummaryText, type FunctionalScoreResult } from './bha-core';
 import { findSupplementByName } from './supplements-plan-core';
+import { dosisDesdeScan, normalizeForm } from './supplements/adherencia-core';
 
 export interface ScanFicha {
   name: string;
   dosage?: string | null;
   form?: string | null;
   brand?: string | null;
+  /** 312 (10.2): porcion que declara la etiqueta ("1 capsula"). */
+  scanServing?: string | null;
+  /** 312 (10.2): activos por porcion leidos de la etiqueta [{name, amount}]. */
+  scanActives?: { name: string; amount?: string | null }[] | null;
 }
 
 export type AddToPlanOutcome =
@@ -46,22 +51,53 @@ export async function addSupplementToPlan(
     const dupe = findSupplementByName(ficha.name, (existing ?? []) as { id: string; name: string }[]);
     if (dupe) return { status: 'duplicate', existingId: dupe.id, existingName: dupe.name };
 
-    const { data: inserted, error: insErr } = await supabase
+    // 312 (10.2): lo que la etiqueta dijo por porcion viaja a la ficha tal
+    // cual. Solo con UN activo legible se llena la dosis por unidad; con
+    // varios se guarda la lista y la persona decide (nada se inventa).
+    const actives = Array.isArray(ficha.scanActives)
+      ? ficha.scanActives
+        .filter((a) => a && typeof a.name === 'string' && a.name.trim())
+        .map((a) => ({ name: a.name.trim().slice(0, 80), amount: a.amount ? String(a.amount).trim().slice(0, 40) : null }))
+        .slice(0, 30)
+      : [];
+    // G1 (revision 4EP): `amount` del escaneo es POR PORCION. Solo pasa a
+    // amount_per_unit si la porcion es exactamente 1 unidad; con "2 capsulas"
+    // la ficha pintaria el doble del frasco. Si no, solo la linea "Etiqueta".
+    const scanServing = ficha.scanServing?.trim().slice(0, 60) || null;
+    const dosisUnidad = dosisDesdeScan(actives, scanServing);
+    const base = {
+      user_id: userId,
+      name: ficha.name.trim().slice(0, 120),
+      dosage: (ficha.dosage?.trim() || 'Según etiqueta').slice(0, 120),
+      // 312: "cápsula" del escaneo se guarda como 'capsula' (id de FORM_OPTIONS);
+      // una presentacion desconocida conserva su texto.
+      form: ficha.form ? (normalizeForm(ficha.form) ?? String(ficha.form).slice(0, 40)) : null,
+      brand: ficha.brand?.trim() || null,
+      timing: 'morning',
+      source: 'scan',
+      ...(score && !score.illegible
+        ? { functional_score: score.score, bha_scan_summary: buildScoreSummaryText(score) }
+        : {}),
+    };
+    const extra312 = {
+      scan_serving: scanServing,
+      scan_actives: actives.length ? actives : null,
+      ...(dosisUnidad ? { amount_per_unit: dosisUnidad.amount, amount_unit: dosisUnidad.unit } : {}),
+    };
+    let { data: inserted, error: insErr } = await supabase
       .from('user_supplements')
-      .insert({
-        user_id: userId,
-        name: ficha.name.trim().slice(0, 120),
-        dosage: (ficha.dosage?.trim() || 'Según etiqueta').slice(0, 120),
-        form: ficha.form ? String(ficha.form).slice(0, 40) : null,
-        brand: ficha.brand?.trim() || null,
-        timing: 'morning',
-        source: 'scan',
-        ...(score && !score.illegible
-          ? { functional_score: score.score, bha_scan_summary: buildScoreSummaryText(score) }
-          : {}),
-      })
+      .insert({ ...base, ...extra312 })
       .select('id')
       .single();
+    // 312: cliente que corre antes del db push (PGRST204, columna desconocida):
+    // se reintenta sin los campos nuevos antes que dejar la ficha sin crear.
+    if (insErr && /PGRST204|schema cache/i.test(insErr.message)) {
+      ({ data: inserted, error: insErr } = await supabase
+        .from('user_supplements')
+        .insert(base)
+        .select('id')
+        .single());
+    }
     if (insErr) return { status: 'error', message: insErr.message };
     return { status: 'created', id: (inserted as { id: string }).id };
   } catch (e: any) {

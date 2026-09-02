@@ -15,6 +15,7 @@ import {
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -36,7 +37,8 @@ import { MatrixExercisePicker } from '@/src/components/MatrixExercisePicker';
 import { ensureExerciseId } from '@/src/services/fitness/workout-session-service';
 import type { MatrixExercise } from '@/src/constants/exercise-matrix';
 import { Spacing, Radius, Fonts, FontSizes, BlockColors } from '@/constants/theme';
-import { ATP_BRAND, CATEGORY_COLORS, TEXT_COLORS, brandGradient } from '@/src/constants/brand';
+import { ATP_BRAND, CATEGORY_COLORS, brandGradient } from '@/src/constants/brand';
+import { textoSobreSeccion } from '@/src/constants/concept-colors';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { userErrorMessage } from '@/src/utils/user-error';
 
@@ -287,6 +289,9 @@ export default function BuilderScreen() {
     <>
     <ThemeReady>
     <View style={[styles.screen, { backgroundColor: t.fondo }]}>
+      {/* 31-ago-2026 (21.3): la barra global del root es 'light' (blanca);
+          sobre el lienzo claro la hora quedaba invisible. Viaja con el fondo. */}
+      <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -343,13 +348,16 @@ export default function BuilderScreen() {
                 <Ionicons
                   name="barbell-outline"
                   size={16}
-                  color={routine.mode === 'routine' ? TEXT_COLORS.primary : t.textoSecundario}
+                  color={routine.mode === 'routine' ? textoSobreSeccion('mente') : t.textoSecundario}
                 />
                 <EliteText variant="caption" style={[
                   styles.modeText,
-                  // Blanco sobre el color de MENTE en los dos modos: el relleno
-                  // es el mismo, así que el contraste no depende del tema.
-                  { color: routine.mode === 'routine' ? TEXT_COLORS.primary : t.textoSecundario },
+                  // 31-ago-2026: iba blanco "en los dos modos", pero medido
+                  // da 3.76 sobre #7F77DD: bajo AA en los dos. La regla 3 del
+                  // manual ya lo decide: sobre relleno de sección va negro
+                  // (5.59), salvo ayuno. El relleno es el mismo en los dos
+                  // temas, así que el contraste tampoco depende del tema.
+                  { color: routine.mode === 'routine' ? textoSobreSeccion('mente') : t.textoSecundario },
                 ]}>
                   Rutina
                 </EliteText>

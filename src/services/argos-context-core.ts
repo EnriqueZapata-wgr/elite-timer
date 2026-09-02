@@ -11,6 +11,8 @@
  */
 
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
+// 31-ago-2026: una sola definición de "ya llegué a la meta" para toda la app.
+import { metaAlcanzada } from '@/src/services/fasting-cumplido-core';
 
 export interface PersonalRecord {
   exercise: string;
@@ -27,7 +29,19 @@ export interface UserContext {
   /** Cuándo se determinó el cronotipo (user_chronotype.updated_at). */
   chronotypeUpdatedAt?: string;
   activeProtocol?: string;
-  todayElectrons?: { earned: number; total: number };
+  /**
+   * 13.2 (31-ago-2026): `total` era un 20 clavado en código. Ahora es null
+   * cuando no hay denominador honesto; el prompt entonces solo dice cuántos
+   * se ganaron. El conteo de HÁBITOS (lo que HOY pinta) va en `habitosHoy`.
+   */
+  todayElectrons?: { earned: number; total: number | null };
+  /** 13.2 · los hábitos del renglón de HOY, con la misma derivación (argos-habitos-hoy-core). */
+  habitosHoy?: {
+    total: number;
+    hechos: number;
+    nombresHechos: string[];
+    nombresPendientes: string[];
+  };
   recentNutrition?: {
     todayCalories: number;
     todayProtein: number;
@@ -275,10 +289,10 @@ export function conVigencia(
   const sello = `${verbo} ${v.antiguedad}, ${v.fecha}`;
   if (v.nivel === 'reciente') return `${valor} [${sello}]`;
   if (v.nivel === 'tendencia') {
-    return `${valor} [${sello} — NO lo digas en presente ni como causa de hoy: es una tendencia observada en esa fecha]`;
+    return `${valor} [${sello}; NO lo digas en presente ni como causa de hoy: es una tendencia observada en esa fecha]`;
   }
   const repetir = opts.reevaluar || 'repetir la evaluación';
-  return `${valor} [${sello} — posiblemente desactualizado: no lo afirmes como cierto hoy e invita a ${repetir}]`;
+  return `${valor} [${sello}; posiblemente desactualizado: no lo afirmes como cierto hoy e invita a ${repetir}]`;
 }
 
 // === LAS REGLAS, JUNTAS Y DICHAS UNA VEZ (VOZ-2) ===
@@ -323,6 +337,17 @@ export const REGLA_EMOCIONAL =
 export const REGLA_EDAD_ATP =
   'REGLA EDAD ATP: es una estimación educativa de hábitos y marcadores, ' +
   'NO un diagnóstico ni una medida de esperanza de vida. Nunca la presentes como resultado clínico.';
+
+/**
+ * 13.2 (31-ago-2026): cuando pregunten "cuántos hábitos llevo", la respuesta
+ * es el conteo de HÁBITOS, no el de electrones ni el de la agenda. Sin esta
+ * regla el modelo elegía cualquiera de los tres renglones y se contradecía
+ * con la pantalla.
+ */
+export const REGLA_HABITOS_HOY =
+  'REGLA HÁBITOS DE HOY: si el cliente pregunta cuántos hábitos lleva o le faltan, contesta con el renglón ' +
+  '"Hábitos de hoy" (es lo mismo que ve en su pantalla HOY). Los electrones y la agenda son otras cuentas; ' +
+  'no las mezcles con los hábitos.';
 
 /** IMPL-03: el sueño lo mide un aparato ajeno y ATP no lo audita. */
 export const REGLA_FUENTE_EXTERNA =
@@ -371,7 +396,21 @@ export function buildContextPrompt(ctx: UserContext): string {
   if (ctx.activeProtocol) parts.push(`Protocolo activo: ${ctx.activeProtocol}`);
   if (ctx.rank) parts.push(`Rango: ${ctx.rank}`);
   if (ctx.todayElectrons) {
-    parts.push(`Electrones hoy: ${ctx.todayElectrons.earned}/${ctx.todayElectrons.total}`);
+    const te = ctx.todayElectrons;
+    parts.push(te.total != null
+      ? `Electrones hoy: ${te.earned}/${te.total}`
+      : `Electrones ganados hoy: ${te.earned}`);
+  }
+  if (ctx.habitosHoy) {
+    // 13.2: ESTE es el número que HOY pinta ("N hábitos activos", palomas).
+    // Antes ARGOS solo tenía electrones (otro universo) y agenda (otra lista).
+    const h = ctx.habitosHoy;
+    const hechos = h.nombresHechos.length > 0 ? ` Hechos: ${h.nombresHechos.join(', ')}.` : '';
+    const pend = h.nombresPendientes.length > 0 ? ` Pendientes: ${h.nombresPendientes.join(', ')}.` : '';
+    parts.push(
+      `Hábitos de hoy (los mismos que ve en HOY): ${h.hechos} de ${h.total} hechos.${hechos}${pend}`,
+    );
+    regla(REGLA_HABITOS_HOY);
   }
   if (ctx.recentNutrition) {
     const n = ctx.recentNutrition;
@@ -558,7 +597,7 @@ function unDecimal(n: number): number {
 export function compararConMeta(actual: number, meta: number): string {
   if (!Number.isFinite(actual) || !Number.isFinite(meta) || meta <= 0) return '';
   const ratio = actual / meta;
-  if (ratio >= 1) {
+  if (metaAlcanzada(actual, meta)) {
     const exceso = unDecimal(actual - meta);
     const veces = unDecimal(ratio);
     return exceso === 0

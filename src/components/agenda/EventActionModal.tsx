@@ -1,6 +1,12 @@
 /**
  * EventActionModal (#v13g F5) — acciones sobre una mini-card de agenda al tocarla.
- * 4 acciones: Editar · Completar · Posponer (+15/+30/+60) · Eliminar. Modal centrado, plano.
+ * 5 acciones: Cambiar hora · Editar · Completar · Posponer (+15/+30/+60) · Eliminar.
+ * Modal centrado, plano.
+ *
+ * 31-ago-2026 (12.1): "Cambiar hora" es la puerta directa a la rueda de hora
+ * (antes había que adivinar que "Editar" traía un campo de texto HH:MM). La
+ * pantalla decide a dónde lleva: rueda para eventos propios, la ficha de
+ * Suplementos para las tomas (ahí vive su hora real).
  */
 import { useState } from 'react';
 import { Modal, View, Pressable, StyleSheet } from 'react-native';
@@ -19,13 +25,15 @@ import type { AgendaEventInstance } from '@/src/services/agenda-service';
 interface Props {
   event: AgendaEventInstance | null;
   onEdit: () => void;
+  /** Cambiar solo la hora (la pantalla abre la rueda o lleva a donde se ajusta). */
+  onChangeTime: () => void;
   onComplete: () => void;
   onSnooze: (minutes: number) => void;
   onDelete: () => void;
   onClose: () => void;
 }
 
-export function EventActionModal({ event, onEdit, onComplete, onSnooze, onDelete, onClose }: Props) {
+export function EventActionModal({ event, onEdit, onChangeTime, onComplete, onSnooze, onDelete, onClose }: Props) {
   const [showSnooze, setShowSnooze] = useState(false);
   const visible = !!event;
   // MB-31B: superficie flotante del tema; el lima como texto solo en oscuro.
@@ -45,13 +53,21 @@ export function EventActionModal({ event, onEdit, onComplete, onSnooze, onDelete
           onPress={() => { /* eat tap */ }}
         >
           <EliteText style={[styles.title, { color: t.texto }]} numberOfLines={1}>{event?.name ?? ''}</EliteText>
-          <EliteText style={[styles.subtitle, { color: acento }]}>{event?.time}</EliteText>
+          <EliteText style={[styles.subtitle, { color: acento }]}>
+            {event?.effectiveTime ?? event?.time ?? ''}{event?.status === 'snoozed' ? ' · pospuesto' : ''}
+          </EliteText>
 
           {!showSnooze ? (
             <View style={styles.actions}>
+              <ActionRow
+                icon="time-outline"
+                label={event?.source === 'supplement' ? 'Ajustar hora en Suplementos' : 'Cambiar hora'}
+                color={rowColor}
+                onPress={() => act(onChangeTime)}
+              />
               <ActionRow icon="create-outline" label="Editar" color={rowColor} onPress={() => act(onEdit)} />
               <ActionRow icon="checkmark-circle-outline" label="Completar" color={acento} onPress={() => act(onComplete)} />
-              <ActionRow icon="time-outline" label="Posponer" color={rowColor} onPress={() => { haptic.light(); setShowSnooze(true); }} />
+              <ActionRow icon="play-forward-outline" label="Posponer" color={rowColor} onPress={() => { haptic.light(); setShowSnooze(true); }} />
               <ActionRow icon="trash-outline" label="Eliminar" color={destructivo} onPress={() => act(onDelete)} />
             </View>
           ) : (

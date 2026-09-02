@@ -18,6 +18,13 @@
  * Enrique valida las ventanas finales. Cambiar las ventanas = editar SOLO este
  * archivo.
  *
+ * 31-ago-2026 (backlog 15.5 / F-9): cada `hours` de abajo es una afirmación
+ * fisiológica y ninguna está firmada. Todas llevan `PENDIENTE FIRMA MARIANA`
+ * con su fuente según RESEARCH_FASES_AYUNO_ATP_2026-07-26.md. No se cambió ni
+ * se confirmó ninguna. La pantalla las pinta como "aproximado". Discrepancia
+ * que Mariana debe resolver: la investigación ubica la cetosis nutricional
+ * (BHB >= 0.5 mmol/L) "después de ~24 h" y la tabla de fases la abre a las 18.
+ *
  * `now` narra qué pasa en el cuerpo durante la fase. Copy con mecanismo, sin
  * siglas sin presentar (doctrina Mente).
  */
@@ -37,6 +44,7 @@ export interface FastingPhase {
 
 export const FASTING_PHASES: FastingPhase[] = [
   {
+    // PENDIENTE FIRMA MARIANA · 0-4 h · fuente: Cahill 2006 (Annu Rev Nutr 26:1-22).
     hours: 0,
     label: 'Fase alimentada',
     description: 'Digestión y absorción de nutrientes',
@@ -45,6 +53,7 @@ export const FASTING_PHASES: FastingPhase[] = [
     icon: 'restaurant-outline',
   },
   {
+    // PENDIENTE FIRMA MARIANA · 4-12 h · fuente: Cahill 2006.
     hours: 4,
     label: 'Postabsorción',
     description: 'Cae la insulina, tu hígado suelta glucógeno',
@@ -53,6 +62,8 @@ export const FASTING_PHASES: FastingPhase[] = [
     icon: 'trending-down-outline',
   },
   {
+    // PENDIENTE FIRMA MARIANA · 12-18 h · fuente: de Cabo & Mattson 2019 (NEJM
+    // 381:2541), que ubican la depleción de glucógeno a partir de las 10-14 h.
     hours: 12,
     label: 'Cambio metabólico',
     description: 'El glucógeno se agota, entra la grasa',
@@ -61,6 +72,9 @@ export const FASTING_PHASES: FastingPhase[] = [
     icon: 'swap-horizontal-outline',
   },
   {
+    // PENDIENTE FIRMA MARIANA · 18-48 h · fuente: de Cabo & Mattson 2019 y
+    // Cahill 2006. OJO: la investigación dice que la cetosis nutricional suele
+    // establecerse DESPUÉS de ~24 h; aquí abre a las 18. No se tocó.
     hours: 18,
     label: 'Cetosis',
     description: 'Las cetonas se vuelven tu combustible',
@@ -69,6 +83,7 @@ export const FASTING_PHASES: FastingPhase[] = [
     icon: 'flame-outline',
   },
   {
+    // PENDIENTE FIRMA MARIANA · 48-72 h+ · fuente: Cahill 2006 (ahorro de proteína).
     hours: 48,
     label: 'Ayuno prolongado',
     description: 'La grasa domina · requiere acompañamiento',

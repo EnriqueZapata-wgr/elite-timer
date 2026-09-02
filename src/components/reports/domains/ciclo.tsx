@@ -23,6 +23,8 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useCycleGate } from '@/src/hooks/use-cycle-gate';
+import { useAuth } from '@/src/contexts/auth-context';
+import { useCycleConsent, CycleConsentBlock } from '@/src/components/cycle/CycleConsentGate';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
@@ -74,17 +76,30 @@ type Tab = typeof TABS[number]['key'];
  * La puerta del pilar Ciclo. Mientras decide no se pinta contenido, y si niega
  * ya se disparó la salida: en ningún estado que no sea 'allowed' se monta el
  * reporte.
+ *
+ * 4EP G-1 (31-ago-2026): la segunda llave es el consentimiento CB-7, el mismo
+ * de /cycle y /cycle-settings. Este reporte lee cycle_periods y
+ * cycle_daily_logs COMPLETOS (ciclo-report-service): sin CB-7 aceptado, una
+ * usuaria que dijo "Ahora no" en /cycle veía aquí su historial entero dos taps
+ * después. El shell monta el guard POR FUERA del provider, así que sin
+ * consentimiento no se lee ni una fila.
  */
 export function CicloGuard({ children }: { children: ReactNode }) {
   const gate = useCycleGate();
-  if (gate.state === 'allowed') return <>{children}</>;
+  const { user } = useAuth();
+  const consent = useCycleConsent(user?.id);
+  if (gate.state === 'allowed' && consent.state === 'granted') return <>{children}</>;
+  const checking = gate.state === 'checking' || (gate.state === 'allowed' && consent.state === 'checking');
   return (
     <Screen themed>
       <PillarHeader pillar="cycle" title={META.title} />
-      {gate.state === 'checking' && (
+      {checking && (
         <View style={styles.gateBox}>
           <ActivityIndicator color={ROSE} />
         </View>
+      )}
+      {gate.state === 'allowed' && !checking && (
+        <CycleConsentBlock consent={consent} acompanante={gate.mode === 'acompanante'} />
       )}
     </Screen>
   );

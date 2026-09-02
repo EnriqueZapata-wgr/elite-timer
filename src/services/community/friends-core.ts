@@ -127,9 +127,47 @@ export interface PendingRequestRow {
   requested_at: string;
 }
 
-/** Nombre visible fail-soft para cualquier proyección pública. */
+export const PUBLIC_NAME_FALLBACK = 'Atleta ATP';
+
+/**
+ * Un candidato a nombre visible sirve si tiene al menos dos caracteres
+ * después de recortar. Una letra suelta no es un nombre: el avatar la
+ * dibujaría como inicial y la fila quedaría con una "A" y nada más.
+ */
+export function nameCandidate(raw: string | null | undefined): string | null {
+  const t = (raw ?? '').trim();
+  return t.length >= 2 ? t : null;
+}
+
+/**
+ * Nombre visible fail-soft para cualquier proyección pública.
+ *
+ * 31-ago-2026 (pendiente 7.1): la fila pública de Mariana tiene
+ * display_name = '' (el backfill de la migración 177 copió profiles.full_name
+ * cuando aún estaba vacío, y su edición posterior del nombre nunca volvió a
+ * tocar user_profile_public). El `??` de antes dejaba pasar la cadena vacía:
+ * la pantalla pintaba '' como nombre y el avatar, sin inicial, caía en "A".
+ * Vacío, espacios y letras sueltas ya no cuentan como nombre.
+ */
 export function publicDisplayName(row: { display_name?: string | null; username?: string | null }): string {
-  return row.display_name ?? row.username ?? 'Atleta ATP';
+  return nameCandidate(row.display_name) ?? nameCandidate(row.username) ?? PUBLIC_NAME_FALLBACK;
+}
+
+/**
+ * Nombre visible del PROPIO usuario, con lo que solo él puede ver de sí
+ * mismo: display_name → full_name del perfil → username → 'Atleta ATP'.
+ * 4EP M2 (31-ago): el correo NO entra en la cadena. Publicar "jperez1985"
+ * en el ranking sin que la persona lo pidiera es una fuga, no un fallback.
+ */
+export function ownDisplayName(input: {
+  display_name?: string | null;
+  username?: string | null;
+  full_name?: string | null;
+}): string {
+  return nameCandidate(input.display_name)
+    ?? nameCandidate(input.full_name)
+    ?? nameCandidate(input.username)
+    ?? PUBLIC_NAME_FALLBACK;
 }
 
 /** Ordena amigos alfabéticamente por nombre visible (estable, no muta). */

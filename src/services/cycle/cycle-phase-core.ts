@@ -31,10 +31,6 @@ import { observedCycleLength, type PeriodStartLike } from '@/src/services/cycle/
 
 export type CyclePhase = 'menstrual' | 'follicular' | 'ovulation' | 'luteal';
 
-/** Umbrales canónicos sobre la duración del ciclo (fracción del largo). */
-export const PHASE_FOLLICULAR_END = 0.46;
-export const PHASE_OVULATION_END = 0.57;
-
 /** Días de gracia tras el largo del ciclo antes de declarar el dato viejo. */
 export const FRESCURA_DIAS_EXTRA = 14;
 
@@ -43,11 +39,27 @@ export const FRESCURA_DIAS_EXTRA = 14;
  * extremos: day < 1 se trata como 1 y un day más allá del largo es lútea
  * (el ciclo que se alarga no inventa fases nuevas). La FRESCURA no vive
  * aquí: vive en resolverCiclo, que es quien conoce el calendario.
+ *
+ * 31-ago-2026 (pendiente 17.2): MURIERON los umbrales PHASE_FOLLICULAR_END
+ * (0.46) y PHASE_OVULATION_END (0.57). Eran una SEGUNDA formula de ovulacion
+ * sin fuente, viva junto a predecirOvulacion (que si la tiene: ASRM, Wilcox).
+ * Con ciclo de 35 la tarjeta decia "Fase Ovulacion" los dias 17-20 y el
+ * calendario ponia el punto de ovulacion en el 21, ya "lutea" para la
+ * tarjeta. Ahora la fase ovulatoria ES la banda de mayor probabilidad de
+ * ventanaOvulatoria (los dos dias previos y el dia estimado) y la lutea
+ * empieza el dia siguiente al punto, con lo que dura exactamente la lutea
+ * de convencion (14, ASRM). Una sola cuenta para la tarjeta, el calendario,
+ * Entrenar y emotion-history.
+ *
+ * La DEFINICION "fase ovulatoria = ovulacion-2 .. ovulacion" es una decision
+ * de calculo alineada a la banda alta de ASRM, no una constante del cuerpo.
+ * Pendiente de firma de Mariana (ver informe 31-ago).
  */
 export function getPhase(day: number, cycleLen = 28, periodLen = 5): CyclePhase {
   if (day <= periodLen) return 'menstrual';
-  if (day <= Math.round(cycleLen * PHASE_FOLLICULAR_END)) return 'follicular';
-  if (day <= Math.round(cycleLen * PHASE_OVULATION_END)) return 'ovulation';
+  const v = ventanaOvulatoria(cycleLen);
+  if (day < v.altaInicio) return 'follicular';
+  if (day <= v.altaFin) return 'ovulation';
   return 'luteal';
 }
 
@@ -161,13 +173,21 @@ export function resolverCiclo(e: EntradaCiclo): CicloResuelto | null {
  * la estimada ya pasó, `retrasada` es true y `diasDeRetraso` trae por
  * cuántos. Quien publique decide qué hacer con eso; lo que no puede es
  * enseñar una fecha del pasado con la palabra "próximo" delante.
+ *
+ * 31-ago-2026 (pendiente 17.3): MURIO `confidence` ('alta' | 'media' | 'baja'
+ * segun cyclesUsed). Nadie lo leia (ARGOS toma date/retrasada/diasDeRetraso;
+ * la tarjeta ni lo recibe) y era una TERCERA escala de confianza sobre el
+ * mismo cuerpo: predecirOvulacion.nivel ya la tiene con criterio FIGO, y la
+ * tarjeta de /cycle ya confiesa de donde sale el largo ("promedio de tus
+ * ultimos N ciclos registrados" o "segun tus ajustes"). Quien quiera decir
+ * cuanta evidencia hay lee `cyclesUsed` y `largoFuente` de la resolucion,
+ * que es el dato crudo y no una etiqueta que lo resume.
  */
 export function predecirProximo(res: {
   inicio: string;
   day: number;
   cycleLen: number;
-  cyclesUsed?: number;
-}): { date: Date; daysUntil: number; confidence: string; retrasada: boolean; diasDeRetraso: number } {
+}): { date: Date; daysUntil: number; retrasada: boolean; diasDeRetraso: number } {
   const date = parseLocalDate(res.inicio);
   date.setDate(date.getDate() + res.cycleLen);
   // Mismo despeje que la tarjeta (app/cycle.tsx): cuántos días faltan para
@@ -176,9 +196,7 @@ export function predecirProximo(res: {
   const daysUntil = Math.max(0, faltan);
   const retrasada = faltan < 0;
   const diasDeRetraso = retrasada ? -faltan : 0;
-  const usados = res.cyclesUsed ?? 0;
-  const confidence = usados >= 3 ? 'alta' : usados >= 2 ? 'media' : 'baja';
-  return { date, daysUntil, confidence, retrasada, diasDeRetraso };
+  return { date, daysUntil, retrasada, diasDeRetraso };
 }
 
 /* ---------------------------------------------------------------------------
@@ -270,6 +288,31 @@ function ovulacionDe(largo: number): number {
   return Math.max(1, largo - luteaDe(largo));
 }
 
+/**
+ * LA cuenta de ovulacion (31-ago-2026, pendiente 17.2): punto estimado y banda
+ * de mayor probabilidad para un largo de ciclo. Es la unica formula viva: la
+ * consumen getPhase (fase ovulatoria de la tarjeta, Entrenar, emotion-history)
+ * y predecirOvulacion (chips del calendario). Si alguien necesita "cuando
+ * ovula" y no pasa por aqui, esta duplicando.
+ *
+ * Sin rango: para largos fuera de [15, 60] predecirOvulacion devuelve null y
+ * no pinta chips, pero la FASE se sigue declarando con la misma aritmetica,
+ * porque un ciclo raro sigue teniendo un dia de hoy. Largo no finito degrada
+ * a 28, igual que largoDeCiclo sin ajuste.
+ */
+export function ventanaOvulatoria(cycleLen: number): {
+  diaOvulacion: number; altaInicio: number; altaFin: number; luteaUsada: number;
+} {
+  const largo = Number.isFinite(cycleLen) ? Math.round(cycleLen) : 28;
+  const diaOvulacion = ovulacionDe(largo);
+  return {
+    diaOvulacion,
+    altaInicio: Math.max(1, diaOvulacion - 2),
+    altaFin: diaOvulacion,
+    luteaUsada: luteaDe(largo),
+  };
+}
+
 export function predecirOvulacion(e: {
   cycleLen: number;
   minLen?: number | null;
@@ -283,11 +326,9 @@ export function predecirOvulacion(e: {
   const maxL = e.maxLen && Number.isFinite(e.maxLen) ? Math.round(e.maxLen) : largo;
   const usados = e.cyclesUsed ?? 0;
 
-  const luteaUsada = luteaDe(largo);
-  const diaOvulacion = ovulacionDe(largo);
-
-  const altaInicio = Math.max(1, diaOvulacion - 2);
-  const altaFin = diaOvulacion;
+  // 31-ago: el punto y la banda alta salen de ventanaOvulatoria, la misma que
+  // decide la fase. Aqui solo se agrega la banda baja y el nivel.
+  const { diaOvulacion, altaInicio, altaFin, luteaUsada } = ventanaOvulatoria(largo);
 
   // La ventana de Wilcox aplicada al ciclo mas corto y al mas largo que esta
   // persona ha tenido. El anidamiento sale por construccion y no por parche:

@@ -25,6 +25,7 @@ import { cycleModalityOptions, defaultCycleModality, type CycleModality } from '
 import { saveCycleModality } from '@/src/services/onboarding-v2-service';
 import { userErrorMessage } from '@/src/utils/user-error';
 import { useCycleGate } from '@/src/hooks/use-cycle-gate';
+import { useCycleConsent, CycleConsentBlock } from '@/src/components/cycle/CycleConsentGate';
 
 const ROSE = '#fb7185';
 const GRADIENT = { start: 'rgba(251,113,133,0.08)', end: 'rgba(251,113,133,0.03)' };
@@ -42,6 +43,10 @@ export default function CycleSettingsScreen() {
   // del cuerpo del usuario, no del calendario que lleva de otra persona.
   const gate = useCycleGate();
   const acompanante = gate.mode === 'acompanante';
+  // 17.5 (31-ago): esta pantalla escribe cycle_settings (largo, periodo,
+  // embarazo), que es dato de ciclo. Mismo consentimiento CB-7 que /cycle:
+  // sin granted no se lee ni se guarda nada.
+  const consent = useCycleConsent(user?.id);
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
   const t = useAppTheme().tokens;
   const s = useMemo(() => makeStyles(t), [t]);
@@ -58,7 +63,7 @@ export default function CycleSettingsScreen() {
   const [dueDate, setDueDate] = useState('');
 
   useFocusEffect(useCallback(() => {
-    if (!user?.id) return;
+    if (!user?.id || consent.state !== 'granted') return;
     supabase.from('cycle_settings').select('*').eq('user_id', user.id).maybeSingle()
       .then(({ data }) => {
         if (data) {
@@ -80,7 +85,7 @@ export default function CycleSettingsScreen() {
         setSex(sx);
         setModality((data?.cycle_modality as CycleModality) ?? defaultCycleModality(sx));
       });
-  }, [user?.id]));
+  }, [user?.id, consent.state]));
 
   const handleModality = async (value: CycleModality) => {
     if (!user?.id) return;
@@ -124,10 +129,21 @@ export default function CycleSettingsScreen() {
   };
 
   // E-5 (MB-12): mismo patrón que cycle-charts/cycle-history.
-  if (gate.state !== 'allowed') {
+  if (gate.state !== 'allowed' || consent.state === 'checking') {
     return (
       <Screen themed>
         <PillarHeader pillar="cycle" title="Configuración" />
+      </Screen>
+    );
+  }
+
+  // 17.5: sin consentimiento, la misma puerta que /cycle (modal una vez,
+  // card de apagado o fallo de lectura). Los ajustes no se muestran.
+  if (consent.state !== 'granted') {
+    return (
+      <Screen themed>
+        <PillarHeader pillar="cycle" title="Configuración" />
+        <CycleConsentBlock consent={consent} acompanante={acompanante} />
       </Screen>
     );
   }
@@ -212,7 +228,7 @@ export default function CycleSettingsScreen() {
                   onChangeText={setDueDate}
                   onBlur={() => saveDueDate(dueDate)}
                   placeholder="2026-12-01"
-                  placeholderTextColor={t.sinDatos}
+                  placeholderTextColor={t.textoTenue}
                   maxLength={10}
                 />
               </View>
@@ -306,7 +322,7 @@ export default function CycleSettingsScreen() {
                     value={inviteCode}
                     onChangeText={setInviteCode}
                     placeholder="Código"
-                    placeholderTextColor={t.sinDatos}
+                    placeholderTextColor={t.textoTenue}
                     autoCapitalize="characters"
                     maxLength={6}
                     style={{

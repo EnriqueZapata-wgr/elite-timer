@@ -4,6 +4,7 @@ import {
   normalizeIngredient,
   aggregateIngredients,
   shoppingListToText,
+  ingredientDetail,
 } from '@/src/services/shopping-list-core';
 
 describe('parseQuantity (T5 #56)', () => {
@@ -15,10 +16,27 @@ describe('parseQuantity (T5 #56)', () => {
   });
   it('texto no numérico → null (se conserva como raw)', () => {
     expect(parseQuantity('al gusto')).toEqual({ quantity: null, unit: null });
+    expect(parseQuantity('')).toEqual({ quantity: null, unit: null });
+    expect(parseQuantity('2 cda')).toEqual({ quantity: 2, unit: 'cda' });
+  });
+  // 31-ago-2026: 109 de 812 ingredientes del catalogo traen fraccion. Antes
+  // "1/2 taza" capturaba el 1 y cortaba en la barra: a la lista iba "1".
+  it('fracciones → null, para que el texto se conserve entero como raw', () => {
+    for (const f of ['1/2 taza', '1/4 pieza', '3/4 taza', '1 1/2 taza', ' 1/2 taza', '1 / 2 taza']) {
+      expect(parseQuantity(f)).toEqual({ quantity: null, unit: null });
+    }
+  });
+  it('fraccion de punta a punta: normalizeIngredient e ingredientDetail no la pierden', () => {
+    const n = normalizeIngredient({ name: 'harina de almendra', quantity: '3/4 taza' })!;
+    expect(n.quantity).toBeNull();
+    expect(n.rawQuantity).toBe('3/4 taza');
+    expect(ingredientDetail(n)).toBe('3/4 taza');
+    const m = normalizeIngredient({ name: 'jitomate', quantity: '1 1/2 pieza' })!;
+    expect(ingredientDetail(m)).toBe('1 1/2 pieza');
   });
 });
 
-describe('normalizeIngredient — shapes reales de user_recipes.ingredients', () => {
+describe('normalizeIngredient: shapes reales de user_recipes.ingredients', () => {
   it('string suelto', () => {
     expect(normalizeIngredient('Aguacate')).toEqual({ name: 'Aguacate', quantity: null, unit: null, rawQuantity: null });
   });
@@ -36,7 +54,7 @@ describe('normalizeIngredient — shapes reales de user_recipes.ingredients', ()
   });
 });
 
-describe('aggregateIngredients — agrega entre recetas', () => {
+describe('aggregateIngredients: agrega entre recetas', () => {
   const RECIPES = [
     { name: 'Bowl proteico', ingredients: [{ name: 'Pollo', quantity: '300g' }, { name: 'Aguacate', quantity: '1 pza' }] },
     { name: 'Tacos ATP', ingredients: [{ name: 'pollo', quantity: '200g' }, { name: 'Sal', quantity: 'al gusto' }] },
@@ -76,7 +94,7 @@ describe('aggregateIngredients — agrega entre recetas', () => {
   });
 });
 
-describe('shoppingListToText — compartible', () => {
+describe('shoppingListToText: compartible', () => {
   it('formato con checkboxes', () => {
     const text = shoppingListToText([
       { name: 'Pollo', detail: '500 g', fromRecipes: ['A'] },

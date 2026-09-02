@@ -14,6 +14,12 @@ import { getMealTimes } from '@/src/services/meal-times-service';
 import { mealAgendaItems, sleepAgendaItem, focusWindowAgendaItem } from '@/src/utils/agenda-extras';
 import { getCycleInfo } from '@/src/services/cycle-service';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
+// 31-ago-2026 (backlog 15.3): el ayuno olvidado se cierra AQUÍ, no solo al
+// abrir la pantalla de Ayuno. compileDay corre al arrancar y en cada
+// day_changed; la reconciliación es idempotente (ver el servicio).
+import { reconciliarAyunoActivo } from '@/src/services/fasting-autoclose-service';
+// 31-ago-2026 (backlog 15.2): una sola definición de "ya llegué a la meta".
+import { metaAlcanzada, META_POR_OMISION_H } from '@/src/services/fasting-cumplido-core';
 import { warn as logWarn } from '@/src/lib/logger';
 // ── DX F4 (swap HOY/AGENDA) — doble-lectura gateada por flag ──
 import { INTERVENTIONS_DRIVE_HOY, SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA } from '@/src/constants/flags';
@@ -27,6 +33,7 @@ import { selectAgendaDrivers, anchorTimes, interventionAgendaItems, canonicalCon
 import { getMyProtocol, getTodayCompletions, getChronotypeSchedule } from '@/src/services/interventions/intervention-service';
 import { buildDoneIndex, applyDoneFromLogs } from '@/src/services/hoy/day-state-core';
 import { supplementsTodayProgress } from '@/src/services/supplements-adherence-core';
+import { esPlan } from '@/src/services/supplements/adherencia-core';
 // MB-20.3 P3: el seguro del reconcile — evidencia tri-estado y plan, puros.
 import {
   evidenciaDeConteo, evidenciaDeUltimaFecha, planReconcile, type Evidencia,
@@ -221,7 +228,14 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     supabase.from('user_protocols').select('*, template:protocol_templates(name, duration_weeks)').eq('user_id', userId).eq('status', 'active').order('created_at', { ascending: false }).limit(1),
     supabase.from('food_logs').select('protein_g').eq('user_id', userId).eq('date', today),
     supabase.from('hydration_logs').select('total_ml').eq('user_id', userId).eq('date', today).maybeSingle(),
-    supabase.from('fasting_logs').select('fast_start, target_hours').eq('user_id', userId).eq('status', 'active').limit(1),
+    // Antes: SELECT del activo a secas. Ahora la misma lectura pasa por la
+    // reconciliación: si el activo lleva más de 120 h se cierra (o se cancela
+    // si pasó de 144) antes de que HOY lo pinte. Sin ayuno activo cuesta lo
+    // mismo que antes: una consulta. Un fallo aquí no tumba la compilación.
+    reconciliarAyunoActivo(userId).catch((e) => {
+      logWarn('[day-compiler] reconciliar ayuno falló (no fatal):', e);
+      return { fast: null, evento: 'fallo' as const, horas: null, fastId: null };
+    }),
     supabase.from('emotional_checkins').select('pleasantness, quadrant, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('glucose_logs').select('value_mg_dl, context, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('client_profiles').select('biological_sex').eq('user_id', userId).maybeSingle(),
@@ -250,7 +264,8 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     // 1) El embed de ACTIVOS alimenta la CARD ("X de Y tomados", criterio de
     //    /supplements). Solo presentación.
     supabase.from('user_supplements')
-      .select('id, dose_times, supplement_logs(supplement_id, dose_index, taken)')
+      // 312 (M4, 31-ago): select('*') trae is_plan sin romper antes del db push.
+      .select('*, supplement_logs(supplement_id, dose_index, taken)')
       .eq('user_id', userId).eq('is_active', true).eq('supplement_logs.date', today),
     // 2) El LEDGER pregunta si TE LO TOMASTE: cualquier log taken=true de hoy,
     //    aunque después desactivaras ese suplemento. En producción hay 143 logs
@@ -327,10 +342,11 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   // Suplementos con multi-dosis: total/tomadas por el core puro (MB-2/188).
   // supabase-js no lanza en 4xx: si el embed falla se loguea y cae a {0,0}.
   if (suppRes.error) logWarn('[compileDay] user_supplements embed failed', suppRes.error);
-  const suppRows = (suppRes.data ?? []) as {
-    id: string; dose_times?: string[] | null;
+  // 312 (M4): la card "X de Y" cuenta solo el PLAN; las eventuales no entran.
+  const suppRows = ((suppRes.data ?? []) as {
+    id: string; dose_times?: string[] | null; is_plan?: boolean | null;
     supplement_logs?: { supplement_id: string; dose_index?: number | null; taken: boolean }[];
-  }[];
+  }[]).filter(esPlan);
   const suppProgress = supplementsTodayProgress(
     suppRows,
     suppRows.flatMap((s) => s.supplement_logs ?? []),
@@ -615,12 +631,12 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   onProgress?.(80, 'Compilando energía');
 
   // Suggestion
-  const suggestion = buildSuggestion(quantitativeElectrons, fastRes.data?.[0], hour, crossPillar);
+  const suggestion = buildSuggestion(quantitativeElectrons, fastRes.fast, hour, crossPillar);
 
   // Agenda
   // MB-27 0.5: recibe el `despertar` RESUELTO (prefs > cronotipo > default),
   // no wakeFromPrefs crudo — agenda y tareas usan la misma hora de despertar.
-  const agendaItems = await buildAgenda(userId, today, hour, protocol, fastRes.data?.[0], crossPillar, despertar);
+  const agendaItems = await buildAgenda(userId, today, hour, protocol, fastRes.fast, crossPillar, despertar);
   onProgress?.(95, 'Generando agenda');
 
   // Greeting
@@ -764,7 +780,7 @@ function buildSuggestion(
   // 3. Ayuno completado
   if (activeFast) {
     const elapsed = (Date.now() - new Date(activeFast.fast_start).getTime()) / 3600000;
-    if (elapsed >= (activeFast.target_hours ?? 16)) {
+    if (metaAlcanzada(elapsed, activeFast.target_hours ?? META_POR_OMISION_H)) {
       return { text: `¡Ayuno completado! Ya puedes romper el ayuno.`, action: 'Ir a Ayuno', route: '/fasting' };
     }
   }
@@ -989,7 +1005,9 @@ async function buildAgenda(
   // === SMART: romper ayuno ===
   if (activeFast) {
     const start = new Date(activeFast.fast_start);
-    const target = activeFast.target_hours ?? 16;
+    // Misma regla que metaAlcanzada (estricta), expresada como hora: la
+    // meta se alcanza en inicio + target.
+    const target = activeFast.target_hours ?? META_POR_OMISION_H;
     const breakTime = new Date(start.getTime() + target * 3600000);
     const bToday = toLocalDateString(breakTime);
     if (bToday <= today) {
@@ -1114,22 +1132,22 @@ function crossPillarNoteForItem(item: AgendaItem, cross: CrossPillar): string | 
 
   // Mood bajo → escuchar al cuerpo
   if (cross.mood?.isLow) {
-    return 'Mood bajo hoy — escucha al cuerpo, ajusta intensidad';
+    return 'Mood bajo hoy: escucha al cuerpo, ajusta intensidad';
   }
   // MB-27 P3: el cruce de fase es BIDIRECCIONAL — antes solo restaba.
   // Folicular/ovulación empujan (la mitad de arriba que faltaba); lútea y
   // menstrual escuchan sin prohibir. Doctrina MB-7 en PHASES.
   if (cross.cyclePhase?.phase === 'follicular') {
-    return 'Fase folicular — tu ventana de construir: busca progresión';
+    return 'Fase folicular, tu ventana de construir: busca progresión';
   }
   if (cross.cyclePhase?.phase === 'ovulation') {
-    return 'Ovulación — tu pico: gran día para ir por un récord';
+    return 'Ovulación, tu pico: gran día para ir por un récord';
   }
   if (cross.cyclePhase?.phase === 'luteal') {
-    return 'Fase lútea — ajusta volumen, no la intención';
+    return 'Fase lútea: ajusta volumen, no la intención';
   }
   if (cross.cyclePhase?.phase === 'menstrual') {
-    return 'Fase menstrual — entrena con lo de hoy: baja el ego, no la ambición';
+    return 'Fase menstrual: entrena con lo de hoy, baja el ego, no la ambición';
   }
   return null;
 }

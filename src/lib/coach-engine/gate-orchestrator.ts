@@ -11,6 +11,8 @@ import { selectCascadeLevel } from './cascade';
 import { detectBrakes, selectDominantBrake, type DetectedBrake } from './brake-detector';
 import { detectRedFlags, type DetectedRedFlag } from './red-flags-detector';
 import { warn as logWarn } from '@/src/lib/logger';
+import { supabase } from '@/src/lib/supabase';
+import { senalRecurre, desdeVentana, type TurnoPrevio } from '@/src/services/coach-recurrencia-core';
 
 export interface CoachGateResult {
   q1: Q1Result;
@@ -44,9 +46,9 @@ const VOICE_LEVEL_TEMPLATES: Record<Q1Result, string> = {
 
 const CASCADE_TEMPLATES: Record<CascadeLevel, string> = {
   1: '', // verde, sin override
-  2: 'Cascada nivel 2: la señal está amarilla — sugiere ajuste de dosis/intensidad pero NO canceles el plan.',
-  3: 'Cascada nivel 3: la señal afecta primariamente — ajusta el plan del día. Documenta la decisión.',
-  4: 'Cascada nivel 4: la señal recurre y afecta — propón tests de autoevaluación específicos.',
+  2: 'Cascada nivel 2: la señal está amarilla: sugiere ajuste de dosis/intensidad pero NO canceles el plan.',
+  3: 'Cascada nivel 3: la señal afecta primariamente: ajusta el plan del día. Documenta la decisión.',
+  4: 'Cascada nivel 4: la señal recurre y afecta: propón tests de autoevaluación específicos.',
   5: 'Cascada nivel 5: deriva a profesional especializado. Documenta.',
 };
 
@@ -58,7 +60,7 @@ const BRAKE_TEMPLATES: Record<DetectedBrake['type'], string> = {
 };
 
 const RED_FLAG_TEMPLATE = (flag: DetectedRedFlag): string =>
-  `BANDERA ROJA ACTIVA — categoría ${flag.category}. Descripción: "${flag.evidenceText}". OBLIGATORIO: deriva con respeto, NO recomiendes continuar sin atención profesional. Si es categoría sistemica_aguda, prioriza 911 MX.`;
+  `BANDERA ROJA ACTIVA. Categoría ${flag.category}. Descripción: "${flag.evidenceText}". OBLIGATORIO: deriva con respeto, NO recomiendes continuar sin atención profesional. Si es categoría sistemica_aguda, prioriza 911 MX.`;
 
 /**
  * Corre el gate del coach-engine para un turno (Step COACH 7/N).
@@ -88,15 +90,37 @@ export async function runCoachEngineGate(params: {
     // Causa típica: el usuario (founder temprano) no tiene fila en coach_voice_config
     // porque completó el onboarding antes de que existiera el paso de voz (COACH 4/N).
     // El default conservador 'no_sabe' es correcto; lo dejamos visible para diagnóstico.
-    logWarn('[coach-gate] q1=no_sabe — voice_config ausente para el usuario; default conservador.', err);
+    logWarn('[coach-gate] q1=no_sabe: voice_config ausente para el usuario; default conservador.', err);
     q1 = 'no_sabe';
   }
 
   // Q2 — ¿la señal afecta hoy? (solo si hay señal)
   const q2: TrafficLight | null = params.signal ? evaluateQ2_TrafficLight(params.signal) : null;
 
-  // Cascada — solo si hay semáforo. TODO: recurrence detection (hardcoded false).
-  const cascadeLevel: CascadeLevel | null = q2 ? selectCascadeLevel(q2, false) : null;
+  // Cascada — solo si hay semáforo.
+  // 13.3 / T-15 (31-ago-2026): la recurrencia estaba clavada en false y la
+  // cascada nunca pasaba del nivel 3. Ahora sale del dato: turnos previos con
+  // semáforo amarillo/rojo en la ventana (coach-recurrencia-core). Solo se
+  // consulta cuando hay semáforo y no es verde (verde es nivel 1 recurra o
+  // no). Si la lectura falla, false: un error de red no sube la cascada.
+  let signalRecurs = false;
+  if (q2 && q2 !== 'verde') {
+    try {
+      const { data, error } = await supabase
+        .from('intervention_logs')
+        .select('question_2_result, created_at')
+        .eq('user_id', params.userId)
+        .in('question_2_result', ['amarillo', 'rojo'])
+        .gte('created_at', desdeVentana(Date.now()))
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (error) logWarn('[coach-gate] recurrencia: no se pudo leer intervention_logs', error.message);
+      else signalRecurs = senalRecurre((data ?? []) as TurnoPrevio[], Date.now());
+    } catch (err) {
+      logWarn('[coach-gate] recurrencia: lectura rechazada (sin red)', err);
+    }
+  }
+  const cascadeLevel: CascadeLevel | null = q2 ? selectCascadeLevel(q2, signalRecurs) : null;
 
   // Frenos — heurística sobre el mensaje. TODO: enriquecer context con energía del día.
   const brakes = detectBrakes(params.userMessage, {});
@@ -141,7 +165,7 @@ export async function runCoachEngineGate(params: {
  * el resultado del gate del turno actual. Pure — testeable sin Supabase.
  */
 export function buildCoachGateInjection(g: CoachGateResult): string {
-  const blocks: string[] = ['\n\n=== COACH ENGINE GATE — TURNO ACTUAL ==='];
+  const blocks: string[] = ['\n\n=== COACH ENGINE GATE: TURNO ACTUAL ==='];
 
   blocks.push(g.promptInjections.voiceLevel);
   if (g.promptInjections.cascade) blocks.push(g.promptInjections.cascade);

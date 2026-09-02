@@ -7,6 +7,8 @@
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { canAccessCycle } from '@/src/services/cycle/cycle-access-core';
+// 31-ago-2026 (decisión 15.1): el día del ayuno es el de FIN. `date` es inicio.
+import { diaCanonico, diasAntes, VENTANA_DIA_CANONICO_DIAS } from '@/src/services/fasting-cumplido-core';
 import { getCycleAppMode } from '@/src/services/app-mode-service';
 
 // MB-11 C (SPEC Zero→ATP): toggle Semana/Mes/Año — 'year' entra al contrato.
@@ -286,17 +288,20 @@ export async function getFastingReport(period: ReportPeriod): Promise<FastingRep
 
     const { data } = await supabase
       .from('fasting_logs')
-      .select('date, actual_hours, status')
+      .select('date, actual_hours, status, fast_start, fast_end')
       .eq('user_id', userId)
       .eq('status', 'completed')
-      .gte('date', startDate);
+      // 6 dias mas atras: el ayuno que empezo antes del rango y termino dentro cuenta.
+      .gte('date', diasAntes(startDate, VENTANA_DIA_CANONICO_DIAS));
 
     const byDate = new Map<string, number>();
     for (const row of (data ?? []) as any[]) {
+      const dia = diaCanonico(row);
+      if (!dia || dia < startDate) continue;
       const hours = row.actual_hours ?? 0;
-      const prev = byDate.get(row.date) ?? 0;
+      const prev = byDate.get(dia) ?? 0;
       // Si hay varios ayunos en el mismo dia, nos quedamos con el mas largo
-      if (hours > prev) byDate.set(row.date, hours);
+      if (hours > prev) byDate.set(dia, hours);
     }
 
     const daily: DailyPoint[] = dateRange.map(d => ({

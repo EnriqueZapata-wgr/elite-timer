@@ -63,7 +63,7 @@ describe('candado 1: apagar el filtro siempre funciona', () => {
     expect(body).toContain('stopFilter');
     expect(body).toContain('persistEnabled(false)');
     // Sin permiso, sin red, sin estado: apagar es incondicional.
-    expect(body, 'disableNightFilter tiene una condición — apagar debe ser incondicional')
+    expect(body, 'disableNightFilter tiene una condición: apagar debe ser incondicional')
       .not.toMatch(/\bif\s*\(/);
     expect(body).not.toContain('canDrawOverlays');
   });
@@ -173,13 +173,17 @@ describe('candado 3: barrido de honestidad del copy iOS', () => {
 describe('candado 4: cero rutas paralelas al ledger desde acciones', () => {
   it('el handler importa LOS writers canónicos', () => {
     expect(ACTIONS).toContain("import { addWater } from '@/src/services/hydration-service'");
-    expect(ACTIONS).toContain("import { registrarExperiencia } from '@/src/services/hoy/tarea-actions'");
+    // 31-ago-2026 (12.6): el sol entra por el palomeo de HOY, mismo import.
+    expect(ACTIONS).toContain("import { registrarExperiencia, persistBooleanToggle } from '@/src/services/hoy/tarea-actions'");
   });
 
   it('cada intención va a su writer (agua → addWater, mente → registrarExperiencia)', () => {
     expect(ACTIONS).toMatch(/case 'log_water':[\s\S]{0,400}?addWater\(/);
     expect(ACTIONS).toMatch(/case 'log_meditation':[\s\S]{0,400}?registrarExperiencia\(userId, 'meditation'/);
     expect(ACTIONS).toMatch(/case 'log_breathwork':[\s\S]{0,400}?registrarExperiencia\(userId, 'breathwork'/);
+    // 12.6: "Ya tomé sol" palomea por persistBooleanToggle, nunca por un insert propio.
+    expect(ACTIONS).toMatch(/case 'log_boolean':[\s\S]{0,400}?persistBooleanToggle\(userId, intent\.source, true/);
+    expect(resolveNotificationAction('done_sunlight')).toEqual({ kind: 'log_boolean', source: 'sunlight' });
   });
 
   it('NINGÚN archivo de acciones toca supabase ni tablas directo', () => {
@@ -189,7 +193,7 @@ describe('candado 4: cero rutas paralelas al ledger desde acciones', () => {
       ['NotificationActionsBridge.tsx', ACTIONS_BRIDGE],
     ] as const) {
       const codigo = sinComentarios(src);
-      expect(codigo, `${name} importa supabase — las acciones van por los writers`)
+      expect(codigo, `${name} importa supabase: las acciones van por los writers`)
         .not.toContain('supabase');
       expect(codigo, `${name} accede a una tabla directo`).not.toMatch(/\.from\(['"]/);
       expect(codigo, `${name} inserta directo`).not.toMatch(/\.(insert|upsert)\(/);

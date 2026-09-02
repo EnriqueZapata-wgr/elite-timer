@@ -22,6 +22,8 @@ import {
   sortFriends,
   splitPendingRequests,
   publicDisplayName,
+  ownDisplayName,
+  nameCandidate,
   isValidReportReason,
   shouldAutoHide,
   isSearchAllowed,
@@ -133,6 +135,30 @@ describe('sortFriends / publicDisplayName', () => {
 
   it('fail-soft cuando no hay nombre', () => {
     expect(publicDisplayName({ display_name: null, username: null })).toBe('Atleta ATP');
+  });
+
+  // 31-ago-2026 (7.1): la fila real de Mariana en user_profile_public tiene
+  // display_name = '' y username null. Antes salía '' y el avatar "A".
+  it('EL CASO DE MARIANA: display_name vacío no es un nombre', () => {
+    expect(publicDisplayName({ display_name: '', username: null })).toBe('Atleta ATP');
+    expect(publicDisplayName({ display_name: '   ', username: 'mari' })).toBe('mari');
+  });
+
+  it('una letra suelta tampoco es un nombre', () => {
+    expect(publicDisplayName({ display_name: 'A', username: null })).toBe('Atleta ATP');
+    expect(publicDisplayName({ display_name: 'A', username: 'bruno' })).toBe('bruno');
+    expect(nameCandidate(' Al ')).toBe('Al');
+    expect(nameCandidate('A')).toBeNull();
+  });
+
+  it('el nombre propio cae a full_name, luego a username, y NUNCA al correo (4EP M2)', () => {
+    expect(ownDisplayName({ display_name: '', full_name: 'Mariana' })).toBe('Mariana');
+    expect(ownDisplayName({ display_name: '', full_name: '', username: 'mari' })).toBe('mari');
+    expect(ownDisplayName({ display_name: 'Mari Z', full_name: 'Mariana' })).toBe('Mari Z');
+    expect(ownDisplayName({ display_name: null, full_name: null, username: null })).toBe('Atleta ATP');
+    expect(ownDisplayName({})).toBe('Atleta ATP');
+    // Nada del correo llega a la fila pública aunque alguien lo pase por accidente.
+    expect(ownDisplayName({ email: 'jperez1985@x.com' } as Record<string, string>)).toBe('Atleta ATP');
   });
 });
 

@@ -9,7 +9,8 @@
  * máximo, ni racha. Mezclarlos habría metido estas cuentas bajo las pruebas de
  * aquél sin razón.
  *
- * Cero imports: se puede probar en node sin arrastrar react-native ni supabase.
+ * Un solo import, y de otro núcleo puro (fasting-cumplido-core): se sigue
+ * probando en node sin arrastrar react-native ni supabase.
  *
  * ── HIGIENE DE DATOS, y por qué no es opcional ──────────────────────────────
  * Medido contra la base real el 28-ago: 57 filas, 3 usuarios. Hay un ayuno de
@@ -19,6 +20,8 @@
  * 263 h" es además irresponsable en una app de salud. Por eso se filtra ANTES
  * de contar, con el mismo tope que la app ya declara como política.
  */
+
+import { diaCanonico } from './fasting-cumplido-core';
 
 /** El auto-cierre de la app ocurre a las 120 h: nada por encima es un ayuno real. */
 export const MAX_HORAS_VALIDAS = 120;
@@ -30,8 +33,11 @@ export interface AyunoLike {
   actual_hours: number | null;
   /** 'completed' | 'cancelled' | 'active'. Nullable en el esquema. */
   status?: string | null;
-  /** Día al que pertenece el ayuno, 'YYYY-MM-DD'. */
+  /** Día local de INICIO, 'YYYY-MM-DD', como lo escribe el servicio. */
   date?: string | null;
+  /** 31-ago-2026: con timestamps, el día de la racha es el de FIN (diaCanonico). */
+  fast_start?: string | Date | null;
+  fast_end?: string | Date | null;
 }
 
 export interface EstadisticasAyuno {
@@ -68,12 +74,17 @@ export function esAyunoValido(a: AyunoLike): boolean {
  * Deliberadamente NO usa "alcanzó su meta": esa es justo la pregunta con seis
  * respuestas distintas en la app. Aquí un ayuno cuenta o no cuenta, y ya.
  *
- * SALVEDAD, que hay que decir en voz alta: "día" aquí es el día en que el ayuno
- * EMPEZÓ, porque así se escribe la columna `date`. Un ayuno de 48 h marca un
- * solo día y deja hueco al siguiente, así que la racha se rompe mientras la
- * persona literalmente sigue ayunando. Con 16:8 nocturno funciona bien; con
- * ayuno prolongado, castiga. Está pendiente con Enrique la decisión del día
- * canónico del ayuno, y de ahí sale si esto cambia.
+ * DÍA (31-ago-2026, decisión 15.1 del backlog): "día" es el día canónico del
+ * ayuno, que es el día local en que TERMINA (ver diaCanonico en
+ * fasting-cumplido-core: ahí están las razones y ahí se revierte). Antes era
+ * el día de inicio, porque así se escribe la columna `date`, y con 16:8
+ * nocturno el ayuno de anoche se pintaba en ayer mientras HOY lo daba por
+ * cumplido hoy. Las filas sin timestamps (pruebas viejas, filas corruptas)
+ * siguen cayendo a `date`.
+ *
+ * SALVEDAD que queda: un ayuno de 48 h marca UN día (el de fin), no los que
+ * atravesó. Contar los días que un ayuno prolongado cubre es otra definición
+ * de racha, y esa sí queda pendiente con Enrique.
  *
  * Si Enrique prefiere otra definición, se cambia esta función y nada más.
  */
@@ -81,7 +92,8 @@ export function calcularRacha(ayunos: AyunoLike[], hoy: string): number {
   const dias = new Set<string>();
   for (const a of ayunos) {
     if (!esAyunoValido(a)) continue;
-    if (a.date) dias.add(a.date);
+    const dia = diaCanonico(a);
+    if (dia) dias.add(dia);
   }
   if (dias.size === 0) return 0;
 

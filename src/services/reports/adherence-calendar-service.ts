@@ -21,6 +21,9 @@ import {
   dateKey,
   daysInMonth,
 } from './adherence-calendar-core';
+// 31-ago-2026 (decisión 15.1): el día del ayuno es el de FIN, no el de
+// inicio que guarda `date`. Ver diaCanonico para las razones.
+import { diaCanonico, diasAntes, VENTANA_DIA_CANONICO_DIAS } from '@/src/services/fasting-cumplido-core';
 
 const DEFAULT_PROTEIN_GOAL_G = 150; // mismo default que QUANT_CONFIG del day-compiler
 const DEFAULT_WATER_GOAL_ML = 2500; // mismo default que hydration-service
@@ -32,14 +35,18 @@ export async function getMonthAdherence(
 ): Promise<FlagsByDate> {
   const from = dateKey(year, month0, 1);
   const to = dateKey(year, month0, daysInMonth(year, month0));
+  // El ayuno que EMPIEZA a fin del mes anterior y TERMINA en este cae aquí
+  // por día canónico; `date` (inicio) lo dejaría fuera. Se piden 6 días más
+  // atrás (120 h de ayuno máximo + margen) y se filtra por el día real.
+  const fromAyuno = diasAntes(from, VENTANA_DIA_CANONICO_DIAS);
   const flags: FlagsByDate = {};
   const dayOf = (date: string): Record<string, boolean> => (flags[date] ??= {});
 
   const [goalsRes, fastRes, foodRes, waterRes, workoutRes] = await Promise.all([
     supabase.from('user_day_preferences').select('goals').eq('user_id', userId).maybeSingle(),
     supabase.from('fasting_logs')
-      .select('date, status, actual_hours, target_hours')
-      .eq('user_id', userId).gte('date', from).lte('date', to),
+      .select('date, status, actual_hours, target_hours, fast_start, fast_end')
+      .eq('user_id', userId).gte('date', fromAyuno).lte('date', to),
     supabase.from('food_logs')
       .select('date, protein_g')
       .eq('user_id', userId).gte('date', from).lte('date', to),
@@ -60,10 +67,12 @@ export async function getMonthAdherence(
     logWarn('[Adherencia] fasting_logs query failed', fastRes.error);
   } else {
     for (const r of fastRes.data ?? []) {
-      if (!r.date || r.status === 'active') continue; // el activo aún no cuenta
+      if (r.status === 'active') continue; // el activo aún no cuenta
+      const dia = diaCanonico(r);
+      if (!dia || dia < from || dia > to) continue;
       const met = fastingMet(r.status, r.actual_hours == null ? null : Number(r.actual_hours), r.target_hours);
       // Varios ayunos el mismo día: con que uno cumpla, el día cumple.
-      dayOf(r.date).ayuno = dayOf(r.date).ayuno || met;
+      dayOf(dia).ayuno = dayOf(dia).ayuno || met;
     }
   }
 

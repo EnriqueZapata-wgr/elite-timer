@@ -24,6 +24,11 @@
 //   v8 (esto) Cowork overnight 2026-07-08: fixes bugs preexistentes flagueados por Fable:
 //     - T1 cap 1 bucket/user/run (intra-run cooldown para runs de recuperación)
 //     - T2 .order("notify_at" asc) para no starvar logs viejos en backlog >500
+//   v9 31-ago-2026 (pendiente 12.3): T6 recordatorios VENCIDOS no se mandan.
+//     Las instancias del dia nacen cuando el user abre /agenda; si abre a las
+//     21:49, los logs de la manana nacian con notify_at ya pasado y este
+//     despachador los mandaba a las 21:50. El cliente ya no crea notify_at
+//     vencidos (agenda-core.notifyAtISO); esto es la red del lado servidor.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 // Sprint #50 hardening v7 — helpers puros (testeados en vitest)
@@ -33,6 +38,7 @@ import {
   circuitBreakerTripped,
   DEAD_TOKEN_ERROR,
   isPendingAnomalous,
+  isStaleNotify,
   sendPushBatchWithRetry,
   structuredLog,
   tokensToInvalidate,
@@ -64,9 +70,9 @@ serve(async (req) => {
   // v8 T2: .order("notify_at", asc) — si hay >500 pending, los MÁS VIEJOS van primero
   // (bug Fable flagueó en delivery #50: sin order, logs viejos podían morir de hambre
   // cuando el backlog crecía). T5 (anomaly) sigue alertando al backlog anormal.
-  const { data: pending, error: pendingErr } = await supabase
+  const { data: pendingAll, error: pendingErr } = await supabase
     .from("agenda_event_logs")
-    .select("id, user_id, event_id, scheduled_at, agenda_events(name, category)")
+    .select("id, user_id, event_id, scheduled_at, notify_at, agenda_events(name, category)")
     .lte("notify_at", nowIso)
     .is("notified_at", null)
     .not("notify_at", "is", null)
@@ -77,8 +83,28 @@ serve(async (req) => {
     structuredLog("error", "pending_query_failed", { error: pendingErr.message });
     return new Response(JSON.stringify({ error: pendingErr.message }), { status: 500, headers: corsHeaders });
   }
-  if (!pending?.length) {
+  if (!pendingAll?.length) {
     structuredLog("info", "no_pending", { duration_ms: Date.now() - runStartMs });
+    return new Response("No pending", { status: 200, headers: corsHeaders });
+  }
+
+  // v9 T6: lo vencido se cierra sin enviar (notified_at = ahora) y sale del
+  // flujo. Un recordatorio de las 07:20 mandado a las 21:50 no es un
+  // recordatorio, es ruido que ensena a silenciar la app.
+  const staleLogs = (pendingAll as any[]).filter((l) => isStaleNotify(l.notify_at, now.getTime()));
+  const pending = (pendingAll as any[]).filter((l) => !isStaleNotify(l.notify_at, now.getTime()));
+  if (staleLogs.length > 0) {
+    await supabase.from("agenda_event_logs").update({ notified_at: nowIso })
+      .in("id", staleLogs.map((l) => l.id));
+    for (const userId of new Set(staleLogs.map((l) => l.user_id))) {
+      structuredLog("info", "suppressed_stale", {
+        user_id: userId,
+        logs: staleLogs.filter((l) => l.user_id === userId).length,
+      });
+    }
+  }
+  if (!pending.length) {
+    structuredLog("info", "no_pending", { stale_closed: staleLogs.length, duration_ms: Date.now() - runStartMs });
     return new Response("No pending", { status: 200, headers: corsHeaders });
   }
 
@@ -86,7 +112,7 @@ serve(async (req) => {
   if (isPendingAnomalous(pending.length)) {
     structuredLog("warn", "anomaly_high_pending", {
       pending_count: pending.length,
-      message: "Backlog anormal — verificar si el cron se detuvo o hay bug en agenda_event_logs",
+      message: "Backlog anormal: verificar si el cron se detuvo o hay bug en agenda_event_logs",
     });
   }
 
@@ -255,7 +281,8 @@ serve(async (req) => {
     const listedEvents = bucket.events.slice(0, MAX_EVENTS_LISTED);
     const remainingCount = bucket.events.length - listedEvents.length;
 
-    const title = singleEvent ? "ATP — Próximo evento" : `ATP — ${bucket.events.length} próximas acciones`;
+    // 31-ago-2026: sin em dash en copy de usuario (regla 2 de la casa); mismo separador que los avisos por app ("ATP · Sol").
+    const title = singleEvent ? "ATP · Próximo evento" : `ATP · ${bucket.events.length} próximas acciones`;
     const body = singleEvent
       ? `${bucket.events[0]} · en breve`
       : remainingCount > 0

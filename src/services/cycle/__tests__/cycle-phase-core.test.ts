@@ -9,38 +9,90 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  getPhase, resolverCiclo, largoDeCiclo, FRESCURA_DIAS_EXTRA,
-  PHASE_FOLLICULAR_END, PHASE_OVULATION_END, predecirProximo,
-  predecirOvulacion, LUTEA_ESTANDAR, LUTEA_CICLO_CORTO } from '@/src/services/cycle/cycle-phase-core';
+  getPhase, resolverCiclo, largoDeCiclo, FRESCURA_DIAS_EXTRA, predecirProximo,
+  predecirOvulacion, ventanaOvulatoria, LUTEA_ESTANDAR, LUTEA_CICLO_CORTO } from '@/src/services/cycle/cycle-phase-core';
 import { agruparPeriodos } from '@/src/services/cycle/cycle-periods-core';
 import { toLocalDateString } from '@/src/utils/date-helpers';
 
 const ROOT = path.resolve(__dirname, '../../../..');
 
-describe('getPhase — el corte canónico', () => {
-  it('ciclo de 28 y periodo de 5: menstrual 1-5, folicular 6-13, ovulación 14-16, lútea 17+', () => {
+// 31-ago-2026 (pendiente 17.2): este bloque amarraba los umbrales 0.46/0.57,
+// que eran una SEGUNDA formula de ovulacion sin fuente, viva junto a
+// predecirOvulacion (ASRM/Wilcox). Con ciclo de 35 la tarjeta decia
+// "Ovulacion" los dias 17-20 y el calendario ponia el punto en el 21. El
+// contrato cambia a proposito: la fase ovulatoria ES la banda alta de
+// ventanaOvulatoria (ovulacion-2 .. ovulacion) y la lutea empieza al dia
+// siguiente. Se re-apunta el candado, no se afloja.
+describe('getPhase: el corte canónico (la misma cuenta que predecirOvulacion)', () => {
+  it('ciclo de 28 y periodo de 5: menstrual 1-5, folicular 6-11, ovulación 12-14, lútea 15+', () => {
     expect(getPhase(1)).toBe('menstrual');
     expect(getPhase(5)).toBe('menstrual');
     expect(getPhase(6)).toBe('follicular');
-    expect(getPhase(13)).toBe('follicular');
+    expect(getPhase(11)).toBe('follicular');
+    expect(getPhase(12)).toBe('ovulation');
     expect(getPhase(14)).toBe('ovulation');
-    expect(getPhase(16)).toBe('ovulation');
-    expect(getPhase(17)).toBe('luteal');
+    expect(getPhase(15)).toBe('luteal');
     expect(getPhase(28)).toBe('luteal');
   });
 
-  it('los cortes escalan con la duración del ciclo (0.46 / 0.57)', () => {
-    // Ciclo de 32: folicular hasta round(32*0.46)=15, ovulación hasta round(32*0.57)=18.
-    expect(getPhase(15, 32)).toBe('follicular');
-    expect(getPhase(16, 32)).toBe('ovulation');
-    expect(getPhase(18, 32)).toBe('ovulation');
-    expect(getPhase(19, 32)).toBe('luteal');
-    expect(PHASE_FOLLICULAR_END).toBe(0.46);
-    expect(PHASE_OVULATION_END).toBe(0.57);
+  it('la fase ovulatoria coincide con la banda alta del calendario (periodo 5, día > periodo, largos 15-60)', () => {
+    for (let largo = 15; largo <= 60; largo++) {
+      const v = predecirOvulacion({ cycleLen: largo, cyclesUsed: 3 })!;
+      for (let day = 1; day <= largo; day++) {
+        const fase = getPhase(day, largo, 5);
+        const enBandaAlta = day >= v.altaInicio && day <= v.altaFin;
+        if (day > 5) {
+          expect(fase === 'ovulation', `largo ${largo} día ${day}`).toBe(enBandaAlta);
+        }
+        // El día del punto NUNCA es lútea para la tarjeta (el bug de 35).
+        if (day === v.diaOvulacion && day > 5) expect(fase).toBe('ovulation');
+        if (day > v.diaOvulacion) expect(fase).toBe('luteal');
+      }
+      expect(ventanaOvulatoria(largo).diaOvulacion).toBe(v.diaOvulacion);
+    }
+  });
+
+  // 4EP M-3 (31-ago): límite CONOCIDO, no arreglado. En ciclos cortos la banda
+  // alta puede pisar los días de sangrado (L=21: ovula el 7, banda 5-7, y el
+  // día 5 aún es menstrual con periodo de 5). getPhase deja ganar a menstrual
+  // (el sangrado es dato registrado; la ovulación es estimada), así que la
+  // tarjeta dice "menstrual" un día que el calendario pinta fértil. Qué debe
+  // mandar ahí lo decide Mariana; este test solo fija el comportamiento actual
+  // para que un cambio sea consciente.
+  it('límite conocido (pendiente de Mariana): L=21 P=5, el día 5 es menstrual aunque esté en la banda alta', () => {
+    const v = predecirOvulacion({ cycleLen: 21, cyclesUsed: 3 })!;
+    expect([v.altaInicio, v.altaFin]).toEqual([5, 7]);
+    expect(getPhase(5, 21, 5)).toBe('menstrual');
+    expect(getPhase(6, 21, 5)).toBe('ovulation');
+    expect(getPhase(7, 21, 5)).toBe('ovulation');
+    expect(getPhase(8, 21, 5)).toBe('luteal');
+  });
+
+  it('el caso que destapó el pendiente: ciclo de 35, día 21', () => {
+    // Antes: getPhase(21, 35) = 'luteal' (round(35·0.57) = 20) mientras el
+    // calendario marcaba el 21 como ovulación estimada (35 − 14).
+    expect(predecirOvulacion({ cycleLen: 35, cyclesUsed: 3 })!.diaOvulacion).toBe(21);
+    expect(getPhase(21, 35)).toBe('ovulation');
+    expect(getPhase(19, 35)).toBe('ovulation');
+    expect(getPhase(18, 35)).toBe('follicular');
+    expect(getPhase(22, 35)).toBe('luteal');
+  });
+
+  it('la lútea dura la convención (14) por construcción, en cualquier largo normal', () => {
+    for (const largo of [24, 26, 28, 30, 32, 35, 38]) {
+      const luteos = Array.from({ length: largo }, (_, i) => i + 1)
+        .filter((d) => getPhase(d, largo, 5) === 'luteal').length;
+      expect(luteos, `largo ${largo}`).toBe(LUTEA_ESTANDAR);
+    }
   });
 
   it('un ciclo alargado no inventa fases: más allá del largo sigue lútea', () => {
     expect(getPhase(35, 28)).toBe('luteal');
+  });
+
+  it('largo no finito degrada a 28, como largoDeCiclo sin ajuste', () => {
+    expect(getPhase(12, NaN)).toBe('ovulation');
+    expect(getPhase(15, NaN)).toBe('luteal');
   });
 
   it('el copy canónico de PHASES cubre las cuatro fases (a nivel fuente: el arnés es node-only)', () => {
@@ -70,8 +122,9 @@ describe('audit B1: UNA resolución de {inicio, largo, periodo} para todas las s
       avgPeriodLength: 5,
       hoy: '2026-08-06',
     });
-    // round(31·0.46) = 14 → día 14 sigue folicular. La vieja resolución de
-    // Entrenar (ajuste 28: round(28·0.46) = 13) habría dicho ovulación:
+    // Ciclo de 31 ovula el 17 (banda alta 15-17) → día 14 sigue folicular.
+    // La vieja resolución de Entrenar (ajuste 28: ovula el 14, banda 12-14)
+    // habría dicho ovulación:
     expect(getPhase(14, 28, 5)).toBe('ovulation'); // lo que decía Entrenar
     expect(res).toMatchObject({
       day: 14, cycleLen: 31, phase: 'follicular', largoFuente: 'observado',
@@ -310,19 +363,21 @@ describe('la predicción es la misma cuenta que pinta la tarjeta', () => {
     expect(toLocalDateString(p.date)).toBe('2026-09-02');
     // Y los días que faltan son el mismo despeje de la tarjeta.
     expect(p.daysUntil).toBe(32 - 22 + 1);
-    expect(p.confidence).toBe('baja');
+    // 31-ago (17.3): `confidence` murió. Nadie lo leía y era una tercera
+    // escala sobre el mismo cuerpo (predecirOvulacion.nivel ya existe con
+    // criterio FIGO). La evidencia se dice con cyclesUsed/largoFuente.
+    expect(p).not.toHaveProperty('confidence');
   });
 
   it('con el ciclo cumplido no devuelve días negativos', () => {
-    const p = predecirProximo({ inicio: '2026-07-01', day: 40, cycleLen: 28, cyclesUsed: 3 });
+    const p = predecirProximo({ inicio: '2026-07-01', day: 40, cycleLen: 28 });
     expect(p.daysUntil).toBe(0);
-    expect(p.confidence).toBe('alta');
   });
 
   // 4EP MEDIO-2: `daysUntil` estaba clampeado a 0 y `date` no, así que con
   // retraso ARGOS publicaba una fecha del pasado con "próximo" delante.
   it('cuando la estimada ya venció lo declara en vez de fingir futuro', () => {
-    const p = predecirProximo({ inicio: '2026-07-01', day: 40, cycleLen: 28, cyclesUsed: 3 });
+    const p = predecirProximo({ inicio: '2026-07-01', day: 40, cycleLen: 28 });
     expect(p.retrasada, 'día 40 de un ciclo de 28 es retraso').toBe(true);
     // 28 - 40 + 1 = -11: la fecha estimada quedó 11 días atrás.
     expect(p.diasDeRetraso).toBe(11);
@@ -332,27 +387,23 @@ describe('la predicción es la misma cuenta que pinta la tarjeta', () => {
   });
 
   it('dentro del ciclo no marca retraso', () => {
-    const p = predecirProximo({ inicio: '2026-08-01', day: 22, cycleLen: 32, cyclesUsed: 1 });
+    const p = predecirProximo({ inicio: '2026-08-01', day: 22, cycleLen: 32 });
     expect(p.retrasada).toBe(false);
     expect(p.diasDeRetraso).toBe(0);
   });
 
   // El borde exacto: la estimada cae HOY, todavía no es retraso.
   it('el día en que cae la estimada todavía no es retraso', () => {
-    const p = predecirProximo({ inicio: '2026-08-01', day: 29, cycleLen: 28, cyclesUsed: 3 });
+    const p = predecirProximo({ inicio: '2026-08-01', day: 29, cycleLen: 28 });
     expect(p.daysUntil).toBe(0);
     expect(p.retrasada).toBe(false);
   });
 
-  it('la confianza sale de cuántos ciclos se usaron de verdad', () => {
-    expect(predecirProximo({ inicio: '2026-08-01', day: 1, cycleLen: 28, cyclesUsed: 2 }).confidence)
-      .toBe('media');
-    expect(predecirProximo({ inicio: '2026-08-01', day: 1, cycleLen: 28 }).confidence)
-      .toBe('baja');
-  });
+  // 31-ago (17.3): el test de `confidence` murió con el campo. La evidencia
+  // viaja cruda (cyclesUsed, largoFuente) en la resolución, no como etiqueta.
 });
 
-describe('predecirOvulacion — la ventana fértil, con fuentes', () => {
+describe('predecirOvulacion: la ventana fértil, con fuentes', () => {
   // Base documental completa en
   // R and D/CICLO_OVULACION_BASE_DOCUMENTAL_2026-08-23.md
 

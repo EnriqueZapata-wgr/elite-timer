@@ -99,12 +99,6 @@ export default function SettingsExperienciaScreen() {
               ({minutesToHHMM(corteMinutes)}), no con el atardecer genérico del sistema.
             </EliteText>
           ) : null}
-          {/* Regla de tránsito MB-31A: la nota honesta mientras queden
-              pantallas sin migrar. Se retira cuando MB-31B termine. */}
-          <EliteText variant="caption" style={[styles.themeNote, { color: tokens.textoSecundario }]}>
-            El modo claro va llegando por partes: el marco ya cambia, pero varias
-            pantallas siguen en oscuro mientras terminamos la migración.
-          </EliteText>
           <SettingRow icon="language-outline" label="Idioma"
             right={<EliteText variant="caption" style={{ color: acento }}>Español</EliteText>} />
           <SettingRow icon="resize-outline" label="Unidades"

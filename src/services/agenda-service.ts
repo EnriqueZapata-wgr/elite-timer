@@ -28,6 +28,10 @@ import {
 } from '@/src/services/interventions/intervention-agenda-core';
 import { INTERVENTION_BY_KEY } from '@/src/constants/interventions-catalog';
 import { getMyProtocol, getChronotypeSchedule } from '@/src/services/interventions/intervention-service';
+// 31-ago-2026 (12.1 / 12.3): hora, orden y notify_at salen del núcleo puro
+// con test; aquí solo queda el I/O.
+import { hhmm, notifyAtISO, snoozeNotifyAtISO, sortAgendaInstances, effectiveTimeHHMM } from '@/src/services/agenda-core';
+import { esPlan } from '@/src/services/supplements/adherencia-core';
 
 // 'intervention' (DX F4): eventos volcados desde intervenciones activas (columna
 // source es TEXT sin CHECK — migración 098 — así que no requiere ALTER).
@@ -47,6 +51,13 @@ export interface AgendaEventInstance {
   source: AgendaSource;
   /** DX F4: key del catálogo si el evento viene de una intervención (source 'intervention'). */
   interventionKey?: string | null;
+  /**
+   * 31-ago-2026 (12.1): hora a la que de verdad vive hoy la instancia. Igual a
+   * `time` salvo en pospuestos, donde es la hora local de scheduled_at. null =
+   * sin hora válida (la lista la manda al final). `time` sigue siendo la
+   * plantilla (es lo que edita el formulario).
+   */
+  effectiveTime: string | null;
 }
 
 export interface CreateEventInput {
@@ -58,20 +69,9 @@ export interface CreateEventInput {
 
 // ═══ HELPERS ═══
 
-/** 'HH:MM:SS' o 'HH:MM' → 'HH:MM'. */
-function hhmm(time: string): string {
-  return (time ?? '').slice(0, 5);
-}
-
 /** date 'YYYY-MM-DD' + time 'HH:MM' → ISO UTC del momento local del evento. */
 function scheduledAtISO(date: string, time: string): string {
   return new Date(`${date}T${hhmm(time)}:00`).toISOString();
-}
-
-/** notify_at = scheduledAt - minutesBefore (null si no hay notif). */
-function notifyAtISO(scheduledISO: string, minutesBefore: number): string | null {
-  if (!minutesBefore || minutesBefore <= 0) return null;
-  return new Date(new Date(scheduledISO).getTime() - minutesBefore * 60000).toISOString();
 }
 
 /** key de dedupe/disabled de un evento de auto-gen: `HH:MM|nombre-min`. */
@@ -201,11 +201,18 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
       const TIMING_LABEL: Record<string, string> = {
         morning: 'mañana', with_food: 'comida', afternoon: 'tarde', evening: 'noche', bedtime: 'noche',
       };
-      const { data: supps } = await supabase
-        .from('user_supplements').select('name, timing, dose_times')
+      const { data: supps, error: suppsErr } = await supabase
+        // 312 (M4, 31-ago): select('*') trae is_plan sin romper antes del db push.
+        .from('user_supplements').select('*')
         .eq('user_id', userId).eq('is_active', true);
+      // 31-ago-2026 (12.2): "no se pudo leer" NO es "no hay suplementos". Con
+      // data null el reconcile de abajo daba por obsoletas TODAS las tomas y las
+      // desactivaba en bloque (en la base del dueño: 42 filas 'supplement'
+      // apagadas en el mismo minuto, 01-ago 22:55 UTC). Sin lectura, no se toca.
+      if (suppsErr) throw suppsErr;
       const desiredSuppKeys = new Set<string>();
-      for (const s of (supps ?? []) as any[]) {
+      // 312 (M4): solo el PLAN va a la agenda; una eventual no tiene hora fija.
+      for (const s of ((supps ?? []) as any[]).filter(esPlan)) {
         if (!s?.name) continue;
         // MB-2 §4: umbral >=1 (antes >=2) — una sola toma con hora custom
         // también manda su HH:MM a la agenda. Legacy intacto: la UI nunca
@@ -382,7 +389,16 @@ async function syncInterventionEvents(userId: string): Promise<void> {
   }
 }
 
-/** Crea los logs (instancias) faltantes para los eventos activos del día. Idempotente. */
+/**
+ * Crea los logs (instancias) faltantes para los eventos activos del día. Idempotente.
+ *
+ * 31-ago-2026 (12.3): las instancias nacen cuando el usuario abre /agenda, no
+ * a medianoche. notifyAtISO (agenda-core) deja notify_at en null si el
+ * disparo ya pasó: sin eso, abrir la app a las 21:49 creaba recordatorios de
+ * las 07:20 vencidos y el despachador los mandaba a las 21:50 ("Luz roja ·
+ * en breve" de noche). Lo mismo aplica a createCustomEvent / updateAgendaEvent
+ * (crear a las 21:00 un evento de 08:00 con aviso no debe avisar YA).
+ */
 async function ensureLogsForDate(userId: string, date: string): Promise<void> {
   try {
     const { data: events } = await supabase
@@ -427,15 +443,19 @@ export async function getAgendaForDate(userId: string, date?: string): Promise<A
     for (const l of (logs ?? []) as any[]) {
       const ev = l.agenda_events;
       if (!ev || ev.is_active === false) continue;
-      instances.push({
+      const base = {
         id: l.id, eventId: l.event_id, name: ev.name, time: hhmm(ev.time),
         category: ev.category, status: l.status, scheduledAt: l.scheduled_at,
+      };
+      instances.push({
+        ...base,
         notifyMinutesBefore: ev.notify_minutes_before ?? 0, source: ev.source,
         interventionKey: ev.intervention_key ?? null,
+        effectiveTime: effectiveTimeHHMM(base),
       });
     }
-    instances.sort((a, b) => a.time.localeCompare(b.time));
-    return instances;
+    // 12.1: hora efectiva ascendente (pospuestos donde cayeron), sin hora al final.
+    return sortAgendaInstances(instances);
   } catch (e) {
     logWarn('[agenda] getAgendaForDate failed', e);
     return [];
@@ -699,8 +719,9 @@ export async function snoozeEvent(userId: string, logId: string, minutes: number
   if (!log) return;
   const newSched = new Date(new Date((log as any).scheduled_at).getTime() + minutes * 60000).toISOString();
   const notifyMin = (log as any).agenda_events?.notify_minutes_before ?? 0;
+  // 4EP G2 (31-ago): posponer SIEMPRE re-arma el aviso (max(nuevo - lead, ahora + 1 min)).
   await supabase.from('agenda_event_logs').update({
     status: 'snoozed', scheduled_at: newSched,
-    notify_at: notifyAtISO(newSched, notifyMin), notified_at: null,
+    notify_at: snoozeNotifyAtISO(newSched, notifyMin), notified_at: null,
   }).eq('id', logId).eq('user_id', userId);
 }

@@ -29,6 +29,9 @@ import {
   type MyPosition,
 } from '@/src/services/community/leaderboard-core';
 import { rankTierLabel } from '@/src/services/economy/rank';
+import { publicDisplayName } from '@/src/services/community/friends-core';
+import { ensureOwnPublicName } from '@/src/services/community/public-profile-service';
+import { useAuth } from '@/src/contexts/auth-context';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
@@ -53,7 +56,8 @@ const SCOPE_FOOTNOTES: Record<LeaderboardScope, string> = {
 
 function LeaderRow({ row, highlight }: { row: RankedLeaderboardRow; highlight?: boolean }) {
   const { tokens: t } = useAppTheme();
-  const name = row.display_name ?? row.username ?? 'Atleta ATP';
+  // 7.1: el mismo fallback que amigos/buscar (vacío y letra suelta no son nombre).
+  const name = publicDisplayName(row);
   const medal = MEDALS[row.position];
   return (
     <Pressable
@@ -93,6 +97,7 @@ export default function CommunityRankingScreen() {
 
   const insets = useSafeAreaInsets();
   const { kind, tokens: t } = useAppTheme();
+  const { user } = useAuth();
   const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const secTxt = { color: t.textoSecundario };
   const [rows, setRows] = useState<RankedLeaderboardRow[]>([]);
@@ -102,12 +107,16 @@ export default function CommunityRankingScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
+    // 7.1 (31-ago-2026): si mi fila pública no trae nombre (display_name vacío,
+    // el caso real de Mariana), se cura con mi full_name ANTES de leer el
+    // ranking, para que mi propia fila ya salga con nombre y no como "A".
+    if (user?.id) await ensureOwnPublicName(user.id);
     // getMyPosition es all-time (la card "Tu posición" siempre habla de por vida).
     const [board, pos] = await Promise.all([getLeaderboard(scope), getMyPosition()]);
     setRows(board);
     setMe(pos);
     setLoading(false);
-  }, [scope]);
+  }, [scope, user?.id]);
 
   useEffect(() => { setLoading(true); load(); }, [load]);
 

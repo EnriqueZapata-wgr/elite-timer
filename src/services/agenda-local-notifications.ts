@@ -55,7 +55,7 @@ export async function syncAgendaLocalNotifications(userId: string, date?: string
     ]);
     // Prefs ilegibles = no se agenda nada (los previos ya se cancelaron arriba).
     if (!prefs) {
-      logWarn('[agenda-local-notifications] prefs ilegibles — no se agenda nada');
+      logWarn('[agenda-local-notifications] prefs ilegibles: no se agenda nada');
       await AsyncStorage.setItem(AGENDA_NOTIF_IDS_KEY, JSON.stringify({}));
       return;
     }
@@ -70,8 +70,10 @@ export async function syncAgendaLocalNotifications(userId: string, date?: string
       if (!shouldNotify(prefs, 'agenda', fireMinutes)) continue;
       const identifier = await Notifications.scheduleNotificationAsync({
         content: {
-          title: `ATP — ${ev.name}`,
-          body: `En ${ev.notifyMinutesBefore} min: ${ev.name} (${ev.time}).`,
+          // 31-ago-2026: sin em dash en copy de usuario (regla 2); mismo separador que los avisos por app.
+          title: `ATP · ${ev.name}`,
+          // 4EP B3: un pospuesto dice la hora a la que cayó, no la plantilla.
+          body: `En ${ev.notifyMinutesBefore} min: ${ev.name} (${ev.effectiveTime ?? ev.time}).`,
           sound: true,
         },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireAt },

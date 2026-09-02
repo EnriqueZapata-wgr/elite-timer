@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   catalogoARecipe, comidaDeCategoria, textoIngrediente, textoPaso,
   normalizar, filtrarRecetas, momentoDeReceta, MOMENTOS,
+  detalleIngrediente, etiquetaMomento,
 } from '../catalogo-recetas-core';
 
 // La forma EXACTA que deja la migración 309.
@@ -117,7 +118,7 @@ describe('comidaDeCategoria', () => {
   });
 });
 
-describe('textoIngrediente — las tres formas que existen en la base', () => {
+describe('textoIngrediente: las tres formas que existen en la base', () => {
   it('la del catálogo, {name, quantity}', () => {
     expect(textoIngrediente({ name: 'Salmón', quantity: '150 g' })).toBe('Salmón · 150 g');
   });
@@ -288,5 +289,50 @@ describe('filtrarRecetas', () => {
     const antes = R.map((r) => r.id);
     filtrarRecetas(R as any, { texto: 'salmon', momento: 'dinner', soloFavoritas: true });
     expect(R.map((r) => r.id)).toEqual(antes);
+  });
+});
+
+/* 31-ago-2026: la hoja de receta (HojaReceta.tsx) pinta sustituto y nota en
+ * una linea secundaria. La forma EXACTA la deja la migracion 310. */
+describe('detalleIngrediente', () => {
+  it('sustituto y nota juntos, con "o" delante del sustituto', () => {
+    expect(detalleIngrediente({ name: 'albahaca fresca', quantity: '', sustituto: 'cilantro fresco', nota: 'en hojas' }))
+      .toBe('o cilantro fresco · en hojas');
+  });
+
+  it('solo nota, solo sustituto', () => {
+    expect(detalleIngrediente({ name: 'lomo de cerdo', quantity: '100 g', nota: 'en cubos de 1 cm' })).toBe('en cubos de 1 cm');
+    expect(detalleIngrediente({ name: 'tomillo fresco', quantity: '1 cdta', sustituto: 'tomillo seco' })).toBe('o tomillo seco');
+  });
+
+  it('vacio cuando no hay nada que decir: string suelto, null, llaves en blanco', () => {
+    expect(detalleIngrediente('sal')).toBe('');
+    expect(detalleIngrediente(null)).toBe('');
+    expect(detalleIngrediente({ name: 'sal', quantity: '1 pizca' })).toBe('');
+    expect(detalleIngrediente({ name: 'sal', sustituto: '   ', nota: '' })).toBe('');
+    expect(detalleIngrediente({ name: 'sal', nota: 42 })).toBe('');
+  });
+
+  it('no pisa la linea principal: textoIngrediente sigue ignorando esas llaves', () => {
+    const i = { name: 'albahaca fresca', quantity: '', sustituto: 'cilantro fresco', nota: 'en hojas' };
+    expect(textoIngrediente(i)).toBe('albahaca fresca');
+  });
+});
+
+describe('etiquetaMomento', () => {
+  it('usa el mismo cajon que los chips', () => {
+    expect(etiquetaMomento('lunch')).toBe('Comida');
+    expect(etiquetaMomento('breakfast')).toBe('Desayuno');
+    expect(etiquetaMomento('dinner')).toBe('Cena');
+    expect(etiquetaMomento('snack_am')).toBe('Snack');
+    expect(etiquetaMomento('snack')).toBe('Snack');
+  });
+
+  it('null cuando la ficha no lo trae o no se entiende: la hoja no inventa momento', () => {
+    expect(etiquetaMomento(null)).toBeNull();
+    expect(etiquetaMomento(undefined)).toBeNull();
+    expect(etiquetaMomento('desayuno')).toBeNull();
+    expect(etiquetaMomento('postre')).toBeNull();
+    expect(etiquetaMomento('   ')).toBeNull();
   });
 });

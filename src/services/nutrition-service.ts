@@ -220,7 +220,7 @@ export async function analyzeFoodText(description: string): Promise<any> {
   const meta = await getArgosCallMetadata({ callerUserId: userId, requestType: 'food_estimate_text' });
   const response = await callAnthropic([{
     role: 'user',
-    content: `Analiza esta comida descrita por el usuario. NO hay foto — estima desde la descripción.\n${prompt}`,
+    content: `Analiza esta comida descrita por el usuario. NO hay foto: estima desde la descripción.\n${prompt}`,
     // MAX_TOKENS_DEFAULT (antes 2000): thinking Sonnet 5 cuenta contra el cap.
   }], ATP_LLM.MAX_TOKENS_DEFAULT, ATP_LLM.PRIMARY_MODEL, undefined, meta);
 
@@ -337,7 +337,8 @@ SCORING DE SUPLEMENTOS:
 Magnesio bisglicinato puro con cápsula vegetal = 95-100.
 
 Responde SOLO con JSON válido (sin backticks ni markdown):
-{"supplement_name":"nombre","quality_score":75,"form":"cápsula","active_ingredients":[{"name":"Vitamina D3","amount":"2000 IU","form":"colecalciferol","bioavailability":"alta"}],"inactive_ingredients":["estearato de magnesio","dióxido de titanio"],"red_flags":["Contiene dióxido de titanio"],"feedback":"Evaluación en español coloquial, 1-2 oraciones.","tags":["buena_biodisponibilidad","formas_optimas"],"suggestions":"Sugerencia de mejora o alternativa","daily_dose":"1 cápsula","interactions":"Precauciones relevantes si las hay, o null"}` }
+{"supplement_name":"nombre","quality_score":75,"form":"cápsula","active_ingredients":[{"name":"Vitamina D3","amount":"2000 IU","form":"colecalciferol","bioavailability":"alta"}],"inactive_ingredients":["estearato de magnesio","dióxido de titanio"],"red_flags":["Contiene dióxido de titanio"],"feedback":"Evaluación en español coloquial, 1-2 oraciones.","tags":["buena_biodisponibilidad","formas_optimas"],"suggestions":"Sugerencia de mejora o alternativa","serving_size":"porción que declara la etiqueta, ej. 1 cápsula","daily_dose":"1 cápsula","interactions":"Precauciones relevantes si las hay, o null"}
+En active_ingredients, "amount" es la cantidad POR PORCIÓN (serving_size) tal como la imprime la etiqueta; si no se lee, usa null.` }
     ],
     // MAX_TOKENS_DEFAULT (antes 2000): thinking Sonnet 5 cuenta contra el cap.
   }], ATP_LLM.MAX_TOKENS_DEFAULT, ATP_LLM.PRIMARY_MODEL, undefined, meta);

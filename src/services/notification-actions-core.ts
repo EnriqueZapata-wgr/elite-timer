@@ -15,11 +15,15 @@
  * Cero rutas paralelas: un INSERT propio aquí rompe el ledger de electrones
  * (reconcileVerifiedLedger lo revocaría) y hay test de mutación que truena.
  *
+ * "Ya lo hice" del SOL (31-ago-2026, pendiente 12.6): entra por
+ * persistBooleanToggle, el MISMO writer del palomeo de HOY. MB-30B lo dejó
+ * fuera porque ese writer mezclaba sobre el mapa que le pasaba la UI; desde
+ * MB-32 P0 serializa por day-write-lock y mezcla sobre lectura fresca, así
+ * que desde un handler en frío no pisa nada. El electrón sale por su puerta
+ * de siempre (awardBooleanElectron con idempotencyKey user:source:día) y el
+ * sync HOY→Agenda marca el evento de luz solar completado.
+ *
  * Fuera a conciencia (reportado en el brief):
- *   - "Ya lo hice" del SOL: su writer (persistBooleanToggle) exige el mapa
- *     de estados del día; leer-mezclar-escribir ese blob desde un handler en
- *     frío puede pisar estados — exactamente la corrupción que este run
- *     viene a evitar. Cuando exista un writer atómico por-fuente, se suma.
  *   - El aviso de agua CONDICIONAL (solo si vas atrasado) es B1 del FIFO
  *     (despachador server). La categoría 'hidratacion' queda registrada y el
  *     cliente ya sabe responderla: B1 solo tiene que emitir con ese id.
@@ -31,6 +35,7 @@ export const SNOOZE_MINUTES = 15;
 export const ACTION_DONE_MEDITATION = 'done_meditation';
 export const ACTION_DONE_BREATHWORK = 'done_breathwork';
 export const ACTION_LOG_WATER_250 = 'log_water_250';
+export const ACTION_DONE_SUNLIGHT = 'done_sunlight';
 export const ACTION_OPEN_JOURNAL = 'open_journal';
 export const ACTION_SNOOZE_15 = 'snooze_15';
 
@@ -82,7 +87,10 @@ export const NOTIFICATION_CATEGORIES: NotificationCategoryDef[] = [
   },
   {
     identifier: 'aviso_sol',
-    actions: [SNOOZE_ACTION],
+    actions: [
+      { identifier: ACTION_DONE_SUNLIGHT, buttonTitle: 'Ya tomé sol', opensApp: false },
+      SNOOZE_ACTION,
+    ],
   },
   {
     identifier: 'hidratacion',
@@ -102,6 +110,8 @@ export type NotificationActionIntent =
   | { kind: 'log_water'; ml: number }
   | { kind: 'log_meditation'; minutes: number }
   | { kind: 'log_breathwork'; minutes: number }
+  /** Palomear un hábito booleano de HOY (el writer es persistBooleanToggle). */
+  | { kind: 'log_boolean'; source: 'sunlight' }
   | { kind: 'open_route'; route: string }
   | { kind: 'snooze'; minutes: number }
   | { kind: 'none' };
@@ -119,6 +129,8 @@ export function resolveNotificationAction(actionIdentifier: string): Notificatio
       return { kind: 'log_breathwork', minutes: 5 };
     case ACTION_LOG_WATER_250:
       return { kind: 'log_water', ml: 250 };
+    case ACTION_DONE_SUNLIGHT:
+      return { kind: 'log_boolean', source: 'sunlight' };
     case ACTION_OPEN_JOURNAL:
       return { kind: 'open_route', route: '/journal' };
     case ACTION_SNOOZE_15:

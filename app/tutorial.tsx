@@ -12,7 +12,7 @@
  */
 import { useCallback, useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet, DeviceEventEmitter } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +22,7 @@ import { EliteText } from '@/components/elite-text';
 import { EliteToggle } from '@/components/elite-toggle';
 import { SectionLabel, Divider } from '@/src/components/settings/settings-ui';
 import { haptic } from '@/src/utils/haptics';
+import { openArgosChat } from '@/src/services/argos-nav';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
@@ -38,7 +39,6 @@ import {
 } from '@/src/services/tour/tours-vistos-store';
 
 export default function CentroDeAyuda() {
-  const router = useRouter();
   const t = useAppTheme().tokens;
   const acento = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
 
@@ -170,7 +170,8 @@ export default function CentroDeAyuda() {
             <Pressable
               onPress={() => {
                 haptic.light();
-                router.push('/argos');
+                // HUB-ARGOS (4EP B1): /argos ya es el hub; esta fila promete el chat.
+                openArgosChat({ from: 'other' });
               }}
               accessibilityRole="button"
               style={({ pressed }) => [

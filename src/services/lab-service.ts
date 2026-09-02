@@ -203,7 +203,15 @@ export async function uploadLabFile(
     .select('id')
     .single();
 
-  if (insertError) throw insertError;
+  if (insertError) {
+    // 31-ago-2026: si el archivo ya subio pero la fila no se pudo crear, queda
+    // un huerfano en storage que nadie lista ni borra. Se limpia aqui, en el
+    // mismo fallo, para que "vuelvelo a intentar" arranque de cero. Fallo del
+    // borrado no tapa el error original: se avisa y se sigue.
+    const { error: limpiezaError } = await supabase.storage.from('lab-files').remove([path]);
+    if (limpiezaError) logWarn('[labs] no se pudo limpiar el archivo huerfano', path, limpiezaError.message);
+    throw insertError;
+  }
   const fileUrl = (await getFreshSignedUrl('lab-files', path)) ?? '';
   return { uploadId: upload.id, fileUrl };
 }

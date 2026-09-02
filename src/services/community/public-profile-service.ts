@@ -16,6 +16,8 @@ import {
   type VisiblePublicProfile,
 } from './public-profile-core';
 import { type VisibilityFlags } from '@/src/constants/community';
+import { warn as logWarn } from '@/src/lib/logger';
+import { nameCandidate, ownDisplayName, PUBLIC_NAME_FALLBACK } from './friends-core';
 
 function emitChanged() {
   DeviceEventEmitter.emit('public_profile_changed');
@@ -130,6 +132,35 @@ export async function syncPublicProfile(input: SyncProfileInput): Promise<boolea
   }
   emitChanged();
   return true;
+}
+
+/**
+ * 31-ago-2026 (pendiente 7.1): si mi fila pública no tiene un nombre visible
+ * (display_name vacío o de una letra), lo derivo de lo que solo yo puedo
+ * leer de mí (profiles.full_name; 4EP M2: el correo no entra) y lo escribo
+ * por sync_public_profile, el mismo RPC de siempre.
+ * Es una escritura del PROPIO usuario sobre su PROPIA fila, disparada desde
+ * su app: no es backfill de máquina. Idempotente y fail-soft (nunca lanza);
+ * devuelve true si escribió algo. No toca a quien ya tiene nombre.
+ */
+export async function ensureOwnPublicName(userId: string): Promise<boolean> {
+  try {
+    const mine = await getMyPublicProfile(userId);
+    if (!mine) return false; // sin fila no hay nada que curar (ajustes la crea)
+    if (nameCandidate(mine.display_name)) return false;
+    const { data: prof, error } = await supabase
+      .from('profiles').select('full_name').eq('id', userId).maybeSingle();
+    if (error) return false; // "no se pudo leer" no es "no hay nombre"
+    const name = ownDisplayName({
+      display_name: mine.display_name, username: mine.username,
+      full_name: prof?.full_name ?? null,
+    });
+    if (name === PUBLIC_NAME_FALLBACK) return false;
+    return await syncPublicProfile({ displayName: name });
+  } catch (e) {
+    logWarn('[public-profile] ensureOwnPublicName failed', e);
+    return false;
+  }
 }
 
 // Re-export de utilidades de proyección para las pantallas (vista pública propia).
