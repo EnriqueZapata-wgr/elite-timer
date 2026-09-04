@@ -97,6 +97,17 @@ Roadmap → v2.0.0 (julio-agosto 2026 — publicación a stores)
 - Sentry: errors + sessions, project atp-mobile en atp-v5 org
 - PostHog: events + lifecycle, project ATP en us.posthog.com
 
+## PIVOTE ATP 3.0 (4 de septiembre de 2026): leer antes que nada
+
+**Fuente de verdad del pivote:** `R and D/PIVOTE_ATP_3.0_2026-09-04.md` (decisiones, add-on
+Elite, matriz de gating Free/Pro/Elite, customer journey). Hermanos: `R and D/ORNAMENT_MEXICO_Y_MARCO_LEGAL_ATP.md`
+(marco legal y copy seguro), `R and D/COSTOS_ATP_PRO_449_VS_399.md` + `.xlsx` (economia por suscriptor).
+Resumen: una sola app; Free / Pro (lista 499, lanzamiento 349 congelado, anual 3,990) / Founders 8,900
+(5 anios de Pro, solo web) / Elite ~40k (codigo + evaluacion cargada); vender por web; Mariana fuera de
+la operacion, su cuenta y sus datos no se tocan; palabras rojas: diagnostico, tratamiento, previene, cura.
+Donde el pivote contradiga a `R and D/embudo/DECISIONES_PREVENTA.md`, gana el pivote hasta que la sesion
+de embudo actualice ese archivo. El pivote esta en BORRADOR hasta que Enrique lo apruebe.
+
 ## Lanzamiento y cobros (leer antes de tocar pagos, precios o legal)
 
 **Fuente única:** `R and D/embudo/DECISIONES_PREVENTA.md`
