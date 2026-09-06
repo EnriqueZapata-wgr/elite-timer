@@ -1,10 +1,10 @@
 {
   "scheme": "atp",
-  "generado": "2026-08-31T13:49:51.189Z",
+  "generado": "2026-09-06T20:06:56.025Z",
   "resumen": {
-    "estaticas": 192,
-    "dinamicas": 87,
-    "variantes": 8
+    "estaticas": 196,
+    "dinamicas": 88,
+    "variantes": 12
   },
   "fuera": {
     "/comunidad/perfil/[userId]": "el id es un UUID de un usuario real de Supabase: no hay lista en el código",
@@ -204,6 +204,13 @@
       "tipo": "dinamica",
       "plantilla": "/centro/[appKey]",
       "slug": "centro-evaluaciones"
+    },
+    {
+      "ruta": "/centro/genetica",
+      "archivo": "app/centro/[appKey].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/centro/[appKey]",
+      "slug": "centro-genetica"
     },
     {
       "ruta": "/centro/glucosa",
@@ -508,6 +515,12 @@
       "slug": "edad-atp-cognitive"
     },
     {
+      "ruta": "/edad-atp/comparar",
+      "archivo": "app/edad-atp/comparar.tsx",
+      "tipo": "estatica",
+      "slug": "edad-atp-comparar"
+    },
+    {
       "ruta": "/edad-atp/composition",
       "archivo": "app/edad-atp/composition.tsx",
       "tipo": "estatica",
@@ -712,6 +725,12 @@
       "archivo": "app/edad-atp/vitals.tsx",
       "tipo": "estatica",
       "slug": "edad-atp-vitals"
+    },
+    {
+      "ruta": "/elite",
+      "archivo": "app/elite.tsx",
+      "tipo": "estatica",
+      "slug": "elite"
     },
     {
       "ruta": "/emotion-exploration",
@@ -1269,6 +1288,34 @@
       "slug": "paywall"
     },
     {
+      "ruta": "/paywall?contexto=cuarto_chat",
+      "archivo": "app/paywall.tsx",
+      "tipo": "variante",
+      "plantilla": "/paywall",
+      "slug": "paywall-contexto-cuarto-chat"
+    },
+    {
+      "ruta": "/paywall?contexto=cuarto_marcador",
+      "archivo": "app/paywall.tsx",
+      "tipo": "variante",
+      "plantilla": "/paywall",
+      "slug": "paywall-contexto-cuarto-marcador"
+    },
+    {
+      "ruta": "/paywall?contexto=dia7",
+      "archivo": "app/paywall.tsx",
+      "tipo": "variante",
+      "plantilla": "/paywall",
+      "slug": "paywall-contexto-dia7"
+    },
+    {
+      "ruta": "/paywall?contexto=segundo_estudio",
+      "archivo": "app/paywall.tsx",
+      "tipo": "variante",
+      "plantilla": "/paywall",
+      "slug": "paywall-contexto-segundo-estudio"
+    },
+    {
       "ruta": "/perfil",
       "archivo": "app/(tabs)/perfil.tsx",
       "tipo": "estatica",
@@ -1469,6 +1516,12 @@
       "slug": "salud-diagnostico"
     },
     {
+      "ruta": "/salud/evaluacion-elite",
+      "archivo": "app/salud/evaluacion-elite.tsx",
+      "tipo": "estatica",
+      "slug": "salud-evaluacion-elite"
+    },
+    {
       "ruta": "/salud/evolucion",
       "archivo": "app/salud/evolucion.tsx",
       "tipo": "estatica",
@@ -1485,6 +1538,12 @@
       "archivo": "app/salud/ficha-emergencia.tsx",
       "tipo": "estatica",
       "slug": "salud-ficha-emergencia"
+    },
+    {
+      "ruta": "/salud/genetica",
+      "archivo": "app/salud/genetica.tsx",
+      "tipo": "estatica",
+      "slug": "salud-genetica"
     },
     {
       "ruta": "/salud/hoy",

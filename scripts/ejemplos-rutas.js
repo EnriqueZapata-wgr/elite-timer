@@ -199,6 +199,17 @@ const VARIANTES = [
     bloque: /const SENSORES[\s\S]*?\n\];/,
     patron: /id: '([a-z]+)'/g,
   },
+  {
+    // ATP 3.0 (6-sep-2026): el paywall cambia su primera línea según el
+    // contexto que lo abrió (segundo estudio, cuarto marcador, cuarto chat,
+    // día 7). Sin el parámetro el barrido solo veía la versión genérica.
+    // Los contextos `candado:<key>` no entran: son uno por app y se ven igual.
+    ruta: '/paywall',
+    param: 'contexto',
+    archivo: 'src/constants/rutas-3-0.ts',
+    bloque: /CONTEXTOS_PAYWALL = \[([^\]]*)\]/,
+    patron: /'([a-z_0-9]+)'/g,
+  },
 ];
 
 /** Lee un archivo fuente, o explica exactamente qué falta. */
