@@ -18,6 +18,38 @@ import { warn as logWarn } from '@/src/lib/logger';
 
 export type DxShareResult = 'shared' | 'unavailable' | 'error';
 
+/**
+ * ATP 3.0 (6-sep-2026, ruta 3.3): comparte un HTML arbitrario como PDF. Es el
+ * mismo camino que generateAndShareDxPdf (expo-print lazy, rename amable,
+ * expo-sharing), sacado a una funcion para que "Mi evaluacion Elite" mande
+ * su propio HTML (el del generador de Enrique si el payload lo trae, o el de
+ * respaldo de evaluacion-elite-core). Fail-soft: nunca crashea.
+ */
+export async function shareHtmlAsPdf(html: string, fileName: string, dialogTitle: string): Promise<DxShareResult> {
+  try {
+    const Print = require('expo-print') as typeof import('expo-print');
+    const Sharing = require('expo-sharing') as typeof import('expo-sharing');
+
+    const { uri } = await Print.printToFileAsync({ html, base64: false });
+
+    let shareUri = uri;
+    try {
+      const { File, Paths } = require('expo-file-system') as typeof import('expo-file-system');
+      const pretty = new File(Paths.cache, fileName);
+      if (pretty.exists) pretty.delete();
+      new File(uri).move(pretty);
+      shareUri = pretty.uri;
+    } catch { /* el rename es cosmetico */ }
+
+    if (!(await Sharing.isAvailableAsync())) return 'unavailable';
+    await Sharing.shareAsync(shareUri, { mimeType: 'application/pdf', dialogTitle, UTI: 'com.adobe.pdf' });
+    return 'shared';
+  } catch (e) {
+    logWarn('[dx-pdf] shareHtmlAsPdf failed', e);
+    return 'error';
+  }
+}
+
 /** Fuentes presentes en el snapshot, en lenguaje de usuario (mismo criterio que la Card A). */
 export function activeSourcesFromSnapshot(snapshot: Record<string, unknown> | null | undefined): string[] {
   return Object.entries(snapshot ?? {})

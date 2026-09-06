@@ -194,6 +194,15 @@ export const APP_REGISTRY: AppEntry[] = [
     description: 'Tus cuestionarios y pruebas en un solo lugar: lo que ya contestaste, cuándo, y lo que falta por hacer.' },
   { key: 'padecimientos', label: 'Condiciones', icon: 'padecimientos', section: 'salud', route: '/salud/padecimientos', installable: false, minTier: 'premium', alias: ['padecimientos', 'episodios', 'condición'],
     description: 'Declara tus padecimientos y sus episodios: activo, en remisión o resuelto, con fechas. Tú decides qué registrar.' },
+  // ATP 3.0 (6-sep-2026, ruta 3.4): Genética sale de APPS_PROXIMAMENTE y entra
+  // al registro con minTier 'elite'. Se enciende por EXISTENCIA de la
+  // evaluación Elite (visibleApps la abre con `tieneEvaluacionElite` aunque el
+  // nivel ya no sea elite: la evaluación se queda para siempre). Para los
+  // demás se ve con candado y el candado abre la página Elite (RUTA_ELITE),
+  // sin precio ni botón de compra (Apple 3.1.3). Sin parser en 3.0: los
+  // hallazgos los escribe a mano quien firma la evaluación.
+  { key: 'genetica', label: 'Genética', icon: 'genetica', section: 'salud', route: '/salud/genetica', installable: false, minTier: 'elite', alias: ['adn', 'dna', 'genetico', 'genotipado', 'snp', '23andme'],
+    description: 'Tus hallazgos genéticos interpretados por tema: qué se encontró, qué significa para ti y qué hacer. Parte de tu evaluación Elite.' },
 
   // ── Sistema ──
   { key: 'ajustes', label: 'Ajustes', icon: 'ajustes', section: 'sistema', route: '/settings', installable: false, alias: ['configuración', 'settings', 'preferencias', 'cuenta'],
@@ -222,6 +231,16 @@ export function nivelAlcanza(tier: Tier, minTier: MinTier | undefined): boolean 
 export type AppVisible = AppEntry & { bloqueada: boolean };
 
 /**
+ * ATP 3.0 (6-sep-2026, regla 1 y pivote 2.1): apps que se abren por EXISTENCIA
+ * de la evaluación Elite aunque el tier haya vencido a free. Suplementos entra
+ * porque el plan asignado por Enrique se conserva en solo lectura para quien ya
+ * no es miembro (la pantalla lo pinta así): quitarle la puerta sería quitarle
+ * algo que ya tenía. Lo que exige `minTier: 'elite'` (Genética) se abre por la
+ * misma razón sin necesidad de estar en esta lista.
+ */
+export const ABIERTAS_CON_EVALUACION_ELITE: readonly string[] = ['suplementos'];
+
+/**
  * Las apps visibles para este usuario (respeta el gate del ciclo).
  *
  * MB-22 P4: el parámetro ya no es solo "es female" — es "puede ver Ciclo":
@@ -244,7 +263,8 @@ export function visibleApps(
   return APP_REGISTRY
     .filter((a) => !a.femaleOnly || cycleVisible)
     .map((a) => {
-      const abiertaPorEvaluacion = a.minTier === 'elite' && tieneEvaluacionElite;
+      const abiertaPorEvaluacion = tieneEvaluacionElite
+        && (a.minTier === 'elite' || ABIERTAS_CON_EVALUACION_ELITE.includes(a.key));
       return { ...a, bloqueada: !abiertaPorEvaluacion && !nivelAlcanza(tier, a.minTier) };
     });
 }
@@ -270,15 +290,16 @@ export function searchApps(apps: AppEntry[], query: string): AppEntry[] {
 /* ---------------------------------------------------------------------------
  * Lo que todavía no existe (30-ago-2026)
  *
- * Genética no es una app: hoy no hay pantalla, ni ruta, ni icono, ni nada que
- * instalar. Por eso NO entra en APP_REGISTRY. Meterla ahí la haría instalable,
- * la pondría en la cuadrícula, la ofrecería en los packs y rompería los censos
- * de rutas e iconos, que exigen que cada entrada del registro apunte a una
- * pantalla real. Todo eso para una puerta que no lleva a ningún lado.
+ * Aquí vivió Genética mientras no tenía pantalla, ruta ni icono (no entraba
+ * en APP_REGISTRY porque eso la haría instalable y rompería los censos de
+ * rutas e iconos, que exigen que cada entrada apunte a una pantalla real).
+ * El 6-sep-2026 (ATP 3.0, ruta 3.4) ya tiene las tres cosas y subió al
+ * registro con minTier 'elite'; la lista queda vacía a propósito y el Centro
+ * la pinta solo cuando trae algo.
  *
- * Vive aquí, en su propia lista, y el Centro la pinta al final como una fila
- * apagada que no se puede tocar. Es la misma doctrina de nav honesta de
- * economy/admin.tsx: se anuncia lo que viene, sin fingir que ya está.
+ * Lo que entre aquí lo pinta el Centro al final como una fila apagada que no
+ * se puede tocar. Es la misma doctrina de nav honesta de economy/admin.tsx:
+ * se anuncia lo que viene, sin fingir que ya está.
  *
  * AQUI NO HAY DIBUJO. El candado icon-censo prohibe nombres de Ionicon en los
  * archivos de registro, y tiene razon: un registro declara QUE existe, no como
@@ -293,16 +314,4 @@ export interface AppProxima {
   alias?: string[];
 }
 
-export const APPS_PROXIMAMENTE: AppProxima[] = [
-  {
-    key: 'genetica',
-    label: 'Genética',
-    // Verificable: upload-types.ts tiene el tipo 'genetico' con target
-    // 'context' y writesValues false, y se sube desde my-health. La lectura
-    // no existe, y así se dice.
-    // ATP 3.0 (5-sep-2026): Genetica se enciende con la evaluacion Elite (ola 3
-    // la mueve al registro). Sin precio ni boton de compra: Apple 3.1.3.
-    nota: 'Disponible en ATP Elite: evaluación personalizada con Enrique.',
-    alias: ['adn', 'dna', 'genetico', 'genotipado', 'snp', '23andme'],
-  },
-];
+export const APPS_PROXIMAMENTE: AppProxima[] = [];

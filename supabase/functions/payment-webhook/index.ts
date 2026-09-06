@@ -154,6 +154,51 @@ async function sendCodeEmail(
 
 type SupabaseClient = ReturnType<typeof createClient>;
 
+// ── Aviso de renovación 5 días antes (ATP 3.0 ruta 2.7, reforma LFPC) ──────
+// La fila va a renewal_reminders (migración 317) y la manda la edge function
+// dispatch-renewal-reminders. Se alimenta desde invoice.paid porque es el
+// único evento que trae el fin de periodo REAL (period.end); el expires_at
+// del checkout es un colchón de 35 días, no la fecha de renovación. En la
+// baja se borran los pendientes del mismo ref. Best-effort en su propio
+// try/catch: nunca rompe el flujo del tier.
+const DIAS_AVISO_RENOVACION = 5;
+
+async function registrarRecordatorioRenovacion(
+  supabase: SupabaseClient,
+  userId: string,
+  expiresAtIso: string,
+  ref: string,
+): Promise<void> {
+  try {
+    const dueMs = new Date(expiresAtIso).getTime() - DIAS_AVISO_RENOVACION * 86_400_000;
+    if (!Number.isFinite(dueMs) || dueMs <= Date.now()) return;
+    const { error } = await supabase.from("renewal_reminders").upsert({
+      user_id: userId,
+      due_at: new Date(dueMs).toISOString(),
+      expires_at: expiresAtIso,
+      source: "stripe",
+      ref,
+      channel: "ambos",
+    }, { onConflict: "user_id,expires_at", ignoreDuplicates: true });
+    if (error) console.error("[renewal_reminders] upsert error:", error);
+  } catch (err) {
+    console.error("[renewal_reminders] registro falló (flujo intacto):", err);
+  }
+}
+
+async function borrarRecordatoriosPendientes(supabase: SupabaseClient, ref: string): Promise<void> {
+  try {
+    const { error } = await supabase.from("renewal_reminders")
+      .delete()
+      .eq("source", "stripe")
+      .eq("ref", ref)
+      .is("sent_at", null);
+    if (error) console.error("[renewal_reminders] delete error:", error);
+  } catch (err) {
+    console.error("[renewal_reminders] borrado falló (flujo intacto):", err);
+  }
+}
+
 async function findUserByEmail(supabase: SupabaseClient, email: string): Promise<string | null> {
   const { data } = await supabase
     .from("profiles")
@@ -313,6 +358,8 @@ async function handleRenewal(
       p_user_id: g.user_id,
       p_reason: "web_payment_renewal",
     });
+    // ATP 3.0 (ruta 2.7): aviso 5 días antes del siguiente cobro.
+    await registrarRecordatorioRenovacion(supabase, g.user_id as string, opts.periodEndIso, opts.providerRef);
   }
   return { status: "processed", userId: (grants[0].user_id as string) ?? null };
 }
@@ -375,6 +422,9 @@ async function handleCancellation(
       p_reason: "web_payment_cancelled",
     });
   }
+
+  // ATP 3.0 (ruta 2.7): sin renovación no hay aviso pendiente que mandar.
+  await borrarRecordatoriosPendientes(supabase, opts.providerRef);
 
   return { status: "processed" };
 }

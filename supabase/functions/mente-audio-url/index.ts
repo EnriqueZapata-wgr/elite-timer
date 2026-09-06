@@ -31,7 +31,10 @@ const BUCKET = "mente-audio";
  * del cliente y el del servidor es justo el incidente que originó el cambio.
  * Ahora la pregunta es una sola: ¿es miembro? Si pagó, escucha todo.
  */
-const VALORES_PAGADOS = new Set(["base", "pro", "clinician", "premium", "founder"]);
+// ATP 3.0 (5-sep-2026): `elite` entra al conjunto. Elite es Premium mas cosas,
+// nunca menos: un Elite escucha todo lo que escucha un miembro. La pregunta de
+// esMiembro sigue siendo binaria (pago o no); el peldano lo distingue el proxy.
+const VALORES_PAGADOS = new Set(["base", "pro", "clinician", "premium", "founder", "elite"]);
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

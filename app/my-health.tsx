@@ -39,6 +39,9 @@ import { validateLabFile } from '@/src/utils/lab-file-validator';
 import { needsCompression } from '@/src/services/lab-compressor';
 import { warn as logWarn, error as logError } from '@/src/lib/logger';
 import { useLabProcessing } from '@/src/hooks/useLabProcessing';
+import { useSubscription } from '@/src/hooks/useSubscription';
+import { estudiosQueCuentan, puedeSubirEstudio } from '@/src/services/subscription/limites-free-core';
+import { CandadoNivel } from '@/src/components/ui/CandadoNivel';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, withOpacity, TEXT_COLORS, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
@@ -55,6 +58,10 @@ function MyHealthScreen() {
   const analytics = useAnalytics();
   const labProcessing = useLabProcessing();
   const userId = user?.id ?? '';
+  // ATP 3.0 (5-sep-2026, ruta 1.11): Free sube UN estudio; el segundo lleva al
+  // paywall con contexto. Mientras el nivel carga o no se pudo leer, se abre
+  // (fail-open, regla 1: nunca se le cierra nada a quien pagó por no saber).
+  const { tier, isLoading: nivelCargando, nivelNoSePudoLeer } = useSubscription();
   // MB-31B2: tokens del tema. El teal de sección como LETRA solo vale en
   // oscuro; sobre acero usa el teal calibrado (manual 3.6, regla 2).
   const t = useAppTheme().tokens;
@@ -189,8 +196,19 @@ function MyHealthScreen() {
     setLoading(false);
   };
 
+  // Ruta 1.11: ¿este toque de "subir" va al selector o al paywall? Solo se
+  // cierra cuando el nivel se leyó (free confirmado) y las subidas ya cargaron.
+  const segundoEstudioBloqueado =
+    !nivelCargando && !nivelNoSePudoLeer && !loading
+    && !puedeSubirEstudio(tier, estudiosQueCuentan(uploads));
+
   // Paso 1 (#10): abrir el selector de tipo antes de elegir el archivo.
   const openTypePicker = (method: 'camera' | 'gallery' | 'pdf') => {
+    if (segundoEstudioBloqueado) {
+      haptic.light();
+      router.push({ pathname: '/paywall', params: { contexto: 'segundo_estudio' } });
+      return;
+    }
     setPendingMethod(method);
     setResult(null);
     setPickerVisible(true);
@@ -527,6 +545,16 @@ function MyHealthScreen() {
             <EliteText variant="caption" style={{ color: t.textoSecundario, marginTop: 4, textAlign: 'center' }}>
               Toma foto o sube PDF: la IA extrae los valores automáticamente
             </EliteText>
+            {/* Regla 15: lo bloqueado se ve. El candado dice que el siguiente
+                estudio está en Pro; los botones siguen ahí y llevan al paywall. */}
+            {segundoEstudioBloqueado && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.sm }}>
+                <CandadoNivel appKey="labs" nivel="premium" tocable={false} />
+                <EliteText variant="caption" style={{ color: t.textoSecundario }}>
+                  Tu siguiente estudio está en Pro
+                </EliteText>
+              </View>
+            )}
 
             <View style={s.uploadBtns}>
               <Pressable onPress={() => openTypePicker('camera')} style={s.uploadBtn} disabled={uploading || processing}>

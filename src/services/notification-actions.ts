@@ -31,6 +31,7 @@ import {
   NOTIFICATION_CATEGORIES, SNOOZE_MINUTES,
   resolveNotificationAction, canSnoozeAt,
 } from '@/src/services/notification-actions-core';
+import { rutaDeNotificacion } from '@/src/services/aviso-dia7-core';
 
 const KEY_SNOOZE_IDS = '@atp/notif_action_snooze_ids';
 const KEY_LAST_HANDLED = '@atp/notif_action_last_handled';
@@ -143,8 +144,14 @@ export async function handleNotificationResponse(
         break;
       case 'open_route':
         return { openRoute: intent.route };
-      case 'none':
+      case 'none': {
+        // ATP 3.0 (5-sep-2026, ruta 2.8): un tap simple sobre un aviso que trae
+        // `data.url` interna (el aviso del día 7 lleva /paywall?contexto=dia7)
+        // abre esa ruta. Los avisos por app no traen url y siguen igual.
+        const ruta = rutaDeNotificacion(response.notification.request.content.data);
+        if (ruta) return { openRoute: ruta };
         break;
+      }
     }
   } catch (e) {
     logWarn('[notif-actions] handle response failed', e);
@@ -177,7 +184,13 @@ export async function handleInitialNotificationResponse(
 ): Promise<{ openRoute: string | null }> {
   try {
     const last = await Notifications.getLastNotificationResponseAsync();
-    if (!last || last.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
+    if (!last) return { openRoute: null };
+    // Ruta 2.8: el tap simple (DEFAULT_ACTION) solo importa si el aviso trae
+    // una ruta interna; sin ella se ignora como siempre.
+    if (
+      last.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER
+      && !rutaDeNotificacion(last.notification.request.content.data)
+    ) {
       return { openRoute: null };
     }
     const handled = await AsyncStorage.getItem(KEY_LAST_HANDLED);

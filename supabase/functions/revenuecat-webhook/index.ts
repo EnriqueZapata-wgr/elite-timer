@@ -18,12 +18,138 @@ const corsHeaders = {
 };
 
 // Mapea entitlement identifier → tier de ATP.
-// Prioridad: clinician > pro > base > free.
-function tierFromEntitlements(entitlementIds: string[]): "free" | "base" | "pro" | "clinician" {
+// Prioridad: clinician > pro > premium > base.
+//
+// ATP 3.0 (5-sep-2026): un entitlement desconocido (o una lista vacía) ya NO
+// degrada a `free`: devuelve null y el llamador solo registra el evento, sin
+// tocar tier_grants ni profiles.tier. Antes, un producto nuevo en RevenueCat
+// que no estuviera en esta lista le quitaba la membresía a quien la acababa
+// de pagar (y a un Elite le pisaba su nivel). Regla 1: nunca quitarle a un
+// miembro algo que ya tenía. `atp_premium` entra como espejo de la membresía
+// única; si el identificador real en RevenueCat es otro, se agrega aquí.
+type TierRc = "base" | "pro" | "premium" | "clinician";
+function tierFromEntitlements(entitlementIds: string[]): TierRc | null {
   if (entitlementIds.includes("atp_clinician")) return "clinician";
   if (entitlementIds.includes("atp_pro")) return "pro";
+  if (entitlementIds.includes("atp_premium")) return "premium";
   if (entitlementIds.includes("atp_base")) return "base";
-  return "free";
+  return null;
+}
+
+// ATP 3.0: rango de los niveles para el camino que escribe profiles.tier
+// directo. Elite entra siempre por tier_grants (código o manual) y el webhook
+// jamás debe pisarlo con el `pro` de la tienda: un Elite que además compra Pro
+// sigue siendo Elite. Un tier vencido (tier_expires_at en el pasado) vale 0:
+// el árbitro tampoco lo deja ganar (262).
+const RANGO_TIER: Record<string, number> = { free: 0, base: 1, pro: 2, premium: 2, clinician: 3, elite: 4 };
+function rangoTier(tier: string | null | undefined): number {
+  return RANGO_TIER[String(tier ?? "free").toLowerCase()] ?? 0;
+}
+
+/**
+ * ATP 3.0 (ruta 2.9): plan del evento para tier_grants.metadata. El cliente lo
+ * lee para abrir el mapa funcional a los anuales (packageType no sirve porque
+ * es de Offerings, no de CustomerInfo). Tres pistas, en este orden: la
+ * vigencia (más de 300 días entre compra y expiración es anual), el
+ * period_type y el product_id con "annual"/"year". Sin pista: null, no se
+ * inventa.
+ */
+const DIAS_MINIMOS_ANUAL = 300;
+function planDelEvento(ev: { product_id?: unknown; period_type?: unknown; purchased_at_ms?: unknown; expiration_at_ms?: unknown }): "anual" | "mensual" | null {
+  const compra = typeof ev.purchased_at_ms === "number" ? ev.purchased_at_ms : null;
+  const vence = typeof ev.expiration_at_ms === "number" ? ev.expiration_at_ms : null;
+  if (compra !== null && vence !== null && vence > compra) {
+    return (vence - compra) / 86_400_000 > DIAS_MINIMOS_ANUAL ? "anual" : "mensual";
+  }
+  const pistas = `${String(ev.period_type ?? "")} ${String(ev.product_id ?? "")}`.toLowerCase();
+  if (/annual|year|anual/.test(pistas)) return "anual";
+  if (/month|mensual/.test(pistas)) return "mensual";
+  return null;
+}
+
+/**
+ * Escribe profiles.tier + tier_expires_at SOLO si no baja de rango al perfil.
+ * Devuelve true si escribió (o si no había que escribir por rango) y false
+ * si la escritura falló. revenuecat_customer_id se escribe siempre.
+ */
+async function escribirTierSinDegradar(
+  supabase: any,
+  userId: string,
+  newTier: string,
+  newExpiresAt: string | null,
+  contexto: string,
+): Promise<boolean> {
+  const { data: perfil, error: leerErr } = await supabase
+    .from("profiles").select("tier, tier_expires_at").eq("id", userId).maybeSingle();
+  if (leerErr) console.error(`[${contexto}] no se pudo leer profiles.tier (se escribe igual):`, leerErr);
+  const vigente = perfil?.tier_expires_at
+    ? new Date(perfil.tier_expires_at).getTime() > Date.now()
+    : true;
+  const rangoActual = perfil && vigente ? rangoTier(perfil.tier) : 0;
+  if (rangoTier(newTier) < rangoActual) {
+    console.warn(`[${contexto}] tier ${newTier} NO se escribe: el perfil ya tiene ${perfil?.tier} (rango mayor). user=${userId}`);
+    const { error: rcErr } = await supabase.from("profiles")
+      .update({ revenuecat_customer_id: userId }).eq("id", userId);
+    if (rcErr) console.error("Error actualizando revenuecat_customer_id:", rcErr);
+    return true;
+  }
+  const { error: updateErr } = await supabase.from("profiles").update({
+    tier: newTier,
+    tier_expires_at: newExpiresAt,
+    revenuecat_customer_id: userId, // mismo user_id que app_user_id
+  }).eq("id", userId);
+  if (updateErr) {
+    console.error("Error actualizando profiles.tier:", updateErr);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * ATP 3.0 (ruta 2.7, reforma LFPC): aviso de renovación 5 días antes.
+ * Cada activación con expiration_at_ms deja una fila en renewal_reminders
+ * (ON CONFLICT (user_id, expires_at) DO NOTHING: RevenueCat reintenta); la
+ * edge function dispatch-renewal-reminders la manda cuando llega due_at.
+ * En cancelación/expiración se borran los pendientes (sent_at nulo) del
+ * mismo ref: sin renovación no hay nada que avisar. NON_RENEWING_PURCHASE
+ * no renueva, así que no deja aviso. Si due_at ya pasó (sandbox de minutos,
+ * eventos rezagados) tampoco: un aviso tardío es ruido, no un aviso.
+ * Todo en su propio try/catch: nunca rompe el flujo del tier.
+ */
+const DIAS_AVISO_RENOVACION = 5;
+async function sincronizarRecordatorioRenovacion(
+  supabase: any,
+  userId: string,
+  eventType: string,
+  expirationAt: string | null,
+  ref: string,
+): Promise<void> {
+  try {
+    if (ACTIVATION_TYPES.has(eventType) && eventType !== "NON_RENEWING_PURCHASE") {
+      if (!expirationAt) return;
+      const dueMs = new Date(expirationAt).getTime() - DIAS_AVISO_RENOVACION * 86_400_000;
+      if (!Number.isFinite(dueMs) || dueMs <= Date.now()) return;
+      const { error } = await supabase.from("renewal_reminders").upsert({
+        user_id: userId,
+        due_at: new Date(dueMs).toISOString(),
+        expires_at: expirationAt,
+        source: "revenuecat",
+        ref,
+        channel: "ambos",
+      }, { onConflict: "user_id,expires_at", ignoreDuplicates: true });
+      if (error) console.error("[renewal_reminders] upsert error:", error);
+    } else if (CANCELLATION_TYPES.has(eventType)) {
+      const { error } = await supabase.from("renewal_reminders")
+        .delete()
+        .eq("user_id", userId)
+        .eq("source", "revenuecat")
+        .eq("ref", ref)
+        .is("sent_at", null);
+      if (error) console.error("[renewal_reminders] delete error:", error);
+    }
+  } catch (err) {
+    console.error("[renewal_reminders] sincronización falló (flujo intacto):", err);
+  }
 }
 
 // Eventos donde el user pierde acceso → tier a 'free' (o downgrade).
@@ -187,14 +313,45 @@ serve(async (req) => {
       // No fallar el webhook aún — sigue con el update de tier
     }
 
+    // ATP 3.0: entitlement desconocido → el evento ya quedó registrado arriba
+    // y aquí termina. No se escribe tier en ningún lado: no degradar a quien
+    // pagó vale más que sincronizar un producto que no conocemos.
+    if (tier === null) {
+      console.warn(`[revenuecat] entitlement desconocido, tier sin tocar. user=${userId} ids=${JSON.stringify(entitlementIds)} product=${productId ?? "?"}`);
+      // Revisión 4EP: una cancelación con entitlement desconocido SÍ recorta la
+      // vigencia del grant de RevenueCat (va por ref, no por tier), para que el
+      // árbitro y el cron no dejen vivo un grant cuya compra ya murió. Lo que
+      // no se toca es profiles.tier: eso lo decide el árbitro cuando venza.
+      if (CANCELLATION_TYPES.has(eventType)) {
+        try {
+          const capIsoNull = expirationAt ?? new Date().toISOString();
+          await supabase.from("tier_grants")
+            .update({ expires_at: capIsoNull })
+            .eq("source", "revenuecat")
+            .eq("ref", originalTransactionId ?? `rc_${userId}`)
+            .is("revoked_at", null);
+        } catch (grantErr) {
+          console.error("tier_grants recorte (entitlement desconocido) error:", grantErr);
+        }
+      }
+      return new Response(JSON.stringify({
+        ok: true,
+        user_id: userId,
+        note: "entitlement_desconocido_tier_sin_tocar",
+        event_type: eventType,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // 2) Actualizar profiles.tier + tier_expires_at según el evento
-    let newTier: "free" | "base" | "pro" | "clinician" = tier;
+    let newTier: "free" | TierRc = tier;
     let newExpiresAt: string | null = expirationAt;
 
     if (CANCELLATION_TYPES.has(eventType)) {
       // Si el evento es de cancelación/expiración, el user vuelve a free
       // (a menos que tenga otro entitlement activo — RevenueCat manda todos los activos en entitlement_ids)
-      newTier = tierFromEntitlements(entitlementIds);
+      // ATP 3.0: tier ya no es null aquí (el null regresó arriba), así que
+      // `?? "free"` solo satisface al tipo.
+      newTier = tierFromEntitlements(entitlementIds) ?? "free";
       // Si tras el evento sigue con entitlement (ej. downgrade pero sigue con base) → tier calculado; sino free
       if (newTier === "free") {
         newExpiresAt = null;
@@ -210,19 +367,32 @@ serve(async (req) => {
     // vigencia (no se borra hoy: se respeta lo pagado) y apply_effective_tier
     // decide si queda otro grant (código/web) o cae a free.
     const grantRef = originalTransactionId ?? `rc_${userId}`;
+    const plan = planDelEvento(event);
     try {
       if (ACTIVATION_TYPES.has(eventType) && newTier !== "free") {
         const { data: existing } = await supabase
           .from("tier_grants")
-          .select("id")
+          .select("id, metadata")
           .eq("source", "revenuecat")
           .eq("ref", grantRef)
           .is("revoked_at", null)
           .limit(1)
           .maybeSingle();
         if (existing) {
+          // ATP 3.0 (ruta 2.9): product_id del evento en metadata, con merge
+          // para no perder lo que ya haya (el gate del anual lo lee de aquí).
+          const metadataPrevia = existing.metadata && typeof existing.metadata === "object" ? existing.metadata : {};
           await supabase.from("tier_grants")
-            .update({ tier: newTier, expires_at: newExpiresAt })
+            .update({
+              tier: newTier,
+              expires_at: newExpiresAt,
+              metadata: {
+                ...metadataPrevia,
+                store,
+                product_id: productId ?? metadataPrevia.product_id ?? null,
+                plan: plan ?? metadataPrevia.plan ?? null,
+              },
+            })
             .eq("id", existing.id);
         } else {
           await supabase.from("tier_grants").insert({
@@ -231,7 +401,7 @@ serve(async (req) => {
             tier: newTier,
             expires_at: newExpiresAt,
             ref: grantRef,
-            metadata: { store, product_id: productId ?? null },
+            metadata: { store, product_id: productId ?? null, plan },
           });
         }
       } else if (CANCELLATION_TYPES.has(eventType)) {
@@ -248,6 +418,9 @@ serve(async (req) => {
       console.error("tier_grants bookkeeping error:", grantErr);
     }
 
+    // ATP 3.0 (ruta 2.7): aviso de renovación 5 días antes (LFPC).
+    await sincronizarRecordatorioRenovacion(supabase, userId, eventType, expirationAt, grantRef);
+
     if (CANCELLATION_TYPES.has(eventType) && newTier === "free") {
       // La baja pasa por el árbitro: si el usuario tiene un grant vigente de
       // código o pago web, NO se le tira a free por cancelar en la tienda.
@@ -257,27 +430,19 @@ serve(async (req) => {
       });
       if (applyErr) {
         // Fallback pre-migración 240: comportamiento legacy.
+        // ATP 3.0: el respaldo nunca escribe un tier de rango menor al vigente.
         console.error("apply_effective_tier error (fallback directo):", applyErr);
-        const { error: updateErr } = await supabase.from("profiles").update({
-          tier: newTier,
-          tier_expires_at: newExpiresAt,
-          revenuecat_customer_id: userId,
-        }).eq("id", userId);
-        if (updateErr) console.error("Error actualizando profiles.tier:", updateErr);
+        await escribirTierSinDegradar(supabase, userId, newTier, newExpiresAt, "fallback_directo");
       } else {
         newTier = (applied?.tier ?? newTier) as typeof newTier;
         newExpiresAt = (applied?.expires_at as string | null) ?? null;
         await supabase.from("profiles").update({ revenuecat_customer_id: userId }).eq("id", userId);
       }
     } else {
-      const { error: updateErr } = await supabase.from("profiles").update({
-        tier: newTier,
-        tier_expires_at: newExpiresAt,
-        revenuecat_customer_id: userId, // mismo user_id que app_user_id
-      }).eq("id", userId);
-      if (updateErr) {
-        console.error("Error actualizando profiles.tier:", updateErr);
-      }
+      // ATP 3.0: mismo candado en la escritura directa de activación. Un Elite
+      // (grant por código) que compra Pro en la tienda conserva `elite` en el
+      // perfil; el grant de RevenueCat ya quedó en tier_grants para el árbitro.
+      await escribirTierSinDegradar(supabase, userId, newTier, newExpiresAt, "activacion");
     }
 
     return new Response(JSON.stringify({

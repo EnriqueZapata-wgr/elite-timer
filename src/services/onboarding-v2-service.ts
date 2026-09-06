@@ -17,6 +17,7 @@ import {
   v2Route,
   CHRONO_SCHEDULES,
 } from './onboarding-v2-core';
+import { programarAvisoDia7 } from './aviso-dia7-service';
 
 /**
  * Marca el step como completado: persiste el SIGUIENTE step pendiente en
@@ -42,6 +43,10 @@ export async function completeV2Step(userId: string, step: V2Step): Promise<Href
   // aquí porque aquí es donde de verdad se acaba de consentir: la escritura de
   // 'completed' que está tres líneas arriba es el hecho, no una suposición.
   marcarVistoBueno(userId);
+  // ATP 3.0 (5-sep-2026, ruta 2.8): el aviso suave del día 7, solo para Free.
+  // Fire-and-forget: un fallo al agendar no puede frenar el cierre del
+  // onboarding.
+  programarAvisoDia7(userId).catch(() => {});
   // MAGIA ARGOS T6: primer contacto cinemático con ARGOS antes de HOY. La
   // pantalla marca argos_introduced_at y luego enruta a /(tabs).
   return '/argos/meet';

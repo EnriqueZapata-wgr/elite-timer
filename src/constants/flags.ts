@@ -354,6 +354,42 @@ export const INSIGHT_EN_VENTANA = true;
 export const ARGOS_LEE_LABS_DE_VERDAD = true;
 
 /**
+ * ARGOS_LEE_EVALUACION_ELITE — el asistente conoce la evaluación Elite del usuario.
+ *
+ * QUÉ CONTROLA
+ *  · ON (default) → cuando el usuario tiene una evaluación Elite cargada
+ *    (`functional_dx` con `sources_snapshot.elite_v3`, sin importar su nivel
+ *    vigente: la evaluación se queda para siempre), la capa dinámica del
+ *    system prompt lleva un bloque con el resumen de `resumenParaArgos`
+ *    (`summary_text` de la fila, o generado desde el `elite_v3` si viene
+ *    vacío), bajo el encabezado de `argos-elite-contexto-core`. Se cachea por
+ *    sesión: la evaluación cambia una vez cada seis o doce meses.
+ *  · OFF → ARGOS responde como hoy, sin conocer la evaluación.
+ *
+ * POR QUÉ EXISTE
+ *  ATP 3.0 (pivote 2.3 punto 6, ruta 3.6): un cliente Elite que pregunta por
+ *  un marcador o un suplemento debe recibir la respuesta con el contexto de
+ *  SU evaluación, la que interpretó su equipo, no una genérica. Es el mismo
+ *  mecanismo que `extraContext` del contrato `/argos-chat?contexto=...`, solo
+ *  que sale de la base y no de la pantalla que abrió el chat.
+ *
+ * LO QUE CUESTA
+ *  Hasta 1,800 caracteres (tope de `RESUMEN_ARGOS_MAX`), unos 500 tokens,
+ *  solo para quien tiene evaluación. Sin peso de cuota propio: el turno
+ *  sigue siendo `chat` en el proxy; el contexto viaja dentro del prompt y no
+ *  cambia el tipo de petición.
+ *
+ * LO QUE NO ROMPE
+ *  No escribe una sola fila. Respeta el gate de consentimiento de memoria de
+ *  ARGOS (vive dentro de `loadUserContext`, detrás de `canLoadRichContext`).
+ *  Un error de lectura se registra como bloque con error y no se cachea.
+ *
+ * CÓMO APAGARLO EN CALIENTE
+ *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ */
+export const ARGOS_LEE_EVALUACION_ELITE = true;
+
+/**
  * LABS_UNIDADES_ALINEADAS — dejar de calificar un biomarcador contra una ventana
  * escrita en otra unidad.
  *

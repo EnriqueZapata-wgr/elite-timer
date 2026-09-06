@@ -392,6 +392,34 @@ export async function loadAllSeries(
   }
 }
 
+/**
+ * ATP 3.0 (6-sep-2026, ruta 2.5): igual que `loadAllSeries`, pero RECHAZA si
+ * la lectura falla en vez de devolver `{}`. Regla 7 de la casa: la pantalla
+ * de comparar estudios necesita distinguir "no se pudo leer" (reintentar) de
+ * "no hay dos estudios" (subir uno), y con el mapa vacio no se puede. Las
+ * claves se colapsan a su canonica en espanol (`testosterone` se funde en
+ * `testosterona_total`) para que los dos estudios se emparejen aunque un PDF
+ * haya entrado con la clave inglesa.
+ */
+export async function loadAllSeriesEstricto(
+  userId: string,
+): Promise<Record<string, { value: number | null; measured_at: string; source: LabValueSource }[]>> {
+  const { data, error } = await supabase
+    .from('lab_values')
+    .select('parameter_key, value, measured_at, source')
+    .eq('user_id', userId)
+    .eq('is_voided', false)
+    .order('measured_at', { ascending: true });
+  if (error) throw new Error(`[lab-values] loadAllSeriesEstricto: ${error.message}`);
+  const out: Record<string, { value: number | null; measured_at: string; source: LabValueSource }[]> = {};
+  for (const row of (data ?? []) as { parameter_key: string; value: unknown; measured_at: string; source: LabValueSource }[]) {
+    // La coercion vive en un solo lugar (pg-number); un valor ilegible queda
+    // null y comparar-core lo trata como "ese estudio no lo trajo".
+    (out[canonicalParameterKey(row.parameter_key)] ??= []).push({ value: numeroDePg(row.value), measured_at: row.measured_at, source: row.source });
+  }
+  return out;
+}
+
 export async function getParameterSeries(
   userId: string,
   parameterKey: string,

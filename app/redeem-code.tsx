@@ -1,7 +1,9 @@
 /**
  * TENGO UN CÓDIGO — canje de códigos de activación (MB-13 · PIEZA 1).
  *
- * Para el founder que pagó en la web, el invitado o la cortesía de soporte.
+ * Para servicios contratados con ATP (Founders, Elite), el invitado o la
+ * cortesía de soporte. ATP 3.0 (ruta 2.6): no es vía de compra; vive solo
+ * en Ajustes (Apple 3.1.1).
  * El servidor decide todo (RPC redeem_activation_code); aquí solo se
  * teclea el código y se muestra el resultado con copy propio por caso.
  */
@@ -90,7 +92,7 @@ export default function RedeemCodeScreen() {
 
         <Animated.View entering={FadeInDown.delay(40).springify()}>
           <EliteText style={styles.subtitle}>
-            Si compraste en la web o te invitaron, aquí lo activas.
+            Para servicios contratados con ATP. Si te dieron un código, aquí lo activas.
           </EliteText>
         </Animated.View>
 
@@ -101,7 +103,8 @@ export default function RedeemCodeScreen() {
             value={code}
             onChangeText={(t) => { setCode(t.toUpperCase()); if (result) setResult(null); }}
             placeholder="ATP-XXXX-XXXX"
-            placeholderTextColor={t.sinDatos}
+            // Regla 5 (4EP 5-sep-2026): sinDatos nunca es tinta ni placeholder.
+            placeholderTextColor={t.textoTenue}
             autoCapitalize="characters"
             autoCorrect={false}
             autoComplete="off"

@@ -5,14 +5,18 @@
  * color por nivel y el countdown del Boost H+.
  *
  * La cancelación real vive donde se compró: App Store, Google Play o el
- * portal de Stripe (compra web, que es la de la preventa). 31-ago-2026: antes
- * esta pantalla decía "Apple/Google" por plataforma, pero la preventa cobra
- * por Stripe, así que a quien pagó en la web le mandaba a una tienda donde no
- * hay nada que cancelar. Ahora el nombre sale del `store` del entitlement de
- * RevenueCat (APP_STORE | PLAY_STORE | STRIPE | ...) y el enlace de
- * `managementURL`, que para Stripe es el portal del cliente. El copy es el
- * mismo que los términos publicados (cláusula 5). Historial desde
- * subscription_events (webhook de Cowork).
+ * portal del proveedor de pago de la preventa. 31-ago-2026: antes esta
+ * pantalla decía "Apple/Google" por plataforma, pero la preventa cobra por
+ * otro proveedor, así que a quien pagó fuera de las tiendas le mandaba a una
+ * tienda donde no hay nada que cancelar. Ahora el nombre sale del `store` del
+ * entitlement de RevenueCat (APP_STORE | PLAY_STORE | el de la preventa...) y
+ * el enlace de `managementURL`, que para la preventa es el portal del
+ * cliente. El copy es el mismo que los términos publicados (cláusula 5).
+ * Historial desde subscription_events (webhook de Cowork).
+ *
+ * ATP 3.0 (5-sep-2026, ruta 2.6): el código de activación vive SOLO aquí,
+ * como "servicio contratado con ATP" (Apple 3.1.1: no es vía de compra).
+ * Nada en esta pantalla nombra proveedores externos ni precios de fuera.
  */
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
@@ -114,8 +118,9 @@ export default function SubscriptionSettingsScreen() {
 
   /**
    * Dónde se gestiona de verdad esta suscripción. Sale del entitlement, no de
-   * la plataforma: alguien con iPhone que compró en la web tiene Stripe.
-   * Si RevenueCat no lo dice, no se adivina: se habla del "proveedor de pago".
+   * la plataforma: alguien con iPhone que compró en la preventa no gestiona
+   * en App Store. Si RevenueCat no lo dice, no se adivina: se habla del
+   * "proveedor de pago".
    */
   const proveedor = (() => {
     const store = String(activeEntitlement?.store ?? '').toUpperCase();
@@ -229,7 +234,7 @@ export default function SubscriptionSettingsScreen() {
           </Animated.View>
         )}
 
-        {/* ── Canje de código (MB-13: puente de pago web / cortesías) ── */}
+        {/* ── Código de activación (MB-13; ATP 3.0 ruta 2.6: servicio contratado, no vía de compra) ── */}
         <Animated.View entering={FadeInUp.delay(110).springify()}>
           <AnimatedPressable
             onPress={() => { haptic.medium(); router.push('/redeem-code'); }}
@@ -237,9 +242,9 @@ export default function SubscriptionSettingsScreen() {
           >
             <View style={styles.row}>
               <View style={{ flex: 1 }}>
-                <EliteText style={[styles.rowLabel, { color: tokens.texto }]}>Tengo un código</EliteText>
+                <EliteText style={[styles.rowLabel, { color: tokens.texto }]}>Tengo un código de activación</EliteText>
                 <EliteText style={[styles.eventDate, thTenue]}>
-                  Si compraste en la web o te invitaron, aquí lo activas.
+                  Para servicios contratados con ATP
                 </EliteText>
               </View>
               <Ionicons name="chevron-forward" size={16} color={tokens.textoSecundario} />

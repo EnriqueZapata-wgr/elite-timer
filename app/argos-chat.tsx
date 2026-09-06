@@ -63,6 +63,8 @@ import { MessageBubble } from '@/src/components/argos/chat/MessageBubble';
 import { TypingIndicator } from '@/src/components/argos/chat/TypingIndicator';
 import { MessageActionsMenu } from '@/src/components/argos/chat/MessageActionsMenu';
 import { NavOptionsRow } from '@/src/components/argos/chat/NavOptionsRow';
+import { VerProRow } from '@/src/components/argos/chat/VerProRow';
+import { FreeChatLimitError } from '@/src/services/argos-errores';
 import { decidirTurnoNav, type TurnoNav } from '@/src/services/argos-nav-intent-core';
 import { tituloDe, type CandidatoNav } from '@/src/services/argos-nav-resolver-core';
 import { detectarIntencionAjuste, type PeticionAjuste } from '@/src/services/argos-settings-intent-core';
@@ -152,6 +154,9 @@ function ArgosChat() {
   // NOCHE-ARGOS P5: cuando el resolvedor devuelve 'ambigua', las dos opciones
   // entre las que el usuario elige. El contrato del resolvedor es no adivinar.
   const [navOpciones, setNavOpciones] = useState<CandidatoNav[] | null>(null);
+  // ATP 3.0 (5-sep-2026, ruta 1.11): contexto del paywall cuando el proxy
+  // cortó el cuarto chat de un Free. Pinta el chip "Ver Pro" bajo la burbuja.
+  const [limiteFree, setLimiteFree] = useState<string | null>(null);
   // El push diferido de la navegación. En un ref para poder cancelarlo si la
   // pantalla se desmonta antes: navegar desde una pantalla ya muerta tira el
   // stack a un lugar que el usuario no pidió.
@@ -344,6 +349,9 @@ function ArgosChat() {
     } catch (e) {
       // Limpiar el parcial (si hubo) — el turno se resuelve por otra vía.
       if (appended) setMessages(prev => prev.slice(0, -1));
+      // ATP 3.0 (ruta 1.11): el límite diario de Free no cae al modo no-stream
+      // (sería pedirle al proxy el mismo 429 dos veces); sube al turno.
+      if (e instanceof FreeChatLimitError) throw e;
       console.warn('[ARGOS] stream no disponible, fallback no-stream:', (e as Error)?.message);
       return null;
     } finally {
@@ -507,6 +515,8 @@ function ArgosChat() {
     if (!messageText || !userId) return;
     // #71: atrapar doble-tap/re-render de forma SÍNCRONA (antes del primer await).
     if (!sendGuard.tryAcquire()) return;
+    // Ruta 1.11: un envío nuevo limpia el chip "Ver Pro" del turno anterior.
+    setLimiteFree(null);
     // C5-002: se evalúa ANTES de cualquier red/LLM — funciona incluso offline.
     if (detectCrisisContent(messageText)) setCrisisDetected(true);
 
@@ -632,6 +642,18 @@ function ArgosChat() {
         // con su oferta de boost; el segundo, una alerta "Te quedaste sin H+"
         // con botón a la tienda. Ninguno de los dos puede volver a ocurrir.
         case 'client_error':
+          // ATP 3.0 (ruta 1.11): el 429 `free_chat_limit` del proxy no es un
+          // error, es el cuarto chat de un Free. Se pinta el mensaje del proxy
+          // como burbuja de ARGOS (degradada: no se persiste ni entra al
+          // contexto futuro) y aparece el chip "Ver Pro".
+          if (run.error instanceof FreeChatLimitError) {
+            resolved = resolveTurn(base, userTurn, {
+              kind: 'reply', text: run.error.message, degraded: true,
+            }, Date.now());
+            setMessages(resolved.messages);
+            setLimiteFree(run.error.contexto);
+            break;
+          }
           console.error('ARGOS chat error:', run.error);
           resolved = resolveTurn(base, userTurn, { kind: 'client_error' }, Date.now());
           setMessages(resolved.messages);
@@ -668,6 +690,7 @@ function ArgosChat() {
   function startNewConversation() {
     stopSpeaking();
     setMessages([]);
+    setLimiteFree(null);
     setConversationId(null);
     screenSessionRef.current = null; // pantalla en blanco: sin ancla.
     // HUB-ARGOS (4EP M1): el contexto de apertura muere con la conversación.
@@ -782,6 +805,7 @@ function ArgosChat() {
                 {navOpciones && !loading && (
                   <NavOptionsRow opciones={navOpciones} onPick={elegirOpcionNav} />
                 )}
+                {limiteFree && !loading && <VerProRow contexto={limiteFree} />}
                 {loading && <TypingIndicator />}
                 <MedicalDisclaimer feature="argos" compact />
               </View>

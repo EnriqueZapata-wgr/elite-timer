@@ -47,6 +47,11 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import type { Sex } from '@/src/types/edad-atp-v2';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
+// ATP 3.0 (6-sep-2026, ruta 2.5): la puerta a comparar estudios. Se ve siempre;
+// para free lleva el badge del candado (regla 15: lo bloqueado se ve).
+import { AppIcon } from '@/src/components/ui/AppIcon';
+import { CandadoNivel } from '@/src/components/ui/CandadoNivel';
+import { useSubscription } from '@/src/hooks/useSubscription';
 
 
 type Row = {
@@ -126,6 +131,10 @@ function AtpLabsScreen() {
   // que está fuera. Si ese es el flujo real, se le da un botón.
   const [soloAtencion, setSoloAtencion] = useState(false);
   const [fase, setFase] = useState<string | null>(null);
+  // Ruta 2.5: el badge del candado solo cuando SABEMOS que es free. Cargando o
+  // sin lectura del nivel, sin badge (fail-open); la pantalla destino decide.
+  const { tier, isLoading: nivelCargando, nivelNoSePudoLeer } = useSubscription();
+  const compararConCandado = !nivelCargando && !nivelNoSePudoLeer && tier === 'free';
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -289,6 +298,20 @@ function AtpLabsScreen() {
             ¿No sabes qué estudios pedir? Ve la guía
           </EliteText>
           <Ionicons name="chevron-forward" size={14} color={t.textoTenue} />
+        </Pressable>
+
+        {/* Ruta 2.5: comparar dos estudios en el tiempo. La fila navega sola;
+            el badge va decorativo para no anidar Pressables. */}
+        <Pressable
+          onPress={() => { haptic.medium(); router.push('/edad-atp/comparar'); }}
+          style={styles.compararRow}
+          accessibilityRole="button"
+          accessibilityLabel={compararConCandado ? 'Comparar con mi estudio anterior. Disponible en ATP Pro' : 'Comparar con mi estudio anterior'}
+        >
+          <AppIcon name="salud-evolucion" size={18} color={t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto} />
+          <EliteText variant="body" style={styles.compararText}>Comparar con mi estudio anterior</EliteText>
+          {compararConCandado ? <CandadoNivel appKey="comparar" nivel="premium" tocable={false} /> : null}
+          <Ionicons name="chevron-forward" size={16} color={t.textoSecundario} />
         </Pressable>
 
         {/* Filtros de orden (#13) */}
@@ -537,6 +560,13 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     paddingVertical: 8, paddingHorizontal: 2, marginBottom: Spacing.xs,
   },
   guideText: { color: t.textoSecundario },
+  // Ruta 2.5: la puerta a comparar estudios, con el mismo peso visual de una fila de card.
+  compararRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: t.card, borderRadius: Radius.card, borderWidth: 1, borderColor: t.borde,
+    paddingVertical: Spacing.sm + 2, paddingHorizontal: Spacing.md, marginBottom: Spacing.xs,
+  },
+  compararText: { color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, flex: 1 },
   filterRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.xs },
   chip: { paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: t.card, borderWidth: 1, borderColor: t.borde },
   chipActive: { backgroundColor: 'rgba(168,224,42,0.14)', borderColor: 'rgba(168,224,42,0.4)' },

@@ -40,6 +40,7 @@ import {
 } from '@/src/constants/app-registry';
 import {
   ATP_ORDERS, ORDER_LABELS, groupBySection, orderedApps, pickEditorial, reconcileOrder,
+  destacadasLauncher,
   type AtpOrder, type AppUsage, type CustomOrder, type EditorialPick,
 } from '@/src/services/atp-room-core';
 import {
@@ -219,6 +220,9 @@ export default function SalaAtpScreen() {
 
   // MB-22 Pieza 1: la cuadrícula lista SOLO lo instalado y lo fijo.
   const instaladas = useMemo(() => gridApps(apps, installPrefs), [apps, installPrefs]);
+  // ATP 3.0 (6-sep-2026, ruta 2.3): las cuatro de arriba (Labs, Edad ATP,
+  // Hábitos de hoy, Protocolos) salen de la lista visible con su candado.
+  const destacadas = useMemo(() => destacadasLauncher(apps), [apps]);
 
   // La card se calcula con el reloj de ESTE render, no con un intervalo: la
   // pantalla se vuelve a montar cada vez que entras y eso basta. Invita solo
@@ -284,6 +288,28 @@ export default function SalaAtpScreen() {
           <EliteText style={[s.eyebrow, { color: acento }]}>TUS FUNCIONES</EliteText>
           <EliteText style={[s.title, { color: tokens.texto }]}>ATP</EliteText>
         </Animated.View>
+
+        {/* ATP 3.0 (ruta 2.3): las cuatro de arriba. Fila fija en Categoría y
+            Frecuencia; en "Mío" manda el orden guardado en /atp-orden y no se
+            pinta. Sin tap largo: aquí no se desinstala nada. */}
+        {!searching && order !== 'mio' && (
+          <Animated.View entering={FadeInUp.delay(50).springify()}>
+            <EliteText style={[s.destacadasTitle, { color: tenueInformativo }]}>PARA EMPEZAR</EliteText>
+            <View style={s.grid}>
+              {destacadas.map((app) => (
+                <View key={app.key} style={s.tileSlot}>
+                  <AppTile
+                    icon={app.icon}
+                    label={app.label}
+                    section={app.section}
+                    onPress={() => open(app)}
+                    candado={candadoDe(app)}
+                  />
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+        )}
 
         {/* MB-22: la entrada al Centro, visible SIN scroll. Si alguien no la
             encuentra, no puede instalar nada y la app se le queda chica. */}
@@ -539,6 +565,8 @@ const s = StyleSheet.create({
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   gridFlat: { marginTop: Spacing.md },
+  // ATP 3.0 (ruta 2.3): rótulo de la fila fija de arriba.
+  destacadasTitle: { fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2, marginBottom: Spacing.xs },
   tileSlot: { width: '25%' },
 
   emptySearch: { width: '100%', paddingVertical: Spacing.xl, alignItems: 'center', gap: Spacing.md },

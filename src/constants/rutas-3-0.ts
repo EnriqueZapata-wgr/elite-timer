@@ -5,6 +5,8 @@
  * que lo abren compartan las mismas cadenas sin importarse entre sí.
  */
 
+import type { Href } from 'expo-router';
+
 /**
  * La página de Elite dentro de la app: qué es, para quién, y cómo escribirle a
  * Enrique. Sin precio ni botón de compra (Apple 3.1.3). La pantalla la crea la
@@ -12,6 +14,15 @@
  * apunten al lugar correcto.
  */
 export const RUTA_ELITE = '/elite' as const;
+
+/**
+ * 6-sep-2026 (ruta 3.4): la pantalla `app/elite.tsx` ya existe y sus puertas
+ * (CandadoNivel, CandadoBloque, Genética) llegan por `RUTA_ELITE`, que es un
+ * identificador. El censo de rutas solo acredita un string con forma de
+ * navegación cerca, así que la ruta se declara también como `Href` tipado:
+ * es la puerta que el censo ve, y `tsc` la valida contra las typed routes.
+ */
+export const RUTA_ELITE_HREF: Href = '/elite';
 
 /**
  * Los momentos en que un usuario Free llega al paywall (pivote 3.3). El quinto

@@ -146,9 +146,53 @@ async function handleStt(body: any): Promise<Response> {
   return json({ text });
 }
 
+// ─── ATP 3.0 (5-sep-2026): la voz es parte de Pro ────────────────────────
+// La voz NO pasa por argos-proxy (TTS y STT pegan directo a ElevenLabs y a
+// Gemini), así que el gate de nivel tiene que vivir aquí. Matriz del pivote
+// 3.2: ARGOS voz es "No" para Free y "Sí" para Pro y Elite. Es un candado
+// nuevo que aplica SOLO a free: a quien pagó no se le corta nada (regla 1).
+//
+// Espejo de detectEffectiveTier de argos-proxy: mismo árbitro
+// (get_effective_tier, mig 262), misma caché de 30 s, y el mismo fail-safe:
+// ante error de lectura se ABRE (se trata como miembro). Un hiccup de base
+// nunca le quita la voz a quien la pagó.
+type TierEfectivo = "free" | "premium" | "elite";
+
+/** Valores de tier que significan "pagó" (espejo de tier-logic.ts). */
+const VALORES_PAGADOS = new Set(["base", "pro", "clinician", "premium", "founder", "elite"]);
+
+const tierCache = new Map<string, { effectiveTier: TierEfectivo; expiresAt: number }>();
+
+async function detectEffectiveTier(supabase: any, userId: string): Promise<TierEfectivo> {
+  const cached = tierCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) return cached.effectiveTier;
+  try {
+    const { data: resolved, error: tierErr } = await supabase
+      .rpc("get_effective_tier", { p_user_id: userId });
+    if (tierErr || !resolved || typeof resolved !== "object" || typeof resolved.tier !== "string") {
+      // Sin árbitro no se decide en contra de nadie: se abre.
+      console.error("get_effective_tier rpc error en voz (se abre):", tierErr);
+      return "premium";
+    }
+    const crudo = String(resolved.tier).toLowerCase();
+    const venceEn = typeof resolved.expires_at === "string" ? resolved.expires_at : null;
+    const vencido = venceEn !== null && new Date(venceEn).getTime() <= Date.now();
+    const tier: TierEfectivo = vencido || !VALORES_PAGADOS.has(crudo)
+      ? "free"
+      : (crudo === "elite" ? "elite" : "premium");
+    tierCache.set(userId, { effectiveTier: tier, expiresAt: Date.now() + 30000 });
+    return tier;
+  } catch (e) {
+    console.error("detectEffectiveTier voz exception (se abre):", e);
+    return "premium";
+  }
+}
+
 /** Telemetría de voz en argos_logs (B1.3): la voz por fin instrumenta su costo real. */
 async function logVoiceCall(supabase: any, params: {
   user_id: string;
+  /** ATP 3.0: el tier de tres estados que decidió el gate (antes siempre "unknown"). */
+  tier?: TierEfectivo;
   request_type: "voice_tts" | "voice_stt";
   provider: string;
   model: string;
@@ -161,7 +205,7 @@ async function logVoiceCall(supabase: any, params: {
   try {
     await supabase.from("argos_logs").insert({
       user_id: params.user_id,
-      tier: "unknown",
+      tier: params.tier ?? "unknown",
       provider: params.provider,
       model: params.model,
       request_type: params.request_type,
@@ -208,6 +252,27 @@ serve(async (req) => {
   const requestType = action === "tts" ? "voice_tts" as const : "voice_stt" as const;
   const startTime = Date.now();
 
+  // ─── ATP 3.0: gate de nivel. Free no tiene voz; premium y elite, sin cambio.
+  // Se decide ANTES de gastar en ElevenLabs o Gemini. El rechazo deja un renglón
+  // ligero en argos_logs (costo 0) para poder medir cuántos Free tocan la voz,
+  // que es un momento de conversión del pivote (3.3).
+  const effectiveTier = await detectEffectiveTier(supabase, userId);
+  if (effectiveTier === "free") {
+    await logVoiceCall(supabase, {
+      user_id: userId,
+      tier: effectiveTier,
+      request_type: requestType,
+      provider: action === "tts" ? "elevenlabs" : "google",
+      model: action === "tts" ? ELEVENLABS_MODEL : GEMINI_STT_MODEL,
+      chars: 0,
+      latency_ms: Date.now() - startTime,
+      success: false,
+      error_message: "pro_required",
+      estimated_cost_usd: 0,
+    });
+    return json({ error: "pro_required", message: "La voz de ARGOS es parte de Pro." }, 403);
+  }
+
   // PREMIUM (16-ago-2026): aquí había dos muros y se fueron los dos.
   //
   // 1) El corte diario por conteo (200 STT / 1200 TTS) devolvía un 429 y
@@ -243,6 +308,7 @@ serve(async (req) => {
       : (String(body.audio_base64 ?? "").length * 0.75 / 8000) * STT_USD_PER_SEC;
     await logVoiceCall(supabase, {
       user_id: userId,
+      tier: effectiveTier,
       request_type: requestType,
       provider: action === "tts" ? "elevenlabs" : "google",
       model: action === "tts" ? ELEVENLABS_MODEL : GEMINI_STT_MODEL,

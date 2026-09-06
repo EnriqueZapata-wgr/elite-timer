@@ -30,6 +30,10 @@ import { pickEdadAtpImage } from '@/src/utils/yo-image-picker';
 import { ATP_BRAND, CATEGORY_COLORS, SEMANTIC, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+// ATP 3.0 (6-sep-2026, ruta 2.5): la tarjeta de comparar estudios, junto a Labs.
+import { AppIcon } from '@/src/components/ui/AppIcon';
+import { CandadoNivel } from '@/src/components/ui/CandadoNivel';
+import { useSubscription } from '@/src/hooks/useSubscription';
 
 const CALC_THRESHOLD = 30; // % CE mínimo para habilitar "Calcular mi Edad"
 
@@ -54,6 +58,9 @@ export default function EdadAtpHub() {
   // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
   const { kind, tokens: t } = useAppTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
+  // Ruta 2.5: badge del candado solo cuando SABEMOS que es free (fail-open).
+  const { tier, isLoading: nivelCargando, nivelNoSePudoLeer } = useSubscription();
+  const compararConCandado = !nivelCargando && !nivelNoSePudoLeer && tier === 'free';
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [ce, setCe] = useState<CEResult | null>(null);
@@ -184,6 +191,17 @@ export default function EdadAtpHub() {
             <EliteText variant="body" style={styles.cardTitle}>ATP Labs</EliteText>
             <EliteText variant="caption" style={styles.cardDesc}>Tus laboratorios con historial y gráficas de continuum</EliteText>
           </View>
+          <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />
+        </AnimatedPressable>
+
+        {/* Ruta 2.5: comparar dos estudios en el tiempo (Pro). Se ve siempre. */}
+        <AnimatedPressable onPress={() => { haptic.medium(); router.push('/edad-atp/comparar'); }} style={styles.card}>
+          <View style={styles.cardIcon}><AppIcon name="salud-evolucion" size={22} color={CATEGORY_COLORS.metrics} /></View>
+          <View style={{ flex: 1 }}>
+            <EliteText variant="body" style={styles.cardTitle}>Comparar estudios</EliteText>
+            <EliteText variant="caption" style={styles.cardDesc}>Qué cambió entre un estudio y el siguiente, marcador por marcador</EliteText>
+          </View>
+          {compararConCandado ? <CandadoNivel appKey="comparar" nivel="premium" tocable={false} /> : null}
           <Ionicons name="chevron-forward" size={18} color={t.textoSecundario} />
         </AnimatedPressable>
 

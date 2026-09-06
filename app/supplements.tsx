@@ -23,10 +23,14 @@ import { DOSE_PATTERNS, DOSE_TIME_LABELS, doseCountFor, isCustomDoseTime, normal
 import { normalizeSupplementName } from '@/src/services/supplements-plan-core';
 // 312 (backlog 3.6): plan vs eventual, dosis por unidad, registro variable.
 import {
-  AMOUNT_UNITS, SIN_DATO, activosTexto, dosisPorUnidadTexto, esPlan, formatNumero,
-  numeroONull, tomaTexto, unidadLabel,
+  AMOUNT_UNITS, SIN_DATO, activosTexto, dosisPorUnidadTexto, esDelCoach, esPlan, formatNumero,
+  numeroONull, planEliteSoloLectura, tomaTexto, unidadLabel,
 } from '@/src/services/supplements/adherencia-core';
 import { isPregnancyActive } from '@/src/services/supplements-service';
+// ATP 3.0 (6-sep-2026, ruta 3.5): etiqueta, confirmación y solo lectura del plan Elite.
+import { useSubscription } from '@/src/hooks/useSubscription';
+import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
+import { contextoCandado } from '@/src/constants/rutas-3-0';
 import { BhaScanSheet } from '@/src/components/supplements/BhaScanSheet';
 import { SupplementScanSheet } from '@/src/components/supplements/SupplementScanSheet';
 import { ATP_BRAND, getScoreColor, getScoreLabel } from '@/src/constants/brand';
@@ -74,6 +78,11 @@ export default function SupplementsScreen() {
   const conceptTx = (c: string) => (kind === 'dark' ? c : t.texto);
   const [userId, setUserId] = useState('');
   const [supplements, setSupplements] = useState<any[]>([]);
+  // ATP 3.0 (ruta 3.5): las fichas `source='coach'` son el plan Elite. Si el
+  // usuario ya no es miembro se ven en solo lectura (sin editar ni borrar; las
+  // tomas sí se registran). Nivel ilegible o cargando = miembro (regla 1).
+  const { esMiembro, nivelNoSePudoLeer, isLoading: nivelCargando } = useSubscription();
+  const planSoloLectura = planEliteSoloLectura({ esMiembro, nivelNoSePudoLeer, cargando: nivelCargando });
   // La pantalla no tenia NINGUNA senal de carga: en cada entrada, mientras
   // la consulta iba y venia, un usuario con ocho fichas veia el estado
   // vacio completo, con el boton "CREAR MI PRIMERA FICHA". Y si la
@@ -514,8 +523,22 @@ export default function SupplementsScreen() {
     setBhaVisible(true);
   }
 
-  async function removeSupplement(id: string, name: string) {
-    Alert.alert('Eliminar suplemento', `¿Eliminar "${name}" de tu plan?`, [
+  async function removeSupplement(id: string, name: string, source?: string | null) {
+    // ATP 3.0 (ruta 3.5): las del plan Elite piden confirmación propia y, sin
+    // membresía, no se borran: el plan se conserva (dato sagrado).
+    const delCoach = esDelCoach({ source });
+    if (delCoach && planSoloLectura) {
+      Alert.alert('Tu plan Elite se conserva', 'Con Pro puedes editarlo.', [
+        { text: 'Entendido', style: 'cancel' },
+        { text: 'Ver Pro', onPress: () => router.push({ pathname: '/paywall', params: { contexto: contextoCandado('suplementos') } }) },
+      ]);
+      return;
+    }
+    const titulo = delCoach ? 'Suplemento de tu plan Elite' : 'Eliminar suplemento';
+    const mensaje = delCoach
+      ? 'Este suplemento es parte de tu plan Elite. ¿Quitarlo de todos modos?'
+      : `¿Eliminar "${name}" de tu plan?`;
+    Alert.alert(titulo, mensaje, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar', style: 'destructive',
@@ -722,6 +745,12 @@ export default function SupplementsScreen() {
           <Text style={{ color: t.texto, fontSize: 13, fontWeight: '800', letterSpacing: 1.5 }}>{sec.label}</Text>
           <Text style={{ color: t.textoSecundario, fontSize: 11 }}>{sec.nota}</Text>
         </View>
+        {/* ATP 3.0 (ruta 3.5): sin membresía, el plan Elite se ve pero no se edita. */}
+        {planSoloLectura && sec.groups.some(g => g.items.some(esDelCoach)) && (
+          <Text style={{ color: t.textoSecundario, fontSize: 11, paddingHorizontal: 20, marginBottom: 10 }}>
+            Tu plan Elite se conserva. Con Pro puedes editarlo.
+          </Text>
+        )}
       {sec.groups.map(group => (
         <View key={group.id} style={{ paddingHorizontal: 20, marginBottom: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -736,10 +765,14 @@ export default function SupplementsScreen() {
             const takenIdxs = todayLogs[supp.id] ?? [];
             const taken = takenIdxs.length >= doseCount; // fila completa = todas las tomas
             const doseLabels: string[] = Array.isArray(supp.dose_times) ? supp.dose_times : [];
+            // ATP 3.0 (ruta 3.5): ficha del plan Elite y si hoy está en solo lectura.
+            const delCoach = esDelCoach(supp);
+            const bloqueada = delCoach && planSoloLectura;
             return (
               <SwipeToDeleteRow
                 key={supp.id}
-                onConfirmDelete={() => removeSupplement(supp.id, supp.name)}
+                disabled={bloqueada}
+                onConfirmDelete={() => removeSupplement(supp.id, supp.name, supp.source)}
               >
                 <Pressable
                   onPress={() => toggleDose(supp.id, doseCount === 1 ? 0 : (
@@ -749,7 +782,7 @@ export default function SupplementsScreen() {
                       ? takenIdxs[takenIdxs.length - 1]
                       : Array.from({ length: doseCount }, (_, i) => i).find(i => !takenIdxs.includes(i)) ?? 0
                   ))}
-                  onLongPress={() => removeSupplement(supp.id, supp.name)}
+                  onLongPress={() => removeSupplement(supp.id, supp.name, supp.source)}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: 12,
                     backgroundColor: taken ? 'rgba(29,158,117,0.08)' : t.hundido,
@@ -790,6 +823,12 @@ export default function SupplementsScreen() {
                           <Text style={{ color: t.textoSecundario, fontSize: 8, fontWeight: '800' }}>EVALUADO · RE-ESCANEA</Text>
                         </View>
                       ) : null}
+                      {/* ATP 3.0 (ruta 3.5): etiqueta del plan Elite. */}
+                      {delCoach && (
+                        <View style={{ backgroundColor: kind === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,21,24,0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ color: t.textoSecundario, fontSize: 8, fontWeight: '800' }}>ASIGNADO POR {NOMBRE_COACH_ELITE.toUpperCase()}</Text>
+                        </View>
+                      )}
                     </View>
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
                       <Text style={{ color: t.textoSecundario, fontSize: 11 }}>{supp.dosage}</Text>
@@ -870,9 +909,22 @@ export default function SupplementsScreen() {
                       {doseCount === 1 && todayUnits[supp.id]?.[0] !== undefined ? `×${formatNumero(todayUnits[supp.id][0])}` : '×N'}
                     </Text>
                   </Pressable>
-                  <Pressable onPress={() => openEdit(supp)} hitSlop={4} style={{ padding: 8 }}>
-                    <Ionicons name="pencil-outline" size={18} color={t.textoSecundario} />
-                  </Pressable>
+                  {/* ATP 3.0 (ruta 3.5): sin membresía, el plan Elite no se edita. El
+                      candado se ve y lleva al paywall con contexto (regla 15). */}
+                  {bloqueada ? (
+                    <Pressable
+                      onPress={() => router.push({ pathname: '/paywall', params: { contexto: contextoCandado('suplementos') } })}
+                      hitSlop={4}
+                      style={{ padding: 8 }}
+                      accessibilityLabel="Editar está en Pro"
+                    >
+                      <Ionicons name="lock-closed" size={18} color={t.textoSecundario} />
+                    </Pressable>
+                  ) : (
+                    <Pressable onPress={() => openEdit(supp)} hitSlop={4} style={{ padding: 8 }}>
+                      <Ionicons name="pencil-outline" size={18} color={t.textoSecundario} />
+                    </Pressable>
+                  )}
                   {/* CTA de escaneo ATP Functional Score (re-escanear si ya tiene score) */}
                   <Pressable
                     onPress={() => openBhaScan({ id: supp.id, name: supp.name, brand: supp.brand })}

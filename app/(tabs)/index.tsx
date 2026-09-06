@@ -37,6 +37,9 @@ import { ArgosMark } from '@/src/components/argos/ArgosMark';
 import { CommunityPresence } from '@/src/components/community/CommunityPresence';
 import { TareasView } from '@/src/components/hoy/TareasView';
 import { GraduacionCard } from '@/src/components/hoy/GraduacionCard';
+// ATP 3.0 (6-sep-2026, ruta 2.1 y 2.2): el hero de laboratorios y las tres de hoy.
+import { HeroLaboratorios } from '@/src/components/hoy/HeroLaboratorios';
+import { QueHacerHoy } from '@/src/components/hoy/QueHacerHoy';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { getLocalToday, getLocalHour } from '@/src/utils/date-helpers';
@@ -459,6 +462,13 @@ export default function TodayScreen() {
             </View>
           </Animated.View>
         </View>
+
+        {/* ATP 3.0 (ruta 2.1 y 2.2): una sola dirección arriba. Con estudio,
+            su Edad ATP y sus tres marcadores; sin estudio, "Sube tu primer
+            estudio". Debajo, las tres acciones que ARGOS eligió por sus
+            marcadores. Lo demás de HOY no se toca. */}
+        <HeroLaboratorios userId={user?.id} />
+        <QueHacerHoy userId={user?.id} />
 
         {/* ═══════════════════════════════════════
             TAREAS — el checklist del día, dos lentes (MB-20)

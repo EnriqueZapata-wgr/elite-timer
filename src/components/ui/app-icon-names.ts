@@ -41,6 +41,9 @@ export const APP_ICON_NAMES = [
   // el mapa es más grande que el registro de apps, y está bien.
   'sintomas', 'diagnostico', 'edad-atp', 'reportes', 'cronotipo',
   'historia-clinica', 'cuestionario', 'evaluaciones', 'padecimientos',
+  // ── Salud (apps de ATP 3.0) ──
+  // Genetica (6-sep-2026, ruta 3.4): se enciende con la evaluacion Elite.
+  'genetica',
 ] as const;
 
 export type AppIconName = (typeof APP_ICON_NAMES)[number];

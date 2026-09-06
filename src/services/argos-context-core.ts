@@ -127,6 +127,14 @@ export interface UserContext {
     /** Fecha de la medición más reciente del expediente, para el sello. */
     ultimaMedicion: string;
   };
+  /**
+   * ATP 3.0 (ruta 3.6): la evaluación Elite del usuario, ya armada como bloque
+   * por `argos-elite-contexto-core` (encabezado + resumen). Presente solo si
+   * existe la evaluación y el flag ARGOS_LEE_EVALUACION_ELITE está encendido.
+   */
+  evaluacionElite?: {
+    bloque: string;
+  };
   todaySupplements?: {
     taken: string[];
     pending: string[];
@@ -498,6 +506,12 @@ export function buildContextPrompt(ctx: UserContext): string {
       b.lastMeasuredAt,
       { verbo: 'medido', reevaluar: 'volver a pesarse y medirse' },
     ));
+  }
+  // ATP 3.0 (ruta 3.6): la evaluación Elite va ANTES de los labs. El
+  // encabezado la declara fuente principal para suplementos, alimentación y
+  // prioridades; lo que sigue (expediente crudo) la complementa, no la pisa.
+  if (ctx.evaluacionElite?.bloque) {
+    parts.push(ctx.evaluacionElite.bloque);
   }
   // El expediente completo gana sobre el resumen viejo de once columnas: si
   // ambos vinieran, mostrar los dos sería contradecirse a sí mismo.

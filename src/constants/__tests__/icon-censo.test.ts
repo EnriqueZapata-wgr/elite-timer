@@ -250,8 +250,8 @@ describe('ratchet de glifos', () => {
     const inventario = new Set(GLYPH_INVENTORY);
     const nuevos = usos.filter((p) => !inventario.has(p));
     const muertos = GLYPH_INVENTORY.filter((p) => !usos.includes(p));
-    expect(nuevos, 'glifo de función dibujado a mano — usa <AppIcon> o inventaría a conciencia').toEqual([]);
-    expect(muertos, 'el inventario arrastra usos que ya no existen — pódalo').toEqual([]);
+    expect(nuevos, 'glifo de función dibujado a mano: usa <AppIcon> o inventaría a conciencia').toEqual([]);
+    expect(muertos, 'el inventario arrastra usos que ya no existen: pódalo').toEqual([]);
   });
 });
 
@@ -271,9 +271,10 @@ describe('el set SVG está montado y no diverge de assets/icons', () => {
     emociones: 'src/components/ui/icons/IconEmociones.tsx',
   };
 
-  it('el set completo está en el repo (56 SVG)', () => {
-    // 33 del montaje original + los 22 de MB-28A + el fallback ('question').
-    expect(assets.length).toBe(56);
+  it('el set completo está en el repo (57 SVG)', () => {
+    // 33 del montaje original + los 22 de MB-28A + el fallback ('question')
+    // + genetica (6-sep-2026, ATP 3.0 ruta 3.4: Phosphor dna, relleno).
+    expect(assets.length).toBe(57);
   });
 
   it.each(assets)('%s montado sin divergencia', (file) => {

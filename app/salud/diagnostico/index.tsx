@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { ActivityIndicator, Alert, DeviceEventEmitter, ImageBackground, ScrollView, StyleSheet, View } from 'react-native';
 import { router , type Href } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import { Screen } from '@/src/components/ui/Screen';
@@ -39,6 +40,15 @@ import { formatEdadDeltaValue } from '@/src/services/edad-atp/edad-delta-core';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme, useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+// ATP 3.0 (5-sep-2026, ruta 2.9): el mapa funcional se genera en Elite, Pro
+// anual y Founders. La regla es pura (limites-free-core); el origen del grant
+// se lee de tier_grants y el producto del entitlement de RevenueCat.
+import { useSubscription } from '@/src/hooks/useSubscription';
+import { diasEntre, tieneMapaFuncional } from '@/src/services/subscription/limites-free-core';
+import { fetchOrigenMembresia, type OrigenMembresiaLectura } from '@/src/services/subscription/subscription-service';
+import { CandadoBloque } from '@/src/components/ui/CandadoBloque';
+import { contextoCandado } from '@/src/constants/rutas-3-0';
+import { esEliteV3 } from '@/src/services/elite/elite-v3-core';
 
 const LEVEL_LABELS: Record<number, string> = DX_LEVEL_LABELS;
 // #71 (MB-8): imagen editorial de la Card A (antes sin imagen, card pelona).
@@ -94,6 +104,18 @@ export default function DiagnosticoScreen() {
   const [generating, setGenerating] = useState(false);
   const [sharing, setSharing] = useState(false);
   const startedRef = useRef(false);
+  // Ruta 2.9: nivel + origen de la membresía para decidir si se puede generar.
+  const {
+    tier, esElite, customerInfo, isLoading: nivelCargando, nivelNoSePudoLeer,
+    tieneEvaluacionElite, evaluacionEliteNoSePudoLeer,
+  } = useSubscription();
+  const [origen, setOrigen] = useState<OrigenMembresiaLectura | null>(null);
+  useEffect(() => {
+    if (!user?.id) return;
+    let vivo = true;
+    fetchOrigenMembresia(user.id).then((o) => { if (vivo) setOrigen(o); });
+    return () => { vivo = false; };
+  }, [user?.id, tier]);
 
   const firstName = ((user?.user_metadata?.full_name as string) || '').trim().split(' ')[0] || '';
 
@@ -178,6 +200,44 @@ export default function DiagnosticoScreen() {
     Alert.alert('Algo no salió', 'ARGOS no pudo actualizar tu mapa funcional. Suele ser cosa de red: intenta de nuevo.');
   }, [user?.id, generating, load, sharePdf]);
 
+  /**
+   * ¿Puede generar el mapa? Elite sí; Pro solo anual o Founders; Free no.
+   * Fail-open (regla 1): si el nivel o el origen no se pudieron leer, no se
+   * cierra nada. Mientras el origen de un Pro todavía carga, `null`: el botón
+   * se ve pero deshabilitado, sin abrir y cerrar el candado. Free confirmado
+   * se cierra sin esperar el origen (no hay grant que lo abra). Lo ya
+   * generado se ve siempre.
+   */
+  const puedeGenerar: boolean | null = (() => {
+    if (nivelNoSePudoLeer) return true;
+    if (nivelCargando) return null;
+    if (tier === 'free') return false;
+    if (esElite) return true;
+    if (!origen) return null;
+    if (origen.noSePudoLeer) return true;
+    const entitlement = customerInfo ? Object.values(customerInfo.entitlements.active)[0] ?? null : null;
+    // 4EP (regla 1): con compra fuera de la tienda el productIdentifier es
+    // opaco; lo que dice "anual" es cuánto cubre el entitlement.
+    const diasEntitlement = diasEntre(
+      entitlement?.latestPurchaseDate ?? entitlement?.originalPurchaseDate ?? null,
+      entitlement?.expirationDate ?? null,
+    );
+    return tieneMapaFuncional({
+      tier,
+      esElite,
+      plan: origen.plan,
+      diasEntitlement,
+      diasGrant: origen.diasGrant,
+      codeSource: origen.codeSource,
+      productId: entitlement?.productIdentifier ?? origen.productId,
+    });
+  })();
+
+  // ATP 3.0 (6-sep-2026, ruta 3.2): la carga de una evaluación Elite deja su
+  // fila como vigente de functional_dx (append-only, igual que ARGOS). Su
+  // summary_text es el resumen para ARGOS, no prosa para esta card: aquí se
+  // dice qué es y se manda a Mi evaluación Elite.
+  const dxEsElite = dx ? esEliteV3(dx.sources_snapshot) : false;
   const quality = dx ? computeDxQuality(presenceFromSnapshot(dx.sources_snapshot)) : null;
   const roots = (dx?.roots_detected ?? []) as { root_key: InterventionRoot; severity: number; confidence: number }[];
   const activeSources = dx ? activeSourcesFromSnapshot(dx.sources_snapshot) : [];
@@ -188,13 +248,13 @@ export default function DiagnosticoScreen() {
   const ctaLabel = generating
     ? 'ARGOS sintetizando…'
     : dx
-      ? 'Actualizar mi Mapa Funcional'
-      : 'Generar mi Mapa Funcional';
+      ? 'Actualizar mi mapa funcional ATP'
+      : 'Generar mi mapa funcional ATP';
 
   return (
     <MedicalDisclaimerGate>
       <Screen edges={[]} themed>
-        <ScreenHeader title="Mi Mapa Funcional" onBack={() => router.back()} />
+        <ScreenHeader title="Mapa funcional ATP" onBack={() => router.back()} />
 
         {loading ? (
           <View style={styles.center}>
@@ -211,20 +271,52 @@ export default function DiagnosticoScreen() {
                 />
                 <View style={styles.heroInner}>
                   <LevelBadge level={dx?.quality_level ?? 1} />
-                  {dx?.summary_text ? (
+                  {dxEsElite ? (
+                    <EliteText style={styles.summary}>
+                      Tu versión vigente es tu evaluación Elite, interpretada por Enrique. Ábrela abajo para verla completa.
+                    </EliteText>
+                  ) : dx?.summary_text ? (
                     <EliteText style={styles.summary}>{dx.summary_text}</EliteText>
                   ) : (
                     <EliteText style={styles.summaryEmpty}>
-                      Aún no tienes un mapa funcional. Genera el primero para que ARGOS
-                      sintetice tus raíces funcionales desde tus datos.
+                      {puedeGenerar !== false
+                        ? 'Aún no tienes un mapa funcional. Genera el primero para que ARGOS sintetice tus raíces funcionales desde tus datos.'
+                        : 'Aún no tienes un mapa funcional. Está incluido en el plan anual: ARGOS sintetiza tus raíces funcionales desde tus datos.'}
                     </EliteText>
                   )}
                 </View>
               </ImageBackground>
             </Animated.View>
 
+            {/* ATP 3.0 (6-sep-2026, ruta 3.3): la puerta a Mi evaluación Elite.
+                Se enciende por EXISTENCIA de la evaluación, no por nivel; si
+                no se pudo leer si existe, se muestra igual (regla 1: ante la
+                duda no se le esconde nada a quien pagó) y la pantalla de
+                destino resuelve con su propio "no se pudo leer". */}
+            {(tieneEvaluacionElite || evaluacionEliteNoSePudoLeer) && (
+              <Animated.View entering={FadeInUp.delay(70).springify()}>
+                <AnimatedPressable
+                  onPress={() => { haptic.medium(); router.push('/salud/evaluacion-elite'); }}
+                  style={styles.protocolCta}
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir Mi evaluación Elite"
+                >
+                  <Ionicons name="star" size={18} color={t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto} />
+                  <View style={{ flex: 1 }}>
+                    <EliteText style={styles.protocolCtaTitle}>Mi evaluación Elite</EliteText>
+                    <EliteText style={styles.protocolCtaSub}>
+                      Tu evaluación interpretada por Enrique: secciones, marcadores, cruces y tus tres palancas
+                    </EliteText>
+                  </View>
+                  <EliteText style={styles.protocolCtaArrow}>→</EliteText>
+                </AnimatedPressable>
+              </Animated.View>
+            )}
+
             {/* ── Qué te falta ── */}
-            {quality?.nextHint && (
+            {/* Con la Elite vigente el snapshot no trae las fuentes de ARGOS y
+                el "qué te falta" diría que falta todo: se omite (6-sep-2026). */}
+            {quality?.nextHint && !dxEsElite && (
               <Animated.View entering={FadeInUp.delay(90).springify()}>
                 <Card variant="elevated" style={styles.hintCard}>
                   <EliteText style={styles.hintLabel}>QUÉ TE FALTA PARA SUBIR</EliteText>
@@ -315,7 +407,7 @@ export default function DiagnosticoScreen() {
                       Ver las intervenciones que ATP te sugiere
                     </EliteText>
                     <EliteText style={styles.protocolCtaSub}>
-                      Tu DX alimenta Mi Protocolo: de la raíz a la acción diaria
+                      Tu mapa funcional alimenta Mi Protocolo: de la raíz a la acción diaria
                     </EliteText>
                   </View>
                   <EliteText style={styles.protocolCtaArrow}>→</EliteText>
@@ -366,11 +458,25 @@ export default function DiagnosticoScreen() {
 
             {/* ── CTA actualizar (regenera análisis + produce PDF entregable) ── */}
             <Animated.View entering={FadeIn.delay(300)}>
-              <AnimatedPressable onPress={onUpdate} disabled={generating || sharing} style={[styles.cta, (generating || sharing) && { opacity: 0.6 }]}>
-                {generating && <ActivityIndicator size="small" color={t.textoSobreLima} style={{ marginRight: 8 }} />}
-                <EliteText style={styles.ctaText}>{ctaLabel}</EliteText>
-              </AnimatedPressable>
-              {dx && (
+              {/* Ruta 2.9 y regla 15: el candado se ve y lleva al paywall con
+                  contexto. Lo ya generado (arriba) y su PDF (abajo) se quedan. */}
+              {puedeGenerar !== false ? (
+                <AnimatedPressable onPress={onUpdate} disabled={generating || sharing || puedeGenerar === null} style={[styles.cta, (generating || sharing || puedeGenerar === null) && { opacity: 0.6 }]}>
+                  {generating && <ActivityIndicator size="small" color={t.textoSobreLima} style={{ marginRight: 8 }} />}
+                  <EliteText style={styles.ctaText}>{ctaLabel}</EliteText>
+                </AnimatedPressable>
+              ) : (
+                <CandadoBloque
+                  titulo="Incluido en el plan anual"
+                  texto="El Mapa funcional ATP se genera con el plan anual de Pro: ARGOS sintetiza tus raíces funcionales con todo lo que ya tiene de ti."
+                  boton="Ver el plan anual"
+                  destino={{ pathname: '/paywall', params: { contexto: contextoCandado('mapa-funcional') } }}
+                />
+              )}
+              {/* 4EP 6-sep-2026: con la Elite vigente este PDF saldria vacio
+                  (resumen de ARGOS, sin raices); el PDF de la evaluacion vive
+                  en Mi evaluacion Elite, a la que ya lleva la tarjeta de arriba. */}
+              {dx && !dxEsElite && (
                 <AnimatedPressable onPress={() => sharePdf(dx)} disabled={sharing || generating} style={[styles.ctaSecondary, (sharing || generating) && { opacity: 0.6 }]}>
                   {sharing && <ActivityIndicator size="small" color={ATP_BRAND.lime} style={{ marginRight: 8 }} />}
                   <EliteText style={styles.ctaSecondaryText}>
@@ -381,9 +487,11 @@ export default function DiagnosticoScreen() {
               {/* PREMIUM (16-ago-2026): el hint decía tu saldo y cuándo se te
                   iba a cobrar. Ya no cobra nada, pero sí conviene decir por qué
                   a veces el botón no genera nada nuevo. */}
-              <EliteText style={styles.ctaHint}>
-                ARGOS sólo vuelve a sintetizar si hay datos nuevos desde la última versión.
-              </EliteText>
+              {puedeGenerar !== false && (
+                <EliteText style={styles.ctaHint}>
+                  ARGOS sólo vuelve a sintetizar si hay datos nuevos desde la última versión.
+                </EliteText>
+              )}
             </Animated.View>
             {/* Compliance S4: footer de resultados (posicionamiento §2) */}
             <ResultDisclaimerFooter />

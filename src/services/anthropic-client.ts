@@ -12,6 +12,7 @@ import Constants from 'expo-constants';
 import { ATP_LLM } from '@/src/constants/llm-config';
 import { ARGOS_MANDA_JWT_DEL_USUARIO } from '@/src/constants/flags';
 import { extractResponseText } from './anthropic-response-core';
+import { FreeChatLimitError, parseFreeChatLimit } from './argos-errores';
 import {
   ArgosStreamUnavailableError,
   isEventStreamResponse,
@@ -124,6 +125,11 @@ export async function callAnthropic(
   // alcanzar, un 429 vuelve a ser lo que es: un fallo del transporte.
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
+    // ATP 3.0 (5-sep-2026, ruta 1.11): el 429 de `free_chat_limit` vuelve a
+    // tener tipo propio. No es transporte caído: es el cuarto chat de un Free,
+    // y la pantalla lo pinta como momento de conversión, no como error.
+    const limite = parseFreeChatLimit(response.status, errorText);
+    if (limite) throw new FreeChatLimitError(limite.message, limite.contexto);
     throw new Error(`Proxy error ${response.status}: ${errorText}`);
   }
 
@@ -205,6 +211,11 @@ export async function* callAnthropicStream(
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
+    // Ruta 1.11: el límite de Free NO cae al modo no-stream (sería una segunda
+    // llamada al proxy para recibir el mismo 429). Se lanza tipado y la
+    // pantalla lo atrapa.
+    const limite = parseFreeChatLimit(response.status, errorText);
+    if (limite) throw new FreeChatLimitError(limite.message, limite.contexto);
     throw new ArgosStreamUnavailableError(`proxy_${response.status}: ${errorText.slice(0, 200)}`);
   }
 

@@ -36,6 +36,10 @@ import type { EstadoLab } from '@/src/services/edad-atp/labs-premium-core';
 import type { FichaBiomarcador, RelacionadoFicha } from '@/src/services/salud/ficha-biomarcador-core';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
+import { CandadoBloque } from '@/src/components/ui/CandadoBloque';
+import { useSubscription } from '@/src/hooks/useSubscription';
+import { puedeVerFicha } from '@/src/services/subscription/limites-free-core';
+import { cargarMarcadoresAbiertosFree } from '@/src/services/subscription/limites-free-service';
 
 const COLOR_CICLO = '#D4537E';
 
@@ -55,14 +59,32 @@ function FichaBiomarcadorScreen() {
   const [data, setData] = useState<FichaCargada | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // ATP 3.0 (5-sep-2026, ruta 1.11): Free ve con ficha sus tres marcadores de
+  // mayor impacto (matriz V7); el cuarto es candado a pantalla completa que
+  // lleva al paywall con contexto. Pro y Elite ven todos.
+  const { tier, isLoading: nivelCargando, nivelNoSePudoLeer } = useSubscription();
+  const [bloqueado, setBloqueado] = useState(false);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id || !key) { setLoading(false); return; }
+    // Mientras el nivel carga no se decide nada: el efecto vuelve a correr al
+    // resolverse y `loading` sigue en true (sin abrir y cerrar la ficha).
+    if (nivelCargando) return;
     let alive = true;
     (async () => {
       setLoading(true);
       setError(false);
+      setBloqueado(false);
       try {
+        // Solo con free CONFIRMADO se consulta el límite; si el nivel no se
+        // pudo leer o el cálculo falla (null), se abre (fail-open, regla 1).
+        if (tier === 'free' && !nivelNoSePudoLeer) {
+          const abiertos = await cargarMarcadoresAbiertosFree(user.id);
+          if (!puedeVerFicha(tier, key, abiertos)) {
+            if (alive) setBloqueado(true);
+            return;
+          }
+        }
         const d = await cargarFicha(user.id, key);
         if (alive) setData(d);
       } catch {
@@ -74,7 +96,7 @@ function FichaBiomarcadorScreen() {
       }
     })();
     return () => { alive = false; };
-  }, [user?.id, key]));
+  }, [user?.id, key, tier, nivelCargando, nivelNoSePudoLeer]));
 
   const f = data?.ficha ?? null;
 
@@ -93,6 +115,13 @@ function FichaBiomarcadorScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {loading ? (
           <EliteText variant="caption" style={styles.empty}>Cargando tu marcador…</EliteText>
+        ) : bloqueado ? (
+          <CandadoBloque
+            titulo="Este marcador está en Pro"
+            texto="En Free ves con ficha tus tres marcadores de mayor impacto. Con Pro los ves todos, con su historia y con qué se leen."
+            boton="Ver Pro"
+            destino={{ pathname: '/paywall', params: { contexto: 'cuarto_marcador' } }}
+          />
         ) : error ? (
           <View style={styles.avisoBox}>
             <EliteText variant="body" style={styles.avisoTitulo}>No pudimos cargar este marcador</EliteText>

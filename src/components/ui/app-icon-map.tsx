@@ -123,6 +123,9 @@ export const ICON_MAP: Record<AppIconName, AppIconGlyph> = {
   cuestionario: svg('cuestionario'),
   evaluaciones: svg('evaluaciones'),
   padecimientos: svg('padecimientos'),
+
+  // ── Salud (apps de ATP 3.0) ──
+  genetica: svg('genetica'),
 };
 
 /** El dibujo cuando un nombre no está en el mapa. Visible, para que se note. */

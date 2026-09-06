@@ -103,7 +103,7 @@ Lo que NO valida (a propósito): coherencia clínica (si `att` es correcto para 
 Cada evaluación y cada revisión (6 o 12 meses, brochure) es **una fila nueva de `functional_dx`**, nunca un UPDATE:
 
 - `sources_snapshot = { elite_v3: <objeto validado> }` (más lo que el RPC quiera anotar: fecha de carga, quién cargó).
-- `version` = la anterior + 1 (lo calcula `create_dx_version`, migración 195, con advisory lock; `elite_v3.version` debe coincidir y se pasa en el payload para que el RPC lo compruebe).
+- `elite_v3.version` = evaluaciones Elite previas del usuario + 1 (la primera es 1). Es independiente de `functional_dx.version`: esa la calcula el RPC `elite_cargar_evaluacion` (migración 318, mismo advisory lock que `create_dx_version`) como MAX + 1 sobre todas las filas del usuario, incluidas las del mapa funcional de ARGOS. El RPC compara `elite_v3.version` contra el conteo de filas `elite_v3` previas y rechaza con `version_mismatch` (y `version_esperada`) si no coincide: un curl repetido no duplica. (Corregido el 6 de septiembre de 2026, 4EP.)
 - `generated_by = 'manual'`, `model = 'enrique'`, `quality_level = nivelCalidadEliteV3(e)` (5 con genética, 4 sin), `is_current = true` (la anterior baja a `false` en la misma transacción).
 - `summary_text` = `resumenParaArgos(e)` (así ARGOS y la Card A leen lo mismo sin recalcular).
 - Una corrección es una versión nueva. La Entrega 1 (sin genética, `quality_level` 4) y la Entrega 2 de la semana 8 (con genética, `quality_level` 5) del brochure son dos versiones. "Evolución" es navegar entre versiones (ruta 3.10).

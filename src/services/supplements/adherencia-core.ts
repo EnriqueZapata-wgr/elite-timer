@@ -61,6 +61,28 @@ export function esPlan(row: { is_plan?: boolean | null } | null | undefined): bo
   return row?.is_plan !== false;
 }
 
+// ═══ Plan Elite (ATP 3.0, ruta 3.5) ═════════════════════════════════════════
+
+/**
+ * Fila cargada por el equipo ATP (`source='coach'`, la escribe el RPC
+ * elite_cargar_evaluacion o el panel de coach). Lleva la etiqueta
+ * "Asignado por Enrique" y pide confirmación antes de borrarse.
+ */
+export function esDelCoach(row: { source?: string | null } | null | undefined): boolean {
+  return row?.source === 'coach';
+}
+
+/**
+ * ¿El plan Elite queda en solo lectura? Solo cuando se SABE que el usuario ya
+ * no es miembro. Regla 1 de la casa: si el nivel no se pudo leer o todavía
+ * carga, se trata como miembro y no se le cierra nada. El registro de tomas
+ * nunca se bloquea: la evaluación y su plan se conservan (dato sagrado).
+ */
+export function planEliteSoloLectura(nivel: { esMiembro: boolean; nivelNoSePudoLeer: boolean; cargando: boolean }): boolean {
+  if (nivel.cargando || nivel.nivelNoSePudoLeer) return false;
+  return !nivel.esMiembro;
+}
+
 // ═══ Números y unidades ═════════════════════════════════════════════════════
 
 /** Número finito o null. Acepta string numérico (NUMERIC de Postgres llega como string). */

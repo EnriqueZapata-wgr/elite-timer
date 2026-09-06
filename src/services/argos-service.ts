@@ -6,6 +6,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic, callAnthropicStream, extractResponseText } from './anthropic-client';
 import { ArgosStreamUnavailableError } from './argos-stream-core';
+import { FreeChatLimitError } from './argos-errores';
 import { buildDemandingCoachInjection, DEMANDING_COACH_USER_HINT } from './routine-coach-logic';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { EMOTIONS } from '@/src/data/emotions-library';
@@ -14,7 +15,7 @@ import { getHydrationStats } from './hydration-service';
 import { getCycleInfo } from './cycle-service';
 import { VoiceModulator, runCoachEngineGate, buildCoachGateInjection, EvidenceTag, type CoachGateResult } from '@/src/lib/coach-engine';
 import { error as logError, warn as logWarn } from '@/src/lib/logger';
-import { ARGOS_LEE_LABS_DE_VERDAD, ARGOS_SUFIJO_DE_EVIDENCIA } from '@/src/constants/flags';
+import { ARGOS_LEE_EVALUACION_ELITE, ARGOS_LEE_LABS_DE_VERDAD, ARGOS_SUFIJO_DE_EVIDENCIA } from '@/src/constants/flags';
 import { resolveRange } from './reports/report-domain-core';
 import { loadLabsReport } from './reports/labs-report-service';
 import { construirHistorias, resumirLabs } from './reports/labs-report-core';
@@ -33,6 +34,9 @@ import {
   type PersonalRecord, type UserContext,
 } from './argos-context-core';
 import { computeStreak } from './adherence-service';
+// ATP 3.0 (ruta 3.6): la evaluación Elite en el contexto del chat.
+import { cargarBloqueElite } from './argos-elite-contexto-service';
+import { traeBloqueElite } from './argos-elite-contexto-core';
 import { contarHabitosHoy } from './argos-habitos-hoy-core';
 import type { HabitEstadoRow } from './hoy/habit-states-core';
 
@@ -1246,6 +1250,19 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
   }
 
   try {
+    // ATP 3.0 (ruta 3.6): la evaluación Elite, si existe, entra al contexto
+    // por EXISTENCIA (no por nivel vigente: se queda aunque Pro venza). Va
+    // cacheada por sesión en el servicio; un usuario sin evaluación no es un
+    // vacío que reportar, es lo normal.
+    if (ARGOS_LEE_EVALUACION_ELITE) {
+      const bloque = await cargarBloqueElite(userId);
+      if (bloque) context.evaluacionElite = { bloque };
+    }
+  } catch (e) {
+    registrarBloqueDeContexto('evaluacion-elite', 'error', e);
+  }
+
+  try {
     // Suplementos: activos + tomados hoy
     const [suppRes, logRes] = await Promise.all([
       supabase.from('user_supplements').select('id, name').eq('user_id', userId).eq('is_active', true),
@@ -1571,6 +1588,9 @@ async function prepareChatTurn(
   }
 
   const context = await loadUserContext(userId);
+  // ATP 3.0 (ruta 3.6): si la pantalla ya mandó el bloque Elite en
+  // `extraContext` (mismo encabezado), no se repite en el contexto.
+  if (traeBloqueElite(options?.extraContext)) delete context.evaluacionElite;
   const contextPrompt = buildContextPrompt(context);
   const cycleGuard = buildCycleGuard(context.gender);
   const protocolGuard = buildProtocolGuard(context.activeProtocol);
@@ -1646,10 +1666,13 @@ export async function chatWithArgosEx(
       { ...meta, dynamicSystem },
     );
   } catch (e: any) {
+    // ATP 3.0 (5-sep-2026, ruta 1.11): el límite diario de Free vuelve a tener
+    // pantalla propia (burbuja con el mensaje del proxy y botón a Pro), así que
+    // es la única excepción que se deja pasar. Todo lo demás se degrada aquí.
+    if (e instanceof FreeChatLimitError) throw e;
     // La decisión vive en argos-chat-core (pura, con tests).
     // PREMIUM (16-ago-2026): antes había que dejar PASAR dos excepciones (402
-    // de saldo y rate limit) porque tenían pantalla propia. Ya no existen, así
-    // que todo error se degrada aquí mismo y nada se re-lanza.
+    // de saldo y rate limit) porque tenían pantalla propia.
     const outcome = chatFailureOutcome(e);
     if (e?.message !== 'ARGOS_TIMEOUT') console.warn('ARGOS chat error:', e);
     return outcome;

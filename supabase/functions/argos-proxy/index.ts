@@ -524,6 +524,8 @@ async function callGeminiProvider(args: {
 // PREMIUM (16-ago-2026): aquí vivía TIER_DAILY_LIMITS (free 5, base 25, pro
 // 150, clinician 100). Se fue completo. Con una sola membresía no hay tope
 // diario que corte el acceso a nadie: quien pagó pregunta lo que quiera.
+// ATP 3.0 (5-sep-2026): el único tope por conteo que volvió es el de CHAT de
+// free (FREE_CHAT_POR_DIA, más abajo), y no toca a ningún miembro.
 //
 // El razonamiento, para que no vuelva por la puerta de atrás: el activo más
 // valioso de ATP es la IA. Racionarla hace que se use menos, y quien la usa
@@ -724,17 +726,33 @@ function quotaWeightFor(requestType?: string): number {
   return Math.min(Math.max(w, 0), 1);
 }
 
-// PREMIUM: la membresía ya NO abre ni cierra funciones, así que esto dejó de
-// ser un portero. Se conserva porque `argos_logs.tier` alimenta la telemetría
-// de costo por tipo de usuario, que sigue siendo cómo se decide el ruteo de
-// modelos. Se fue la consulta a pro_boosts: los boosts ya no existen.
+// PREMIUM: la membresía dejó de abrir y cerrar funciones para quien pagó.
+// `argos_logs.tier` alimenta la telemetría de costo por tipo de usuario, que
+// sigue siendo cómo se decide el ruteo de modelos. Se fue la consulta a
+// pro_boosts: los boosts ya no existen.
 // Cache 30s in-memory sencillo — evita golpear DB en cada request.
-const tierCache = new Map<string, { effectiveTier: string; expiresAt: number }>();
+// ATP 3.0 (5-sep-2026): vuelve a decidir, pero SOLO para free. Tres estados:
+// free (tope de chat y modelo barato en automáticas), premium (todo lo de la
+// membresía) y elite (todo lo de premium; el peldaño existe para que el árbitro
+// y la telemetría sepan que además tiene Pro). Elite es suma, nunca recorte:
+// aquí no hay ninguna comparación `=== "premium"`; lo que aplica a miembros se
+// pregunta con `!== "free"`.
+type TierEfectivo = "free" | "premium" | "elite";
+
+const tierCache = new Map<string, { effectiveTier: TierEfectivo; expiresAt: number }>();
 
 /** Valores de profiles.tier que significan "pagó" (espejo de tier-logic.ts). */
-const VALORES_PAGADOS = new Set(["base", "pro", "clinician", "premium", "founder"]);
+const VALORES_PAGADOS = new Set(["base", "pro", "clinician", "premium", "founder", "elite"]);
 
-async function detectEffectiveTier(supabase: any, userId: string): Promise<string> {
+/** Etiqueta cruda + vencimiento → tier de tres estados. */
+function normalizarTier(crudo: unknown, venceEn: string | null): TierEfectivo {
+  const valor = String(crudo ?? "free").toLowerCase();
+  const vencido = venceEn !== null && new Date(venceEn).getTime() <= Date.now();
+  if (vencido || !VALORES_PAGADOS.has(valor)) return "free";
+  return valor === "elite" ? "elite" : "premium";
+}
+
+async function detectEffectiveTier(supabase: any, userId: string): Promise<TierEfectivo> {
   const cached = tierCache.get(userId);
   if (cached && cached.expiresAt > Date.now()) return cached.effectiveTier;
 
@@ -756,8 +774,7 @@ async function detectEffectiveTier(supabase: any, userId: string): Promise<strin
       crudo = profile?.tier ?? "free";
       venceEn = profile?.tier_expires_at ?? null;
     }
-    const vencido = venceEn && new Date(venceEn).getTime() <= Date.now();
-    const tier = !vencido && VALORES_PAGADOS.has(String(crudo).toLowerCase()) ? "premium" : "free";
+    const tier = normalizarTier(crudo, venceEn);
 
     tierCache.set(userId, { effectiveTier: tier, expiresAt: Date.now() + 30000 });
     return tier;
@@ -767,8 +784,66 @@ async function detectEffectiveTier(supabase: any, userId: string): Promise<strin
     // era el más restringido; hoy la etiqueta no restringe nada, así que en
     // duda se registra como miembro y jamás se le niega nada a quien pagó por
     // culpa de un error nuestro de lectura.
+    // ATP 3.0: sigue siendo "premium" y no "elite" a propósito: abrir basta;
+    // regalar el peldaño más alto por un error de lectura ensuciaría la
+    // telemetría sin darle nada más al usuario.
     return "premium";
   }
+}
+
+// ─── ATP 3.0 · TOPE DE CHAT DE FREE (pivote 3.2, ruta 1.8) ───────────────
+/**
+ * 3 mensajes de chat al día para free, contados en el servidor por user_id y
+ * día UTC. Es la decisión 0.1 del pivote (aprobada el 4-sep-2026): el gancho
+ * de Free es probar a ARGOS, no vivir de él; el cuarto mensaje lleva al
+ * paywall con contexto `cuarto_chat` (momento de conversión, pivote 3.3).
+ *
+ * Solo cuenta `request_type === 'chat'`. `argos_daily_usage.message_count` no
+ * sirve porque cuenta TODAS las llamadas (460 electron_award y 152 insight
+ * contra 12 chats en 30 días); por eso existe `chat_count` y el RPC
+ * `consume_argos_chat` (mig 316), con la misma forma que consume_argos_usage:
+ * { blocked, count } y sin incrementar cuando bloquea.
+ *
+ * Es un tope SOLO para free. Miembros (premium, elite): sin tope de llamadas;
+ * sus techos siguen siendo los de dinero (aviso 150 MXN, corte antifraude 500).
+ */
+const FREE_CHAT_POR_DIA = 3;
+
+/**
+ * Compuerta del tope de chat de free. Fail-open en todas las ramas de error:
+ * si la 316 todavía no está en el remoto o el RPC truena, el mensaje se sirve.
+ * Cortarle el chat a alguien por un hiccup nuestro sería el modo de falla que
+ * este proxy lleva tres pivotes evitando.
+ */
+async function consumirChatFree(supabase: any, userId: string): Promise<{ blocked: boolean; count: number }> {
+  try {
+    const { data, error } = await supabase.rpc("consume_argos_chat", {
+      p_user_id: userId, p_limit: FREE_CHAT_POR_DIA,
+    });
+    if (error || !data || typeof data !== "object") {
+      console.error("[free_chat] consume_argos_chat no disponible, se sirve la petición:", error);
+      return { blocked: false, count: 0 };
+    }
+    return { blocked: data.blocked === true, count: Number(data.count ?? 0) };
+  } catch (e) {
+    console.error("[free_chat] consume_argos_chat exception, se sirve la petición:", e);
+    return { blocked: false, count: 0 };
+  }
+}
+
+/**
+ * Llamadas AUTOMÁTICAS (las dispara la app, no la persona) que en free van al
+ * modelo barato. El costo real del gratis está aquí, no en el chat (pivote
+ * 3.1). `electron_award` hoy no pasa por este proxy (award-electrons es
+ * interna, sin modelo); queda en la lista para que si algún día llama al
+ * modelo, entre por la puerta barata. Miembros: sin cambio, siguen su ruta.
+ * Reversible sin redeploy: FREE_AUTO_GEMINI=false en las env vars.
+ */
+const AUTOMATICAS_FREE_A_GEMINI = new Set(["electron_award", "insight", "weekly_insight", "daily_summary"]);
+function rutaParaFree(route: ModelRoute, tier: TierEfectivo, requestType?: string): ModelRoute {
+  if (tier !== "free" || !requestType || !AUTOMATICAS_FREE_A_GEMINI.has(requestType)) return route;
+  if (Deno.env.get("FREE_AUTO_GEMINI") === "false") return route;
+  return ROUTE_GEMINI;
 }
 
 async function checkAndIncrementUsage(supabase: any, userId: string | undefined, requestType?: string): Promise<{
@@ -1018,14 +1093,34 @@ serve(async (req) => {
     // ─── Ruteo de modelo (IMPL-01) ───────────────────────────────
     // Se resuelve DESPUÉS del hardening de dx_generation_first, porque ese
     // bloque puede reescribir el requestType y la ruta debe seguir al tipo real.
-    const route = resolveRoute(requestType, model);
+    // Detectar tier real server-side (task #40 + task #133 boost H+).
+    // El clientTier es informativo — el server es la fuente de verdad.
+    // ATP 3.0: se resuelve ANTES de la ruta porque la ruta de free depende
+    // del tier (automáticas al modelo barato). Sin userId no hay a quién
+    // contarle nada: se normaliza lo que dijo el cliente solo para el log.
+    const effectiveTier: TierEfectivo = userId
+      ? await detectEffectiveTier(supabase, userId)
+      : normalizarTier(clientTier, null);
+
+    const route = rutaParaFree(resolveRoute(requestType, model), effectiveTier, requestType);
     // Todo el camino Anthropic de abajo sigue usando finalModel sin cambios.
     // Si la ruta es Google, Anthropic queda como su respaldo cruzado.
     const finalModel = route.provider === "anthropic" ? route.model : PRIMARY_MODEL_DEFAULT;
 
-    // Detectar tier real server-side (task #40 + task #133 boost H+).
-    // El clientTier es informativo — el server es la fuente de verdad.
-    const effectiveTier = userId ? await detectEffectiveTier(supabase, userId) : (clientTier ?? "free");
+    // ─── ATP 3.0: tope de chat de free (ruta 1.8) ─────────────────────
+    // Va ANTES del conteo diario y de la compuerta de gasto: un chat negado no
+    // se sirve, no se cobra y no suma en message_count. Solo free, solo chat.
+    if (effectiveTier === "free" && requestType === "chat" && userId) {
+      const chatFree = await consumirChatFree(supabase, userId);
+      if (chatFree.blocked) {
+        console.warn(`[free_chat] tope diario alcanzado user=${userId} count=${chatFree.count} limite=${FREE_CHAT_POR_DIA}`);
+        return new Response(JSON.stringify({
+          error: "free_chat_limit",
+          message: "Hoy ya usaste tus 3 mensajes con ARGOS. Con Pro platicas sin límite.",
+          contexto: "cuarto_chat",
+        }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
 
     // PREMIUM (16-ago-2026): aquí estaba el gate ECO-8, que reservaba el insight
     // diario a Pro y Clínico. Se fue. Reservar la IA para el plan caro es

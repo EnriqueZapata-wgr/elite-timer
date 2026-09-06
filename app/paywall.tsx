@@ -7,10 +7,13 @@
  * periodo, que sí es una decisión real del usuario.
  *
  * EL PRECIO NUNCA SE ESCRIBE AQUÍ. Sale siempre del producto real de
- * RevenueCat (3.1.2: el precio anunciado es el que se cobra). La referencia
- * comercial son $890 MXN al mes, pero esa cifra vive en la tienda, no en el
- * bundle: si alguien la cambia allá y aquí hubiera una constante, la app
- * mentiría. Por eso sin catálogo esta pantalla no inventa un número, avisa.
+ * RevenueCat (3.1.2: el precio anunciado es el que se cobra). La cifra vive en
+ * la tienda, no en el bundle: si alguien la cambia allá y aquí hubiera una
+ * constante, la app mentiría. Por eso sin catálogo esta pantalla no inventa
+ * un número, avisa. ATP 3.0 (5-sep-2026, ruta 2.6): lee `contexto` por
+ * parámetro, pinta una línea por momento de conversión, la ventana de
+ * lanzamiento sale de `src/constants/lanzamiento.ts` (solo la fecha, nunca el
+ * precio) y el código de activación ya no vive aquí.
  *
  * BLOQ-1 (16-ago) sigue vigente y es lo que sostiene esto: el fallo de
  * offerings dejó de ser terminal (el CTA se convierte en reintento y se ve
@@ -20,7 +23,7 @@
  */
 import { useMemo, useState } from 'react';
 import { Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +34,10 @@ import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EliteText } from '@/components/elite-text';
 import { useSubscription } from '@/src/hooks/useSubscription';
+import { esMiembro } from '@/src/services/subscription/tier-logic';
+import { esContextoPaywall, type ContextoPaywall } from '@/src/constants/rutas-3-0';
+import { APP_REGISTRY } from '@/src/constants/app-registry';
+import { VENTANA_LANZAMIENTO, copyLanzamiento } from '@/src/constants/lanzamiento';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { ATP_BRAND, GLOW, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
@@ -49,13 +56,37 @@ type Period = 'monthly' | 'yearly';
  * mismo día. Prometer lo que el servidor no cumple es como empezó el problema.
  */
 const INCLUYE: string[] = [
-  'Todo ATP completo: HOY, Fitness, Nutrición, Mente, Salud, Ciclo y Tests',
-  'ARGOS sin límites, tu IA de rendimiento, todos los días',
-  'Análisis de comida por foto y por texto',
-  'Tu mapa funcional, tu plan de cada día y la lectura de tus análisis',
-  'Reportes profundos, sin costo extra por cada uno',
-  'La comunidad: no compras una app, entras a la tribu',
+  'Todo el launcher: Diario, Cuerpo, Mente y Salud completos',
+  'ARGOS sin límite y con voz, todos los días',
+  'Estudios ilimitados y comparación en el tiempo',
+  'Todos tus marcadores con ficha, no solo tres',
+  'Mente completo: meditar, sueño, emociones y audios',
+  'Mapa funcional ATP incluido en el plan anual',
 ];
+
+/**
+ * ATP 3.0 (5-sep-2026, ruta 2.6): la línea de arriba según desde dónde llegó
+ * la persona (pivote 3.3). Sin contexto conocido no se pinta nada: el deep
+ * link no manda basura a la pantalla.
+ */
+const LINEA_POR_CONTEXTO: Record<string, string> = {
+  segundo_estudio: 'Subir más estudios y compararlos en el tiempo está en Pro.',
+  cuarto_marcador: 'Todos tus marcadores con ficha están en Pro.',
+  cuarto_chat: 'Con Pro platicas con ARGOS sin límite.',
+  dia7: 'Una semana con ATP. Esto es lo que abre Pro.',
+};
+
+/** Candados de app: el nombre sale del registro; el mapa funcional es del anual. */
+function lineaDeContexto(contexto: ContextoPaywall): string {
+  const fija = LINEA_POR_CONTEXTO[contexto];
+  if (fija) return fija;
+  const key = contexto.slice('candado:'.length);
+  if (key === 'mapa-funcional') return 'Mapa funcional ATP está incluido en el plan anual.';
+  // Ruta 2.5 (B4): comparar estudios no es una app del registro; tiene su llave propia.
+  if (key === 'comparar') return 'Comparar tus estudios en el tiempo está en Pro.';
+  const app = APP_REGISTRY.find((a) => a.key === key);
+  return app ? `${app.label} está en Pro.` : 'Esta función está en Pro.';
+}
 
 const LEGAL_LINKS = [
   { label: 'Privacidad', url: 'https://somosatp.com/privacidad' },
@@ -68,6 +99,12 @@ export default function PaywallScreen() {
   const { kind, tokens: t } = useAppTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
   const { offerings, offeringsError, isLoading, refresh, purchase, restore, sdkReady, tier } = useSubscription();
+  // Ruta 2.6: el contexto llega por parámetro (`/paywall?contexto=...`).
+  const params = useLocalSearchParams<{ contexto?: string | string[] }>();
+  const contextoCrudo = Array.isArray(params.contexto) ? params.contexto[0] : params.contexto;
+  const contexto = esContextoPaywall(contextoCrudo) ? contextoCrudo : null;
+  const lineaContexto = contexto ? lineaDeContexto(contexto) : null;
+  const lineaLanzamiento = copyLanzamiento(VENTANA_LANZAMIENTO);
   const [reintentando, setReintentando] = useState(false);
   const analytics = useAnalytics();
   const [period, setPeriod] = useState<Period>('yearly');
@@ -194,7 +231,7 @@ export default function PaywallScreen() {
         entering={FadeInDown.delay(140).springify()}
         style={[styles.planCard, styles.planCardPro]}
       >
-        <EliteText style={styles.planName}>ATP Premium</EliteText>
+        <EliteText style={styles.planName}>Membresía Pro</EliteText>
         {/* Regla 1 del manual: el lima nunca es letra en claro — teal calibrado. */}
         <EliteText style={[styles.planPrice, { color: kind === 'dark' ? ATP_BRAND.lime : t.tealTexto }]}>
           {priceLabel}
@@ -236,12 +273,18 @@ export default function PaywallScreen() {
       <ScreenHeader title="Membresía" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(40).springify()}>
-          <EliteText style={styles.heroTitle}>Una sola membresía</EliteText>
+          {lineaContexto && (
+            <EliteText style={styles.contextoLinea}>{lineaContexto}</EliteText>
+          )}
+          <EliteText style={styles.heroTitle}>ATP Pro</EliteText>
           <EliteText style={styles.heroSubtitle}>
-            Todo abierto desde el primer día: sin niveles, sin límites de uso y
-            sin pagar por función. Un solo sistema para tu rendimiento, y la
-            comunidad que lo sostiene.
+            Entiende tus laboratorios y qué hacer con ellos, todos los días.
+            Una membresía, todo abierto, y la comunidad que lo sostiene.
           </EliteText>
+          {lineaLanzamiento && (
+            <EliteText style={styles.lanzamiento}>{lineaLanzamiento}</EliteText>
+          )}
+          <EliteText style={styles.garantia}>Garantía de 7 días.</EliteText>
         </Animated.View>
 
         {/* Toggle mensual / anual */}
@@ -283,7 +326,7 @@ export default function PaywallScreen() {
             Las compras se habilitan con la próxima actualización de la app.
           </EliteText>
         )}
-        {tier === 'premium' && (
+        {esMiembro(tier) && (
           <EliteText style={styles.sdkNote}>
             Tu membresía ya está activa. Puedes gestionarla en Ajustes, Membresía.
           </EliteText>
@@ -295,16 +338,10 @@ export default function PaywallScreen() {
           </EliteText>
         </AnimatedPressable>
 
-        {/* MB-13: quien pagó en la web o recibió invitación activa aquí su membresía */}
-        <AnimatedPressable
-          onPress={() => { haptic.light(); router.push('/redeem-code'); }}
-          disabled={busy !== null}
-          style={styles.restoreBtn}
-        >
-          <EliteText style={styles.restoreText}>
-            Tengo un código. Si compraste en la web o te invitaron, aquí lo activas.
-          </EliteText>
-        </AnimatedPressable>
+        {/* ATP 3.0 (ruta 2.6): el enlace al código de activación salió de aquí.
+            Apple 3.1.1 prohíbe desbloquear con llaves propias como vía de
+            compra; el código vive solo en Ajustes, Membresía, como servicio
+            contratado. */}
 
         {/* E-2 (MB-12): disclosure obligatoria de suscripción auto-renovable */}
         <EliteText style={styles.sdkNote}>
@@ -345,6 +382,28 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     color: t.textoSecundario,
     marginTop: Spacing.xs,
     lineHeight: 20,
+  },
+  // Ruta 2.6: la línea del contexto va arriba del título, en la tinta de
+  // acento calibrada (lima solo en oscuro; teal en claro, regla 1 del manual).
+  contextoLinea: {
+    fontFamily: Fonts.semiBold,
+    fontSize: FontSizes.sm,
+    color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto,
+    marginBottom: Spacing.xs,
+    lineHeight: 18,
+  },
+  lanzamiento: {
+    fontFamily: Fonts.semiBold,
+    fontSize: FontSizes.sm,
+    color: t.texto,
+    marginTop: Spacing.sm,
+    lineHeight: 18,
+  },
+  garantia: {
+    fontFamily: Fonts.regular,
+    fontSize: FontSizes.sm,
+    color: t.textoSecundario,
+    marginTop: Spacing.xs,
   },
   toggleRow: {
     flexDirection: 'row',
@@ -437,6 +496,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     gap: Spacing.sm,
   },
   legalItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  legalDot: { color: t.sinDatos },
+  // Regla 5: sinDatos nunca es tinta; el separador usa textoTenue.
+  legalDot: { color: t.textoTenue },
   legalText: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoTenue },
 });

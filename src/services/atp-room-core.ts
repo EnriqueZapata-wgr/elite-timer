@@ -9,7 +9,7 @@
  * infiere ni se manda a ningún lado. Aquí solo se ordena.
  */
 import type { AppEntry, AppSection } from '@/src/constants/app-registry';
-import { SECTION_ORDER, SECTION_LABELS } from '@/src/constants/app-registry';
+import { APP_BY_KEY, SECTION_ORDER, SECTION_LABELS } from '@/src/constants/app-registry';
 
 export type AtpOrder = 'categoria' | 'frecuencia' | 'mio';
 
@@ -227,4 +227,46 @@ export function pickEditorial(
 export function pickVariantIndex(nowMs: number, variants = 4): number {
   const dia = Math.floor(nowMs / (24 * 60 * 60 * 1000));
   return ((dia % variants) + variants) % variants;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Las cuatro de arriba (ATP 3.0, 6-sep-2026, ruta 2.3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Pivote 1.6 (b): las cuatro tarjetas de arriba del launcher son
+ * Laboratorios, Edad ATP, ARGOS y Hábitos de hoy. ARGOS es la orbe del tab
+ * central (no es app del registro ni tiene glifo), así que la cuarta es
+ * Protocolos, la siguiente de la matriz de Salud; Hábitos de hoy es la
+ * pantalla /hoy-habitos, que tampoco está en el registro y entra aquí como
+ * entrada propia. Se pintan como fila fija encima de la cuadrícula en los
+ * órdenes Categoría y Frecuencia; en "Mío" manda el orden que la persona
+ * guardó en /atp-orden y esta fila no se muestra.
+ */
+export const DESTACADAS_3_0: readonly string[] = ['labs', 'edad-atp', 'hoy-habitos', 'protocolos'] as const;
+
+const HABITOS_DE_HOY: AppEntry = {
+  key: 'hoy-habitos',
+  label: 'Hábitos de hoy',
+  icon: 'tab-hoy',
+  section: 'diario',
+  route: '/hoy-habitos',
+  installable: false,
+  alias: ['hábitos', 'electrones', 'mis hábitos'],
+};
+
+/**
+ * Las cuatro entradas, en orden. Las del registro salen de `apps` (la lista
+ * visible, con `bloqueada` ya resuelta por nivel) para que el candado se
+ * pinte igual que en la cuadrícula; si `apps` no la trae (perfil sin leer),
+ * se cae al registro. Nunca devuelve más de cuatro ni repite llaves.
+ */
+export function destacadasLauncher(apps: ReadonlyArray<AppEntry>): AppEntry[] {
+  const porKey = new Map(apps.map((a) => [a.key, a]));
+  const out: AppEntry[] = [];
+  for (const key of DESTACADAS_3_0) {
+    const app = key === 'hoy-habitos' ? HABITOS_DE_HOY : (porKey.get(key) ?? APP_BY_KEY[key]);
+    if (app && !out.some((o) => o.key === app.key)) out.push(app);
+  }
+  return out;
 }

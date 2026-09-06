@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import {
   bumpUsage, sortByFrequency, applyCustomOrder, reconcileOrder, moveInOrder, pinToTop,
   groupBySection, orderedApps, momentOfDay, pickEditorial, pickVariantIndex,
-  ATP_ORDERS, ORDER_LABELS, COMEBACK_DAYS,
+  ATP_ORDERS, ORDER_LABELS, COMEBACK_DAYS, destacadasLauncher, DESTACADAS_3_0,
   type AppUsage,
 } from '../atp-room-core';
 import { APP_REGISTRY, SECTION_ORDER, visibleApps } from '@/src/constants/app-registry';
@@ -244,5 +244,28 @@ describe('cobertura del registro', () => {
       const p = pickEditorial(apps, {}, AHORA, h);
       expect(keys.has(p!.appKey), `hora ${h} apunta a ${p!.appKey}`).toBe(true);
     }
+  });
+});
+
+// ATP 3.0 (6-sep-2026, ruta 2.3): las cuatro de arriba del launcher.
+describe('destacadasLauncher', () => {
+  it('son Labs, Edad ATP, Hábitos de hoy y Protocolos, en ese orden y sin repetir', () => {
+    const d = destacadasLauncher(visibleApps(true, 'free'));
+    expect(d.map((a) => a.key)).toEqual([...DESTACADAS_3_0]);
+    expect(d.map((a) => a.key)).toEqual(['labs', 'edad-atp', 'hoy-habitos', 'protocolos']);
+    expect(d[2].route).toBe('/hoy-habitos');
+  });
+  it('toma la entrada de la lista visible (con candado resuelto) y cae al registro si falta', () => {
+    const visibles = visibleApps(true, 'free');
+    const d = destacadasLauncher(visibles);
+    const protocolos = d.find((a) => a.key === 'protocolos') as { bloqueada?: boolean };
+    expect(protocolos.bloqueada).toBe(true);
+    const sinLabs = destacadasLauncher(visibles.filter((a) => a.key !== 'labs'));
+    expect(sinLabs.map((a) => a.key)).toEqual(['labs', 'edad-atp', 'hoy-habitos', 'protocolos']);
+  });
+  it('a un miembro no le pinta candado', () => {
+    const d = destacadasLauncher(visibleApps(true, 'premium'));
+    const protocolos = d.find((a) => a.key === 'protocolos') as { bloqueada?: boolean };
+    expect(protocolos.bloqueada).toBe(false);
   });
 });

@@ -3,7 +3,7 @@
  * Usa Pressable nativo + reanimated para el scale (sin GestureDetector).
  */
 import { type ReactNode } from 'react';
-import { Pressable, type ViewStyle, type StyleProp } from 'react-native';
+import { Pressable, type AccessibilityRole, type AccessibilityState, type ViewStyle, type StyleProp } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -25,6 +25,11 @@ interface Props {
   scaleDown?: number;
   children: ReactNode;
   hitSlop?: number;
+  // ATP 3.0 (6-sep-2026, 4EP B3): accesibilidad reenviada al Pressable. Las
+  // palomas de HOY y los candados las declaran; sin esto no compilaban.
+  accessibilityRole?: AccessibilityRole;
+  accessibilityLabel?: string;
+  accessibilityState?: AccessibilityState;
 }
 
 export function AnimatedPressable({
@@ -37,6 +42,9 @@ export function AnimatedPressable({
   scaleDown = 0.97,
   children,
   hitSlop,
+  accessibilityRole,
+  accessibilityLabel,
+  accessibilityState,
 }: Props) {
   const scale = useSharedValue(1);
 
@@ -51,6 +59,9 @@ export function AnimatedPressable({
       delayLongPress={delayLongPress}
       disabled={disabled}
       hitSlop={hitSlop}
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={accessibilityState}
       onPressIn={() => {
         scale.value = withSpring(scaleDown, { damping: 15, stiffness: 400 });
         onPressIn?.();

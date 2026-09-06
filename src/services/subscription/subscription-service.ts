@@ -10,6 +10,7 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import { esMiembro, tierFromProfile, type Tier } from './tier-logic';
+import { diasEntre } from './limites-free-core';
 
 /**
  * Lectura de nivel con su honestidad (regla 7, 4EP 5-sep-2026): `noSePudoLeer`
@@ -116,6 +117,10 @@ export async function fetchTieneEvaluacionElite(userId: string): Promise<Evaluac
 export interface OrigenMembresiaLectura {
   productId: string | null;
   codeSource: string | null;
+  /** `metadata->>'plan'` del grant ('anual' | 'mensual'); lo escribe el webhook. */
+  plan: 'anual' | 'mensual' | null;
+  /** Días que cubre el grant (expires_at menos starts_at); null si no vence o falta. */
+  diasGrant: number | null;
   noSePudoLeer: boolean;
 }
 
@@ -124,22 +129,25 @@ export async function fetchOrigenMembresia(userId: string): Promise<OrigenMembre
     const ahora = new Date().toISOString();
     const { data, error } = await supabase
       .from('tier_grants')
-      .select('metadata, expires_at')
+      .select('metadata, starts_at, expires_at')
       .eq('user_id', userId)
       .is('revoked_at', null)
       .or(`expires_at.is.null,expires_at.gt.${ahora}`)
       .order('created_at', { ascending: false })
       .limit(1);
-    if (error) return { productId: null, codeSource: null, noSePudoLeer: true };
+    if (error) return { productId: null, codeSource: null, plan: null, diasGrant: null, noSePudoLeer: true };
     const fila = Array.isArray(data) && data.length > 0 ? data[0] : null;
     const meta = (fila?.metadata ?? {}) as Record<string, unknown>;
+    const plan = meta.plan === 'anual' || meta.plan === 'mensual' ? meta.plan : null;
     return {
       productId: typeof meta.product_id === 'string' ? meta.product_id : null,
       codeSource: typeof meta.code_source === 'string' ? meta.code_source : null,
+      plan,
+      diasGrant: diasEntre(fila?.starts_at ?? null, fila?.expires_at ?? null),
       noSePudoLeer: false,
     };
   } catch {
-    return { productId: null, codeSource: null, noSePudoLeer: true };
+    return { productId: null, codeSource: null, plan: null, diasGrant: null, noSePudoLeer: true };
   }
 }
 
