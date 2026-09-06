@@ -22,11 +22,11 @@ export type UploadType = {
 export const UPLOAD_TYPES: UploadType[] = [
   { id: 'labs', label: 'Laboratorios', hint: 'Química sanguínea, biometría, perfil tiroideo, hormonas…', target: 'lab_values', writesValues: true, icon: '🩸' },
   { id: 'composicion', label: 'Composición corporal', hint: 'InBody, báscula, Lepulse, ISAK2, SECA, TANITA, DEXA', target: 'composition', writesValues: true, icon: '💪' },
-  { id: 'diagnostico', label: 'Diagnóstico especializado', hint: 'ECG, EEG y similares — respaldo, no alimenta el motor', target: 'context', writesValues: false, icon: '📈' },
-  { id: 'genetico', label: 'RAW genético / genotipado', hint: 'Datos crudos de ADN — adjunto de contexto', target: 'context', writesValues: false, icon: '🧬' },
-  { id: 'densitometria', label: 'Densitometría ósea', hint: 'DXA óseo — adjunto de contexto', target: 'context', writesValues: false, icon: '🦴' },
+  { id: 'diagnostico', label: 'Estudio especializado', hint: 'ECG, EEG y similares: respaldo, no alimenta el motor', target: 'context', writesValues: false, icon: '📈' },
+  { id: 'genetico', label: 'RAW genético / genotipado', hint: 'Datos crudos de ADN: adjunto de contexto', target: 'context', writesValues: false, icon: '🧬' },
+  { id: 'densitometria', label: 'Densitometría ósea', hint: 'DXA óseo: adjunto de contexto', target: 'context', writesValues: false, icon: '🦴' },
   { id: 'imagen', label: 'Estudio de imagen', hint: 'Rayos X, US, endoscopía, resonancia, gammagrama, PET', target: 'context', writesValues: false, icon: '🩻' },
-  { id: 'interpretacion', label: 'Interpretación médica', hint: 'Reporte/opinión de especialista — adjunto de contexto', target: 'context', writesValues: false, icon: '📝' },
+  { id: 'interpretacion', label: 'Interpretación médica', hint: 'Reporte/opinión de especialista: adjunto de contexto', target: 'context', writesValues: false, icon: '📝' },
 ];
 
 export function getUploadType(id: string): UploadType | undefined {

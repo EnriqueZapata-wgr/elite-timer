@@ -140,7 +140,7 @@ export const DESTINOS_EXPEDIENTE: Destino[] = [
   { key: 'historia', title: 'Historia clínica', subtitle: 'Antecedentes por categoría', icon: 'historia-clinica', color: '#3B82F6', route: '/historia-clinica' },
   { key: 'cuestionario', title: 'Cuestionario maestro', subtitle: 'La evaluación que alimenta tu mapa', icon: 'cuestionario', color: '#C084FC', route: '/salud/cuestionario-maestro' },
   { key: 'evaluaciones', title: 'Mis evaluaciones', subtitle: 'Tus cuestionarios y pruebas', icon: 'evaluaciones', color: '#8B5CF6', route: '/salud/mis-evaluaciones' },
-  { key: 'padecimientos', title: 'Mis padecimientos', subtitle: 'Condiciones diagnosticadas y episodios', icon: 'padecimientos', color: '#F59E0B', route: '/salud/padecimientos' },
+  { key: 'padecimientos', title: 'Mis padecimientos', subtitle: 'Condiciones confirmadas por tu médico y episodios', icon: 'padecimientos', color: '#F59E0B', route: '/salud/padecimientos' },
   // MB-19.2: divergencia #1 pagada — Labs se dibujaba book-outline aquí y
   // flask-outline en la sala ATP, con la MISMA ruta. Ahora es una sola función.
   { key: 'labs_guide', title: 'Guía de labs', subtitle: 'Qué estudios hacerte y cuánto cuestan', icon: 'labs', color: '#60A5FA', route: '/labs-guide' },

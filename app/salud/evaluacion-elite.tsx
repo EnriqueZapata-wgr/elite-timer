@@ -55,6 +55,7 @@ import {
   type VersionElite,
 } from '@/src/services/elite/evaluacion-elite-core';
 import { ELITE_EJES, type EliteEstado, type EliteEvidencia, type EliteMarcador, type EliteV3 } from '@/src/services/elite/elite-v3-core';
+import { LEYENDA_SUPLEMENTOS } from '@/src/services/argos-suplementos-ayuno-core';
 
 type Carga =
   | { estado: 'cargando' }
@@ -620,6 +621,8 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
                 {sup.advertencia ? <EliteText style={[s.meta, { color: t.advertencia }]}>{sup.advertencia}</EliteText> : null}
               </View>
             ))}
+            {/* ATP 3.0 (ruta 2.0, 5-sep-2026): leyenda fija de LGS 216, la misma que usa ARGOS. */}
+            <EliteText style={[s.meta, { marginTop: 4 }]}>{LEYENDA_SUPLEMENTOS}</EliteText>
             <Pressable onPress={() => { haptic.light(); router.push('/supplements'); }} accessibilityRole="link" style={s.enlaceRow}>
               <EliteText style={s.enlace}>Abrir mi módulo de Suplementos</EliteText>
               <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} />

@@ -181,7 +181,7 @@ export const TITULOS_RUTA: Readonly<Record<string, string>> = {
   '/redeem-code': 'Canjear código',
   '/reports': 'Reportes',
   '/salud': 'Salud',
-  '/salud/diagnostico': 'Mi diagnóstico funcional',
+  '/salud/diagnostico': 'Mi mapa funcional',
   '/salud/evolucion': 'Mi evolución',
   '/salud/intervenciones': 'Mis intervenciones',
   '/salud/mi-expediente': 'Mi expediente',

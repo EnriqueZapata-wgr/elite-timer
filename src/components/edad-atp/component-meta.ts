@@ -252,7 +252,7 @@ export const LAB_PARAM_META: Record<string, LabParamMeta> = {
   cea: { display_name: 'Antígeno Carcinoembrionario (CEA)', abbr: 'CEA', unit: 'ng/mL', description: 'Marcador tumoral inespecífico; útil en seguimiento, no en tamizaje general.' },
   alfa_fetoproteina: { display_name: 'Alfa-Fetoproteína (AFP)', abbr: 'AFP', unit: 'ng/mL', description: 'Marcador de hígado y testículo; también se usa durante el embarazo.' },
   anticuerpos_antinucleares: { display_name: 'Anticuerpos Antinucleares (ANA)', abbr: 'ANA', unit: 'título', description: 'Tamizaje de enfermedad autoinmune (lupus y otras).' },
-  anti_dna: { display_name: 'Anti-DNA', abbr: 'Anti-DNA', unit: 'IU/mL', description: 'Anticuerpo más específico del lupus; apoya el diagnóstico.' },
+  anti_dna: { display_name: 'Anti-DNA', abbr: 'Anti-DNA', unit: 'IU/mL', description: 'Anticuerpo más específico del lupus; tu médico lo interpreta.' },
   anti_ccp: { display_name: 'Anti-CCP', abbr: 'Anti-CCP', unit: 'U/mL', description: 'Anticuerpo específico de la artritis reumatoide.' },
   troponina_i: { display_name: 'Troponina I', abbr: 'Troponina I', unit: 'ng/mL', description: 'Proteína que se libera con daño del músculo cardiaco.' },
   troponina_t: { display_name: 'Troponina T', abbr: 'Troponina T', unit: 'ng/mL', description: 'Otra troponina cardiaca; marca lesión del corazón.' },

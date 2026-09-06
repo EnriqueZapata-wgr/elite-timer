@@ -477,7 +477,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         'cortisol_salival_nocturno (target <2 nmol/L a las 23h)',
         'consistencia_horario_dormir (SD ≤30 min semanales)',
       ],
-      mechanismSummary: 'Consistencia horaria de sueño ancla el ritmo circadiano master, protege la arquitectura del sueño profundo (donde ocurre reparación DNA, drenaje glinfático y GH pulsátil), y previene la desregulación circadiana asociada con casi todas las enfermedades crónicas.',
+      mechanismSummary: 'Consistencia horaria de sueño ancla el ritmo circadiano master, protege la arquitectura del sueño profundo (donde ocurre reparación DNA, drenaje glinfático y GH pulsátil), y ayuda a evitar la desregulación circadiana asociada con casi todas las enfermedades crónicas.',
     },
 
     sideEffects: [
@@ -2872,7 +2872,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     key: 'postura_cuclillas_defecar',
     name: 'Postura en cuclillas al defecar',
     how: 'Eleva pies con banco tipo Squatty Potty (17-23 cm) al defecar, cadera flexionada >100°, columna neutra ligeramente inclinada adelante, codos sobre rodillas si cómodo. Alternativa avanzada: cuclillas completa sobre inodoro convertido/original.',
-    benefit: 'Ángulo anorrectal se abre de ~90° (sentado) a 126-140° (cuclillas), elimina Valsalva excesivo, previene hemorroides, mejora vaciamiento completo, reduce tiempo defecación 50-60% (Sikirov 2003).',
+    benefit: 'Ángulo anorrectal se abre de ~90° (sentado) a 126-140° (cuclillas), elimina Valsalva excesivo, ayuda a evitar hemorroides, mejora vaciamiento completo, reduce tiempo defecación 50-60% (Sikirov 2003).',
     categories: ['digestion', 'ritual', 'cardiovascular'],
     roots: ['digestion_estres_autonomico', 'reflujo_funcional'],
     assignRule: 'Universal recomendado. Flag P1 si: constipación funcional, hemorroides, evacuación incompleta, straining crónico, prolapso rectal funcional leve, embarazo (facilita), post-parto.',
@@ -2889,7 +2889,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
       ],
       inhibits: [
         'Valsalva excesivo (esfuerzo con glotis cerrada · aumenta presión intra-torácica + intra-abdominal)',
-        'presión venosa hemorroidal (previene hemorroides)',
+        'presión venosa hemorroidal (ayuda a evitar hemorroides)',
         'compresión vena cava inferior por Valsalva',
         'straining crónico (asociado con prolapso, hernia)',
         'micro-desgarros mucosa anal',
@@ -5853,7 +5853,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     key: 'lentes_ambar',
     name: 'Lentes ámbar (filtro moderado · post-18h)',
     how: 'Lentes tinte ámbar (bloquean ~85-95% del pico azul 400-500 nm) usados desde 2-3 h antes de dormir (típicamente post-18-19h). Aplicar a partir del atardecer local. Retirar al ir a la cama para dormir. Diferenciación: MODERADO vespertino — para leve diurno ver `lentes_amarillos`, para máximo pre-sueño ver `lentes_rojos`.',
-    benefit: 'Protección efectiva de melatonina pineal vespertina · previene supresión por luz azul artificial en cascada crítica pre-sueño · protocolo Shechter 2018 mostró mejora sueño en insomnio + Ostrin 2017 preservación DLMO. Ideal para turnistas + pantalla nocturna forzada.',
+    benefit: 'Protección efectiva de melatonina pineal vespertina · ayuda a evitar la supresión por luz azul artificial en cascada crítica pre-sueño · protocolo Shechter 2018 mostró mejora sueño en insomnio + Ostrin 2017 preservación DLMO. Ideal para turnistas + pantalla nocturna forzada.',
     categories: ['sueno', 'circadiano'],
     roots: ['sobreexposicion_luz_azul', 'ritmo_circadiano_desregulado', 'deficit_sueno_profundo'],
     assignRule: 'Exposición vespertina forzada a pantallas post-18h, turnista, insomnio de conciliación, dificultad para "apagar" cerebro en la noche.',
@@ -5893,7 +5893,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         'sueño_profundo_horas',
         'cortisol_salival_23h',
       ],
-      mechanismSummary: 'Los lentes ámbar bloquean 85-95% del pico azul (400-500 nm), incluyendo la zona de máxima sensibilidad ipRGC (melanopsina ~480 nm) · esto previene la supresión de melatonina pineal vespertina causada por pantallas + LED domésticos, preservando el DLMO y la arquitectura de sueño posterior.',
+      mechanismSummary: 'Los lentes ámbar bloquean 85-95% del pico azul (400-500 nm), incluyendo la zona de máxima sensibilidad ipRGC (melanopsina ~480 nm) · esto ayuda a evitar la supresión de melatonina pineal vespertina causada por pantallas + LED domésticos, preservando el DLMO y la arquitectura de sueño posterior.',
     },
 
     sideEffects: [
@@ -6250,7 +6250,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         'rango_movimiento_articular',
         'HSP70_sérico',
       ],
-      mechanismSummary: '660 nm penetra 5-10 mm (superficial) + 850 nm penetra 40-50 mm (profundo · músculo grande, articulaciones, hueso) · ambas longitudes son absorbidas por citocromo C oxidasa en cadena respiratoria mitocondrial · resultado: aumento ATP, expresión antioxidantes, reducción inflamación local + aceleración recovery. Dual wavelength cubre todo el rango terapéutico.',
+      mechanismSummary: '660 nm penetra 5-10 mm (superficial) + 850 nm penetra 40-50 mm (profundo · músculo grande, articulaciones, hueso) · ambas longitudes son absorbidas por citocromo C oxidasa en cadena respiratoria mitocondrial · resultado: aumento ATP, expresión antioxidantes, reducción inflamación local + aceleración recovery. Dual wavelength cubre todo el rango de uso.',
     },
 
     sideEffects: [
@@ -6454,7 +6454,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     key: 'ejercicio_ocular_near_far',
     name: 'Ejercicio ocular cerca/lejos (regla 20-20-20)',
     how: 'Cada 20 minutos de trabajo con pantalla, desviar la mirada a un objeto a ≥6 metros (20 pies) durante 20 segundos. Repetir varias veces por hora. Alternativa avanzada: 3-5 ciclos consecutivos alternando foco cerca (30 cm) ↔ lejos (>6 m) durante 60-90 seg.',
-    benefit: 'Relajación cíclica del músculo ciliar post-acomodación sostenida · previene fatiga acomodativa, reduce miopía adquirida por near work crónico (mecanismo Rosenfield · CVS · Computer Vision Syndrome), preserva flexibilidad acomodativa en usuarios de pantalla >4 h/día.',
+    benefit: 'Relajación cíclica del músculo ciliar post-acomodación sostenida · ayuda a evitar fatiga acomodativa, reduce miopía adquirida por near work crónico (mecanismo Rosenfield · CVS · Computer Vision Syndrome), preserva flexibilidad acomodativa en usuarios de pantalla >4 h/día.',
     categories: ['cognitivo', 'ritual'],
     roots: ['sobreexposicion_luz_azul'],
     assignRule: 'Trabajo con pantalla >4 h/día, miopía en progresión, fatiga ocular vespertina, cefalea tensional relacionada con pantalla, adolescentes/jóvenes con near work intensivo. Sin contraindicaciones.',
@@ -6491,7 +6491,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         'fatiga_ocular_vespertina_subjetivo',
         'progresion_miopia_dioptrias_anual (uso pediatrico/adolescente)',
       ],
-      mechanismSummary: 'Trabajo cercano sostenido requiere contracción muscular ciliar continua para acomodación · a 20 pies o más, la acomodación es esencialmente cero (relajación total del músculo ciliar) · alternar cada 20 min permite descarga muscular cíclica que previene fatiga acumulada + espasmo acomodativo. Beneficio ergonómico oficial reconocido por AOA + Rosenfield CVS research.',
+      mechanismSummary: 'Trabajo cercano sostenido requiere contracción muscular ciliar continua para acomodación · a 20 pies o más, la acomodación es esencialmente cero (relajación total del músculo ciliar) · alternar cada 20 min permite descarga muscular cíclica que ayuda a evitar fatiga acumulada + espasmo acomodativo. Beneficio ergonómico oficial reconocido por AOA + Rosenfield CVS research.',
     },
 
     sideEffects: [
@@ -6559,7 +6559,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     key: 'parpadeo_consciente',
     name: 'Parpadeo consciente en pantalla (completo · 5×/min)',
     how: 'Durante trabajo con pantalla, hacer parpadeos completos (cerrar párpados hasta juntar) conscientes ~5 veces por minuto (frecuencia natural sin pantalla). Reforzar cada hora. Hidratar ojos con lágrima artificial libre de conservadores si necesario.',
-    benefit: 'Contrarresta sub-parpadeo pantalla-inducido (Patel 1991 · frecuencia parpadeo baja 60% durante uso pantalla vs baseline) · restaura película lagrimal, previene ojo seco crónico, ojo rojo vespertino, disestesias oculares. Sin costo, universalmente disponible.',
+    benefit: 'Contrarresta sub-parpadeo pantalla-inducido (Patel 1991 · frecuencia parpadeo baja 60% durante uso pantalla vs baseline) · restaura película lagrimal, ayuda a evitar ojo seco crónico, ojo rojo vespertino, disestesias oculares. Sin costo, universalmente disponible.',
     categories: ['ritual', 'cognitivo'],
     roots: ['sobreexposicion_luz_azul'],
     assignRule: 'Trabajo pantalla >4 h/día, ojo seco funcional, ojo rojo vespertino, sensación de ardor ocular sub-clínica, usuarios de lentes de contacto.',
@@ -6773,7 +6773,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     key: 'pausas_activas_60min',
     name: 'Pausas activas cada 60 min (2 min · estiramiento + respiración)',
     how: 'Cada hora: levántate del asiento, 2 min mínimo · estiramiento cervical (rotación + laterales) + puntitas (10-15 rep) + respiración diafragmática 5 ciclos + hidratación 100-200 ml. Idealmente pasear 100 pasos. Recordatorio automatizable (Time Out, Stretchly).',
-    benefit: 'Dempsey/Owen 2012 · interrumpir sedentarismo cada hora reduce glucosa postprandial + insulina 20-25% · rompe estasis linfática, resetea foco cognitivo (ultradian break), previene tensión postural cervical + lumbar. Frecuencia estándar validada.',
+    benefit: 'Dempsey/Owen 2012 · interrumpir sedentarismo cada hora reduce glucosa postprandial + insulina 20-25% · rompe estasis linfática, resetea foco cognitivo (ultradian break), ayuda a evitar tensión postural cervical + lumbar. Frecuencia estándar validada.',
     categories: ['movimiento', 'ritual', 'cognitivo', 'cardiovascular', 'metabolismo'],
     roots: ['sedentarismo', 'sarcopenia', 'ritmo_circadiano_desregulado', 'estres_cronico', 'hiperinsulinemia'],
     assignRule: 'Trabajo sentado >6 h/día, dolor lumbar/cervical funcional, caídas de foco vespertino, resistencia a la insulina, hiperinsulinemia. Universal para knowledge workers.',
@@ -6796,7 +6796,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
       inhibits: [
         'glucosa postprandial (Dunstan/Owen 2012 · -20-25% AUC glucosa)',
         'insulina postprandial (-25%)',
-        'estasis venosa MMII (previene TVP funcional)',
+        'estasis venosa MMII (ayuda a evitar TVP funcional)',
         'tensión cervical + lumbar acumulada',
         'fatiga cognitiva (mental fatigue)',
         'expresión LPL (lipoprotein lipasa) inhibida por sedentarismo prolongado',
@@ -6997,7 +6997,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     key: 'standing_desk',
     name: 'Escritorio elevado (standing desk · alternado)',
     how: 'Alternar cada 45-60 min entre sentado y de pie durante jornada laboral (proporción ideal ~50/50 · Buckley 2014 · Buckley/Chastin protocolos). Usar cushion anti-fatiga si de pie prolongado. Zapato plano, base amplia. NO estar de pie estático >2h continuas · rotar postura.',
-    benefit: 'Buckley 2014 · 185 min de pie post-comida atenuaron glucosa postprandial en 43%. Reduce mortalidad asociada a sedentarismo (Chastin meta-analysis), activa cadena posterior (glúteos, isquios), mejora postura, previene dolor lumbar funcional. Complemento a pausas activas.',
+    benefit: 'Buckley 2014 · 185 min de pie post-comida atenuaron glucosa postprandial en 43%. Reduce mortalidad asociada a sedentarismo (Chastin meta-analysis), activa cadena posterior (glúteos, isquios), mejora postura, ayuda a evitar dolor lumbar funcional. Complemento a pausas activas.',
     categories: ['movimiento', 'metabolismo', 'cardiovascular', 'ritual', 'sarcopenia'],
     roots: ['sedentarismo', 'sarcopenia', 'hiperinsulinemia', 'resistencia_insulina'],
     assignRule: 'Trabajo sentado >6 h/día, dolor lumbar funcional (postural), glucosa postprandial elevada, resistencia insulina, HbA1c 5.7-6.4%. Sin contraindicaciones ortopédicas mayores para bipedestación prolongada.',
@@ -7018,7 +7018,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
       inhibits: [
         'glucosa postprandial (Buckley 2014 · -43% AUC con 185 min de pie post-comida)',
         'insulina postprandial',
-        'estasis venosa MMII (previene TVP funcional)',
+        'estasis venosa MMII (ayuda a evitar TVP funcional)',
         'contractura M. flexores cadera (por sedestación prolongada)',
         'atrofia glútea funcional ("dead butt syndrome")',
         'suppression LPL crónica',
@@ -7722,7 +7722,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     key: 'separadores_dedos_pies',
     name: 'Separadores de dedos de los pies',
     how: 'Separadores de silicona (Correct Toes, YogaToes) 15-30 min/día progresando a uso con calcetín + calzado zero-drop, o dormir con ellos. Progresión tolerancia lenta (primera semana 5 min, aumentar 5 min/semana).',
-    benefit: 'Corrige compresión digital iatrogénica del calzado moderno, mejora arco funcional, propriocepción plantar, previene juanetes (hallux valgus), reduce fascitis plantar via mejor loading del antepié.',
+    benefit: 'Corrige compresión digital iatrogénica del calzado moderno, mejora arco funcional, propriocepción plantar, ayuda a evitar juanetes (hallux valgus), reduce fascitis plantar via mejor loading del antepié.',
     categories: ['movimiento', 'ritual'],
     roots: ['sedentarismo', 'sarcopenia'],
     assignRule: 'Calzado estrecho crónico, juanetes incipientes, dolor plantar, corredor con fascitis. Flag P1 si hallux valgus + dolor articulaciones dedos.',
@@ -8751,7 +8751,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         'T3_reversa',
         'nitrogeno_ureico_orina',
       ],
-      mechanismSummary: 'Protocolo de 3 días con sardinas exclusivas + agua + electrolitos combina: (1) ayuno de carbohidratos → cetosis nutricional + AMPK + autofagia · (2) proteína marina alta → preservación masa magra vs ayuno agua-solo · (3) ω-3 EPA/DHA denso → resolvinas + protectinas amplifican efecto anti-inflamatorio del ayuno · (4) micronutrientes (D, K2, B12, selenio, calcio) previenen deficiencias del ayuno prolongado · combinación única de todas las palancas metabólicas simultáneas sin depletar musculatura.',
+      mechanismSummary: 'Protocolo de 3 días con sardinas exclusivas + agua + electrolitos combina: (1) ayuno de carbohidratos → cetosis nutricional + AMPK + autofagia · (2) proteína marina alta → preservación masa magra vs ayuno agua-solo · (3) ω-3 EPA/DHA denso → resolvinas + protectinas amplifican efecto anti-inflamatorio del ayuno · (4) micronutrientes (D, K2, B12, selenio, calcio) ayudan a evitar deficiencias del ayuno prolongado · combinación única de todas las palancas metabólicas simultáneas sin depletar musculatura.',
     },
     sideEffects: [
       'keto_flu (fatiga, cefalea, brain fog fase 1-2 días adaptación)',

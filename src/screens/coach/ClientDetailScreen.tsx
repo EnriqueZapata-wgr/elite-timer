@@ -760,8 +760,8 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
         );
       })()}
 
-      {/* ═══ FILA 5: TRATAMIENTO (solo lectura) ═══ */}
-      <EliteText variant="caption" style={s.rowLabel}>TRATAMIENTO</EliteText>
+      {/* ═══ FILA 5: PLAN ACTUAL (solo lectura; era TRATAMIENTO, palabra roja, ruta 2.0) ═══ */}
+      <EliteText variant="caption" style={s.rowLabel}>PLAN ACTUAL</EliteText>
       <EliteText variant="caption" style={{ color: tenue(t), fontSize: 10, marginTop: -12, marginBottom: Spacing.sm }}>
         Editar desde Consultas
       </EliteText>

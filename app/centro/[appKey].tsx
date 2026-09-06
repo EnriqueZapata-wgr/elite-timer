@@ -494,7 +494,7 @@ function ConfigAyuno({ userId }: { userId?: string }) {
         </View>
         <EliteText style={[s.configHint, { color: hintColor(t) }]}>
           Es la meta con la que arranca tu próximo ayuno. Un ayuno en curso se
-          ajusta desde su timer, que corre el chequeo de seguridad.
+          ajusta desde su timer, que corre la revisión de seguridad.
         </EliteText>
       </View>
     </Animated.View>

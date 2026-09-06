@@ -6,6 +6,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic, callAnthropicStream, extractResponseText } from './anthropic-client';
 import { ArgosStreamUnavailableError } from './argos-stream-core';
+import { buildSuplementosAyunoInjection } from './argos-suplementos-ayuno-core';
 import { FreeChatLimitError } from './argos-errores';
 import { buildDemandingCoachInjection, DEMANDING_COACH_USER_HINT } from './routine-coach-logic';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
@@ -378,7 +379,7 @@ complementario, no sustitutivo.
 
 Para cualquier recomendación que bordee el ámbito clínico (suplementos,
 nutrición, ayuno, manejo de síntomas, modulación de hábitos con impacto
-en salud, ejercicio terapéutico), usa esta estructura:
+en salud, ejercicio dirigido a una molestia concreta), usa esta estructura:
 
 > "Con base en evidencia científica de Nivel [N], [recomendación
 > específica con el PROTOCOLO COMPLETO: aporte sugerido, timing, duración,
@@ -1635,10 +1636,14 @@ async function prepareChatTurn(
   // servidor y esto tiene que llegar por OTA. Dos, va después del cerebro en el
   // ensamblado del proxy, así que califica lo que el cerebro haya dicho antes.
   const alcanceInjection = buildAlcanceInjection();
+  // ATP 3.0 (ruta 2.0, 5-sep-2026): leyenda fija de suplementos, lista negra y
+  // exclusiones de ayuno. Misma razon que el alcance: viaja por OTA y va
+  // despues del cerebro, que no se edita a mano.
+  const suplementosAyunoInjection = buildSuplementosAyunoInjection();
   const dynamicSystem =
     cycleGuard + protocolGuard + voiceInjection +
     coachGateInjection + presenceInjection + timeInjection + screenInjection +
-    alcanceInjection + historyWindow.summaryInjection + contextPrompt +
+    alcanceInjection + suplementosAyunoInjection + historyWindow.summaryInjection + contextPrompt +
     (options?.extraContext ?? '');
   const systemPrompt = ARGOS_SYSTEM_PROMPT + dynamicSystem;
 

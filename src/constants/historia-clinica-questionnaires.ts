@@ -32,13 +32,13 @@ export const HC_QUESTIONNAIRES: HCQuestionnaire[] = [
   {
     id: 'padecimientos_personales',
     title: 'Padecimientos personales',
-    blurb: 'Condiciones diagnosticadas que tienes o has tenido',
+    blurb: 'Condiciones confirmadas por tu médico, actuales o pasadas',
     icon: 'medkit-outline',
     color: '#ef4444',
     questions: [
       {
         id: 'condiciones',
-        text: '¿Te han diagnosticado alguna de estas condiciones?',
+        text: '¿Tu médico te ha confirmado alguna de estas condiciones?',
         multi: true, optional: true,
         options: [
           { id: 'hta', text: 'Hipertensión arterial' },
@@ -108,7 +108,7 @@ export const HC_QUESTIONNAIRES: HCQuestionnaire[] = [
   // ── 3. Tratamientos actuales ─────────────────────────────────────────────
   {
     id: 'tratamientos',
-    title: 'Tratamientos actuales',
+    title: 'Medicamentos y terapias actuales',
     blurb: 'Medicamentos, suplementos y terapias que tomas hoy',
     icon: 'bandage-outline',
     color: '#1D9E75',
@@ -180,7 +180,7 @@ export const HC_QUESTIONNAIRES: HCQuestionnaire[] = [
       },
       {
         id: 'endodoncias',
-        text: '¿Tienes endodoncias (tratamientos de conducto)?',
+        text: '¿Tienes endodoncias (conductos dentales)?',
         options: YES_NO,
       },
     ],

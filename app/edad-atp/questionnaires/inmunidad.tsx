@@ -11,7 +11,7 @@ const QUESTIONS: DomainQuestion[] = [
   { parameter_key: 'gut_health', text: 'Salud digestiva general', options: [
     { label: 'Mala', value: 'mala' }, { label: 'Regular', value: 'regular' }, { label: 'Buena', value: 'buena' }, { label: 'Excelente', value: 'excelente' },
   ] },
-  { parameter_key: 'autoimmune', text: '¿Diagnóstico autoinmune?', options: [
+  { parameter_key: 'autoimmune', text: '¿Tu médico te ha indicado una condición autoinmune?', options: [
     { label: 'Sí, activo', value: 'activo' }, { label: 'Sí, controlado', value: 'controlado' }, { label: 'Sospecha', value: 'sospecha' }, { label: 'No', value: 'no' },
   ] },
   { parameter_key: 'recovery_after_training', text: 'Frecuencia de enfermarte tras entrenar duro', options: [

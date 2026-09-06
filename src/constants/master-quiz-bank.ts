@@ -133,7 +133,7 @@ export const ANTICONCEPTIVO_DEPLECIONES_PEND_MARIANA: string[] = [
 // ── Meta de secciones ────────────────────────────────────────────────────────
 
 export const MASTER_QUIZ_SECTIONS: MasterQuizSectionMeta[] = [
-  { id: 'd1_estado_cuerpo', emoji: '🩺', title: 'Estado actual del cuerpo', intro: 'Cuéntanos cómo se siente tu cuerpo HOY. No hay respuestas malas — solo estás dibujando tu punto de partida.' },
+  { id: 'd1_estado_cuerpo', emoji: '🩺', title: 'Estado actual del cuerpo', intro: 'Cuéntanos cómo se siente tu cuerpo HOY. No hay respuestas malas: solo estás dibujando tu punto de partida.' },
   { id: 'd2_composicion', emoji: '📏', title: 'Composición corporal', intro: 'Datos que ATP necesita para tu Edad ATP y para calibrar recomendaciones de nutrición y fitness.' },
   { id: 'd3_piel_unas_cabello', emoji: '✨', title: 'Piel, uñas y cabello', intro: 'Tu piel, uñas y cabello son ventanas al interior. Cambios sutiles nos dicen mucho de tu bioquímica.' },
   { id: 'd4_salud_bucal', emoji: '🦷', title: 'Salud bucal', intro: 'La boca es puerta al sistema digestivo, endocrino e inflamatorio. Data que casi nadie te pregunta pero es oro.' },
@@ -143,8 +143,8 @@ export const MASTER_QUIZ_SECTIONS: MasterQuizSectionMeta[] = [
   { id: 'd8_intervenciones', emoji: '💉', title: 'Intervenciones estéticas y metabólicas', intro: 'Cada vez más gente usa péptidos, GLP-1 (medicamentos tipo Ozempic) y terapias hormonales. Necesitamos saber para calibrar tu protocolo.' },
   { id: 'd9_antecedentes', emoji: '🏥', title: 'Antecedentes y traumas', intro: 'Tu historia médica es parte de tu epigenética. Un evento hace 20 años sigue modulando genes hoy.' },
   { id: 'd10_exposiciones', emoji: '🌍', title: 'Exposiciones ambientales', intro: 'Tu ambiente es tu epigenética invisible. Aire, agua, químicos, cosméticos: todo moldea tu expresión genética.' },
-  { id: 'd11_contexto_vida', emoji: '💼', title: 'Contexto de vida', intro: 'El estrés no es solo psicológico — es epigenético. El contexto donde vives moldea tu bioquímica diaria.' },
-  { id: 'd12_sexualidad', emoji: '💜', title: 'Sexualidad y libido', intro: 'La libido y la función sexual son biomarcadores hormonales potentes. Puedes saltar esta sección si prefieres — pero es data valiosa.' },
+  { id: 'd11_contexto_vida', emoji: '💼', title: 'Contexto de vida', intro: 'El estrés no es solo psicológico: es epigenético. El contexto donde vives moldea tu bioquímica diaria.' },
+  { id: 'd12_sexualidad', emoji: '💜', title: 'Sexualidad y libido', intro: 'La libido y la función sexual son biomarcadores hormonales potentes. Puedes saltar esta sección si prefieres, pero es data valiosa.' },
   { id: 'd13_proposito', emoji: '🌟', title: 'Propósito y significado', intro: 'Las poblaciones más longevas del mundo (Blue Zones) tienen algo en común: sentido de propósito claro. No es esotérico, es epigenética.' },
   { id: 'bonus_objetivos', emoji: '🎯', title: 'Tus objetivos', intro: 'Última sección. Con esto ATP calibra prioridades y sabe qué te haría feliz mover primero.' },
 ];
@@ -258,7 +258,7 @@ export const MASTER_QUIZ_QUESTIONS: MasterQuizQuestion[] = [
     text: '¿Te sangran las encías al cepillarte?',
     options: [
       { value: 'nunca', label: 'Nunca' }, { value: 'a_veces', label: 'A veces' },
-      { value: 'casi_siempre', label: 'Casi siempre' }, { value: 'periodontitis', label: 'Sí, y tengo periodontitis diagnosticada' },
+      { value: 'casi_siempre', label: 'Casi siempre' }, { value: 'periodontitis', label: 'Sí, y mi dentista me confirmó periodontitis' },
     ] },
   { code: 'D4.2', section: 'd4_salud_bucal', type: 'visual_scale', min: 1, max: 5, scaleLabels: freqScale,
     text: '¿Te salen aftas o "fuegos" bucales con frecuencia?' },
@@ -284,7 +284,7 @@ export const MASTER_QUIZ_QUESTIONS: MasterQuizQuestion[] = [
   { code: 'D5.3', section: 'd5_consumo', type: 'number', min: 0, max: 50, unit: 'bebidas/sem',
     // Edición B: "bebidas alcohólicas" explícito.
     text: '¿Cuántas bebidas alcohólicas tomas por SEMANA en promedio?',
-    why: 'Cuenta cervezas, copas de vino o destilados. Sin juicio — el alcohol afecta hígado, sueño y ayuno.',
+    why: 'Cuenta cervezas, copas de vino o destilados. Sin juicio: el alcohol afecta hígado, sueño y ayuno.',
     deepDive: { when: (a) => typeof a === 'number' && a >= 7, followUps: ['D5.3.a'] } },
   { code: 'D5.3.a', section: 'd5_consumo', type: 'single', isFollowUp: true,
     text: 'Al día siguiente de beber, ¿cómo te sientes?',
@@ -302,7 +302,7 @@ export const MASTER_QUIZ_QUESTIONS: MasterQuizQuestion[] = [
     options: [{ value: 'manana', label: 'Solo en la mañana' }, { value: 'mediodia', label: 'Hasta el mediodía' }, { value: 'tarde', label: 'Por la tarde (después de las 2pm)' }, { value: 'noche', label: 'Por la noche' }, { value: 'no_tomo', label: 'No tomo cafeína' }] },
   { code: 'D5.6', section: 'd5_consumo', type: 'single', allowPreferNot: true,
     text: '¿Consumes marihuana, CBD u otras sustancias recreativas?',
-    why: 'Sin juicio — solo ATP lo sabe. Nos ayuda a entender tu sueño, ansiedad y recuperación.',
+    why: 'Sin juicio: solo ATP lo sabe. Nos ayuda a entender tu sueño, ansiedad y recuperación.',
     options: [{ value: 'nunca', label: 'Nunca' }, { value: 'ocasional', label: 'Ocasional' }, { value: 'frecuente', label: 'Frecuente' }, { value: 'diario', label: 'Diario' }] },
   { code: 'D5.7', section: 'd5_consumo', type: 'number', min: 1, max: 8, unit: 'comidas',
     text: '¿Cuántas comidas haces al día normalmente?',
@@ -368,11 +368,11 @@ export const MASTER_QUIZ_QUESTIONS: MasterQuizQuestion[] = [
     text: '¿Estás en terapia de reemplazo hormonal? (TRT de testosterona o HRT de hormonas)',
     why: 'TRT = terapia de reemplazo de testosterona. HRT = terapia de reemplazo hormonal (estrógeno/progesterona).' },
   { code: 'D8.3', section: 'd8_intervenciones', type: 'single',
-    text: '¿Has hecho tratamientos para bajar de peso?',
+    text: '¿Has seguido métodos médicos para bajar de peso?',
     options: [{ value: 'no', label: 'No' }, { value: 'glp1', label: 'Sí, con medicamentos tipo Ozempic' }, { value: 'bariatrica', label: 'Sí, cirugía bariátrica' }, { value: 'otros', label: 'Sí, otros' }],
     deepDive: { when: (a) => a === 'glp1' || a === 'bariatrica', followUps: ['D8.1.b'] } },
   { code: 'D8.4', section: 'd8_intervenciones', type: 'toggle', options: yn,
-    text: '¿Tratamientos estéticos invasivos con impacto hormonal o inflamatorio? (fillers extensivos, cirugías estéticas)' },
+    text: '¿Procedimientos estéticos invasivos con impacto hormonal o inflamatorio? (fillers extensivos, cirugías estéticas)' },
 
   // ── D9 · Antecedentes ──
   { code: 'D9.1', section: 'd9_antecedentes', type: 'multi', multiHelper: true,
@@ -385,7 +385,7 @@ export const MASTER_QUIZ_QUESTIONS: MasterQuizQuestion[] = [
     ] },
   // C1 · Padecimientos con ESTADO (activo/remisión/resuelto).
   { code: 'D9.2', section: 'd9_antecedentes', type: 'condition_status', pendMariana: true,
-    text: '¿Padecimientos crónicos diagnosticados? Marca cada uno con su estado actual.',
+    text: '¿Padecimientos crónicos confirmados por tu médico? Marca cada uno con su estado actual.',
     why: 'Historia no es lo mismo que estado actual: una hipertensión o un cáncer en remisión NO deben limitar tu protocolo si ya no están activos.',
     // options = PADECIMIENTOS_PEND_MARIANA (se inyecta en la UI/scoring).
     options: PADECIMIENTOS_PEND_MARIANA },

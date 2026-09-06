@@ -327,7 +327,7 @@ CONTEXTO DE USO: ${useContext || 'No especificado'}
 REGLA CRÍTICA: Evalúa el suplemento SEGÚN SU PROPÓSITO.
 SCORING DE SUPLEMENTOS:
 - ¿Formas biodisponibles? (citrato/bisglicinato > óxido, metilcobalamina > cianocobalamina): 30 pts
-- ¿Dosis terapéuticas adecuadas? (no subdosificado): 25 pts
+- ¿Dosis dentro de los rangos comúnmente usados? (no subdosificado): 25 pts
 - ¿Excipientes limpios? (sin dióxido de titanio, talco, colorantes): 25 pts
 - ¿Ingredientes activos correctos para el propósito?: 20 pts
 
