@@ -22,7 +22,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { AppIcon } from '@/src/components/ui/AppIcon';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
-import { visibleApps, APP_BY_KEY } from '@/src/constants/app-registry';
+import { visibleApps, APP_BY_KEY, type AppEntry } from '@/src/constants/app-registry';
 import {
   reconcileOrder, moveInOrder, pinToTop, type CustomOrder,
 } from '@/src/services/atp-room-core';
@@ -42,7 +42,9 @@ export default function AtpOrdenScreen() {
   const s = useMemo(() => makeStyles(t), [t]);
   const router = useRouter();
   const { user } = useAuth();
-  const [apps, setApps] = useState(() => visibleApps(false));
+  // 2026-09-05 (3.0): visibleApps ahora devuelve AppVisible (con `bloqueada`); esta
+  // pantalla ordena la cuadricula y no gatea, asi que guarda AppEntry[].
+  const [apps, setApps] = useState<AppEntry[]>(() => visibleApps(false));
   const [order, setOrder] = useState<CustomOrder>({ keys: [] });
   const [ready, setReady] = useState(false);
 

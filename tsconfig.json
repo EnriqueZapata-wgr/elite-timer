@@ -16,6 +16,8 @@
   ],
   "exclude": [
     "supabase/functions/**",
+    "_to_delete/**",
+    "_respaldo_enrique_*/**",
     ".claude/worktrees/**"
   ]
 }
