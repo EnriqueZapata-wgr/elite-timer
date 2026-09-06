@@ -1,6 +1,6 @@
 # ATP 3.0: el pivote. Decisiones, add-on Elite, gating y customer journey
 
-Fecha: 4 de septiembre de 2026. Autor: Development Team (Cowork) con Enrique. Estado: BORRADOR PARA APROBACIÓN DE ENRIQUE. Versión 2, revisada bajo cuatro ojos: un agente mapeó el repo y la base, yo redacté, y un revisor verificó cada afirmación contra código y producción (ruta:línea o query); sus 9 correcciones de hecho, 7 riesgos y 6 incoherencias ya están integrados. Este documento es la fuente de verdad del pivote para todas las sesiones de Cowork (desarrollo, tiendas y embudo, marketing, legal, contenido). Si algo de aquí cambia, se cambia aquí primero. Sin em dashes.
+Fecha: 4 de septiembre de 2026. Autor: Development Team (Cowork) con Enrique. Estado: APROBADO POR ENRIQUE el 4 de septiembre de 2026 con las respuestas de la Parte 5 (queda abierto el alcance exacto de Elite, que sale del brochure de ATP DX, y la pregunta 6 sobre Google Play). Versión 3, revisada bajo cuatro ojos: un agente mapeó el repo y la base, yo redacté, y un revisor verificó cada afirmación contra código y producción (ruta:línea o query); sus 9 correcciones de hecho, 7 riesgos y 6 incoherencias ya están integrados. Este documento es la fuente de verdad del pivote para todas las sesiones de Cowork (desarrollo, tiendas y embudo, marketing, legal, contenido). Si algo de aquí cambia, se cambia aquí primero. Sin em dashes.
 
 Documentos hermanos en esta misma carpeta: `ORNAMENT_MEXICO_Y_MARCO_LEGAL_ATP.md` (marco legal y copy seguro), `ATP_Modelo_costos_Pro_449_vs_399.xlsx` y `COSTOS_ATP_PRO_449_VS_399.md` (economía por suscriptor), `INVESTIGACION_WAELLO_Y_COMPETENCIA.md` (competencia), `diagnostico/SPEC_DIAGNOSTICO_V3.md` (estructura del diagnóstico).
 
@@ -51,7 +51,7 @@ El launcher con todos los módulos se queda. El hub de ARGOS se queda vivo tal c
 
 ### 1.8 Reglas que no cambian con el pivote
 
-Dato del usuario sagrado: nunca quitarle a alguien algo que ya tenía (doctrina que se desprende de `argos-proxy`: "quien pagó pregunta lo que quiera", y del respeto a la vigencia pagada en `revenuecat-webhook` y `tier-logic.ts`). Los 13 perfiles que existen hoy (10 free, 3 pro) conservan todo lo que tienen abierto, sin fecha: antes del lanzamiento 3.0 se les da un grant `manual` con `tier='premium'` y sin vencimiento; el gating de Free aplica solo a cuentas creadas después. La cuenta de Mariana no se toca. Sin afirmaciones clínicas sin respaldo. Cero em dashes en copy. 4EP en todo lo que se construya.
+Dato del usuario sagrado: nunca quitarle a alguien algo que ya tenía (doctrina que se desprende de `argos-proxy`: "quien pagó pregunta lo que quiera", y del respeto a la vigencia pagada en `revenuecat-webhook` y `tier-logic.ts`). Los 13 perfiles que existen hoy (10 free, 3 pro) son cuentas de prueba y del equipo, no usuarios reales (Enrique, 4 de septiembre): el gating 3.0 aplica a todos por igual y no se les da grant. La cuenta y los datos de Mariana no se tocan. Los clientes de Elite DX existentes entran por código Elite. Sin afirmaciones clínicas sin respaldo. Cero em dashes en copy. 4EP en todo lo que se construya.
 
 ## Parte 2. El add-on ATP Elite: cómo se ve, cómo se estructura, cómo se carga
 
@@ -166,10 +166,11 @@ Cambia el primer minuto (una dirección en vez de 35 puertas), aparece la escale
 
 "Diagnóstico" es palabra roja en el informe legal. En la app el módulo ya se llama "Mi mapa" (alias "mapa funcional"); este documento usa "Mapa funcional ATP" como nombre de venta y reserva "diagnóstico" para nombres internos (`functional_dx`, ruta `/salud/diagnostico`, `SPEC_DIAGNOSTICO_V3.md`). Elite se llama "Mi evaluación Elite", nunca "diagnóstico personalizado".
 
-## Parte 5. Preguntas para Enrique antes de construir
+## Parte 5. Preguntas y respuestas de Enrique (4 de septiembre de 2026)
 
-1. Elite: ¿40,000 MXN se mantiene, e incluye 12 meses de Pro? ¿O 6?
-2. Fecha X del precio de lanzamiento de 349 (propuesta: 30 días después del lanzamiento en tiendas).
-3. Free: ¿3 mensajes de ARGOS al día o 10 en total el primer mes? (Propuesta: 3 al día; es lo que sostiene el gancho sin regalar.)
-4. Founders: ¿"5 años de Pro" o "vitalicio con uso justo"? (Propuesta: 5 años, escrito así en la landing.)
-5. ¿Confirmas el grant permanente (`premium`, sin vencimiento) a los 13 perfiles actuales, y que se les ofrezca de todos modos Pro con el precio de lanzamiento por si quieren apoyar?
+1. Elite: el alcance y el precio vienen del brochure de ATP DX que Enrique va a compartir; hasta entonces se trabaja con ~40,000 MXN y 12 meses de Pro. PENDIENTE: integrar el brochure.
+2. Precio de lanzamiento 349: **se queda**, como precio de evento de lanzamiento. Interpretación operativa: 349 se cobra solo dentro de ventanas de lanzamiento con fecha de inicio y fin (la primera, al salir en tiendas; puede haber otras después, cada una anunciada con sus fechas); quien entra en una ventana conserva 349 mientras no cancele; fuera de ventana el precio es 499. Apple 3.1.2(a): el precio en App Store Connect cambia en las mismas fechas y se preserva a los suscriptores existentes.
+3. Free: 3 mensajes de ARGOS al día. **Confirmado.**
+4. Founders: 5 años de Pro. **Confirmado.**
+5. Grant a los 13 perfiles actuales: **no aplica.** Enrique aclara que no hay ni un usuario real de ATP; los 13 perfiles son cuentas de prueba y del equipo. No se les da grant; el gating 3.0 aplica a todos por igual. La cuenta y los datos de Mariana siguen sin tocarse. Lo que sí quiere asignar son sus clientes de Elite DX ya existentes: entran por código Elite (Parte 2.4) en cuanto exista la migración.
+6. Google Play: ¿la cuenta es anterior al 13 de noviembre de 2023 o ATP ya tuvo acceso a producción? PENDIENTE de respuesta; decide si arranca hoy la prueba cerrada de 12 testers por 14 días.
