@@ -1,0 +1,17 @@
+-- NOTA DE VERSION (5 de septiembre de 2026): estas tres migraciones se registraron en
+-- produccion con version timestamp (20260904203502, 20260905151702, 20260906040335).
+-- El CLI 2.102 ordena lo local por nombre de archivo y lo remoto por version, y con
+-- formatos mezclados (numerico corto + timestamp) desalinea la lista y aborta db push.
+-- Se renumeraron a 268, 269 y 270 (numeros libres, mismo largo que sus vecinas) y el
+-- ledger remoto se reparo con `supabase migration repair` (reverted las timestamp,
+-- applied 268 269 270). El contenido no cambia; nada de esto se ejecuta en produccion.
+-- 270_levantamiento_dx_v3_4ep_diseno.sql (antes 20260906040335_levantamiento_dx_v3_4ep_diseno.sql)
+--
+-- Version registrada en supabase_migrations.schema_migrations de produccion el
+-- 6 de septiembre de 2026 (nota del ledger: "4EP de diseno: frecuencia_sexual
+-- 0-10, alergias medicamentos, cintura, tiroides, ocupacion, sustancias, TRH,
+-- viajes_huso"), aplicada con execute_sql desde otra sesion sin archivo en el
+-- repo.
+--
+-- Contenido incluido en la reconstruccion de 20260904203502; version
+-- registrada para cuadrar el ledger. Sin statements a proposito.

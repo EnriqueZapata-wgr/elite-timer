@@ -1,4 +1,11 @@
--- 20260904203502_levantamiento_dx_v1.sql
+-- NOTA DE VERSION (5 de septiembre de 2026): estas tres migraciones se registraron en
+-- produccion con version timestamp (20260904203502, 20260905151702, 20260906040335).
+-- El CLI 2.102 ordena lo local por nombre de archivo y lo remoto por version, y con
+-- formatos mezclados (numerico corto + timestamp) desalinea la lista y aborta db push.
+-- Se renumeraron a 268, 269 y 270 (numeros libres, mismo largo que sus vecinas) y el
+-- ledger remoto se reparo con `supabase migration repair` (reverted las timestamp,
+-- applied 268 269 270). El contenido no cambia; nada de esto se ejecuta en produccion.
+-- 268_levantamiento_dx_v1.sql (antes 20260904203502_levantamiento_dx_v1.sql)
 --
 -- RECONSTRUCCION DESDE PRODUCCION (6 de septiembre de 2026).
 --
