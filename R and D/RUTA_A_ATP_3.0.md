@@ -4,6 +4,10 @@ Fecha: 4 de septiembre de 2026. Estado: APROBADA POR ENRIQUE el 4 de septiembre 
 
 Dueños: **E** = Enrique (solo él puede), **D** = Development Team (esta sesión de Cowork, con 4EP: un agente construye, otro revisa antes de darlo por hecho), **T** = sesión de Cowork de tiendas y embudo, **L** = legal y fiscal (Enrique con contador y, si quiere, abogado; el equipo redacta borradores). Cada paso dice "Hecho cuando" para que no haya duda de si terminó.
 
+## Estado al 5 de septiembre de 2026 (mañana)
+
+Hecho en código y commiteado (`e6f5c39`, `0861585`, `bd6ab13`): 0.9, toda la Fase 1 (1.1, 1.2, 1.3, 1.6 a 1.11), toda la Fase 2 (2.0 a 2.9) y toda la Fase 3 (3.1 a 3.7, 3.10). Pendiente de Enrique: 1.5 (`db push` y deploy de funciones, ver `ENTREGA_NOCHE_2026-09-04.md`), 0.2 a 0.7, 0.11 (prueba cerrada de Google: aplica), y la Fase 4. Pendiente del equipo: 0.8, 3.8 (página Elite fuera de la app, sesión T), 3.9 y 4.1 (redacción legal), 4.2 (consentimiento 3.0).
+
 ## Cómo leer el orden
 
 Cinco fases. La 0 es de decisiones y trámites que destraban lo demás; se hace esta semana. La 1 es el cimiento técnico (niveles y gating) porque todo lo demás lo usa. La 2 es lo que ve el usuario nuevo. La 3 es Elite y puede correr en paralelo con la 2 en cuanto termine la 1. La 4 es lanzamiento. Estimaciones en noches de trabajo del equipo (una noche = una sesión larga con 4EP); son para dimensionar, no promesas. Regla general que salió de la revisión: **antes de construir, buscar**; cuatro de los pasos de la primera versión ya existían en el repo.

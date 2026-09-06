@@ -107,7 +107,19 @@ Resumen: una sola app; Free / Pro (lista 499, lanzamiento 349 congelado, anual 3
 (5 anios de Pro, solo web) / Elite ~40k (codigo + evaluacion cargada); vender por web; Mariana fuera de
 la operacion, su cuenta y sus datos no se tocan; palabras rojas: diagnostico, tratamiento, previene, cura.
 Donde el pivote contradiga a `R and D/embudo/DECISIONES_PREVENTA.md`, gana el pivote hasta que la sesion
-de embudo actualice ese archivo. El pivote esta en BORRADOR hasta que Enrique lo apruebe.
+de embudo actualice ese archivo. El pivote fue APROBADO el 4 de septiembre; la noche del 4 al 5
+se construyo 3.0 completa en codigo (ver `R and D/ENTREGA_NOCHE_2026-09-04.md`).
+
+Herramientas 3.0: `node scripts/verifica.js <archivos>` (parser TS, em dashes, sinDatos, registros) antes de dar
+por terminado cualquier archivo; `node scripts/run-tests-sin-vitest.js <test>` para cores; `scripts/elite/` para
+cargar evaluaciones Elite (guia en `R and D/diagnostico/CARGAR_ELITE.md`). Niveles: `free | premium | elite`
+(`src/services/subscription/tier-logic.ts`); gating por `minTier` en `app-registry.ts`; lo bloqueado se ve con
+candado y lleva al paywall con `contexto`; a un miembro nunca se le cierra nada (fail-open si el nivel no se
+pudo leer). Elite entra solo por codigo (`tier_grants`), nunca por UPDATE a profiles; Mi evaluacion, Genetica,
+contexto de ARGOS y Suplementos (solo lectura) se abren por existencia de `functional_dx.sources_snapshot.elite_v3`.
+REGLA DURA: ninguna sesion de Cowork escribe en produccion con `execute_sql` ni `apply_migration`; toda migracion
+es un archivo en `supabase/migrations/` que Enrique aplica con `npx supabase db push` (las tres `2026090...`
+de Levantamiento DX se reconstruyeron desde produccion por haberse saltado esto).
 
 ## Lanzamiento y cobros (leer antes de tocar pagos, precios o legal)
 
