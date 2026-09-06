@@ -6,6 +6,7 @@
  * Ya no existe "Base", ni "Pro", ni "Clínico" como niveles de acceso: solo
  * `free` (todavía no paga) y `premium` (paga). Ninguna función se desbloquea
  * por plan, porque ya no hay plan que elegir.
+ * ATP 3.0 (5-sep-2026): se suma `elite` como tercer peldaño (ver el tipo Tier).
  *
  * Fuentes de verdad de la membresía:
  *  - profiles.tier (Supabase, lo escribe el webhook RevenueCat)
@@ -27,15 +28,23 @@
  * único error que no se puede deshacer con una disculpa.
  */
 
-/** Solo dos estados posibles: o eres miembro o todavía no. */
-export type Tier = 'free' | 'premium';
+/**
+ * ATP 3.0 (5-sep-2026, pivote 2.3): tres peldaños. `premium` es la membresía
+ * de tienda (Pro); `elite` es suma sobre premium, nunca recorte: lo tiene
+ * quien contrató la evaluación con Enrique y canjeó su código Elite. Elite
+ * no se vende en tiendas, así que RevenueCat nunca lo produce.
+ */
+export type Tier = 'free' | 'premium' | 'elite';
+
+/** Orden de los peldaños: free < premium < elite. */
+const RANGO: Record<Tier, number> = { free: 0, premium: 1, elite: 2 };
 
 /**
  * Valores de `profiles.tier` que significan "pagó". Incluye los tres tiers
  * históricos porque en la base HAY filas con esos valores y esa gente pagó.
  * No se migran, se reinterpretan.
  */
-const VALORES_PAGADOS = new Set(['base', 'pro', 'clinician', 'premium', 'founder']);
+const VALORES_PAGADOS = new Set(['base', 'pro', 'clinician', 'premium', 'founder', 'elite']);
 
 /**
  * Membresía implicada por los entitlements activos del SDK.
@@ -45,29 +54,42 @@ export function tierFromEntitlements(activeEntitlementIds: string[]): Tier {
   return activeEntitlementIds.length > 0 ? 'premium' : 'free';
 }
 
-/** Membresía según profiles.tier, degradada a free si tier_expires_at ya pasó. */
+/**
+ * Membresía según profiles.tier, degradada a free si tier_expires_at ya pasó.
+ * ATP 3.0: `elite` vigente se lee como elite; todo lo demás pagado y vigente
+ * como premium. Un elite vencido cae a free igual que cualquier otro (la
+ * evaluación Elite se conserva por existencia, no por tier: ver
+ * `tieneEvaluacionElite` en useSubscription).
+ */
 export function tierFromProfile(
   tier: string | null | undefined,
   tierExpiresAt: string | null | undefined,
   now: Date = new Date(),
 ): Tier {
-  const pagado = typeof tier === 'string' && VALORES_PAGADOS.has(tier.toLowerCase());
+  const valor = typeof tier === 'string' ? tier.toLowerCase() : '';
+  const pagado = VALORES_PAGADOS.has(valor);
   if (!pagado) return 'free';
   if (tierExpiresAt && new Date(tierExpiresAt).getTime() <= now.getTime()) return 'free';
-  return 'premium';
+  return valor === 'elite' ? 'elite' : 'premium';
 }
 
-/** La más generosa de dos lecturas (cubre el lag del webhook). */
+/** La más generosa de dos lecturas (cubre el lag del webhook): free < premium < elite. */
 export function highestTier(a: Tier, b: Tier): Tier {
-  return a === 'premium' || b === 'premium' ? 'premium' : 'free';
+  return RANGO[a] >= RANGO[b] ? a : b;
 }
 
-/** ¿Esta persona tiene la membresía activa? Único gate que queda en la app. */
+/** ¿Esta persona tiene la membresía activa? Elite incluye premium (suma, nunca recorte). */
 export function esMiembro(tier: Tier): boolean {
-  return tier === 'premium';
+  return tier === 'premium' || tier === 'elite';
+}
+
+/** ¿Tiene el nivel Elite vigente? Solo sirve para que el cliente sepa que además tiene Pro. */
+export function esElite(tier: Tier): boolean {
+  return tier === 'elite';
 }
 
 /** Etiqueta de la membresía para pantallas de cuenta y suscripción. */
 export function etiquetaMembresia(tier: Tier): string {
+  if (tier === 'elite') return 'ATP Elite';
   return tier === 'premium' ? 'ATP Premium' : 'Sin membresía';
 }

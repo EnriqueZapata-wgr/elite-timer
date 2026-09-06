@@ -20,7 +20,9 @@ import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { AppIcon } from '@/src/components/ui/AppIcon';
+import { CandadoNivel, destinoCandado } from '@/src/components/ui/CandadoNivel';
 import { useAuth } from '@/src/contexts/auth-context';
+import { useSubscription } from '@/src/hooks/useSubscription';
 import {
   visibleApps, searchApps, normalizeForSearch,
   APPS_PROXIMAMENTE, type AppEntry,
@@ -56,6 +58,11 @@ const STATE_LABEL: Record<InstallState, string> = {
 export default function CentroScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // ATP 3.0 (5-sep-2026, ruta 1.10): el nivel decide qué fila lleva candado.
+  const {
+    tier, tieneEvaluacionElite, evaluacionEliteNoSePudoLeer,
+    isLoading: nivelCargando, nivelNoSePudoLeer,
+  } = useSubscription();
   // MB-31B: pantalla migrada — superficies/texto del tema; los colores de
   // sección de iconos y encabezados son identidad y no se tematizan.
   const { kind, tokens } = useAppTheme();
@@ -87,7 +94,26 @@ export default function CentroScreen() {
   // MB-22 P4: el Centro lista TODAS las apps para todos. Ciclo es instalable
   // por cualquiera (su ficha resuelve el modo); ocultarla aquí impediría que
   // un acompañante siquiera supiera que existe.
-  const apps = useMemo(() => visibleApps(true), []);
+  // ATP 3.0: visibleApps marca `bloqueada` por nivel y no oculta nada
+  // (regla 15). Como searchApps y groupBySection devuelven AppEntry, el
+  // candado se consulta por llave.
+  // Mientras el nivel no llega o no se pudo leer (sin red), ningún candado:
+  // si se cerrara por defecto, un miembro vería (y podría tocar) candados, y
+  // eso viola "a quien pagó no se le corta nada". Misma doctrina que el
+  // fail-safe del proxy: ante la duda, abre. Igual para la evaluación Elite.
+  const nivelIncierto = nivelCargando || nivelNoSePudoLeer;
+  const apps = useMemo(
+    () => visibleApps(
+      true,
+      nivelIncierto ? 'elite' : tier,
+      tieneEvaluacionElite || evaluacionEliteNoSePudoLeer,
+    ),
+    [nivelIncierto, tier, tieneEvaluacionElite, evaluacionEliteNoSePudoLeer],
+  );
+  const bloqueadaPorLlave = useMemo(
+    () => new Map(apps.map((a) => [a.key, a.bloqueada])),
+    [apps],
+  );
   const searching = query.trim().length > 0;
   const listed = useMemo(() => searchApps(apps, query), [apps, query]);
   const groups = useMemo(() => groupBySection(listed), [listed]);
@@ -110,16 +136,24 @@ export default function CentroScreen() {
   const renderRow = (app: AppEntry, isLast: boolean) => {
     const color = APP_SECTION_COLORS[app.section];
     const state = stateOf(app);
+    // ATP 3.0: la fila bloqueada se ve (opacidad 0.6 y candado) y su tap va
+    // al candado (paywall con contexto, o la página Elite), no a la ficha.
+    const bloqueada = (bloqueadaPorLlave.get(app.key) ?? false) && app.minTier != null;
+    const nivel = app.minTier;
     return (
       <AnimatedPressable
         key={app.key}
         style={[s.row, !isLast && [s.rowDivider, { borderBottomColor: tokens.borde }]]}
-        onPress={() => { haptic.light(); router.push(`/centro/${app.key}`); }}
+        onPress={() => {
+          haptic.light();
+          if (bloqueada && nivel) router.push(destinoCandado(app.key, nivel));
+          else router.push(`/centro/${app.key}`);
+        }}
       >
-        <View style={[s.rowIcon, { backgroundColor: withOpacity(color, 0.10), borderColor: withOpacity(color, 0.22) }]}>
+        <View style={[s.rowIcon, { backgroundColor: withOpacity(color, 0.10), borderColor: withOpacity(color, 0.22) }, bloqueada && s.bloqueada]}>
           <AppIcon name={app.icon} size={18} color={color} />
         </View>
-        <EliteText style={[s.rowLabel, { color: tokens.texto }]} numberOfLines={1}>{app.label}</EliteText>
+        <EliteText style={[s.rowLabel, { color: tokens.texto }, bloqueada && s.bloqueada]} numberOfLines={1}>{app.label}</EliteText>
         {state !== 'no' && (
           <EliteText style={{
             fontFamily: Fonts.regular,
@@ -129,6 +163,9 @@ export default function CentroScreen() {
           }}>
             {STATE_LABEL[state]}
           </EliteText>
+        )}
+        {bloqueada && nivel && (
+          <CandadoNivel appKey={app.key} nivel={nivel} tocable={false} />
         )}
         <Ionicons name="chevron-forward" size={15} color={tokens.sinDatos} />
       </AnimatedPressable>
@@ -411,6 +448,10 @@ const s = StyleSheet.create({
   rowDivider: {
     borderBottomWidth: 0.5,
   },
+  // ATP 3.0: bloqueada se atenúa, no desaparece. Se atenúan icono y nombre,
+  // no la fila entera: el candado y el chevron se quedan a tinta completa para
+  // conservar su contraste (texto a 0.6 sobre card claro queda en ~4.5:1).
+  bloqueada: { opacity: 0.6 },
   rowIcon: {
     width: 32,
     height: 32,

@@ -1,0 +1,10 @@
+-- 20260905151702_levantamiento_dx_v2_entrevista_completa.sql
+--
+-- Version registrada en supabase_migrations.schema_migrations de produccion el
+-- 5 de septiembre de 2026 (nota del ledger: "+68 columnas: historia clinica
+-- ampliada, digestion, boca/piel, entrenamiento, sueno ampliado, cronotipo,
+-- vitalidad, contexto, mujer"), aplicada con execute_sql desde otra sesion sin
+-- archivo en el repo.
+--
+-- Contenido incluido en la reconstruccion de 20260904203502; version
+-- registrada para cuadrar el ledger. Sin statements a proposito.

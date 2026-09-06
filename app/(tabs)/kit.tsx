@@ -30,6 +30,8 @@ import { TabScreen } from '@/src/components/ui/TabScreen';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useSystemReducedMotion } from '@/src/components/ui/useSystemReducedMotion';
 import { AppTile } from '@/src/components/atp/AppTile';
+import { destinoCandado } from '@/src/components/ui/CandadoNivel';
+import { useSubscription } from '@/src/hooks/useSubscription';
 import { AtpEditorialCard } from '@/src/components/atp/AtpEditorialCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
@@ -144,10 +146,32 @@ export default function SalaAtpScreen() {
   // solo pudo instalarse si le tocaba. /cycle trae su propio gate de todos
   // modos (useCycleGate), así que aquí nunca se abre de más.
   const cicloInstalado = installPrefs?.installedApps.includes('ciclo') ?? false;
+  // ATP 3.0 (5-sep-2026, ruta 1.10): el nivel marca `bloqueada` en cada app;
+  // nada se oculta (regla 15). Mientras el nivel carga o no se pudo leer (sin
+  // red) no hay candados: ante la duda se abre, para no cerrarle nada a quien
+  // pagó (doctrina del proxy). Igual para la evaluación Elite.
+  const {
+    tier, tieneEvaluacionElite, evaluacionEliteNoSePudoLeer,
+    isLoading: nivelCargando, nivelNoSePudoLeer,
+  } = useSubscription();
+  const nivelIncierto = nivelCargando || nivelNoSePudoLeer;
   const apps = useMemo(
-    () => visibleApps(isFemale || cycleModeSet || (perfilFallo && cicloInstalado)),
-    [isFemale, cycleModeSet, perfilFallo, cicloInstalado],
+    () => visibleApps(
+      isFemale || cycleModeSet || (perfilFallo && cicloInstalado),
+      nivelIncierto ? 'elite' : tier,
+      tieneEvaluacionElite || evaluacionEliteNoSePudoLeer,
+    ),
+    [isFemale, cycleModeSet, perfilFallo, cicloInstalado, nivelIncierto, tier, tieneEvaluacionElite, evaluacionEliteNoSePudoLeer],
   );
+  // gridApps, orderedApps y groupBySection devuelven AppEntry: el candado se consulta por llave.
+  const bloqueadaPorLlave = useMemo(
+    () => new Map(apps.map((a) => [a.key, a.bloqueada])),
+    [apps],
+  );
+  const candadoDe = useCallback((app: AppEntry) => {
+    if (!app.minTier || !(bloqueadaPorLlave.get(app.key) ?? false)) return null;
+    return { appKey: app.key, nivel: app.minTier };
+  }, [bloqueadaPorLlave]);
 
   // MB-22: el deep link viejo de "+ agregar" aterriza donde hoy se instala.
   useEffect(() => {
@@ -205,9 +229,13 @@ export default function SalaAtpScreen() {
   }, [instaladas, usage]);
 
   const open = useCallback((app: AppEntry) => {
+    // ATP 3.0: una app bloqueada lleva al candado (paywall con contexto o la
+    // página Elite), no a su ruta, y no cuenta como uso.
+    const candado = candadoDe(app);
+    if (candado) { router.push(destinoCandado(candado.appKey, candado.nivel)); return; }
     recordOpen(app.key);
     router.push(app.route);
-  }, [router]);
+  }, [router, candadoDe]);
 
   const changeOrder = (next: AtpOrder) => {
     haptic.light();
@@ -239,6 +267,7 @@ export default function SalaAtpScreen() {
         section={app.section}
         onPress={() => open(app)}
         onLongPress={() => promptUninstall(app)}
+        candado={candadoDe(app)}
       />
     </Animated.View>
   );

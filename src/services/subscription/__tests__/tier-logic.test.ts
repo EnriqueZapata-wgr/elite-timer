@@ -12,6 +12,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  esElite,
   esMiembro,
   etiquetaMembresia,
   highestTier,
@@ -43,6 +44,10 @@ describe('tierFromEntitlements', () => {
   it('varios entitlements activos siguen siendo una sola membresía', () => {
     expect(tierFromEntitlements(['atp_base', 'atp_pro'])).toBe('premium');
   });
+
+  it('ATP 3.0: RevenueCat nunca produce elite (Elite no se vende en tiendas)', () => {
+    expect(tierFromEntitlements(['atp_elite'])).toBe('premium');
+  });
 });
 
 describe('tierFromProfile', () => {
@@ -66,6 +71,16 @@ describe('tierFromProfile', () => {
     expect(tierFromProfile('free', null, now)).toBe('free');
     expect(tierFromProfile('lo_que_sea', null, now)).toBe('free');
   });
+
+  // ATP 3.0 (5-sep-2026, pivote 2.3): elite es el tercer peldaño.
+  it('elite vigente se lee como elite, con o sin vencimiento futuro', () => {
+    expect(tierFromProfile('elite', null, now)).toBe('elite');
+    expect(tierFromProfile('ELITE', '2027-09-01T00:00:00Z', now)).toBe('elite');
+  });
+
+  it('elite vencido cae a free como cualquier otro (la evaluación se conserva aparte)', () => {
+    expect(tierFromProfile('elite', '2026-07-01T00:00:00Z', now)).toBe('free');
+  });
 });
 
 describe('highestTier', () => {
@@ -74,13 +89,31 @@ describe('highestTier', () => {
     expect(highestTier('premium', 'free')).toBe('premium');
     expect(highestTier('free', 'free')).toBe('free');
   });
+
+  it('ATP 3.0: elite gana a premium en cualquier orden (suma, nunca recorte)', () => {
+    // Un Elite que además tiene Pro en tienda no puede bajar a premium
+    // porque RevenueCat contestó primero.
+    expect(highestTier('elite', 'premium')).toBe('elite');
+    expect(highestTier('premium', 'elite')).toBe('elite');
+    expect(highestTier('elite', 'free')).toBe('elite');
+    expect(highestTier('free', 'elite')).toBe('elite');
+    expect(highestTier('elite', 'elite')).toBe('elite');
+  });
 });
 
-describe('esMiembro y etiquetaMembresia', () => {
-  it('solo hay dos estados y se nombran en español', () => {
+describe('esMiembro, esElite y etiquetaMembresia', () => {
+  it('los estados se nombran en español', () => {
     expect(esMiembro('premium')).toBe(true);
     expect(esMiembro('free')).toBe(false);
     expect(etiquetaMembresia('premium')).toBe('ATP Premium');
     expect(etiquetaMembresia('free')).toBe('Sin membresía');
+  });
+
+  it('ATP 3.0: elite es miembro (incluye Pro) y solo elite es elite', () => {
+    expect(esMiembro('elite')).toBe(true);
+    expect(esElite('elite')).toBe(true);
+    expect(esElite('premium')).toBe(false);
+    expect(esElite('free')).toBe(false);
+    expect(etiquetaMembresia('elite')).toBe('ATP Elite');
   });
 });

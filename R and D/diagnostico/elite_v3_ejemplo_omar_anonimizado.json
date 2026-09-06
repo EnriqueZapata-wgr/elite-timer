@@ -1,0 +1,1493 @@
+{
+  "schema": "elite_v3",
+  "version": 1,
+  "generado_en": "2026-09-06",
+  "interpretado_por": {
+    "evaluacion": "Enrique Zapata",
+    "genetica": "Proveedor de interpretacion genetica"
+  },
+  "cliente": {
+    "nombre_preferido": "O.",
+    "sexo": "male",
+    "edad": 38,
+    "fecha_toma": "2026-05"
+  },
+  "inicio": {
+    "edad_cronologica": 38,
+    "edad_atp": 44.5,
+    "diferencia_anios": 6.5,
+    "lead": "Tienes 38 años. Tu cuerpo funciona como uno de 44.5. Esos seis años y medio de diferencia son justo los que más rápido se bajan.",
+    "programa_semanas": 12
+  },
+  "conteo": {
+    "total_medido": 156,
+    "piden_accion": 13,
+    "valores_medidos": 126,
+    "hallazgos_adn": 22,
+    "ejes_quimica": 8,
+    "mueven_tu_caso": {
+      "att": 13,
+      "sub": 7,
+      "opt": 8
+    },
+    "ritmo_envejecimiento_meses": 15.6,
+    "calidad_estudio": 96.4
+  },
+  "edades": {
+    "real": 38,
+    "sangre": 32.7,
+    "vida": 48.4,
+    "atp": 44.5,
+    "sf_pct": 51.5,
+    "detalle": [
+      {
+        "titulo": "Tu cuerpo envejeció seis años y medio de más",
+        "parrafos": [
+          "Los números de arriba, en corto:",
+          "El 51.5% resume todo tu estudio en una cifra. Vas a la mitad.",
+          "Tu sangre marca 32.7 años: en lo que mide envejecimiento, estás mejor que tu edad real. No quiere decir que todo salga bien, ya vamos a eso.",
+          "Tu físico marca 48.4. Ahí está el trabajo.",
+          "El 15.6 es tu ritmo: por cada 12 meses de calendario, tu cuerpo envejece 15.6 meses. Casi cuatro de más al año. Eso es lo que vamos a frenar."
+        ]
+      },
+      {
+        "titulo": "Lo que te está costando esos años",
+        "parrafos": [
+          "Son tres cosas, y están conectadas.",
+          "Tu hígado está trabajando de más: tres de sus enzimas salieron altas.",
+          "Tu cuerpo produce insulina de más para mantener el azúcar a raya. El motor principal es la grasa que se te acumuló alrededor de los órganos.",
+          "Y no descansas. Duermes 7 horas y amaneces en 4 de 10 de energía."
+        ]
+      },
+      {
+        "titulo": "El hilo que une las tres",
+        "parrafos": [
+          "El alcohol.",
+          "Inflama tu hígado. Sube tu insulina. Y te quita sueño profundo, aunque eso último todavía hay que medirlo.",
+          "Hoy tomas alrededor de 24 tragos al mes. En estas 12 semanas vamos a 4 o menos. Es la palanca que más mueve de todo tu plan.",
+          "Hay una razón por la que te funciona: tu química de la calma está agotada, y el alcohol hace de freno. Sirve esa noche y te cobra al día siguiente.",
+          "Por eso no te lo quito de golpe y sin sustituto. Antes te instalo un freno propio: una rutina de bajada de 30 a 45 minutos antes de dormir, magnesio en la noche, café solo por la mañana con corte al mediodía, y sol directo al despertar. Ninguna te quita el café: solo lo mueve de hora."
+        ]
+      },
+      {
+        "titulo": "Cuatro cosas que hay que cerrar",
+        "parrafos": [
+          "Apnea del sueño. El estudio va primero y se puede hacer en tu casa. Es la causa física más común de amanecer como amaneces, y la que más pesaría sobre tu corazón.",
+          "Corazón. Tu genética marca riesgo alto de infarto. Tienes 38, que es justo la edad en que esto se decide. No te lo digo para asustarte, te lo digo porque estás a tiempo.",
+          "Hígado. Ultrasonido y panel de hepatitis, por tus tres enzimas altas.",
+          "Celiaquía. Análisis de sangre, y ojo con esto: no quites el gluten antes, porque el resultado sale falso.",
+          "De las cuatro te doy por escrito qué pedir y con quién. Tú vas. Los resultados los leemos juntos."
+        ]
+      },
+      {
+        "titulo": "Dos notas antes de seguir",
+        "parrafos": [
+          "Esta sangre es de mayo y estamos en agosto. Tu genética no cambia. Tus enzimas del hígado y tu vitamina D sí pudieron moverse, así que las volvemos a medir al arrancar.",
+          "Y hay datos que fueron estimados, no medidos: tu presión, tu fuerza, tu condición y la calidad de tu sueño. Esos los medimos de verdad en tu primera medición conmigo.",
+          "Tus 12 semanas corren de agosto a noviembre, con tus viajes contemplados."
+        ]
+      }
+    ]
+  },
+  "sistemas": [
+    {
+      "key": "metabolismo",
+      "nombre": "Metabolismo",
+      "score": 29,
+      "estado": "att",
+      "por_que": "Tu azúcar en sangre se ve bien (tu sensor estuvo todo el tiempo en rango y tu promedio de 3 meses es bueno), PERO tu cuerpo produce bastante insulina de más para lograrlo. Eso es un motor trabajando forzado. Lo bueno: tu genética metabólica está protegida, así que esto es adquirido y se revierte."
+    },
+    {
+      "key": "composicion_corporal",
+      "nombre": "Composición corporal",
+      "score": 34,
+      "estado": "att",
+      "por_que": "Tienes 26.6% de grasa y grasa acumulada alrededor de los órganos en nivel alto. Tu músculo (42.2%) es un buen activo de arranque. Esta es la parte que carga tu edad biológica, y la que más rápido se mueve."
+    },
+    {
+      "key": "vitalidad",
+      "nombre": "Vitalidad y estado mental",
+      "score": 38,
+      "estado": "att",
+      "por_que": "Amaneces en 4 de 10, tu energía del día es 5, tu capacidad de aguantar presión 4 y tu cansancio de fondo 8 de 10. No es falta de ganas: es falta de recuperación. Tu química de la calma está agotada."
+    },
+    {
+      "key": "habitos",
+      "nombre": "Hábitos y estilo de vida",
+      "score": 38,
+      "estado": "att",
+      "por_que": "El alcohol es hoy tu hábito de mayor costo (toca hígado, azúcar, sueño y corazón a la vez). Súmale 7 horas de pantalla, entrenar solo 2 veces por semana y viajar unos 110 días al año. Tú mismo lo dijiste: no programas descansos."
+    },
+    {
+      "key": "inflamacion",
+      "nombre": "Inflamación",
+      "score": 58,
+      "estado": "sub",
+      "por_que": "Tu PCR convencional salió baja, pero esa prueba no detecta inflamación de bajo grado (para eso va la ultrasensible, que te preparo yo). Lo que sí está alto es tu marcador de daño en los vasos y tu ácido úrico. Ambos suben con el alcohol."
+    },
+    {
+      "key": "cardiovascular",
+      "nombre": "Sistema cardiovascular",
+      "score": 62,
+      "estado": "sub",
+      "por_que": "Tu presión y tus grasas en sangre no están mal en el número. Lo importante es otra cosa: tu genética marca riesgo alto de infarto y muestra que tu colesterol se oxida más y se elimina peor. Esto lo revisamos aquí, y se trabaja desde hoy."
+    },
+    {
+      "key": "sistema_hormonal",
+      "nombre": "Sistema hormonal",
+      "score": 66,
+      "estado": "sub",
+      "por_que": "Tu tiroides no muestra señales de que tu cuerpo la esté atacando. Pero su hormona activa está baja: tu T3 libre salió en 2.49. Esa conversión ocurre en el hígado, y tu hígado hoy está cargado. Tu testosterona está en rango de laboratorio, pero por debajo del objetivo funcional. Hoy la frenan cuatro cosas que sí puedes cambiar: dormir poco, la grasa acumulada, la vitamina D baja y el alcohol."
+    },
+    {
+      "key": "sueno",
+      "nombre": "Sueño y ritmo circadiano",
+      "score": 66,
+      "estado": "sub",
+      "por_que": "Duermes unas 7 h y amaneces en 4 de 10. OJO: los datos de calidad de tu sueño son ESTIMADOS, no medidos: hay que medirlos. Y falta descartar una causa física frecuente en hombres de tu peso: la apnea del sueño (ver pendientes)."
+    },
+    {
+      "key": "inmunidad",
+      "nombre": "Sistema inmune",
+      "score": 71,
+      "estado": "opt",
+      "por_que": "Tus defensas están en rango y sin señales de alergia elevada. Tu factor reumatoide salió negativo. Terreno tranquilo por este lado."
+    },
+    {
+      "key": "renal_micronutrientes",
+      "nombre": "Renal y micronutrientes",
+      "score": 73,
+      "estado": "opt",
+      "por_que": "Tu creatinina está normal (no hay medición de filtrado renal en este estudio, así que no podemos afirmar más). Lo que sí hay que corregir: vitamina D muy baja (18.7), magnesio bajo y la sangre algo diluida. Tu genética dice que absorbes bien ambos minerales, o sea no es defecto, es fuga (alcohol, estrés y los antiácidos)."
+    }
+  ],
+  "contexto": {
+    "parrafos": [
+      "Tienes 38 años, negocio propio y una vida en movimiento. Viajas alrededor de 110 días al año.",
+      "Eres de los que empujan: motor y cabeza rápida. Has manejado niveles fuertes de estrés toda la vida.",
+      "Trabajas tu salud en pareja."
+    ],
+    "cita": "Me gustaría verme bien, en forma, con algo de brazo. Estar fuerte. Y seguir siendo el alegre.",
+    "antecedentes": [
+      "En tu historial médico aparecen estrés crónico y gastritis. El reflujo aparecía con el estrés.",
+      "Usaste antiácidos de forma crónica y ya los suspendiste. Bien hecho. Su huella quedó en tu vitamina B12 y tu magnesio.",
+      "Tomas alrededor de 24 tragos al mes: whisky, ron y tequila. El vino y la cerveza te caen mal."
+    ]
+  },
+  "marcadores": {
+    "intro": "Toca cualquier renglón para abrirlo. Adentro está el riel: el bloque iluminado es el rango ideal y el triángulo eres tú. La línea punteada es el objetivo que te pusimos nosotros, no el laboratorio.",
+    "grupos": [
+      {
+        "nombre": "Hígado y metabolismo",
+        "marcadores": [
+          {
+            "key": "ggt",
+            "nombre": "Enzima del hígado (GGT)",
+            "valor": 67,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": null,
+              "max": 30
+            },
+            "estado": "att",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Alta. Es la que más rápido reacciona al alcohol y la que mejor mide cuánto trabaja tu sistema de limpieza. También la que más rápido baja cuando le das descanso: se nota en 4-8 semanas."
+          },
+          {
+            "key": "transaminasa_glutamico_piruvica_alt",
+            "nombre": "Enzima del hígado (ALT)",
+            "valor": 70,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": null,
+              "max": 33
+            },
+            "estado": "att",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Alta: alrededor de 1.7 veces el límite superior. No es zona de urgencia. Junto con las otras dos, indica CARGA en tu hígado. No es una conclusión médica. Las causas posibles son varias. Puede ser algo normal, porque el entrenamiento reciente sube estas enzimas. O puede ser grasa en el hígado, un virus o hierro. Cuál de ellas es, lo definen el ultrasonido y el panel. Yo te preparo exactamente qué pedir. Cuando lo tengas, lo leemos juntos."
+          },
+          {
+            "key": "transaminasa_glutamico_oxalacetica_ast",
+            "nombre": "Enzima del hígado (AST)",
+            "valor": 49,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": null,
+              "max": 35
+            },
+            "estado": "att",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Alta. Ojo: parte de esta enzima puede venir del músculo, no del hígado (tu CPK está en 199, borde alto). Por eso el patrón se confirma con estudio médico, no se asume."
+          },
+          {
+            "key": "homair",
+            "nombre": "Resistencia a la insulina",
+            "valor": 3.39,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": null,
+              "max": 1.5
+            },
+            "estado": "att",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Tu cuerpo produce insulina de más para mantener estable tu azúcar. Tu azúcar sale bien justo porque tu páncreas trabaja de más. Se mueve con caminata después de comer, músculo y menos alcohol."
+          },
+          {
+            "key": "insulina",
+            "nombre": "Insulina en ayuno",
+            "valor": 15.8,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": null,
+              "max": 5
+            },
+            "estado": "att",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Alta. Es el marcador que primero se mueve cuando baja la grasa de los órganos: antes incluso que la báscula."
+          },
+          {
+            "key": "acido_urico",
+            "nombre": "Ácido úrico",
+            "valor": 6.9,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": null,
+              "max": 5.5
+            },
+            "estado": "att",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Por encima del ideal. Sube con alcohol (sobre todo cerveza) y con azúcar; baja sola cuando bajan esos dos."
+          },
+          {
+            "key": "glucosa_en_ayuno",
+            "nombre": "Azúcar en ayuno (glucosa)",
+            "valor": 87,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": 80,
+              "max": 90
+            },
+            "estado": "opt",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "En buen rango. El trabajo es sobre la insulina que la sostiene, no sobre el azúcar."
+          },
+          {
+            "key": "hba1c",
+            "nombre": "Promedio de azúcar de 3 meses",
+            "valor": 5.2,
+            "unidad": "%",
+            "rango_lab": null,
+            "objetivo": {
+              "min": null,
+              "max": 5.4
+            },
+            "estado": "opt",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Óptimo. Tu control de azúcar a largo plazo está bien."
+          },
+          {
+            "key": "tiempo_en_rango_saludable_65150_cgm",
+            "nombre": "Sensor de glucosa del brazo · tiempo estable",
+            "valor": 100,
+            "unidad": "%",
+            "rango_lab": null,
+            "objetivo": {
+              "min": 90,
+              "max": null
+            },
+            "estado": "opt",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Excelente: tu azúcar se mantuvo estable todo el tiempo, con muy poca variación. Confirma que tu páncreas responde bien: está sobrecargado, no roto."
+          }
+        ]
+      },
+      {
+        "nombre": "Corazón y grasas en sangre",
+        "marcadores": [
+          {
+            "key": "homocisteina",
+            "nombre": "Marcador de daño en tus vasos (homocisteína)",
+            "valor": 10.13,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": null,
+              "max": 8
+            },
+            "estado": "att",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Alto. Y aquí está lo interesante: tu genética para procesarlo está intacta, incluso reforzada. O sea, no es tu maquinaria. Es la carga: el alcohol, la vitamina B12 justa por los antiácidos y el magnesio bajo."
+          },
+          {
+            "key": "apolipoproteinas_b",
+            "nombre": "ApoB (el mejor marcador de riesgo del corazón)",
+            "valor": 92.8,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": null,
+              "max": 80
+            },
+            "estado": "att",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Fuera del objetivo. De todos tus números de colesterol, ÉSTE es el que mejor predice el riesgo: cuenta cuántas partículas dañinas circulan, no cuánto colesterol hay. Es justo el marcador que sostiene tu bandera de corazón, y ya lo tienes medido."
+          },
+          {
+            "key": "colesterol_ldl",
+            "nombre": "Colesterol del que conviene bajar (LDL)",
+            "valor": 127.8,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": null,
+              "max": 100
+            },
+            "estado": "sub",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Ligeramente alto. Con tu perfil genético de corazón, este número merece más atención de lo normal: es de los temas que trabajamos contigo desde ahora."
+          },
+          {
+            "key": "trigliceridos",
+            "nombre": "Triglicéridos (grasa en sangre)",
+            "valor": 105,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": null,
+              "max": 100
+            },
+            "estado": "sub",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Casi en rango. Bajan rápido cuando baja el alcohol y el azúcar."
+          },
+          {
+            "key": "colesterol_total",
+            "nombre": "Colesterol total",
+            "valor": 190,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": null,
+              "max": 200
+            },
+            "estado": "opt",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "En rango. Pero el número solo no cuenta la historia completa: tu genética hace que el colesterol se oxide más y se elimine peor, así que aquí importa más el tipo que la cantidad."
+          },
+          {
+            "key": "colesterol_hdl",
+            "nombre": "Colesterol bueno (HDL)",
+            "valor": 52.7,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": 40,
+              "max": null
+            },
+            "estado": "opt",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "En buen lugar para hombre. Y tu relación triglicéridos/colesterol bueno es 1.99, que cumple el objetivo: es mejor predictor que el colesterol solo."
+          },
+          {
+            "key": "relacion_trigliceridos_hdl",
+            "nombre": "Triglicéridos / colesterol bueno",
+            "valor": 1.99,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": null,
+              "max": 2
+            },
+            "estado": "opt",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Cumple el objetivo: es de los mejores predictores metabólicos que existen y el tuyo está bien. Buena base sobre la que construir."
+          }
+        ]
+      },
+      {
+        "nombre": "Hormonas y tiroides",
+        "marcadores": [
+          {
+            "key": "t3_libre",
+            "nombre": "T3 libre (hormona activa de la tiroides)",
+            "valor": 2.49,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": 3.2,
+              "max": 4.2
+            },
+            "estado": "att",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": 3,
+            "estimado": false,
+            "nota": "Baja. Tu TSH sale bien, pero la hormona ACTIVA está por debajo del objetivo. Dato clave: la conversión a esta hormona ocurre en el hígado, y tu hígado está cargado. Es otra razón para el foco hepático."
+          },
+          {
+            "key": "testosterona_total",
+            "nombre": "Testosterona total",
+            "valor": 514,
+            "unidad": "ng/dL",
+            "rango_lab": null,
+            "objetivo": {
+              "min": 600,
+              "max": 900
+            },
+            "estado": "sub",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": 2,
+            "estimado": false,
+            "nota": "Está dentro del rango de tu laboratorio (5.14 ng/mL), pero por debajo del objetivo funcional. Tu testosterona libre sí está en buena zona: 16.3. Eso suaviza la lectura. Hoy la frenan cuatro cosas que sí controlas: dormir poco, la grasa acumulada, la vitamina D baja y el alcohol."
+          },
+          {
+            "key": "cortisol_matutino",
+            "nombre": "Cortisol de la mañana (hormona del estrés)",
+            "valor": 8.4,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": 10,
+              "max": 20
+            },
+            "estado": "sub",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": 4,
+            "estimado": false,
+            "nota": "Por debajo del objetivo funcional de la mañana, aunque dentro del rango de tu laboratorio. Una sola toma no define nada: para leerlo bien hay que repetirlo con hora anotada y sumar DHEA-S. Encaja con tu contexto de estrés sostenido, pero es hipótesis a validar."
+          },
+          {
+            "key": "tsh",
+            "nombre": "Tiroides (TSH)",
+            "valor": 1.42,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": null,
+              "max": 2
+            },
+            "estado": "opt",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Tu TSH está bien y no hay señales de que tu cuerpo esté atacando tu tiroides. PERO tu T3 libre (la hormona activa) está baja: ver el siguiente renglón."
+          },
+          {
+            "key": "prolactina",
+            "nombre": "Prolactina",
+            "valor": 15.8,
+            "unidad": null,
+            "rango_lab": {
+              "min": 3.5,
+              "max": 19.4
+            },
+            "objetivo": null,
+            "estado": "opt",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Dentro del rango de tu laboratorio, en su mitad alta. Se menciona porque una prolactina alta puede frenar la testosterona y el alcohol tiende a subirla, pero hoy tu valor es normal. Solo dato de contexto."
+          }
+        ]
+      },
+      {
+        "nombre": "Micronutrientes e inflamación",
+        "marcadores": [
+          {
+            "key": "vitamina_d",
+            "nombre": "Vitamina D",
+            "valor": 18.7,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": 50,
+              "max": 70
+            },
+            "estado": "att",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Muy baja, y de las correcciones más rentables que tienes: pega en energía, ánimo, defensas, sensibilidad al azúcar y hasta en tu testosterona. Tu genética dice que la aprovechas bien, así que responde rápido."
+          },
+          {
+            "key": "magnesio",
+            "nombre": "Magnesio",
+            "valor": 1.83,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": 2.2,
+              "max": 2.6
+            },
+            "estado": "att",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Bajo. Tu genética dice que lo absorbes muy bien, así que no es un defecto: es fuga por alcohol, estrés y los antiácidos que usabas. Es pieza clave de tu descanso."
+          },
+          {
+            "key": "vitamina_b12",
+            "nombre": "Vitamina B12",
+            "valor": 440,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": 500,
+              "max": null
+            },
+            "estado": "sub",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": 2,
+            "estimado": false,
+            "nota": "Sale 'normal' de laboratorio, pero es funcionalmente justa para ti por los años de antiácidos. Lo que confirmaría un déficit real es el ácido metilmalónico, no repetir la B12. Antes de suplementar lo validamos: te preparo la solicitud del ácido metilmalónico y lo cerramos aquí."
+          },
+          {
+            "key": "proteina_c_reactiva_cuantitativa_pcr",
+            "nombre": "Inflamación (PCR convencional)",
+            "valor": 0.24,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": null,
+            "estado": "sub",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Tu PCR salió baja, PERO es la PCR convencional, que no tiene resolución para leer inflamación de bajo grado. Para eso hace falta la ultrasensible, que va en tu siguiente panel. Por ahora puedo decir que no hay inflamación aguda; NO puedo afirmar que tu terreno inflamatorio esté tranquilo."
+          },
+          {
+            "key": "osmolalidad",
+            "nombre": "Concentración de la sangre (osmolalidad)",
+            "valor": 272.1,
+            "unidad": null,
+            "rango_lab": null,
+            "objetivo": {
+              "min": 275,
+              "max": 295
+            },
+            "estado": "sub",
+            "fuente": [
+              "lab"
+            ],
+            "evidencia": null,
+            "estimado": false,
+            "nota": "Ligeramente baja. Puede reflejar mucha agua sin minerales suficientes, o la hormona del estrés reteniendo líquido. Por eso tu hidratación se corrige con MINERALES, no simplemente tomando más agua."
+          }
+        ]
+      },
+      {
+        "nombre": "Sueño",
+        "marcadores": [
+          {
+            "key": "sueno_deep",
+            "nombre": "Sueño profundo",
+            "valor": 13,
+            "unidad": "%",
+            "rango_lab": null,
+            "objetivo": {
+              "min": 20,
+              "max": 25
+            },
+            "estado": "att",
+            "fuente": [
+              "ctx"
+            ],
+            "evidencia": null,
+            "estimado": true,
+            "nota": "ATENCIÓN: este dato es una ESTIMACIÓN, no una medición: no traías reloj ni anillo de sueño. Se usa como hipótesis, no como hallazgo. Medirlo de verdad es de lo primero de la próxima medición."
+          },
+          {
+            "key": "eficiencia_del_sueno",
+            "nombre": "Eficiencia del sueño",
+            "valor": 75,
+            "unidad": "%",
+            "rango_lab": null,
+            "objetivo": {
+              "min": 85,
+              "max": null
+            },
+            "estado": "att",
+            "fuente": [
+              "ctx"
+            ],
+            "evidencia": null,
+            "estimado": true,
+            "nota": "También ESTIMADO. Sirve como punto de partida, no como dato duro. Con un anillo o reloj lo convertimos en medición real."
+          }
+        ]
+      }
+    ],
+    "notas": [
+      "Varios datos aquí fueron ESTIMADOS, no medidos: tu sueño, tu presión, tu fuerza y tu condición.",
+      "Esos los medimos tú y yo en tu próxima medición. Con anillo o reloj de sueño, dinamómetro, medición de presión y prueba de condición. Así tu foto queda exacta. Es de lo primero que agendamos."
+    ]
+  },
+  "composicion": {
+    "reparto": {
+      "peso_kg": 96.7,
+      "grasa_pct": 26.6,
+      "grasa_kg": 25.7,
+      "musculo_pct": 42.2,
+      "musculo_kg": 40.8,
+      "resto_pct": 31.2,
+      "resto_kg": 30.2
+    },
+    "filas": [
+      {
+        "key": "peso",
+        "nombre": "Peso",
+        "valor": 96.7,
+        "unidad": "kg",
+        "rango_lab": null,
+        "objetivo": null,
+        "estado": "sub",
+        "fuente": [
+          "lab"
+        ],
+        "evidencia": null,
+        "estimado": false,
+        "nota": "Meta: recomposición, no un número de báscula."
+      },
+      {
+        "key": "grasa_corporal",
+        "nombre": "% Grasa corporal",
+        "valor": 26.6,
+        "unidad": "%",
+        "rango_lab": null,
+        "objetivo": {
+          "min": null,
+          "max": 20
+        },
+        "estado": "att",
+        "fuente": [
+          "lab"
+        ],
+        "evidencia": null,
+        "estimado": false
+      },
+      {
+        "key": "musculo_esqueletico",
+        "nombre": "% Músculo",
+        "valor": 42.2,
+        "unidad": "%",
+        "rango_lab": null,
+        "objetivo": {
+          "min": 45,
+          "max": null
+        },
+        "estado": "sub",
+        "fuente": [
+          "lab"
+        ],
+        "evidencia": null,
+        "estimado": false
+      },
+      {
+        "key": "grasa_visceral",
+        "nombre": "Grasa alrededor de los órganos",
+        "valor": 10,
+        "unidad": "nivel",
+        "rango_lab": null,
+        "objetivo": {
+          "min": null,
+          "max": 7
+        },
+        "estado": "att",
+        "fuente": [
+          "lab"
+        ],
+        "evidencia": null,
+        "estimado": false
+      },
+      {
+        "key": "estatura",
+        "nombre": "Estatura",
+        "valor": 186,
+        "unidad": "cm",
+        "rango_lab": null,
+        "objetivo": null,
+        "estado": "opt",
+        "fuente": [
+          "lab"
+        ],
+        "evidencia": null,
+        "estimado": false
+      },
+      {
+        "key": "edad_corporal",
+        "nombre": "Edad corporal (según tu báscula)",
+        "valor": 39,
+        "unidad": "años",
+        "rango_lab": null,
+        "objetivo": {
+          "min": null,
+          "max": 36
+        },
+        "estado": "sub",
+        "fuente": [
+          "lab"
+        ],
+        "evidencia": null,
+        "estimado": false
+      }
+    ]
+  },
+  "braverman": {
+    "intro": "La tuya es Empuje 37 · Memoria y foco 37 · Ánimo tranquilo 33 · Calma 30. No es una lista, es una PROPORCIÓN. El empuje y la velocidad mental van empatados arriba. La calma es tu freno. Y es la más baja de las cuatro desde el diseño.",
+    "naturaleza": {
+      "dopamina": 37,
+      "acetilcolina": 37,
+      "serotonina": 33,
+      "gaba": 30
+    },
+    "desgaste": {
+      "dopamina": 15,
+      "acetilcolina": 11,
+      "serotonina": 17,
+      "gaba": 26
+    },
+    "lecturas": [
+      {
+        "titulo": "Calma y freno (el principal)",
+        "parrafos": [
+          "Es tu desgaste más profundo y la raíz de tu cansancio. Explica tres cosas. Que no apagues de noche. Que tu sueño profundo esté en 13%, un dato estimado y no medido. Y que amanezcas en 4 de 10. Se rellena con cinco cosas. Rutina de bajada nocturna, magnesio y respiración con exhalación larga. Más cortar el café al mediodía y oscuridad real. Y algo clave. Este es exactamente el sistema sobre el que actúa el alcohol. Por eso lo buscas. Y por eso hay que darle un sustituto antes de quitarlo."
+        ]
+      },
+      {
+        "titulo": "Ánimo tranquilo y Empuje",
+        "parrafos": [
+          "Desgastes secundarios. El ánimo bajo y la motivación baja se explican por lo mismo: llevas mucho tiempo gastando sin reponer. Se recuperan con sueño profundo, sol de la mañana, movimiento y corrigiendo tu vitamina D, no con estimulantes."
+        ]
+      },
+      {
+        "titulo": "Memoria y foco",
+        "parrafos": [
+          "Tu desgaste más pequeño: la cabeza sigue ahí. Es la mejor prueba de que lo tuyo no es deterioro, es agotamiento, y el agotamiento se revierte."
+        ]
+      }
+    ],
+    "ejes": [
+      {
+        "eje": "dopamina",
+        "titulo": "Empuje y metas · tu motor",
+        "nivel": "dom",
+        "texto": "Tu naturaleza al mando: te mueven los retos, el logro y el avance. Es el cableado del que emprende y sostiene un negocio viajando 110 días al año. Tu don es el arranque. Tu riesgo: perseguir el siguiente objetivo sin apagar nunca, y ahí es donde entró el alcohol como forma de bajar revoluciones."
+      },
+      {
+        "eje": "acetilcolina",
+        "titulo": "Memoria y foco · tu timón",
+        "nivel": "dom",
+        "texto": "Empatada arriba con tu motor: agilidad mental, conectar ideas, resolver rápido. Es tu parte MÁS conservada hoy, o sea, tu cabeza sigue disponible. Se mantiene sola cuando duermes profundo, otra razón para blindar el descanso."
+      },
+      {
+        "eje": "serotonina",
+        "titulo": "Ánimo tranquilo · tu remanso",
+        "nivel": "medio",
+        "texto": "El disfrute sin adrenalina, el ánimo estable. Hoy está en desgaste, y tu genética lo confirma por otro lado. Se recupera con sol de la mañana, movimiento e intestino sano, y buena parte de esto se fabrica en tu digestión, que estamos reparando."
+      },
+      {
+        "eje": "gaba",
+        "titulo": "Calma y freno · tu ancla",
+        "nivel": "bajo",
+        "texto": "La capacidad de parar, soltar y dormir profundo. Es la MÁS BAJA de fábrica y además tu desgaste más severo hoy. Aquí está la raíz de todo esto: sin freno no bajas de revoluciones, sin bajar no hay sueño profundo, y sin sueño profundo no te reparas. Es tu palanca #1, y de las más agradecidas."
+      }
+    ],
+    "cierre": [
+      "Tu plan está hecho para tu fórmula exacta.",
+      "No busca apagar tu motor. Ese motor es quien eres y es lo que te ha traído hasta aquí.",
+      "Busca devolverte el freno que te falta. Así ese motor rinde 20 años más sin fundirse.",
+      "Rellenar tu calma es la palanca que ordena todo lo demás."
+    ]
+  },
+  "genetica": {
+    "intro": "Tu genética no cambia. Por eso este capítulo se lee una vez y sirve para siempre. Lo importante no es lo que dice: es lo que explica de todo lo demás.",
+    "hallazgos": [
+      {
+        "tema": "Tu hígado y cómo limpias: el pilar de tu caso",
+        "titulo": "Punto ciego para limpiar residuos tóxicos",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Tu cuerpo genera los residuos de limpieza rápido. Pero tiene una enzima LENTA para neutralizar los más reactivos.",
+        "implicacion": "Tu propio reporte nombra tres disparadores directos de esa vía. El alcohol es uno de ellos. Y dice que el daño se concentra en hígado y pulmón.",
+        "que_hacer": "Bajar el alcohol es la intervención número uno.",
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu hígado y cómo limpias: el pilar de tu caso",
+        "titulo": "Procesas el alcohol a velocidad normal",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Ni rápido ni protector: acumulas una cantidad media del compuesto tóxico del alcohol.",
+        "implicacion": "Sin escudo genético: lo que tomas, lo pagas.",
+        "que_hacer": null,
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu hígado y cómo limpias: el pilar de tu caso",
+        "titulo": "Tus defensas antioxidantes funcionan bien",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Tu sistema natural para neutralizar radicales libres está completo y competente.",
+        "implicacion": "Esto es un activo: tu hígado no es frágil de fábrica, está sobrecargado.",
+        "que_hacer": null,
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu hígado y cómo limpias: el pilar de tu caso",
+        "titulo": "Manejas peor los metales pesados",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Menor capacidad de eliminarlos, con tendencia a acumularlos en hígado y cerebro.",
+        "implicacion": "Los metales pesados de la dieta pesan más en ti que en otros.",
+        "que_hacer": "Tu pescado debe ser pequeño (sardina, salmón, caballa) y no atún grande o pez espada.",
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu corazón: la bandera que hay que adelantar",
+        "titulo": "Riesgo genético de infarto ALTO",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Tu perfil sale en la zona más alta del rango.",
+        "implicacion": "Es el hallazgo de más peso de todo tu estudio. A los 38 años esto es una ventaja enorme: estás a tiempo de cambiar el resultado.",
+        "que_hacer": "Medir Lp(a) una vez en la vida; omega-3 de pescado pequeño; menos grasa saturada; menos alcohol; corregir vitamina D y magnesio; bajar la grasa de los órganos.",
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu corazón: la bandera que hay que adelantar",
+        "titulo": "Tu colesterol se oxida más y se elimina peor",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Dos genes hacen que la misma cantidad de colesterol sea más dañina en ti que en otra persona.",
+        "implicacion": "Por eso tu 127 de colesterol malo pesa más que el 127 de alguien más.",
+        "que_hacer": null,
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu corazón: la bandera que hay que adelantar",
+        "titulo": "Tu sangre coagula con facilidad",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Transporte alto de vitamina K: tendencia a coagular por encima del promedio.",
+        "implicacion": "Es otra pieza del mismo tablero de corazón.",
+        "que_hacer": "Otra razón para el omega-3 y el movimiento.",
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu metabolismo: la mejor noticia del estudio",
+        "titulo": "Estás protegido de síndrome metabólico",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Tu genética de síndrome metabólico, diabetes y azúcar en ayunas está en la media o mejor.",
+        "implicacion": "Tu resistencia a la insulina de HOY es adquirida, no heredada. Eso la vuelve de las cosas más reversibles que se pueden ver.",
+        "que_hacer": null,
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu metabolismo: la mejor noticia del estudio",
+        "titulo": "Tiendes a acumular grasa corporal",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Predisposición media-alta a acumular grasa.",
+        "implicacion": "No te condena, pero explica por qué a ti te cuesta más que a otros, y por qué el orden importa.",
+        "que_hacer": null,
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu metabolismo: la mejor noticia del estudio",
+        "titulo": "Alta vulnerabilidad al azúcar",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Tu apetito general es bajo, pero tu atracción al azúcar es alta.",
+        "implicacion": "Patrón claro: no comes de más, comes mal cuando comes por gusto o por estrés.",
+        "que_hacer": null,
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu metabolismo: la mejor noticia del estudio",
+        "titulo": "Ninguna dieta te gana por genética",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Baja en carbohidratos, baja en grasa, alta en proteína, carbohidratos complejos: las cuatro salen 'sin ventaja especial' para ti.",
+        "implicacion": "Tu dieta se elige por lo que puedas sostener y por tus intolerancias, no por moda.",
+        "que_hacer": null,
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu digestión: lo que sí es tuyo",
+        "titulo": "No toleras la lactosa · grado máximo",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Tienes las cuatro variantes de riesgo posibles. Tu producción de la enzima que digiere la leche está muy reducida.",
+        "implicacion": "Este es el hallazgo genético más severo de todo tu estudio. Y no necesita ninguna prueba.",
+        "que_hacer": "La lactosa sale hoy.",
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu digestión: lo que sí es tuyo",
+        "titulo": "Terreno para celiaquía (a confirmar)",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Portas una copia del marcador asociado a celiaquía.",
+        "implicacion": "Eso NO significa que la tengas: lo comparte cerca de un tercio de la población y la gran mayoría nunca la desarrolla. Su utilidad real es al revés: si NO lo tuvieras, podríamos descartarla casi por completo.",
+        "que_hacer": "Como sí lo tienes, la prueba de sangre cierra la pregunta (con gluten en la dieta).",
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu digestión: lo que sí es tuyo",
+        "titulo": "Reflujo y gastritis: NO son genéticos",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Tu genética de reflujo, colon irritable y úlcera está toda en la media.",
+        "implicacion": "Confirma lo que ya sabías: tu reflujo era por estrés. El eje era nervioso, no estructural.",
+        "que_hacer": null,
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu digestión: lo que sí es tuyo",
+        "titulo": "Digieres bien el azúcar de mesa",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Sin déficit de la enzima.",
+        "implicacion": "Si el azúcar te cae mal, es tu mucosa (reparable), no tu gen. Tu razón para bajar el azúcar es metabólica, no digestiva.",
+        "que_hacer": null,
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu cabeza y tu energía",
+        "titulo": "Bajas la adrenalina más lento",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Tienes una versión de la enzima que apaga las hormonas del estrés que trabaja más despacio.",
+        "implicacion": "En cristiano: te enciendes normal, pero te apagas lento. Por eso el estrés te dura más que a otros.",
+        "que_hacer": null,
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu cabeza y tu energía",
+        "titulo": "Reservas de ánimo y motivación bajas",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Tanto tu química del ánimo tranquilo como la de la motivación salen en la parte baja del rango.",
+        "implicacion": "No es un trastorno: tu predisposición a ansiedad es baja. Es un sistema con las reservas agotadas, y eso se rellena.",
+        "que_hacer": null,
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu cabeza y tu energía",
+        "titulo": "Toleras bien el café",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Eres metabolizador rápido de cafeína: la procesas sin problema y tu riesgo asociado es menor.",
+        "implicacion": "No hay que quitarla.",
+        "que_hacer": "Hay que moverla a la mañana.",
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu cuerpo en movimiento y tus minerales",
+        "titulo": "Motor de resistencia, no de fuerza explosiva",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Tu genética de resistencia sale muy alta y la de fuerza muy baja: predominan las fibras lentas.",
+        "implicacion": "Caminar, bici o remo largo es donde tu cuerpo rinde y donde más vas a ganar.",
+        "que_hacer": "La fuerza también va, pero como constructor, no como competencia.",
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu cuerpo en movimiento y tus minerales",
+        "titulo": "Te inflamas mucho al entrenar",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Tu inflamación muscular después del esfuerzo sale en la zona más alta.",
+        "implicacion": "Tu cansancio de fondo está en 8 de 10 y tu hígado viene cargado. Con eso encima, entrenar al fallo y el cardio muy intenso te restan HOY más de lo que te suman.",
+        "que_hacer": "Progresión tranquila y lejos del fallo.",
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu cuerpo en movimiento y tus minerales",
+        "titulo": "Absorbes muy bien magnesio y selenio",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Los dos salen en la parte más alta del rango.",
+        "implicacion": "Por eso tu magnesio bajo NO es genético: es una fuga.",
+        "que_hacer": "No tomes selenio en dosis altas. En tu caso, el exceso puede dar caída de cabello y nerviosismo.",
+        "evidencia": null,
+        "fuente": "gen"
+      },
+      {
+        "tema": "Tu cuerpo en movimiento y tus minerales",
+        "titulo": "Muy sensible al sabor amargo",
+        "gen": null,
+        "variante": null,
+        "hallazgo": "Rechazas coles, espinaca y verduras amargas por sabor, no por capricho.",
+        "implicacion": "Y justo esas son las que tu hígado necesita.",
+        "que_hacer": "Asadas con aceite y limón, nunca crudas.",
+        "evidencia": null,
+        "fuente": "gen"
+      }
+    ],
+    "resumen": [
+      {
+        "titulo": "Lo que tu genética NO explica",
+        "parrafos": [
+          "Tu genética cuenta una historia clara. Y es esperanzadora.",
+          "Lo metabólico y lo digestivo de fondo no vienen de tus genes. Ahí estás protegido.",
+          "Estás protegido de síndrome metabólico. Tu sistema de vitaminas B funciona bien, incluso reforzado. Tu digestión de fondo es normal.",
+          "Tus defensas antioxidantes son buenas. Absorbes bien los minerales. Y toleras el café.",
+          "Todo eso juega a tu favor."
+        ]
+      },
+      {
+        "titulo": "Lo que sí es tuyo de nacimiento",
+        "parrafos": [
+          "Son cuatro cosas, y son las que ordenan tu plan.",
+          "La primera: un punto ciego para limpiar los residuos del alcohol. Y encima, un hígado que ya te está avisando con tres enzimas altas.",
+          "La segunda: un riesgo genético de infarto alto. Tu colesterol se oxida más y se elimina peor. Esa es la bandera que hay que adelantar. A los 38 años todavía se cambia.",
+          "La tercera: intolerancia a la lactosa, en el grado máximo posible. Más terreno para celiaquía, que hay que confirmar bien.",
+          "La cuarta: te apagas lento del estrés. Tus reservas de calma y motivación están bajas."
+        ]
+      },
+      {
+        "titulo": "El hilo que las une",
+        "parrafos": [
+          "Junta esas cuatro. Hay un solo hábito que las toca todas a la vez: el alcohol."
+        ]
+      }
+    ]
+  },
+  "cruces": {
+    "hilo": {
+      "variable": "Alcohol",
+      "en": 6,
+      "de": 6
+    },
+    "lista": [
+      {
+        "titulo": "Tu hígado te está avisando, y el alcohol es la única palanca que lo mueve todo",
+        "fuentes": [
+          "gen",
+          "lab",
+          "ctx"
+        ],
+        "hallazgo": "Tres enzimas de tu hígado altas al mismo tiempo: 67, 70 y 49. Más una genética con un punto ciego preciso para neutralizar los residuos más reactivos. Tu propio reporte liga esa vía al alcohol. Más un consumo de alrededor de 24 tragos al mes.",
+        "consecuencia": "Tu cuerpo genera los residuos de la limpieza rápido, pero la enzima que los neutraliza va lenta. El alcohol alimenta justo esa vía. El resultado es un hígado inflamado de forma sostenida, que es exactamente lo que muestran tus tres enzimas. Y hay un segundo motor empujando: la grasa acumulada alrededor de tus órganos. Los dos son tuyos y los dos son reversibles.",
+        "accion": "El alcohol deja de ser algo \"a moderar\". Pasa a ser tu intervención número uno. La meta: bajar a 4 tragos al mes o menos, durante 12 semanas. Si tomas, que sea destilado con agua. El vino y la cerveza te caen peor, y tú ya lo notaste. En paralelo, comida que le da material a tu hígado para limpiar. Verduras crucíferas ASADAS, con aceite y limón. Crudas no las vas a comer, eres sensible al amargo. También ajo, cebolla, huevo y proteína magra. Medimos con la enzima GGT a las 8 semanas. Es la que responde más rápido. Vas a ver el resultado antes que en la báscula.",
+        "evidencia": null,
+        "con_que_cruza": "Cruza con TODO lo demás. El alcohol también sube tu insulina y te roba sueño profundo. Sube tu marcador de daño en los vasos. Te drena el magnesio. Y suma al riesgo de corazón. Es la única variable que toca tus cinco frentes a la vez.",
+        "falta_medir": "Ultrasonido de hígado y panel de hepatitis. Yo te preparo la orden. Tú vas. Lo leemos juntos."
+      },
+      {
+        "titulo": "Tu corazón: la bandera que hay que adelantar 20 años",
+        "fuentes": [
+          "gen",
+          "lab"
+        ],
+        "hallazgo": "Riesgo genético de infarto en la zona más alta del rango. Más dos genes que hacen que tu colesterol se oxide más y se elimine peor. Más tendencia a coagular por encima del promedio. Y todo eso cae sobre un terreno ya cargado. Marcador de daño en tus vasos alto: 10.13. Insulina alta. Ácido úrico en el borde. Y grasa acumulada en los órganos.",
+        "consecuencia": "No es que tengas mucho colesterol: es que el que tienes es más dañino en ti que en otra persona, porque se oxida más y se limpia peor. Y encima hoy tienes cinco aceleradores encendidos a la vez. Es el hallazgo de más peso de todo tu estudio.",
+        "accion": "Te falta un solo dato de corazón: la Lp(a). Se mide una sola vez en la vida y a ti nunca te la han medido. Tu ApoB ya la tenemos, en 92.8. Yo te preparo la orden, tú vas, y el resultado lo leemos juntos. Mientras tanto trabajamos todo el terreno. Omega-3 de pescado pequeño. Menos grasa saturada. Menos alcohol. Corregir vitamina D y magnesio. Y bajar la grasa de los órganos. Tienes 38 años. Esta es exactamente la edad en la que esto se decide. Y casi todo lo que lo mueve está en tus manos. Esto lo cerramos aquí.",
+        "evidencia": null,
+        "con_que_cruza": "Este cruce ORDENA a los demás: es la razón de fondo por la que baja el alcohol, baja la grasa saturada, sube el omega-3 y se corrige tu homocisteína e insulina.",
+        "falta_medir": "Valoración cardiológica. Yo te preparo el panel. Tú vas. Lo leemos juntos."
+      },
+      {
+        "titulo": "Tienes mucho acelerador y poco freno, y el alcohol es el freno prestado",
+        "fuentes": [
+          "gen",
+          "ctx"
+        ],
+        "hallazgo": "Tu naturaleza es de motor y velocidad mental. Tu química de la calma es la más baja de las cuatro DE FÁBRICA. Y hoy, además, es tu desgaste más profundo. Súmale que te apagas lento del estrés, y un historial médico de estrés crónico. Súmale un sueño profundo en 13%, que es un dato estimado y no medido. Y amanecer en 4 de 10, con cansancio de fondo en 8 de 10.",
+        "consecuencia": "Acelerador alto + freno bajo + una enzima que apaga despacio = no bajas de revoluciones en la noche. Sin descenso no hay sueño profundo, y sin sueño profundo no hay reparación (ni hormonal, ni muscular, ni de tu propia calma, que se repone durmiendo). Por eso amaneces cansado aunque duermas 7 horas. Tu cansancio no es falta de energía: es falta de recuperación.",
+        "accion": "Por eso quitar el alcohol sin sustituir su función está condenado a fallar. El orden es: PRIMERO instalas el freno nuevo, DESPUÉS retiras el prestado. Tu freno nuevo va en este orden. Primero, una rutina de bajada de 30 a 45 minutos antes de dormir: respiración con exhalación larga, luz baja y sin pantalla. Segundo, magnesio en la noche. Te corrige el nivel bajo y ayuda a la calma. Tercero, café solo por la mañana, con corte al mediodía. No hay que quitarlo, lo toleras bien. Hay que moverlo de hora. Cuarto, luz del sol directa en la primera hora del día. Tu marcador de éxito es simple: cómo amaneces. Ese número te va a decir si funciona antes que cualquier análisis.",
+        "evidencia": null,
+        "con_que_cruza": "Y aquí está la trampa que nadie te había explicado: el alcohol actúa justo sobre el sistema de la calma que te falta. Es, literalmente, el freno que tu cuerpo anda buscando. Por eso funciona esta noche y te cobra mañana: te quita el sueño profundo que necesitas para reponer esa misma calma."
+      },
+      {
+        "titulo": "Tu insulina alta es adquirida: no la pidió tu genética",
+        "fuentes": [
+          "gen",
+          "lab"
+        ],
+        "hallazgo": "Tu resistencia a la insulina está en 3.39, cuando lo ideal es menos de 1.5. Tu insulina en ayunas está en 15.8. Y tienes grasa acumulada alrededor de los órganos en nivel alto. PERO tu genética metabólica está protegida. Y tu azúcar de laboratorio sale impecable: tu sensor estuvo 100% del tiempo en rango y tu promedio de 3 meses es óptimo. Tu músculo está en 42.2%.",
+        "consecuencia": "La grasa alrededor de tus órganos manda grasa directo al hígado. Tu hígado deja de escuchar bien a la insulina. Y fabrica azúcar que no necesitas. Tu páncreas compensa: produce más insulina para mantener tu azúcar en 87. Y esa insulina alta guarda más grasa. Es un círculo. El alcohol lo alimenta por los dos lados. Aporta material para fabricar grasa. Y frena la quema mientras tu hígado lo procesa.",
+        "accion": "Tu entrenamiento se elige por tu motor, no por moda. Tu genética de resistencia es muy alta y la de fuerza es baja. Tu base: caminata rápida, bici o remo. De 150 a 180 minutos por semana. Ahí rindes, y ahí se vacía la grasa de los órganos. Fuerza sí, 2 o 3 días por semana. Con progresión tranquila y lejos del fallo. Te inflamas mucho al entrenar, y hoy vienes con el tanque bajo. Comida: proteína y verduras primero, carbohidrato con fibra al final. Y caminata de 10 a 15 minutos después de comer. Medimos insulina y cintura a las 12 semanas. Se mueven antes que el peso.",
+        "evidencia": null,
+        "con_que_cruza": "El dato más importante está en el contraste: tu páncreas responde perfecto y tu genética está de tu lado. No estás peleando contra tu diseño, estás quitando un peso. De lo más reversible que se puede ver."
+      },
+      {
+        "titulo": "Tu reflujo no era tuyo de nacimiento, pero la lactosa sí",
+        "fuentes": [
+          "gen",
+          "ctx"
+        ],
+        "hallazgo": "Tu genética de reflujo, colon irritable y úlcera está toda en la media. O sea: normal. Pero tienes intolerancia a la lactosa en el grado MÁXIMO posible. Salieron las cuatro variantes de riesgo. Y una copia del marcador de terreno celíaco. Tu historia: gastritis registrada por tu médico, antiácidos crónicos ya suspendidos y reflujo que aparecía con el estrés.",
+        "consecuencia": "Tu reflujo venía del estrés. Lo dijiste tú mismo y lo dictaminó tu médico. No era una falla estructural. Pero debajo había dos cosas que nadie había nombrado. La primera: la lactosa que no digieres fermenta y genera gas y presión. Esa presión empuja hacia arriba. Eso es reflujo mecánico. La segunda: el terreno celíaco puede estar inflamándote por dentro, aunque no lo sientas. Con los antiácidos encima, el síntoma se callaba. La causa seguía.",
+        "accion": "La lactosa sale hoy. Sin excepciones y sin culpa. Es tu hallazgo genético más severo y no necesita ninguna prueba previa. Ojo: se esconde en panes, embutidos y cereales. Revisa etiquetas. El gluten NO lo quites todavía. Primero va el análisis de celiaquía, con gluten en la dieta. Si lo retiras antes, el resultado sale falso y pierdes la respuesta para siempre. Y reparamos tu estómago después de los antiácidos: proteína suficiente, caldo, fibra que aumente poco a poco y control del estrés. En tu caso el estrés es el disparador comprobado.",
+        "evidencia": null,
+        "con_que_cruza": "Y cierra el círculo con el alcohol. El alcohol bloquea la enzima que degrada la histamina, y además la aporta. Por eso el vino y la cerveza te caen especialmente mal, como ya notaste.",
+        "falta_medir": "Análisis de celiaquía SIN retirar gluten antes. Yo te preparo la orden. Tú vas. Lo leemos juntos."
+      },
+      {
+        "titulo": "Vitamina D y magnesio bajos: no es tu cuerpo, es una fuga",
+        "fuentes": [
+          "lab",
+          "gen",
+          "ctx"
+        ],
+        "hallazgo": "Tu vitamina D está en 18.7 (muy baja) y tu magnesio en 1.83 (bajo), PERO tu genética dice que ambos los absorbes muy bien: el magnesio, de hecho, en la parte más alta del rango.",
+        "consecuencia": "Cuando la genética es buena y el nivel está bajo, la respuesta está en el ambiente, no en el cuerpo. Tu vitamina D: poco sol y un 26.6% de grasa corporal que la atrapa y la retira de circulación. Tu magnesio: el alcohol hace que lo orines, el estrés crónico lo consume y los antiácidos que tomabas lo bajan. Tres de tus variables drenándolo a la vez.",
+        "accion": "Vitamina D con dosis guiada por análisis, hasta llegar a 50-70. Va acompañada de K2 y magnesio. Súmale sol directo en la primera hora del día. Eso además te ordena el reloj y te ayuda a dormir. Magnesio en glicinato por la noche. Y la advertencia importante: NADA de selenio en dosis altas. El tuyo ya está alto. El exceso te puede dar caída de cabello y nerviosismo.",
+        "evidencia": null,
+        "con_que_cruza": "Estos dos no son 'vitaminas más': son piezas de todo lo demás. La vitamina D mejora tu sensibilidad al azúcar, tus defensas y hasta tu testosterona. El magnesio trabaja en cuatro frentes tuyos a la vez: calma y sueño, azúcar, tu marcador de vasos, y tu energía."
+      }
+    ]
+  },
+  "medico": {
+    "intro": "De cada estudio pendiente te preparo yo la orden. Tú vas y te lo haces. El resultado lo leemos juntos. Un laboratorio pregunta si estás enfermo. Nosotros preguntamos si estás en tu mejor punto. Son dos preguntas distintas, y por eso actuamos sobre valores que salen marcados como normales.",
+    "fuera_del_tuyo": [
+      {
+        "marcador_key": "testosterona_total",
+        "nombre": "Testosterona total",
+        "valor_texto": "5.14 ng/mL (514 ng/dL)",
+        "lab_dice": "normal",
+        "nosotros_decimos": "600-900 ng/dL"
+      },
+      {
+        "marcador_key": "cortisol_matutino",
+        "nombre": "Cortisol de la mañana (hormona del estrés)",
+        "valor_texto": "8.4",
+        "lab_dice": "normal",
+        "nosotros_decimos": "10-20"
+      }
+    ],
+    "pendientes": [
+      {
+        "que": "Estudio de apnea del sueño (se puede hacer en casa)",
+        "por_que": "Peso, sueño poco reparador, cansancio de fondo alto y alcohol por la noche: es la causa física más frecuente de amanecer así y la que más pesaría sobre tu corazón. Es la primera que cerraría.",
+        "con_quien": "Enrique prepara la orden; el resultado se lee en sesión"
+      },
+      {
+        "que": "Lipoproteína (a), Lp(a): se mide una sola vez en la vida",
+        "por_que": "Es el único dato de corazón que te falta y va por el riesgo genético alto de infarto. Tu ApoB ya la tenemos, en 92.8.",
+        "con_quien": "Valoración cardiológica; Enrique prepara el panel"
+      },
+      {
+        "que": "Ultrasonido de hígado y panel de hepatitis",
+        "por_que": "Tres enzimas del hígado altas (GGT 67, ALT 70, AST 49). Se repite a las 12 semanas.",
+        "con_quien": "Enrique prepara la orden; el resultado se lee en sesión"
+      },
+      {
+        "que": "Análisis de sangre de celiaquía (anticuerpos), sin retirar el gluten antes",
+        "por_que": "Portas una copia del marcador de terreno celíaco. Si quitas el gluten antes, el resultado sale falso.",
+        "con_quien": "Enrique prepara la orden; el resultado se lee en sesión"
+      },
+      {
+        "que": "Valorar endoscopia de control y descartar H. pylori",
+        "por_que": "Por tu historia de gastritis y los años de antiácidos.",
+        "con_quien": "Se valora con tu médico; Enrique lo apunta en tu lista"
+      },
+      {
+        "que": "Ácido metilmalónico",
+        "por_que": "Confirma o descarta un déficit real de B12 antes de suplementar (B12 en 440 tras años de antiácidos). Repetir la B12 no lo resuelve.",
+        "con_quien": "Enrique prepara la solicitud"
+      },
+      {
+        "que": "PCR ultrasensible",
+        "por_que": "La PCR convencional (0.24) no tiene resolución para leer inflamación de bajo grado.",
+        "con_quien": "Va en tu siguiente panel"
+      },
+      {
+        "que": "Repetir cortisol con hora anotada y sumar DHEA-S",
+        "por_que": "Una sola toma no define nada. El 8.4 de la mañana encaja con tu contexto de estrés sostenido, pero es hipótesis a validar.",
+        "con_quien": "Siguiente panel"
+      },
+      {
+        "que": "Medición real de sueño, presión, fuerza y condición",
+        "por_que": "Fueron estimados a partir de tus respuestas, no medidos.",
+        "con_quien": "Con anillo o reloj de sueño, dinamómetro, medición de presión y prueba de condición, en la primera medición con Enrique"
+      },
+      {
+        "que": "Repetir enzimas del hígado y vitamina D al arrancar el programa",
+        "por_que": "La sangre es de mayo y el programa arranca en agosto: pudieron moverse.",
+        "con_quien": "Enrique"
+      }
+    ],
+    "advertencias": [
+      {
+        "titulo": "Nada de selenio en dosis altas",
+        "parrafos": [
+          "Tu capacidad ya está en la parte más alta del rango.",
+          "El exceso puede darte caída de cabello, problemas de uñas y nerviosismo. Tu tope: 1 o 2 nueces de Brasil al día."
+        ]
+      },
+      {
+        "titulo": "Vitaminas B: en forma activa y en dosis moderadas",
+        "parrafos": [
+          "B12 sublingual, por tus años de antiácidos. B6 en forma activa, porque tu vía la demanda más que la media. Y folato de la comida.",
+          "Sin megadosis. Tu sistema no tiene bloqueo. Sobre-corregirlo puede darte irritabilidad e insomnio, justo lo contrario de lo que buscamos.",
+          "La betaína, también llamada TMG, no te hace falta. Esa vía la tienes reforzada de fábrica."
+        ]
+      },
+      {
+        "titulo": "Los antiácidos",
+        "parrafos": [
+          "Ya los suspendiste. Bien hecho.",
+          "Su huella quedó en tu B12 y tu magnesio. Y eso se está corrigiendo.",
+          "Nunca inicies ni suspendas un medicamento por tu cuenta."
+        ]
+      }
+    ]
+  },
+  "cierre": {
+    "palancas": [
+      {
+        "titulo": "Tu hígado y el alcohol",
+        "por_que": "Es la única palanca que mejora al mismo tiempo tu hígado, tu azúcar, tu sueño y tu corazón.",
+        "como": "Bajar a 4 tragos al mes o menos durante 12 semanas; si tomas, destilado con agua. Comida que le da material al hígado para limpiar. GGT a las 8 semanas."
+      },
+      {
+        "titulo": "Grasa alrededor de los órganos e insulina alta",
+        "por_que": "Tu genética metabólica está de tu lado: la insulina alta es adquirida, no heredada.",
+        "como": "Se ataca con caminata larga, fuerza y comida ordenada. Insulina y cintura a las 12 semanas."
+      },
+      {
+        "titulo": "Recuperación: instalar un freno propio",
+        "por_que": "Tu química de la calma es la más baja de fábrica y tu desgaste más profundo; sin freno no hay sueño profundo ni reparación.",
+        "como": "Rutina de bajada antes de dormir, magnesio en la noche, corte de café al mediodía y sol al despertar."
+      }
+    ],
+    "vigencia": "Levantamiento de mayo 2026. Lo genético no cambia; los marcadores de sangre sí pudieron moverse desde entonces. Las doce semanas del programa corren desde que arrancamos.",
+    "firma": "Enrique Zapata y equipo ATP",
+    "disclaimer": "Este documento es una orientación de salud funcional. No sustituye a tu médico tratante."
+  },
+  "alimentacion": {
+    "prioriza": [
+      "Verduras crucíferas asadas con aceite y limón (nunca crudas: eres sensible al amargo)",
+      "Ajo, cebolla, huevo y proteína magra",
+      "Omega-3 de pescado pequeño: sardina, salmón, caballa",
+      "Proteína y verduras primero; el carbohidrato con fibra al final",
+      "Para reparar el estómago tras los antiácidos: proteína suficiente, caldo y fibra que aumenta poco a poco",
+      "Folato de la comida"
+    ],
+    "evita": [
+      "Lactosa: sale hoy, sin excepciones. Se esconde en panes, embutidos y cereales; revisa etiquetas",
+      "Alcohol: meta de 4 tragos al mes o menos durante 12 semanas. Si tomas, destilado con agua; el vino y la cerveza te caen peor",
+      "Menos grasa saturada",
+      "Atún grande y pez espada (metales pesados): pescado pequeño en su lugar",
+      "Selenio en dosis altas: tope de 1 o 2 nueces de Brasil al día",
+      "Azúcar por gusto o por estrés: tu atracción al azúcar es alta"
+    ],
+    "ventana": null,
+    "horarios": [
+      {
+        "momento": "Mañana",
+        "que": "Café solo por la mañana, con corte al mediodía"
+      },
+      {
+        "momento": "Después de comer",
+        "que": "Caminata de 10 a 15 minutos"
+      }
+    ],
+    "notas": [
+      "El gluten NO se quita todavía: primero va el análisis de celiaquía, con gluten en la dieta.",
+      "Ninguna dieta te gana por genética: se elige por lo que puedas sostener y por tus intolerancias.",
+      "Tu hidratación se corrige con minerales, no solo con más agua (osmolalidad 272.1)."
+    ]
+  },
+  "suplementos": [
+    {
+      "nombre": "Magnesio (glicinato)",
+      "dosis_cantidad": null,
+      "dosis_unidad": null,
+      "unidades_por_toma": null,
+      "momento": "evening",
+      "por_que": "Corrige el nivel bajo (1.83) y ayuda a la calma y al sueño profundo. No es defecto: es fuga por alcohol, estrés y antiácidos."
+    },
+    {
+      "nombre": "Vitamina D3",
+      "dosis_cantidad": null,
+      "dosis_unidad": null,
+      "unidades_por_toma": null,
+      "momento": null,
+      "por_que": "Vitamina D en 18.7: la corrección más rentable que tienes. Dosis guiada por análisis hasta llegar a 50-70. Tu genética dice que la aprovechas bien.",
+      "advertencia": "Va acompañada de K2 y magnesio, y de sol directo en la primera hora del día."
+    },
+    {
+      "nombre": "Vitamina K2",
+      "dosis_cantidad": null,
+      "dosis_unidad": null,
+      "unidades_por_toma": null,
+      "momento": null,
+      "por_que": "Acompaña a la vitamina D."
+    },
+    {
+      "nombre": "Omega-3 (de pescado pequeño)",
+      "dosis_cantidad": null,
+      "dosis_unidad": null,
+      "unidades_por_toma": null,
+      "momento": null,
+      "por_que": "Riesgo genético alto de corazón, colesterol que se oxida más y tendencia a coagular por encima del promedio."
+    },
+    {
+      "nombre": "Vitamina B12 sublingual",
+      "dosis_cantidad": null,
+      "dosis_unidad": null,
+      "unidades_por_toma": null,
+      "momento": null,
+      "por_que": "B12 en 440, funcionalmente justa por los años de antiácidos.",
+      "advertencia": "Antes de suplementar se valida con ácido metilmalónico. Sin megadosis."
+    },
+    {
+      "nombre": "Vitamina B6 en forma activa",
+      "dosis_cantidad": null,
+      "dosis_unidad": null,
+      "unidades_por_toma": null,
+      "momento": null,
+      "por_que": "Tu vía la demanda más que la media.",
+      "advertencia": "Dosis moderadas: sobre-corregir puede dar irritabilidad e insomnio."
+    }
+  ],
+  "entrenamiento": {
+    "base": "Motor de resistencia, no de fuerza explosiva: caminar, bici o remo largo es donde tu cuerpo rinde y donde más vas a ganar. La fuerza también va, pero como constructor, no como competencia.",
+    "sesiones": [
+      {
+        "tipo": "Caminata rápida, bici o remo",
+        "frecuencia_semana": null,
+        "duracion": "150 a 180 minutos por semana",
+        "intensidad": "Moderada y sostenida",
+        "nota": "Ahí rindes y ahí se vacía la grasa de los órganos."
+      },
+      {
+        "tipo": "Fuerza",
+        "frecuencia_semana": "2 o 3 días",
+        "duracion": null,
+        "intensidad": "Progresión tranquila, lejos del fallo",
+        "nota": "Te inflamas mucho al entrenar y hoy vienes con el tanque bajo."
+      },
+      {
+        "tipo": "Caminata después de comer",
+        "frecuencia_semana": "Diario",
+        "duracion": "10 a 15 minutos",
+        "intensidad": null,
+        "nota": null
+      }
+    ],
+    "descanso": [
+      "Rutina de bajada de 30 a 45 minutos antes de dormir: respiración con exhalación larga, luz baja y sin pantalla",
+      "Magnesio en la noche",
+      "Café solo por la mañana, con corte al mediodía",
+      "Luz del sol directa en la primera hora del día",
+      "Oscuridad real para dormir"
+    ],
+    "notas": [
+      "Entrenar al fallo y el cardio muy intenso te restan hoy más de lo que te suman.",
+      "Hoy entrenas 2 veces por semana y viajas unos 110 días al año: el plan se arma sobre tu rutina real.",
+      "Medimos insulina y cintura a las 12 semanas: se mueven antes que el peso."
+    ]
+  }
+}

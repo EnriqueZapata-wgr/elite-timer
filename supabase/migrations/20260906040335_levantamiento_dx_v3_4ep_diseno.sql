@@ -1,0 +1,10 @@
+-- 20260906040335_levantamiento_dx_v3_4ep_diseno.sql
+--
+-- Version registrada en supabase_migrations.schema_migrations de produccion el
+-- 6 de septiembre de 2026 (nota del ledger: "4EP de diseno: frecuencia_sexual
+-- 0-10, alergias medicamentos, cintura, tiroides, ocupacion, sustancias, TRH,
+-- viajes_huso"), aplicada con execute_sql desde otra sesion sin archivo en el
+-- repo.
+--
+-- Contenido incluido en la reconstruccion de 20260904203502; version
+-- registrada para cuadrar el ledger. Sin statements a proposito.
