@@ -46,6 +46,7 @@ import { ParameterChart } from '@/src/components/edad-atp/ParameterChart';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import type { Sex } from '@/src/types/edad-atp-v2';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
+import { PuertaDatosSaludGate } from '@/src/components/legal/PuertaDatosSalud';
 import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
 // ATP 3.0 (6-sep-2026, ruta 2.5): la puerta a comparar estudios. Se ve siempre;
 // para free lleva el badge del candado (regla 15: lo bloqueado se ve).
@@ -623,10 +624,16 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
 });
 
 // #42: gate de disclaimers médicos — modal en primera visita (o bump de versión).
+// 7-sep-2026 (pivote limpio, paso 0): CB-2 en la puerta. Esta pantalla trata
+// datos personales sensibles de salud, y la LFPDPPP pide consentimiento
+// expreso ANTES del tratamiento. La envoltura no monta el contenido hasta que
+// ese consentimiento existe en user_consent_log.
 export default function AtpLabsScreenGated() {
   return (
-    <MedicalDisclaimerGate>
-      <AtpLabsScreen />
-    </MedicalDisclaimerGate>
+    <PuertaDatosSaludGate>
+      <MedicalDisclaimerGate>
+        <AtpLabsScreen />
+      </MedicalDisclaimerGate>
+    </PuertaDatosSaludGate>
   );
 }

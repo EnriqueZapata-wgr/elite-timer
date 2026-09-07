@@ -5,12 +5,27 @@
  * revocación de cada checkbox CB-1..CB-7, con texto_hash (sha256 del texto
  * exacto) + aviso_version. ip/user_agent los estampa el trigger server-side.
  *
- * CB-1 se acepta en register.tsx ANTES de que exista sesión estable: si el
- * insert falla (p. ej. sesión aún no lista), la aceptación queda en cola en
- * AsyncStorage y se reintenta en el muro de consentimiento del onboarding.
+ * CB-1, CB-3 y CB-4 se aceptan en register.tsx ANTES de que exista sesión
+ * estable: si el insert falla (p. ej. sesión aún no lista), la aceptación
+ * queda en cola en AsyncStorage y se reintenta después.
+ *
+ * ═══ LA COLA ES POR USUARIO, Y ESO ES UN ARREGLO DE SEGURIDAD ═══
+ * 7-sep-2026. Hasta hoy la cola vivía en UNA llave global del dispositivo y el
+ * flush REASIGNABA `user_id` a quien estuviera dentro en ese momento,
+ * conservando el `accepted_at` viejo. En un teléfono donde la cuenta A se
+ * registró sin red y luego entró la cuenta B, el flush insertaba los CB-1,
+ * CB-3 y CB-4 de A como filas de B: B pasaba la puerta legal sin haber visto
+ * una casilla, y en el log quedaba una firma con la fecha de otra persona.
+ * Eso es firmar por alguien.
+ *
+ * Ahora la llave lleva el user_id, el flush NO reasigna nada y descarta (sin
+ * borrar) lo que sea de otro usuario. La llave global vieja se sigue leyendo
+ * porque puede haber teléfonos con filas encoladas ahí: se insertan solo las
+ * que ya traen el user_id correcto y las demás se quedan esperando a su dueño.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 import { sha256Hex } from '@/src/utils/sha256';
 import {
   AVISO_VERSION,
@@ -19,7 +34,16 @@ import {
   type ConsentCheckboxId,
 } from '@/src/constants/consent-copy';
 
-const PENDING_KEY = '@atp/pending_consent_logs';
+/** Llave de la cola, por usuario. Ver el encabezado: la global era un hoyo. */
+function pendingKey(userId: string): string {
+  return `@atp/pending_consent_logs/${userId}`;
+}
+
+/**
+ * La llave global anterior al 7-sep-2026. Se sigue LEYENDO para no perder las
+ * filas que ya estén encoladas ahí en teléfonos reales, pero nunca se escribe.
+ */
+const PENDING_KEY_LEGACY = '@atp/pending_consent_logs';
 
 export type ConsentAction = 'accepted' | 'revoked';
 
@@ -59,39 +83,56 @@ export async function logConsent(
   const rows = ids.map(id => buildRow(userId, id, action));
   const { error } = await supabase.from('user_consent_log').insert(rows);
   if (error) {
-    console.warn('[consent-log] insert falló, encolando:', error.message);
-    await enqueuePending(rows);
+    logWarn('[consent-log] insert falló, encolando:', error.message);
+    await enqueuePending(userId, rows);
     return false;
   }
   return true;
 }
 
-async function enqueuePending(rows: ConsentRow[]): Promise<void> {
+async function enqueuePending(userId: string, rows: ConsentRow[]): Promise<void> {
   try {
-    const raw = await AsyncStorage.getItem(PENDING_KEY);
+    const raw = await AsyncStorage.getItem(pendingKey(userId));
     const prev: ConsentRow[] = raw ? JSON.parse(raw) : [];
-    await AsyncStorage.setItem(PENDING_KEY, JSON.stringify([...prev, ...rows]));
+    await AsyncStorage.setItem(pendingKey(userId), JSON.stringify([...prev, ...rows]));
   } catch (e) {
-    console.warn('[consent-log] no se pudo encolar:', e);
+    logWarn('[consent-log] no se pudo encolar:', e);
   }
 }
 
-/** Reintenta los logs encolados (llamar con sesión ya establecida). */
-export async function flushPendingConsentLogs(userId: string): Promise<void> {
-  try {
-    const raw = await AsyncStorage.getItem(PENDING_KEY);
-    if (!raw) return;
-    const rows: ConsentRow[] = JSON.parse(raw);
-    if (rows.length === 0) {
-      await AsyncStorage.removeItem(PENDING_KEY);
+/**
+ * Vacía UNA llave de cola insertando solo las filas que son de `userId`.
+ *
+ * Lo que es de otro usuario NO se reasigna y NO se borra: se queda en la cola
+ * esperando a que su dueño abra sesión en este teléfono. Reasignar era el bug;
+ * borrar sería tirar la evidencia de consentimiento de alguien más.
+ */
+async function flushDeLlave(llave: string, userId: string): Promise<void> {
+  const raw = await AsyncStorage.getItem(llave);
+  if (!raw) return;
+  const rows: ConsentRow[] = JSON.parse(raw);
+  const mias = rows.filter(r => r.user_id === userId);
+  const ajenas = rows.filter(r => r.user_id !== userId);
+  if (mias.length > 0) {
+    const { error } = await supabase.from('user_consent_log').insert(mias);
+    // Si el insert falla, la cola se queda COMPLETA para el próximo intento.
+    if (error) {
+      logWarn('[consent-log] flush falló, la cola se conserva:', error.message);
       return;
     }
-    // Reasigna al usuario actual (la cola pudo escribirse pre-sesión).
-    const fixed = rows.map(r => ({ ...r, user_id: userId }));
-    const { error } = await supabase.from('user_consent_log').insert(fixed);
-    if (!error) await AsyncStorage.removeItem(PENDING_KEY);
+  }
+  if (ajenas.length > 0) await AsyncStorage.setItem(llave, JSON.stringify(ajenas));
+  else await AsyncStorage.removeItem(llave);
+}
+
+/** Reintenta los logs encolados de ESTE usuario (con sesión ya establecida). */
+export async function flushPendingConsentLogs(userId: string): Promise<void> {
+  try {
+    await flushDeLlave(pendingKey(userId), userId);
+    // La cola global de antes del 7-sep-2026: solo lo que ya trae su user_id.
+    await flushDeLlave(PENDING_KEY_LEGACY, userId);
   } catch (e) {
-    console.warn('[consent-log] flush falló:', e);
+    logWarn('[consent-log] flush falló:', e);
   }
 }
 
@@ -117,7 +158,15 @@ export async function getConsentStatus(userId: string): Promise<Partial<Record<C
   return out;
 }
 
-/** ¿El usuario ya tiene aceptados los obligatorios del muro (CB-2/3/4)? */
+/**
+ * ¿El usuario ya tiene aceptados los obligatorios del muro (CB-2/3/4)?
+ *
+ * 7-sep-2026: esta función NO tiene un solo llamador y su lista ya no describe
+ * ninguna puerta real. La puerta legal de la app son CB-1/CB-3/CB-4
+ * (CONSENTIMIENTOS_DE_PUERTA en acceso-consentido-core) y CB-2 se pide en el
+ * punto de uso (PuertaDatosSalud). Se deja como está en lugar de reapuntarla
+ * en silencio: si alguien la va a usar, que lea esto y elija a conciencia.
+ */
 export async function hasCoreConsents(userId: string): Promise<boolean> {
   const status = await getConsentStatus(userId);
   return (['CB-2', 'CB-3', 'CB-4'] as const).every(id => status[id]?.action === 'accepted');

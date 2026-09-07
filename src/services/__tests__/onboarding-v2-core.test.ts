@@ -6,6 +6,8 @@ import {
   v2Route,
   v2StepNumber,
   resolveOnboardingRoute,
+  RUTA_PUERTA_CONSENTIMIENTOS,
+  CONSENTIMIENTOS_DEL_MURO,
   cycleModalityOptions,
   defaultCycleModality,
   computeChronotype,
@@ -62,6 +64,33 @@ describe('resolveOnboardingRoute (gate de app/index)', () => {
       expect(resolveOnboardingRoute(legacy as any)).toBe('/onboarding/v2/welcome');
     }
   });
+
+  /**
+   * 7-sep-2026. En producción hay UN perfil con onboarding_step='pending', de
+   * 13. Es el único que no terminó, y el pivote no puede dejarlo sin salida ni
+   * reescribirle el paso en la base (sería cambiarle un dato en silencio). Se
+   * comprueba aparte del resto de los legacy porque es una persona real y no
+   * un valor teórico.
+   */
+  it("el perfil real con 'pending' tiene ruta y no se queda colgado", () => {
+    expect(resolveOnboardingRoute('pending')).toBe('/onboarding/v2/welcome');
+    expect(resolveOnboardingRoute('pending')).not.toBeNull();
+  });
+});
+
+describe('reparto de consentimientos tras el pivote (7-sep-2026)', () => {
+  it('la puerta legal vive fuera del onboarding', () => {
+    // No es un step: quien la ve ya tiene cuenta y datos. Si algún día se
+    // vuelve un step, este test lo caza.
+    expect(RUTA_PUERTA_CONSENTIMIENTOS).toBe('/consentimientos');
+    expect(V2_STEPS).not.toContain('consentimientos');
+  });
+
+  it('al muro solo le queda CB-5, que es opcional', () => {
+    // CB-1/3/4 se firman en register y CB-2 en el punto de uso. Si esta lista
+    // se vacía, el muro se puede retirar del flujo sin pasar por Legal.
+    expect([...CONSENTIMIENTOS_DEL_MURO]).toEqual(['CB-5']);
+  });
 });
 
 describe('modalidad de ciclo (task #111)', () => {
@@ -71,7 +100,7 @@ describe('modalidad de ciclo (task #111)', () => {
     expect(defaultCycleModality('female')).toBe('regular');
   });
 
-  it('hombre: disabled default (partner retirado de la UI — E-5 MB-12)', () => {
+  it('hombre: disabled default (partner retirado de la UI, E-5 MB-12)', () => {
     const opts = cycleModalityOptions('male').map(o => o.value);
     expect(opts).toEqual(['disabled']);
     expect(defaultCycleModality('male')).toBe('disabled');

@@ -1,5 +1,6 @@
 /**
- * Sprint Compliance 2 — Modal de consentimiento contextual (CB-6 voz, CB-7 ciclo).
+ * Sprint Compliance 2: modal de consentimiento contextual.
+ * CB-6 voz, CB-7 ciclo y, desde el 7-sep-2026, CB-2 datos de salud.
  *
  * Parte 3 del Aviso: estos checkboxes se muestran AL ACTIVAR la función, no en
  * el signup. El checkbox llega NO pre-marcado; aceptar loguea en
@@ -19,7 +20,10 @@ import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface Props {
   visible: boolean;
-  checkboxId: Extract<ConsentCheckboxId, 'CB-6' | 'CB-7'>;
+  // 7-sep-2026: entra CB-2. El pivote lo movió del muro del onboarding al
+  // punto de uso, y este modal es exactamente la forma que pide la ley:
+  // casilla no premarcada, dentro de sesión autenticada, con el texto exacto.
+  checkboxId: Extract<ConsentCheckboxId, 'CB-2' | 'CB-6' | 'CB-7'>;
   title: string;
   /** Aceptó (el caller loguea CB y activa la función). */
   onAccept: () => void;

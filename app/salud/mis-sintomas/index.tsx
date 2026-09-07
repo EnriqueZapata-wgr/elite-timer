@@ -36,6 +36,7 @@ import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
 import { ELEVATION, TEXT, TEXT_COLORS, ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
+import { PuertaDatosSaludGate } from '@/src/components/legal/PuertaDatosSalud';
 
 function MisSintomasScreen() {
   // MB-31B2: tokens del tema (oscuro idéntico; claro = acero).
@@ -163,7 +164,7 @@ function MisSintomasScreen() {
             <TextInput
               value={name} onChangeText={setName}
               placeholder="¿Qué sientes? (ej. fatiga por la tarde)"
-              placeholderTextColor={t.sinDatos} style={s.modalInput} autoFocus
+              placeholderTextColor={t.textoTenue} style={s.modalInput} autoFocus
             />
             <View style={s.chipsRow}>
               {SINTOMAS_QUICK_TAGS.slice(0, 8).map(tag => (
@@ -243,10 +244,16 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   modalSaveText: { color: t.textoSobreLima, fontSize: 14, fontFamily: Fonts.extraBold },
 });
 
+// 7-sep-2026 (pivote limpio, paso 0): CB-2 en la puerta. Esta pantalla trata
+// datos personales sensibles de salud, y la LFPDPPP pide consentimiento
+// expreso ANTES del tratamiento. La envoltura no monta el contenido hasta que
+// ese consentimiento existe en user_consent_log.
 export default function MisSintomasGated() {
   return (
-    <MedicalDisclaimerGate>
-      <MisSintomasScreen />
-    </MedicalDisclaimerGate>
+    <PuertaDatosSaludGate>
+      <MedicalDisclaimerGate>
+        <MisSintomasScreen />
+      </MedicalDisclaimerGate>
+    </PuertaDatosSaludGate>
   );
 }

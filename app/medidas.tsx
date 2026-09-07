@@ -23,6 +23,7 @@ import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { EliteText } from '@/components/elite-text';
 import { SimpleLineChart } from '@/src/components/charts/SimpleCharts';
 import { useAuth } from '@/src/contexts/auth-context';
+import { PuertaDatosSaludGate } from '@/src/components/legal/PuertaDatosSalud';
 import { haptic } from '@/src/utils/haptics';
 import { getMeasurementHistory } from '@/src/services/health-measurement-service';
 import {
@@ -33,7 +34,7 @@ import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
-export default function MedidasScreen() {
+function MedidasScreen() {
   const { user } = useAuth();
   // 31-ago-2026 (21.3): la migración del 21-ago dejó la pantalla leyendo
   // useSurfaceTokens a nivel de RUTA. El <ThemeReady> que abre el claro lo
@@ -201,3 +202,15 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   secundarioText: { color: t.textoSecundario, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   nota: { color: t.textoSecundario, textAlign: 'center', lineHeight: 18 },
 });
+
+// 7-sep-2026 (pivote limpio, paso 0): CB-2 en la puerta. Esta pantalla trata
+// datos personales sensibles de salud, y la LFPDPPP pide consentimiento
+// expreso ANTES del tratamiento. La envoltura no monta el contenido hasta que
+// ese consentimiento existe en user_consent_log.
+export default function MedidasScreenGated() {
+  return (
+    <PuertaDatosSaludGate>
+      <MedidasScreen />
+    </PuertaDatosSaludGate>
+  );
+}

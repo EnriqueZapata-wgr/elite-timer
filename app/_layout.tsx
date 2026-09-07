@@ -238,6 +238,10 @@ function RootLayout() {
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="login" options={{ animation: 'fade' }} />
                 <Stack.Screen name="register" options={{ animation: 'fade' }} />
+                {/* 7-sep-2026 (pivote, paso 0): la puerta legal. `gestureEnabled:
+                    false` porque es un gate: no se sale de ella deslizando, se
+                    sale aceptando o cerrando sesión. */}
+                <Stack.Screen name="consentimientos" options={{ animation: 'fade', gestureEnabled: false }} />
                 <Stack.Screen name="forgot-password" />
                 <Stack.Screen name="reset-password" options={{ animation: 'fade' }} />
                 {/* Ola 2 Fitness PR3: /timer era un Stack.Screen fantasma (el

@@ -2,11 +2,11 @@
  * Onboarding v2 — Paso 3: Muro de consentimiento (Sprint Compliance 2).
  * (Decía "Paso 2": V2_STEPS lo mueve a 3 desde que entró `positioning`.)
  *
- * Aviso de Privacidad Simplificado (Parte 2) arriba + checkboxes de la
- * Parte 3: CB-2 (datos sensibles), CB-3 (transferencia internacional) y
- * CB-4 (mayoría de edad) OBLIGATORIOS — bloquean el onboarding. CB-5
- * (marketing) opcional. CB-1 se aceptó en register.tsx. CB-6/CB-7 son
- * contextuales (se muestran al activar voz / módulo Ciclo).
+ * Aviso de Privacidad Simplificado (Parte 2) arriba + los checkboxes que le
+ * queden al muro. Tras el pivote del 7-sep-2026 solo queda CB-5 (marketing),
+ * que es opcional: CB-1, CB-3 y CB-4 se firman en register.tsx y son los que
+ * abren la app; CB-2 se pide en la primera pantalla que escribe dato de salud
+ * (PuertaDatosSalud); CB-6 y CB-7 siguen siendo contextuales (voz y Ciclo).
  *
  * Cada aceptación se loguea en user_consent_log (migración 209).
  * Patrón "privacidad como alivio": consentimiento = control, no letra chica.
@@ -22,7 +22,7 @@ import { OnboardingShell } from '@/src/components/onboarding/OnboardingShell';
 import { ConsentCheckboxRow } from '@/src/components/legal/ConsentCheckboxRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { completeV2Step } from '@/src/services/onboarding-v2-service';
-import { v2StepNumber, v2Route, V2_STEPS } from '@/src/services/onboarding-v2-core';
+import { v2StepNumber, v2Route, V2_STEPS, CONSENTIMIENTOS_DEL_MURO } from '@/src/services/onboarding-v2-core';
 import { logConsent, flushPendingConsentLogs } from '@/src/services/consent-log-service';
 import { CONSENT_BY_ID, AVISO_SIMPLIFICADO, type ConsentCheckboxId } from '@/src/constants/consent-copy';
 import { haptic } from '@/src/utils/haptics';
@@ -30,8 +30,21 @@ import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 import { useOnboardingTheme } from '@/src/components/onboarding/onboarding-theme';
 
-const WALL_IDS: ConsentCheckboxId[] = ['CB-2', 'CB-3', 'CB-4', 'CB-5'];
-const REQUIRED_IDS: ConsentCheckboxId[] = ['CB-2', 'CB-3', 'CB-4'];
+/**
+ * 7-sep-2026 (pivote limpio, paso 0). Antes: ['CB-2','CB-3','CB-4','CB-5'] con
+ * los tres primeros obligatorios. Hoy CB-3 y CB-4 se firman en el registro y
+ * CB-2 se pide en la pantalla que va a escribir el primer dato de salud, así
+ * que exigirlos aquí volvía a pedir treinta segundos después lo ya firmado
+ * (filas duplicadas) y dejaba a CB-2 bloqueando el onboarding, justo al revés
+ * de lo que dice la doctrina.
+ *
+ * La lista sale de CONSENTIMIENTOS_DEL_MURO, que es el contrato escrito en
+ * onboarding-v2-core, y los obligatorios salen del propio catálogo: así nadie
+ * tiene que acordarse de tocar dos sitios. Si el muro se queda sin nada, esta
+ * pantalla se puede retirar del flujo sin volver a pasar por Legal.
+ */
+const WALL_IDS: ConsentCheckboxId[] = [...CONSENTIMIENTOS_DEL_MURO];
+const REQUIRED_IDS: ConsentCheckboxId[] = WALL_IDS.filter(id => CONSENT_BY_ID[id].required);
 
 export default function V2PrivacyScreen() {
   const router = useRouter();
@@ -108,7 +121,11 @@ export default function V2PrivacyScreen() {
               required={CONSENT_BY_ID[id].required}
             />
           ))}
-          <EliteText style={[s.requiredHint, th.dark ? null : th.subTenue]}>* Necesarios para operar tu cuenta. Puedes revocarlos en Perfil → Privacidad.</EliteText>
+          {/* El asterisco solo tiene sentido si de verdad queda algo
+              obligatorio en el muro. Hoy no queda nada (7-sep-2026). */}
+          {REQUIRED_IDS.length > 0 && (
+            <EliteText style={[s.requiredHint, th.dark ? null : th.subTenue]}>* Necesarios para operar tu cuenta. Puedes revocarlos en Perfil → Privacidad.</EliteText>
+          )}
         </Animated.View>
       </ScrollView>
 

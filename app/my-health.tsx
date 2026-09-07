@@ -49,6 +49,7 @@ import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 import { Screen } from '@/src/components/ui/Screen';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
+import { PuertaDatosSaludGate } from '@/src/components/legal/PuertaDatosSalud';
 
 const TEAL = CATEGORY_COLORS.metrics;
 
@@ -914,10 +915,16 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
 });
 
 // #42: gate de disclaimers médicos — modal en primera visita (o bump de versión).
+// 7-sep-2026 (pivote limpio, paso 0): CB-2 en la puerta. Esta pantalla trata
+// datos personales sensibles de salud, y la LFPDPPP pide consentimiento
+// expreso ANTES del tratamiento. La envoltura no monta el contenido hasta que
+// ese consentimiento existe en user_consent_log.
 export default function MyHealthScreenGated() {
   return (
-    <MedicalDisclaimerGate>
-      <MyHealthScreen />
-    </MedicalDisclaimerGate>
+    <PuertaDatosSaludGate>
+      <MedicalDisclaimerGate>
+        <MyHealthScreen />
+      </MedicalDisclaimerGate>
+    </PuertaDatosSaludGate>
   );
 }

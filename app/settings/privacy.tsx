@@ -26,7 +26,8 @@ import {
   type UserConsent, type ConsentKey,
 } from '@/src/services/consent-service';
 import { logConsent, getConsentStatus, type ConsentStatus } from '@/src/services/consent-log-service';
-import { CONSENT_SHORT_TITLES, REVOKE_CORE_WARNING, type ConsentCheckboxId } from '@/src/constants/consent-copy';
+import { CONSENT_SHORT_TITLES, REVOKE_CORE_WARNING, REVOKE_PUERTA_WARNING, type ConsentCheckboxId } from '@/src/constants/consent-copy';
+import { CONSENTIMIENTOS_DE_PUERTA } from '@/src/services/acceso-consentido-core';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 import { ATP_BRAND, ELEVATION, PILL, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
@@ -185,9 +186,25 @@ export default function SettingsPrivacyScreen() {
     }
   };
 
-  // Sprint Compliance 2: revocar/otorgar consentimientos del Aviso (CB-2..CB-7).
+  // Sprint Compliance 2: revocar/otorgar consentimientos del Aviso.
   // Cada cambio agrega una fila al log inmutable (evidencia), no borra nada.
-  const CB_CORE: ConsentCheckboxId[] = ['CB-2', 'CB-3'];
+  //
+  // 7-sep-2026 (revisión en frío del pivote). Antes: CB_CORE = ['CB-2','CB-3'],
+  // y CB-3 se podía revocar aquí con un toque. Desde que el guardia lee
+  // consentimientos, revocar CB-3 mandaba a la persona a /consentimientos en
+  // el siguiente arranque, con dos salidas: volver a aceptar lo que acababa de
+  // revocar, o cerrar sesión. El copy le prometió que apagaba una función y lo
+  // que perdía era la app. Un derecho de revocación no puede ser un encierro.
+  //
+  // Ahora hay tres grupos:
+  //   · PUERTA (CB-1/3/4): base legal de la cuenta. No se revocan en el lugar;
+  //     se explica y se lleva a la baja de cuenta, que es la forma real de
+  //     retirarlos, con sus 30 días de gracia.
+  //   · SALUD (CB-2): revocarlo apaga las funciones que escriben datos de
+  //     salud y nada más. Ese sí es un toggle honesto.
+  //   · OPCIONALES: como siempre.
+  const CB_PUERTA: ConsentCheckboxId[] = [...CONSENTIMIENTOS_DE_PUERTA];
+  const CB_SALUD: ConsentCheckboxId[] = ['CB-2'];
   const CB_OPTIONAL: ConsentCheckboxId[] = ['CB-5', 'CB-6', 'CB-7'];
 
   const toggleCb = async (id: ConsentCheckboxId) => {
@@ -204,8 +221,23 @@ export default function SettingsPrivacyScreen() {
         Alert.alert('Error', 'No se pudo registrar el cambio. Intenta de nuevo.');
       }
     };
-    if (isAccepted && CB_CORE.includes(id)) {
-      // Revocar CB-2/CB-3 apaga el core — advertir antes (nota Parte 3).
+    if (isAccepted && CB_PUERTA.includes(id)) {
+      // NO se escribe 'revoked' aquí. Retirar uno de los tres de la puerta
+      // equivale a terminar el servicio, y la forma de terminarlo es la baja
+      // de cuenta que ya vive en esta pantalla.
+      Alert.alert(REVOKE_PUERTA_WARNING.title, REVOKE_PUERTA_WARNING.body, [
+        { text: REVOKE_PUERTA_WARNING.conservar, style: 'cancel' },
+        {
+          text: REVOKE_PUERTA_WARNING.continuar,
+          style: 'destructive',
+          onPress: () => { haptic.warning(); setDeleteModal(true); },
+        },
+      ]);
+      return;
+    }
+    if (isAccepted && CB_SALUD.includes(id)) {
+      // Revocar CB-2 apaga las funciones que escriben datos de salud (nota
+      // Parte 3). La app sigue abierta: eso es lo que lo distingue de la puerta.
       Alert.alert('Revocar consentimiento', REVOKE_CORE_WARNING, [
         { text: 'Conservar', style: 'cancel' },
         { text: 'Revocar', style: 'destructive', onPress: () => doLog('revoked') },
@@ -264,7 +296,7 @@ export default function SettingsPrivacyScreen() {
       {/* ── A-bis: Consentimientos del Aviso (Sprint Compliance 2) ── */}
       <Animated.View entering={FadeInUp.delay(115).springify()}>
         <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Consentimientos del Aviso</SectionTitle>
-        {([...CB_CORE, ...CB_OPTIONAL] as ConsentCheckboxId[]).map(id => {
+        {([...CB_PUERTA, ...CB_SALUD, ...CB_OPTIONAL] as ConsentCheckboxId[]).map(id => {
           const st = cbStatus[id];
           const accepted = st?.action === 'accepted';
           return (
@@ -286,8 +318,9 @@ export default function SettingsPrivacyScreen() {
           );
         })}
         <EliteText style={[s.exportHint, thDesc]}>
-          Cada cambio queda registrado con fecha y versión del Aviso. Revocar los consentimientos
-          de datos sensibles o transferencia internacional detiene el núcleo de ATP.
+          Cada cambio queda registrado con fecha y versión del Aviso. Revocar el consentimiento
+          de datos sensibles de salud apaga las funciones que los guardan. Los tres primeros son
+          la base legal de tu cuenta: retirarlos significa darla de baja.
         </EliteText>
       </Animated.View>
 
@@ -426,7 +459,7 @@ export default function SettingsPrivacyScreen() {
             <TextInput
               style={[s.modalInput, { backgroundColor: tokens.hundido, borderColor: tokens.borde, color: tokens.texto }]}
               placeholder="Confirma tu contraseña"
-              placeholderTextColor={tokens.sinDatos}
+              placeholderTextColor={tokens.textoTenue}
               value={password}
               onChangeText={setPassword}
               secureTextEntry

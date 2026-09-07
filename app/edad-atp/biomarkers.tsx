@@ -18,6 +18,7 @@ import { EliteText } from '@/components/elite-text';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { NumberInputRow } from '@/src/components/edad-atp/NumberInputRow';
 import { useAuth } from '@/src/contexts/auth-context';
+import { PuertaDatosSaludGate } from '@/src/components/legal/PuertaDatosSalud';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveBiomarkers, getManualBiomarkers, getLatestExtractedData, type BiomarkerEntry } from '@/src/services/edad-atp/capture-service';
@@ -87,7 +88,7 @@ function daysAgo(dateStr: string): number {
 
 type Current = { value: number; source: string };
 
-export default function BiomarkersCapture() {
+function BiomarkersCapture() {
   // MB-31B remate: tokens del tema (oscuro idéntico; claro = acero).
   const { kind, tokens: t } = useAppTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
@@ -446,3 +447,15 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   note: { color: t.textoSecundario, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.xs },
   saveBtn: { marginTop: Spacing.sm },
 });
+
+// 7-sep-2026 (pivote limpio, paso 0): CB-2 en la puerta. Esta pantalla trata
+// datos personales sensibles de salud, y la LFPDPPP pide consentimiento
+// expreso ANTES del tratamiento. La envoltura no monta el contenido hasta que
+// ese consentimiento existe en user_consent_log.
+export default function BiomarkersCaptureGated() {
+  return (
+    <PuertaDatosSaludGate>
+      <BiomarkersCapture />
+    </PuertaDatosSaludGate>
+  );
+}

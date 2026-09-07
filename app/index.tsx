@@ -2,13 +2,22 @@
  * Index — Redirect según estado de autenticación y onboarding.
  * Mientras verifica, muestra logo vertical ATP con loader.
  *
- * CONSENT: este archivo es EL GATE. Nadie entra a las pestañas sin haber
- * aceptado CB-2 (datos sensibles), CB-3 (transferencia internacional) y CB-4
- * (mayoría de edad), que se firman en /onboarding/v2/privacy. La marca de
- * "este ya pasó" es `profiles.onboarding_step === 'completed'` y NO
- * `user_consent_log`: ver el encabezado de acceso-consentido-core.ts para el
- * porqué (resumen: la 032 marcó completados a todos los usuarios previos y la
- * tabla de consentimientos nace 177 migraciones después, vacía).
+ * CONSENT: este archivo es EL GATE. Nadie entra a las pestañas sin tener
+ * registrados CB-1 (términos y aviso), CB-3 (transferencia internacional) y
+ * CB-4 (mayoría de edad), que se firman en /register.
+ *
+ * 7-sep-2026 (pivote limpio, paso 0): la marca dejó de ser
+ * `profiles.onboarding_step` y pasó a ser `user_consent_log`, que es donde de
+ * verdad vive el consentimiento. El porqué completo está en el encabezado de
+ * acceso-consentido-core.ts; en corto: en producción esa tabla tiene tres
+ * filas para 13 perfiles y ninguna de CB-1 a CB-5, así que el guardia estaba
+ * leyendo una marca de producto mientras la app trataba datos sensibles de
+ * salud sin bitácora. A quien le falte un consentimiento de la puerta se le
+ * pide en /consentimientos, una vez y sin perder nada; NO se le firma nada
+ * por adelantado.
+ *
+ * `onboarding_step` se sigue leyendo, pero ya solo contesta una pregunta de
+ * producto: a qué pantalla se enruta a alguien que YA pasó la puerta legal.
  *
  * EL MODO DE FALLA, QUE ERA EL PROBLEMA DE VERDAD
  * Antes había dos, y ninguno era correcto:
@@ -36,15 +45,19 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { resolveOnboardingRoute } from '@/src/services/onboarding-v2-core';
 import {
-  autorizaEntrada,
+  decidirAcceso,
   decidirTrasFalloDefinitivo,
   esperaDelReintento,
+  onboardingTerminado,
   seAgotoElTiempo,
+  CONSENTIMIENTOS_DE_PUERTA,
   TECHO_LECTURA_MS,
   COPY_SIN_CONEXION,
+  type EstadoConsentimientos,
   type FaseAcceso,
 } from '@/src/services/acceso-consentido-core';
-import { marcarVistoBueno, leerVistoBueno } from '@/src/services/acceso-consentido';
+import type { ConsentCheckboxId } from '@/src/constants/consent-copy';
+import { marcarVistoBueno, leerVistoBueno, olvidarVistoBueno } from '@/src/services/acceso-consentido';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
 
@@ -76,9 +89,10 @@ async function conTecho<T>(p: PromiseLike<T>): Promise<T | null> {
  * son el mismo hecho y merecen el mismo trato.
  *
  * Ojo con lo que NO es un fallo: que no exista la fila. Con `maybeSingle` eso
- * es `ok:true` con `paso: undefined`, y `autorizaEntrada` lo rechaza, que es
- * lo correcto: sin perfil no hay consentimientos asentados. Ese caso ya había
- * abierto la puerta una vez, cuando `.single()` lo convertía en excepción.
+ * es `ok:true` con `paso: undefined`, y `onboardingTerminado` lo rechaza, que
+ * es lo correcto: a quien acaba de crear su cuenta se le enseña el onboarding,
+ * no unas pestañas vacías. Ese caso ya había abierto la puerta una vez, cuando
+ * `.single()` lo convertía en excepción.
  */
 async function leerPasoDelPerfil(
   userId: string,
@@ -92,6 +106,59 @@ async function leerPasoDelPerfil(
   } catch {
     return { ok: false };
   }
+}
+
+/**
+ * Lee el ÚLTIMO estado de CB-1, CB-3 y CB-4 en `user_consent_log`.
+ *
+ * Va directo a la tabla y no a `getConsentStatus` porque ésa devuelve `{}`
+ * tanto si la lectura falló como si no hay filas, y aquí esos dos casos son
+ * dos personas distintas: una que no puede leer (se le rescata con el visto
+ * bueno local) y una que nunca consintió (se le pide). supabase-js no lanza en
+ * 4xx, así que la señal es `error`, no una excepción.
+ *
+ * El log es append-only: la fila más reciente de cada checkbox manda, y por
+ * eso el orden es descendente y solo se queda la primera de cada uno.
+ */
+async function leerConsentimientosDePuerta(
+  userId: string,
+): Promise<{ ok: false } | { ok: true; estado: EstadoConsentimientos }> {
+  try {
+    const r = await conTecho(
+      supabase
+        .from('user_consent_log')
+        .select('checkbox_id, action, created_at')
+        .eq('user_id', userId)
+        .in('checkbox_id', [...CONSENTIMIENTOS_DE_PUERTA])
+        .order('created_at', { ascending: false }),
+    );
+    if (!r || r.error) return { ok: false };
+    const estado: EstadoConsentimientos = {};
+    for (const fila of r.data ?? []) {
+      const id = fila.checkbox_id as ConsentCheckboxId;
+      if (!estado[id]) estado[id] = fila.action === 'accepted' ? 'accepted' : 'revoked';
+    }
+    return { ok: true, estado };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/**
+ * Las dos lecturas que necesita el arranque, en paralelo. Basta que una falle
+ * para que el arranque cuente como fallido: sin consentimientos no se puede
+ * decidir la puerta, y sin `onboarding_step` no se sabe a dónde enrutar a
+ * quien la cruza.
+ */
+async function leerEstadoDeArranque(
+  userId: string,
+): Promise<{ ok: false } | { ok: true; paso: string | null | undefined; consentimientos: EstadoConsentimientos }> {
+  const [perfil, consentimientos] = await Promise.all([
+    leerPasoDelPerfil(userId),
+    leerConsentimientosDePuerta(userId),
+  ]);
+  if (!perfil.ok || !consentimientos.ok) return { ok: false };
+  return { ok: true, paso: perfil.paso, consentimientos: consentimientos.estado };
 }
 
 /**
@@ -126,35 +193,57 @@ export default function IndexRedirect() {
     (async () => {
       const inicio = Date.now();
       for (let n = 0; ; n++) {
-        const lectura = await leerPasoDelPerfil(userId);
+        const lectura = await leerEstadoDeArranque(userId);
         if (!vivo) return;
 
         if (lectura.ok) {
-          if (autorizaEntrada({ paso: lectura.paso })) {
-            // El visto bueno se marca AQUÍ y en memoria de forma síncrona,
-            // antes de cualquier redirect: el guard de app/(tabs)/_layout.tsx
-            // lo lee en el mismo frame y por eso no hay parpadeo ni una
-            // segunda consulta de red.
-            //
-            // Se marca aunque falte la config de voz. El backfill de voz no es
-            // materia de consentimiento, y si el visto bueno dependiera de él,
-            // voice-config saldría a las pestañas, el guard la rebotaría al
-            // gate y el gate la mandaría de vuelta a voice-config: un bucle.
-            marcarVistoBueno(userId);
-            const faltaVoz = await faltaConfigDeVoz(userId);
-            if (!vivo) return;
-            if (faltaVoz) {
-              setRutaOnboarding('/onboarding/voice-config?mode=backfill');
-              setFase('falta_onboarding');
-            } else {
-              setFase('adentro');
-            }
-          } else {
+          // Primero la pregunta LEGAL. Si faltan CB-1, CB-3 o CB-4, no hay
+          // app: se va a pedirlos. `vistoBuenoLocal` va en false a propósito
+          // porque aquí la lectura SÍ salió: el rescate local es solo para
+          // cuando no se pudo leer, no para tapar un "no consintió".
+          const decision = decidirAcceso({
+            consentimientosLeidos: true,
+            consentimientos: lectura.consentimientos,
+            vistoBuenoLocal: false,
+          });
+          if (decision !== 'adentro') {
+            // El servidor acaba de desmentir la marca local. Si no se borra,
+            // el guard de las pestañas la sigue creyendo y un deep link entra
+            // saltándose esta puerta. Solo aquí, donde la lectura SÍ salió.
+            olvidarVistoBueno(userId);
+            setFase('faltan_consentimientos');
+            return;
+          }
+
+          if (!onboardingTerminado({ paso: lectura.paso })) {
             // Onboarding v2 (F2 sprint UX blockers): 'v2_<step>' → su pantalla;
-            // valores legacy v1 → reiniciar en v2 welcome (los datos ya
-            // capturados persisten y las pantallas v2 los prefillan).
+            // valores legacy v1 (incluido 'pending') → reiniciar en v2 welcome
+            // (los datos ya capturados persisten y las pantallas v2 los
+            // prefillan). Nadie se queda sin ruta por un valor viejo.
             setRutaOnboarding(resolveOnboardingRoute(lectura.paso) ?? '/onboarding/v2/welcome');
             setFase('falta_onboarding');
+            return;
+          }
+
+          // El visto bueno se marca AQUÍ y en memoria de forma síncrona,
+          // antes de cualquier redirect: el guard de app/(tabs)/_layout.tsx
+          // lo lee en el mismo frame y por eso no hay parpadeo ni una
+          // segunda consulta de red. Desde el 7-sep-2026 significa "los tres
+          // consentimientos de la puerta se leyeron aceptados del servidor",
+          // que es más de lo que significaba antes.
+          //
+          // Se marca aunque falte la config de voz. El backfill de voz no es
+          // materia de consentimiento, y si el visto bueno dependiera de él,
+          // voice-config saldría a las pestañas, el guard la rebotaría al
+          // gate y el gate la mandaría de vuelta a voice-config: un bucle.
+          marcarVistoBueno(userId);
+          const faltaVoz = await faltaConfigDeVoz(userId);
+          if (!vivo) return;
+          if (faltaVoz) {
+            setRutaOnboarding('/onboarding/voice-config?mode=backfill');
+            setFase('falta_onboarding');
+          } else {
+            setFase('adentro');
           }
           return;
         }
@@ -170,7 +259,9 @@ export default function IndexRedirect() {
 
       // Se agotaron los reintentos. La única cosa que puede convertir esto en
       // una entrada es un visto bueno guardado, y ese solo existe si alguna vez
-      // se leyó 'completed' del servidor en este teléfono.
+      // se leyeron del servidor los tres consentimientos de la puerta en este
+      // teléfono. Regla de la casa: no poder LEER no es "no consintió", así que
+      // a quien ya entró antes no se le cierra la puerta por un fallo de red.
       const vistoBueno = await leerVistoBueno(userId);
       if (!vivo) return;
       setFase(decidirTrasFalloDefinitivo(vistoBueno));
@@ -213,6 +304,13 @@ export default function IndexRedirect() {
         </Pressable>
       </View>
     );
+  }
+
+  // La puerta legal. Vive en su propia pantalla y no aquí porque la pide
+  // gente que YA tiene cuenta y datos dentro: merece un lugar donde se le
+  // explique qué pasó, no un modal encima del splash.
+  if (fase === 'faltan_consentimientos') {
+    return <Redirect href="/consentimientos" />;
   }
 
   if (fase === 'falta_onboarding') {

@@ -7,9 +7,22 @@
  *
  *   welcome → positioning → privacy → profile → goal → cycle → chronotype → consent → notifications → completed
  *
- * Sprint Compliance 2: 'privacy' es el muro de consentimiento (Aviso de
+ * Sprint Compliance 2: 'privacy' era el muro de consentimiento (Aviso de
  * Privacidad Parte 3: CB-2/3/4 obligatorios + CB-5 opcional), ANTES de
  * capturar datos sensibles. CB-1 vive en register.tsx (bloquea la cuenta).
+ *
+ * PIVOTE LIMPIO, 7 de septiembre de 2026: los consentimientos se repartieron
+ * de otra forma y el muro se quedó casi vacío.
+ *   · CB-1, CB-3 y CB-4 se firman en register.tsx. Son los que el guardia
+ *     (app/index.tsx + acceso-consentido-core) exige para abrir la app.
+ *   · CB-2 se pide en la primera pantalla que va a ESCRIBIR dato de salud,
+ *     con PuertaDatosSalud. La LFPDPPP pide consentimiento previo al
+ *     tratamiento, no previo al registro.
+ *   · Al muro solo le queda CB-5, que es opcional y no bloquea nada:
+ *     CONSENTIMIENTOS_DEL_MURO, aquí abajo, es ese contrato por escrito.
+ * La PANTALLA `app/onboarding/v2/privacy.tsx` NO se tocó en este paso: el
+ * rediseño de ese flujo es de otra sesión, y esta constante existe para que
+ * lo monte sin tener que reconstruir la decisión legal.
  * Sprint Compliance 4: 'positioning' presenta el posicionamiento "optimizar
  * sanos" (§2 versión precisa) ANTES del consentimiento — el usuario entiende
  * qué es ATP (y qué NO es) antes de otorgar nada.
@@ -44,6 +57,27 @@ export function v2Route(step: V2Step): Href {
   return `/onboarding/v2/${step}`;
 }
 
+/**
+ * La puerta legal, fuera del onboarding a propósito (7-sep-2026).
+ *
+ * No es un step: la ve gente que YA tiene cuenta, datos y meses de uso, y a
+ * quien solo le falta una firma que nunca se le pidió. Meterla como paso de
+ * onboarding le diría "empieza de cero", que es justo lo contrario de lo que
+ * pasa: no pierde nada.
+ */
+export const RUTA_PUERTA_CONSENTIMIENTOS: Href = '/consentimientos';
+
+/**
+ * Lo único que le queda al muro del onboarding tras el pivote: CB-5, que es
+ * opcional. Si esta lista se queda vacía, el muro deja de tener razón de ser
+ * como pantalla y se puede retirar del flujo sin pedirle permiso a Legal.
+ *
+ * Es un contrato para el rediseño del flujo, no una pantalla: el muro de hoy
+ * (app/onboarding/v2/privacy.tsx) todavía tiene su lista hardcodeada y se
+ * dejó intacto para no pisar esa sesión.
+ */
+export const CONSENTIMIENTOS_DEL_MURO = ['CB-5'] as const;
+
 /** Step siguiente, o null si `step` es el último (→ completed). */
 export function nextV2Step(step: V2Step): V2Step | null {
   const i = V2_STEPS.indexOf(step);
@@ -71,6 +105,11 @@ export function v2StepNumber(step: V2Step): number {
  * - Valores legacy v1 (basics/goal/…/voice_config/pending) o desconocidos →
  *   reiniciar en v2 welcome. Los datos ya capturados en v1 persisten en
  *   profiles/client_profiles y las pantallas v2 los prefillan.
+ *
+ * 7-sep-2026: 'pending' importa de verdad. En producción hay UN perfil con ese
+ * valor (creado el 19-may-2026) y es el único de 13 que no terminó. No se le
+ * reescribe el paso en la base: sería cambiarle un dato en silencio. Cae en la
+ * rama legacy, que ya existía, y arranca en welcome con todo lo suyo puesto.
  */
 export function resolveOnboardingRoute(step: string | null | undefined): Href | null {
   if (step === 'completed') return null;
@@ -100,7 +139,7 @@ export interface CycleModalityOption {
 
 const FEMALE_MODALITIES: CycleModalityOption[] = [
   { value: 'regular', label: 'Ciclo regular', description: 'Seguimiento completo de tu ciclo menstrual', icon: 'sync-outline' },
-  { value: 'pregnancy', label: 'Embarazo', description: 'Modo embarazo — la app adapta recomendaciones', icon: 'heart-outline' },
+  { value: 'pregnancy', label: 'Embarazo', description: 'Modo embarazo: la app adapta recomendaciones', icon: 'heart-outline' },
   { value: 'menopause', label: 'Perimenopausia / Menopausia', description: 'Seguimiento de síntomas sin predicción de ciclo', icon: 'flower-outline' },
   { value: 'no_cycle', label: 'Sin ciclo', description: 'SOP, histerectomía u otra condición sin ciclo regular', icon: 'remove-circle-outline' },
 ];
@@ -261,7 +300,7 @@ export const CHRONO_SCHEDULES: Record<Chronotype, ChronoSchedule> = {
 };
 
 export const CHRONO_META: Record<Chronotype, { emoji: string; name: string; blurb: string }> = {
-  lion:    { emoji: '🦁', name: 'León', blurb: 'Madrugador nato. Tu pico es temprano — protege tus mañanas.' },
+  lion:    { emoji: '🦁', name: 'León', blurb: 'Madrugador nato. Tu pico es temprano, protege tus mañanas.' },
   bear:    { emoji: '🐻', name: 'Oso', blurb: 'Ritmo solar clásico. Media mañana es tu zona de poder.' },
   wolf:    { emoji: '🐺', name: 'Lobo', blurb: 'Nocturno. Tu energía despega por la tarde-noche.' },
   dolphin: { emoji: '🐬', name: 'Delfín', blurb: 'Sueño ligero. La consistencia de horarios es tu palanca.' },
@@ -270,9 +309,9 @@ export const CHRONO_META: Record<Chronotype, { emoji: string; name: string; blur
 // ═══ Objetivo principal (spec F2: 5 opciones) ═══
 
 export const GOAL_OPTIONS = [
-  { id: 'longevity', text: 'Longevidad — optimizar mi salud a largo plazo', icon: 'heart-outline' },
-  { id: 'body_composition', text: 'Composición corporal — grasa y músculo', icon: 'body-outline' },
-  { id: 'energy', text: 'Energía — rendir más todos los días', icon: 'flash-outline' },
-  { id: 'sport_performance', text: 'Deporte — rendimiento atlético', icon: 'barbell-outline' },
-  { id: 'event_prep', text: 'Preparación — un evento o meta específica', icon: 'flag-outline' },
+  { id: 'longevity', text: 'Longevidad: optimizar mi salud a largo plazo', icon: 'heart-outline' },
+  { id: 'body_composition', text: 'Composición corporal: grasa y músculo', icon: 'body-outline' },
+  { id: 'energy', text: 'Energía: rendir más todos los días', icon: 'flash-outline' },
+  { id: 'sport_performance', text: 'Deporte: rendimiento atlético', icon: 'barbell-outline' },
+  { id: 'event_prep', text: 'Preparación: un evento o meta específica', icon: 'flag-outline' },
 ] as const;

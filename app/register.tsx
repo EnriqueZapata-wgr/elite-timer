@@ -5,9 +5,26 @@
  * Validaciones client-side antes de enviar a Supabase.
  *
  * Sprint Compliance 2: CB-1 (Términos + Aviso de Privacidad) OBLIGATORIO,
- * NO pre-marcado — bloquea la creación de cuenta. La aceptación se loguea
+ * NO pre-marcado, bloquea la creación de cuenta. La aceptación se loguea
  * en user_consent_log; si la sesión aún no está lista, queda encolada y se
- * reintenta en el muro de consentimiento del onboarding.
+ * reintenta después.
+ *
+ * PIVOTE LIMPIO, 7 de septiembre de 2026: aquí se firman TRES, no uno.
+ * Se suman CB-3 (transferencia internacional) y CB-4 (mayoría de edad), que
+ * hasta hoy vivían en el muro del onboarding.
+ *   · CB-3 porque Supabase, Sentry y PostHog están en Estados Unidos y tratan
+ *     datos desde que se crea la cuenta. Pedirlo tres pantallas después sería
+ *     transferir antes de consentir.
+ *   · CB-4 porque la mayoría de edad es la condición de validez de todos los
+ *     demás consentimientos, y sin ella un menor entrega edad, sexo, talla y
+ *     peso antes de que alguien pregunte.
+ * Los tres son los que el guardia de app/index.tsx exige para abrir la app.
+ * Ninguno viene pre-marcado: el consentimiento es un acto de la persona.
+ *
+ * CB-2 (datos sensibles de salud) NO está aquí a propósito: la LFPDPPP pide
+ * consentimiento previo al TRATAMIENTO, no previo al registro, así que se
+ * pide en la pantalla que va a escribir el primer dato de salud
+ * (src/components/legal/PuertaDatosSalud.tsx).
  */
 import { useState, useMemo } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert, Linking } from 'react-native';
@@ -21,6 +38,9 @@ import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { logConsent } from '@/src/services/consent-log-service';
+import { ConsentCheckboxRow } from '@/src/components/legal/ConsentCheckboxRow';
+import { CONSENT_BY_ID } from '@/src/constants/consent-copy';
+import { CONSENTIMIENTOS_DE_PUERTA } from '@/src/services/acceso-consentido-core';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 // MB-31B remate dejó esta pantalla anclada a THEME_DARK como frontera oscura.
@@ -47,8 +67,12 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  // CB-1: NUNCA pre-marcado (consentimiento = acción afirmativa del usuario)
+  // CB-1, CB-3 y CB-4: NUNCA pre-marcados (consentimiento = acción afirmativa
+  // del usuario, art. 8 LFPDPPP). Tres estados separados a propósito: una sola
+  // casilla para tres consentimientos distintos no es consentimiento granular.
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [transferAccepted, setTransferAccepted] = useState(false);
+  const [adultAccepted, setAdultAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,6 +83,8 @@ export default function RegisterScreen() {
     if (password.length < 6) return 'La contraseña debe tener al menos 6 caracteres';
     if (password !== confirmPassword) return 'Las contraseñas no coinciden';
     if (!termsAccepted) return 'Debes aceptar los Términos y el Aviso de Privacidad';
+    if (!transferAccepted) return 'Necesitamos tu permiso para la transferencia internacional de datos';
+    if (!adultAccepted) return 'Necesitamos que confirmes que eres mayor de 18 años';
     return null;
   };
 
@@ -79,10 +105,13 @@ export default function RegisterScreen() {
     if (result.error) {
       setError(result.error);
     } else {
-      // CB-1 aceptado → log de auditoría (si la sesión no está lista, el
-      // servicio lo encola y el muro del onboarding lo reintenta).
+      // CB-1, CB-3 y CB-4 aceptados → log de auditoría. Si la sesión todavía
+      // no está lista, el servicio los encola en AsyncStorage y se reintentan
+      // solos; y si aun así no llegan, el guardia manda a /consentimientos,
+      // que hace flush antes de volver a preguntar. Nadie firma dos veces por
+      // un fallo de red y nadie entra sin que la fila exista.
       const { data: { user: newUser } } = await supabase.auth.getUser();
-      if (newUser?.id) await logConsent(newUser.id, ['CB-1'], 'accepted');
+      if (newUser?.id) await logConsent(newUser.id, [...CONSENTIMIENTOS_DE_PUERTA], 'accepted');
       // T5 HARDENING: funnel core — cuenta creada (sin PII en props).
       analytics.track(ATP_EVENTS.USER_SIGNED_UP, { method: 'email' });
       haptic.success();
@@ -205,6 +234,25 @@ export default function RegisterScreen() {
               </EliteText>
             </Pressable>
 
+            {/* CB-3 y CB-4 · pivote limpio 7-sep-2026. Texto legal EXACTO
+                (es el que se hashea en user_consent_log), casillas separadas
+                y ninguna pre-marcada. Sin estas dos no hay cuenta: son la
+                condición para tratar y transferir cualquier dato. */}
+            <View style={styles.consentBlock}>
+              <ConsentCheckboxRow
+                text={CONSENT_BY_ID['CB-3'].text}
+                checked={transferAccepted}
+                onToggle={() => setTransferAccepted(a => !a)}
+                required
+              />
+              <ConsentCheckboxRow
+                text={CONSENT_BY_ID['CB-4'].text}
+                checked={adultAccepted}
+                onToggle={() => setAdultAccepted(a => !a)}
+                required
+              />
+            </View>
+
             {error && (
               <EliteText variant="caption" style={styles.error}>
                 {error}
@@ -266,6 +314,12 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     right: Spacing.md,
     top: 38,
     padding: Spacing.xs,
+  },
+  consentBlock: {
+    alignSelf: 'stretch',
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.xs,
   },
   consentRow: {
     flexDirection: 'row',

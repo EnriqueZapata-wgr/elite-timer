@@ -13,8 +13,9 @@
  *     a quien ya consintió cuando el arranque en frío no tiene red.
  *
  * SOLO SE GUARDA EL SÍ. Nunca se escribe desde un fallo, nunca se infiere. El
- * único origen de una escritura es haber leído `onboarding_step === 'completed'`
- * del servidor.
+ * único origen de una escritura es haber leído del servidor los tres
+ * consentimientos de la puerta como aceptados (7-sep-2026: antes era
+ * `onboarding_step === 'completed'`, que resultó no ser un consentimiento).
  *
  * NO SE BORRA AL CERRAR SESIÓN, a propósito. La llave es por userId, así que un
  * teléfono compartido no filtra nada, y nadie llega a las pestañas sin una
@@ -42,6 +43,29 @@ export function marcarVistoBueno(userId: string): void {
   enMemoria.add(userId);
   AsyncStorage.setItem(llaveVistoBueno(userId), '1').catch(() => {
     /* defensivo: el visto bueno de memoria ya sirve para esta sesión */
+  });
+}
+
+/**
+ * Borra el visto bueno. Se llama en UN solo caso: el servidor se leyó bien y
+ * dijo que faltan consentimientos de la puerta.
+ *
+ * Existe desde el 7-sep-2026 (pivote limpio, paso 0). Hasta ese día el visto
+ * bueno significaba "onboarding_step = completed" y ahora significa "los tres
+ * consentimientos de la puerta se leyeron aceptados". Los teléfonos que ya
+ * tienen la marca vieja guardada la traen con el significado viejo, y el guard
+ * de las pestañas la cree: sin esto, un deep link a una pestaña entraría
+ * saltándose la puerta legal. Borrar una marca que el servidor acaba de
+ * desmentir no es quitarle nada a nadie, es dejar de creerle a un caché.
+ *
+ * NO se llama cuando la lectura falla. Ahí la marca vieja es justo lo que
+ * rescata a quien ya entró antes, y borrarla lo dejaría fuera de su app por
+ * un problema de red.
+ */
+export function olvidarVistoBueno(userId: string): void {
+  enMemoria.delete(userId);
+  AsyncStorage.removeItem(llaveVistoBueno(userId)).catch(() => {
+    /* defensivo: el borrado de memoria ya cierra la puerta en esta sesión */
   });
 }
 

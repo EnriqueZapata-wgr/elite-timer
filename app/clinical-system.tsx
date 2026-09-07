@@ -4,6 +4,11 @@
  * Ruta: /clinical-system?system=<FunctionalSystemKey>
  * Muestra: síntomas activos con registro rápido de severidad + timeline,
  * correlación con labs del sistema (lab_values canónico) y resueltos.
+ *
+ * 7-sep-2026: cuatro textos usaban `t.sinDatos` como TINTA (fechas y estados
+ * vacíos). El candado de la casa lo prohíbe: sinDatos es relleno, no letra.
+ * Pasan a `t.textoTenue`, que es el token de la letra tenue y el que ya usan
+ * kit.tsx y checkin.tsx para lo mismo. Se corrigió al montar la puerta de CB-2.
  */
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -18,6 +23,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { useAuth } from '@/src/contexts/auth-context';
+import { PuertaDatosSaludGate } from '@/src/components/legal/PuertaDatosSalud';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Spacing } from '@/constants/theme';
 import { withOpacity, type AppThemeTokens } from '@/src/constants/brand';
@@ -58,7 +64,7 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export default function ClinicalSystemScreen() {
+function ClinicalSystemScreen() {
   // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
   // casita flotante global se retira sola (ver useOwnNavPresence).
   useRegisterOwnNav();
@@ -257,7 +263,7 @@ export default function ClinicalSystemScreen() {
                       {SEVERITY_LABELS[log.severity]}
                       {log.note ? ` · ${log.note}` : ''}
                     </Text>
-                    <Text style={{ color: t.sinDatos, fontSize: 11, fontFamily: Fonts.regular }}>
+                    <Text style={{ color: t.textoTenue, fontSize: 11, fontFamily: Fonts.regular }}>
                       {formatDate(log.logged_at)}
                     </Text>
                   </View>
@@ -303,7 +309,7 @@ export default function ClinicalSystemScreen() {
       <Animated.View entering={FadeInUp.delay(80).springify()}>
         <SectionTitle>Síntomas activos</SectionTitle>
         {active.length === 0 && (
-          <Text style={{ color: t.sinDatos, fontSize: 13, fontFamily: Fonts.regular, marginBottom: Spacing.md }}>
+          <Text style={{ color: t.textoTenue, fontSize: 13, fontFamily: Fonts.regular, marginBottom: Spacing.md }}>
             Sin síntomas activos. Regístralos desde Historia Clínica.
           </Text>
         )}
@@ -314,7 +320,7 @@ export default function ClinicalSystemScreen() {
       <Animated.View entering={FadeInUp.delay(140).springify()} style={{ marginTop: Spacing.lg }}>
         <SectionTitle>Labs del sistema</SectionTitle>
         {relatedLabRows.length === 0 && (
-          <Text style={{ color: t.sinDatos, fontSize: 13, fontFamily: Fonts.regular }}>
+          <Text style={{ color: t.textoTenue, fontSize: 13, fontFamily: Fonts.regular }}>
             Sin labs registrados para este sistema. Sube tus estudios en Laboratorios.
           </Text>
         )}
@@ -328,7 +334,7 @@ export default function ClinicalSystemScreen() {
               <Text style={{ color: t.textoSecundario, fontSize: 13, fontFamily: Fonts.semiBold }}>
                 {humanizeLabKey(row.key)}
               </Text>
-              <Text style={{ color: t.sinDatos, fontSize: 11, fontFamily: Fonts.regular }}>
+              <Text style={{ color: t.textoTenue, fontSize: 11, fontFamily: Fonts.regular }}>
                 {formatDate(row.measured_at)}
               </Text>
             </View>
@@ -364,5 +370,17 @@ export default function ClinicalSystemScreen() {
       <MedicalDisclaimer feature="health" />
     </ScrollView>
     </Screen>
+  );
+}
+
+// 7-sep-2026 (pivote limpio, paso 0): CB-2 en la puerta. Esta pantalla trata
+// datos personales sensibles de salud, y la LFPDPPP pide consentimiento
+// expreso ANTES del tratamiento. La envoltura no monta el contenido hasta que
+// ese consentimiento existe en user_consent_log.
+export default function ClinicalSystemScreenGated() {
+  return (
+    <PuertaDatosSaludGate>
+      <ClinicalSystemScreen />
+    </PuertaDatosSaludGate>
   );
 }
