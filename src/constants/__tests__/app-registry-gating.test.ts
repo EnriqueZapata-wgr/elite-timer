@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 import {
   ABIERTAS_CON_EVALUACION_ELITE, APP_REGISTRY, APPS_PROXIMAMENTE, nivelAlcanza, visibleApps,
 } from '../app-registry';
+import { palabrasRojasEn } from '@/src/services/elite/elite-v3-core';
 
 /** Las 14 abiertas para Free (matriz 3.2). Cambiarlas es cambiar el pivote. */
 const ABIERTAS_FREE = [
@@ -24,8 +25,12 @@ const ABIERTAS_FREE = [
 describe('minTier en el registro', () => {
   // 6-sep-2026 (ruta 3.4): eran 35; Genética subió de APPS_PROXIMAMENTE al
   // registro con minTier 'elite'. Es la única con ese nivel.
-  it('son 36 entradas y todas declaran un minTier válido o ninguno', () => {
-    expect(APP_REGISTRY).toHaveLength(36);
+  // 7-sep-2026 (pivote limpio, decisión del dueño): 36 → 35. Salió Protocolos:
+  // "Mi Protocolo" deja de ser pantalla, la persona ya no elige práctica por
+  // práctica sino su objetivo. El conteo se RE-APUNTA con su motivo escrito,
+  // no se afloja: sigue siendo un número exacto.
+  it('son 35 entradas y todas declaran un minTier válido o ninguno', () => {
+    expect(APP_REGISTRY).toHaveLength(35);
     for (const a of APP_REGISTRY) {
       expect([undefined, 'premium', 'elite'], a.key).toContain(a.minTier);
     }
@@ -41,19 +46,40 @@ describe('minTier en el registro', () => {
     // exactamente una, Genética, y la abre la EXISTENCIA de la evaluación
     // (pivote 2.3.3), no solo el nivel. Cualquier otra app con 'elite' es un
     // cambio del pivote y tiene que escribirse aquí.
+    // 7-sep-2026 (pivote limpio): 22 → 21. La que salió es Protocolos, que
+    // era premium. Ninguna app cambió de nivel: se retiró la entrada.
     const cerradas = APP_REGISTRY.filter((a) => a.minTier);
-    expect(cerradas).toHaveLength(22);
+    expect(cerradas).toHaveLength(21);
     const elite = cerradas.filter((a) => a.minTier === 'elite').map((a) => a.key);
     expect(elite).toEqual(['genetica']);
     for (const a of cerradas) if (a.key !== 'genetica') expect(a.minTier, a.key).toBe('premium');
   });
 
-  it('pivote 1.7: Protocolos ya no se busca por "tratamiento" (palabra roja)', () => {
-    const protocolos = APP_REGISTRY.find((a) => a.key === 'protocolos');
-    expect(protocolos?.alias ?? []).not.toContain('tratamiento');
+  // 7-sep-2026: el candado nació apuntando a Protocolos (pivote 1.7) y esa
+  // entrada ya no existe. En lugar de borrarlo se re-apunta a lo que de verdad
+  // protegía: ninguna app se busca con una palabra roja. Y la lista NO se
+  // copia a mano: la primera versión de este re-apunte listaba siete palabras
+  // y se le fueron "previene", "medico de IA" y "clinicamente validado". La
+  // lista canónica vive en elite-v3-core (informe legal, sección 4) y se
+  // consulta con su misma función, así que crecer aquella lista aprieta este
+  // candado solo. Se revisa el copy que ve el usuario: etiqueta, alias y
+  // descripción.
+  it('ninguna app se busca ni se describe con una palabra roja', () => {
     for (const a of APP_REGISTRY) {
-      expect(a.alias ?? [], a.key).not.toContain('tratamiento');
+      for (const alias of a.alias ?? []) {
+        expect(palabrasRojasEn(alias), `${a.key} / alias "${alias}"`).toEqual([]);
+      }
+      expect(palabrasRojasEn(a.label), `${a.key} / etiqueta`).toEqual([]);
+      expect(palabrasRojasEn(a.description ?? ''), `${a.key} / descripción`).toEqual([]);
     }
+  });
+
+  // 7-sep-2026 (pivote limpio): Protocolos salió del registro. El candado que
+  // lo cuidaba se convierte en el candado de que NO vuelva por accidente: la
+  // puerta se retiró a propósito y su ruta es hoy un redirect a HOY.
+  it('Protocolos ya no es una app del registro', () => {
+    expect(APP_REGISTRY.some((a) => a.key === 'protocolos')).toBe(false);
+    expect(APP_REGISTRY.some((a) => String(a.route).startsWith('/salud/intervenciones'))).toBe(false);
   });
 });
 
@@ -75,12 +101,12 @@ describe('nivelAlcanza', () => {
 });
 
 describe('visibleApps con nivel', () => {
-  it('con free, las 14 abiertas no están bloqueadas y las otras 22 sí', () => {
+  it('con free, las 14 abiertas no están bloqueadas y las otras 21 sí', () => {
     const apps = visibleApps(true, 'free');
-    expect(apps).toHaveLength(36);
+    expect(apps).toHaveLength(35);
     const libres = apps.filter((a) => !a.bloqueada).map((a) => a.key).sort();
     expect(libres).toEqual(ABIERTAS_FREE);
-    expect(apps.filter((a) => a.bloqueada)).toHaveLength(22);
+    expect(apps.filter((a) => a.bloqueada)).toHaveLength(21);
   });
 
   it('regla 15: con free nada desaparece, solo se marca', () => {
@@ -99,7 +125,7 @@ describe('visibleApps con nivel', () => {
   });
 
   it('sin nivel se asume free (compatibilidad con los llamadores viejos)', () => {
-    expect(visibleApps(true).filter((a) => a.bloqueada)).toHaveLength(22);
+    expect(visibleApps(true).filter((a) => a.bloqueada)).toHaveLength(21);
   });
 
   it('femaleOnly sigue funcionando en cualquier nivel', () => {
@@ -114,9 +140,10 @@ describe('visibleApps con nivel', () => {
     // 6-sep-2026 (ruta 3.4): Genética ya exige elite. Un free con evaluación
     // cargada (Pro vencido) la ve abierta; y Suplementos también, porque su
     // plan asignado se conserva en solo lectura (regla 1, pivote 2.1). Lo
-    // demás premium sigue cerrado: 21 premium menos Suplementos = 20.
+    // demás premium sigue cerrado. 7-sep-2026: salió Protocolos (premium),
+    // así que son 20 premium menos Suplementos = 19.
     const conEvaluacion = visibleApps(true, 'free', true);
-    expect(conEvaluacion.filter((a) => a.bloqueada)).toHaveLength(20);
+    expect(conEvaluacion.filter((a) => a.bloqueada)).toHaveLength(19);
     expect(conEvaluacion.filter((a) => a.minTier === 'elite' && a.bloqueada)).toHaveLength(0);
     expect(conEvaluacion.find((a) => a.key === 'genetica')?.bloqueada).toBe(false);
     expect(conEvaluacion.find((a) => a.key === 'suplementos')?.bloqueada).toBe(false);

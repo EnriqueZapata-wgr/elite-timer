@@ -52,6 +52,7 @@ import { decidirRegeneracionInsight } from '@/src/services/argos-insight-window-
 import { INSIGHT_EN_VENTANA } from '@/src/constants/flags';
 import { getWeeklyInsight, isWeeklyInsightTime, type WeeklyInsightData } from '@/src/services/weekly-insight-service';
 import { syncAppAvisos } from '@/src/services/app-avisos-service';
+import { reconciliarAvisosDeObjetivos } from '@/src/services/pack-avisos-service';
 import { syncWidgetsFromCompiled } from '@/src/services/widgets/widget-sync-service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TopBanner } from '@/src/components/global/TopBanner';
@@ -236,6 +237,35 @@ export default function TodayScreen() {
     return () => { clearInterval(t); sub.remove(); };
   }, []);
 
+  // 7-sep-2026 (pivote limpio): aquí se reparan los avisos que los objetivos
+  // activos pidieron y no están encendidos. El caso que lo motiva es el
+  // permiso de notificaciones concedido DESPUÉS de armar el objetivo: hasta
+  // hoy esos avisos quedaban muertos para siempre y en silencio, y con ellos
+  // la única razón que tenía una cuenta nueva para volver el día 2.
+  //
+  // ALCANCE, con precisión: NO se limita al registro local de pendientes. La
+  // verdad de qué pidió cada objetivo se reconstruye de user_packs, así que
+  // enciende cualquier aviso SIN FILA de cualquier objetivo activo, aunque el
+  // registro se haya perdido (reinstalación, otro teléfono) o aunque el fallo
+  // nunca se haya anotado. Lo que NO toca: filas encendidas (aunque la hora
+  // sea otra), filas que la persona apagó, y filas apagadas cuando la base
+  // todavía no distingue quién las apagó. Esa línea vive completa en
+  // pack-avisos-reconcile-core.
+  //
+  // No abre ningún diálogo (LEE el permiso, no lo pide), es idempotente y se
+  // sale solo cuando no hay nada que reparar. Se reintenta al volver del
+  // segundo plano porque el permiso se concede en los Ajustes del sistema, o
+  // sea con la app atrás.
+  useEffect(() => {
+    const userId = user?.id;
+    if (!userId) return;
+    reconciliarAvisosDeObjetivos(userId).catch(() => {});
+    const sub = AppState.addEventListener('change', (estado) => {
+      if (estado === 'active') reconciliarAvisosDeObjetivos(userId).catch(() => {});
+    });
+    return () => sub.remove();
+  }, [user?.id]);
+
   // BLOQ-5: el saludo se DERIVA del reloj en cada render, no se lee de `day`.
   // Como campo materializado en CompiledDay se añejaba: compilado a las 21:xx
   // seguía diciendo "Buenas noches" a las 8:43 de la mañana siguiente. Ahora el
@@ -253,7 +283,14 @@ export default function TodayScreen() {
     loadDay();
     // MB-20: la visibilidad de cards editoriales murió con HoyEditorialSection —
     // las filas de TAREAS salen de compileDay (prefs del usuario) directamente.
-  }, [loadDay]));
+    //
+    // 7-sep-2026: volver a HOY es el OTRO momento en que el permiso de
+    // notificaciones pudo acabar de concederse sin que la app se fuera al
+    // fondo (la ficha de una app, armar un objetivo). El reconciliador trae
+    // su propio respiro, así que esto no le pega a la base cada vez que
+    // cambias de pestaña.
+    if (user?.id) reconciliarAvisosDeObjetivos(user.id).catch(() => {});
+  }, [loadDay, user?.id]));
 
   // MB-20 Pieza 4: el tour ya no vive aquí — la orbe lo guía desde la carcasa
   // de tabs (OrbTour en app/(tabs)/_layout.tsx) sobre las pantallas reales.
@@ -573,11 +610,12 @@ export default function TodayScreen() {
             Enrique: las cards editoriales contextuales (Hero/AYUNO/UV) ya cubren esto. */}
 
         {/* MB-26 P8: "Ajustar Mi Protocolo" se retiró — nombre muerto desde
-            que murió ATP PROTOCOLOS y chocaba de frente con los packs. Su
-            destino (/salud/intervenciones) conserva sus puertas propias: la
-            puerta "Mi protocolo" del pilar SALUD, el registro de apps y el
-            diagnóstico. El pie de HOY queda para el día: ordenarlo y elegir
-            hábitos. */}
+            que murió ATP PROTOCOLOS y chocaba de frente con los packs.
+            7-sep-2026 (pivote limpio): su destino (/salud/intervenciones)
+            también se retiró como pantalla y hoy redirige a /agenda. Las tres
+            prácticas del día se ven en la tarjeta QUÉ HACER HOY, y TODAS las
+            encendidas viven en la agenda, con su hora y su ficha. El pie de
+            HOY queda para el día: ordenarlo y elegir hábitos. */}
 
         {/* MB-26 P4: la salida al desmadre — graduar, reposar, empezar de
             cero o dejar que ARGOS proponga. Nada se borra ni se desinstala.

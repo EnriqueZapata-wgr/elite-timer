@@ -113,13 +113,17 @@ export const SECCIONES_HUB: SeccionHub[] = [
         icono: { tipo: 'ion', nombre: 'school-outline' },
         destino: { pathname: '/tutorial' },
       },
-      // app/protocol-explorer.tsx es alias de /salud/intervenciones (A-1, 20-ago).
+      // 7-sep-2026 (pivote limpio): la fila decía "Protocolos e intervenciones"
+      // y llevaba a la lista cruda, que se retiró. Apunta a /agenda, que es la
+      // ÚNICA pantalla que hoy pinta las prácticas encendidas una por una
+      // (interventionAgendaItems), con su hora y con completar, posponer y
+      // cambiar hora. La llave se queda: es interna y estable.
       {
         key: 'protocolos',
-        titulo: 'Protocolos e intervenciones',
-        linea: 'Tu protocolo activo y las intervenciones sugeridas para ti.',
+        titulo: 'Tus prácticas del día',
+        linea: 'Tu día con horas: lo que traes encendido, palomear y mover.',
         icono: { tipo: 'app', nombre: 'protocolos' },
-        destino: { pathname: '/salud/intervenciones' },
+        destino: { pathname: '/agenda' },
       },
     ],
   },

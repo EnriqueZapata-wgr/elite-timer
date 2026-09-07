@@ -183,7 +183,6 @@ export const TITULOS_RUTA: Readonly<Record<string, string>> = {
   '/salud': 'Salud',
   '/salud/diagnostico': 'Mi mapa funcional',
   '/salud/evolucion': 'Mi evolución',
-  '/salud/intervenciones': 'Mis intervenciones',
   '/salud/mi-expediente': 'Mi expediente',
   '/salud/mis-datos': 'Mis datos de salud',
   '/salud/mis-sintomas': 'Mis síntomas',
@@ -267,12 +266,12 @@ export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = {
   '/salud/mi-expediente': ['expediente', 'mi expediente', 'historial de salud', 'timeline'],
   '/salud/mis-sintomas': ['sintomas', 'sintoma', 'me siento mal'],
   '/salud/padecimientos': ['padecimientos', 'diagnosticos previos', 'antecedentes'],
-  '/salud/intervenciones': ['intervenciones', 'intervencion', 'que estoy haciendo'],
   '/salud/diagnostico': ['diagnostico funcional', 'mi diagnostico'],
   '/salud/evolucion': ['evolucion', 'como voy', 'tendencia'],
   '/historia-clinica': ['historia clinica', 'antecedentes familiares'],
   // '/protocol-explorer' salió (A-1): el concepto de catálogo de protocolos
-  // se retiró con el pivote. "Mi protocolo" vive en /salud/intervenciones.
+  // se retiró con el pivote. 7-sep-2026: "Mi protocolo" tampoco existe ya como
+  // pantalla; lo que traes encendido se ve en /agenda, y ahí apunta su alias.
   '/ficha-emergencia': ['emergencia', 'ficha de emergencia', 'contacto de emergencia'],
   '/fitness-hub': ['fitness', 'ejercicio', 'entrenar', 'gimnasio', 'gym'],
   '/fitness-train': ['entrenar ahora', 'empezar entrenamiento', 'rutina de hoy'],
@@ -296,6 +295,12 @@ export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = {
   '/my-chronotype': ['cronotipo', 'mi cronotipo', 'soy leon o lobo'],
   '/reports': ['reportes', 'reporte', 'graficas', 'estadisticas', 'resumen'],
   '/hoy-habitos': ['habitos', 'habito', 'electrones', 'que trackeo', 'agregar habito'],
+  // 7-sep-2026 (pivote limpio): '/salud/intervenciones' dejó de ser pantalla y
+  // hoy es alias 1:1 de /agenda. Su vocabulario NO se tira: se queda aquí y el
+  // índice se lo dona al destino real (la regla CUATRO-OJOS de obtenerIndice).
+  // Sale del mapa de TÍTULOS, eso sí: ARGOS no anuncia una pantalla que ya no
+  // existe, anuncia la agenda.
+  '/salud/intervenciones': ['intervenciones', 'intervencion', 'que estoy haciendo', 'mi protocolo'],
   '/ordenar-dia': ['ordenar mi dia', 'reordenar', 'limpiar el dia', 'reposo'],
   '/centro': ['centro', 'instalar', 'activar funcion', 'agregar app', 'que tiene la app'],
   '/kit': ['sala atp', 'kit', 'mis apps', 'ecosistema'],
@@ -369,6 +374,16 @@ export const PALABRAS_VACIAS: ReadonlySet<string> = new Set([
   'hacer', 'haz', 'poner', 'pon', 'quiere', 'dime', 'sobre', 'aqui', 'ahi', 'alli',
   'sirve', 'funciona', 'parte', 'lugar', 'sitio', 'boton', 'opcion',
   'atp', 'the', 'of',
+  // 7-sep-2026 (pivote limpio). Los adverbios de TIEMPO dicen cuándo, nunca
+  // dónde, y por eso no discriminan un destino. Entraron el día que un
+  // objetivo se llamó "Mañanas con pila": desde ese nombre, "mañana" se
+  // volvió token de destino y "el clima de mañana" resolvía a ese objetivo
+  // con 4.67 sobre un umbral de 3, o sea ARGOS adivinando. El arreglo va aquí
+  // y no en el umbral: subir el piso castigaría a todas las consultas buenas
+  // para tapar una palabra que nunca debió pesar. Se filtra ANTES de
+  // singularizar, así que el plural va explícito. 'hoy' NO entra: nombra
+  // pantallas reales (la sala HOY, /hoy-habitos, /salud/hoy).
+  'manana', 'mananas', 'ayer', 'anoche', 'anteayer',
 ]);
 
 /**

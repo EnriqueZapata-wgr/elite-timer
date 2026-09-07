@@ -100,7 +100,10 @@ export function LifestyleResult({
           </EliteText>
         </AnimatedPressable>
         <Pressable onPress={onExplore} style={s.link}>
-          <EliteText variant="caption" style={s.linkText}>Explorar más protocolos</EliteText>
+          {/* 7-sep-2026 (pivote limpio): decía "Explorar más protocolos" y
+              llevaba a la lista cruda, que se retiró. La persona ya no explora
+              un catálogo: ve en su agenda lo que trae encendido, con su hora. */}
+          <EliteText variant="caption" style={s.linkText}>Ver mis prácticas en mi día</EliteText>
         </Pressable>
       </View>
     </>

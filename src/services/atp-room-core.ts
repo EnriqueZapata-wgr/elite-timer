@@ -242,8 +242,18 @@ export function pickVariantIndex(nowMs: number, variants = 4): number {
  * entrada propia. Se pintan como fila fija encima de la cuadrícula en los
  * órdenes Categoría y Frecuencia; en "Mío" manda el orden que la persona
  * guardó en /atp-orden y esta fila no se muestra.
+ *
+ * 7-sep-2026 (pivote limpio): la cuarta era Protocolos y traía dos problemas
+ * juntos. Uno, exigía Pro: la PRIMERA fila que ve una cuenta nueva estrenaba
+ * candado. Dos, esa pantalla se retiró del registro con el pivote. En su
+ * lugar entra Respirar, y es la única de la matriz que cumple las tres cosas
+ * que esta fila necesita el día uno: abierta para Free, se hace en dos
+ * minutos sin traer un dato ni comprar nada, y ya viene sembrada en toda
+ * cuenta nueva (initialSeedApps). Las otras tres de la fila piden algo antes
+ * de devolver algo (subir estudios, tener número, tener hábitos encendidos);
+ * esta devuelve en el primer toque, que es justo lo que faltaba el día uno.
  */
-export const DESTACADAS_3_0: readonly string[] = ['labs', 'edad-atp', 'hoy-habitos', 'protocolos'] as const;
+export const DESTACADAS_3_0: readonly string[] = ['labs', 'edad-atp', 'hoy-habitos', 'respirar'] as const;
 
 const HABITOS_DE_HOY: AppEntry = {
   key: 'hoy-habitos',

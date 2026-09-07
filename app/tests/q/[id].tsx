@@ -365,7 +365,7 @@ function AssessmentEngine() {
               return next;
             })}
             onAccept={onAcceptProtocols}
-            onExplore={() => router.push('/salud/intervenciones')}
+            onExplore={() => router.push('/agenda')}
             saving={saving}
           />
         </Screen>
@@ -398,7 +398,7 @@ function AssessmentEngine() {
           answers={answers}
           ctx={session.ctx}
           userId={user?.id ?? ''}
-          onGoProtocol={() => router.push('/salud/intervenciones')}
+          onGoProtocol={() => router.push('/agenda')}
         />
       </Screen>
     );

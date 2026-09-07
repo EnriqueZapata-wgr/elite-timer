@@ -432,7 +432,10 @@ export function interventionAgendaItems(
       id: `${INTERVENTION_ITEM_PREFIX}${iv.row.id}`,
       time: times.get(iv.row.id) ?? resolveInterventionTime(iv, anchors),
       name: iv.def.name,
-      subtitle: 'Mi Protocolo',
+      // 7-sep-2026 (pivote limpio): el renglón de la agenda se firmaba "Mi
+      // Protocolo", que es el nombre de la pantalla retirada. La persona lee
+      // "Práctica"; la llave y la tabla no cambian.
+      subtitle: 'Práctica',
       category: iv.def.categories[0] ?? 'intervencion',
       completed: completedTodayIds.has(iv.row.id),
       isNext: false,

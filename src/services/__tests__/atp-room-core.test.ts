@@ -248,24 +248,36 @@ describe('cobertura del registro', () => {
 });
 
 // ATP 3.0 (6-sep-2026, ruta 2.3): las cuatro de arriba del launcher.
+// 7-sep-2026 (pivote limpio): el candado se RE-APUNTA, no se afloja. La cuarta
+// era Protocolos y estaba cerrada para Free: la primera fila que ve una cuenta
+// nueva estrenaba candado. Entra Respirar (abierta, sembrada el día uno) y el
+// contrato de esta fila sube de nivel: ahora se exige que las CUATRO abran
+// para Free. Si alguien vuelve a meter aquí algo de paga, truena.
 describe('destacadasLauncher', () => {
-  it('son Labs, Edad ATP, Hábitos de hoy y Protocolos, en ese orden y sin repetir', () => {
+  it('son Labs, Edad ATP, Hábitos de hoy y Respirar, en ese orden y sin repetir', () => {
     const d = destacadasLauncher(visibleApps(true, 'free'));
     expect(d.map((a) => a.key)).toEqual([...DESTACADAS_3_0]);
-    expect(d.map((a) => a.key)).toEqual(['labs', 'edad-atp', 'hoy-habitos', 'protocolos']);
+    expect(d.map((a) => a.key)).toEqual(['labs', 'edad-atp', 'hoy-habitos', 'respirar']);
     expect(d[2].route).toBe('/hoy-habitos');
+  });
+  it('la fila de empezar NO trae candado para una cuenta nueva (Free)', () => {
+    const d = destacadasLauncher(visibleApps(true, 'free')) as { key: string; bloqueada?: boolean }[];
+    for (const a of d) expect(a.bloqueada ?? false, a.key).toBe(false);
   });
   it('toma la entrada de la lista visible (con candado resuelto) y cae al registro si falta', () => {
     const visibles = visibleApps(true, 'free');
     const d = destacadasLauncher(visibles);
-    const protocolos = d.find((a) => a.key === 'protocolos') as { bloqueada?: boolean };
-    expect(protocolos.bloqueada).toBe(true);
+    const respirar = d.find((a) => a.key === 'respirar') as { bloqueada?: boolean };
+    expect(respirar.bloqueada).toBe(false);
     const sinLabs = destacadasLauncher(visibles.filter((a) => a.key !== 'labs'));
-    expect(sinLabs.map((a) => a.key)).toEqual(['labs', 'edad-atp', 'hoy-habitos', 'protocolos']);
+    expect(sinLabs.map((a) => a.key)).toEqual(['labs', 'edad-atp', 'hoy-habitos', 'respirar']);
   });
-  it('a un miembro no le pinta candado', () => {
-    const d = destacadasLauncher(visibleApps(true, 'premium'));
-    const protocolos = d.find((a) => a.key === 'protocolos') as { bloqueada?: boolean };
-    expect(protocolos.bloqueada).toBe(false);
+  it('a un miembro tampoco le pinta candado', () => {
+    const d = destacadasLauncher(visibleApps(true, 'premium')) as { key: string; bloqueada?: boolean }[];
+    for (const a of d) expect(a.bloqueada ?? false, a.key).toBe(false);
+  });
+  it('Protocolos ya no está en la fila ni en el registro (pivote 7-sep-2026)', () => {
+    expect([...DESTACADAS_3_0]).not.toContain('protocolos');
+    expect(visibleApps(true, 'free').some((a) => a.key === 'protocolos')).toBe(false);
   });
 });

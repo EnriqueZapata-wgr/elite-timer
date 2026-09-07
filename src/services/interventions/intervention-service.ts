@@ -142,7 +142,21 @@ export async function getMyProtocol(userId: string): Promise<ResolvedUserInterve
   return sortProtocol(resolveRows((data ?? []) as unknown as UserInterventionRow[]));
 }
 
-/** Sugeridas resueltas + score/orden del motor (universales primero como base). */
+/**
+ * Sugeridas resueltas + score/orden del motor (universales primero como base).
+ *
+ * 7-sep-2026 (pivote limpio). DECISIÓN, no olvido: la lista "Sugeridas para ti"
+ * se retiró con la pantalla Mi Protocolo. La persona ya no escoge de un
+ * catálogo; elige su objetivo y el objetivo enciende. Las filas 'suggested'
+ * NO se borraron ni dejaron de escribirse: siguen naciendo del motor (el sync
+ * corre ahora al entrar a /agenda) y la persona se las encuentra en la tarjeta
+ * QUÉ HACER HOY, que lee exactamente ese status y propone tres al día.
+ *
+ * Esta función y su orden (sortSuggested / partitionSuggested) se quedan como
+ * la lectura del motor, con su test, para quien construya la pantalla del
+ * objetivo. Hoy no tienen pantalla: si en la próxima poda siguen sin dueño,
+ * se retiran con su test y no pasa nada.
+ */
 export async function getSuggestedInterventions(userId: string): Promise<ResolvedUserIntervention[]> {
   const [{ match }, { data }] = await Promise.all([
     getMatchForUser(userId),

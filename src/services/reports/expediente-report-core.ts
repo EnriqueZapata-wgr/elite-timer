@@ -66,7 +66,10 @@ const DEFINICIONES: Omit<FuenteInventario, 'registros' | 'ultimo'>[] = [
     key: 'intervenciones',
     titulo: 'Lo que estás haciendo',
     comoSeLlena: 'Cada cosa que activas queda con su fecha, y así se puede ver qué cambió después.',
-    route: '/salud/intervenciones',
+    // 7-sep-2026 (pivote limpio): la lista "Mi Protocolo" se retiró. Lo que
+    // esta fila promete ("cada cosa que activas queda con su fecha") se ve
+    // hoy en la agenda, que es donde vive cada práctica encendida.
+    route: '/agenda',
     icon: 'protocolos',
   },
   {

@@ -136,8 +136,8 @@ export default function IntervencionDetailScreen() {
   const onDismiss = useCallback(() => {
     if (!user?.id || !key) return;
     Alert.alert(
-      'Descartar intervención',
-      'No volverá a aparecer en tus sugeridas. ¿Seguro?',
+      'Descartar esta práctica',
+      'No volverá a aparecer entre las que te proponemos. ¿Seguro?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -181,7 +181,7 @@ export default function IntervencionDetailScreen() {
   return (
     <MedicalDisclaimerGate>
       <Screen edges={[]} themed>
-        <ScreenHeader title="Intervención" onBack={() => router.back()} />
+        <ScreenHeader title="Tu práctica" onBack={() => router.back()} />
 
         {loading ? (
           <View style={styles.center}>
@@ -189,9 +189,12 @@ export default function IntervencionDetailScreen() {
           </View>
         ) : !item ? (
           <View style={styles.center}>
+            {/* 7-sep-2026 (pivote limpio): la lista "Mi Protocolo" se retiró, así
+                que el texto ya no puede mandar a nadie a ella. Se manda a HOY,
+                que es donde vive lo que trae puesto. */}
             <EliteText style={styles.notFound}>
-              No encontramos esta intervención en tu perfil. Vuelve a la lista y
-              desliza para sincronizar.
+              No encontramos esta práctica en tu perfil. Vuelve a tu día y jala
+              hacia abajo para sincronizar.
             </EliteText>
           </View>
         ) : (
@@ -269,7 +272,7 @@ export default function IntervencionDetailScreen() {
                   {scientificInfo && <EliteText style={styles.body}>{scientificInfo}</EliteText>}
                   {hasConsultNote && (
                     <EliteText style={styles.consultNote}>
-                      Nota: esta intervención sugiere consultar con tu nutriólogo antes de iniciar.
+                      Nota: esta práctica sugiere consultar con tu nutriólogo antes de iniciar.
                     </EliteText>
                   )}
                 </Card>
@@ -285,7 +288,7 @@ export default function IntervencionDetailScreen() {
                   value={timeInput}
                   onChangeText={setTimeInput}
                   placeholder={item.row.computed_time ? `Calculada: ${item.row.computed_time}` : 'ej. 21:30'}
-                  placeholderTextColor={t.sinDatos}
+                  placeholderTextColor={t.textoTenue}
                   style={styles.input}
                   keyboardType="numbers-and-punctuation"
                   maxLength={5}
@@ -294,8 +297,8 @@ export default function IntervencionDetailScreen() {
                 <TextInput
                   value={notesInput}
                   onChangeText={setNotesInput}
-                  placeholder="Tus notas personales sobre esta intervención"
-                  placeholderTextColor={t.sinDatos}
+                  placeholder="Tus notas personales sobre esta práctica"
+                  placeholderTextColor={t.textoTenue}
                   style={[styles.input, styles.inputMultiline]}
                   multiline
                 />
@@ -324,6 +327,18 @@ export default function IntervencionDetailScreen() {
                   <EliteText style={styles.dangerBtnText}>Descartar</EliteText>
                 </AnimatedPressable>
               )}
+            </Animated.View>
+
+            {/* 7-sep-2026 (pivote limpio): la narrativa "por qué estas prácticas"
+                colgaba de la lista Mi Protocolo, que se retiró. Su puerta se muda
+                aquí: sin esto quedaba una pantalla viva a la que nadie llega. */}
+            <Animated.View entering={FadeInUp.delay(280).springify()} style={styles.actions}>
+              <AnimatedPressable
+                onPress={() => { haptic.light(); router.push('/salud/intervenciones/rationale'); }}
+                style={styles.secondaryBtn}
+              >
+                <EliteText style={styles.secondaryBtnText}>Por qué estas prácticas para ti</EliteText>
+              </AnimatedPressable>
             </Animated.View>
           </ScrollView>
         )}

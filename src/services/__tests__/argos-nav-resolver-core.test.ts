@@ -159,6 +159,13 @@ describe('intentos reales en es-MX', () => {
     ['mis rutinas', '/my-routines'],
     ['la biblioteca de ejercicios', '/exercise-library'],
     ['mi ciclo menstrual', '/cycle'],
+    // 7-sep-2026 (pivote limpio): "Mi Protocolo" dejó de ser pantalla y su ruta
+    // es alias 1:1 de /agenda. Su vocabulario NO se tiró: se quedó en ALIAS_RUTA
+    // y el índice se lo dona al destino real. Estas dos frases clavan esa
+    // donación: si alguien la rompe, fallan aquí y no en el device, donde se
+    // vería como ARGOS quedándose mudo ante palabras que la gente sí usa.
+    ['que estoy haciendo', '/agenda'],
+    ['mis intervenciones', '/agenda'],
   ];
 
   for (const [frase, ruta] of casos) {

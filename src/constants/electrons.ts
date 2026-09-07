@@ -34,7 +34,10 @@ export const ELECTRON_WEIGHTS = {
   cardio:              { weight: 2.5, name: 'Cardio',                   icon: 'cardio',         color: '#fb7185' },
   // dx-f3: compleción diaria de una intervención de Mi Protocolo. NO es toggle del HOY (no va en
   // MANDATORY_BOOLEANS): el award sale de logCompletion con idempotencyKey por intervención+día.
-  intervention:        { weight: 1.5, name: 'Intervención',             icon: 'protocolos',     color: '#1D9E75' },
+  // 7-sep-2026 (pivote limpio): el nombre que ve la persona pasa de
+  // "Intervención" a "Práctica". La llave interna (intervention) NO se toca:
+  // la escriben user_interventions y intervention_completions.
+  intervention:        { weight: 1.5, name: 'Práctica',                icon: 'protocolos',     color: '#1D9E75' },
   // N-Back (spec 2026-07-23): verificado — completed = ≥1 round completado hoy
   // (nback_sessions). Peso 2.5 = mismo esfuerzo cognitivo que meditación
   // (spec #6). El award sale de completeNBackRound con key determinística.

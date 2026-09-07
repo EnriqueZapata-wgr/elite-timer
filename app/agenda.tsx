@@ -29,7 +29,9 @@ import {
   generateAgendaEvents, getAgendaForDate, getRestrictionsForDate, createCustomEvent, updateAgendaEvent,
   deleteAgendaEvent, setEventStatus, snoozeEvent, syncElectronFromEvent, type AgendaEventInstance,
 } from '@/src/services/agenda-service';
-import { completeInterventionByKey, adjustIntervention } from '@/src/services/interventions/intervention-service';
+import {
+  completeInterventionByKey, adjustIntervention, syncSuggestedInterventions,
+} from '@/src/services/interventions/intervention-service';
 import { findUserDuplicateGroups, type UserDupCandidate } from '@/src/services/interventions/intervention-agenda-core';
 import { hasNotificationPermission, registerForPushNotificationsAsync } from '@/src/services/push-notification-service';
 import { syncAgendaLocalNotifications } from '@/src/services/agenda-local-notifications';
@@ -82,6 +84,14 @@ export default function AgendaScreen() {
     (async () => {
       if (!userId) { setLoading(false); return; }
       setLoading(true);
+      // 7-sep-2026 (pivote limpio): el sync del motor vivía en el pull to
+      // refresh de "Mi Protocolo", que se retiró. Sin re-alojarlo, una práctica
+      // nueva del motor no volvía a nacer nunca y el computed_time no se
+      // refrescaba al cambiar el cronotipo. Corre aquí, que es la pantalla que
+      // heredó las prácticas: es idempotente, nunca pisa una fila del usuario
+      // (ignoreDuplicates) y va antes de generar para que la agenda ya la vea.
+      // Fail soft: si truena, la agenda se dibuja igual.
+      await syncSuggestedInterventions(userId).catch(() => ({ inserted: 0, timeUpdates: 0 }));
       await generateAgendaEvents(userId, getLocalToday()); // idempotente
       if (active) await reload();
     })();
@@ -97,6 +107,21 @@ export default function AgendaScreen() {
     });
     return () => sub.remove();
   }, [userId, reload]);
+
+  /**
+   * 7-sep-2026 (pivote limpio): la ficha de la práctica se abre desde aquí. Es
+   * donde se pausa, se descarta y se leen el cómo y el porqué, y con "Mi
+   * Protocolo" retirado esta es su única puerta para las prácticas que no
+   * cayeron en las tres de HOY. Solo para eventos que nacen de una práctica:
+   * un evento propio de la agenda no tiene ficha que abrir.
+   */
+  const abrirPractica = selected?.source === 'intervention' && selected.interventionKey
+    ? () => {
+      const key = selected.interventionKey!;
+      setSelected(null);
+      router.push(`/salud/intervenciones/${key}`);
+    }
+    : undefined;
 
   const nowMs = Date.now();
   const upcoming = events.filter((e) => e.status === 'pending' && new Date(e.scheduledAt).getTime() >= nowMs).length;
@@ -314,6 +339,7 @@ export default function AgendaScreen() {
         onSnooze={handleSnooze}
         onDelete={handleDelete}
         onClose={() => setSelected(null)}
+        onOpenPractice={abrirPractica}
       />
 
       {/* 12.1: rueda de hora (hermana de los modales, nunca anidada). */}

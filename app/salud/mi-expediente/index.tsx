@@ -74,7 +74,7 @@ function MiExpedienteScreen() {
 
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <EliteText variant="caption" style={s.subtitle}>
-            Tu historia en el tiempo: síntomas, intervenciones, labs y mediciones. Todo lo que ATP correlaciona.
+            Tu historia en el tiempo: síntomas, prácticas, labs y mediciones. Todo lo que ATP correlaciona.
           </EliteText>
         </Animated.View>
 
@@ -82,7 +82,7 @@ function MiExpedienteScreen() {
           <EmptyState
             icon="document-text-outline"
             title="Tu expediente está vacío"
-            subtitle="Registra síntomas, activa intervenciones o sube labs: cada acción queda aquí, en orden cronológico."
+            subtitle="Registra síntomas, enciende prácticas o sube labs: cada acción queda aquí, en orden cronológico."
             actionLabel="Registrar un síntoma"
             onAction={() => router.push('/salud/sintomas')}
             color="#1D9E75"

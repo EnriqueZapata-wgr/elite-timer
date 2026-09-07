@@ -167,6 +167,10 @@ export function sortProtocol(list: ResolvedUserIntervention[]): ResolvedUserInte
  * Orden de "Sugeridas para ti": universales primero (son la base garantizada),
  * luego curadas por score del motor desc; empates por priority asc y nombre.
  */
+// 7-sep-2026 (pivote limpio): sin pantalla desde que se retiró la lista de
+// sugeridas. Se conserva a propósito como el orden del motor (ver la nota de
+// getSuggestedInterventions en intervention-service.ts). No es código huérfano
+// por descuido: es una decisión escrita, con fecha.
 export function sortSuggested(list: ResolvedUserIntervention[]): ResolvedUserIntervention[] {
   return [...list].sort((a, b) => {
     if (a.row.is_universal !== b.row.is_universal) return a.row.is_universal ? -1 : 1;

@@ -31,9 +31,17 @@ interface Props {
   onSnooze: (minutes: number) => void;
   onDelete: () => void;
   onClose: () => void;
+  /**
+   * 7-sep-2026 (pivote limpio): abre la ficha de la práctica (pausar, descartar,
+   * notas, cómo se hace). Solo llega con valor cuando el evento nace de una
+   * práctica encendida. Sin esto, al retirarse "Mi Protocolo" la única puerta a
+   * esa ficha eran las tres acciones de HOY, y quien trae más de tres se
+   * quedaba sin forma de pausar o descartar las demás.
+   */
+  onOpenPractice?: () => void;
 }
 
-export function EventActionModal({ event, onEdit, onChangeTime, onComplete, onSnooze, onDelete, onClose }: Props) {
+export function EventActionModal({ event, onEdit, onChangeTime, onComplete, onSnooze, onDelete, onClose, onOpenPractice }: Props) {
   const [showSnooze, setShowSnooze] = useState(false);
   const visible = !!event;
   // MB-31B: superficie flotante del tema; el lima como texto solo en oscuro.
@@ -66,6 +74,11 @@ export function EventActionModal({ event, onEdit, onChangeTime, onComplete, onSn
                 onPress={() => act(onChangeTime)}
               />
               <ActionRow icon="create-outline" label="Editar" color={rowColor} onPress={() => act(onEdit)} />
+              {onOpenPractice && (
+                // El glifo es cromo a propósito: el de "leer" dibujaba una función
+                // del registro y sigue vetado por el censo de iconos (ni en comentarios).
+                <ActionRow icon="open-outline" label="Ver la práctica" color={rowColor} onPress={() => act(onOpenPractice)} />
+              )}
               <ActionRow icon="checkmark-circle-outline" label="Completar" color={acento} onPress={() => act(onComplete)} />
               <ActionRow icon="play-forward-outline" label="Posponer" color={rowColor} onPress={() => { haptic.light(); setShowSnooze(true); }} />
               <ActionRow icon="trash-outline" label="Eliminar" color={destructivo} onPress={() => act(onDelete)} />

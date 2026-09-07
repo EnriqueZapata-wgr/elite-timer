@@ -24,7 +24,12 @@ import { hasAppIcon } from '@/src/components/ui/app-icon-names';
 const RUTAS_QUE_NO_SE_PUEDEN_PERDER = [
   // health-hub, los 8 destinos de Mega-Sprint B
   '/salud/diagnostico',
-  '/salud/intervenciones',
+  // 7-sep-2026 (pivote limpio, decisión del dueño): '/salud/intervenciones'
+  // SALE de esta lista, y es un re-apunte, no un aflojón. La regla de arriba
+  // dice que ninguna ruta del hub viejo puede perderse; esta no se perdió,
+  // dejó de ser pantalla: "Mi Protocolo" se retiró y su ruta es hoy un
+  // redirect a la sala HOY, que es donde la persona ve sus prácticas activas.
+  // Pedirle puerta propia a un redirect es pedir dos caminos a lo mismo.
   '/salud/mis-datos',
   '/salud/mis-evaluaciones',
   '/salud/mis-sintomas',

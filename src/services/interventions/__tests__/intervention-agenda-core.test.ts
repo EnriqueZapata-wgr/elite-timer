@@ -277,7 +277,10 @@ describe('interventionAgendaItems', () => {
     const g = items.find(i => i.name === 'Grounding 10-15 min')!;
     expect(g.id).toBe(`${INTERVENTION_ITEM_PREFIX}uid-grounding`);
     expect(g.completed).toBe(true);
-    expect(g.subtitle).toBe('Mi Protocolo');
+    // 7-sep-2026 (pivote limpio): el subtítulo se re-apunta con su motivo. Ya
+    // no puede decir "Mi Protocolo": esa pantalla se retiró y la palabra que
+    // ve la persona es práctica. Sigue siendo igualdad exacta.
+    expect(g.subtitle).toBe('Práctica');
     expect(g.category).toBe('inflamacion');
     expect(g.isNext).toBe(false);
     expect(g.isSmart).toBe(false);

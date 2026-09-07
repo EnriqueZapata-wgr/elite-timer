@@ -1,9 +1,9 @@
 {
   "scheme": "atp",
-  "generado": "2026-09-06T20:06:56.025Z",
+  "generado": "2026-09-07T21:40:50.808Z",
   "resumen": {
-    "estaticas": 196,
-    "dinamicas": 88,
+    "estaticas": 197,
+    "dinamicas": 99,
     "variantes": 12
   },
   "fuera": {
@@ -297,13 +297,6 @@
       "slug": "centro-padecimientos"
     },
     {
-      "ruta": "/centro/protocolos",
-      "archivo": "app/centro/[appKey].tsx",
-      "tipo": "dinamica",
-      "plantilla": "/centro/[appKey]",
-      "slug": "centro-protocolos"
-    },
-    {
       "ruta": "/centro/rachas",
       "archivo": "app/centro/[appKey].tsx",
       "tipo": "dinamica",
@@ -441,6 +434,12 @@
       "archivo": "app/comunidad/ranking.tsx",
       "tipo": "estatica",
       "slug": "comunidad-ranking"
+    },
+    {
+      "ruta": "/consentimientos",
+      "archivo": "app/consentimientos.tsx",
+      "tipo": "estatica",
+      "slug": "consentimientos"
     },
     {
       "ruta": "/cycle",
@@ -1220,6 +1219,13 @@
       "slug": "ordenar-dia"
     },
     {
+      "ruta": "/packs/aguante-de-verdad",
+      "archivo": "app/packs/[packKey].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/packs/[packKey]",
+      "slug": "packs-aguante-de-verdad"
+    },
+    {
       "ruta": "/packs/armar",
       "archivo": "app/packs/armar.tsx",
       "tipo": "estatica",
@@ -1233,11 +1239,25 @@
       "slug": "packs-bajar-revoluciones"
     },
     {
+      "ruta": "/packs/cabeza-en-silencio",
+      "archivo": "app/packs/[packKey].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/packs/[packKey]",
+      "slug": "packs-cabeza-en-silencio"
+    },
+    {
       "ruta": "/packs/cuidar-glucosa",
       "archivo": "app/packs/[packKey].tsx",
       "tipo": "dinamica",
       "plantilla": "/packs/[packKey]",
       "slug": "packs-cuidar-glucosa"
+    },
+    {
+      "ruta": "/packs/digestion-ligera",
+      "archivo": "app/packs/[packKey].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/packs/[packKey]",
+      "slug": "packs-digestion-ligera"
     },
     {
       "ruta": "/packs/dormir-mejor",
@@ -1268,6 +1288,13 @@
       "slug": "packs-foco-claridad"
     },
     {
+      "ruta": "/packs/fuerza-que-se-nota",
+      "archivo": "app/packs/[packKey].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/packs/[packKey]",
+      "slug": "packs-fuerza-que-se-nota"
+    },
+    {
       "ruta": "/packs/longevidad",
       "archivo": "app/packs/[packKey].tsx",
       "tipo": "dinamica",
@@ -1275,11 +1302,67 @@
       "slug": "packs-longevidad"
     },
     {
+      "ruta": "/packs/mananas-con-pila",
+      "archivo": "app/packs/[packKey].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/packs/[packKey]",
+      "slug": "packs-mananas-con-pila"
+    },
+    {
+      "ruta": "/packs/menos-inflamado",
+      "archivo": "app/packs/[packKey].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/packs/[packKey]",
+      "slug": "packs-menos-inflamado"
+    },
+    {
+      "ruta": "/packs/menos-pantalla-mas-vida",
+      "archivo": "app/packs/[packKey].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/packs/[packKey]",
+      "slug": "packs-menos-pantalla-mas-vida"
+    },
+    {
+      "ruta": "/packs/mi-ciclo-a-mi-favor",
+      "archivo": "app/packs/[packKey].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/packs/[packKey]",
+      "slug": "packs-mi-ciclo-a-mi-favor"
+    },
+    {
+      "ruta": "/packs/piel-que-se-ve-viva",
+      "archivo": "app/packs/[packKey].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/packs/[packKey]",
+      "slug": "packs-piel-que-se-ve-viva"
+    },
+    {
+      "ruta": "/packs/preparar-mi-consulta",
+      "archivo": "app/packs/[packKey].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/packs/[packKey]",
+      "slug": "packs-preparar-mi-consulta"
+    },
+    {
       "ruta": "/packs/salud-en-orden",
       "archivo": "app/packs/[packKey].tsx",
       "tipo": "dinamica",
       "plantilla": "/packs/[packKey]",
       "slug": "packs-salud-en-orden"
+    },
+    {
+      "ruta": "/packs/sin-sueno-despues-de-comer",
+      "archivo": "app/packs/[packKey].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/packs/[packKey]",
+      "slug": "packs-sin-sueno-despues-de-comer"
+    },
+    {
+      "ruta": "/packs/volver-a-moverme",
+      "archivo": "app/packs/[packKey].tsx",
+      "tipo": "dinamica",
+      "plantilla": "/packs/[packKey]",
+      "slug": "packs-volver-a-moverme"
     },
     {
       "ruta": "/paywall",

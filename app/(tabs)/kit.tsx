@@ -220,8 +220,10 @@ export default function SalaAtpScreen() {
 
   // MB-22 Pieza 1: la cuadrícula lista SOLO lo instalado y lo fijo.
   const instaladas = useMemo(() => gridApps(apps, installPrefs), [apps, installPrefs]);
-  // ATP 3.0 (6-sep-2026, ruta 2.3): las cuatro de arriba (Labs, Edad ATP,
-  // Hábitos de hoy, Protocolos) salen de la lista visible con su candado.
+  // ATP 3.0 (6-sep-2026, ruta 2.3): las cuatro de arriba salen de la lista
+  // visible con su candado ya resuelto. 7-sep-2026 (pivote limpio): son Labs,
+  // Edad ATP, Hábitos de hoy y Respirar. La cuarta era Protocolos y estaba
+  // cerrada para Free: la fila PARA EMPEZAR estrenaba candado.
   const destacadas = useMemo(() => destacadasLauncher(apps), [apps]);
 
   // La card se calcula con el reloj de ESTE render, no con un intervalo: la

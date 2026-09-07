@@ -94,7 +94,7 @@ export function PhenotypeSummary({ answers, ctx, userId, onGoProtocol }: Props) 
         )}
 
         <AnimatedPressable onPress={onGoProtocol} style={s.cta}>
-          <EliteText style={s.ctaText}>Ver Mi Protocolo</EliteText>
+          <EliteText style={s.ctaText}>Ver mis prácticas en mi día</EliteText>
           <Ionicons name="arrow-forward" size={18} color={t.textoSobreLima} />
         </AnimatedPressable>
 

@@ -133,9 +133,11 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/reports.tsx::document-text-outline',
   'app/reports.tsx::eye-outline',
   'app/routine-generator.tsx::hourglass-outline',
-  // Casos de uso (20-ago-2026): botón "¿Por qué estas intervenciones?" y card
-  // "Arma tu día por objetivo" — chips de acción, no lanzadores.
-  'app/salud/intervenciones/index.tsx::sparkles-outline::x2',
+  // 7-sep-2026 (pivote limpio): salieron los dos sparkles de
+  // app/salud/intervenciones/index.tsx (el botón del porqué y la card de
+  // armar por objetivo). Esa pantalla se retiró: hoy es un redirect a HOY y
+  // no dibuja nada. La entrada se borra porque un inventario con muertos
+  // deja de ser candado y se vuelve decoración.
   'app/salud/mi-expediente/index.tsx::document-text-outline',
   'app/salud/mis-datos/index.tsx::body-outline',
   'app/salud/mis-datos/index.tsx::flame-outline',

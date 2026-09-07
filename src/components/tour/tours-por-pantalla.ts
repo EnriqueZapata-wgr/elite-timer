@@ -110,34 +110,32 @@ export const TOURS_POR_PANTALLA: readonly TourDePantalla[] = [
       },
     ],
   },
-  {
-    id: 'protocolo',
-    ruta: '/salud/intervenciones',
-    titulo: 'Mi protocolo',
-    resumen: 'Qué prácticas tienes activas y cómo se llenan solas.',
-    pasos: [
-      {
-        id: 'activas',
-        kicker: 'MI PROTOCOLO',
-        copy: 'Son las prácticas que tienes encendidas. De aquí sale lo que aparece en tu día.',
-      },
-      {
-        id: 'objetivo',
-        kicker: 'POR OBJETIVO',
-        copy: 'Toca "Arma tu día por objetivo": dices qué quieres lograr y las prácticas entran solas, con su hora.',
-      },
-    ],
-  },
+  // 7-sep-2026 (pivote limpio): el tour 'protocolo' vivía sobre
+  // /salud/intervenciones, que se retiró. No se muda a una ruta propia: sus
+  // dos pasos se funden en el tour de la agenda, porque la agenda es la
+  // pantalla que hoy pinta cada práctica encendida. Dos tours no pueden
+  // compartir ruta (candado del test) y dos tours para la misma pantalla
+  // serían dos explicaciones del mismo lugar.
   {
     id: 'agenda',
     ruta: '/agenda',
     titulo: 'Tu agenda',
-    resumen: 'La misma lista, ordenada por hora.',
+    resumen: 'Tus prácticas del día, ordenadas por hora.',
     pasos: [
       {
         id: 'lente',
         kicker: 'LA OTRA LENTE',
         copy: 'Es tu misma lista, ordenada por hora. Lo que palomeas aquí ya queda palomeado en tu día.',
+      },
+      {
+        id: 'activas',
+        kicker: 'LO QUE TRAES PUESTO',
+        copy: 'Cada renglón es una práctica encendida. Tócala para cambiar su hora, posponerla o abrirla.',
+      },
+      {
+        id: 'objetivo',
+        kicker: 'POR OBJETIVO',
+        copy: 'No las eliges una por una: eliges tu objetivo y entran solas, con su hora.',
       },
     ],
   },

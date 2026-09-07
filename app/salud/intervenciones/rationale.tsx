@@ -1,11 +1,15 @@
 /**
- * ¿POR QUÉ ESTAS INTERVENCIONES? — narrativa ARGOS (Megabuzón 2da pasada B.4).
+ * ¿POR QUÉ ESTAS PRÁCTICAS? — narrativa ARGOS (Megabuzón 2da pasada B.4).
+ *
+ * 7-sep-2026 (pivote limpio): su puerta era la lista "Mi Protocolo", que se
+ * retiró. Ahora se entra desde el detalle de cada práctica
+ * (/salud/intervenciones/[key]), y el copy dejó de decir "intervenciones".
  *
  * PREMIUM (16-ago-2026): costaba 280 H+ y era gratis solo para Pro. Esa
  * asimetría se acabó: viene incluido para todo miembro. Se fueron el precio,
  * el saldo y la leyenda "incluido en tu plan Pro", que ya no distingue nada.
  *
- * Se conserva el cache por set (mismo mapa + mismo protocolo = misma
+ * Se conserva el cache por set (mismo mapa + mismas prácticas = misma
  * explicación, sin volver a llamar al modelo): eso es control de costo, no
  * cobro, y el usuario nunca lo vio.
  */
@@ -21,6 +25,8 @@ import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerG
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
+import { CandadoNivel, destinoCandado } from '@/src/components/ui/CandadoNivel';
+import { useSubscription } from '@/src/hooks/useSubscription';
 import {
   generateInterventionRationale,
   getRationaleQuote,
@@ -36,8 +42,8 @@ import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 
 const LOADING_PHRASES = [
   'ARGOS está leyendo tu mapa funcional…',
-  'Cruzando tus raíces con tu protocolo…',
-  'Conectando cada intervención con su porqué…',
+  'Cruzando tus raíces con lo que traes encendido…',
+  'Conectando cada práctica con su porqué…',
   'Redactando tu explicación personalizada…',
 ];
 
@@ -47,6 +53,19 @@ export default function InterventionRationaleScreen() {
   const styles = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
   const analytics = useAnalytics();
+  /**
+   * 7-sep-2026 (pivote limpio): ESTA pantalla es la que exige nivel, no el
+   * detalle de la práctica. El detalle son datos de la persona y se abre para
+   * todos; aquí se dispara una generación con modelo (costo real por corrida),
+   * y hasta hoy su acceso estaba gateado por fuera: las dos puertas que tenía
+   * eran la app Protocolos (minTier premium) y la tarjeta de HOY con su
+   * CandadoNivel. Al retirarse la app, la puerta nueva desde el detalle la
+   * habría dejado abierta para Free. El candado se muda adentro, que es donde
+   * debió estar siempre. Fail open igual que el resto (doctrina del proxy):
+   * mientras el nivel carga o no se pudo leer, no se cierra nada.
+   */
+  const { tier, isLoading: nivelCargando, nivelNoSePudoLeer } = useSubscription();
+  const conCandado = !nivelCargando && !nivelNoSePudoLeer && tier === 'free';
   const [state, setState] = useState<'idle' | 'offer' | 'loading' | 'done' | 'error' | 'no_dx' | 'no_protocol'>('idle');
   const [quote, setQuote] = useState<RationaleQuote | null>(null);
   const [markdown, setMarkdown] = useState<string | null>(null);
@@ -75,7 +94,7 @@ export default function InterventionRationaleScreen() {
   // Si ya está cacheado se muestra directo; si no, card previa que explica
   // qué vas a recibir.
   useEffect(() => {
-    if (startedRef.current || !user?.id) return;
+    if (startedRef.current || !user?.id || conCandado) return;
     startedRef.current = true;
     getRationaleQuote(user.id).then((q) => {
       setQuote(q);
@@ -84,7 +103,7 @@ export default function InterventionRationaleScreen() {
       if (q.hasCachedRationale) { generate(); return; } // ya existe, directo
       setState('offer');
     }).catch(() => setState('error'));
-  }, [user?.id, generate]);
+  }, [user?.id, generate, conCandado]);
 
   useEffect(() => {
     if (state !== 'loading') return;
@@ -100,14 +119,37 @@ export default function InterventionRationaleScreen() {
     <Screen edges={[]} themed>
       <ScreenHeader title="¿Por qué esto?" onBack={() => router.back()} />
 
-      {state === 'offer' && quote && (
+      {conCandado && (
         <View style={styles.lockContainer}>
           <Animated.View entering={FadeInUp.delay(60).springify()} style={styles.lockCard}>
             <EliteText style={{ fontSize: 44 }}>🧭</EliteText>
-            <EliteText style={styles.lockTitle}>¿Por qué estas intervenciones?</EliteText>
+            <EliteText style={styles.lockTitle}>¿Por qué estas prácticas?</EliteText>
             <EliteText style={styles.lockBody}>
-              ARGOS conecta las raíces de tu Mapa Funcional con cada
-              intervención de tu protocolo: qué ataca cada una y qué esperar.
+              ARGOS lee tu mapa funcional y te escribe de dónde sale cada
+              práctica que traes encendida. Esta explicación es de Pro.
+            </EliteText>
+            <CandadoNivel appKey="por-que-practicas" nivel="premium" tocable={false} />
+            <AnimatedPressable
+              onPress={() => { haptic.medium(); router.push(destinoCandado('por-que-practicas', 'premium')); }}
+              style={styles.lockCtaPrimary}
+            >
+              <EliteText style={styles.lockCtaPrimaryText}>Ver qué trae Pro</EliteText>
+            </AnimatedPressable>
+          </Animated.View>
+        </View>
+      )}
+
+      {!conCandado && state === 'offer' && quote && (
+        <View style={styles.lockContainer}>
+          <Animated.View entering={FadeInUp.delay(60).springify()} style={styles.lockCard}>
+            <EliteText style={{ fontSize: 44 }}>🧭</EliteText>
+            {/* 7-sep-2026 (pivote limpio): el copy decía "intervenciones" y
+                "tu protocolo". La persona ve prácticas y su objetivo; los
+                nombres internos (user_interventions) no se tocan. */}
+            <EliteText style={styles.lockTitle}>¿Por qué estas prácticas?</EliteText>
+            <EliteText style={styles.lockBody}>
+              ARGOS conecta las raíces de tu Mapa Funcional con cada práctica
+              que traes encendida: de dónde sale cada una y qué esperar.
             </EliteText>
             <AnimatedPressable
               onPress={() => { haptic.medium(); generate(); }}
@@ -116,13 +158,13 @@ export default function InterventionRationaleScreen() {
               <EliteText style={styles.lockCtaPrimaryText}>Generar mi explicación</EliteText>
             </AnimatedPressable>
             <EliteText style={styles.lockHint}>
-              Queda tuya mientras no cambie tu protocolo ni tu mapa funcional.
+              Queda tuya mientras no cambien tus prácticas ni tu mapa funcional.
             </EliteText>
           </Animated.View>
         </View>
       )}
 
-      {(state === 'loading' || state === 'idle') && (
+      {!conCandado && (state === 'loading' || state === 'idle') && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={ATP_BRAND.lime} />
           <Animated.View key={phraseIdx} entering={FadeIn.duration(500)}>
@@ -132,7 +174,7 @@ export default function InterventionRationaleScreen() {
         </View>
       )}
 
-      {state === 'no_dx' && (
+      {!conCandado && state === 'no_dx' && (
         <View style={styles.loadingContainer}>
           <EliteText style={{ fontSize: 40 }}>🧬</EliteText>
           <EliteText style={styles.lockTitle}>Primero tu mapa funcional</EliteText>
@@ -148,24 +190,24 @@ export default function InterventionRationaleScreen() {
         </View>
       )}
 
-      {state === 'no_protocol' && (
+      {!conCandado && state === 'no_protocol' && (
         <View style={styles.loadingContainer}>
           <EliteText style={{ fontSize: 40 }}>🎯</EliteText>
-          <EliteText style={styles.lockTitle}>Aún no tienes protocolo</EliteText>
+          <EliteText style={styles.lockTitle}>Aún no traes prácticas</EliteText>
           <EliteText style={styles.lockBody}>
-            Activa intervenciones sugeridas por el motor y vuelve aquí para
+            Elige tu objetivo y él las enciende por ti. Vuelve aquí para
             entender el porqué de cada una.
           </EliteText>
           <AnimatedPressable
             onPress={() => { haptic.medium(); router.back(); }}
             style={styles.lockCtaPrimary}
           >
-            <EliteText style={styles.lockCtaPrimaryText}>Ver sugeridas</EliteText>
+            <EliteText style={styles.lockCtaPrimaryText}>Volver</EliteText>
           </AnimatedPressable>
         </View>
       )}
 
-      {state === 'error' && (
+      {!conCandado && state === 'error' && (
         <View style={styles.loadingContainer}>
           <EliteText style={styles.lockTitle}>Algo no salió</EliteText>
           <EliteText style={styles.lockBody}>
@@ -177,7 +219,7 @@ export default function InterventionRationaleScreen() {
         </View>
       )}
 
-      {state === 'done' && markdown && (
+      {!conCandado && state === 'done' && markdown && (
         <ScrollView contentContainerStyle={styles.reportContent} showsVerticalScrollIndicator={false}>
           <Animated.View entering={FadeInUp.springify()}>
             <View style={styles.badgeRow}>
@@ -296,7 +338,9 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   disclaimer: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
-    color: t.sinDatos,
+    // 7-sep-2026: sinDatos es el color de "no hay dato", no tinta de texto
+    // (candado de la casa en verifica.js). El aviso legal se lee con textoTenue.
+    color: t.textoTenue,
     textAlign: 'center',
     marginTop: Spacing.lg,
     lineHeight: 16,

@@ -84,6 +84,10 @@ function lineaDeContexto(contexto: ContextoPaywall): string {
   if (key === 'mapa-funcional') return 'Mapa funcional ATP está incluido en el plan anual.';
   // Ruta 2.5 (B4): comparar estudios no es una app del registro; tiene su llave propia.
   if (key === 'comparar') return 'Comparar tus estudios en el tiempo está en Pro.';
+  // 7-sep-2026 (pivote limpio): la explicación de ARGOS tampoco es una app del
+  // registro desde que Protocolos salió, y su candado vive dentro de la
+  // pantalla. Mismo patrón que comparar: llave propia y su línea.
+  if (key === 'por-que-practicas') return 'La explicación de por qué estas prácticas está en Pro.';
   const app = APP_REGISTRY.find((a) => a.key === key);
   return app ? `${app.label} está en Pro.` : 'Esta función está en Pro.';
 }

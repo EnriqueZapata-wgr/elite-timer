@@ -1,11 +1,11 @@
 /**
  * QueHacerHoy (ATP 3.0, 6-sep-2026, ruta 2.2): las tres acciones de hoy,
- * justo debajo del hero de laboratorios. ARGOS las elige entre las
- * intervenciones personalizadas que la persona ya tiene, priorizando las
- * ligadas a un marcador fuera de ventana; sin intervenciones, tres hábitos
- * base del catálogo. La regla vive en que-hacer-hoy-core.ts (con test).
+ * justo debajo del hero de laboratorios. ARGOS las elige entre las prácticas
+ * personalizadas que la persona ya tiene encendidas, priorizando las ligadas
+ * a un marcador fuera de ventana; sin ninguna, tres hábitos base del
+ * catálogo. La regla vive en que-hacer-hoy-core.ts (con test).
  *
- * El cumplido usa el mismo camino que "Mi protocolo" (logCompletion:
+ * El cumplido escribe por el mismo camino de siempre (logCompletion:
  * intervention_completions + electrón + 'electrons_changed'). Palomear es
  * optimista; si no quedó registrado, la paloma se regresa.
  *
@@ -20,8 +20,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { AppIcon } from '@/src/components/ui/AppIcon';
-import { CandadoNivel, destinoCandado } from '@/src/components/ui/CandadoNivel';
-import { useSubscription } from '@/src/hooks/useSubscription';
 import { warn as logWarn } from '@/src/lib/logger';
 import { INTERVENTIONS_CHANGED_EVENT } from '@/src/services/interventions/intervention-service';
 import { cargarQueHacerHoy, registrarCumplidoHoy } from '@/src/services/hoy/que-hacer-hoy-service';
@@ -40,17 +38,18 @@ export function QueHacerHoy({ userId }: Props) {
   const router = useRouter();
   const dark = t.kind === 'dark';
   const acento = dark ? ATP_BRAND.lime : t.tealTexto;
-  // La lista y el detalle viven en /salud/intervenciones (app `protocolos`,
-  // Pro). Candado solo cuando SABEMOS que es free (fail-open); la paloma de
-  // cada acción sigue libre para todos.
-  const { tier, isLoading: nivelCargando, nivelNoSePudoLeer } = useSubscription();
-  const protocolosConCandado = !nivelCargando && !nivelNoSePudoLeer && tier === 'free';
-  const abrirProtocolos = useCallback((key?: string) => {
+  // 7-sep-2026 (pivote limpio): esta tarjeta abría la lista "Mi Protocolo",
+  // que era app Pro, así que una cuenta Free tocaba su propio día y chocaba
+  // con un candado. La lista se retiró y con ella el candado: el detalle de
+  // cada práctica se abre para todos (es lo que la persona ya trae puesto,
+  // no contenido de paga). Aquí solo caben tres, así que "ver todo" va a
+  // /agenda, que las trae TODAS con su hora y deja pausar y descartar cada
+  // una desde su ficha.
+  const abrirPractica = useCallback((key?: string) => {
     haptic.light();
-    if (protocolosConCandado) router.push(destinoCandado('protocolos', 'premium'));
-    else if (key) router.push(`/salud/intervenciones/${key}`);
-    else router.push('/salud/intervenciones');
-  }, [protocolosConCandado, router]);
+    if (key) router.push(`/salud/intervenciones/${key}`);
+    else router.push('/agenda');
+  }, [router]);
 
   const [acciones, setAcciones] = useState<AccionHoy[] | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -70,7 +69,7 @@ export function QueHacerHoy({ userId }: Props) {
 
   useFocusEffect(useCallback(() => { cargar(); }, [cargar]));
   useEffect(() => {
-    // Activar o pausar algo en /salud/intervenciones cambia la terna.
+    // Activar o pausar una práctica cambia la terna.
     const sub = DeviceEventEmitter.addListener(INTERVENTIONS_CHANGED_EVENT, () => { cargar(); });
     return () => sub.remove();
   }, [cargar]);
@@ -149,8 +148,8 @@ export function QueHacerHoy({ userId }: Props) {
             <AnimatedPressable
               style={{ flex: 1 }}
               // Sin fila propia (hábito base recién sugerido) el detalle diría
-              // "no la encontramos": se abre la lista, que sí la trae.
-              onPress={() => abrirProtocolos(a.userInterventionId ? a.key : undefined)}
+              // "no la encontramos": se abre la agenda, que sí la trae.
+              onPress={() => abrirPractica(a.userInterventionId ? a.key : undefined)}
             >
               <EliteText style={[s.filaTitulo, { color: t.texto }, a.hecha && s.tachado]} numberOfLines={1}>{a.titulo}</EliteText>
               <EliteText style={[s.filaDetalle, { color: t.textoSecundario }]} numberOfLines={2}>{a.detalle}</EliteText>
@@ -161,11 +160,9 @@ export function QueHacerHoy({ userId }: Props) {
           </View>
         ))}
       </View>
-      <AnimatedPressable style={s.verTodo} onPress={() => abrirProtocolos()}>
-        <EliteText style={[s.verTodoText, { color: acento }]}>Ver todos mis hábitos</EliteText>
-        {protocolosConCandado
-          ? <CandadoNivel appKey="protocolos" nivel="premium" tocable={false} />
-          : <Ionicons name="chevron-forward" size={14} color={acento} />}
+      <AnimatedPressable style={s.verTodo} onPress={() => abrirPractica()}>
+        <EliteText style={[s.verTodoText, { color: acento }]}>Ver todo mi día</EliteText>
+        <Ionicons name="chevron-forward" size={14} color={acento} />
       </AnimatedPressable>
     </Animated.View>
   );

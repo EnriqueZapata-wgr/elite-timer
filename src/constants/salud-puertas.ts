@@ -116,7 +116,13 @@ export const DESTINOS_HOY: Destino[] = [
 /** TU EVOLUCIÓN — a dónde vas y por qué. */
 export const DESTINOS_EVOLUCION: Destino[] = [
   { key: 'diagnostico', title: 'Mi mapa funcional', subtitle: 'Raíces detectadas y su nivel', icon: 'diagnostico', color: '#1D9E75', route: '/salud/diagnostico' },
-  { key: 'protocolo', title: 'Mi protocolo', subtitle: 'Tus intervenciones activas', icon: 'protocolos', color: '#A8E02A', route: '/salud/intervenciones' },
+  // 7-sep-2026 (pivote limpio, decisión del dueño): aquí vivía la fila "Mi
+  // protocolo · Tus intervenciones activas". Sale con la pantalla: la persona
+  // ya no lee una lista de prácticas sueltas, elige su objetivo y lo que
+  // quedó encendido lo ve en su día. Nada se borró abajo: user_interventions
+  // sigue completa y sigue alimentando la tarjeta QUÉ HACER HOY. La fila se
+  // retira en vez de re-apuntarse a HOY porque una puerta de SALUD que brinca
+  // a otra sala es justo la tarjeta que lleva a la nada.
   { key: 'edad_atp', title: 'Tu Edad ATP a detalle', subtitle: 'De dónde sale el número y cómo mejorarlo', icon: 'edad-atp', color: '#0EA5E9', route: '/edad-atp/result-preview' },
   { key: 'reportes', title: 'Reportes', subtitle: 'Tu semana y tu mes en números', icon: 'reportes', color: '#5B9BD5', route: '/reports' },
   { key: 'cronotipo', title: 'Mi cronotipo', subtitle: 'A qué hora rinde tu cuerpo', icon: 'cronotipo', color: '#7F77DD', route: '/my-chronotype' },
@@ -147,10 +153,11 @@ export const DESTINOS_EXPEDIENTE: Destino[] = [
   // A-1 (20-ago-2026, autorizado por el dueño): la puerta al catálogo de
   // protocolos SALIÓ. /protocol-explorer era el modelo anterior al pivote
   // ("Tu coach publicará protocolos pronto"): coach publicando planes, no
-  // casos de uso configurando la app. La pantalla quedó como alias a
-  // /salud/intervenciones para no romper deep links; la puerta viva para
-  // encender cosas son los casos de uso (packs) y Mi Protocolo para ver
-  // lo que traes puesto.
+  // casos de uso configurando la app.
+  // 7-sep-2026 (pivote limpio): aquel alias apuntaba a /salud/intervenciones,
+  // que también dejó de ser pantalla. Hoy los dos redirigen a /agenda. La
+  // puerta viva para encender prácticas es el objetivo; para ver las que traes
+  // puestas, tu día y tu agenda.
 ];
 
 export const DESTINOS_POR_PUERTA: Record<'hoy' | 'evolucion' | 'expediente', Destino[]> = {

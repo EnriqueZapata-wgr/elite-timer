@@ -393,21 +393,25 @@ export default function DiagnosticoScreen() {
               </Animated.View>
             )}
 
-            {/* Sprint 1.5 B (doctrina ninguna pantalla aislada): el DX no es un
-                reporte muerto — su destino en el journey es Mi Protocolo. */}
+            {/* Sprint 1.5 B (doctrina ninguna pantalla aislada): el mapa no es un
+                reporte muerto, tiene destino en el día de la persona.
+                7-sep-2026 (pivote limpio): ese destino era Mi Protocolo, que se
+                retiró. Ahora es su agenda, la pantalla que sí pinta cada
+                práctica encendida con su hora, y el copy deja de decir
+                "intervenciones". */}
             {dx && (
               <Animated.View entering={FadeInUp.delay(165).springify()}>
                 <AnimatedPressable
-                  onPress={() => { haptic.medium(); router.push('/salud/intervenciones'); }}
+                  onPress={() => { haptic.medium(); router.push('/agenda'); }}
                   style={styles.protocolCta}
                 >
                   <EliteText style={{ fontSize: 16 }}>🧭</EliteText>
                   <View style={{ flex: 1 }}>
                     <EliteText style={styles.protocolCtaTitle}>
-                      Ver las intervenciones que ATP te sugiere
+                      Ver tus prácticas en tu día
                     </EliteText>
                     <EliteText style={styles.protocolCtaSub}>
-                      Tu mapa funcional alimenta Mi Protocolo: de la raíz a la acción diaria
+                      Tu mapa alimenta tu agenda: de la raíz a la hora del día
                     </EliteText>
                   </View>
                   <EliteText style={styles.protocolCtaArrow}>→</EliteText>

@@ -162,8 +162,16 @@ export const APP_REGISTRY: AppEntry[] = [
   // labs_guide en salud-puertas y fila dentro del visor).
   { key: 'labs', label: 'Labs', icon: 'labs', section: 'salud', route: '/edad-atp/labs', installable: false, alias: ['laboratorios', 'estudios', 'análisis', 'sangre'],
     description: 'Tus laboratorios: el último valor de cada parámetro con su tendencia y su gráfica en el tiempo. Con la puerta para subir estudios nuevos.' },
-  { key: 'protocolos', label: 'Protocolos', icon: 'protocolos', section: 'salud', route: '/salud/intervenciones', installable: false, minTier: 'premium', alias: ['intervenciones', 'plan'],
-    description: 'Tu protocolo activo: las intervenciones que estás corriendo, qué completaste hoy y las sugeridas para ti.' },
+  // 7-sep-2026 (pivote limpio, decisión del dueño): aquí vivía Protocolos, la
+  // puerta a la lista cruda de prácticas. SALE del registro: la persona ya no
+  // elige práctica por práctica, elige su objetivo y el objetivo las enciende
+  // por abajo. Lo que se retira es la PUERTA, no el contenido: las filas de
+  // user_interventions siguen vivas, siguen alimentando la tarjeta de HOY y
+  // siguen contando electrones (el dato del usuario es sagrado). Quien la
+  // tenía instalada en su sala no ve un mosaico roto: gridApps solo dibuja
+  // llaves que siguen en este registro, así que la llave sobrante en sus
+  // prefs es inerte. La ruta /salud/intervenciones queda como redirect
+  // imperativo a la sala HOY, que es donde hoy se ven esas prácticas.
 
   // ── MB-29 P3: los 9 destinos de SALUD como apps instalables ──
   // Dos puertas al mismo cuarto: siguen viviendo dentro de sus puertas de

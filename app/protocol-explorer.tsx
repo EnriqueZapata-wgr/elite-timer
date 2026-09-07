@@ -7,6 +7,11 @@
  * casos de uso. La pantalla completa vive en el historial de git
  * (552 líneas, hasta el commit padre de este) por si algo hubiera que
  * rescatar. La ruta se queda como alias para deep links viejos.
+ *
+ * 7-sep-2026 (pivote limpio): apuntaba a /salud/intervenciones, que HOY tambien
+ * es redirect. Un alias que apunta a otro alias se pierde dos veces: el deep
+ * link rebota dos pantallas y el indice de ARGOS no encuentra dueno al que
+ * donarle este vocabulario. Ahora va directo a /agenda.
  */
 import { useEffect } from 'react';
 import { View } from 'react-native';
@@ -17,7 +22,7 @@ export default function ProtocolExplorerRedirect() {
   const router = useRouter();
   const t = useSurfaceTokens();
   useEffect(() => {
-    router.replace('/salud/intervenciones');
+    router.replace('/agenda');
   }, [router]);
   return <View style={{ flex: 1, backgroundColor: t.fondo }} />;
 }
