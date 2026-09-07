@@ -40,6 +40,16 @@ Roadmap → v2.0.0 (julio-agosto 2026 — publicación a stores)
 7. Constants.expoConfig.extra (no process.env directo en cliente)
 8. TypeScript antes de push: npx tsc --noEmit
 9. OTA para JS/TS: eas update --branch preview
+   - SIEMPRE preview, nunca production. El binario que traen Enrique y los testers
+     sale del perfil beta/preview de eas.json, y ese binario solo escucha el canal
+     preview. Un update publicado a production se publica bien y no le llega a nadie
+     (pasado el 7-sep-2026: se perdio una manana asi). production es el canal del
+     build de Play, cuando exista.
+   - El runtime del update sale de version en app.json (policy appVersion): hoy 2.2.0,
+     del build de 15-ago-2026. Que el update diga 2.2.0 es correcto aunque el producto
+     se llame ATP 3.0. Subir esa version deja al binario instalado SIN OTA (ver regla 11).
+   - Publicar con npm run sourcemaps:ota -- --branch preview (necesita SENTRY_AUTH_TOKEN
+     en la sesion, sale de 1Password). eas update suelto deja los stacktraces ofuscados.
 10. Native builds solo para cambios nativos o nueva versión
 11. NUNCA cambiar versión en app.json sin hacer build inmediato
 12. Migraciones SQL:
@@ -106,8 +116,8 @@ con dueno y criterio de terminado; se trabaja en ese orden). Hermanos: `R and D/
 Resumen: una sola app; Free / Pro (lista 499, lanzamiento 349 congelado, anual 3,990) / Founders 8,900
 (5 anios de Pro, solo web) / Elite ~40k (codigo + evaluacion cargada); vender por web; Mariana fuera de
 la operacion, su cuenta y sus datos no se tocan; palabras rojas: diagnostico, tratamiento, previene, cura.
-Donde el pivote contradiga a `R and D/embudo/DECISIONES_PREVENTA.md`, gana el pivote hasta que la sesion
-de embudo actualice ese archivo. El pivote fue APROBADO el 4 de septiembre; la noche del 4 al 5
+`R and D/embudo/DECISIONES_PREVENTA.md` ya esta reescrito a 3.0 (6-sep-2026; mismo contenido que
+`ATP/comercial/00_DECISIONES.md`, nombre historico). Si ese resumen y el pivote se contradicen, gana el pivote y se avisa. El pivote fue APROBADO el 4 de septiembre; la noche del 4 al 5
 se construyo 3.0 completa en codigo (ver `R and D/ENTREGA_NOCHE_2026-09-04.md`).
 
 Herramientas 3.0: `node scripts/verifica.js <archivos>` (parser TS, em dashes, sinDatos, registros) antes de dar
@@ -123,21 +133,21 @@ de Levantamiento DX se reconstruyeron desde produccion por haberse saltado esto)
 
 ## Lanzamiento y cobros (leer antes de tocar pagos, precios o legal)
 
-**Fuente única:** `R and D/embudo/DECISIONES_PREVENTA.md`
+**Fuente única comercial:** `R and D/embudo/DECISIONES_PREVENTA.md` (version 3.0 desde el 6-sep-2026;
+resume el pivote para la linea comercial). Plan de trabajo de esa linea: `R and D/embudo/RUTA_COMERCIAL_3.0.md`.
+Ahi viven los niveles y precios (Free / Pro 499 lista, 349 lanzamiento con fecha, 3,990 anual / Founders 8,900
+solo web / Elite por codigo), el contrato de metadata con Stripe, que ya existe y no hay que volver a construir,
+y que esta fuera de alcance. Antes de proponer construir cualquier pieza de cobro, buscarla ahi y en
+`supabase/functions/`.
 
-Ahí viven la escalera de precios, quién firma los términos, el contrato de
-metadata con Stripe, qué ya existe y no hay que volver a construir, y qué está
-explícitamente fuera del alcance. Si algo contradice ese archivo, gana ese
-archivo. Antes de proponer construir cualquier pieza de cobro, buscarla ahí y
-en `supabase/functions/`.
-
-Tres datos que se han vuelto a preguntar más de una vez:
-- La cuenta de Stripe **está viva** desde antes de agosto. No hay activación
-  pendiente.
-- `supabase/functions/payment-webhook` **ya existe**, está desplegado y recibe
-  eventos en vivo. Maneja alta, renovación, cancelación y cobro fallido.
-- Los pagos de agosto en `needs_review` son **consultas de Mariana**, no
-  suscripciones. No hay nada roto ahí.
+Datos que se han vuelto a preguntar mas de una vez:
+- La cuenta de Stripe **esta viva** desde antes de agosto. No hay activacion pendiente.
+- `supabase/functions/payment-webhook` **ya existe**, desplegado y en vivo. Exige `metadata.tier`;
+  `tier=pro` sigue siendo el valor correcto (el arbitro lo resuelve como `premium`).
+- Los pagos en `needs_review` sin `metadata.tier` son **consultas de Mariana**, no suscripciones.
+- Los tres Payment Links de la preventa (449, 620, 890) estan superados y se desactivan; los precios 3.0
+  se crean desde la sesion comercial con Enrique. La sesion del repo no toca Stripe.
+- **No hay comunidad** en la oferta. Nada nuevo menciona comunidad, mentorias, Skool ni a Mariana.
 
 ## Calibración al proponer planes
 
@@ -164,10 +174,15 @@ revierte lo anterior. Las migraciones de una sola sentencia o de puros
 
 ## Antes de escribir copy
 
-`R and D/embudo/narrativa/MANUAL_DE_COMUNICACION.md` tiene el porqué de ATP en
-palabras de Mariana y Enrique, de su conversación del 27 de agosto de 2026. Las
-frases marcadas como cita son textuales y no se reescriben.
+Palabras rojas (prohibidas en copy de usuario): diagnostico, diagnosticar, tratamiento, terapeutico,
+previene, cura, receta medica, medico de IA, clinicamente validado, chequeo (en app y tiendas), ilimitado
+(se dice "sin tope"). Elite es "evaluacion personalizada", nunca "diagnostico personalizado". Dentro de la
+app nunca "web", "Stripe", "mas barato afuera" ni precios de la web. Tabla completa: seccion 4 de
+`R and D/ORNAMENT_MEXICO_Y_MARCO_LEGAL_ATP.md`. Posicionamiento: "Entiende tus laboratorios y que hacer
+con ellos". Frase de marca: "Tus habitos hacen tu salud".
 
-La idea que sostiene el producto: **se monitorea porque se perdió la intuición,
-y se monitorea para volver a necesitar menos.** ATP no es una cosa más que
-agregar a la lista, es la que te deja quitar cosas.
+`R and D/embudo/narrativa/MANUAL_DE_COMUNICACION.md` salio de una conversacion del 27-ago-2026 en la que
+Mariana habla el 90% del tiempo; esta marcado PENDIENTE DE DECISION (conservar, anonimizar o reescribir).
+Su idea central sigue siendo el porque del producto: **se monitorea porque se perdio la intuicion, y se
+monitorea para volver a necesitar menos.** Mientras Enrique decide, se lee como contexto y no se cita a
+Mariana en material nuevo.

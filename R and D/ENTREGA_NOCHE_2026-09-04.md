@@ -1,5 +1,18 @@
 # Entrega de la noche del 4 al 5 de septiembre de 2026: ATP 3.0 construida
 
+## Estado al 7 de septiembre de 2026, después de la sesión de despliegue
+
+Lo de abajo se escribió la noche del 4 al 5 con todo por ejecutar. Esto es lo que ya corrió, para que ninguna sesión lo repita.
+
+- Migraciones: aplicadas en producción. `db push` metió la 314, 315, 316, 317 y 318. Antes hubo que renumerar las tres del Levantamiento DX (los timestamps `20260904203502`, `20260905151702`, `20260906040335` pasaron a `268`, `269` y `270`) y reparar el ledger con `supabase migration repair`, porque el CLI 2.102 ordena local por nombre de archivo y remoto por versión, y con formatos mezclados aborta el push. Verificado por SELECT: las cinco funciones nuevas existen, `generate_activation_codes` trae `search_path=public, extensions`, la tabla `renewal_reminders` está, y los dos crons viven (`tier-expiry-daily` 9:00 UTC, `renewal-reminders-daily` 14:00 UTC).
+- Funciones edge: las seis desplegadas (`mente-audio-url`, `argos-voice`, `revenuecat-webhook`, `argos-proxy`, `payment-webhook`, `dispatch-renewal-reminders`).
+- Código: en `origin/main`. El tag `v2.2.0-pre-3.0` sigue siendo el botón de pánico; las migraciones solo agregan, así que volver al tag no rompe la base.
+- Commit `4387143`: `app-routes.generated.ts` estaba viejo y ARGOS no conocía `/elite`, `/salud/evaluacion-elite`, `/salud/genetica` ni `/edad-atp/comparar`. Regenerado. De paso, el barrido visual ahora captura `/paywall?contexto=` en sus cuatro contextos.
+- OTA: el primer intento salió al canal `production` y no le llegó a nadie, porque el binario instalado escucha `preview`. Quedó escrito como regla 9 de `CLAUDE.md`. El bueno salió por `npm run sourcemaps:ota -- --branch preview`.
+- Pendiente inmediato: smoke con cuenta nueva y las dos corridas de auditoría visual (`scripts\audit-visual.ps1 -Tema pro-oscuro` y `-Tema free-oscuro`, con `-Espera 2.5`), la segunda después de subirle un estudio a la cuenta Free.
+
+---
+
 Estado: código en `main`, cuatro commits después del tag `v2.2.0-pre-3.0` (`e6f5c39` ola 1, `0861585` olas 2 y 3, `bd6ab13` ola 4, más este informe). Nada se ha ejecutado contra producción: ni migraciones ni deploys. Lo que corres tú está en la sección 2. Si algo no te gusta: `git reset --hard v2.2.0-pre-3.0`.
 
 Cómo se trabajó: 14 agentes en cuatro olas, cada bloque construido por un agente y revisado por otro (uno con contexto del proyecto y uno en frío) antes de commitear; 31 defectos encontrados en revisión y corregidos antes del commit, incluidos cuatro que le habrían quitado algo a un miembro (regla 1) y uno que habría reventado la generación de códigos en producción (pgcrypto vive en `extensions`, no en `public`). Sin em dashes en copy nuevo. `npx tsc` no se pudo correr (45 s de tope): cada archivo pasó el parser de TypeScript y los cores pasaron sus tests ejecutados, pero el type-check del proyecto te toca a ti (sección 2, paso 4).
