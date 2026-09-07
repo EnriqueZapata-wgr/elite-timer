@@ -79,7 +79,13 @@ describe('anclaje de horas', () => {
     const p = buildPackPlan('dormir-mejor', 'con_todo', '07:00', '23:00');
     expect(p.habitTimes.sunlight).toBe('07:30'); // despertar +30
     expect(p.habitTimes.screen_time_cutoff).toBe('22:00'); // dormir −60
-    expect(p.habitTimes.red_glasses).toBe('21:00'); // dormir −120
+    // 7-sep-2026: se cayó la aserción de `red_glasses` (dormir −120) porque el
+    // hábito salió de dormir-mejor, no porque el anclaje haya cambiado. Su
+    // gemela en el catálogo, `lentes_rojos`, espera la firma clínica de
+    // Mariana, y encender el hábito la brincaba por la puerta de `enciende`.
+    // El dato de entrada cambió; la regla de anclaje que este test vigila, no.
+    // Vuelve el día que se firme la práctica.
+    expect(p.habitTimes.red_glasses).toBeUndefined();
     expect(p.habitTimes.breathwork).toBe('21:30'); // dormir −90
     expect(p.avisos).toEqual([
       { app: 'sol', time: '07:30' },
@@ -235,11 +241,15 @@ describe('etapa 1 (suave) contra etapa 2 (con todo)', () => {
     const todo = buildPackPlan('dormir-mejor', 'con_todo', '07:00', '23:00');
     // Suave: sunlight y el corte de pantallas (sleep no tiene fuente).
     expect(suave.encendidos).toEqual(['sunlight', 'screen_time_cutoff']);
-    expect(suave.boolsPrefs).toEqual([]); // red_glasses NO es core
+    expect(suave.boolsPrefs).toEqual([]);
     expect(suave.installFull).not.toContain('respirar'); // breathwork NO es core
     expect(suave.installGrid).toContain('respirar'); // pero la app sí entra a la sala
-    // Con todo: además lentes rojos y respiración.
-    expect(todo.boolsPrefs).toEqual(['red_glasses']);
+    // Con todo: la respiración. 7-sep-2026: el valor esperado pasó de
+    // ['red_glasses'] a [] porque ese hábito salió de dormir-mejor (su gemela
+    // `lentes_rojos` espera firma clínica), no porque suave y con todo dejaran
+    // de distinguirse: la distinción sigue viva y la vigilan las tres
+    // aserciones de `respirar` y `breathwork` de aquí abajo.
+    expect(todo.boolsPrefs).toEqual([]);
     expect(todo.installFull).toContain('respirar');
     expect(todo.encendidos).toContain('breathwork');
   });

@@ -102,3 +102,9 @@ scripts/testing/vitest.linux.config.mts.timestamp-*.mjs
 # No son del proyecto: son prestados a Node por NODE_PATH y jamás entran
 # al node_modules del repo. Ver scripts/testing/pruebas-linux.sh.
 .atp-linux-deps/
+
+# Papelera de trabajo (7-sep-2026). En Windows no hay `rm` desde las sesiones
+# de agente, así que retirar un archivo es MOVERLO aquí. Nunca viaja al repo:
+# lo que se retira ya vive en el historial de git, y una copia suelta en el
+# árbol solo sirve para que alguien la reviva por error.
+_to_delete/

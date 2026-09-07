@@ -47,7 +47,11 @@ describe('la señal de sostener 14/21 (mutación 7)', () => {
     }, HOY);
     expect(e.etapa).toBe(1);
     expect(e.sostiene).toBe(true);
-    expect(e.pendientes.sort()).toEqual(['breathwork', 'red_glasses']);
+    // 7-sep-2026: era ['breathwork', 'red_glasses']. `red_glasses` salió de
+    // dormir-mejor porque su gemela `lentes_rojos` espera la firma clínica de
+    // Mariana. Lo que este test vigila es la señal de 14/21, y sigue igual:
+    // sostener los core propone TODO lo que falta, que hoy es uno solo.
+    expect(e.pendientes.sort()).toEqual(['breathwork']);
   });
 
   it('13 de 21 todavía NO propone', () => {

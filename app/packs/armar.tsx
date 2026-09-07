@@ -43,6 +43,7 @@ import {
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
 import { APP_BY_KEY } from '@/src/constants/app-registry';
 import { normalizarHora } from '@/src/services/pack-core';
+import { getCycleAppMode } from '@/src/services/app-mode-service';
 import { aplicarPack, type ResultadoAplicacion } from '@/src/services/pack-service';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT_COLORS, ELEVATION, SEMANTIC, withOpacity } from '@/src/constants/brand';
@@ -80,13 +81,25 @@ export default function ArmarScreen() {
   const thIcono = dark ? null : { backgroundColor: tokens.hundido, borderColor: tokens.borde };
 
   const packInicial = typeof packParam === 'string' ? PACK_BY_KEY[packParam] ?? null : null;
-  const [pack, setPack] = useState<PackDef | null>(packInicial);
-  const [paso, setPaso] = useState<Paso>(packInicial ? 'horario' : 'pack');
+  // 7-sep-2026: un filtro que se brinca por URL no es un filtro. Si el enlace
+  // trae un objetivo condicionado, NO se abre hasta saber si le toca: arranca
+  // en la lista y se abre solo cuando el permiso resuelve que sí. Cae con
+  // elegancia (a la lista normal), nunca truena y nunca lo abre de más.
+  const condicionadoPorUrl = packInicial?.soloConCiclo === true;
+  const [pack, setPack] = useState<PackDef | null>(condicionadoPorUrl ? null : packInicial);
+  const [paso, setPaso] = useState<Paso>(packInicial && !condicionadoPorUrl ? 'horario' : 'pack');
   const [despertar, setDespertar] = useState('07:00');
   const [dormir, setDormir] = useState('23:00');
   const [picker, setPicker] = useState<'despertar' | 'dormir' | null>(null);
   const [busy, setBusy] = useState(false);
   const [resultado, setResultado] = useState<ResultadoAplicacion | null>(null);
+  // 7-sep-2026: hasta hoy esta pantalla hacía PACKS.map sin filtro, así que
+  // "Mi ciclo a mi favor" se le ofrecía a todo mundo. El criterio es el MISMO
+  // que visibleApps usa para la app Ciclo (MB-22 P4): sexo biológico femenino
+  // o modo de ciclo instalado. `null` = todavía no se sabe, y son tres estados
+  // a propósito: mientras no se sepa no se ofrece y tampoco se descarta, que
+  // es lo que deja abrir el enlace directo en cuanto el permiso resuelve.
+  const [cycleVisible, setCycleVisible] = useState<boolean | null>(null);
 
   // Pregunta 2 con ventaja: si ya hay cronotipo, sus horas son el punto de
   // partida y el usuario solo confirma o ajusta.
@@ -106,6 +119,42 @@ export default function ArmarScreen() {
       } catch { /* defaults */ }
     })();
   }, [user?.id]);
+
+  // Quién puede ver el objetivo del ciclo. Va aparte del efecto del cronotipo
+  // porque son dos preguntas distintas y una falla no debe tumbar a la otra.
+  useEffect(() => {
+    if (!user?.id) return;
+    let vivo = true;
+    (async () => {
+      try {
+        const [{ data }, mode] = await Promise.all([
+          supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle(),
+          getCycleAppMode(user.id),
+        ]);
+        if (!vivo) return;
+        setCycleVisible((data as { biological_sex?: string } | null)?.biological_sex === 'female' || mode != null);
+      } catch {
+        // Sin perfil el objetivo del ciclo queda fuera, pero hay que DECIDIRLO:
+        // dejarlo en `null` lo escondería para siempre sin decir por qué.
+        if (vivo) setCycleVisible(false);
+      }
+    })();
+    return () => { vivo = false; };
+  }, [user?.id]);
+
+  // Los objetivos que ESTA persona puede ver. Hoy solo `soloConCiclo` filtra.
+  const packsVisibles = PACKS.filter((p) => !p.soloConCiclo || cycleVisible === true);
+
+  // El enlace directo a un objetivo condicionado se abre AQUÍ, y solo cuando
+  // el permiso ya resolvió que sí. Si resolvió que no, la persona se queda en
+  // la lista sin enterarse de que hubo un rebote.
+  useEffect(() => {
+    if (!condicionadoPorUrl || cycleVisible !== true) return;
+    setPack((actual) => actual ?? packInicial);
+    setPaso((actual) => (actual === 'pack' ? 'horario' : actual));
+    // packInicial se deriva del parámetro de la URL: estable en esta pantalla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [condicionadoPorUrl, cycleVisible]);
 
   const salir = () => {
     // Desde el onboarding no hay stack al que volver: se sigue el camino
@@ -156,7 +205,7 @@ export default function ArmarScreen() {
           metas y avisos. Todo se puede ajustar después.
         </EliteText>
       </Animated.View>
-      {PACKS.map((p, i) => (
+      {packsVisibles.map((p, i) => (
         <Animated.View key={p.key} entering={FadeInUp.delay(80 + i * 40).springify()}>
           <AnimatedPressable
             style={[s.packCard, thCard]}
