@@ -33,6 +33,10 @@
  */
 // Type-only: se borra en compilación — el núcleo sigue siendo puro para vitest.
 import type { Href } from 'expo-router';
+// 7-sep-2026: la primera sesión nueva. La dependencia va en UNA sola
+// dirección (este módulo la conoce, ella no conoce a este) para que no haya
+// ciclo de importación entre los dos núcleos.
+import { resolvePrimeraSesion, rutaPrimeraSesion } from '@/src/services/primera-sesion-core';
 
 export const V2_STEPS = [
   'welcome',
@@ -109,15 +113,26 @@ export function v2StepNumber(step: V2Step): number {
  * 7-sep-2026: 'pending' importa de verdad. En producción hay UN perfil con ese
  * valor (creado el 19-may-2026) y es el único de 13 que no terminó. No se le
  * reescribe el paso en la base: sería cambiarle un dato en silencio. Cae en la
- * rama legacy, que ya existía, y arranca en welcome con todo lo suyo puesto.
+ * rama legacy, que ya existía, y arranca con todo lo suyo puesto.
+ *
+ * PIVOTE LIMPIO (7-sep-2026, sección 6): la rama legacy dejó de apuntar a
+ * `v2 welcome` y apunta a la PRIMERA SESIÓN nueva, que son seis pantallas en
+ * vez de diez. A ese perfil real eso le cambia dos cosas y ninguna es un
+ * castigo: llega antes a algo suyo, y no se le borra ni se le reescribe nada.
+ * Los 'v2_<step>' siguen resolviendo a sus pantallas, que existen y funcionan:
+ * a quien esté literalmente a media pantalla del flujo viejo (hoy, nadie en
+ * producción; mañana, alguien con un build OTA en vuelo) no se le tira el
+ * avance para meterlo al flujo nuevo.
  */
 export function resolveOnboardingRoute(step: string | null | undefined): Href | null {
   if (step === 'completed') return null;
+  const primera = resolvePrimeraSesion(step);
+  if (primera) return primera;
   if (step && step.startsWith('v2_')) {
     const s = step.slice(3);
     if (isV2Step(s)) return v2Route(s);
   }
-  return v2Route('welcome');
+  return rutaPrimeraSesion('preguntas');
 }
 
 // ═══ Modalidad de ciclo (task #111) ═══

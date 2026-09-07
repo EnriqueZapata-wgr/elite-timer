@@ -119,11 +119,19 @@ export function tieneAccionAnclada(pathname: string | null | undefined): boolean
   return RUTAS_CON_ACCION_ANCLADA.has(p);
 }
 
-/** ¿La ruta es parte del onboarding? (ahí el floating no debe aparecer). */
+/**
+ * ¿La ruta es parte del onboarding? (ahí el floating no debe aparecer).
+ *
+ * 7-sep-2026 (pivote limpio): entra `/primera-sesion`. No es cosmética. Esta
+ * misma función la usa `shouldTriggerMeetArgos`, y sin ella el gate de Meet
+ * ARGOS habría disparado su presentación EN MEDIO de las seis pantallas,
+ * sacando a la persona del flujo justo cuando su app se está armando.
+ */
 export function isOnboardingPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
   const p = pathname.toLowerCase();
-  return p.includes('onboarding') || p.includes('/login') || p.includes('/register') ||
+  return p.includes('onboarding') || p.includes('primera-sesion') ||
+    p.includes('/login') || p.includes('/register') ||
     p.includes('reset-password') || p.includes('forgot-password') || p.includes('/meet');
 }
 

@@ -1,8 +1,8 @@
 {
   "scheme": "atp",
-  "generado": "2026-09-07T21:40:50.808Z",
+  "generado": "2026-09-07T23:05:06.120Z",
   "resumen": {
-    "estaticas": 197,
+    "estaticas": 202,
     "dinamicas": 99,
     "variantes": 12
   },
@@ -1409,6 +1409,36 @@
       "archivo": "app/plan-entrenamiento.tsx",
       "tipo": "estatica",
       "slug": "plan-entrenamiento"
+    },
+    {
+      "ruta": "/primera-sesion/armado",
+      "archivo": "app/primera-sesion/armado.tsx",
+      "tipo": "estatica",
+      "slug": "primera-sesion-armado"
+    },
+    {
+      "ruta": "/primera-sesion/dia-1",
+      "archivo": "app/primera-sesion/dia-1.tsx",
+      "tipo": "estatica",
+      "slug": "primera-sesion-dia-1"
+    },
+    {
+      "ruta": "/primera-sesion/objetivo",
+      "archivo": "app/primera-sesion/objetivo.tsx",
+      "tipo": "estatica",
+      "slug": "primera-sesion-objetivo"
+    },
+    {
+      "ruta": "/primera-sesion/preguntas",
+      "archivo": "app/primera-sesion/preguntas.tsx",
+      "tipo": "estatica",
+      "slug": "primera-sesion-preguntas"
+    },
+    {
+      "ruta": "/primera-sesion/punto-de-partida",
+      "archivo": "app/primera-sesion/punto-de-partida.tsx",
+      "tipo": "estatica",
+      "slug": "primera-sesion-punto-de-partida"
     },
     {
       "ruta": "/profile",

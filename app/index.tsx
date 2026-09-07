@@ -220,7 +220,7 @@ export default function IndexRedirect() {
             // valores legacy v1 (incluido 'pending') → reiniciar en v2 welcome
             // (los datos ya capturados persisten y las pantallas v2 los
             // prefillan). Nadie se queda sin ruta por un valor viejo.
-            setRutaOnboarding(resolveOnboardingRoute(lectura.paso) ?? '/onboarding/v2/welcome');
+            setRutaOnboarding(resolveOnboardingRoute(lectura.paso) ?? '/primera-sesion/preguntas');
             setFase('falta_onboarding');
             return;
           }
@@ -314,7 +314,7 @@ export default function IndexRedirect() {
   }
 
   if (fase === 'falta_onboarding') {
-    return <Redirect href={rutaOnboarding ?? '/onboarding/v2/welcome'} />;
+    return <Redirect href={rutaOnboarding ?? '/primera-sesion/preguntas'} />;
   }
   return <Redirect href="/(tabs)" />;
 }

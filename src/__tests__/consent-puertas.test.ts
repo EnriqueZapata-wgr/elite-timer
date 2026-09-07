@@ -201,13 +201,12 @@ const PUERTAS_CONOCIDAS = [
   'app/login.tsx',
   'app/onboarding/voice-config.tsx',
   'app/ordenar-dia.tsx',
-  // 7-sep-2026. Mi Protocolo desapareció como pantalla (decisión del dueño) y
-  // /salud/intervenciones quedó de alias: un useEffect con
-  // router.replace('/(tabs)') y nada más. Se leyó completo antes de agregarlo:
-  // no consulta perfil, no lee datos y no toma ninguna decisión de acceso.
-  // Entra a las pestañas por el layout, igual que todas, así que el guard la
-  // cubre. Su contenido no se perdió: user_interventions sigue intacto.
-  'app/salud/intervenciones/index.tsx',
+  // 7-sep-2026, MÁS TARDE EL MISMO DÍA: /salud/intervenciones SALE del censo.
+  // Se agregó cuando su alias apuntaba a '/(tabs)'; el commit 3e5f090 lo movió
+  // a '/agenda' y ya no navega a las pestañas. El archivo se leyó y verificó:
+  // no queda una sola aparición de '/(tabs)'. Sale porque desapareció la
+  // puerta, no porque estorbara, y por el mismo motivo que salió
+  // protocol-explorer en agosto.
   // A-1 (20-ago-2026): protocol-explorer se retiró a alias y ya no navega
   // a las pestanias. Sale del censo porque desapareció la puerta, no
   // porque estorbara.
@@ -227,14 +226,18 @@ const PUERTAS_CONOCIDAS = [
   'src/components/ui/HomeChip.tsx',
   'src/components/ui/HomeFloatingButton.tsx',
   'src/components/ui/global-topbar-utils.ts',
-  // 7-sep-2026. NO es una puerta: es el mapa de rutas GENERADO
-  // (scripts/gen-mapa-rutas.js). La única aparición de '/(tabs)' es el destino
-  // del alias "/salud/intervenciones", o sea un dato en una tabla, no una
-  // llamada de navegación. Lo consumen los resolvers de ARGOS, que devuelven
-  // la ruta y dejan que expo-router navegue, así que el guard del layout
-  // sigue siendo el que decide. Se verificó leyendo el archivo y sus
-  // consumidores antes de agregarlo.
-  'src/constants/app-routes.generated.ts',
+  // 7-sep-2026, MÁS TARDE EL MISMO DÍA: el mapa de rutas GENERADO también sale.
+  // Entró porque su única aparición de '/(tabs)' era el destino del alias
+  // "/salud/intervenciones"; ese alias ahora apunta a '/agenda' y al regenerar
+  // el mapa la cadena desapareció. Verificado con grep sobre el archivo.
+  //
+  // 7-sep-2026 (pivote limpio, sección 6): ENTRA el cierre de la primera
+  // sesión. Es el gemelo exacto de onboarding-v2-service: escribe
+  // onboarding_step = 'completed', marca el visto bueno y devuelve '/(tabs)'.
+  // La navegación la hace la pantalla del día 1 con ese valor, así que entra
+  // por el layout como todas y el guard la cubre. Se leyó completo antes de
+  // agregarlo: no decide acceso, solo persiste el cierre.
+  'src/services/primera-sesion-service.ts',
 ].sort();
 
 describe('4 · censo congelado: nadie estrena puerta a las pestañas sin verlo', () => {
@@ -540,10 +543,32 @@ describe('6 · el visto bueno nunca se fabrica', () => {
     const llamadores = [...recorrer('app'), ...recorrer('src')]
       .filter((f) => /marcarVistoBueno\(/.test(sinComentarios(readFileSync(f, 'utf8'))))
       .sort();
+    // 7-sep-2026 (pivote limpio): entra un tercer llamador legítimo, el cierre
+    // de la primera sesión nueva. Marca el visto bueno en la misma línea en que
+    // acaba de escribir 'completed' en profiles, exactamente como el cierre del
+    // v2. Sin él, el guard del layout rebotaría a la persona al gate justo al
+    // terminar sus seis pantallas, que es el peor momento posible.
     expect(llamadores).toEqual([
       'app/index.tsx',
       'src/services/acceso-consentido.ts',
       'src/services/onboarding-v2-service.ts',
+      'src/services/primera-sesion-service.ts',
     ]);
+  });
+
+  /**
+   * 7-sep-2026, revisión en frío. El cierre de la primera sesión ignoraba el
+   * `error` del UPDATE, marcaba el visto bueno y entraba a las pestañas.
+   * `onboardingTerminado` solo acepta 'completed', así que con mala red la
+   * persona perdía cuatro minutos de trabajo y volvía a las tres preguntas en
+   * el siguiente arranque en frío. Este candado exige las dos mitades del
+   * arreglo: que se reintente, y que el visto bueno viva DENTRO de la rama sin
+   * error.
+   */
+  it('la primera sesión no marca el visto bueno sin la fila escrita', () => {
+    const cierre = sinComentarios(readFileSync('src/services/primera-sesion-service.ts', 'utf8'));
+    expect(cierre).toContain('ESPERAS_CIERRE_MS');
+    expect(cierre).toMatch(/if \(!error\)[\s\S]{0,300}marcarVistoBueno/);
+    expect(cierre).not.toMatch(/no se pudo cerrar'[\s\S]{0,300}marcarVistoBueno/);
   });
 });

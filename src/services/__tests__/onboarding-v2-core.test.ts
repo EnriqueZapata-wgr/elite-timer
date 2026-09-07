@@ -59,10 +59,26 @@ describe('resolveOnboardingRoute (gate de app/index)', () => {
     expect(resolveOnboardingRoute('v2_notifications')).toBe('/onboarding/v2/notifications');
   });
 
-  it('valores legacy v1 y desconocidos → v2 welcome', () => {
+  /**
+   * CONTRATO RE-APUNTADO el 7-sep-2026 (pivote limpio, sección 6). Antes esto
+   * exigía '/onboarding/v2/welcome'; ahora exige la primera sesión nueva.
+   *
+   * LA RAZÓN, por escrito: el destino de un paso desconocido es "empieza la
+   * primera sesión", y la primera sesión son ahora seis pantallas en
+   * /primera-sesion, no diez en /onboarding/v2. El test no se aflojó (sigue
+   * exigiendo una ruta exacta para los doce valores): se le cambió el destino
+   * porque el destino cambió.
+   */
+  it('valores legacy v1 y desconocidos → la primera sesión nueva', () => {
     for (const legacy of ['pending', 'basics', 'goal', 'chronotype', 'health', 'nutrition', 'context', 'edad_atp', 'voice_config', 'v2_bogus', null, undefined]) {
-      expect(resolveOnboardingRoute(legacy as any)).toBe('/onboarding/v2/welcome');
+      expect(resolveOnboardingRoute(legacy as any)).toBe('/primera-sesion/preguntas');
     }
+  });
+
+  it('los pasos de la primera sesión resuelven a su pantalla', () => {
+    expect(resolveOnboardingRoute('ps_preguntas')).toBe('/primera-sesion/preguntas');
+    expect(resolveOnboardingRoute('ps_armado')).toBe('/primera-sesion/armado');
+    expect(resolveOnboardingRoute('ps_dia-1')).toBe('/primera-sesion/dia-1');
   });
 
   /**
@@ -73,8 +89,20 @@ describe('resolveOnboardingRoute (gate de app/index)', () => {
    * un valor teórico.
    */
   it("el perfil real con 'pending' tiene ruta y no se queda colgado", () => {
-    expect(resolveOnboardingRoute('pending')).toBe('/onboarding/v2/welcome');
+    // 7-sep-2026: su ruta ahora es la primera sesión nueva. Lo que importa de
+    // este test no cambió: tiene ruta, no es null, y a su fila no se le tocó
+    // ni un campo para conseguirlo.
+    expect(resolveOnboardingRoute('pending')).toBe('/primera-sesion/preguntas');
     expect(resolveOnboardingRoute('pending')).not.toBeNull();
+  });
+
+  /**
+   * El otro lado de la misma promesa: los 12 perfiles que SÍ terminaron no se
+   * mandan de vuelta a empezar. 'completed' sigue siendo null (a las
+   * pestañas), y ningún cambio del pivote lo toca.
+   */
+  it('los perfiles que ya terminaron siguen entrando derecho a la app', () => {
+    expect(resolveOnboardingRoute('completed')).toBeNull();
   });
 });
 

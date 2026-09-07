@@ -328,7 +328,18 @@ function RootLayout() {
                 <Stack.Screen name="braverman" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* #90: reporte premium ARGOS del Braverman */}
                 <Stack.Screen name="braverman-premium" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                {/* Onboarding v2 (F2 sprint UX blockers) — motor v1 eliminado */}
+                {/* PIVOTE LIMPIO (7-sep-2026): la primera sesión, seis pantallas.
+                    `gestureEnabled: false` en las cinco porque es un flujo, no un
+                    stack: se avanza con su botón. Deslizar hacia atrás dejaría a
+                    la persona en una pantalla cuyo paso ya se anotó como hecho. */}
+                <Stack.Screen name="primera-sesion/preguntas" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
+                <Stack.Screen name="primera-sesion/objetivo" options={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: false }} />
+                <Stack.Screen name="primera-sesion/armado" options={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: false }} />
+                <Stack.Screen name="primera-sesion/punto-de-partida" options={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: false }} />
+                <Stack.Screen name="primera-sesion/dia-1" options={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: false }} />
+                {/* Onboarding v2 (F2 sprint UX blockers) — motor v1 eliminado.
+                    Ya NO es el camino de una cuenta nueva; se conserva para quien
+                    quedó a media pantalla en un build anterior. */}
                 <Stack.Screen name="onboarding/v2/welcome" options={{ headerShown: false, animation: 'fade' }} />
                 {/* Sprint Compliance 4: posicionamiento "optimizar sanos" antes del consentimiento */}
                 <Stack.Screen name="onboarding/v2/positioning" options={{ headerShown: false, animation: 'slide_from_right' }} />

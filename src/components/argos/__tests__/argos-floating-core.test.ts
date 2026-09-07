@@ -23,6 +23,10 @@ describe('isOnboardingPath', () => {
     expect(isOnboardingPath('/register')).toBe(true);
     expect(isOnboardingPath('/reset-password')).toBe(true);
     expect(isOnboardingPath('/argos/meet')).toBe(true);
+    // 7-sep-2026: la primera sesión nueva. De esta línea depende que Meet
+    // ARGOS no se dispare a media pantalla 4.
+    expect(isOnboardingPath('/primera-sesion/preguntas')).toBe(true);
+    expect(isOnboardingPath('/primera-sesion/armado')).toBe(true);
   });
   it('rutas normales → false', () => {
     expect(isOnboardingPath('/nutrition')).toBe(false);

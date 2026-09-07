@@ -115,14 +115,18 @@ export default function RegisterScreen() {
       // T5 HARDENING: funnel core — cuenta creada (sin PII en props).
       analytics.track(ATP_EVENTS.USER_SIGNED_UP, { method: 'email' });
       haptic.success();
+      // PIVOTE LIMPIO (7-sep-2026): esta pantalla es la 1 de 6 y la que sigue
+      // es la de las tres preguntas. El onboarding de diez pantallas dejó de
+      // ser el camino de una cuenta nueva; sus pantallas siguen existiendo
+      // para quien quedó a medias en un build anterior.
       if (typeof window !== 'undefined' && window.alert) {
         window.alert('Cuenta creada exitosamente.');
-        router.replace('/onboarding/v2/welcome');
+        router.replace('/primera-sesion/preguntas');
       } else {
         Alert.alert(
           'Cuenta creada',
           'Tu cuenta ha sido creada exitosamente.',
-          [{ text: 'OK', onPress: () => router.replace('/onboarding/v2/welcome') }],
+          [{ text: 'OK', onPress: () => router.replace('/primera-sesion/preguntas') }],
         );
       }
     }

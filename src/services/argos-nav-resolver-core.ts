@@ -94,8 +94,12 @@ export const RUTAS_VETADAS: ReadonlyMap<string, string> = new Map([
   ['/argos/meet', 'presentación de ARGOS, corre una sola vez'],
 ]);
 
-/** Prefijos vetados completos (todo el onboarding). */
-const PREFIJOS_VETADOS: readonly string[] = ['/onboarding'];
+/**
+ * Prefijos vetados completos (todo el onboarding).
+ * 7-sep-2026: la primera sesión nueva se veta igual que el onboarding viejo.
+ * ARGOS no lleva a nadie a un flujo de bienvenida que ya pasó.
+ */
+const PREFIJOS_VETADOS: readonly string[] = ['/onboarding', '/primera-sesion'];
 
 export function rutaVetada(ruta: string): string | null {
   const directa = RUTAS_VETADAS.get(ruta);
