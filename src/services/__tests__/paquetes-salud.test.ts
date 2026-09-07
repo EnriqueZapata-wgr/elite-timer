@@ -57,8 +57,14 @@ vi.mock('@/src/services/fasting-service', () => ({
   setFastingGoalHours: async () => true,
   DEFAULT_FASTING_GOAL_HOURS: 16,
 }));
+// 7-sep-2026: pack-service dejó de leer los avisos con getAppAviso (fail-soft,
+// que confundía "no hay fila" con "no se pudo leer") y ahora usa leerFilasAviso,
+// que sí las distingue. El mock se re-apunta al contrato nuevo: `filas` vacío =
+// esta persona no tiene ninguna ficha de aviso, que es el supuesto que este test
+// siempre tuvo. No se afloja nada: los avisos siguen entrando con ok:true.
 vi.mock('@/src/services/app-avisos-service', () => ({
   getAppAviso: async () => ({ enabled: false, time: '08:00' }),
+  leerFilasAviso: async () => ({ ok: true, filas: {} }),
   updateAppAviso: async () => ({ ok: true }),
 }));
 

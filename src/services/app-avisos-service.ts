@@ -83,20 +83,122 @@ function rowToPref(appKey: AvisoAppKey, row: any): AppAvisoPref {
   };
 }
 
+// ── Lectura cruda de filas: la que SÍ distingue "no hay" de "no se pudo" ──
+//
+// 7-sep-2026 (pivote limpio). getAppAviso es fail-soft a propósito y colapsa
+// tres cosas distintas en el mismo objeto apagado: NO HAY FILA, la fila está
+// apagada, y la lectura falló. Para la ficha eso está bien. Para el
+// reconciliador de avisos del objetivo es la diferencia entre reparar un
+// aviso que nunca se pudo encender y pisarle a la persona uno que ella apagó,
+// así que aquí la ausencia se devuelve como ausencia y el fallo como fallo.
+
+/** Columna de la migración 320. null = todavía no se sabe si existe. */
+let columnaApagadoDisponible: boolean | null = null;
+const COL_APAGADO = 'apagado_por_usuario';
+
+export interface FilaAvisoLeida {
+  enabled: boolean;
+  time: string;
+  condition: AppAvisoPref['condition'];
+  /**
+   * true = la persona lo apagó a mano. null = esta base todavía no tiene la
+   * columna (migración 320 sin aplicar): quien lee decide, y decide
+   * conservador.
+   */
+  apagadoPorUsuario: boolean | null;
+}
+
+function esColumnaInexistente(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  // 42703 = el SELECT no conoce la columna. PGRST204 = el upsert choca contra
+  // el caché de esquema viejo de PostgREST, que es la ventana real justo
+  // después del db push (mismo patrón que install-service y checkin-service).
+  // Los dos significan lo mismo aquí: esta base todavía no tiene la 320.
+  return (
+    error.code === '42703' ||
+    error.code === 'PGRST204' ||
+    String(error.message ?? '').includes(COL_APAGADO)
+  );
+}
+
+/**
+ * Las filas reales de un puñado de apps. `filas[app] === undefined` significa
+ * SIN FILA (nunca se encendió), jamás "no se pudo leer": eso lo dice `ok`.
+ */
+export async function leerFilasAviso(
+  userId: string,
+  apps: AvisoAppKey[],
+): Promise<{ ok: boolean; filas: Partial<Record<AvisoAppKey, FilaAvisoLeida>> }> {
+  if (apps.length === 0) return { ok: true, filas: {} };
+  // El select se arma como `string` (no como literal) a propósito: la columna
+  // nueva puede no existir y el tipo de la consulta no debe depender de eso.
+  const columnas = (conColumna: boolean): string =>
+    conColumna
+      ? `app_key, enabled, notify_time, condition, ${COL_APAGADO}`
+      : 'app_key, enabled, notify_time, condition';
+  const pedir = (conColumna: boolean) =>
+    supabase
+      .from('user_app_notification_prefs')
+      .select(columnas(conColumna))
+      .eq('user_id', userId)
+      .in('app_key', apps);
+  try {
+    let conColumna = columnaApagadoDisponible !== false;
+    let res = await pedir(conColumna);
+    if (res.error && conColumna && esColumnaInexistente(res.error)) {
+      // La 320 no está aplicada todavía: se relee sin la columna y se sigue.
+      columnaApagadoDisponible = false;
+      conColumna = false;
+      res = await pedir(false);
+    }
+    if (res.error) {
+      logWarn('[app-avisos] lectura de filas fallida', res.error);
+      return { ok: false, filas: {} };
+    }
+    if (conColumna) columnaApagadoDisponible = true;
+    const filas: Partial<Record<AvisoAppKey, FilaAvisoLeida>> = {};
+    for (const r of (res.data ?? []) as unknown as Record<string, unknown>[]) {
+      const app = r.app_key as AvisoAppKey;
+      if (!AVISO_APP_KEYS.includes(app)) continue;
+      filas[app] = {
+        enabled: r.enabled === true,
+        time: typeof r.notify_time === 'string' && /^\d{2}:\d{2}$/.test(r.notify_time)
+          ? r.notify_time
+          : avisoDefaults(app).time,
+        condition: parseAvisoCondition(r.condition),
+        apagadoPorUsuario: conColumna ? r[COL_APAGADO] === true : null,
+      };
+    }
+    return { ok: true, filas };
+  } catch (e) {
+    logWarn('[app-avisos] lectura de filas fallida', e);
+    return { ok: false, filas: {} };
+  }
+}
+
+/**
+ * El estado del permiso SIN pedirlo (getPermissionsAsync no abre diálogo).
+ * El reconciliador corre solo al abrir la app: jamás debe estrenar un
+ * permiso que la persona no pidió.
+ */
+export async function permisoNotificaciones(): Promise<'granted' | 'denied' | 'undetermined'> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status === 'granted') return 'granted';
+    return status === 'denied' ? 'denied' : 'undetermined';
+  } catch (e) {
+    logWarn('[app-avisos] permiso ilegible', e);
+    return 'undetermined';
+  }
+}
+
 /** La preferencia de aviso de UNA app (fail-soft: error de red → defaults). */
 export async function getAppAviso(userId: string, appKey: AvisoAppKey): Promise<AppAvisoPref> {
-  try {
-    const { data, error } = await supabase
-      .from('user_app_notification_prefs')
-      .select('enabled, notify_time, condition')
-      .eq('user_id', userId)
-      .eq('app_key', appKey)
-      .maybeSingle();
-    if (error) return avisoDefaults(appKey);
-    return rowToPref(appKey, data);
-  } catch {
-    return avisoDefaults(appKey);
-  }
+  const { filas } = await leerFilasAviso(userId, [appKey]);
+  const fila = filas[appKey];
+  return fila
+    ? { enabled: fila.enabled, time: fila.time, condition: fila.condition }
+    : avisoDefaults(appKey);
 }
 
 /**
@@ -110,24 +212,48 @@ export async function updateAppAviso(
   userId: string,
   appKey: AvisoAppKey,
   patch: Partial<AppAvisoPref>,
-): Promise<{ ok: boolean; reason?: 'permission' }> {
-  const current = await getAppAviso(userId, appKey);
+): Promise<{ ok: boolean; reason?: 'permission' | 'lectura' }> {
+  // 7-sep-2026 (revisión en frío): esto leía con getAppAviso, que es
+  // fail-soft y devuelve defaults (enabled:false) TANTO cuando no hay fila
+  // COMO cuando la lectura falló. Con mala red, un patch de solo {time}
+  // escribía enabled:false encima de un aviso encendido: apagaba un aviso
+  // que nadie apagó. Sin lectura sana no se escribe nada.
+  const { ok: lecturaOk, filas } = await leerFilasAviso(userId, [appKey]);
+  if (!lecturaOk) return { ok: false, reason: 'lectura' };
+  const fila = filas[appKey];
+  const current: AppAvisoPref = fila
+    ? { enabled: fila.enabled, time: fila.time, condition: fila.condition }
+    : avisoDefaults(appKey);
   const next: AppAvisoPref = { ...current, ...patch };
   if (next.enabled) {
     const { status } = await Notifications.requestPermissionsAsync();
     if (status !== 'granted') return { ok: false, reason: 'permission' };
   }
-  const { error } = await supabase.from('user_app_notification_prefs').upsert(
-    {
-      user_id: userId,
-      app_key: appKey,
-      enabled: next.enabled,
-      notify_time: next.time,
-      condition: next.condition,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id,app_key' },
-  );
+  const base = {
+    user_id: userId,
+    app_key: appKey,
+    enabled: next.enabled,
+    notify_time: next.time,
+    condition: next.condition,
+    updated_at: new Date().toISOString(),
+  };
+  // 7-sep-2026: cuando el patch trae `enabled`, alguien decidió a mano y esa
+  // decisión queda escrita. El reconciliador del objetivo lee esta columna
+  // para no volver a encender lo que la persona apagó. Solo se manda si la
+  // 320 ya está aplicada (lo dice una lectura previa exitosa) y, si aun así
+  // el upsert la rechaza, se reintenta sin ella: nadie se queda sin poder
+  // mover su propio aviso por una columna.
+  const conBandera = columnaApagadoDisponible === true && patch.enabled !== undefined;
+  const escribir = (incluirBandera: boolean) =>
+    supabase.from('user_app_notification_prefs').upsert(
+      incluirBandera ? { ...base, [COL_APAGADO]: patch.enabled === false } : base,
+      { onConflict: 'user_id,app_key' },
+    );
+  let { error } = await escribir(conBandera);
+  if (error && conBandera && esColumnaInexistente(error)) {
+    columnaApagadoDisponible = false;
+    ({ error } = await escribir(false));
+  }
   if (error) {
     logWarn('[app-avisos] upsert failed', error);
     return { ok: false };

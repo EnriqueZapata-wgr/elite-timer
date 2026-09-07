@@ -17,6 +17,12 @@
  * paso: nunca dejamos al usuario creyendo que tiene un pack a medias sin
  * saberlo.
  *
+ * Y desde el 7-sep-2026 ese fallo además QUEDA ANOTADO. Los avisos que no
+ * pudieron encenderse (casi siempre porque todavía no hay permiso de
+ * notificaciones) entran al registro de pendientes y el reconciliador los
+ * reintenta al abrir la app: pack-avisos-service. Antes se perdían ahí mismo
+ * y no volvía a intentarlo nadie, nunca.
+ *
  * Registro en user_packs (migración 254): la fila guarda pack, etapa
  * (columna intensidad) y horario. Con ella pack-core reconstruye el plan
  * previo y re-aplicar no pisa lo que el usuario cambió a mano.
@@ -54,7 +60,7 @@ import { DEFAULT_BOOLEANS, ALL_BOOLEAN_OPTIONS, ALL_QUANT_OPTIONS } from '@/src/
 import { setProteinGoalG, DEFAULT_PROTEIN_GOAL_G } from '@/src/services/protein-goal-service';
 import { setUserWaterGoal, HYDRATION_DEFAULTS } from '@/src/services/hydration-service';
 import { setFastingGoalHours, DEFAULT_FASTING_GOAL_HOURS } from '@/src/services/fasting-service';
-import { getAppAviso, updateAppAviso } from '@/src/services/app-avisos-service';
+import { leerFilasAviso, updateAppAviso, type AvisoAppKey } from '@/src/services/app-avisos-service';
 import type { InstallPrefs } from '@/src/services/hoy/install-core';
 
 // ─── Lectura del registro ───────────────────────────────────────────────────
@@ -79,7 +85,13 @@ export async function getPackAplicado(userId: string, packKey: string): Promise<
 
 // ─── Estado actual (para reconciliar) ───────────────────────────────────────
 
-async function leerEstadoActual(userId: string, avisoApps: string[]): Promise<EstadoActual | null> {
+// 7-sep-2026: devuelve también si las fichas de aviso se pudieron LEER. Sin
+// esa lectura el plan de avisos se arma a ciegas, y escribir a ciegas es
+// pisarle a la persona algo que no vimos.
+async function leerEstadoActual(
+  userId: string,
+  avisoApps: AvisoAppKey[],
+): Promise<{ estado: EstadoActual; avisosOk: boolean } | null> {
   const { data, error } = await supabase
     .from('user_day_preferences')
     .select('active_boolean_electrons, active_quantitative_electrons, installed_apps, goals')
@@ -111,13 +123,20 @@ async function leerEstadoActual(userId: string, avisoApps: string[]): Promise<Es
     agua_ml: num(goals.water_goal_ml, HYDRATION_DEFAULTS.waterGoalMl),
     ayuno_h: num(goals.fasting_hours, DEFAULT_FASTING_GOAL_HOURS),
   };
+  // 7-sep-2026: antes se leía con getAppAviso, que es fail-soft y devuelve
+  // defaults (enabled:false) TANTO cuando no hay fila COMO cuando la lectura
+  // falla. Con eso, reconcilarPack veía "fila apagada" donde solo había
+  // ausencia y trataba el aviso como apagado a mano: un aviso que nunca se
+  // pudo encender (sin permiso) quedaba excluido del re-aplicar para
+  // siempre. Ahora la ausencia se pasa como ausencia (sin entrada) y el
+  // fallo de lectura viaja aparte.
+  const { ok: avisosOk, filas } = await leerFilasAviso(userId, avisoApps);
   const avisos: EstadoActual['avisos'] = {};
   for (const app of avisoApps) {
-    // Fail-soft: si la lectura falla, getAppAviso devuelve defaults
-    // (disabled) y el reconcile lo tratará como "sin aviso".
-    avisos[app as keyof EstadoActual['avisos']] = await getAppAviso(userId, app as never);
+    const fila = filas[app];
+    if (fila) avisos[app] = { enabled: fila.enabled, time: fila.time };
   }
-  return { prefs, habitTimes, metas, avisos };
+  return { estado: { prefs, habitTimes, metas, avisos }, avisosOk };
 }
 
 // ─── Aplicar ────────────────────────────────────────────────────────────────
@@ -171,10 +190,11 @@ export async function aplicarPack(
   if (rows === null) {
     return fallo('registro', 'No pude leer tu registro de packs. Nada se tocó. Intenta de nuevo en un momento.');
   }
-  const estado = await leerEstadoActual(userId, pack.avisos.map((a) => a.app));
-  if (estado === null) {
+  const lectura = await leerEstadoActual(userId, pack.avisos.map((a) => a.app));
+  if (lectura === null) {
     return fallo('registro', 'No pude leer tu configuración actual. Nada se tocó. Intenta de nuevo en un momento.');
   }
+  const { estado, avisosOk } = lectura;
 
   // 0b · Reglas de combinación (CASOS_DE_USO_PRESCRIBEN): exclusiones
   //      declaradas y techo de casos de estilo de vida. Se frena con
@@ -306,14 +326,41 @@ export async function aplicarPack(
 
   // 5 · Avisos. El maestro general sigue mandando (planAppAviso); sin
   //     permiso de notificaciones el aviso no queda a medias.
+  //     7-sep-2026: lo que falla aquí YA NO SE PIERDE. Cada aviso que no
+  //     entró se anota con su razón en el registro de pendientes, y el
+  //     reconciliador lo reintenta al abrir la app en cuanto haya permiso
+  //     (pack-avisos-service). Antes, conceder el permiso más tarde dejaba
+  //     esos avisos muertos para siempre y en silencio.
   {
+    const pendientes: { app: AvisoAppKey; time: string; razon: 'permission' | 'error' }[] = [];
     let sinPermiso = false;
     const fallidas: string[] = [];
-    for (const a of escrituras.avisos) {
-      const r = await updateAppAviso(userId, a.app, { enabled: true, time: a.time });
-      if (!r.ok) {
-        if (r.reason === 'permission') sinPermiso = true;
-        else fallidas.push(a.app);
+    if (!avisosOk) {
+      // Las fichas no se pudieron leer: el plan de avisos salió a ciegas. No
+      // se escribe nada y todo queda anotado para reintentarlo.
+      for (const a of escrituras.avisos) {
+        pendientes.push({ app: a.app, time: a.time, razon: 'error' });
+        fallidas.push(a.app);
+      }
+    } else {
+      for (const a of escrituras.avisos) {
+        const r = await updateAppAviso(userId, a.app, { enabled: true, time: a.time });
+        if (!r.ok) {
+          const razon = r.reason === 'permission' ? 'permission' : 'error';
+          if (razon === 'permission') sinPermiso = true;
+          else fallidas.push(a.app);
+          pendientes.push({ app: a.app, time: a.time, razon });
+        }
+      }
+    }
+    if (pendientes.length > 0) {
+      // Carga tardía a propósito: el registro vive en AsyncStorage y solo se
+      // toca cuando de verdad hubo un paso a medias.
+      try {
+        const { registrarAvisosPendientes } = await import('@/src/services/pack-avisos-service');
+        await registrarAvisosPendientes(userId, packKey, pendientes);
+      } catch (e) {
+        logWarn('[packs] no se pudo registrar el pendiente de avisos', e);
       }
     }
     const ok = !sinPermiso && fallidas.length === 0;
@@ -324,8 +371,8 @@ export async function aplicarPack(
         ? {}
         : {
             detalle: sinPermiso
-              ? 'Sin permiso de notificaciones no hay avisos. Puedes darlo en Ajustes cuando quieras.'
-              : `Avisos sin configurar: ${fallidas.join(', ')}.`,
+              ? 'Sin permiso de notificaciones no hay avisos. Dalo cuando quieras y los encendemos solos.'
+              : `Avisos sin configurar: ${fallidas.join(', ')}. Se reintentan al abrir la app.`,
           }),
     });
   }

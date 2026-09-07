@@ -446,10 +446,18 @@ export default function JournalScreen() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             {/* Regla 2 del manual: el teal como texto va calibrado por tema. */}
-            <Pressable onPress={() => setReminderPickerOpen(true)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <EliteText variant="caption" style={{ color: t.tealTexto, fontSize: FontSizes.sm, fontFamily: Fonts.bold }}>{reminderTime}</EliteText>
-              <Ionicons name="pencil-outline" size={12} color={t.tealTexto} />
-            </Pressable>
+            {/* 7-sep-2026: el lápiz vive DENTRO del interruptor encendido, como
+                en la ficha del Centro. Suelto, se podía editar la hora con el
+                recordatorio apagado, y ese patch de solo {time} escribía una
+                fila enabled=false que nadie había apagado. El reconciliador de
+                avisos del objetivo lee esa fila como "lo apagó la persona" y
+                deja de reparar el aviso para siempre. */}
+            {reminderEnabled && (
+              <Pressable onPress={() => setReminderPickerOpen(true)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <EliteText variant="caption" style={{ color: t.tealTexto, fontSize: FontSizes.sm, fontFamily: Fonts.bold }}>{reminderTime}</EliteText>
+                <Ionicons name="pencil-outline" size={12} color={t.tealTexto} />
+              </Pressable>
+            )}
             <Switch
               value={reminderEnabled}
               onValueChange={toggleReminder}
