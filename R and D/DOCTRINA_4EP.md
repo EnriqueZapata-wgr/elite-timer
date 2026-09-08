@@ -1,6 +1,11 @@
 # Doctrina de los cuatro ojos (4EP) · ATP
 
-Pégame esto al empezar cualquier sesión de trabajo, o dime "lee `R and D/DOCTRINA_4EP.md`" si ya está en el repo.
+**Esta es la version de ATP.** La doctrina general, que aplica a cualquier trabajo con entregable
+(investigacion, escritura, video, datos, codigo), vive en la skill `cuatro-ojos` de la cuenta de
+Enrique y se carga sola. Este documento es la misma doctrina mas las reglas de la casa de ATP, y
+esas mandan sobre la general en lo especifico.
+
+Si estas en una sesion con el repo enfrente, lee esto. `CLAUDE.md` te manda aqui.
 
 ---
 
