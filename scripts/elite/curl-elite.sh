@@ -17,6 +17,11 @@
 # Compatible con Git Bash en Windows: sin jq; el JSON se parsea con node -e.
 # Por que existe (6 de septiembre de 2026): la pantalla de admin queda fuera
 # de 3.0 (pivote 2.4, fase 1); estos curl son la herramienta de carga.
+#
+# 8 de septiembre de 2026 (pivote Elite): para EMITIR codigos en lote y ver
+# cuales se usaron, hoy se usa scripts/elite/codigos.js (corre igual en
+# PowerShell). El 'codigo' de aqui se queda porque emite de a uno y ya esta
+# en los dedos de Enrique; los dos llaman al mismo RPC.
 
 set -euo pipefail
 
@@ -117,6 +122,11 @@ cmd_cargar() {
       && typeof p.p_payload.resumen_argos === "string" && Array.isArray(p.p_payload.suplementos_filas);
     if (!ok) { console.error("esto no es la salida de preparar-payload.js (faltan p_user, p_payload.schema, resumen_argos o suplementos_filas)"); process.exit(1); }
     console.log("Cargando evaluacion v" + p.p_payload.version + " de " + p.p_payload.cliente.nombre_preferido + " para " + p.p_user + " (" + p.p_payload.suplementos_filas.length + " suplementos)...");
+    // 8-sep-2026: el tercer derivado. Si falta, el payload se armo con una
+    // version vieja del script y la fila entra sin raices.
+    if (!Array.isArray(p.p_payload.roots_detected)) {
+      console.log("Aviso: este payload no trae roots_detected. Vuelve a correr preparar-payload.js si quieres raices en el Mapa funcional.");
+    }
   ' "$archivo" || exit 1
   local salida http body
   salida="$(rpc_archivo elite_cargar_evaluacion "$archivo")"
@@ -145,6 +155,17 @@ cmd_cargar() {
     console.log("  suplementos actualizados:         " + r.suplementos_actualizados);
     console.log("  suplementos desactivados:         " + r.suplementos_desactivados);
     console.log("  suplementos pausados respetados:  " + r.suplementos_pausados_respetados);
+    if (r.suplementos_ya_del_cliente !== undefined) {
+      console.log("  ya eran ficha del cliente:        " + r.suplementos_ya_del_cliente + "  (no se duplicaron)");
+    }
+    if (r.raices_detectadas !== undefined) console.log("  raices detectadas:                " + r.raices_detectadas);
+    // 8-sep-2026 (mig 321): lo que se cargo a medias se dice aqui, no se
+    // descubre semanas despues en la pantalla del cliente.
+    if (Array.isArray(r.avisos) && r.avisos.length) {
+      console.log("");
+      console.log("AVISOS de la carga (la evaluacion si quedo guardada):");
+      for (const a of r.avisos) console.log("  - [" + a.codigo + "] " + a.detalle);
+    }
   ' "$body"
 }
 

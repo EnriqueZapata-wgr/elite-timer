@@ -55,12 +55,26 @@ const FORM_OPTIONS = [
   { id: 'gomita', label: 'Gomita' },
 ] as const;
 
-/** Agrupa fichas por momento del dia (solo los grupos con algo). */
+/**
+ * Agrupa fichas por momento del dia (solo los grupos con algo).
+ *
+ * 8-sep-2026: una ficha sin momento (el plan Elite no siempre fija la hora, y
+ * desde hoy esa hora ya no se inventa) tenia `timing` fuera de las cinco
+ * opciones y no caia en NINGUN grupo: desaparecia de la pantalla sin decir
+ * nada. Ahora tiene su propio grupo y se lee tal cual: sin hora fijada.
+ */
 function agruparPorTiming(items: any[]) {
-  return TIMING_OPTIONS.map(t => ({
+  const conocidos = new Set<string>(TIMING_OPTIONS.map(t => t.id));
+  const grupos = TIMING_OPTIONS.map(t => ({
     ...t,
     items: items.filter(s => s.timing === t.id),
   })).filter(g => g.items.length > 0);
+  const sinHora = items.filter(s => !conocidos.has(s.timing));
+  if (sinHora.length === 0) return grupos;
+  return [
+    ...grupos,
+    { id: 'sin_hora', label: 'Sin hora fijada', icon: 'help-circle-outline' as const, color: '#94a3b8', items: sinHora },
+  ];
 }
 
 export default function SupplementsScreen() {
@@ -91,6 +105,12 @@ export default function SupplementsScreen() {
   // al usuario.
   const [cargado, setCargado] = useState(false);
   const [falloCarga, setFalloCarga] = useState(false);
+  // ATP 3.0 (8-sep-2026): las fichas EN PAUSA se leen con SU consulta, no se
+  // derivan del historial del autocompletado (ese trae solo las ultimas 100 y
+  // se le podia escapar una pausada vieja). Su fallo de lectura se guarda
+  // aparte: "no se pudo leer" no es "no tienes nada en pausa" (regla 6).
+  const [pausados, setPausados] = useState<any[]>([]);
+  const [falloPausados, setFalloPausados] = useState(false);
   // Multi-dosis (188): por suplemento, los dose_index tomados hoy.
   const [todayLogs, setTodayLogs] = useState<Record<string, number[]>>({});
   // 312 (10.3): unidades reales registradas hoy por (suplemento, toma) cuando
@@ -174,25 +194,38 @@ export default function SupplementsScreen() {
       // MB-2 §3: historial propio (incl. inactivos) para el autocomplete del alta
       supabase.from('user_supplements').select('*')
         .eq('user_id', userId).order('created_at', { ascending: false }).limit(100),
+      // 8-sep-2026: las pausadas, completas y sin tope. Son pocas por
+      // definicion y el cliente tiene que poder encontrar la de hace meses.
+      supabase.from('user_supplements').select('*')
+        .eq('user_id', userId).eq('is_active', false).order('created_at', { ascending: false }),
     ]);
     const sinRed = { data: null, error: { message: 'fetch rechazado (sin conexion)' } };
     const suppsRes = settled[0].status === 'fulfilled' ? settled[0].value : sinRed;
     const logsRes = settled[1].status === 'fulfilled' ? settled[1].value : sinRed;
     const historyRes = settled[2].status === 'fulfilled' ? settled[2].value : sinRed;
+    const pausadosRes = settled[3].status === 'fulfilled' ? settled[3].value : sinRed;
     // MB-8 Track B: supabase no lanza en 4xx — un error aquí se veía como
     // "plan vacío / 0% adherencia" sin señal alguna.
     // Tambien los LOGS: si fallan, las tomas de hoy salen sin palomear
     // aunque el usuario ya las haya tomado (riesgo real de doble toma) y la
     // adherencia semanal se pinta en 0% como si fuera dato bueno.
-    setFalloCarga(!!(suppsRes.error || logsRes.error));
+    // 8-sep-2026: el fallo de las pausadas cuenta como fallo de lectura. Si no,
+    // el bloque EN PAUSA desaparecia sin decir nada y el cliente leia que no
+    // tiene nada en pausa cuando lo que paso es que no se pudo leer.
+    setFalloCarga(!!(suppsRes.error || logsRes.error || pausadosRes.error));
+    setFalloPausados(!!pausadosRes.error);
     setCargado(true);
     if (suppsRes.error) logWarn('[supplements] fichas load failed:', suppsRes.error.message);
     if (logsRes.error) logWarn('[supplements] logs load failed:', logsRes.error.message);
     if (historyRes.error) logWarn('[supplements] history load failed:', historyRes.error.message);
+    if (pausadosRes.error) logWarn('[supplements] pausadas load failed:', pausadosRes.error.message);
     const supps = (suppsRes.data ?? []) as any[];
     const logs = (logsRes.data ?? []) as any[];
     setSupplements(supps);
     setNameHistory((historyRes.data ?? []) as any[]);
+    // Sin lectura no se pisa lo que ya estaba en pantalla: un vacio de red no
+    // borra la lista de pausadas que el cliente ya estaba viendo.
+    if (!pausadosRes.error) setPausados((pausadosRes.data ?? []) as any[]);
     const tl: Record<string, number[]> = {};
     const tu: Record<string, Record<number, number>> = {};
     logs.forEach((l) => {
@@ -517,6 +550,31 @@ export default function SupplementsScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }
 
+  /**
+   * Reanuda una ficha pausada. Regla de la casa (8-sep-2026): una pausada NO
+   * se revive sola nunca, ni al cargar un plan nuevo; solo con este toque del
+   * dueño y con confirmacion.
+   */
+  function reanudarSupplement(id: string, name: string) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert('Reanudar suplemento', `¿Vuelve "${name}" a tu lista de hoy?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Reanudar',
+        onPress: async () => {
+          const { error } = await supabase.from('user_supplements').update({ is_active: true }).eq('id', id);
+          if (error) {
+            logWarn('[supplements] reanudar failed:', error.message);
+            Alert.alert('No se pudo reanudar', 'Intenta de nuevo.');
+            return;
+          }
+          loadSupplements();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        },
+      },
+    ]);
+  }
+
   function openBhaScan(supp: { id: string; name: string; brand?: string | null } | null) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setBhaTarget(supp);
@@ -718,7 +776,7 @@ export default function SupplementsScreen() {
 
       {/* Estado vacío — biblioteca vacía por default (doctrina: el user crea sus fichas).
           Solo DESPUES de cargar y solo si no hubo fallo. */}
-      {cargado && !falloCarga && supplements.length === 0 && (
+      {cargado && !falloCarga && supplements.length === 0 && pausados.length === 0 && (
         <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 40 }}>
           <Ionicons name="flask-outline" size={48} color={t.bordeMarcado} />
           <Text style={{ color: t.texto, fontSize: 18, fontWeight: '700', marginTop: 16 }}>Tu registro de suplementos</Text>
@@ -843,6 +901,15 @@ export default function SupplementsScreen() {
                       )}
                       {supp.reason && <Text style={{ color: t.textoSecundario, fontSize: 11 }}>· {supp.reason}</Text>}
                     </View>
+                    {/* 8-sep-2026: las notas de la ficha (la advertencia que
+                        escribió quien asignó el plan, como la del B12) solo se
+                        veían dentro del formulario de edición. Es información
+                        de seguridad: se lee en la ficha. */}
+                    {supp.notes ? (
+                      <Text style={{ color: t.advertencia, fontSize: 11, marginTop: 4, lineHeight: 15 }}>
+                        {supp.notes}
+                      </Text>
+                    ) : null}
                     {/* 312 (10.1 / 10.2): lo que la ficha sabe de la dosis. Sin dato no
                         se pinta 0: se pinta raya. Los activos vienen del escaneo. */}
                     {(numeroONull(supp.amount_per_unit) !== null || numeroONull(supp.units_per_dose) !== null) && (
@@ -946,6 +1013,66 @@ export default function SupplementsScreen() {
         <Text style={{ color: t.textoSecundario, fontSize: 10, textAlign: 'center', marginTop: 4, paddingHorizontal: 20 }}>
           Toca para marcar · ×N para registrar cuántas tomaste hoy · Desliza ← (o mantén presionado) para eliminar
         </Text>
+      )}
+
+      {/* EN PAUSA (8-sep-2026): las fichas que el dueño pausó siguen aquí, a la
+          vista y sin contar para la adherencia. Nadie las reactiva por él. Si
+          la consulta falló se dice; el bloque nunca miente con un vacío. */}
+      {cargado && (pausados.length > 0 || falloPausados) && (
+        <View style={{ paddingHorizontal: 20, marginTop: 24, marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+            <Text style={{ color: t.texto, fontSize: 13, fontWeight: '800', letterSpacing: 1.5 }}>EN PAUSA</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 11 }}>No cuentan para tu adherencia</Text>
+          </View>
+          {falloPausados && (
+            <View style={{ backgroundColor: t.card, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: t.borde, marginBottom: 6 }}>
+              <Text style={{ color: t.texto, fontSize: 12, fontWeight: '700' }}>No se pudieron leer tus fichas en pausa</Text>
+              <Text style={{ color: t.textoSecundario, fontSize: 11, marginTop: 4, lineHeight: 16 }}>
+                Siguen guardadas. Revisa tu conexión y toca Reintentar.
+              </Text>
+              <Pressable
+                onPress={reintentar}
+                hitSlop={6}
+                accessibilityRole="button"
+                style={{ alignSelf: 'flex-start', marginTop: 10, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, borderColor: t.bordeMarcado }}
+              >
+                <Text style={{ color: t.texto, fontSize: 12, fontWeight: '700' }}>Reintentar</Text>
+              </Pressable>
+            </View>
+          )}
+          {pausados.map(supp => (
+            <View
+              key={supp.id}
+              style={{
+                backgroundColor: t.hundido, borderRadius: 14, padding: 14, marginBottom: 6,
+                borderWidth: 1, borderColor: t.borde, gap: 4,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <Text style={{ color: t.texto, fontSize: 14, fontWeight: '600' }}>{supp.name}</Text>
+                {esDelCoach(supp) && (
+                  <View style={{ backgroundColor: kind === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,21,24,0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                    <Text style={{ color: t.textoSecundario, fontSize: 8, fontWeight: '800' }}>ASIGNADO POR {NOMBRE_COACH_ELITE.toUpperCase()}</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={{ color: t.textoSecundario, fontSize: 11 }}>
+                {supp.dosage ?? SIN_DATO}{supp.reason ? ` · ${supp.reason}` : ''}
+              </Text>
+              {supp.notes ? (
+                <Text style={{ color: t.advertencia, fontSize: 11, lineHeight: 15 }}>{supp.notes}</Text>
+              ) : null}
+              <Pressable
+                onPress={() => reanudarSupplement(supp.id, supp.name)}
+                hitSlop={6}
+                accessibilityRole="button"
+                style={{ alignSelf: 'flex-start', marginTop: 4, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, borderColor: t.bordeMarcado }}
+              >
+                <Text style={{ color: t.texto, fontSize: 12, fontWeight: '700' }}>Reanudar</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
       )}
 
       {/* ══════════════════════════════════════════

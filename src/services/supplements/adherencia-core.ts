@@ -20,6 +20,8 @@
  * Lo que la ficha no sabe se pinta como raya ('—'), nunca como 0.
  */
 
+import { VENTA_AL_PUBLICO } from '@/src/constants/flags';
+
 export const SIN_DATO = '—';
 
 /** Unidades aceptadas en la ficha (registro; sin rangos ni recomendaciones). */
@@ -78,7 +80,14 @@ export function esDelCoach(row: { source?: string | null } | null | undefined): 
  * carga, se trata como miembro y no se le cierra nada. El registro de tomas
  * nunca se bloquea: la evaluación y su plan se conservan (dato sagrado).
  */
-export function planEliteSoloLectura(nivel: { esMiembro: boolean; nivelNoSePudoLeer: boolean; cargando: boolean }): boolean {
+export function planEliteSoloLectura(
+  nivel: { esMiembro: boolean; nivelNoSePudoLeer: boolean; cargando: boolean },
+  ventaAlPublico: boolean = VENTA_AL_PUBLICO,
+): boolean {
+  // 7-sep-2026 (VENTA_AL_PUBLICO): dejar el plan en solo lectura es un candado
+  // de venta. Con la venta al público apagada nadie queda en solo lectura, que
+  // es la dirección permitida: apagar límites solo puede abrir.
+  if (ventaAlPublico !== true) return false;
   if (nivel.cargando || nivel.nivelNoSePudoLeer) return false;
   return !nivel.esMiembro;
 }

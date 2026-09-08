@@ -285,7 +285,7 @@ ${parrafos(e.braverman.cierre)}</section>`);
 
   if (e.genetica.hallazgos.length) {
     secciones.push(`<section><h2>Genética</h2>${e.genetica.intro ? `<p>${esc(e.genetica.intro)}</p>` : ''}
-${e.genetica.hallazgos.map((h) => `<h3>${esc(h.tema)}: ${esc(h.titulo)}</h3>${h.gen || h.variante ? `<p><em>${esc([h.gen, h.variante, h.genotipo].filter(Boolean).join(' · '))}</em></p>` : ''}<p>${esc(h.hallazgo)}</p><p>${esc(h.implicacion)}</p>${h.que_hacer ? `<p><strong>Qué hacer:</strong> ${esc(h.que_hacer)}</p>` : ''}<p class="ev">Evidencia: ${esc(etiquetaEvidencia(h.evidencia))}</p>`).join('')}
+${e.genetica.hallazgos.map((h) => `<h3>${esc(h.tema)}: ${esc(h.titulo)}</h3>${h.gen || h.variante ? `<p><em>${esc([h.gen, h.variante, h.genotipo].filter(Boolean).join(' · '))}</em></p>` : ''}<p>${esc(h.hallazgo)}</p><p>${esc(h.implicacion)}</p>${h.que_hacer ? `<p><strong>Qué hacer:</strong> ${esc(h.que_hacer)}</p>` : ''}${h.evidencia !== null ? `<p class="ev">Evidencia: ${esc(etiquetaEvidencia(h.evidencia))}</p>` : ''}`).join('')}
 ${e.genetica.resumen.map((b) => `<h3>${esc(b.titulo)}</h3>${parrafos(b.parrafos)}`).join('')}</section>`);
   }
 

@@ -30,6 +30,9 @@
  */
 
 import { AMOUNT_UNITS, SIN_DATO, type AmountUnit } from '@/src/services/supplements/adherencia-core';
+// 8-sep-2026: `roots_detected` de functional_dx se llena desde aqui, y solo con
+// raices del vocabulario controlado (mismo candado que usa el motor DX con ARGOS).
+import { isValidRoot, type InterventionRoot } from '@/src/constants/intervention-vocab';
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -297,6 +300,22 @@ export interface EliteEntrenamiento {
   notas: string[];
 }
 
+/**
+ * Raiz declarada A MANO por quien firma la evaluacion (8-sep-2026). Es la
+ * unica via para que una raiz que no se deduce sola llegue al Mapa funcional
+ * y a la agenda: aqui nadie traduce un sistema a una causa por su cuenta.
+ * `root_key` tiene que existir en INTERVENTION_ROOTS o se descarta.
+ */
+export interface EliteRaizDeclarada {
+  root_key: string;
+  /** 1..5. Si no viene, se usa el default del motor DX (3). */
+  severity?: number;
+  /** 0..1. Si no viene, se usa el default del motor DX (0.5). */
+  confidence?: number;
+  /** Por que la ve el clinico. Viaja como fuente de la raiz. */
+  por_que?: string;
+}
+
 export interface EliteV3 {
   schema: typeof ELITE_V3_SCHEMA;
   version: number;
@@ -326,6 +345,8 @@ export interface EliteV3 {
   alimentacion: EliteAlimentacion;
   suplementos: EliteSuplemento[];
   entrenamiento: EliteEntrenamiento;
+  /** Raices que el clinico declara para el Mapa funcional. Opcional (8-sep-2026). */
+  raices?: EliteRaizDeclarada[];
   /** HTML completo del entregable (cabe en JSONB). Exento del validador de texto: lo produce el generador de Enrique. */
   html?: string;
 }
@@ -652,6 +673,20 @@ export function validarEliteV3(obj: unknown): { ok: true; valor: EliteV3 } | { o
   validarListaTexto(entrenamiento.descanso, 'entrenamiento.descanso', e);
   validarListaTexto(entrenamiento.notas, 'entrenamiento.notas', e);
 
+  // Raices declaradas (8-sep-2026): opcionales, pero si vienen se revisan
+  // contra el vocabulario controlado. Una raiz inventada mueve la agenda.
+  if (obj.raices !== undefined) {
+    if (!Array.isArray(obj.raices)) e.push('raices: arreglo si viene');
+    else obj.raices.forEach((r, i) => {
+      const ruta = `raices[${i}]`;
+      if (!esObj(r)) { e.push(`${ruta}: objeto`); return; }
+      if (!esTexto(r.root_key) || !isValidRoot(r.root_key)) e.push(`${ruta}.root_key: raiz fuera del vocabulario controlado`);
+      if (r.severity !== undefined && !(esNum(r.severity) && Number.isInteger(r.severity) && r.severity >= 1 && r.severity <= 5)) e.push(`${ruta}.severity: entero 1..5 si viene`);
+      if (r.confidence !== undefined && !(esNum(r.confidence) && r.confidence >= 0 && r.confidence <= 1)) e.push(`${ruta}.confidence: 0..1 si viene`);
+      if (r.por_que !== undefined && !esTexto(r.por_que)) e.push(`${ruta}.por_que: texto si viene`);
+    });
+  }
+
   if (obj.html !== undefined && typeof obj.html !== 'string') e.push('html: texto si viene');
 
   // Candado de texto: palabras rojas y em dashes en todo lo que ve el usuario.
@@ -778,9 +813,19 @@ export function resumenParaArgos(e: EliteV3): string {
 export interface FilaUserSupplement {
   user_id: string;
   name: string;
-  /** Texto que muestra la ficha (055, NOT NULL). Raya cuando el plan no fija cantidad. */
-  dosage: string;
-  timing: EliteMomento;
+  /**
+   * Texto que muestra la ficha (la columna es NOT NULL en 055). null cuando el
+   * plan no fija cantidad: asi dispara el COALESCE a "Sin dosis fijada" del RPC
+   * 318. Hasta el 8-sep-2026 viajaba la raya de sin dato, el COALESCE nunca
+   * entraba y el cliente leia una raya en su plan.
+   */
+  dosage: string | null;
+  /**
+   * Momento de toma. null cuando el manual no lo fija: una hora que nadie
+   * escribio no se inventa (8-sep-2026; antes caia en 'morning' y el plan
+   * mostraba una hora que el clinico jamas puso).
+   */
+  timing: EliteMomento | null;
   source: 'coach';
   reason: string;
   is_plan: true;
@@ -791,11 +836,12 @@ export interface FilaUserSupplement {
   notes: string | null;
 }
 
-function dosageTexto(s: EliteSuplemento): string {
+/** null (no la raya) cuando el manual no fija dosis: la frase la pone el RPC. */
+function dosageTexto(s: EliteSuplemento): string | null {
   const cantidad = s.dosis_cantidad !== null && s.dosis_unidad ? `${s.dosis_cantidad} ${s.dosis_unidad}` : null;
   const unidades = s.unidades_por_toma !== null ? `${s.unidades_por_toma} por toma` : null;
   if (cantidad && unidades) return `${unidades} de ${cantidad}`;
-  return cantidad ?? unidades ?? SIN_DATO;
+  return cantidad ?? unidades ?? null;
 }
 
 /**
@@ -810,7 +856,7 @@ export function suplementosAFilas(e: EliteV3, userId: string): FilaUserSupplemen
       user_id: userId,
       name: s.nombre,
       dosage: dosageTexto(s),
-      timing: s.momento ?? 'morning',
+      timing: s.momento ?? null,
       source: 'coach',
       reason: s.por_que,
       is_plan: true,
@@ -821,4 +867,125 @@ export function suplementosAFilas(e: EliteV3, userId: string): FilaUserSupplemen
       notes: notas.length ? notas.join('. ') : null,
     };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Raices detectadas (functional_dx.roots_detected)
+// ---------------------------------------------------------------------------
+
+/**
+ * Una raiz lista para `functional_dx.roots_detected`, con la misma forma que
+ * escribe el motor DX de ARGOS (dx-engine-core.DxRoot): el Mapa funcional y la
+ * agenda leen las dos igual.
+ */
+export interface EliteRaizDetectada {
+  root_key: InterventionRoot;
+  /** 1..5. */
+  severity: number;
+  /** 0..1. */
+  confidence: number;
+  /** De donde sale la raiz, en corto y en lenguaje llano. */
+  sources: string[];
+}
+
+/**
+ * Gravedad y confianza cuando el documento no las anota. Son los MISMOS
+ * defaults del motor DX (dx-engine-core: clampSeverity 3, clampConfidence 0.5)
+ * a proposito: aqui no se calcula una gravedad a partir del score del sistema,
+ * porque ese numero seria una afirmacion clinica que nadie firmo.
+ */
+const RAIZ_SEVERITY_DEFAULT = 3;
+const RAIZ_CONFIDENCE_DEFAULT = 0.5;
+
+/**
+ * Sistema en 'att' -> raiz, y SOLO cuando la raiz es la misma cosa con otro
+ * nombre. De los diez dominios que usa el formato Omar solo `inflamacion`
+ * tiene gemelo literal en el vocabulario. Los otros nueve (metabolismo,
+ * composicion_corporal, vitalidad, habitos, cardiovascular, sistema_hormonal,
+ * sueno, inmunidad, renal_micronutrientes) NO se traducen sin interpretar, y
+ * este modulo no interpreta: se quedan fuera y quien firma los declara a mano
+ * en `raices` si quiere que muevan la agenda (8-sep-2026).
+ */
+export const SISTEMA_A_RAIZ: Readonly<Record<string, InterventionRoot>> = {
+  inflamacion: 'inflamacion_silenciosa',
+};
+
+type DireccionRaiz = 'alto' | 'bajo';
+
+/**
+ * Marcador en 'att' -> raiz, con la direccion que la raiz nombra. La direccion
+ * NO se supone: sale de comparar el valor del cliente contra el objetivo que
+ * escribio el clinico ("te queremos en"). Solo estan los casos en que el
+ * nombre de la raiz y el del marcador dicen lo mismo (HOMA-IR es el indice de
+ * resistencia a la insulina; hiperinsulinemia es insulina alta; sueno profundo
+ * bajo es deficit de sueno profundo). Todo lo demas (GGT alta, grasa visceral,
+ * musculo bajo, TSH, vitamina D) pide una lectura clinica y se queda fuera.
+ */
+export const MARCADOR_A_RAIZ: Readonly<Record<string, { raiz: InterventionRoot; direccion: DireccionRaiz }>> = {
+  homair: { raiz: 'resistencia_insulina', direccion: 'alto' },
+  homa_ir: { raiz: 'resistencia_insulina', direccion: 'alto' },
+  insulina: { raiz: 'hiperinsulinemia', direccion: 'alto' },
+  insulina_ayuno: { raiz: 'hiperinsulinemia', direccion: 'alto' },
+  insulina_en_ayuno: { raiz: 'hiperinsulinemia', direccion: 'alto' },
+  sueno_deep: { raiz: 'deficit_sueno_profundo', direccion: 'bajo' },
+  sueno_profundo: { raiz: 'deficit_sueno_profundo', direccion: 'bajo' },
+  testosterona_total: { raiz: 'baja_testosterona', direccion: 'bajo' },
+  pcr_ultrasensible: { raiz: 'inflamacion_silenciosa', direccion: 'alto' },
+  proteina_c_reactiva_cuantitativa_pcr: { raiz: 'inflamacion_silenciosa', direccion: 'alto' },
+};
+
+/** 'alto' o 'bajo' respecto del objetivo del clinico; null si no se puede decir. */
+function direccionDelMarcador(m: EliteMarcador): DireccionRaiz | null {
+  if (m.valor === null || m.objetivo === null) return null;
+  if (m.objetivo.max !== null && m.valor > m.objetivo.max) return 'alto';
+  if (m.objetivo.min !== null && m.valor < m.objetivo.min) return 'bajo';
+  return null;
+}
+
+/**
+ * Raices para `functional_dx.roots_detected` (8-sep-2026). Sin esto la fila de
+ * la evaluacion Elite entraba con `[]` y el Mapa funcional perdia su seccion de
+ * raices: la agenda no recibia NADA de la Elite.
+ *
+ * Tres fuentes, en este orden: lo que el clinico declara en `raices` (manda),
+ * los sistemas en estado de atencion con gemelo literal, y los marcadores en
+ * estado de atencion que se salieron del objetivo hacia el lado que la raiz
+ * nombra. Nada mas: una raiz que no se deduce sola se declara a mano o no
+ * existe.
+ */
+export function raicesDetectadas(e: EliteV3): EliteRaizDetectada[] {
+  const porRaiz = new Map<InterventionRoot, EliteRaizDetectada>();
+  const sumar = (raiz: InterventionRoot, fuente: string, severity?: number, confidence?: number) => {
+    const previa = porRaiz.get(raiz);
+    if (!previa) {
+      porRaiz.set(raiz, {
+        root_key: raiz,
+        severity: severity ?? RAIZ_SEVERITY_DEFAULT,
+        confidence: confidence ?? RAIZ_CONFIDENCE_DEFAULT,
+        sources: [fuente],
+      });
+      return;
+    }
+    if (!previa.sources.includes(fuente)) previa.sources.push(fuente);
+  };
+
+  for (const r of e.raices ?? []) {
+    if (!isValidRoot(r.root_key)) continue;
+    sumar(r.root_key, r.por_que ?? 'Anotada en la evaluacion Elite', r.severity, r.confidence);
+  }
+
+  for (const sis of e.sistemas) {
+    if (sis.estado !== 'att') continue;
+    const raiz = SISTEMA_A_RAIZ[sis.key];
+    if (raiz) sumar(raiz, `Sistema ${sis.nombre}`);
+  }
+
+  for (const m of marcadoresDe(e)) {
+    if (m.estado !== 'att') continue;
+    const regla = MARCADOR_A_RAIZ[m.key];
+    if (!regla || direccionDelMarcador(m) !== regla.direccion) continue;
+    sumar(regla.raiz, `Marcador ${m.nombre}`);
+  }
+
+  return [...porRaiz.values()];
 }

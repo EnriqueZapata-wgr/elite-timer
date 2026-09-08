@@ -255,6 +255,9 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
         <EliteText style={s.cabeceraMeta}>
           Versión {e.version} · toma {formatearFecha(e.cliente.fecha_toma)} · generada {formatearFecha(e.generado_en)}
         </EliteText>
+        <EliteText style={s.cabeceraMeta}>
+          {e.cliente.sexo === 'female' ? 'Mujer' : 'Hombre'} de {e.cliente.edad} años
+        </EliteText>
         <EliteText style={s.cabeceraMeta}>Interpretada por {e.interpretado_por.evaluacion}</EliteText>
         {esAnterior && (
           <View style={s.anteriorRow}>
@@ -322,6 +325,13 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
             <EliteText style={s.meta}>
               Los que mueven tu caso: {e.conteo.mueven_tu_caso.att} piden acción, {e.conteo.mueven_tu_caso.sub} en rango sin estar en su mejor punto, {e.conteo.mueven_tu_caso.opt} donde queremos.
             </EliteText>
+          ) : null}
+          {/* 8-sep-2026: dos numeros que el documento traia y la pantalla no pintaba. */}
+          {e.conteo.valores_medidos !== null ? (
+            <EliteText style={s.meta}>Valores medidos: {e.conteo.valores_medidos}</EliteText>
+          ) : null}
+          {e.conteo.ejes_quimica !== null ? (
+            <EliteText style={s.meta}>Ejes de química cerebral: {e.conteo.ejes_quimica}</EliteText>
           ) : null}
           {e.conteo.ritmo_envejecimiento_meses !== null ? (
             <EliteText style={s.meta}>Ritmo de envejecimiento: {e.conteo.ritmo_envejecimiento_meses} meses por año</EliteText>
@@ -411,6 +421,18 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
               <Dato etiqueta="Grasa" valor={formatearValor(e.composicion.reparto.grasa_pct, '%')} s={s} />
               <Dato etiqueta="Músculo" valor={formatearValor(e.composicion.reparto.musculo_pct, '%')} s={s} />
             </View>
+            {/* 8-sep-2026: los kilos y el resto del reparto ya venian en el
+                documento y no se pintaban. Sin dato va la raya, no un cero. */}
+            {e.composicion.reparto.grasa_kg !== null || e.composicion.reparto.musculo_kg !== null ? (
+              <EliteText style={s.meta}>
+                En kilos: grasa {formatearValor(e.composicion.reparto.grasa_kg, 'kg')} · músculo {formatearValor(e.composicion.reparto.musculo_kg, 'kg')}
+              </EliteText>
+            ) : null}
+            {e.composicion.reparto.resto_pct !== null || e.composicion.reparto.resto_kg !== null ? (
+              <EliteText style={s.meta}>
+                Resto: {formatearValor(e.composicion.reparto.resto_pct, '%')} · {formatearValor(e.composicion.reparto.resto_kg, 'kg')}
+              </EliteText>
+            ) : null}
           </View>
         ) : null}
         {e.composicion.filas.map((m) => <FilaMarcador key={m.key} m={m} s={s} t={t} />)}
@@ -604,9 +626,15 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
           <View style={s.card}><EliteText style={s.parrafo}>Sin plan de suplementos en esta versión.</EliteText></View>
         ) : (
           <>
+            {/* 8-sep-2026: antes decia "ya está en tu módulo". Si el cliente
+                pausó una ficha, el módulo no la lista y la promesa quedaba
+                falsa. Una pausada no se revive sola: se dice dónde está y
+                quién decide. */}
             <View style={s.avisoSuave}>
               <Ionicons name="checkmark-circle" size={16} color={t.exito} />
-              <EliteText style={s.avisoSuaveText}>Ya está en tu módulo de Suplementos, con la etiqueta de quien lo asignó.</EliteText>
+              <EliteText style={s.avisoSuaveText}>
+                Tu plan también vive en el módulo de Suplementos, con la etiqueta de quien lo asignó. Si pausaste alguno, ahí aparece en pausa y tú decides cuándo reanudarlo.
+              </EliteText>
             </View>
             {e.suplementos.map((sup, i) => (
               <View key={`${sup.nombre}-${i}`} style={s.card}>
@@ -694,8 +722,18 @@ function ChipFuente({ f, s }: { f: keyof typeof ETIQUETA_FUENTE; s: ReturnType<t
   );
 }
 
-/** La escalera de cuatro peldanos: barras llenas hasta el nivel anotado. */
+/**
+ * La escalera de cuatro peldanos: barras llenas hasta el nivel anotado.
+ *
+ * 8-sep-2026: cuando `evidencia` viene null NO se pinta nada. En el documento
+ * de O. el nivel falta en 30 de 34 marcadores, en los 22 hallazgos geneticos y
+ * en los 6 cruces: eran 58 escaleras grises con "Sin nivel de evidencia
+ * anotado" y el documento se leia roto. Un hueco callado se ve mejor que un
+ * hueco anunciado 58 veces. Inventar el peldano no es opcion: seria una
+ * afirmacion sin respaldo.
+ */
 function Evidencia({ n, s, t }: { n: EliteEvidencia | null; s: ReturnType<typeof makeStyles>; t: AppThemeTokens }) {
+  if (n === null) return null;
   return (
     <View style={s.evidenciaRow} accessibilityLabel={`Evidencia: ${etiquetaEvidencia(n)}`}>
       <View style={s.peldanos}>

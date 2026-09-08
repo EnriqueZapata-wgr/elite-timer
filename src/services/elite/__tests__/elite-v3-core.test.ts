@@ -20,6 +20,7 @@ import {
   nivelCalidadEliteV3,
   palabrasRojasEn,
   resumenParaArgos,
+  raicesDetectadas,
   suplementosAFilas,
   validarEliteV3,
   type EliteV3,
@@ -217,11 +218,14 @@ describe('suplementosAFilas', () => {
       user_id: 'user-123', name: 'Magnesio (glicinato)', timing: 'evening', source: 'coach', is_plan: true, is_active: true,
       amount_per_unit: null, amount_unit: null, units_per_dose: null, notes: null,
     });
-    // Raya de sin dato (SIN_DATO de adherencia-core), la unica excepcion al candado de em dashes.
-    expect(mg.dosage).toBe('\u2014');
+    // 8-sep-2026 (contrato nuevo, no relajado): sin dosis en el manual la fila
+    // viaja con null, NO con la raya. Asi dispara el COALESCE a "Sin dosis
+    // fijada" del RPC 318; con la raya el cliente leia un guion en su plan.
+    expect(mg.dosage).toBeNull();
     expect(mg.reason).toContain('Corrige el nivel bajo');
-    // Sin hora fijada en el manual: default 'morning' de la columna (055).
-    expect(filas[1].timing).toBe('morning');
+    // 8-sep-2026: sin hora fijada en el manual, timing va null. Antes caia en
+    // 'morning', una hora que el clinico nunca escribio.
+    expect(filas[1].timing).toBeNull();
     expect(filas[1].notes).toContain('K2');
   });
 
@@ -237,6 +241,53 @@ describe('suplementosAFilas', () => {
     expect(f.amount_unit).toBe('mg');
     expect(f.units_per_dose).toBe(2);
     expect(f.notes).toBe('Duracion: 12 semanas. No con antiácidos');
+  });
+});
+
+describe('raicesDetectadas', () => {
+  it('el ejemplo real deja de salir vacio y solo trae raices del vocabulario', () => {
+    const r = validarEliteV3(ejemplo);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const raices = raicesDetectadas(r.valor);
+    const keys = raices.map((x) => x.root_key).sort();
+    // O. trae HOMA-IR 3.39 (objetivo hasta 1.5), insulina 15.8 (hasta 5) y
+    // sueno profundo 13% (objetivo 20 a 25): tres raices literales.
+    expect(keys).toEqual(['deficit_sueno_profundo', 'hiperinsulinemia', 'resistencia_insulina']);
+    for (const x of raices) {
+      expect(x.severity).toBe(3);
+      expect(x.confidence).toBe(0.5);
+      expect(x.sources.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('no traduce un marcador que se salio para el lado contrario', () => {
+    const o = clon();
+    // Insulina POR DEBAJO del objetivo no es hiperinsulinemia.
+    for (const g of o.marcadores.grupos) {
+      for (const m of g.marcadores) {
+        if (m.key === 'insulina') { m.valor = 1; m.objetivo = { min: 3, max: null }; }
+      }
+    }
+    const r = validarEliteV3(o);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(raicesDetectadas(r.valor).map((x) => x.root_key)).not.toContain('hiperinsulinemia');
+  });
+
+  it('la raiz declarada a mano manda y la inventada se rechaza al validar', () => {
+    const o = clon();
+    o.raices = [{ root_key: 'sobrecarga_hepatica', severity: 4, confidence: 0.8, por_que: 'GGT y ALT arriba del objetivo' }];
+    const r = validarEliteV3(o);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const hepatica = raicesDetectadas(r.valor).find((x) => x.root_key === 'sobrecarga_hepatica');
+    expect(hepatica).toBeDefined();
+    expect(hepatica?.severity).toBe(4);
+    expect(hepatica?.confidence).toBe(0.8);
+    const malo = clon();
+    malo.raices = [{ root_key: 'higado_cansado' }];
+    expect(erroresDe(malo).join(' ')).toContain('vocabulario controlado');
   });
 });
 

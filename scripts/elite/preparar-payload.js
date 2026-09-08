@@ -19,8 +19,12 @@
  *   node scripts/elite/preparar-payload.js <elite_v3.json> <user_id> [--salida <ruta>]
  *
  * Escribe `<nombre>.payload.json` junto al JSON de entrada (o en --salida):
- *   { p_user: <user_id>, p_payload: { ...elite_v3, resumen_argos, suplementos_filas } }
+ *   { p_user: <user_id>, p_payload: { ...elite_v3, resumen_argos,
+ *     suplementos_filas, roots_detected } }
  * y sale con codigo 1 si el JSON no valida.
+ *
+ * 8-sep-2026: `roots_detected` es el tercer derivado. Sin el, la fila de
+ * functional_dx entraba con '[]' y el Mapa funcional se quedaba sin raices.
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -95,7 +99,7 @@ require.extensions['.ts'] = function (module, filename) {
 const core = require(path.join(RAIZ, 'src', 'services', 'elite', 'elite-v3-core.ts'));
 const {
   validarEliteV3, resumenParaArgos, suplementosAFilas, nivelCalidadEliteV3,
-  marcadoresDe, palabrasRojasEn, ELITE_SECCIONES, RESUMEN_ARGOS_MAX,
+  marcadoresDe, palabrasRojasEn, raicesDetectadas, ELITE_SECCIONES, RESUMEN_ARGOS_MAX,
 } = core;
 
 // ---------------------------------------------------------------------------
@@ -119,6 +123,7 @@ const eliteV3 = validacion.valor;
 
 const resumenArgos = resumenParaArgos(eliteV3);
 const suplementosFilas = suplementosAFilas(eliteV3, userId);
+const raices = raicesDetectadas(eliteV3);
 const qualityLevel = nivelCalidadEliteV3(eliteV3);
 
 // Candado extra sobre lo derivado: el resumen va al system prompt de ARGOS y
@@ -138,12 +143,17 @@ if (problemasDerivados.length) {
 
 const payload = {
   p_user: userId,
-  p_payload: { ...eliteV3, resumen_argos: resumenArgos, suplementos_filas: suplementosFilas },
+  p_payload: {
+    ...eliteV3,
+    resumen_argos: resumenArgos,
+    suplementos_filas: suplementosFilas,
+    roots_detected: raices,
+  },
 };
 
-// Comprobacion de ida y vuelta: quitando los dos derivados, el objeto que va
+// Comprobacion de ida y vuelta: quitando los tres derivados, el objeto que va
 // dentro de p_payload debe seguir validando tal cual.
-const { resumen_argos: _r, suplementos_filas: _s, ...deVuelta } = payload.p_payload;
+const { resumen_argos: _r, suplementos_filas: _s, roots_detected: _t, ...deVuelta } = payload.p_payload;
 const revalida = validarEliteV3(deVuelta);
 if (!revalida.ok) {
   console.error('El payload armado ya no valida (esto es un bug del script, no del JSON):');
@@ -172,9 +182,32 @@ console.log(`  secciones:            ${seccionesPresentes} de ${ELITE_SECCIONES.
 console.log(`  marcadores:           ${marcadores.length} (${att} piden accion)`);
 console.log(`  hallazgos geneticos:  ${eliteV3.genetica.hallazgos.length}`);
 console.log(`  suplementos (filas):  ${suplementosFilas.length}`);
+console.log(`  raices detectadas:    ${raices.length}${raices.length ? ` (${raices.map((r) => r.root_key).join(', ')})` : ''}`);
 console.log(`  resumen_argos:        ${resumenArgos.length} caracteres (tope ${RESUMEN_ARGOS_MAX})`);
 console.log(`  quality_level:        ${qualityLevel} (${qualityLevel === 5 ? 'con genetica' : 'sin genetica'})`);
 console.log(`  html incluido:        ${typeof eliteV3.html === 'string' ? `si (${eliteV3.html.length} caracteres)` : 'no'}`);
 console.log(`  archivo:              ${rutaSalida} (${(tamano / 1024).toFixed(1)} KB)`);
+// Avisos (8-sep-2026): lo que se carga incompleto y el cliente va a notar. No
+// detienen la carga (el documento es de Enrique, no de este script), pero se
+// dicen aqui para que se arreglen ANTES de entregar.
+const sinDosis = suplementosFilas.filter((f) => f.dosage === null).length;
+const sinMomento = suplementosFilas.filter((f) => f.timing === null).length;
+const sinUnidad = marcadores.filter((m) => m.valor !== null && !m.unidad).length;
+const sinRangoLab = marcadores.filter((m) => m.rango_lab === null).length;
+const sinEvidencia = marcadores.filter((m) => m.evidencia === null).length
+  + eliteV3.genetica.hallazgos.filter((h) => h.evidencia === null).length
+  + eliteV3.cruces.lista.filter((c) => c.evidencia === null).length;
+const avisos = [];
+if (raices.length === 0) avisos.push('roots_detected sale vacio: el Mapa funcional no va a mostrar raices y la agenda no recibe nada. Declaralas en el campo "raices" del elite_v3.');
+if (sinDosis) avisos.push(`${sinDosis} suplementos sin dosis: entran como "Sin dosis fijada".`);
+if (sinMomento) avisos.push(`${sinMomento} suplementos sin momento: entran sin hora y el cliente los ve en "Sin hora fijada".`);
+if (sinUnidad) avisos.push(`${sinUnidad} marcadores con valor y sin unidad: el cliente lee el numero pelon.`);
+if (sinRangoLab) avisos.push(`${sinRangoLab} marcadores sin rango del laboratorio: esa columna sale con raya.`);
+if (sinEvidencia) avisos.push(`${sinEvidencia} tarjetas sin nivel de evidencia: la escalera no se pinta en ninguna de ellas.`);
+if (avisos.length) {
+  console.log('');
+  console.log('Avisos (el payload se escribio igual; esto se arregla en el documento):');
+  for (const a of avisos) console.log(`  - ${a}`);
+}
 console.log('');
 console.log('Siguiente paso: bash scripts/elite/curl-elite.sh cargar "' + rutaSalida + '"');

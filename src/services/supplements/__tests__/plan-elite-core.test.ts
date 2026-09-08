@@ -13,15 +13,26 @@ describe('esDelCoach', () => {
   });
 });
 
+/**
+ * 7-sep-2026 (VENTA_AL_PUBLICO): el contrato se RE-APUNTA con `VENDIENDO`
+ * explícito y sigue exigiendo lo mismo; abajo se agrega el comportamiento de
+ * hoy, con la venta al público apagada.
+ */
+const VENDIENDO = true;
+const NO_VENDIENDO = false;
+
 describe('planEliteSoloLectura', () => {
   it('miembro: nunca solo lectura', () => {
-    expect(planEliteSoloLectura({ esMiembro: true, nivelNoSePudoLeer: false, cargando: false })).toBe(false);
+    expect(planEliteSoloLectura({ esMiembro: true, nivelNoSePudoLeer: false, cargando: false }, VENDIENDO)).toBe(false);
   });
   it('free confirmado: solo lectura', () => {
-    expect(planEliteSoloLectura({ esMiembro: false, nivelNoSePudoLeer: false, cargando: false })).toBe(true);
+    expect(planEliteSoloLectura({ esMiembro: false, nivelNoSePudoLeer: false, cargando: false }, VENDIENDO)).toBe(true);
   });
   it('regla 1: nivel ilegible o cargando se trata como miembro (fail-open)', () => {
-    expect(planEliteSoloLectura({ esMiembro: false, nivelNoSePudoLeer: true, cargando: false })).toBe(false);
-    expect(planEliteSoloLectura({ esMiembro: false, nivelNoSePudoLeer: false, cargando: true })).toBe(false);
+    expect(planEliteSoloLectura({ esMiembro: false, nivelNoSePudoLeer: true, cargando: false }, VENDIENDO)).toBe(false);
+    expect(planEliteSoloLectura({ esMiembro: false, nivelNoSePudoLeer: false, cargando: true }, VENDIENDO)).toBe(false);
+  });
+  it('con la venta al público apagada nadie queda en solo lectura', () => {
+    expect(planEliteSoloLectura({ esMiembro: false, nivelNoSePudoLeer: false, cargando: false }, NO_VENDIENDO)).toBe(false);
   });
 });

@@ -175,14 +175,20 @@ export default function GeneticaScreen() {
                     <EliteText style={s.parrafo}>{h.que_hacer}</EliteText>
                   </>
                 ) : null}
-                <View style={s.evidenciaRow}>
-                  <View style={s.peldanos}>
-                    {[1, 2, 3, 4].map((k) => (
-                      <View key={k} style={[s.peldano, { backgroundColor: h.evidencia !== null && k <= h.evidencia ? t.texto : t.borde }]} />
-                    ))}
+                {/* 8-sep-2026: sin nivel anotado no se pinta la escalera. En el
+                    documento de O. los 22 hallazgos vienen sin nivel y eran 22
+                    escaleras grises seguidas diciendo que faltaba el dato. El
+                    peldaño no se inventa: si no está, no se dibuja. */}
+                {h.evidencia !== null ? (
+                  <View style={s.evidenciaRow}>
+                    <View style={s.peldanos}>
+                      {[1, 2, 3, 4].map((k) => (
+                        <View key={k} style={[s.peldano, { backgroundColor: h.evidencia !== null && k <= h.evidencia ? t.texto : t.borde }]} />
+                      ))}
+                    </View>
+                    <EliteText style={s.evidenciaText}>{etiquetaEvidencia(h.evidencia)}</EliteText>
                   </View>
-                  <EliteText style={s.evidenciaText}>{etiquetaEvidencia(h.evidencia)}</EliteText>
-                </View>
+                ) : null}
               </View>
             ))}
           </View>
