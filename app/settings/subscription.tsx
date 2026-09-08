@@ -41,6 +41,7 @@ import { useAppTheme } from '@/src/contexts/theme-context';
 import { StatusBar } from 'expo-status-bar';
 import type { AppThemeTokens } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { VENTA_AL_PUBLICO } from '@/src/constants/flags';
 
 // MB-31B: el nombre de la membresía es TEXTO — en claro ni el lima (1.34) ni
 // el teal de marca llegan como letra; ahí usan el teal calibrado (regla 1/2).
@@ -190,7 +191,11 @@ export default function SubscriptionSettingsScreen() {
               </EliteText>
             </View>
           )}
-          {!hasPaidPlan && (
+          {/* 7-sep-2026 (VENTA_AL_PUBLICO): con la venta al público apagada
+              este botón llevaría a una pantalla que ya no se pinta. Se retira
+              el botón, NO la puerta: el `router.push('/paywall')` sigue escrito
+              y el censo lo sigue viendo, así que la ruta no queda huérfana. */}
+          {VENTA_AL_PUBLICO && !hasPaidPlan && (
             <AnimatedPressable
               onPress={() => { haptic.medium(); router.push('/paywall'); }}
               style={styles.upgradeCta}

@@ -19,6 +19,7 @@
  */
 import * as Notifications from 'expo-notifications';
 import { warn as logWarn } from '@/src/lib/logger';
+import { VENTA_AL_PUBLICO } from '@/src/constants/flags';
 import { fetchEffectiveTier } from '@/src/services/subscription/subscription-service';
 import {
   AVISO_DIA7_CUERPO,
@@ -43,8 +44,16 @@ export async function programarAvisoDia7(userId: string): Promise<'programado' |
       tier: lectura.tier,
       nivelNoSePudoLeer: lectura.noSePudoLeer,
       permisoConcedido: permiso.status === 'granted',
+      ventaAlPublico: VENTA_AL_PUBLICO,
     });
-    if (!decision) return 'omitido';
+    // 7-sep-2026: con la venta al público apagada no solo no se programa, se
+    // CANCELA lo que hubiera quedado agendado de un onboarding anterior en
+    // este mismo teléfono. Un aviso viejo abriría el paywall en el teléfono de
+    // un cliente Elite.
+    if (!decision) {
+      if (VENTA_AL_PUBLICO !== true) await cancelarAvisoDia7();
+      return 'omitido';
+    }
     // Reprogramar reemplaza: dos onboardings (cuenta nueva en el mismo
     // teléfono) no dejan dos avisos.
     await cancelarAvisoDia7();

@@ -34,6 +34,7 @@ import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { AppIcon } from '@/src/components/ui/AppIcon';
 import { CandadoNivel } from '@/src/components/ui/CandadoNivel';
 import { useSubscription } from '@/src/hooks/useSubscription';
+import { candadoDeVentaCierra } from '@/src/services/subscription/limites-free-core';
 
 const CALC_THRESHOLD = 30; // % CE mínimo para habilitar "Calcular mi Edad"
 
@@ -60,7 +61,9 @@ export default function EdadAtpHub() {
   const styles = useMemo(() => makeStyles(t), [t]);
   // Ruta 2.5: badge del candado solo cuando SABEMOS que es free (fail-open).
   const { tier, isLoading: nivelCargando, nivelNoSePudoLeer } = useSubscription();
-  const compararConCandado = !nivelCargando && !nivelNoSePudoLeer && tier === 'free';
+  // 7-sep-2026 (VENTA_AL_PUBLICO): el candado de venta lo decide una sola
+  // función. Con la venta al público apagada nunca cierra.
+  const compararConCandado = !nivelCargando && candadoDeVentaCierra(tier, nivelNoSePudoLeer);
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [ce, setCe] = useState<CEResult | null>(null);

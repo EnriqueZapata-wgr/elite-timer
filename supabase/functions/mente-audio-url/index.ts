@@ -43,6 +43,22 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+/**
+ * VENTA_AL_PUBLICO (7-sep-2026) — espejo en el servidor de la bandera del
+ * cliente (`src/constants/flags.ts`). Decisión del dueño: ATP deja de venderse
+ * al público y queda para sus clientes Elite hasta que entre un inversionista.
+ * Con la bandera apagada, la etiqueta `tier='pro'` de una pieza deja de cerrar
+ * nada: no hay membresía que vender, así que no hay a quién mandar a comprarla.
+ *
+ * El default es APAGADO a propósito: la app ya no manda a nadie al paywall
+ * cuando llega un 403, así que un servidor que siga cerrando deja al usuario
+ * sin pieza y sin salida. Ante la duda, no se cierra.
+ *
+ * Para volver a cobrarle al público: `VENTA_AL_PUBLICO=true` en las env vars de
+ * esta función y desplegarla, junto con el flag del cliente en true.
+ */
+const VENTA_AL_PUBLICO = Deno.env.get("VENTA_AL_PUBLICO") === "true";
+
 /** ¿profiles.tier vale como membresía vigente? (espejo de tier-logic.ts) */
 function esMiembro(tier: string | null, tierExpiresAt: string | null, now: Date): boolean {
   if (!tier || !VALORES_PAGADOS.has(tier.toLowerCase())) return false;
@@ -91,7 +107,7 @@ serve(async (req) => {
     // Lo que NO se hizo a propósito: las piezas que hoy son abiertas siguen
     // abiertas. Este cambio solo AFLOJA el candado; cerrar contenido que ya
     // estaba libre sería quitarle algo a alguien, y eso no toca aquí.
-    if (piece.tier === "pro") {
+    if (VENTA_AL_PUBLICO && piece.tier === "pro") {
       const now = new Date();
       const { data: profile } = await admin
         .from("profiles")

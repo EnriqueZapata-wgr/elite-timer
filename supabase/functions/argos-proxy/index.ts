@@ -807,6 +807,22 @@ async function detectEffectiveTier(supabase: any, userId: string): Promise<TierE
  * Es un tope SOLO para free. Miembros (premium, elite): sin tope de llamadas;
  * sus techos siguen siendo los de dinero (aviso 150 MXN, corte antifraude 500).
  */
+/**
+ * VENTA_AL_PUBLICO (7-sep-2026) — espejo en el servidor de la bandera del
+ * cliente (`src/constants/flags.ts`). Decisión del dueño: ATP deja de venderse
+ * al público y queda para sus clientes Elite hasta que entre un inversionista.
+ *
+ * Por qué el default es APAGADO y no encendido: la bandera del cliente ya está
+ * en false, y de los dos desfases posibles solo uno duele. Servidor abierto con
+ * cliente cerrado no le quita nada a nadie; servidor cerrado con cliente
+ * abierto le corta el chat a alguien que la app le dijo que era ilimitado, que
+ * es peor que como estaba antes. Ante la duda, no se cierra.
+ *
+ * Para volver a cobrarle al público: `VENTA_AL_PUBLICO=true` en las env vars de
+ * esta función y desplegarla, junto con el flag del cliente en true.
+ */
+const VENTA_AL_PUBLICO = Deno.env.get("VENTA_AL_PUBLICO") === "true";
+
 const FREE_CHAT_POR_DIA = 3;
 
 /**
@@ -1110,7 +1126,7 @@ serve(async (req) => {
     // ─── ATP 3.0: tope de chat de free (ruta 1.8) ─────────────────────
     // Va ANTES del conteo diario y de la compuerta de gasto: un chat negado no
     // se sirve, no se cobra y no suma en message_count. Solo free, solo chat.
-    if (effectiveTier === "free" && requestType === "chat" && userId) {
+    if (VENTA_AL_PUBLICO && effectiveTier === "free" && requestType === "chat" && userId) {
       const chatFree = await consumirChatFree(supabase, userId);
       if (chatFree.blocked) {
         console.warn(`[free_chat] tope diario alcanzado user=${userId} count=${chatFree.count} limite=${FREE_CHAT_POR_DIA}`);

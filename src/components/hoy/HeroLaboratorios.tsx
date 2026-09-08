@@ -23,6 +23,7 @@ import { AppIcon } from '@/src/components/ui/AppIcon';
 import { CandadoNivel, destinoCandado } from '@/src/components/ui/CandadoNivel';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useSubscription, SUBSCRIPTION_CHANGED_EVENT } from '@/src/hooks/useSubscription';
+import { candadoDeVentaCierra } from '@/src/services/subscription/limites-free-core';
 import { warn as logWarn } from '@/src/lib/logger';
 import { cargarHeroLaboratorios } from '@/src/services/hoy/hero-laboratorios-service';
 import {
@@ -56,9 +57,12 @@ export function HeroLaboratorios({ userId }: Props) {
   const router = useRouter();
   const dark = t.kind === 'dark';
   const acento = dark ? ATP_BRAND.lime : t.tealTexto;
-  const { esMiembro, isLoading: nivelCargando, nivelNoSePudoLeer } = useSubscription();
+  const { tier, isLoading: nivelCargando, nivelNoSePudoLeer } = useSubscription();
   // Candado solo cuando SABEMOS que es free (fail-open: ante la duda se abre).
-  const compararConCandado = !nivelCargando && !nivelNoSePudoLeer && !esMiembro;
+  // 7-sep-2026 (VENTA_AL_PUBLICO): el candado de venta lo decide una sola
+  // función. Con la venta al público apagada nunca cierra. Se lee `tier` en vez
+  // de `esMiembro` para usar el mismo juez que las otras cuatro superficies.
+  const compararConCandado = !nivelCargando && candadoDeVentaCierra(tier, nivelNoSePudoLeer);
 
   const [datos, setDatos] = useState<DatosHero | null>(null);
   const [cargando, setCargando] = useState(true);

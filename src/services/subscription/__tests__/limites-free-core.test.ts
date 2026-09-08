@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  candadoDeVentaCierra,
   diasEntre,
   esProductoAnual,
   estudiosQueCuentan,
@@ -14,17 +15,29 @@ import {
   tieneMapaFuncional,
 } from '../limites-free-core';
 
+/**
+ * 7-sep-2026 (VENTA_AL_PUBLICO): estos tests se RE-APUNTAN, no se aflojan.
+ *
+ * El contrato de los límites de Free vale y hay que quererlo intacto el día que
+ * vuelva la venta al público, así que cada llamada gateada pasa `VENDIENDO` de
+ * forma EXPLÍCITA y sigue exigiendo lo mismo, número por número: nada de este
+ * archivo depende ya de cómo esté la bandera del repo. Lo que se agrega al
+ * final es el comportamiento de HOY, con la venta apagada: no se cierra nada.
+ */
+const VENDIENDO = true;
+const NO_VENDIENDO = false;
+
 describe('puedeSubirEstudio', () => {
   it('free sube el primero', () => {
-    expect(puedeSubirEstudio('free', 0)).toBe(true);
+    expect(puedeSubirEstudio('free', 0, VENDIENDO)).toBe(true);
   });
   it('free no sube el segundo', () => {
-    expect(puedeSubirEstudio('free', 1)).toBe(false);
-    expect(puedeSubirEstudio('free', 7)).toBe(false);
+    expect(puedeSubirEstudio('free', 1, VENDIENDO)).toBe(false);
+    expect(puedeSubirEstudio('free', 7, VENDIENDO)).toBe(false);
   });
   it('premium y elite suben siempre', () => {
-    expect(puedeSubirEstudio('premium', 30)).toBe(true);
-    expect(puedeSubirEstudio('elite', 30)).toBe(true);
+    expect(puedeSubirEstudio('premium', 30, VENDIENDO)).toBe(true);
+    expect(puedeSubirEstudio('elite', 30, VENDIENDO)).toBe(true);
   });
 });
 
@@ -70,15 +83,15 @@ describe('marcadoresAbiertosFree', () => {
 
 describe('puedeVerFicha', () => {
   it('premium y elite ven todo', () => {
-    expect(puedeVerFicha('premium', 'x', [])).toBe(true);
-    expect(puedeVerFicha('elite', 'x', [])).toBe(true);
+    expect(puedeVerFicha('premium', 'x', [], VENDIENDO)).toBe(true);
+    expect(puedeVerFicha('elite', 'x', [], VENDIENDO)).toBe(true);
   });
   it('free ve solo los abiertos', () => {
-    expect(puedeVerFicha('free', 'sdldl', ['sdldl', 'vldl'])).toBe(true);
-    expect(puedeVerFicha('free', 'colesterol_ldl', ['sdldl', 'vldl'])).toBe(false);
+    expect(puedeVerFicha('free', 'sdldl', ['sdldl', 'vldl'], VENDIENDO)).toBe(true);
+    expect(puedeVerFicha('free', 'colesterol_ldl', ['sdldl', 'vldl'], VENDIENDO)).toBe(false);
   });
   it('si no se pudo calcular, se abre (fail-open)', () => {
-    expect(puedeVerFicha('free', 'colesterol_ldl', null)).toBe(true);
+    expect(puedeVerFicha('free', 'colesterol_ldl', null, VENDIENDO)).toBe(true);
   });
 });
 
@@ -108,34 +121,84 @@ describe('diasEntre', () => {
 describe('tieneMapaFuncional', () => {
   const premium = { tier: 'premium' as const, esElite: false, productId: null, codeSource: null };
   it('elite siempre', () => {
-    expect(tieneMapaFuncional({ tier: 'elite', esElite: true, productId: null, codeSource: null })).toBe(true);
+    expect(tieneMapaFuncional({ tier: 'elite', esElite: true, productId: null, codeSource: null }, VENDIENDO)).toBe(true);
   });
   it('plan explícito del grant manda: anual abre, mensual cierra aunque el nombre diga annual', () => {
-    expect(tieneMapaFuncional({ ...premium, plan: 'anual' })).toBe(true);
-    expect(tieneMapaFuncional({ ...premium, plan: 'mensual', productId: 'atp_pro_annual', diasEntitlement: 365 })).toBe(false);
+    expect(tieneMapaFuncional({ ...premium, plan: 'anual' }, VENDIENDO)).toBe(true);
+    expect(tieneMapaFuncional({ ...premium, plan: 'mensual', productId: 'atp_pro_annual', diasEntitlement: 365 }, VENDIENDO)).toBe(false);
   });
   it('founders sí (grant con code_source founder), sin importar duración ni nombre', () => {
-    expect(tieneMapaFuncional({ ...premium, codeSource: 'founder' })).toBe(true);
-    expect(tieneMapaFuncional({ ...premium, codeSource: 'founder', productId: 'prod_x', diasGrant: 30 })).toBe(true);
+    expect(tieneMapaFuncional({ ...premium, codeSource: 'founder' }, VENDIENDO)).toBe(true);
+    expect(tieneMapaFuncional({ ...premium, codeSource: 'founder', productId: 'prod_x', diasGrant: 30 }, VENDIENDO)).toBe(true);
   });
   it('compra anual fuera de la tienda: product id opaco, pero el entitlement cubre un año', () => {
-    expect(tieneMapaFuncional({ ...premium, productId: 'price_1Abc', diasEntitlement: 365 })).toBe(true);
-    expect(tieneMapaFuncional({ ...premium, productId: 'prod_Xyz', diasEntitlement: 366 })).toBe(true);
-    expect(tieneMapaFuncional({ ...premium, productId: 'price_1Abc', diasEntitlement: 31 })).toBe(false);
+    expect(tieneMapaFuncional({ ...premium, productId: 'price_1Abc', diasEntitlement: 365 }, VENDIENDO)).toBe(true);
+    expect(tieneMapaFuncional({ ...premium, productId: 'prod_Xyz', diasEntitlement: 366 }, VENDIENDO)).toBe(true);
+    expect(tieneMapaFuncional({ ...premium, productId: 'price_1Abc', diasEntitlement: 31 }, VENDIENDO)).toBe(false);
   });
   it('código de pago fuera de la tienda: web_payment abre solo si el grant es anual', () => {
-    expect(tieneMapaFuncional({ ...premium, codeSource: 'web_payment', diasGrant: 365 })).toBe(true);
-    expect(tieneMapaFuncional({ ...premium, codeSource: 'web_payment', diasGrant: 300 })).toBe(true);
-    expect(tieneMapaFuncional({ ...premium, codeSource: 'web_payment', diasGrant: 30 })).toBe(false);
-    expect(tieneMapaFuncional({ ...premium, codeSource: 'web_payment', diasGrant: null })).toBe(false);
-    expect(tieneMapaFuncional({ ...premium, codeSource: 'cortesia', diasGrant: 365 })).toBe(false);
+    expect(tieneMapaFuncional({ ...premium, codeSource: 'web_payment', diasGrant: 365 }, VENDIENDO)).toBe(true);
+    expect(tieneMapaFuncional({ ...premium, codeSource: 'web_payment', diasGrant: 300 }, VENDIENDO)).toBe(true);
+    expect(tieneMapaFuncional({ ...premium, codeSource: 'web_payment', diasGrant: 30 }, VENDIENDO)).toBe(false);
+    expect(tieneMapaFuncional({ ...premium, codeSource: 'web_payment', diasGrant: null }, VENDIENDO)).toBe(false);
+    expect(tieneMapaFuncional({ ...premium, codeSource: 'cortesia', diasGrant: 365 }, VENDIENDO)).toBe(false);
   });
   it('nombre del producto como último recurso', () => {
-    expect(tieneMapaFuncional({ ...premium, productId: 'atp_pro_annual' })).toBe(true);
-    expect(tieneMapaFuncional({ ...premium, productId: 'atp_pro_monthly' })).toBe(false);
-    expect(tieneMapaFuncional({ ...premium })).toBe(false);
+    expect(tieneMapaFuncional({ ...premium, productId: 'atp_pro_annual' }, VENDIENDO)).toBe(true);
+    expect(tieneMapaFuncional({ ...premium, productId: 'atp_pro_monthly' }, VENDIENDO)).toBe(false);
+    expect(tieneMapaFuncional({ ...premium }, VENDIENDO)).toBe(false);
   });
   it('free nunca, aunque traiga evidencia anual colgada', () => {
-    expect(tieneMapaFuncional({ tier: 'free', esElite: false, productId: 'atp_pro_annual', codeSource: 'founder', plan: 'anual', diasEntitlement: 365 })).toBe(false);
+    expect(tieneMapaFuncional({ tier: 'free', esElite: false, productId: 'atp_pro_annual', codeSource: 'founder', plan: 'anual', diasEntitlement: 365 }, VENDIENDO)).toBe(false);
+  });
+});
+
+/**
+ * 7-sep-2026: el comportamiento de HOY. La bandera apagada solo puede ABRIR,
+ * nunca cerrar, y por eso cada caso de aquí es un `true` donde arriba había un
+ * `false`. Ningún caso de este bloque le quita nada a nadie.
+ */
+describe('con la venta al público apagada', () => {
+  const premium = { tier: 'premium' as const, esElite: false, productId: null, codeSource: null };
+
+  it('el estudio de Free deja de ser uno solo', () => {
+    expect(puedeSubirEstudio('free', 1, NO_VENDIENDO)).toBe(true);
+    expect(puedeSubirEstudio('free', 99, NO_VENDIENDO)).toBe(true);
+  });
+
+  it('los tres marcadores con ficha se vuelven todos', () => {
+    expect(puedeVerFicha('free', 'colesterol_ldl', ['sdldl', 'vldl'], NO_VENDIENDO)).toBe(true);
+    expect(puedeVerFicha('free', 'lo_que_sea', [], NO_VENDIENDO)).toBe(true);
+  });
+
+  it('el mapa funcional abre sin importar el plan, incluso para free', () => {
+    expect(tieneMapaFuncional({ ...premium, plan: 'mensual' }, NO_VENDIENDO)).toBe(true);
+    expect(tieneMapaFuncional({ tier: 'free', esElite: false, productId: null, codeSource: null }, NO_VENDIENDO)).toBe(true);
+  });
+
+  it('a quien paga no le cambia nada: seguía abierto y sigue abierto', () => {
+    expect(puedeSubirEstudio('elite', 30, NO_VENDIENDO)).toBe(true);
+    expect(puedeVerFicha('premium', 'x', [], NO_VENDIENDO)).toBe(true);
+    expect(tieneMapaFuncional({ tier: 'elite', esElite: true, productId: null, codeSource: null }, NO_VENDIENDO)).toBe(true);
+  });
+});
+
+describe('candadoDeVentaCierra', () => {
+  it('vendiendo: solo cierra a free confirmado', () => {
+    expect(candadoDeVentaCierra('free', false, VENDIENDO)).toBe(true);
+    expect(candadoDeVentaCierra('premium', false, VENDIENDO)).toBe(false);
+    expect(candadoDeVentaCierra('elite', false, VENDIENDO)).toBe(false);
+  });
+  it('vendiendo: si el nivel no se pudo leer, no cierra (regla 1)', () => {
+    expect(candadoDeVentaCierra('free', true, VENDIENDO)).toBe(false);
+  });
+  it('sin vender: no cierra nunca', () => {
+    expect(candadoDeVentaCierra('free', false, NO_VENDIENDO)).toBe(false);
+    expect(candadoDeVentaCierra('free', true, NO_VENDIENDO)).toBe(false);
+  });
+  it('fail-open: un valor que no es exactamente true abre', () => {
+    // `null` no dispara el default del parámetro, así que esto prueba de
+    // verdad la compuerta `=== true` y no depende de cómo esté la bandera.
+    expect(candadoDeVentaCierra('free', false, null as unknown as boolean)).toBe(false);
   });
 });

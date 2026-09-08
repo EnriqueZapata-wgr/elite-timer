@@ -12,8 +12,32 @@
  * corta nada, y por eso cada función recibe el tier y contesta "sí" para
  * premium y elite sin mirar nada más (salvo el mapa funcional, que por
  * decisión del pivote distingue anual de mensual).
+ *
+ * 7-sep-2026 (VENTA_AL_PUBLICO): estos tres candados son de VENTA, así que la
+ * bandera los gobierna. Cada función recibe el estado de la bandera como
+ * último parámetro, con `VENTA_AL_PUBLICO` de default, para que el test siga
+ * probando el CONTRATO (con la bandera encendida) y además el comportamiento
+ * de hoy (apagada). La compuerta pregunta `=== true` para cerrar: cualquier
+ * otro valor abre (fail-open, misma doctrina que el proxy).
  */
 import type { Tier } from './tier-logic';
+import { VENTA_AL_PUBLICO } from '@/src/constants/flags';
+
+/**
+ * ¿Se le cierra algo a esta persona por no haber pagado? La usan las pantallas
+ * que hoy preguntan `tier === 'free'` a mano. Con la bandera apagada nunca, y
+ * con `nivelNoSePudoLeer` tampoco (regla 1: no se degrada a nadie por no poder
+ * leer su nivel).
+ */
+export function candadoDeVentaCierra(
+  tier: Tier,
+  nivelNoSePudoLeer = false,
+  ventaAlPublico: boolean = VENTA_AL_PUBLICO,
+): boolean {
+  if (ventaAlPublico !== true) return false;
+  if (nivelNoSePudoLeer) return false;
+  return tier === 'free';
+}
 
 /** Estudios que Free puede subir en total. */
 export const ESTUDIOS_FREE = 1;
@@ -26,7 +50,12 @@ export const MARCADORES_FREE = 3;
  * `lab_uploads` ya tiene (sin contar las fallidas: una subida que murió no le
  * dio nada a la persona y no le gasta su único estudio).
  */
-export function puedeSubirEstudio(tier: Tier, estudiosPrevios: number): boolean {
+export function puedeSubirEstudio(
+  tier: Tier,
+  estudiosPrevios: number,
+  ventaAlPublico: boolean = VENTA_AL_PUBLICO,
+): boolean {
+  if (ventaAlPublico !== true) return true;
   if (tier !== 'free') return true;
   return estudiosPrevios < ESTUDIOS_FREE;
 }
@@ -85,7 +114,13 @@ export function marcadoresAbiertosFree(marcadores: ReadonlyArray<MarcadorParaImp
  * `marcadoresAbiertosFree`; null significa "no se pudo calcular" y entonces
  * se abre (fail-open, misma doctrina que el proxy: ante la duda, no se cierra).
  */
-export function puedeVerFicha(tier: Tier, key: string, abiertos: ReadonlyArray<string> | null): boolean {
+export function puedeVerFicha(
+  tier: Tier,
+  key: string,
+  abiertos: ReadonlyArray<string> | null,
+  ventaAlPublico: boolean = VENTA_AL_PUBLICO,
+): boolean {
+  if (ventaAlPublico !== true) return true;
   if (tier !== 'free') return true;
   if (abiertos === null) return true;
   return abiertos.includes(key);
@@ -150,7 +185,11 @@ const esPeriodoAnual = (dias: number | null | undefined): boolean =>
  * Quien llama decide el fail-open cuando NADA se pudo leer; aquí, con datos,
  * se contesta.
  */
-export function tieneMapaFuncional(o: OrigenMembresia): boolean {
+export function tieneMapaFuncional(
+  o: OrigenMembresia,
+  ventaAlPublico: boolean = VENTA_AL_PUBLICO,
+): boolean {
+  if (ventaAlPublico !== true) return true;
   if (o.esElite || o.tier === 'elite') return true;
   if (o.tier !== 'premium') return false;
   if (o.plan === 'anual') return true;

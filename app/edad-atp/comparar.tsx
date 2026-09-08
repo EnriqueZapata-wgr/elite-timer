@@ -29,6 +29,7 @@ import { AppIcon } from '@/src/components/ui/AppIcon';
 import { destinoCandado } from '@/src/components/ui/CandadoNivel';
 import { CandadoBloque } from '@/src/components/ui/CandadoBloque';
 import { useSubscription } from '@/src/hooks/useSubscription';
+import { candadoDeVentaCierra } from '@/src/services/subscription/limites-free-core';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
@@ -105,7 +106,9 @@ function CompararScreen() {
   const { user } = useAuth();
   const { tier, isLoading: nivelCargando, nivelNoSePudoLeer } = useSubscription();
   // Cerrado solo cuando SABEMOS que es free. Cargando o sin lectura: abierto.
-  const bloqueado = !nivelCargando && !nivelNoSePudoLeer && tier === 'free';
+  // 7-sep-2026 (VENTA_AL_PUBLICO): el candado de venta lo decide una sola
+  // función. Con la venta al público apagada nunca cierra.
+  const bloqueado = !nivelCargando && candadoDeVentaCierra(tier, nivelNoSePudoLeer);
 
   const [carga, setCarga] = useState<Carga>({ estado: 'cargando' });
   const [fechaA, setFechaA] = useState<string | null>(null);

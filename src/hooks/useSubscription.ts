@@ -26,6 +26,7 @@ import type {
 } from 'react-native-purchases';
 
 import { useAuth } from '@/src/contexts/auth-context';
+import { VENTA_AL_PUBLICO } from '@/src/constants/flags';
 import { warn as logWarn } from '@/src/lib/logger';
 import { configureRevenueCat, getPurchases } from '@/src/services/revenuecat';
 import { cancelarAvisoDia7 } from '@/src/services/aviso-dia7-service';
@@ -275,8 +276,12 @@ export function useSubscription(): UseSubscriptionResult {
   // idempotente y barato (un no-op si no existe), y solo corre cuando cambia
   // el nivel, no en cada render. Sin guard de módulo a propósito: otra cuenta
   // en el mismo teléfono puede volver a programarlo y debe poder cancelarse.
+  // 7-sep-2026 (VENTA_AL_PUBLICO): con la venta al público apagada se cancela
+  // para TODOS. Los avisos ya agendados viven en el teléfono, no en la base:
+  // sin esto, un onboarding cerrado la semana pasada le abriría el paywall a
+  // un cliente Elite el día 7. Cancelar por id fijo es un no-op si no existe.
   useEffect(() => {
-    if (esMiembro(tier)) cancelarAvisoDia7();
+    if (VENTA_AL_PUBLICO !== true || esMiembro(tier)) cancelarAvisoDia7();
   }, [tier]);
 
   return {

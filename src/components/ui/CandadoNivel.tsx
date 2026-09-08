@@ -23,6 +23,7 @@ import { Fonts } from '@/constants/theme';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import type { MinTier } from '@/src/constants/app-registry';
 import { RUTA_ELITE, contextoCandado } from '@/src/constants/rutas-3-0';
+import { VENTA_AL_PUBLICO } from '@/src/constants/flags';
 import { haptic } from '@/src/utils/haptics';
 
 /** Cómo se llama cada nivel en el candado. Corto: cabe en una esquina. */
@@ -57,9 +58,17 @@ interface Props {
 
 export function CandadoNivel({ appKey, nivel, variante = 'badge', tocable = true, style }: Props) {
   const router = useRouter();
+  // 7-sep-2026 (VENTA_AL_PUBLICO): la píldora "Pro" es señalización de venta.
+  // Con la venta al público apagada no se pinta, y con ella se va su toque al
+  // paywall. La píldora "Elite" se queda: esa dice que el contenido es de un
+  // cliente Elite, no que haya algo que comprar. Red de seguridad además de
+  // los candados que ya no se calculan río arriba (nivelAlcanza).
+  const esCandadoDeVenta = nivel !== 'elite';
   const { tokens } = useAppTheme();
   const tinta = nivel === 'elite' ? tokens.tealTexto : tokens.texto;
   const etiqueta = ETIQUETA_NIVEL[nivel];
+  // El return va DESPUÉS de los dos hooks para no romper su orden entre renders.
+  if (esCandadoDeVenta && VENTA_AL_PUBLICO !== true) return null;
   // La posición de esquina la lleva el elemento MÁS EXTERNO (el Pressable si
   // es tocable, la píldora si no): dos absolutos anidados dejarían el área de
   // toque en cero.

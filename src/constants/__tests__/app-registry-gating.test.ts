@@ -13,6 +13,16 @@ import {
 } from '../app-registry';
 import { palabrasRojasEn } from '@/src/services/elite/elite-v3-core';
 
+/**
+ * 7-sep-2026 (VENTA_AL_PUBLICO): el gating del registro se RE-APUNTA, no se
+ * afloja. Cada llamada a `nivelAlcanza` y a `visibleApps` pasa `VENDIENDO`
+ * explícito y sigue exigiendo la matriz 3.2 completa, app por app, para que el
+ * contrato siga protegido el día que vuelva la venta al público. El bloque
+ * nuevo del final prueba el comportamiento de HOY, con la venta apagada.
+ */
+const VENDIENDO = true;
+const NO_VENDIENDO = false;
+
 /** Las 14 abiertas para Free (matriz 3.2). Cambiarlas es cambiar el pivote. */
 const ABIERTAS_FREE = [
   'comida', 'hidratacion', 'ayuno',
@@ -85,24 +95,24 @@ describe('minTier en el registro', () => {
 
 describe('nivelAlcanza', () => {
   it('sin mínimo, abre para todos', () => {
-    expect(nivelAlcanza('free', undefined)).toBe(true);
-    expect(nivelAlcanza('premium', undefined)).toBe(true);
-    expect(nivelAlcanza('elite', undefined)).toBe(true);
+    expect(nivelAlcanza('free', undefined, VENDIENDO)).toBe(true);
+    expect(nivelAlcanza('premium', undefined, VENDIENDO)).toBe(true);
+    expect(nivelAlcanza('elite', undefined, VENDIENDO)).toBe(true);
   });
 
   it('premium abre premium; elite abre premium y elite; free no abre nada cerrado', () => {
-    expect(nivelAlcanza('free', 'premium')).toBe(false);
-    expect(nivelAlcanza('free', 'elite')).toBe(false);
-    expect(nivelAlcanza('premium', 'premium')).toBe(true);
-    expect(nivelAlcanza('premium', 'elite')).toBe(false);
-    expect(nivelAlcanza('elite', 'premium')).toBe(true);
-    expect(nivelAlcanza('elite', 'elite')).toBe(true);
+    expect(nivelAlcanza('free', 'premium', VENDIENDO)).toBe(false);
+    expect(nivelAlcanza('free', 'elite', VENDIENDO)).toBe(false);
+    expect(nivelAlcanza('premium', 'premium', VENDIENDO)).toBe(true);
+    expect(nivelAlcanza('premium', 'elite', VENDIENDO)).toBe(false);
+    expect(nivelAlcanza('elite', 'premium', VENDIENDO)).toBe(true);
+    expect(nivelAlcanza('elite', 'elite', VENDIENDO)).toBe(true);
   });
 });
 
 describe('visibleApps con nivel', () => {
   it('con free, las 14 abiertas no están bloqueadas y las otras 21 sí', () => {
-    const apps = visibleApps(true, 'free');
+    const apps = visibleApps(true, 'free', false, VENDIENDO);
     expect(apps).toHaveLength(35);
     const libres = apps.filter((a) => !a.bloqueada).map((a) => a.key).sort();
     expect(libres).toEqual(ABIERTAS_FREE);
@@ -110,29 +120,29 @@ describe('visibleApps con nivel', () => {
   });
 
   it('regla 15: con free nada desaparece, solo se marca', () => {
-    expect(visibleApps(true, 'free').map((a) => a.key)).toEqual(APP_REGISTRY.map((a) => a.key));
+    expect(visibleApps(true, 'free', false, VENDIENDO).map((a) => a.key)).toEqual(APP_REGISTRY.map((a) => a.key));
   });
 
   it('con premium solo Genética queda bloqueada (a quien pagó no se le corta nada de lo premium)', () => {
     // 6-sep-2026: Genética es contenido Elite, no premium; premium sin
     // evaluación la ve con candado que abre la página Elite.
-    const bloqueadas = visibleApps(true, 'premium').filter((a) => a.bloqueada).map((a) => a.key);
+    const bloqueadas = visibleApps(true, 'premium', false, VENDIENDO).filter((a) => a.bloqueada).map((a) => a.key);
     expect(bloqueadas).toEqual(['genetica']);
   });
 
   it('con elite ninguna bloqueada', () => {
-    expect(visibleApps(true, 'elite').some((a) => a.bloqueada)).toBe(false);
+    expect(visibleApps(true, 'elite', false, VENDIENDO).some((a) => a.bloqueada)).toBe(false);
   });
 
   it('sin nivel se asume free (compatibilidad con los llamadores viejos)', () => {
-    expect(visibleApps(true).filter((a) => a.bloqueada)).toHaveLength(21);
+    expect(visibleApps(true, undefined, undefined, VENDIENDO).filter((a) => a.bloqueada)).toHaveLength(21);
   });
 
   it('femaleOnly sigue funcionando en cualquier nivel', () => {
     for (const tier of ['free', 'premium', 'elite'] as const) {
-      expect(visibleApps(false, tier).some((a) => a.key === 'ciclo'), tier).toBe(false);
-      expect(visibleApps(true, tier).some((a) => a.key === 'ciclo'), tier).toBe(true);
-      expect(visibleApps(true, tier).length - visibleApps(false, tier).length, tier).toBe(1);
+      expect(visibleApps(false, tier, false, VENDIENDO).some((a) => a.key === 'ciclo'), tier).toBe(false);
+      expect(visibleApps(true, tier, false, VENDIENDO).some((a) => a.key === 'ciclo'), tier).toBe(true);
+      expect(visibleApps(true, tier, false, VENDIENDO).length - visibleApps(false, tier, false, VENDIENDO).length, tier).toBe(1);
     }
   });
 
@@ -142,13 +152,13 @@ describe('visibleApps con nivel', () => {
     // plan asignado se conserva en solo lectura (regla 1, pivote 2.1). Lo
     // demás premium sigue cerrado. 7-sep-2026: salió Protocolos (premium),
     // así que son 20 premium menos Suplementos = 19.
-    const conEvaluacion = visibleApps(true, 'free', true);
+    const conEvaluacion = visibleApps(true, 'free', true, VENDIENDO);
     expect(conEvaluacion.filter((a) => a.bloqueada)).toHaveLength(19);
     expect(conEvaluacion.filter((a) => a.minTier === 'elite' && a.bloqueada)).toHaveLength(0);
     expect(conEvaluacion.find((a) => a.key === 'genetica')?.bloqueada).toBe(false);
     expect(conEvaluacion.find((a) => a.key === 'suplementos')?.bloqueada).toBe(false);
     // Sin evaluación, elite (el nivel) también la abre.
-    expect(visibleApps(true, 'elite').find((a) => a.key === 'genetica')?.bloqueada).toBe(false);
+    expect(visibleApps(true, 'elite', false, VENDIENDO).find((a) => a.key === 'genetica')?.bloqueada).toBe(false);
   });
 
   it('ABIERTAS_CON_EVALUACION_ELITE: solo Suplementos, existe en el registro y sin evaluación sigue cerrada para free', () => {
@@ -158,13 +168,43 @@ describe('visibleApps con nivel', () => {
     }
     // La excepción es por EXISTENCIA de la evaluación: sin ella, Suplementos
     // sigue siendo Pro para un free (nada se regala por accidente).
-    expect(visibleApps(true, 'free', false).find((a) => a.key === 'suplementos')?.bloqueada).toBe(true);
-    expect(visibleApps(true, 'premium', false).find((a) => a.key === 'suplementos')?.bloqueada).toBe(false);
+    expect(visibleApps(true, 'free', false, VENDIENDO).find((a) => a.key === 'suplementos')?.bloqueada).toBe(true);
+    expect(visibleApps(true, 'premium', false, VENDIENDO).find((a) => a.key === 'suplementos')?.bloqueada).toBe(false);
   });
 
   it('no muta el registro', () => {
-    visibleApps(true, 'free');
+    visibleApps(true, 'free', false, VENDIENDO);
     for (const a of APP_REGISTRY) expect(Object.keys(a), a.key).not.toContain('bloqueada');
+  });
+});
+
+/**
+ * 7-sep-2026: con la venta al público apagada, `premium` deja de cerrar y
+ * `elite` sigue cerrando. Cada caso de aquí es un candado que se ABRE; ninguno
+ * cierra algo que antes estaba abierto.
+ */
+describe('con la venta al público apagada', () => {
+  it('premium deja de cerrar; elite sigue cerrando', () => {
+    expect(nivelAlcanza('free', 'premium', NO_VENDIENDO)).toBe(true);
+    expect(nivelAlcanza('free', 'elite', NO_VENDIENDO)).toBe(false);
+    expect(nivelAlcanza('premium', 'elite', NO_VENDIENDO)).toBe(false);
+    expect(nivelAlcanza('elite', 'elite', NO_VENDIENDO)).toBe(true);
+  });
+
+  it('a un free solo le queda bloqueada Genética, que es contenido Elite y no venta', () => {
+    const bloqueadas = visibleApps(true, 'free', false, NO_VENDIENDO).filter((a) => a.bloqueada).map((a) => a.key);
+    expect(bloqueadas).toEqual(['genetica']);
+  });
+
+  it('la evaluación Elite sigue abriendo Genética por existencia', () => {
+    const conEvaluacion = visibleApps(true, 'free', true, NO_VENDIENDO);
+    expect(conEvaluacion.filter((a) => a.bloqueada)).toHaveLength(0);
+  });
+
+  it('nadie pierde nada: quien ya tenía todo abierto lo sigue teniendo', () => {
+    expect(visibleApps(true, 'elite', false, NO_VENDIENDO).some((a) => a.bloqueada)).toBe(false);
+    const premium = visibleApps(true, 'premium', false, NO_VENDIENDO).filter((a) => a.bloqueada).map((a) => a.key);
+    expect(premium).toEqual(['genetica']);
   });
 });
 

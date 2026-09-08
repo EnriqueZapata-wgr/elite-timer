@@ -44,7 +44,7 @@ import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 // anual y Founders. La regla es pura (limites-free-core); el origen del grant
 // se lee de tier_grants y el producto del entitlement de RevenueCat.
 import { useSubscription } from '@/src/hooks/useSubscription';
-import { diasEntre, tieneMapaFuncional } from '@/src/services/subscription/limites-free-core';
+import { candadoDeVentaCierra, diasEntre, tieneMapaFuncional } from '@/src/services/subscription/limites-free-core';
 import { fetchOrigenMembresia, type OrigenMembresiaLectura } from '@/src/services/subscription/subscription-service';
 import { CandadoBloque } from '@/src/components/ui/CandadoBloque';
 import { contextoCandado } from '@/src/constants/rutas-3-0';
@@ -211,7 +211,10 @@ export default function DiagnosticoScreen() {
   const puedeGenerar: boolean | null = (() => {
     if (nivelNoSePudoLeer) return true;
     if (nivelCargando) return null;
-    if (tier === 'free') return false;
+    // 7-sep-2026 (VENTA_AL_PUBLICO): el mapa funcional era candado de venta
+    // (Elite, Pro anual y Founders). Con la venta al público apagada no cierra
+    // para nadie; `tieneMapaFuncional` de abajo también abre por la bandera.
+    if (candadoDeVentaCierra(tier)) return false;
     if (esElite) return true;
     if (!origen) return null;
     if (origen.noSePudoLeer) return true;

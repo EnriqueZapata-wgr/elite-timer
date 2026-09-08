@@ -15,6 +15,7 @@
 import type { Href } from 'expo-router';
 import type { AppIconName } from '@/src/components/ui/app-icon-names';
 import type { Tier } from '@/src/services/subscription/tier-logic';
+import { VENTA_AL_PUBLICO } from '@/src/constants/flags';
 
 /** Las secciones de la sala ATP, en orden de render. */
 export type AppSection = 'mente' | 'cuerpo' | 'diario' | 'salud' | 'sistema';
@@ -230,8 +231,18 @@ const RANGO_NIVEL: Record<Tier, number> = { free: 0, premium: 1, elite: 2 };
  * test del registro y las tarjetas de Hoy usen la misma regla.
  * Sin mínimo, abre para todos. Elite abre todo lo premium (suma, no recorte).
  */
-export function nivelAlcanza(tier: Tier, minTier: MinTier | undefined): boolean {
+export function nivelAlcanza(
+  tier: Tier,
+  minTier: MinTier | undefined,
+  ventaAlPublico: boolean = VENTA_AL_PUBLICO,
+): boolean {
   if (!minTier) return true;
+  // 7-sep-2026 (VENTA_AL_PUBLICO): con la venta al público apagada, `premium`
+  // deja de cerrar nada. Es un candado de VENTA y hoy no hay nada que vender.
+  // `elite` NO se toca: no es candado de venta, es que el contenido (la
+  // evaluación, la genética) existe o no existe para esa persona, y quien la
+  // tiene la abre por EXISTENCIA desde `visibleApps`.
+  if (ventaAlPublico !== true && minTier === 'premium') return true;
   return RANGO_NIVEL[tier] >= RANGO_NIVEL[minTier];
 }
 
@@ -267,13 +278,14 @@ export function visibleApps(
   cycleVisible: boolean,
   tier: Tier = 'free',
   tieneEvaluacionElite = false,
+  ventaAlPublico: boolean = VENTA_AL_PUBLICO,
 ): AppVisible[] {
   return APP_REGISTRY
     .filter((a) => !a.femaleOnly || cycleVisible)
     .map((a) => {
       const abiertaPorEvaluacion = tieneEvaluacionElite
         && (a.minTier === 'elite' || ABIERTAS_CON_EVALUACION_ELITE.includes(a.key));
-      return { ...a, bloqueada: !abiertaPorEvaluacion && !nivelAlcanza(tier, a.minTier) };
+      return { ...a, bloqueada: !abiertaPorEvaluacion && !nivelAlcanza(tier, a.minTier, ventaAlPublico) };
     });
 }
 

@@ -12,6 +12,8 @@
  * Prometerlo sin hacerlo es bait-and-switch, así que esto NO se enciende
  * antes de ese trámite.
  */
+import { VENTA_AL_PUBLICO } from '@/src/constants/flags';
+
 export const VENTANA_LANZAMIENTO = {
   activa: false,
   /** Fecha legible en español de México, por ejemplo '31 de octubre de 2026'. */
@@ -33,8 +35,19 @@ export const NOMBRE_COACH_ELITE = 'Enrique';
  */
 export const CONTACTO_ELITE_EMAIL = 'hola@somosatp.com';
 
-/** El copy del paywall cuando la ventana está activa. Puro, para probarlo. */
-export function copyLanzamiento(v: { activa: boolean; hasta: string }): string | null {
+/**
+ * El copy del paywall cuando la ventana está activa. Puro, para probarlo.
+ *
+ * 7-sep-2026 (VENTA_AL_PUBLICO): la ventana de lanzamiento es una promesa de
+ * precio, o sea venta pura. Con la venta al público apagada no se dice nada de
+ * lanzamiento aunque alguien deje `activa` en true por error. El día que se
+ * vuelva a encender, primero va el trámite de App Store Connect (3.1.2(a)).
+ */
+export function copyLanzamiento(
+  v: { activa: boolean; hasta: string },
+  ventaAlPublico: boolean = VENTA_AL_PUBLICO,
+): string | null {
+  if (ventaAlPublico !== true) return null;
   if (!v.activa || !v.hasta.trim()) return null;
   return `Precio de lanzamiento: se mantiene para quien se suscriba antes del ${v.hasta.trim()}. Después sube.`;
 }

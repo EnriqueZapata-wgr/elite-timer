@@ -23,7 +23,7 @@
  */
 import { useMemo, useState } from 'react';
 import { Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +38,7 @@ import { esMiembro } from '@/src/services/subscription/tier-logic';
 import { esContextoPaywall, type ContextoPaywall } from '@/src/constants/rutas-3-0';
 import { APP_REGISTRY } from '@/src/constants/app-registry';
 import { VENTANA_LANZAMIENTO, copyLanzamiento } from '@/src/constants/lanzamiento';
+import { VENTA_AL_PUBLICO } from '@/src/constants/flags';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { ATP_BRAND, GLOW, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
@@ -98,7 +99,30 @@ const LEGAL_LINKS = [
   { label: 'Reembolsos', url: 'https://somosatp.com/reembolsos' },
 ];
 
+/**
+ * 7-sep-2026 (VENTA_AL_PUBLICO): con la venta al público apagada esta pantalla
+ * no se pinta. Nadie debería llegar (los candados de venta no se calculan y el
+ * chip del chat no aparece), pero un deep link de un aviso agendado la semana
+ * pasada, o un OTA viejo, sí pueden traer a alguien aquí: enseñarle una
+ * pantalla de compra a un cliente que ya pagó su evaluación es exactamente lo
+ * que este apagado evita. Se manda al gate (`/`), que es quien sabe a dónde va
+ * cada quien (onboarding a medias, consentimiento, HOY): mandar directo a las
+ * pestañas se saltaría esa decisión, que es justo el agujero que cerró
+ * LOGIN_PASA_POR_GATE.
+ *
+ * La pantalla NO se borra ni se retira su ruta: sigue completa debajo y el
+ * censo la sigue viendo por las puertas que quedaron en el código. Encender
+ * `VENTA_AL_PUBLICO` la revive tal cual, sin tocar una línea de aquí.
+ *
+ * El guard va en un envoltorio SIN hooks para no alterar el orden de los del
+ * cuerpo, que son muchos y están repartidos.
+ */
 export default function PaywallScreen() {
+  if (VENTA_AL_PUBLICO !== true) return <Redirect href="/" />;
+  return <PantallaDeCompra />;
+}
+
+function PantallaDeCompra() {
   // MB-31B remate: pantalla sin dueño en el reparto — tokens del tema.
   const { kind, tokens: t } = useAppTheme();
   const styles = useMemo(() => makeStyles(t), [t]);

@@ -27,6 +27,7 @@ import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { CandadoNivel, destinoCandado } from '@/src/components/ui/CandadoNivel';
 import { useSubscription } from '@/src/hooks/useSubscription';
+import { candadoDeVentaCierra } from '@/src/services/subscription/limites-free-core';
 import {
   generateInterventionRationale,
   getRationaleQuote,
@@ -65,7 +66,9 @@ export default function InterventionRationaleScreen() {
    * mientras el nivel carga o no se pudo leer, no se cierra nada.
    */
   const { tier, isLoading: nivelCargando, nivelNoSePudoLeer } = useSubscription();
-  const conCandado = !nivelCargando && !nivelNoSePudoLeer && tier === 'free';
+  // 7-sep-2026 (VENTA_AL_PUBLICO): el candado de venta lo decide una sola
+  // función. Con la venta al público apagada nunca cierra.
+  const conCandado = !nivelCargando && candadoDeVentaCierra(tier, nivelNoSePudoLeer);
   const [state, setState] = useState<'idle' | 'offer' | 'loading' | 'done' | 'error' | 'no_dx' | 'no_protocol'>('idle');
   const [quote, setQuote] = useState<RationaleQuote | null>(null);
   const [markdown, setMarkdown] = useState<string | null>(null);

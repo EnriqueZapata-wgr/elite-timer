@@ -35,17 +35,31 @@ describe('fechaAvisoDia7', () => {
   });
 });
 
+/**
+ * 7-sep-2026 (VENTA_AL_PUBLICO): el contrato se RE-APUNTA, no se afloja. Cada
+ * caso de abajo declara `ventaAlPublico: true` de forma explícita y sigue
+ * exigiendo exactamente lo mismo que exigía; el bloque nuevo prueba el
+ * comportamiento de hoy, con la venta apagada.
+ */
 describe('debeProgramarAvisoDia7', () => {
   it('free confirmado con permiso: sí', () => {
-    expect(debeProgramarAvisoDia7({ tier: 'free', nivelNoSePudoLeer: false, permisoConcedido: true })).toBe(true);
+    expect(debeProgramarAvisoDia7({ tier: 'free', nivelNoSePudoLeer: false, permisoConcedido: true, ventaAlPublico: true })).toBe(true);
   });
   it('premium y elite: nunca', () => {
-    expect(debeProgramarAvisoDia7({ tier: 'premium', nivelNoSePudoLeer: false, permisoConcedido: true })).toBe(false);
-    expect(debeProgramarAvisoDia7({ tier: 'elite', nivelNoSePudoLeer: false, permisoConcedido: true })).toBe(false);
+    expect(debeProgramarAvisoDia7({ tier: 'premium', nivelNoSePudoLeer: false, permisoConcedido: true, ventaAlPublico: true })).toBe(false);
+    expect(debeProgramarAvisoDia7({ tier: 'elite', nivelNoSePudoLeer: false, permisoConcedido: true, ventaAlPublico: true })).toBe(false);
   });
   it('sin permiso o sin saber el nivel: no', () => {
-    expect(debeProgramarAvisoDia7({ tier: 'free', nivelNoSePudoLeer: false, permisoConcedido: false })).toBe(false);
-    expect(debeProgramarAvisoDia7({ tier: 'free', nivelNoSePudoLeer: true, permisoConcedido: true })).toBe(false);
+    expect(debeProgramarAvisoDia7({ tier: 'free', nivelNoSePudoLeer: false, permisoConcedido: false, ventaAlPublico: true })).toBe(false);
+    expect(debeProgramarAvisoDia7({ tier: 'free', nivelNoSePudoLeer: true, permisoConcedido: true, ventaAlPublico: true })).toBe(false);
+  });
+  it('con la venta al público apagada no se programa para nadie', () => {
+    expect(debeProgramarAvisoDia7({ tier: 'free', nivelNoSePudoLeer: false, permisoConcedido: true, ventaAlPublico: false })).toBe(false);
+  });
+  it('fail-open del lado correcto: lo que no sea exactamente true no avisa', () => {
+    // Aquí abrir es NO mandar la notificación de venta, así que la compuerta
+    // `=== true` cae del lado que no molesta a un cliente que ya pagó.
+    expect(debeProgramarAvisoDia7({ tier: 'free', nivelNoSePudoLeer: false, permisoConcedido: true, ventaAlPublico: undefined as unknown as boolean })).toBe(false);
   });
 });
 

@@ -24,6 +24,14 @@ export function fechaAvisoDia7(desde: Date): Date {
 
 export interface DecisionAvisoDia7 {
   tier: 'free' | 'premium' | 'elite';
+  /**
+   * 7-sep-2026: estado de `VENTA_AL_PUBLICO`. Este aviso es puro anzuelo de
+   * venta ("mira todo lo que abre Pro"), así que con la venta al público
+   * apagada no se programa para nadie. Se recibe como dato y no se importa la
+   * bandera para que el test pruebe el contrato con la venta encendida y el
+   * comportamiento de hoy con ella apagada.
+   */
+  ventaAlPublico: boolean;
   /** true si la lectura del nivel falló: no se sabe si paga, y no se le avisa. */
   nivelNoSePudoLeer: boolean;
   /** Permiso de notificaciones ya concedido. Sin permiso no se pide otra vez. */
@@ -31,11 +39,13 @@ export interface DecisionAvisoDia7 {
 }
 
 /**
- * ¿Se programa el aviso? Solo Free confirmado y con permiso. Ante la duda
- * (no se pudo leer el nivel) no se avisa: molestar a un miembro con "mira lo
- * que abre Pro" es peor que no avisar a un Free.
+ * ¿Se programa el aviso? Solo con la venta al público encendida, y aun así
+ * solo Free confirmado y con permiso. Ante la duda (no se pudo leer el nivel)
+ * no se avisa: molestar a un miembro con "mira lo que abre Pro" es peor que no
+ * avisar a un Free.
  */
 export function debeProgramarAvisoDia7(d: DecisionAvisoDia7): boolean {
+  if (d.ventaAlPublico !== true) return false;
   return d.tier === 'free' && !d.nivelNoSePudoLeer && d.permisoConcedido;
 }
 

@@ -38,7 +38,7 @@ import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerG
 import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
 import { CandadoBloque } from '@/src/components/ui/CandadoBloque';
 import { useSubscription } from '@/src/hooks/useSubscription';
-import { puedeVerFicha } from '@/src/services/subscription/limites-free-core';
+import { candadoDeVentaCierra, puedeVerFicha } from '@/src/services/subscription/limites-free-core';
 import { cargarMarcadoresAbiertosFree } from '@/src/services/subscription/limites-free-service';
 
 const COLOR_CICLO = '#D4537E';
@@ -78,7 +78,10 @@ function FichaBiomarcadorScreen() {
       try {
         // Solo con free CONFIRMADO se consulta el límite; si el nivel no se
         // pudo leer o el cálculo falla (null), se abre (fail-open, regla 1).
-        if (tier === 'free' && !nivelNoSePudoLeer) {
+        // 7-sep-2026 (VENTA_AL_PUBLICO): con la venta al público apagada la
+        // compuerta ni siquiera consulta, así que abrir una ficha deja de
+        // costar una lectura de `lab_values` que ya no decide nada.
+        if (candadoDeVentaCierra(tier, nivelNoSePudoLeer)) {
           const abiertos = await cargarMarcadoresAbiertosFree(user.id);
           if (!puedeVerFicha(tier, key, abiertos)) {
             if (alive) setBloqueado(true);

@@ -847,3 +847,79 @@ export const TUTORIAL_POR_PANTALLA = true;
  *  Sin migración, sin build nativo, sin tocar un solo dato.
  */
 export const ACERO_OSCURO = true;
+
+/**
+ * VENTA_AL_PUBLICO (7-sep-2026) — el aparato de cobro masivo queda APAGADO,
+ * no borrado.
+ *
+ * POR QUÉ, CON FECHA
+ *  Decisión del dueño del 7-sep-2026: ATP deja de ser una app para el público
+ *  y pasa a ser exclusivamente para sus clientes Elite, que ya pagaron su
+ *  evaluación. No se venden suscripciones hasta que entre un inversionista.
+ *  Todo lo que esta bandera apaga se construyó la semana del 1 al 7 de
+ *  septiembre y FUNCIONA: paywall con contextos, límites de la cuenta gratis,
+ *  aviso del día 7, ventana de lanzamiento, RevenueCat. Reescribirlo costaría
+ *  semanas; volver a encenderlo cuesta esta línea. Lo único que sobra hoy es
+ *  que le estorbe a un cliente que ya pagó, o que le enseñe una pantalla de
+ *  venta a quien ya compró.
+ *
+ * QUÉ APAGA CON `false` (el estado de hoy)
+ *  · Los tres límites de la cuenta gratis, los tres en `limites-free-core`:
+ *    un solo estudio de laboratorio (`puedeSubirEstudio`), tres marcadores con
+ *    ficha (`puedeVerFicha`) y el mapa funcional reservado al plan anual
+ *    (`tieneMapaFuncional`). Y el tope de tres chats al día de ARGOS, que NO
+ *    vive aquí sino en el servidor (ver el punto 2 de cómo encenderlo).
+ *  · El aviso local del día 7 (`debeProgramarAvisoDia7`). Además, el que ya
+ *    estuviera programado en un teléfono se cancela al primer arranque
+ *    (`useSubscription`): si no, un aviso agendado la semana pasada abriría
+ *    el paywall en el teléfono de un cliente.
+ *  · Los candados de nivel `premium`: `nivelAlcanza` deja de cerrar lo que
+ *    exige Pro, así que el Kit y el Centro abren sus apps, y `CandadoNivel`
+ *    no pinta la píldora "Pro".
+ *  · Toda la superficie de compra: `app/paywall.tsx` regresa a HOY en vez de
+ *    pintar la pantalla de venta, el chip "Ver Pro" del chat no aparece y
+ *    "Activar mi membresía" de Ajustes se retira. Las rutas y sus puertas
+ *    SIGUEN en el código: el censo las ve, nadie llega a ellas.
+ *  · La ventana de lanzamiento (`copyLanzamiento`).
+ *
+ * QUÉ NO APAGA, A PROPÓSITO
+ *  · El nivel Elite sobre lo que es de Elite: Mi evaluación Elite y Genética
+ *    siguen abriéndose por EXISTENCIA de la evaluación. Eso no es un candado
+ *    de venta, es que el contenido existe o no existe para esa persona.
+ *  · El árbitro de niveles (`tier-logic`, `get_my_effective_tier`), los
+ *    códigos de activación y los grants: son la puerta de entrada de los
+ *    clientes Elite y siguen vivos tal cual.
+ *  · RevenueCat sigue configurado y leyendo entitlements. Apagar la lectura le
+ *    quitaría el nivel a quien lo tiene SOLO por una compra de tienda, y la
+ *    regla de la casa es que apagar límites solo puede ABRIR. Lo que se retira
+ *    es la superficie de compra, no la lectura.
+ *
+ * FAIL OPEN
+ *  Cada compuerta pregunta `ventaAlPublico === true` para CERRAR. Cualquier
+ *  otro valor, incluido un `undefined` porque un import no resolvió, deja la
+ *  app ABIERTA. Nunca al revés.
+ *
+ * CÓMO VOLVER A ENCENDERLO (el día del inversionista)
+ *  1. `true` aquí, `npx tsc --noEmit`, `eas update --branch preview`. Con eso
+ *     vuelve TODO el comportamiento del cliente, byte por byte.
+ *  2. Poner `VENTA_AL_PUBLICO=true` en las env vars de las TRES funciones edge
+ *     y desplegarlas: `argos-proxy` (tope de 3 chats al día de Free),
+ *     `argos-voice` (voz de ARGOS cerrada para Free) y `mente-audio-url`
+ *     (piezas de audio con `tier='pro'`). Sin este paso el servidor queda
+ *     ABIERTO aunque el cliente pinte candados, que es el lado seguro del
+ *     desfase; al revés (servidor cerrado, cliente abierto) es el que duele.
+ *  3. Revisar en RevenueCat que la offering `current` exista con sus dos
+ *     paquetes (mensual y anual): el paywall lee de ahí y sin catálogo se
+ *     queda mudo. Y en App Store Connect, hacer el trámite de preservar el
+ *     precio a los suscriptores existentes ANTES de encender
+ *     `VENTANA_LANZAMIENTO` (Apple 3.1.2(a), ver `src/constants/lanzamiento.ts`).
+ *  Sin migración: esta bandera no toca una sola fila de la base.
+ *
+ * POR QUÉ LLEVA `: boolean` Y LAS OTRAS BANDERAS NO
+ *  Sin la anotación, TypeScript le da el tipo literal `false` y entonces cada
+ *  `VENTA_AL_PUBLICO !== true` de las compuertas es una comparación sin
+ *  intersección (error 2367) y todo lo que cuelga del lado encendido se lee
+ *  como código muerto. Con `boolean`, las dos ramas siguen siendo válidas y
+ *  cambiar el valor de verdad es cambiar UNA palabra.
+ */
+export const VENTA_AL_PUBLICO: boolean = false;

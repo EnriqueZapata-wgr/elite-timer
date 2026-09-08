@@ -156,6 +156,22 @@ async function handleStt(body: any): Promise<Response> {
 // (get_effective_tier, mig 262), misma caché de 30 s, y el mismo fail-safe:
 // ante error de lectura se ABRE (se trata como miembro). Un hiccup de base
 // nunca le quita la voz a quien la pagó.
+/**
+ * VENTA_AL_PUBLICO (7-sep-2026) — espejo en el servidor de la bandera del
+ * cliente (`src/constants/flags.ts`). Decisión del dueño: ATP deja de venderse
+ * al público y queda para sus clientes Elite hasta que entre un inversionista.
+ *
+ * Por qué el default es APAGADO y no encendido: la bandera del cliente ya está
+ * en false, y de los dos desfases posibles solo uno duele. Servidor abierto con
+ * cliente cerrado no le quita nada a nadie; servidor cerrado con cliente
+ * abierto le quita la voz a alguien a quien la app se la ofrece sin condición, que
+ * es peor que como estaba antes. Ante la duda, no se cierra.
+ *
+ * Para volver a cobrarle al público: `VENTA_AL_PUBLICO=true` en las env vars de
+ * esta función y desplegarla, junto con el flag del cliente en true.
+ */
+const VENTA_AL_PUBLICO = Deno.env.get("VENTA_AL_PUBLICO") === "true";
+
 type TierEfectivo = "free" | "premium" | "elite";
 
 /** Valores de tier que significan "pagó" (espejo de tier-logic.ts). */
@@ -257,7 +273,7 @@ serve(async (req) => {
   // ligero en argos_logs (costo 0) para poder medir cuántos Free tocan la voz,
   // que es un momento de conversión del pivote (3.3).
   const effectiveTier = await detectEffectiveTier(supabase, userId);
-  if (effectiveTier === "free") {
+  if (VENTA_AL_PUBLICO && effectiveTier === "free") {
     await logVoiceCall(supabase, {
       user_id: userId,
       tier: effectiveTier,

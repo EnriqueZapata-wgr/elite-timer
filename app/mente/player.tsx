@@ -32,6 +32,7 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { VENTA_AL_PUBLICO } from '@/src/constants/flags';
 import {
   fetchAudioPieces, getAudioUrl, getSavedProgress, savePosition, clearPosition,
   logAudioSession, fetchFavoriteSlugs, setFavorite,
@@ -202,6 +203,15 @@ export default function MenteAudioPlayerScreen() {
       if (cancelled || !isLoadCurrent(myGen)) return;
       if (urlResult.status === 'pro_required') {
         haptic.warning();
+        // 7-sep-2026 (VENTA_AL_PUBLICO): con la venta al público apagada no se
+        // manda a nadie al paywall. Este 403 solo puede llegar si
+        // `mente-audio-url` todavía no se despliega con la bandera; el camino
+        // honesto es decirlo y regresar, no abrir una pantalla de compra.
+        if (VENTA_AL_PUBLICO !== true) {
+          Alert.alert('Esta pieza no se abrió', 'No pudimos entregarte este audio ahora. Escríbenos y lo revisamos.');
+          router.back();
+          return;
+        }
         router.replace('/paywall');
         return;
       }

@@ -53,6 +53,7 @@ import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerF
 import { AppIcon } from '@/src/components/ui/AppIcon';
 import { CandadoNivel } from '@/src/components/ui/CandadoNivel';
 import { useSubscription } from '@/src/hooks/useSubscription';
+import { candadoDeVentaCierra } from '@/src/services/subscription/limites-free-core';
 
 
 type Row = {
@@ -135,7 +136,9 @@ function AtpLabsScreen() {
   // Ruta 2.5: el badge del candado solo cuando SABEMOS que es free. Cargando o
   // sin lectura del nivel, sin badge (fail-open); la pantalla destino decide.
   const { tier, isLoading: nivelCargando, nivelNoSePudoLeer } = useSubscription();
-  const compararConCandado = !nivelCargando && !nivelNoSePudoLeer && tier === 'free';
+  // 7-sep-2026 (VENTA_AL_PUBLICO): el candado de venta lo decide una sola
+  // función. Con la venta al público apagada nunca cierra.
+  const compararConCandado = !nivelCargando && candadoDeVentaCierra(tier, nivelNoSePudoLeer);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;

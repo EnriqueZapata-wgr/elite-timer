@@ -17,6 +17,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { Fonts, FontSizes } from '@/constants/theme';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { VENTA_AL_PUBLICO } from '@/src/constants/flags';
 import { haptic } from '@/src/utils/haptics';
 
 interface Props {
@@ -27,6 +28,12 @@ interface Props {
 export function VerProRow({ contexto }: Props) {
   const t = useSurfaceTokens();
   const s = useMemo(() => makeStyles(t), [t]);
+  // 7-sep-2026 (VENTA_AL_PUBLICO): el chip es la puerta al paywall. Con la
+  // venta al público apagada no se pinta. El mensaje del proxy sí se sigue
+  // viendo como burbuja: si el servidor todavía corta (falta desplegar la
+  // función con VENTA_AL_PUBLICO=true), decirlo es más honesto que callarlo,
+  // pero no se ofrece comprar algo que hoy no se vende.
+  if (VENTA_AL_PUBLICO !== true) return null;
   return (
     <View style={s.wrap}>
       <AnimatedPressable
