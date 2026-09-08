@@ -1,12 +1,13 @@
 {
   "scheme": "atp",
-  "generado": "2026-09-07T23:05:06.120Z",
+  "generado": "2026-09-08T18:45:35.980Z",
   "resumen": {
-    "estaticas": 202,
+    "estaticas": 203,
     "dinamicas": 99,
     "variantes": 12
   },
   "fuera": {
+    "/consola/[clienteId]": "el id es un UUID de un cliente real de Enrique: la consola es su herramienta de trabajo, no una pantalla del cliente, y fotografiarla con un id inventado solo pintaria el estado vacio",
     "/comunidad/perfil/[userId]": "el id es un UUID de un usuario real de Supabase: no hay lista en el código",
     "/historia-clinica/[category]": "14 de 16 omitidas: redirige al motor de cuestionarios; con dos se ve que la redirección vive",
     "/salud/intervenciones/[key]": "85 de 88 omitidas: la pantalla lee lo asignado al usuario, no el catálogo; el resto es el mismo estado vacío",
@@ -440,6 +441,12 @@
       "archivo": "app/consentimientos.tsx",
       "tipo": "estatica",
       "slug": "consentimientos"
+    },
+    {
+      "ruta": "/consola",
+      "archivo": "app/consola/index.tsx",
+      "tipo": "estatica",
+      "slug": "consola"
     },
     {
       "ruta": "/cycle",

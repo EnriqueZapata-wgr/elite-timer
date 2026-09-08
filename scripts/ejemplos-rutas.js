@@ -161,6 +161,8 @@ const FUENTES = [
  * es exactamente el agujero que este archivo vino a tapar.
  */
 const SIN_FUENTE = {
+  '/consola/[clienteId]':
+    'el id es un UUID de un cliente real de Enrique: la consola es su herramienta de trabajo, no una pantalla del cliente, y fotografiarla con un id inventado solo pintaria el estado vacio',
   '/comunidad/perfil/[userId]':
     'el id es un UUID de un usuario real de Supabase: no hay lista en el código',
 };

@@ -95,17 +95,25 @@ export const RUTAS_VETADAS: ReadonlyMap<string, string> = new Map([
 ]);
 
 /**
- * Prefijos vetados completos (todo el onboarding).
- * 7-sep-2026: la primera sesión nueva se veta igual que el onboarding viejo.
- * ARGOS no lleva a nadie a un flujo de bienvenida que ya pasó.
+ * Prefijos vetados completos, con su razon.
+ * 7-sep-2026: la primera sesion nueva se veta igual que el onboarding viejo.
+ * ARGOS no lleva a nadie a un flujo de bienvenida que ya paso.
+ * 8-sep-2026: /consola es la herramienta de trabajo de Enrique, no una
+ * pantalla del cliente. Vive en el mapa generado para que el barrido visual
+ * pueda fotografiarla, pero ARGOS jamas lleva a nadie ahi: quien no es admin
+ * no veria nada, y quien lo es no llega por una frase suelta.
  */
-const PREFIJOS_VETADOS: readonly string[] = ['/onboarding', '/primera-sesion'];
+const PREFIJOS_VETADOS: ReadonlyArray<readonly [string, string]> = [
+  ['/onboarding', 'flujo de bienvenida'],
+  ['/primera-sesion', 'flujo de bienvenida'],
+  ['/consola', 'herramienta interna del coach'],
+];
 
 export function rutaVetada(ruta: string): string | null {
   const directa = RUTAS_VETADAS.get(ruta);
   if (directa) return directa;
-  for (const p of PREFIJOS_VETADOS) {
-    if (ruta === p || ruta.startsWith(p + '/')) return 'flujo de bienvenida';
+  for (const [p, razon] of PREFIJOS_VETADOS) {
+    if (ruta === p || ruta.startsWith(p + '/')) return razon;
   }
   return null;
 }

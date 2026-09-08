@@ -38,6 +38,7 @@ export const APP_ROUTES: readonly string[] = [
   "/comunidad/buscar",
   "/comunidad/ranking",
   "/consentimientos",
+  "/consola",
   "/cycle",
   "/cycle-charts",
   "/cycle-history",
@@ -219,6 +220,7 @@ export const APP_ROUTES: readonly string[] = [
 export const APP_ROUTES_DYNAMIC: readonly string[] = [
   "/centro/[appKey]",
   "/comunidad/perfil/[userId]",
+  "/consola/[clienteId]",
   "/edad-atp/lab/[key]",
   "/edad-atp/sub-edad/[key]",
   "/historia-clinica/[category]",
@@ -337,6 +339,7 @@ export const APP_ROUTE_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "/comunidad/buscar": "Comunidad › Buscar personas (C2) — búsqueda con debounce + agregar amigos. Espejo del servidor: mínimo 2 caracteres y rate limit 20/60s (search_users v2,",
   "/comunidad/ranking": "Comunidad › Ranking (C4) — leaderboard top 20 + tu posición destacada. Copy \"Comunidad, no competencia\": el ranking celebra la constancia, no compite",
   "/consentimientos": "La puerta legal de la app. Pivote limpio, 7 de septiembre de 2026 (paso 0). ═══ QUIÉN VE ESTA PANTALLA ═══",
+  "/consola": "/consola — la lista de clientes de Enrique (8-sep-2026). Una sola pregunta: a quien le hablo hoy. Por eso la lista viene ordenada por",
   "/cycle": "Ciclo Menstrual — Hub principal de tracking. Muestra fase actual, calendario interactivo mensual, modal de registro",
   "/cycle-charts": "Redirect legacy (OLA1 R-3, ANEXO_A_REPORTS §6). Las gráficas del ciclo son hoy la pestaña Gráficas de /reports/ciclo. El",
   "/cycle-history": "Redirect legacy (OLA1 R-3, ANEXO_A_REPORTS §6). El historial de ciclos es hoy la pestaña Ciclos de /reports/ciclo. El guard",

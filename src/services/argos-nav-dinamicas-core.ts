@@ -63,6 +63,10 @@ export function esPlantilla(ruta: string): boolean {
  */
 export const PLANTILLAS_SIN_EXPANSION: ReadonlyMap<string, string> = new Map([
   [
+    '/consola/[clienteId]',
+    'el parametro es el identificador de un cliente real de Enrique, y la consola es su herramienta de trabajo, no una pantalla del cliente: ARGOS nunca lleva ahi y el prefijo /consola esta vetado completo',
+  ],
+  [
     '/comunidad/perfil/[userId]',
     'el parámetro es el identificador de una persona real: no hay lista en el código y no debe haberla',
   ],
