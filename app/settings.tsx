@@ -166,6 +166,29 @@ export default function SettingsScreen() {
             </Animated.View>
           ))}
 
+          {/* Consola del coach (8-sep-2026). No entra en GROUPS ni en el registro
+              de apps a proposito: no es una funcion del usuario, es la
+              herramienta de trabajo de Enrique y ensena datos de salud de otras
+              personas. Aqui vive su UNICA puerta. El candado que protege de
+              verdad es RLS (coach_clients); esto solo evita que el boton se vea. */}
+          {isAdmin(user?.id) && (
+            <Animated.View entering={FadeInUp.delay(140 + GROUPS.length * 40).springify()}>
+              <AnimatedPressable
+                onPress={() => { haptic.medium(); router.push('/consola'); }}
+                style={[styles.groupCard, thCard]}
+              >
+                <View style={[styles.groupIcon, { backgroundColor: Colors.neonGreen + '15' }]}>
+                  <Ionicons name="people-outline" size={20} color={Colors.neonGreen} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <EliteText variant="body" style={styles.groupTitle}>Consola</EliteText>
+                  <EliteText variant="caption" style={styles.groupSubtitle}>Tus clientes: señal, adherencia y pendientes</EliteText>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={tokens.textoSecundario} />
+              </AnimatedPressable>
+            </Animated.View>
+          )}
+
           {showDev && (
             <Animated.View entering={FadeInUp.delay(150 + GROUPS.length * 40).springify()}>
               <AnimatedPressable
