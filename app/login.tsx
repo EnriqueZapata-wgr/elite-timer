@@ -34,6 +34,7 @@ import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { LOGIN_PASA_POR_GATE } from '@/src/constants/flags';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
+import { canjearPendiente } from '@/src/services/subscription/canje-pendiente';
 
 // Logo grande en login (~22% del alto de pantalla, como el splash nativo).
 // Es el MISMO alto que ocupaba el PNG horizontal: ese archivo era cuadrado
@@ -85,6 +86,15 @@ export default function LoginScreen() {
       setError(result.error);
     } else {
       haptic.success();
+      // PIVOTE ELITE (8-sep-2026): si esta persona se registró con un código y
+      // no hubo sesión para canjearlo (confirmación por correo activada, que
+      // es el camino de todos los clientes nuevos), el código quedó guardado
+      // en el teléfono con llave por correo. Este es el primer momento en que
+      // existe sesión, así que se canjea aquí y entra ya con su nivel puesto,
+      // sin teclear nada otra vez. Si no hay nada guardado no cuesta un viaje
+      // a la red, y si falla no bloquea la entrada: se conserva y se reintenta
+      // en el siguiente login.
+      await canjearPendiente(email.trim());
       // CIERRE-1: entrar por `/` y no por `/(tabs)`. `app/index.tsx` es el
       // único gate de onboarding de la app; brincarlo metía a HOY a usuarios
       // que nunca aceptaron CB-2, CB-3 y CB-4 (se firman en

@@ -11,6 +11,8 @@
 import { supabase } from '@/src/lib/supabase';
 import { esMiembro, tierFromProfile, type Tier } from './tier-logic';
 import { diasEntre } from './limites-free-core';
+import { warn as logWarn } from '@/src/lib/logger';
+import { estadoDesdeRespuesta, type EstadoCodigo } from './codigo-registro-core';
 
 /**
  * Lectura de nivel con su honestidad (regla 7, 4EP 5-sep-2026): `noSePudoLeer`
@@ -209,6 +211,35 @@ export async function redeemActivationCode(code: string): Promise<RedeemCodeResu
     tier: typeof result.tier === 'string' ? (result.tier as Tier) : null,
     expiresAt: typeof result.expires_at === 'string' ? result.expires_at : null,
   };
+}
+
+/**
+ * PIVOTE ELITE (8-sep-2026): mira un código SIN gastarlo, antes de crear la
+ * cuenta. La regla del dueño es "sin código de activación no hay cuenta", y
+ * el canje necesita sesión, así que la puerta se revisa antes y se consume
+ * después: ver el comentario de orden en app/register.tsx.
+ *
+ * Lo llama gente sin sesión (todavía no existe la cuenta), por eso el RPC
+ * verificar_codigo_activacion (migración 322) está abierto a anon y no
+ * devuelve nada del código: solo si sirve, si venció o si ya se usó.
+ *
+ * Gotcha del repo: supabase-js no lanza en 4xx ni sin red, devuelve
+ * { data: null, error }. Ese caso NO es "código inválido": es no_verificado.
+ */
+export async function verificarCodigoActivacion(code: string): Promise<EstadoCodigo> {
+  try {
+    const { data, error } = await supabase.rpc('verificar_codigo_activacion', { p_code: code });
+    if (error) {
+      // Si el RPC no está desplegado, PostgREST contesta 404 y aquí se ve
+      // como error normal. Queda en el log para que se note en minutos y no
+      // en semanas: para la persona sigue siendo "no se pudo verificar".
+      logWarn('[codigos] no se pudo verificar el código:', error.message);
+    }
+    return estadoDesdeRespuesta(data, Boolean(error));
+  } catch (e) {
+    logWarn('[codigos] verificación rechazada por el fetch:', e);
+    return 'no_verificado';
+  }
 }
 
 /**

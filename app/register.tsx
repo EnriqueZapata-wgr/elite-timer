@@ -25,8 +25,32 @@
  * consentimiento previo al TRATAMIENTO, no previo al registro, así que se
  * pide en la pantalla que va a escribir el primer dato de salud
  * (src/components/legal/PuertaDatosSalud.tsx).
+ *
+ * PIVOTE ELITE, 8 de septiembre de 2026: la app deja de ser para el público y
+ * pasa a ser solo para clientes con servicio contratado. Decisión del dueño:
+ * SIN CÓDIGO DE ACTIVACIÓN NO HAY CUENTA. Por eso el código es el primer campo
+ * de la pantalla: es la puerta, y nadie debería llenar cuatro campos para
+ * enterarse al final de que no puede pasar.
+ *
+ * El código NO es una vía de compra y no se presenta como tal (Apple 3.1.1):
+ * aquí no se nombra ningún precio, ninguna tienda ni ningún sitio. Es "el que
+ * te dimos con tu servicio contratado", y punto.
+ *
+ * ORDEN (verificar, crear, canjear) y por qué es ese y no otro:
+ *   1. Se VERIFICA el código con un RPC que no lo consume. Si no sirve, no se
+ *      crea cuenta: no se gastó nada y nadie quedó a medias.
+ *   2. Se crea la cuenta.
+ *   3. Se CANJEA (redeem_activation_code necesita sesión: sin cuenta no hay
+ *      quién canjee). Consumir al final garantiza que un código nunca se
+ *      queme sin cuenta detrás. El riesgo que queda es el contrario, cuenta
+ *      creada y canje fallido, y ese sí se puede reparar: la cuenta existe,
+ *      el código sigue vivo y se activa en Ajustes, Tengo un código.
+ *
+ * Quien ya tiene cuenta NO pasa por aquí: el código se exige al crear cuenta
+ * nueva, nunca al entrar. Los perfiles que existían antes de este pivote
+ * siguen entrando igual.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,6 +65,19 @@ import { logConsent } from '@/src/services/consent-log-service';
 import { ConsentCheckboxRow } from '@/src/components/legal/ConsentCheckboxRow';
 import { CONSENT_BY_ID } from '@/src/constants/consent-copy';
 import { CONSENTIMIENTOS_DE_PUERTA } from '@/src/services/acceso-consentido-core';
+import {
+  redeemActivationCode,
+  verificarCodigoActivacion,
+} from '@/src/services/subscription/subscription-service';
+import {
+  COPY_CONFIRMA_TU_CORREO,
+  mensajeDeCanjeTrasCuenta,
+  mensajeDeCodigo,
+  nivelQuedoAplicado,
+  permiteCrearCuenta,
+  tieneFormaDeCodigo,
+} from '@/src/services/subscription/codigo-registro-core';
+import { guardarCanjePendiente } from '@/src/services/subscription/canje-pendiente';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 // MB-31B remate dejó esta pantalla anclada a THEME_DARK como frontera oscura.
@@ -62,6 +99,10 @@ export default function RegisterScreen() {
   const { signUp } = useAuth();
   const analytics = useAnalytics();
 
+  // PIVOTE ELITE (8-sep-2026): el código es el primer campo y la condición de
+  // todo lo demás. Se guarda en mayúsculas porque así se escribe y así se lee
+  // en voz alta; el servidor lo normaliza de todos modos.
+  const [codigo, setCodigo] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -75,8 +116,13 @@ export default function RegisterScreen() {
   const [adultAccepted, setAdultAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // CARRERA (8-sep-2026): `loading` es estado y solo frena después del
+  // re-render. Dos toques seguidos alcanzan a entrar dos veces al mismo alta.
+  // El ref frena en el mismo tick, antes de que React pinte nada.
+  const enviandoRef = useRef(false);
 
   const validate = (): string | null => {
+    if (!tieneFormaDeCodigo(codigo)) return 'Escribe el código de activación que te dimos con tu servicio contratado';
     if (!fullName.trim()) return 'Ingresa tu nombre completo';
     if (!email.trim()) return 'Ingresa tu email';
     if (!/\S+@\S+\.\S+/.test(email.trim())) return 'Formato de email inválido';
@@ -88,6 +134,52 @@ export default function RegisterScreen() {
     return null;
   };
 
+  /**
+   * Aviso de alta y salida a la primera sesión.
+   * PIVOTE LIMPIO (7-sep-2026): esta pantalla es la 1 de 6 y la que sigue es
+   * la de las tres preguntas. El onboarding de diez pantallas dejó de ser el
+   * camino de una cuenta nueva; sus pantallas siguen existiendo para quien
+   * quedó a medias en un build anterior.
+   * `aviso` no nulo (8-sep-2026) significa: la cuenta SÍ existe, lo que no se
+   * pudo fue activar el nivel. Se entra igual; nadie se queda fuera de su
+   * propia cuenta por un canje que puede repetirse en Ajustes.
+   */
+  const avisarAltaYSeguir = (aviso: string | null) => {
+    const texto = aviso ?? 'Tu cuenta ya está lista y tu nivel quedó activo.';
+    if (typeof window !== 'undefined' && window.alert) {
+      window.alert(texto);
+      router.replace('/primera-sesion/preguntas');
+    } else {
+      Alert.alert(
+        'Cuenta creada',
+        texto,
+        [{ text: 'OK', onPress: () => router.replace('/primera-sesion/preguntas') }],
+      );
+    }
+  };
+
+  /**
+   * Cuenta creada SIN sesión: el camino de la confirmación por correo.
+   *
+   * 8-sep-2026 (revisión en frío): esto no es un canje fallido, es otro
+   * camino, y hay que tratarlo como tal. A /primera-sesion/preguntas no se
+   * puede ir sin sesión (el guardia rebota a /login), así que se va derecho a
+   * /login, pero avisando ANTES lo que hay que hacer. Antes de este arreglo,
+   * la persona aterrizaba en login sin que nada le hablara del correo.
+   */
+  const avisarConfirmaTuCorreo = () => {
+    if (typeof window !== 'undefined' && window.alert) {
+      window.alert(COPY_CONFIRMA_TU_CORREO.texto);
+      router.replace('/login');
+    } else {
+      Alert.alert(
+        COPY_CONFIRMA_TU_CORREO.titulo,
+        COPY_CONFIRMA_TU_CORREO.texto,
+        [{ text: 'Entendido', onPress: () => router.replace('/login') }],
+      );
+    }
+  };
+
   // Haptic en registro: light al enviar, success si se crea la cuenta
   const handleRegister = async () => {
     haptic.light();
@@ -96,15 +188,48 @@ export default function RegisterScreen() {
       setError(validationError);
       return;
     }
+    if (enviandoRef.current) return;
+    enviandoRef.current = true;
 
     setError(null);
     setLoading(true);
-    const result = await signUp(email.trim(), password, fullName.trim());
-    setLoading(false);
+    try {
+      // PASO 1 (8-sep-2026): la puerta. Verificar NO consume el código, así
+      // que un tropiezo aquí no gasta nada de nadie. Si no se pudo verificar,
+      // `permiteCrearCuenta` dice que no y el mensaje habla de la conexión,
+      // nunca del código: confundir "no se pudo leer" con "no existe" sería
+      // acusar de mentiroso a un cliente que ya pagó.
+      const estado = await verificarCodigoActivacion(codigo);
+      if (!permiteCrearCuenta(estado)) {
+        setError(mensajeDeCodigo(estado));
+        haptic.error();
+        return;
+      }
 
-    if (result.error) {
-      setError(result.error);
-    } else {
+      // PASO 2: la cuenta.
+      const result = await signUp(email.trim(), password, fullName.trim());
+      if (result.error) {
+        setError(result.error);
+        haptic.error();
+        return;
+      }
+
+      // ¿QUEDÓ SESIÓN? (8-sep-2026, revisión en frío). Con la confirmación por
+      // correo activada NO queda, y ese es el camino de todos los clientes
+      // nuevos. Se pregunta antes de intentar nada: sin sesión, el canje
+      // contestaría not_authenticated dos veces y la persona acabaría en
+      // login sin saber que tiene un correo esperándola.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        // El código se guarda con llave por correo y se canja solo en el
+        // primer login (canjearPendiente). Nadie lo vuelve a teclear.
+        await guardarCanjePendiente(email.trim(), codigo);
+        analytics.track(ATP_EVENTS.USER_SIGNED_UP, { method: 'email' });
+        haptic.success();
+        avisarConfirmaTuCorreo();
+        return;
+      }
+
       // CB-1, CB-3 y CB-4 aceptados → log de auditoría. Si la sesión todavía
       // no está lista, el servicio los encola en AsyncStorage y se reintentan
       // solos; y si aun así no llegan, el guardia manda a /consentimientos,
@@ -114,21 +239,32 @@ export default function RegisterScreen() {
       if (newUser?.id) await logConsent(newUser.id, [...CONSENTIMIENTOS_DE_PUERTA], 'accepted');
       // T5 HARDENING: funnel core — cuenta creada (sin PII en props).
       analytics.track(ATP_EVENTS.USER_SIGNED_UP, { method: 'email' });
-      haptic.success();
-      // PIVOTE LIMPIO (7-sep-2026): esta pantalla es la 1 de 6 y la que sigue
-      // es la de las tres preguntas. El onboarding de diez pantallas dejó de
-      // ser el camino de una cuenta nueva; sus pantallas siguen existiendo
-      // para quien quedó a medias en un build anterior.
-      if (typeof window !== 'undefined' && window.alert) {
-        window.alert('Cuenta creada exitosamente.');
-        router.replace('/primera-sesion/preguntas');
-      } else {
-        Alert.alert(
-          'Cuenta creada',
-          'Tu cuenta ha sido creada exitosamente.',
-          [{ text: 'OK', onPress: () => router.replace('/primera-sesion/preguntas') }],
-        );
+
+      // PASO 3: el canje, ya con sesión. Aquí sí se consume el código, y el
+      // servidor lo hace con SELECT ... FOR UPDATE dentro de una sola
+      // transacción: dos personas con el mismo código se serializan y solo
+      // una lo gasta. Reintentar es seguro porque el segundo intento de la
+      // MISMA persona contesta already_redeemed, que cuenta como aplicado.
+      let canje = await redeemActivationCode(codigo);
+      if (canje.status === 'network_error' || canje.status === 'not_authenticated') {
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        canje = await redeemActivationCode(codigo);
       }
+      const aviso = mensajeDeCanjeTrasCuenta(canje.status);
+      if (nivelQuedoAplicado(canje.status)) {
+        haptic.success();
+      } else {
+        haptic.error();
+        // Se guarda igual: si lo que falló fue la red, el nivel se aplica solo
+        // en la próxima entrada y la promesa del aviso se cumple.
+        if (canje.status === 'network_error' || canje.status === 'not_authenticated') {
+          await guardarCanjePendiente(email.trim(), codigo);
+        }
+      }
+      avisarAltaYSeguir(aviso);
+    } finally {
+      setLoading(false);
+      enviandoRef.current = false;
     }
   };
 
@@ -151,6 +287,25 @@ export default function RegisterScreen() {
 
           {/* Formulario */}
           <View style={styles.form}>
+            {/* PIVOTE ELITE (8-sep-2026): la puerta va primero. El texto de
+                abajo nombra el código como lo que es, lo que va con el
+                servicio contratado, sin hablar de precios ni de dónde se
+                compra: no es una vía de pago (Apple 3.1.1). */}
+            <EliteInput
+              label="CÓDIGO DE ACTIVACIÓN"
+              placeholder="ATP-XXXX-XXXX"
+              value={codigo}
+              onChangeText={(texto) => { setCodigo(texto.toUpperCase()); if (error) setError(null); }}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              autoComplete="off"
+              accentColor={t.tealTexto}
+              containerStyle={styles.campoCodigo}
+            />
+            <EliteText variant="caption" style={styles.ayudaCodigo}>
+              Es el código que te dimos con tu servicio contratado. Si no lo encuentras, avísanos y te lo reenviamos.
+            </EliteText>
+
             <EliteInput
               label="NOMBRE COMPLETO"
               placeholder="Tu nombre"
@@ -305,6 +460,16 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   },
   form: {
     alignItems: 'center',
+  },
+  campoCodigo: {
+    marginBottom: Spacing.xs,
+  },
+  ayudaCodigo: {
+    alignSelf: 'stretch',
+    color: t.textoSecundario,
+    lineHeight: 18,
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.xs,
   },
   passwordContainer: {
     width: '100%',

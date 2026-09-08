@@ -31,6 +31,11 @@ import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 // PREMIUM (16-ago-2026): el código ya no otorga un plan entre varios, otorga
 // LA membresía. El servidor sigue devolviendo la etiqueta vieja en su
 // respuesta y no pasa nada: aquí ya no se nombra ningún nivel.
+// PIVOTE ELITE (8-sep-2026): con los códigos Elite ya sí importa el nombre.
+// El nivel lo sigue decidiendo el servidor; aquí solo se lee su respuesta,
+// para no felicitar por Premium a quien acaba de activar Elite. Esta pantalla
+// se queda para quien contrata DESPUÉS de tener cuenta; quien llega nuevo ya
+// entra con su nivel puesto desde el registro.
 
 /** Copy por resultado del RPC. Cada caso dice algo distinto a propósito. */
 const ERROR_COPY: Record<string, string> = {
@@ -137,7 +142,7 @@ export default function RedeemCodeScreen() {
           <Animated.View entering={FadeInUp.springify()} style={styles.successCard}>
             <Ionicons name="checkmark-circle" size={28} color={ATP_BRAND.lime} />
             <EliteText style={styles.successTitle}>
-              Listo. Tu membresía ATP Premium ya está activa.
+              {`Listo. Tu membresía ${result.tier === 'elite' ? 'ATP Elite' : 'ATP Premium'} ya está activa.`}
             </EliteText>
             <EliteText style={styles.successDetail}>
               {result.expiresAt

@@ -1,6 +1,6 @@
 # Cómo obtener tu JWT para los comandos Elite
 
-Los dos RPC de Elite (`generate_activation_codes` y `elite_cargar_evaluacion`) se llaman con tu sesión de admin, nunca con `service_role`. Esa sesión es un JWT (access token) de Supabase Auth. La app no lo muestra en Ajustes, así que se pide con un `curl` al endpoint de login.
+Los RPC de Elite (`generate_activation_codes`, `listar_codigos_activacion` y `elite_cargar_evaluacion`) se llaman con tu sesión de admin, nunca con `service_role`. Esa sesión es un JWT (access token) de Supabase Auth. La app no lo muestra en Ajustes, así que se pide con un `curl` al endpoint de login.
 
 ## Antes de empezar
 
@@ -25,6 +25,32 @@ echo "JWT listo (${#ATP_JWT} caracteres)"
 Si dice `JWT listo (900 y tantos caracteres)`, ya puedes correr `bash scripts/elite/curl-elite.sh ...` en esa misma terminal. Si imprime un objeto con `error` o `invalid_grant`, el correo o la contraseña están mal.
 
 `read -s` no muestra la contraseña al escribirla y `unset` la borra de la sesión; el `curl` va dentro de `$(...)`, así que ni la contraseña ni el token quedan en el historial de Git Bash.
+
+## Paso único en PowerShell (Windows)
+
+Mismo resultado que el bloque de arriba, para quien trabaja en PowerShell y no en Git Bash. Pega el bloque completo, cambiando la primera línea por la ruta real del repo. Se corre una vez por sesión de terminal: el token vive en esa ventana y muere al cerrarla.
+
+```powershell
+cd C:\ruta\a\EliteTimer
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$correo = Read-Host "Correo"
+$segura = Read-Host "Contrasena" -AsSecureString
+$plano = [System.Net.NetworkCredential]::new("", $segura).Password
+$linea = (Select-String -Path .env -Pattern '^EXPO_PUBLIC_SUPABASE_ANON_KEY=').Line
+$env:SUPABASE_ANON_KEY = ($linea -replace '^EXPO_PUBLIC_SUPABASE_ANON_KEY=', '').Trim().Trim('"').Trim("'")
+$cuerpo = @{ email = $correo; password = $plano } | ConvertTo-Json
+$r = Invoke-RestMethod -Method Post -Uri "https://itqkfozqvpwikogggqng.supabase.co/auth/v1/token?grant_type=password" -Headers @{ apikey = $env:SUPABASE_ANON_KEY } -ContentType "application/json" -Body $cuerpo
+$env:ATP_JWT = $r.access_token
+$plano = $null
+$cuerpo = $null
+"JWT listo ($($env:ATP_JWT.Length) caracteres)"
+```
+
+Si dice `JWT listo (900 y tantos caracteres)`, ya puedes correr `node scripts/elite/codigos.js ...` en esa misma ventana. Si sale un error de autenticación, el correo o la contraseña están mal.
+
+`Read-Host -AsSecureString` no muestra la contraseña al escribirla, y las dos líneas que ponen `$plano` y `$cuerpo` en `$null` la borran de la memoria de la sesión. La contraseña nunca queda en el historial porque no se escribe en la línea de comandos.
+
+La línea de `OutputEncoding` es para que los acentos del mensaje que se le manda al cliente salgan bien al copiarlos.
 
 ## Lo que tienes que saber del token
 
