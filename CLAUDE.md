@@ -107,6 +107,13 @@ Roadmap → v2.0.0 (julio-agosto 2026 — publicación a stores)
 - Sentry: errors + sessions, project atp-mobile en atp-v5 org
 - PostHog: events + lifecycle, project ATP en us.posthog.com
 
+## DOCTRINA DE LOS CUATRO OJOS: leer antes de construir nada
+
+`R and D/DOCTRINA_4EP.md`. Que es, quien revisa a quien, que se respalda y que
+nunca se toca, que se hace ya y que se va a FIFO, que se documenta y quien, que
+se le pregunta a Enrique y que no, cuando se avisa en tiempo real y cuando se
+discute. Es ley para toda sesion de Cowork, no solo para las de codigo.
+
 ## PIVOTE ATP 3.0 (4 de septiembre de 2026): leer antes que nada
 
 **Fuente de verdad del pivote:** `R and D/PIVOTE_ATP_3.0_2026-09-04.md` (decisiones, add-on
