@@ -255,3 +255,88 @@ describe('resolverEstado (nunca deja la pantalla colgada)', () => {
     expect(r.accion).toBe('ninguna');
   });
 });
+
+describe('iOS honesto (20-sep-2026): sin evidencia no se dice "conectado"', () => {
+  const baseIOS: EntradaEstado = {
+    ...baseAndroid,
+    os: 'ios',
+    plataforma: 'Salud de Apple',
+    permisosVerificables: false,
+  };
+
+  it('pedido y sin forma de verificar: "sin_verificar", no "conectado" ni "denegado"', () => {
+    const r = resolverEstado({ ...baseIOS, yaSePidio: true, metricasConcedidas: [] });
+    expect(r.estado).toBe('sin_verificar');
+    expect(r.metricasConcedidas).toEqual([]);
+    expect(r.titulo).not.toBe('Conectado');
+    expect(r.accion).toBe('abrir_ajustes');
+    expect(r.etiquetaAccion).toBeTruthy();
+  });
+
+  it('en "sin_verificar" sí se intenta leer: es la única forma de saber en iOS', () => {
+    expect(puedeLeer('sin_verificar')).toBe(true);
+  });
+
+  it('nunca pedido en iOS sigue siendo "sin_permiso" con botón Conectar', () => {
+    const r = resolverEstado({ ...baseIOS, yaSePidio: false });
+    expect(r.estado).toBe('sin_permiso');
+    expect(r.accion).toBe('pedir_permiso');
+  });
+
+  it('con evidencia de lectura (métricas concedidas) iOS sí es "conectado"', () => {
+    const r = resolverEstado({ ...baseIOS, yaSePidio: true, metricasConcedidas: ['sueno'] });
+    expect(r.estado).toBe('conectado');
+  });
+
+  it('A6: en iOS la evidencia parcial se dice como "ya leyó", sin presumir negado lo que no llegó', () => {
+    const r = resolverEstado({ ...baseIOS, yaSePidio: true, metricasConcedidas: ['sueno', 'pasos'] });
+    expect(r.estado).toBe('conectado');
+    expect(r.mensaje).toContain('ya leyó 2 de 5');
+    expect(r.mensaje).toContain('no dice qué concediste');
+    expect(r.accion).toBe('abrir_ajustes');
+    expect(r.etiquetaAccion).toBe('Abrir Salud');
+  });
+
+  it('A6: con las cinco leídas en iOS no queda acción pendiente', () => {
+    const r = resolverEstado({ ...baseIOS, yaSePidio: true, metricasConcedidas: [...METRICAS] });
+    expect(r.estado).toBe('conectado');
+    expect(r.accion).toBe('ninguna');
+  });
+
+  it('Android no cambia: sin la bandera, pedido y sin métricas sigue siendo "denegado"', () => {
+    const r = resolverEstado({ ...baseAndroid, yaSePidio: true });
+    expect(r.estado).toBe('denegado');
+    expect(puedeLeer(r.estado)).toBe(false);
+  });
+});
+
+describe('apagado por la persona (A2, 20-sep-2026): Desconectar de verdad desconecta', () => {
+  it('con la bandera, Android dice "apagado" aunque el sistema siga concediendo todo', () => {
+    const r = resolverEstado({ ...baseAndroid, yaSePidio: true, metricasConcedidas: [...METRICAS], apagadoPorUsuario: true });
+    expect(r.estado).toBe('apagado');
+    expect(r.metricasConcedidas).toEqual([]);
+    expect(puedeLeer(r.estado)).toBe(false);
+    // Nadie se queda sin salida: la acción es volver a conectar.
+    expect(r.accion).toBe('pedir_permiso');
+    expect(r.etiquetaAccion).toBe('Conectar');
+    expect(r.mensaje).not.toContain('—');
+  });
+
+  it('en iOS pedido y apagado tampoco es "sin_verificar": es "apagado"', () => {
+    const r = resolverEstado({
+      ...baseAndroid, os: 'ios', plataforma: 'Salud de Apple', permisosVerificables: false,
+      yaSePidio: true, metricasConcedidas: [], apagadoPorUsuario: true,
+    });
+    expect(r.estado).toBe('apagado');
+  });
+
+  it('los hechos de plataforma mandan sobre la bandera: sin módulo sigue siendo "sin_modulo"', () => {
+    const r = resolverEstado({ ...baseAndroid, moduloPresente: false, apagadoPorUsuario: true });
+    expect(r.estado).toBe('sin_modulo');
+  });
+
+  it('sin la bandera nada cambia', () => {
+    const r = resolverEstado({ ...baseAndroid, metricasConcedidas: [...METRICAS], apagadoPorUsuario: false });
+    expect(r.estado).toBe('conectado');
+  });
+});

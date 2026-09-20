@@ -14,7 +14,7 @@
  * todavía no se pide, permiso negado, y plataforma que no soporta nada.
  */
 import { useCallback, useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet, Switch, ActivityIndicator, Alert, DeviceEventEmitter } from 'react-native';
+import { View, ScrollView, Pressable, StyleSheet, Switch, ActivityIndicator, Alert, DeviceEventEmitter, Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
@@ -27,6 +27,8 @@ import { haptic } from '@/src/utils/haptics';
 import { Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, CATEGORY_COLORS } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { useColchonOrbe } from '@/src/components/argos/useColchonOrbe';
+import { paddingBottomConColchon } from '@/src/components/argos/argos-floating-core';
 import { useAuth } from '@/src/contexts/auth-context';
 import { formatLocalDate } from '@/src/utils/date-helpers';
 import { invalidarSaludDelDia } from '@/src/hooks/useWearableToday';
@@ -39,6 +41,7 @@ import {
   getUltimoSync,
   leerDias,
   leerEstado,
+  puedeLeer,
   setSyncAutomatica,
   sincronizar,
   type DiaSalud,
@@ -66,6 +69,9 @@ export default function SaludConexionScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { kind, tokens } = useAppTheme();
+  // 20-sep-2026: colchón para la orbe de ARGOS (esta pantalla no usa <Screen>,
+  // que lo aplicaría solo). Gana el mayor, no la suma.
+  const colchonOrbe = useColchonOrbe();
   const dark = kind === 'dark';
   const acento = dark ? SALUD : tokens.tealTexto;
 
@@ -85,7 +91,9 @@ export default function SaludConexionScreen() {
       setUltimoSync(await getUltimoSync());
       // Solo pedimos datos si de verdad hay algo que leer: en cualquier otro
       // estado la lista de métricas se muestra vacía, que es la verdad.
-      setDias(e.estado === 'conectado' ? await leerDias(7) : []);
+      // 20-sep-2026: puedeLeer incluye 'sin_verificar' (iOS), donde leer es
+      // la única forma de saber si el permiso se concedió.
+      setDias(puedeLeer(e.estado) ? await leerDias(7) : []);
     } catch {
       // Que la pantalla siga siendo usable aunque todo falle.
       setEstado(null);
@@ -103,7 +111,7 @@ export default function SaludConexionScreen() {
     try {
       const e = await conectar();
       setEstado(e);
-      if (e.estado === 'conectado') setDias(await leerDias(7));
+      if (puedeLeer(e.estado)) setDias(await leerDias(7));
     } finally {
       setOcupado(false);
     }
@@ -116,12 +124,20 @@ export default function SaludConexionScreen() {
     try {
       const r = await sincronizar(user.id, 7);
       setUltimoSync(await getUltimoSync());
+      // 20-sep-2026: sincronizar también escribe sleep_nights (las noches
+      // nuevas), y se dice: antes el cliente veía "se guardaron 7 días" y en
+      // Sueño seguía sin aparecer nada.
+      const noches = r.nochesImportadas > 0
+        ? ` ${r.nochesImportadas === 1 ? 'Una noche nueva ya aparece' : `${r.nochesImportadas} noches nuevas ya aparecen`} en Sueño.`
+        : r.nochesFallaron
+          ? ' Las noches de sueño no se pudieron guardar; intenta de nuevo desde Sueño.'
+          : '';
       Alert.alert(
         r.ok ? 'Listo' : 'No se pudo',
         r.ok
           ? r.diasEscritos > 0
-            ? `Se guardaron ${r.diasEscritos} ${r.diasEscritos === 1 ? 'día' : 'días'} de datos.`
-            : 'No encontramos datos nuevos en los últimos días.'
+            ? `Se guardaron ${r.diasEscritos} ${r.diasEscritos === 1 ? 'día' : 'días'} de datos.${noches}`
+            : `No encontramos datos nuevos en los últimos días.${noches}`
           : (r.error ?? 'Intenta de nuevo.'),
       );
       setDias(await leerDias(7));
@@ -139,7 +155,7 @@ export default function SaludConexionScreen() {
   const alDesconectar = () => {
     Alert.alert(
       'Desconectar',
-      'ATP dejará de leer y de sincronizar tus datos de salud. Lo que ya se guardó se queda en tu expediente. El permiso del sistema se quita desde los ajustes de tu plataforma de salud, no desde aquí.',
+      'ATP dejará de leer y de sincronizar tus datos de salud, incluido el sueño que se importa solo. Lo que ya se guardó se queda en tu expediente. El permiso del sistema se quita desde los ajustes de tu plataforma de salud, no desde aquí. Conectar de nuevo, o importar tu sueño desde Sueño, la vuelve a encender.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -165,13 +181,17 @@ export default function SaludConexionScreen() {
   };
 
   const conectado = estado?.estado === 'conectado';
+  // iOS honesto (20-sep-2026): 'sin_verificar' no es "conectado", pero sí se
+  // lee y se sincroniza, porque leer es la única forma de saber.
+  const sinVerificar = estado?.estado === 'sin_verificar';
+  const puedeLeerDatos = !!estado && puedeLeer(estado.estado);
 
   return (
     <ThemeReady>
     <View style={[ui.screenRoot, { backgroundColor: tokens.fondo }]}>
       <StatusBar style={dark ? 'light' : 'dark'} />
       <ScreenHeader title="Salud del teléfono" onBack={() => router.back()} />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: paddingBottomConColchon(0, colchonOrbe) }}>
 
         {/* ══════ ESTADO ══════ */}
         <Animated.View entering={FadeInUp.delay(80).springify()}>
@@ -199,8 +219,9 @@ export default function SaludConexionScreen() {
             ) : (
               <>
                 <View style={styles.encabezado}>
+                  {/* A8: no hay AppIcon de ayuda en app-icon-names; se queda Ionicons. */}
                   <Ionicons
-                    name={conectado ? 'shield-checkmark-outline' : 'pulse-outline'}
+                    name={conectado ? 'shield-checkmark-outline' : sinVerificar ? 'help-circle-outline' : 'pulse-outline'}
                     size={22}
                     color={acento}
                   />
@@ -235,8 +256,11 @@ export default function SaludConexionScreen() {
           <SectionLabel>QUÉ SE SINCRONIZA</SectionLabel>
           <View style={styles.lista}>
             {DEFINICIONES.map((d) => {
-              const concedida = estado?.metricasConcedidas.includes(d.id) ?? false;
               const valor = ultimoValor(dias, d.id);
+              // Evidencia real: si un valor llegó, la lectura de esa métrica
+              // está concedida aunque la plataforma no lo diga (iOS).
+              const concedida = (estado?.metricasConcedidas.includes(d.id) ?? false) || valor != null;
+              const sinConfirmar = !concedida && sinVerificar;
               return (
                 <View
                   key={d.id}
@@ -246,11 +270,13 @@ export default function SaludConexionScreen() {
                   <View style={{ flex: 1 }}>
                     <EliteText variant="body" style={styles.metricaTitulo}>{d.etiqueta}</EliteText>
                     <EliteText variant="caption" style={[styles.metricaDetalle, { color: tokens.textoSecundario }]}>
-                      {valor ?? d.detalle}
+                      {valor ?? (sinConfirmar ? `${d.detalle}. Sin confirmar: no llegó ningún valor.` : d.detalle)}
                     </EliteText>
                   </View>
                   {concedida ? (
                     <Ionicons name="checkmark-circle" size={18} color={acento} />
+                  ) : sinConfirmar ? (
+                    <Ionicons name="help-circle-outline" size={18} color={tokens.textoTenue} />
                   ) : (
                     <Ionicons name="remove-circle-outline" size={18} color={tokens.sinDatos} />
                   )}
@@ -258,14 +284,22 @@ export default function SaludConexionScreen() {
               );
             })}
           </View>
-          <EliteText variant="caption" style={[styles.nota, { color: tokens.sinDatos }]}>
+          <EliteText variant="caption" style={[styles.nota, { color: tokens.textoSecundario }]}>
             Solo lectura. ATP nunca escribe en tu plataforma de salud ni comparte estos datos.
           </EliteText>
+          {Platform.OS === 'android' ? (
+            // 20-sep-2026: nadie explicaba esto y es la causa más común de
+            // "no aparece mi sueño" con un reloj Samsung.
+            <EliteText variant="caption" style={[styles.nota, { color: tokens.textoSecundario }]}>
+              Si mides con un reloj Samsung: Samsung Health solo comparte tus datos (incluido el sueño)
+              con Health Connect si lo activas dentro de Samsung Health (Ajustes › Health Connect).
+            </EliteText>
+          ) : null}
           <Divider />
         </Animated.View>
 
         {/* ══════ SINCRONIZACIÓN ══════ */}
-        {conectado ? (
+        {puedeLeerDatos ? (
           <Animated.View entering={FadeInUp.delay(220).springify()}>
             <SectionLabel>SINCRONIZACIÓN</SectionLabel>
             <View style={[styles.card, { backgroundColor: tokens.card, borderColor: tokens.borde }]}>
@@ -300,10 +334,13 @@ export default function SaludConexionScreen() {
                   </EliteText>
                 )}
               </Pressable>
-              <EliteText variant="caption" style={[styles.nota, { color: tokens.sinDatos }]}>
+              <EliteText variant="caption" style={[styles.nota, { color: tokens.textoSecundario }]}>
                 {ultimoSync
                   ? `Última vez: ${formatLocalDate(ultimoSync.slice(0, 10))}`
                   : 'Todavía no sincronizas.'}
+              </EliteText>
+              <EliteText variant="caption" style={[styles.nota, { color: tokens.textoSecundario }]}>
+                Al sincronizar, tus noches también entran a Sueño. Las que ya tenías no se tocan.
               </EliteText>
             </View>
             <Divider />
@@ -311,7 +348,7 @@ export default function SaludConexionScreen() {
         ) : null}
 
         {/* ══════ DESCONECTAR ══════ */}
-        {estado && (estado.estado === 'conectado' || estado.estado === 'denegado') ? (
+        {estado && (estado.estado === 'conectado' || estado.estado === 'denegado' || estado.estado === 'sin_verificar') ? (
           <Animated.View entering={FadeInUp.delay(280).springify()}>
             <SectionLabel>DESCONECTAR</SectionLabel>
             <Pressable onPress={alDesconectar} style={styles.filaDesconectar}>

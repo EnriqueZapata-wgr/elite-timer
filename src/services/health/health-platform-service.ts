@@ -27,7 +27,8 @@ import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, toLocalDateString } from '@/src/utils/date-helpers';
 import { binarioConDelegate } from '@/src/services/fitness/health-import-service';
-import { leerNochesDeSalud } from '@/src/services/sleep/sleep-import-service';
+import { importarNoches, leerNochesDeSalud } from '@/src/services/sleep/sleep-import-service';
+import type { NocheImportada } from '@/src/services/sleep/sleep-import-core';
 import {
   DEFINICIONES,
   METRICAS,
@@ -35,6 +36,8 @@ import {
   aKilogramos,
   diaVacio,
   diasConDatos,
+  metricasPresentes,
+  puedeLeer,
   resolverEstado,
   sanear,
   ventanaDeFechas,
@@ -121,9 +124,38 @@ function conLimite<T>(p: Promise<T>, respaldo: T, ms = LIMITE_MS): Promise<T> {
 const K_PEDIDO = 'health_os_permiso_pedido_v1';
 const K_SYNC = 'health_os_sync_automatica_v1';
 const K_ULTIMO = 'health_os_ultimo_sync_v1';
+/**
+ * A2 (20-sep-2026): "lectura apagada por el usuario". La pone desconectar() y
+ * la quitan conectar() y pedir el permiso de sueño desde IMPORTAR. Es la
+ * ÚNICA puerta que ATP controla de verdad: Android decide por permisos del
+ * sistema (que ATP no puede revocar) y en iOS ni siquiera se sabe. Sin esta
+ * bandera, "Desconectar" prometía dejar de leer y el import silencioso de
+ * sueño seguía leyendo. NO es K_PEDIDO: esa distingue "no pregunté" de
+ * "me dijo que no"; esta dice "la persona apagó la lectura".
+ */
+const K_APAGADO = 'health_lectura_apagada_por_usuario_v1';
 
 async function leerBandera(k: string): Promise<boolean> {
   return (await AsyncStorage.getItem(k).catch(() => null)) === '1';
+}
+
+/** ¿La persona apagó la lectura de salud desde ATP? (Desconectar) */
+export async function lecturaSaludApagadaPorUsuario(): Promise<boolean> {
+  return leerBandera(K_APAGADO);
+}
+
+/** La persona vuelve a pedir que ATP lea (Conectar, IMPORTAR): se enciende. */
+export async function encenderLecturaSalud(): Promise<void> {
+  await AsyncStorage.removeItem(K_APAGADO).catch(() => {});
+}
+
+/**
+ * ¿ATP ya pidió el permiso de salud alguna vez en este teléfono? Es la
+ * evidencia que el import silencioso de sueño usa en iOS, donde la
+ * plataforma no dice qué concedió (20-sep-2026).
+ */
+export async function yaSePidioPermiso(): Promise<boolean> {
+  return leerBandera(K_PEDIDO);
 }
 
 // ── Estado ──
@@ -158,17 +190,34 @@ async function concedidasAndroid(): Promise<MetricaSalud[]> {
 /**
  * iOS no dice qué concedió de LECTURA: Apple lo esconde a propósito para que
  * una app no pueda deducir que le negaste algo (deducirlo ya sería un dato
- * sobre ti). Así que aquí lo único honesto es recordar qué pedimos, y dejar
- * que la pantalla avise que si no aparecen datos, se revisa en Salud.
+ * sobre ti).
+ *
+ * 20-sep-2026: antes esto devolvía las cinco métricas con solo haber
+ * preguntado, aunque el usuario hubiera negado todo, y la pantalla decía
+ * "Conectado" sin evidencia. Después devolvía [] siempre y 'conectado' era
+ * inalcanzable en iOS aunque llegaran las cinco métricas (A6). Ahora la lista
+ * es la EVIDENCIA: las métricas con algún valor leído hoy o ayer. Sin
+ * evidencia queda vacía y resolverEstado, con permisosVerificables=false, lo
+ * traduce a 'sin_verificar', que es la verdad. Solo se lee si ATP ya pidió
+ * el permiso: leer sin permiso no abre diálogo y devuelve vacío.
  */
-async function concedidasIOS(): Promise<MetricaSalud[]> {
-  return (await leerBandera(K_PEDIDO)) ? [...METRICAS] : [];
+async function concedidasIOS(yaSePidio: boolean): Promise<MetricaSalud[]> {
+  if (!yaSePidio || !healthKit) return [];
+  try {
+    const { dias } = await leerDiasYNoches(2);
+    return metricasPresentes(dias);
+  } catch (e) {
+    logWarn('[health-platform] evidencia iOS:', e);
+    return [];
+  }
 }
 
 export async function leerEstado(): Promise<EstadoSalud> {
   const os = osActual();
   const moduloPresente = os === 'android' ? !!healthConnect : os === 'ios' ? !!healthKit : false;
   const yaSePidio = await leerBandera(K_PEDIDO);
+  // A2: apagada por la persona, no se toca la plataforma ni para preguntar.
+  const apagadoPorUsuario = await leerBandera(K_APAGADO);
 
   let sdkDisponible = true;
   if (os === 'android' && healthConnect) {
@@ -183,10 +232,10 @@ export async function leerEstado(): Promise<EstadoSalud> {
     sdkDisponible = await conLimite(hk.isHealthDataAvailableAsync(), false);
   }
 
-  const metricasConcedidas = !moduloPresente || !sdkDisponible
+  const metricasConcedidas = apagadoPorUsuario || !moduloPresente || !sdkDisponible
     ? []
     : os === 'android' ? await concedidasAndroid()
-    : os === 'ios' ? await concedidasIOS()
+    : os === 'ios' ? await concedidasIOS(yaSePidio)
     : [];
 
   return resolverEstado({
@@ -198,11 +247,16 @@ export async function leerEstado(): Promise<EstadoSalud> {
     yaSePidio,
     metricasConcedidas,
     dialogoDisponible: os === 'android' ? binarioConDelegate() : true,
+    permisosVerificables: os !== 'ios',
+    apagadoPorUsuario,
   });
 }
 
 /** Pide permiso para las cinco métricas y devuelve el estado resultante. */
 export async function conectar(): Promise<EstadoSalud> {
+  // A2: conectar es la persona diciendo "sí, lee". Se enciende antes de
+  // preguntar, para que el estado que se devuelve abajo ya no sea 'apagado'.
+  await encenderLecturaSalud();
   try {
     if (Platform.OS === 'android' && healthConnect) {
       const hc = healthConnect;
@@ -261,9 +315,16 @@ export async function conectar(): Promise<EstadoSalud> {
  * de sincronizar. Ninguna de las dos plataformas permite que una app se revoque
  * a sí misma el permiso, así que no lo prometemos: la pantalla ofrece además
  * el atajo a los ajustes del sistema, que es donde eso sí se puede.
+ *
+ * A2 (20-sep-2026): además de olvidar la sync, se pone K_APAGADO. Es lo que
+ * leen leerEstado (estado 'apagado', sin tocar la plataforma) y el import
+ * silencioso de sueño ('apagado_por_usuario', sin leer nada). Antes, en
+ * Android, la pantalla volvía a decir "Conectado" un segundo después de
+ * "Desconectar", porque el permiso del sistema seguía concedido.
  */
 export async function desconectar(): Promise<void> {
   await AsyncStorage.multiRemove([K_PEDIDO, K_SYNC, K_ULTIMO]).catch(() => {});
+  await AsyncStorage.setItem(K_APAGADO, '1').catch(() => {});
 }
 
 /** Ajustes de la plataforma de salud, que es donde se conceden o revocan. */
@@ -417,12 +478,14 @@ async function leerIOS(fechas: string[]): Promise<Map<string, DiaSalud>> {
 }
 
 /**
- * Los últimos `diasAtras` días de salud del sistema, ya normalizados.
+ * Los últimos `diasAtras` días de salud del sistema, ya normalizados, MÁS las
+ * noches tal como las resolvió el import de sueño (con hora de acostarse y
+ * de despertar), para que sincronizar() las escriba también en sleep_nights.
  * El SUEÑO no se recalcula aquí: se reúsa el import que ya resuelve a qué
  * noche pertenece cada tramo (una noche partida en segmentos, siestas que no
  * son "la noche"). Una sola verdad para el sueño en toda la app.
  */
-export async function leerDias(diasAtras = 7): Promise<DiaSalud[]> {
+async function leerDiasYNoches(diasAtras = 7): Promise<{ dias: DiaSalud[]; noches: NocheImportada[] }> {
   const fechas = ventanaDeFechas(new Date(), diasAtras, toLocalDateString);
   const mapa =
     Platform.OS === 'android' ? await leerAndroid(fechas)
@@ -435,7 +498,12 @@ export async function leerDias(diasAtras = 7): Promise<DiaSalud[]> {
     if (dia) dia.sueno = sanear('sueno', n.durationMinutes);
   }
 
-  return fechas.map((f) => mapa.get(f) ?? diaVacio(f));
+  return { dias: fechas.map((f) => mapa.get(f) ?? diaVacio(f)), noches };
+}
+
+/** Los últimos `diasAtras` días de salud del sistema, ya normalizados. */
+export async function leerDias(diasAtras = 7): Promise<DiaSalud[]> {
+  return (await leerDiasYNoches(diasAtras)).dias;
 }
 
 // ── Sincronización a Supabase ──
@@ -444,6 +512,13 @@ export interface ResultadoSync {
   ok: boolean;
   diasEscritos: number;
   metricas: MetricaSalud[];
+  /**
+   * Noches NUEVAS escritas en sleep_nights (20-sep-2026). Las que ya
+   * existían no se tocan ni se cuentan. Si esa escritura falló, queda 0 y
+   * `nochesFallaron` lo dice; `ok` sigue hablando de health_os_daily.
+   */
+  nochesImportadas: number;
+  nochesFallaron?: boolean;
   error?: string;
 }
 
@@ -454,15 +529,38 @@ export interface ResultadoSync {
  * la persona, y las dos versiones siguen existiendo.
  */
 export async function sincronizar(userId: string, diasAtras = 7): Promise<ResultadoSync> {
+  // Fuera del try: si health_os_daily falla después, el resultado sigue
+  // diciendo cuántas noches sí entraron a sleep_nights.
+  let nochesImportadas = 0;
+  let nochesFallaron = false;
   try {
     const estado = await leerEstado();
-    if (estado.estado !== 'conectado') {
-      return { ok: false, diasEscritos: 0, metricas: [], error: estado.mensaje };
+    // 20-sep-2026: puedeLeer y no === 'conectado', porque en iOS el estado
+    // honesto tras pedir permiso es 'sin_verificar' y ahí leer es la única
+    // forma de saber (leer sin permiso no abre diálogo, devuelve vacío).
+    if (!puedeLeer(estado.estado)) {
+      return { ok: false, diasEscritos: 0, metricas: [], nochesImportadas: 0, error: estado.mensaje };
     }
-    const dias = diasConDatos(await leerDias(diasAtras));
+    const lectura = await leerDiasYNoches(diasAtras);
+    const dias = diasConDatos(lectura.dias);
+
+    // 20-sep-2026: SINCRONIZAR ALIMENTA LAS DOS TABLAS. Antes escribía solo
+    // health_os_daily.sleep_minutes y la pantalla de Sueño (que lee
+    // sleep_nights) seguía diciendo "Aún no vemos tu descanso" con el
+    // teléfono ya conectado. importarNoches hace ON CONFLICT DO NOTHING: no
+    // revive ni pisa ninguna noche que ya exista (la sesión propia manda).
+    if (lectura.noches.length > 0) {
+      const imp = await importarNoches(userId, lectura.noches);
+      if (imp.ok) nochesImportadas = imp.importadas;
+      else {
+        nochesFallaron = true;
+        logWarn('[health-platform] sincronizar: sleep_nights no se pudo escribir', imp.error);
+      }
+    }
+
     if (dias.length === 0) {
       await AsyncStorage.setItem(K_ULTIMO, new Date().toISOString()).catch(() => {});
-      return { ok: true, diasEscritos: 0, metricas: [] };
+      return { ok: true, diasEscritos: 0, metricas: [], nochesImportadas, nochesFallaron };
     }
     const filas = dias.map((d) => ({
       user_id: userId,
@@ -482,13 +580,15 @@ export async function sincronizar(userId: string, diasAtras = 7): Promise<Result
 
     await AsyncStorage.setItem(K_ULTIMO, new Date().toISOString()).catch(() => {});
     const metricas = METRICAS.filter((m) => dias.some((d) => d[m] != null));
-    return { ok: true, diasEscritos: dias.length, metricas };
+    return { ok: true, diasEscritos: dias.length, metricas, nochesImportadas, nochesFallaron };
   } catch (e) {
     logWarn('[health-platform] sincronizar:', e);
     return {
       ok: false,
       diasEscritos: 0,
       metricas: [],
+      nochesImportadas,
+      nochesFallaron,
       error: 'No se pudo guardar lo que leímos. Intenta de nuevo.',
     };
   }

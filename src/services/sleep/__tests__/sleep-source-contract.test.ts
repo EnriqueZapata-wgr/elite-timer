@@ -73,4 +73,14 @@ describe('quién manda cuando hay dos fuentes de la misma noche', () => {
     expect(importSvc).toMatch(/score:\s*null/);
     expect(importSvc).toMatch(/snore_minutes:\s*null/);
   });
+
+  it('A5: la actualización de una noche a medias se filtra por source de máquina EN LA BASE (sleep_cycle nunca)', () => {
+    // El UPDATE existe (la noche parcial se completa)...
+    expect(importSvc).toMatch(/\.update\(/);
+    // ...y va acotado a user_id, night_date y source de máquina, para que ni
+    // una carrera con la sesión propia la pise.
+    expect(importSvc).toMatch(/\.in\('source',\s*\[\.\.\.FUENTES_DE_MAQUINA\]\)/);
+    expect(importSvc).toMatch(/FUENTES_DE_MAQUINA\s*=\s*\['health_connect',\s*'healthkit'\]/);
+    expect(importSvc).toMatch(/\.eq\('night_date',\s*n\.nightDate\)/);
+  });
 });

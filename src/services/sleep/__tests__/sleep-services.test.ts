@@ -7,7 +7,10 @@
  *    (la propia MANDA) y el payload son solo números/strings/null.
  *  - Sin red, la noche se ENCOLA en el storage local (no se pierde) y
  *    sincronizarPendientes la sube después y vacía la cola.
- *  - importarNoches escribe con ignoreDuplicates (el import NUNCA pisa).
+ *  - importarNoches escribe con ignoreDuplicates (el import NUNCA pisa la
+ *    sesión propia) y, desde A5 (20-sep-2026), lee antes de escribir para
+ *    completar SOLO una noche de máquina que quedó a medias (UPDATE de esa
+ *    fila, filtrado por source de máquina en la base).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { makeFakeSupabase, type FakeSupabase } from '@/src/services/__tests__/supabase-fake';
@@ -62,7 +65,7 @@ beforeEach(() => {
 });
 
 describe('guardarNochePropia', () => {
-  it('escribe con upsert onConflict user_id,night_date — la propia MANDA', async () => {
+  it('escribe con upsert onConflict user_id,night_date: la propia MANDA', async () => {
     state.fake = makeFakeSupabase({ sleep_nights: { data: null, error: null } });
     const res = await guardarNochePropia('user-1', NOCHE);
     expect(res).toEqual({ ok: true, encolada: false });
@@ -115,29 +118,77 @@ describe('guardarNochePropia', () => {
 });
 
 describe('importarNoches', () => {
-  it('escribe con ignoreDuplicates — el import NUNCA pisa una noche', async () => {
+  const NOCHE_HC = {
+    nightDate: '2026-08-09',
+    bedTimeISO: '2026-08-09T05:00:00.000Z',
+    wakeTimeISO: '2026-08-09T12:00:00.000Z',
+    durationMinutes: 400,
+    source: 'health_connect' as const,
+    externalId: 'hc-1',
+  };
+
+  it('noche sin fila: escribe con ignoreDuplicates (el import NUNCA pisa en la inserción)', async () => {
     state.fake = makeFakeSupabase({
-      sleep_nights: { data: [{ night_date: '2026-08-09' }], error: null },
+      // Primera respuesta: la lectura previa (no hay fila). Segunda: el upsert.
+      sleep_nights: [
+        { data: [], error: null },
+        { data: [{ night_date: '2026-08-09' }], error: null },
+      ],
     });
-    const res = await importarNoches('user-1', [
-      {
-        nightDate: '2026-08-09',
-        bedTimeISO: '2026-08-09T05:00:00.000Z',
-        wakeTimeISO: '2026-08-09T12:00:00.000Z',
-        durationMinutes: 400,
-        source: 'health_connect',
-        externalId: 'hc-1',
-      },
-    ]);
+    const res = await importarNoches('user-1', [NOCHE_HC]);
     expect(res.ok).toBe(true);
     expect(res.importadas).toBe(1);
+    expect(res.actualizadas).toBe(0);
+    // Lee antes de escribir, acotado al usuario y a esas fechas.
+    expect(state.fake.calls.some((c) => c.table === 'sleep_nights' && c.method === 'select')).toBe(true);
+    expect(state.fake.calls.some((c) => c.method === 'in' && c.args[0] === 'night_date')).toBe(true);
     const upsert = state.fake.calls.find((c) => c.method === 'upsert');
     expect(upsert!.table).toBe('sleep_nights');
     expect(upsert!.args[1]).toEqual({ onConflict: 'user_id,night_date', ignoreDuplicates: true });
+    expect(state.fake.calls.some((c) => c.method === 'update')).toBe(false);
     // El import no inventa lo que no midió.
     const rows = upsert!.args[0] as Record<string, unknown>[];
     expect(rows[0].score).toBeNull();
     expect(rows[0].snore_minutes).toBeNull();
+  });
+
+  it('A5: una noche de máquina a medias se completa con la lectura más larga: UPDATE de esa fila, filtrado por source', async () => {
+    state.fake = makeFakeSupabase({
+      sleep_nights: [
+        { data: [{ night_date: '2026-08-09', source: 'health_connect', duration_minutes: 300 }], error: null },
+        { data: [{ night_date: '2026-08-09' }], error: null },
+      ],
+    });
+    const res = await importarNoches('user-1', [NOCHE_HC]);
+    expect(res).toEqual({ ok: true, importadas: 1, actualizadas: 1 });
+    expect(state.fake.calls.some((c) => c.method === 'upsert')).toBe(false);
+    const update = state.fake.calls.find((c) => c.method === 'update');
+    expect(update!.table).toBe('sleep_nights');
+    expect(update!.args[0]).toMatchObject({ duration_minutes: 400, source: 'health_connect', external_id: 'hc-1' });
+    // Solo esa fila, y la base vuelve a exigir source de máquina.
+    expect(state.fake.calls.some((c) => c.method === 'eq' && c.args[0] === 'night_date' && c.args[1] === '2026-08-09')).toBe(true);
+    expect(state.fake.calls.some((c) => c.method === 'eq' && c.args[0] === 'user_id' && c.args[1] === 'user-1')).toBe(true);
+    expect(state.fake.calls.some((c) => c.method === 'in' && c.args[0] === 'source')).toBe(true);
+    const filtroSource = state.fake.calls.find((c) => c.method === 'in' && c.args[0] === 'source')!.args[1] as string[];
+    expect(filtroSource).not.toContain('sleep_cycle');
+  });
+
+  it('A5: una noche sleep_cycle jamás se toca, traiga lo que traiga la lectura', async () => {
+    state.fake = makeFakeSupabase({
+      sleep_nights: { data: [{ night_date: '2026-08-09', source: 'sleep_cycle', duration_minutes: 100 }], error: null },
+    });
+    const res = await importarNoches('user-1', [NOCHE_HC]);
+    expect(res).toEqual({ ok: true, importadas: 0, actualizadas: 0 });
+    expect(state.fake.calls.some((c) => c.method === 'upsert' || c.method === 'update')).toBe(false);
+  });
+
+  it('A5: misma o menor duración: nada que escribir', async () => {
+    state.fake = makeFakeSupabase({
+      sleep_nights: { data: [{ night_date: '2026-08-09', source: 'health_connect', duration_minutes: 400 }], error: null },
+    });
+    const res = await importarNoches('user-1', [NOCHE_HC]);
+    expect(res).toEqual({ ok: true, importadas: 0, actualizadas: 0 });
+    expect(state.fake.calls.some((c) => c.method === 'upsert' || c.method === 'update')).toBe(false);
   });
 
   it('un {error} 4xx NO pasa de largo (supabase-js no lanza): ok=false', async () => {

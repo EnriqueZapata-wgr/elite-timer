@@ -237,7 +237,19 @@ export type EstadoConexion =
   | 'sin_permiso'
   /** Se pidió y el usuario dijo que no. */
   | 'denegado'
-  /** Hay al menos una métrica concedida. */
+  /**
+   * Se pidió, pero la plataforma no permite saber qué se concedió (iOS
+   * esconde a propósito los permisos de lectura). No es "conectado" ni es
+   * "denegado": es "no se pudo verificar", y se dice así (20-sep-2026).
+   */
+  | 'sin_verificar'
+  /**
+   * La persona apagó la lectura desde ATP (Desconectar). El permiso del
+   * sistema puede seguir concedido; ATP no lo mira hasta que vuelva a
+   * conectar (A2, 20-sep-2026).
+   */
+  | 'apagado'
+  /** Hay al menos una métrica concedida (en iOS: con algún valor leído). */
   | 'conectado';
 
 export type AccionConexion =
@@ -266,6 +278,18 @@ export interface EntradaEstado {
    * al abrir el diálogo. Ahí la única ruta es conceder desde los ajustes.
    */
   dialogoDisponible: boolean;
+  /**
+   * ¿La plataforma dice qué concedió de lectura? Android sí
+   * (getGrantedPermissions); iOS no. Ausente = sí, para no cambiar el
+   * contrato de los llamadores que ya existían (20-sep-2026).
+   */
+  permisosVerificables?: boolean;
+  /**
+   * ¿La persona apagó la lectura desde ATP (Desconectar)? Manda sobre todo
+   * lo demás salvo los hechos de plataforma (sin módulo, sin app). Ausente =
+   * no (A2, 20-sep-2026).
+   */
+  apagadoPorUsuario?: boolean;
 }
 
 export interface EstadoSalud {
@@ -327,8 +351,53 @@ export function resolverEstado(e: EntradaEstado): EstadoSalud {
     };
   }
 
+  // A2 (20-sep-2026): la persona apagó la lectura desde ATP. No se afirma
+  // nada de permisos (no se consultaron) y la salida es volver a conectar.
+  if (e.apagadoPorUsuario) {
+    return {
+      ...base,
+      metricasConcedidas: [],
+      estado: 'apagado',
+      titulo: 'Lectura apagada',
+      mensaje: `Apagaste la lectura desde ATP: no se lee ni se sincroniza nada de ${e.plataforma}. El permiso del sistema sigue como lo dejaste. Puedes volver a conectar cuando quieras.`,
+      accion: 'pedir_permiso',
+      etiquetaAccion: 'Conectar',
+    };
+  }
+
+  // 20-sep-2026: antes iOS devolvía las cinco métricas como concedidas con
+  // solo haber preguntado, aunque el usuario hubiera negado todo, y la
+  // pantalla decía "Conectado" sin evidencia. Sin forma de verificar, lo
+  // honesto es decir que no se pudo verificar y mandar a la app Salud.
+  if (e.permisosVerificables === false && e.yaSePidio && e.metricasConcedidas.length === 0) {
+    return {
+      ...base,
+      estado: 'sin_verificar',
+      titulo: 'Permiso pedido, sin confirmar',
+      mensaje: `${e.plataforma} no le dice a ninguna app qué permisos de lectura concediste. ATP ya pidió los suyos: si tus datos aparecen abajo, la lectura está funcionando; si no aparecen, revísalos en la app Salud (Perfil, Apps, ATP).`,
+      accion: 'abrir_ajustes',
+      etiquetaAccion: 'Abrir Salud',
+    };
+  }
+
   if (e.metricasConcedidas.length > 0) {
     const faltan = METRICAS.filter((m) => !e.metricasConcedidas.includes(m));
+    // A6 (20-sep-2026): en iOS la lista no la dio la plataforma, es la
+    // evidencia de lo que ya se leyó. Se dice así: lo que no llegó no se
+    // presume negado (puede ser que el reloj no lo mida).
+    if (e.permisosVerificables === false) {
+      return {
+        ...base,
+        estado: 'conectado',
+        titulo: 'Conectado',
+        mensaje:
+          faltan.length === 0
+            ? `ATP ya leyó tus cinco tipos de dato desde ${e.plataforma}. Solo lectura.`
+            : `ATP ya leyó ${e.metricasConcedidas.length} de ${METRICAS.length} tipos de dato desde ${e.plataforma}. ${e.plataforma} no dice qué concediste: si falta alguno, revísalo en la app Salud (Perfil, Apps, ATP) o espera a que tu reloj lo registre.`,
+        accion: faltan.length === 0 ? 'ninguna' : 'abrir_ajustes',
+        etiquetaAccion: faltan.length === 0 ? null : 'Abrir Salud',
+      };
+    }
     return {
       ...base,
       estado: 'conectado',
@@ -364,7 +433,11 @@ export function resolverEstado(e: EntradaEstado): EstadoSalud {
   };
 }
 
-/** ¿Tiene sentido intentar leer datos en este estado? */
+/**
+ * ¿Tiene sentido intentar leer datos en este estado? En 'sin_verificar' sí:
+ * leer es la ÚNICA forma de saber en iOS, y leer sin permiso no abre ningún
+ * diálogo, solo devuelve vacío.
+ */
 export function puedeLeer(estado: EstadoConexion): boolean {
-  return estado === 'conectado';
+  return estado === 'conectado' || estado === 'sin_verificar';
 }
