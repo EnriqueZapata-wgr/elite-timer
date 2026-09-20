@@ -78,7 +78,7 @@ const MALE_TESTS: { key: string; value: number; expected: { score: number; ratin
   { key: 'magnesium', value: 2.18, expected: { score: 80, rating: 'acceptable' } },
 ];
 
-// Paciente mujer (Mariana) — parcial
+// Paciente mujer (beta-01) — parcial
 const FEMALE_TESTS: { key: string; value: number; expected: { score: number; rating: string } }[] = [
   { key: 'cortisol_am', value: 10.4, expected: { score: 100, rating: 'optimal' } },
   { key: 'tsh', value: 2.06, expected: { score: 80, rating: 'acceptable' } },
@@ -118,7 +118,7 @@ console.log('\n═══ VALIDACIÓN MOTOR DE SALUD ═══\n');
 console.log('── Paciente hombre (Enrique) ──');
 for (const t of MALE_TESTS) runTest(t.key, t.value, t.expected, 'male');
 
-console.log('\n── Paciente mujer (Mariana) ──');
+console.log('\n── Paciente mujer (beta-01) ──');
 for (const t of FEMALE_TESTS) runTest(t.key, t.value, t.expected, 'female');
 
 console.log(`\n═══ RESULTADO: ${passed}/${passed + failed} tests pasaron ═══`);

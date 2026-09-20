@@ -45,10 +45,10 @@ function cliente(p: Partial<ClienteConsola> = {}): ClienteConsola {
 }
 
 describe('exclusiones nominales', () => {
-  it('Mariana esta excluida y con motivo escrito', () => {
+  it('el perfil excluido tiene motivo escrito', () => {
     const uid = '7503a669-ab9c-41ab-a38a-365c0af672a6';
     expect(estaExcluido(uid)).toBe(true);
-    expect(PERFILES_EXCLUIDOS[uid]).toContain('Mariana');
+    expect(PERFILES_EXCLUIDOS[uid]).toContain('otros coaches');
     expect(PERFILES_EXCLUIDOS[uid].length).toBeGreaterThan(30);
   });
 

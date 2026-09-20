@@ -59,7 +59,7 @@ Y el smoke, que aquí importa más que nunca: **crea una cuenta nueva y pasa las
 
 1. **La cinemática de ARGOS sigue viva.** Ya no estorba antes del primer valor, pero al entrar a la app después de la pantalla 6 se dispara: cinco pantallas con typing, unos treinta segundos, cero datos de la persona. Cortarla, acortarla o dejarla es tuyo. Mi opinión: acortarla a una pantalla y moverla a la primera vez que alguien abre el chat.
 2. **El copy de las nueve intenciones** de la pantalla 2 lo escribí yo y no está firmado. Son las frases con las que la persona se reconoce ("duermo mal o amanezco cansado"), o sea la puerta entera del embudo. Léelas.
-3. **`mide` y `noInstala` de los 20** están marcados PEND-FIRMA y ahora **se leen en pantalla**, ya no viven en un archivo. Los tiempos de los 12 nuevos ("se nota en 2 semanas") son propuesta mía y necesitan a Mariana.
+3. **`mide` y `noInstala` de los 20** están marcados PEND-FIRMA y ahora **se leen en pantalla**, ya no viven en un archivo. Los tiempos de los 12 nuevos ("se nota en 2 semanas") son propuesta mía y necesitan firma clínica.
 4. **El chip de movimiento de la pantalla 5 pasó a obligatorio.** Al no puntuar la ventana de sueño por arriba de 6 horas, es la única palanca que le queda a la mayoría, y esa pantalla promete un número. Si prefieres que sea opcional, la estimación va a decir "faltan datos" a casi todos.
 5. **La agenda topa en 15 prácticas por día.** Hoy nadie llega, pero es el techo real de "cualquier práctica se puede abrir y pausar".
 6. **Las 3 rutas huérfanas** de siempre (`/onboarding/voice-config`, `/settings/comunidad`, `/settings/cuenta`) siguen ahí. Lista blanca o puertas: tú dices.

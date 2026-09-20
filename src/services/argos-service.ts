@@ -615,7 +615,7 @@ Cuando detectas una de estas, DERIVA y FLAGUEA con persistencia visible.
 | **Marcadores fisiológicos clínicos** | HRV crónicamente bajo con síntomas, FC reposo elevada sostenida, pérdida de peso no planeada, amenorrea, fatiga sistémica que no responde a descarga | Derivación obligatoria |
 | **Salud mental** | Apatía persistente, alteración de sueño no explicada, indicadores de sobreentrenamiento clínico, sospechas relacionadas a salud mental | Derivación obligatoria con respeto |
 
-(Lista refinada con Mariana para dominio Salud Funcional.)
+(Lista refinada por el equipo clínico de ATP para dominio Salud Funcional.)
 
 ### Protocolo cuando el cliente IGNORA una derivación crítica
 
@@ -1615,7 +1615,7 @@ export interface ArgosChatResult {
  * contaminaciones que ya estén en conversaciones viejas (la spec descarta
  * limpiar la DB).
  */
-// CONTENIDO ARGOS — wording borrador, validar con Enrique/Mariana antes de Founders M1
+// CONTENIDO ARGOS — wording borrador, validar con Enrique antes de Founders M1
 function buildCycleGuard(gender?: string): string {
   if (gender === 'female') return '';
   return `\n\n## REGLA DE GÉNERO (NO NEGOCIABLE)\nIMPORTANTE: el usuario de esta conversación no menstrúa. NUNCA le atribuyas, asumas ni menciones como algo que le aplique: ciclo menstrual, fase folicular, fase lútea, ovulación, menstruación, periodo o embarazo. No uses estos conceptos para explicar su energía, ánimo, sueño, rendimiento ni ningún otro aspecto. Si el usuario pregunta explícitamente sobre estos temas, puedes responder de forma general y educativa, sin asumir que le aplican a él.`;
@@ -1630,7 +1630,7 @@ function buildCycleGuard(gender?: string): string {
  * en el servicio (loadUserContext / gatherClientData siempre leen fresco
  * de Supabase) — el bug es 100% contaminación de contexto conversacional.
  */
-// CONTENIDO ARGOS — wording borrador, validar con Enrique/Mariana antes de Founders M1
+// CONTENIDO ARGOS — wording borrador, validar con Enrique antes de Founders M1
 function buildProtocolGuard(activeProtocol?: string): string {
   if (!activeProtocol) return '';
   return `\n\n## REGLA DE PROTOCOLO (NO NEGOCIABLE)\nEl protocolo activo del usuario es: "${activeProtocol}". Tus recomendaciones deben alinearse a ESTE protocolo, no a protocolos mencionados en mensajes anteriores de esta conversación. Si el usuario en turnos pasados habló de otro protocolo, ese ya cambió. Cuando pregunte qué hacer hoy o cómo ajustar su día, responde según el protocolo activo actual, no según lo que aparezca en el historial.`;
@@ -1846,7 +1846,7 @@ const SUFIJO_EVIDENCIA =
 
 /**
  * Heurística v1 (Step COACH 7/N): ¿el texto contiene una recomendación
- * clínico-colindante? Refinar con Mariana — keywords amplias, falsos positivos
+ * clínico-colindante? Pendiente de revisión clínica — keywords amplias, falsos positivos
  * esperables (ver flag COWORK_REPORT).
  */
 function containsClinicalRecommendation(text: string): boolean {

@@ -23,15 +23,15 @@
 /**
  * Perfiles que NUNCA entran a la consola, con el motivo escrito.
  *
- * Mariana (8-sep-2026): tiene cuenta en esta base y ademas es coach con sus
+ * Perfil excluido (8-sep-2026): tiene cuenta en esta base y ademas es coach con sus
  * propios clientes en `coach_clients`. Sus datos de salud no son de Enrique y
- * no se muestran. El filtro de servidor (coach_id = Enrique) ya la deja fuera
+ * no se muestran. El filtro de servidor (coach_id = Enrique) ya lo deja fuera
  * de la lista de clientes; esta lista es el segundo candado, el que cubre la
  * pantalla de "por vincular", que si lee `profiles`.
  */
 export const PERFILES_EXCLUIDOS: Readonly<Record<string, string>> = {
   '7503a669-ab9c-41ab-a38a-365c0af672a6':
-    'Mariana. Coach con clientes propios, no cliente de Enrique. Sus datos de salud no se muestran.',
+    'Cuentas de otros coaches: no son clientes de Enrique. Sus datos de salud no se muestran.',
 };
 
 /** El glifo de sin dato. Marcador, nunca prosa. */

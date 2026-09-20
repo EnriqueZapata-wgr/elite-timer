@@ -1,5 +1,5 @@
 /**
- * Longitud de ciclo observada — núcleo puro (bug Mariana M3.b).
+ * Longitud de ciclo observada — núcleo puro (bug beta M3.b).
  *
  * Todo el calendario de /cycle se construía con settings.avg_cycle_length,
  * que solo cambia si la usuaria lo teclea a mano: las predicciones nunca

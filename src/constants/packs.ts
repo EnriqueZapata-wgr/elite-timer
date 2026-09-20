@@ -8,7 +8,7 @@
  *
  * Reglas del modelo:
  *  · `key` es estable y JAMÁS cambia (vive en user_packs y en deep links).
- *  · `nombre` y todo el copy están PENDIENTES DE FIRMA (Enrique + Mariana):
+ *  · `nombre` y todo el copy están PENDIENTES DE FIRMA (Enrique):
  *    por eso key estable y nombre string — cambiar un nombre firmado es
  *    cambiar un string, nunca una llave.
  *  · `instala` referencia llaves de APP_REGISTRY; `enciende` referencia
@@ -103,7 +103,7 @@ export interface PackFuera {
 export interface PackDef {
   /** Estable para siempre. */
   key: string;
-  /** ⚠️ PEND-FIRMA Mariana. Cambiarlo = cambiar este string. */
+  /** ⚠️ PEND-FIRMA CLÍNICA. Cambiarlo = cambiar este string. */
   nombre: string;
   /** ⚠️ PEND-FIRMA. Una línea: para quién es este pack. */
   paraQuien: string;
@@ -131,7 +131,7 @@ export interface PackDef {
    * packs-registry.test.ts: la llave existe en el catálogo, jamás una con
    * requiresClinicalValidation, y las modalidades entran por la puerta
    * suave de su familia (ayuno_14_10, no ayuno_20_4).
-   * ⚠️ PEND-FIRMA (Enrique + Mariana): el set de cada pack.
+   * ⚠️ PEND-FIRMA (Enrique): el set de cada pack.
    */
   prescribe?: readonly string[];
   /**
@@ -151,7 +151,7 @@ export interface PackDef {
    * OBLIGATORIO (pivote 7-sep-2026): la señal que la persona va a ver
    * moverse. Sale tal cual de la tabla de CASOS_DE_USO_DESTINOS para los 8
    * que ya existían; para los 12 nuevos el `seNotaEn` es propuesta y va
-   * ⚠️ PEND-FIRMA Mariana (esa tabla no traía tiempos).
+   * ⚠️ PEND-FIRMA CLÍNICA (esa tabla no traía tiempos).
    */
   mide: PackSenal;
   /**
@@ -208,7 +208,7 @@ export const INTENSIDAD_LABELS: Record<PackIntensidad, string> = {
  * de dormir es lo accionable sin wearable; el score de N-Back se registra,
  * no se promete que suba).
  *
- * ⚠️ PEND-FIRMA (Enrique + Mariana) antes de tiendas:
+ * ⚠️ PEND-FIRMA (Enrique) antes de tiendas:
  *   · los veinte `nombre` (la regla de nombres: cero padecimientos),
  *   · `paraQuien` y `queEsperar` de cada pack,
  *   · `argosFoco` (se guarda hoy, lo consume MB-31),
@@ -299,10 +299,10 @@ export const PACKS: PackDef[] = [
       { electron: 'screen_time_cutoff', core: true, hora: { ancla: 'dormir', offsetMin: -60 } },
       // 7-sep-2026: SALIÓ `red_glasses`. Su gemela en el catálogo,
       // `lentes_rojos`, tiene requiresClinicalValidation y sigue esperando la
-      // firma de Mariana. El candado solo vigilaba `prescribe`, así que la
+      // firma clínica. El candado solo vigilaba `prescribe`, así que la
       // firma se estaba brincando por la puerta de `enciende`: encender el
       // hábito es pedirle a la persona que haga la práctica, igual que
-      // prescribirla. Vuelve el día que Mariana firme `lentes_rojos`, y hasta
+      // prescribirla. Vuelve el día que el equipo clínico de ATP firme `lentes_rojos`, y hasta
       // entonces el test lo impide (ver ELECTRON_GEMELO en el contrato).
       { electron: 'breathwork', core: false, hora: { ancla: 'dormir', offsetMin: -90 } },
     ],
@@ -497,9 +497,9 @@ export const PACKS: PackDef[] = [
   // candidatos de CASOS_DE_USO_DESTINOS (20-ago-2026): nombre, lo que dice la
   // persona y la señal que se mueve son de esa tabla. Lo que NO traía esa
   // tabla y por lo tanto es propuesta:
-  //   · `seNotaEn` de los doce (⚠️ PEND-FIRMA Mariana),
+  //   · `seNotaEn` de los doce (⚠️ PEND-FIRMA CLÍNICA),
   //   · `noInstala` completo (⚠️ PEND-FIRMA Enrique),
-  //   · el set de `prescribe` (⚠️ PEND-FIRMA Enrique + Mariana).
+  //   · el set de `prescribe` (⚠️ PEND-FIRMA Enrique).
   // Regla que se respetó en todos: modalidad por la puerta suave de su
   // familia, y jamás una práctica con validación clínica pendiente.
   // El objetivo 20 vive en PAQUETES_SALUD: su puerta es el Centro, no la
@@ -531,7 +531,7 @@ export const PACKS: PackDef[] = [
     mide: {
       que: 'Tus récords por ejercicio y tu 1RM estimado.',
       dondeApp: 'records',
-      // ⚠️ PEND-FIRMA Mariana: propuesta, la tabla de destinos no traía tiempo.
+      // ⚠️ PEND-FIRMA CLÍNICA: propuesta, la tabla de destinos no traía tiempo.
       seNotaEn: '6 a 8 semanas',
     },
     noInstala: [
@@ -588,7 +588,7 @@ export const PACKS: PackDef[] = [
       // son las sesiones. Es más modesto y es verdad.
       que: 'Tus sesiones de cardio y de fuerza en el rango, contra tu meta de la semana.',
       dondeApp: 'reportes',
-      // ⚠️ PEND-FIRMA Mariana: propuesta, la tabla de destinos no traía tiempo.
+      // ⚠️ PEND-FIRMA CLÍNICA: propuesta, la tabla de destinos no traía tiempo.
       seNotaEn: '4 a 6 semanas',
     },
     noInstala: [
@@ -636,7 +636,7 @@ export const PACKS: PackDef[] = [
     mide: {
       que: 'Tu glucosa después de comer junto con tu energía de la tarde.',
       dondeApp: 'glucosa',
-      // ⚠️ PEND-FIRMA Mariana: propuesta, la tabla de destinos no traía tiempo.
+      // ⚠️ PEND-FIRMA CLÍNICA: propuesta, la tabla de destinos no traía tiempo.
       seNotaEn: '1 a 2 semanas',
     },
     noInstala: [
@@ -696,14 +696,14 @@ export const PACKS: PackDef[] = [
       // frecuencia, la señal vuelve a ser la del renglón 12.
       que: 'Tus días con tu meta de agua cumplida y lo que registraste en tus comidas.',
       dondeApp: 'reportes',
-      // ⚠️ PEND-FIRMA Mariana: propuesta, la tabla de destinos no traía tiempo.
+      // ⚠️ PEND-FIRMA CLÍNICA: propuesta, la tabla de destinos no traía tiempo.
       seNotaEn: '2 a 4 semanas',
     },
     noInstala: [
       {
         que: 'Agua fuera de las comidas',
         porque:
-          'La tabla de destinos la propone y probablemente ayuda, y hoy espera la firma de Mariana en el catálogo: prescribirla desde aquí se brincaría esa firma por la puerta de atrás.',
+          'La tabla de destinos la propone y probablemente ayuda, y hoy espera la firma clínica en el catálogo: prescribirla desde aquí se brincaría esa firma por la puerta de atrás.',
       },
       {
         que: 'Ayuno',
@@ -758,7 +758,7 @@ export const PACKS: PackDef[] = [
     mide: {
       que: 'Cuánta agua tomaste y qué días llegaste a tu meta.',
       dondeApp: 'reportes',
-      // ⚠️ PEND-FIRMA Mariana: propuesta, la tabla de destinos no traía tiempo.
+      // ⚠️ PEND-FIRMA CLÍNICA: propuesta, la tabla de destinos no traía tiempo.
       seNotaEn: '6 a 8 semanas',
     },
     noInstala: [
@@ -821,7 +821,7 @@ export const PACKS: PackDef[] = [
       // sería prometer una fecha que no depende de la persona.
       que: 'Cada marcador de tus estudios en el tiempo, leído contra tu ventana funcional.',
       dondeApp: 'reportes',
-      // ⚠️ PEND-FIRMA Mariana: propuesta, la tabla de destinos no traía tiempo.
+      // ⚠️ PEND-FIRMA CLÍNICA: propuesta, la tabla de destinos no traía tiempo.
       seNotaEn: '1 a 3 meses',
     },
     noInstala: [
@@ -875,7 +875,7 @@ export const PACKS: PackDef[] = [
       // "tu energía de la mañana" tal cual el renglón 15.
       que: 'Tu energía en cada check-in, con su fecha y su hora.',
       dondeApp: 'reportes',
-      // ⚠️ PEND-FIRMA Mariana: propuesta, la tabla de destinos no traía tiempo.
+      // ⚠️ PEND-FIRMA CLÍNICA: propuesta, la tabla de destinos no traía tiempo.
       seNotaEn: '1 a 2 semanas',
     },
     noInstala: [
@@ -934,7 +934,7 @@ export const PACKS: PackDef[] = [
       // como minutos, la señal vuelve a ser la del renglón 16.
       que: 'Tu racha de meditación, de journal y de check-in, día tras día.',
       dondeApp: 'rachas',
-      // ⚠️ PEND-FIRMA Mariana: propuesta, la tabla de destinos no traía tiempo.
+      // ⚠️ PEND-FIRMA CLÍNICA: propuesta, la tabla de destinos no traía tiempo.
       seNotaEn: '2 a 4 semanas',
     },
     noInstala: [
@@ -964,7 +964,7 @@ export const PACKS: PackDef[] = [
     // ciclo activo. Hoy PackDef no tiene forma de condicionarse (el gating
     // femaleOnly vive en APP_REGISTRY y solo esconde la app, no el objetivo),
     // y NO se inventó un mecanismo. Queda declarado y la puerta que lo ofrece
-    // tiene que filtrarlo hasta que exista el campo. Mariana firma el caso
+    // tiene que filtrarlo hasta que exista el campo. El equipo clínico de ATP firma el caso
     // completo antes de que se ofrezca (CASOS_DE_USO_DESTINOS, cierre).
     nombre: 'Mi ciclo a mi favor',
     paraQuien: 'Para quien lleva años peleándose con dos semanas de cada mes en vez de aprovecharlas.',
@@ -997,11 +997,11 @@ export const PACKS: PackDef[] = [
       // los registros AGRUPADOS POR FASE no se calculan en ningún lado. El
       // dominio ciclo de Reportes sí da los promedios de tus ciclos y tus
       // registros diarios con fecha, que es lo mismo visto por día en vez de
-      // por fase. ⚠️ PEND-FIRMA Mariana: agrupar por fase es lo que haría
+      // por fase. ⚠️ PEND-FIRMA CLÍNICA: agrupar por fase es lo que haría
       // valioso este objetivo, y hoy no existe.
       que: 'Tus ciclos, sus promedios, y tu energía y tus molestias día por día.',
       dondeApp: 'reportes',
-      // ⚠️ PEND-FIRMA Mariana: propuesta, la tabla de destinos no traía tiempo.
+      // ⚠️ PEND-FIRMA CLÍNICA: propuesta, la tabla de destinos no traía tiempo.
       seNotaEn: '2 a 3 ciclos',
     },
     noInstala: [
@@ -1077,7 +1077,7 @@ export const PACKS: PackDef[] = [
       // por día, así que una caminata registrada ya mueve el número.
       que: 'Tus sesiones de la semana, contando tus caminatas. Sin más.',
       dondeApp: 'reportes',
-      // ⚠️ PEND-FIRMA Mariana: propuesta, la tabla de destinos no traía tiempo.
+      // ⚠️ PEND-FIRMA CLÍNICA: propuesta, la tabla de destinos no traía tiempo.
       seNotaEn: '1 semana',
     },
     noInstala: [
@@ -1134,7 +1134,7 @@ export const PACKS: PackDef[] = [
       // calendario, la señal vuelve a ser la del renglón 19.
       que: 'Tu racha de journal y de check-in, día tras día.',
       dondeApp: 'rachas',
-      // ⚠️ PEND-FIRMA Mariana: propuesta, la tabla de destinos no traía tiempo.
+      // ⚠️ PEND-FIRMA CLÍNICA: propuesta, la tabla de destinos no traía tiempo.
       seNotaEn: '2 semanas',
     },
     noInstala: [
@@ -1171,7 +1171,7 @@ export const PACKS: PackDef[] = [
  * descubren en el Centro. La ficha (/packs/[packKey]) y aplicarPack los
  * tratan igual: viven en el mismo PACK_BY_KEY.
  *
- * ⚠️ PEND-FIRMA (Enrique + Mariana): nombre, paraQuien, queEsperar y
+ * ⚠️ PEND-FIRMA (Enrique): nombre, paraQuien, queEsperar y
  * argosFoco de los cuatro, ANTES de que el copy sea definitivo. Las llaves
  * son estables y no se tocan. Regla dura de nombres: cero padecimientos
  * (el barrido de este archivo también los cubre).
@@ -1365,7 +1365,7 @@ export const PAQUETES_SALUD: PackDef[] = [
     mide: {
       que: 'El reporte de tu periodo listo, y qué huecos le quedan a tu expediente.',
       dondeApp: 'reportes',
-      // ⚠️ PEND-FIRMA Mariana: propuesta, la tabla de destinos no traía tiempo.
+      // ⚠️ PEND-FIRMA CLÍNICA: propuesta, la tabla de destinos no traía tiempo.
       seNotaEn: 'Inmediato',
     },
     noInstala: [

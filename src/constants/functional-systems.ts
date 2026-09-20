@@ -1,5 +1,5 @@
 /**
- * 7 Sistemas Funcionales — matriz de medicina funcional (framework Mariana).
+ * 7 Sistemas Funcionales — matriz de medicina funcional (criterio clínico de ATP).
  *
  * Base del expediente vivo de Historia Clínica (F3 sprint UX blockers V1.3):
  * cada síntoma registrado pertenece a un sistema, y cada sistema correlaciona

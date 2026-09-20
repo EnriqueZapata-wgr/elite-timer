@@ -15,7 +15,7 @@ Ejecutado por: Claude Code
 ### BUG-001: 9 campos con defaultValue + onEndEditing en consultas (pérdida de datos)
 - **Archivo**: src/screens/coach/ClientDetailScreen.tsx:1795, 1827-1853
 - **Descripción**: Los campos de "Descripción del día", contexto de peso (6 campos), y notas de estudios clínicos usan `defaultValue` + `onEndEditing` que falla silenciosamente en web
-- **Impacto**: Mariana pierde datos que escribe en la consulta
+- **Impacto**: el coach pierde datos que escribe en la consulta
 - **Campos afectados**: day_description, weight_highest_kg, weight_highest_year, weight_lowest_kg, weight_lowest_year, weight_ideal_kg, weight_ideal_notes, coach_notes (estudios)
 - **Fix sugerido**: Reemplazar con inputs controlados (value + onChangeText) + botón Guardar explícito, igual que se hizo para SOAP y Objetivos
 

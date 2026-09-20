@@ -16,7 +16,7 @@
  * que es una propiedad de la respuesta y no de esta lista. Cero patrones
  * pegando → null, como antes.
  *
- * Sigue siendo heurística de frases (TODO Mariana: clasificador semántico).
+ * Sigue siendo heurística de frases (TODO, pendiente de revisión clínica: clasificador semántico).
  * Puro, sin supabase: se prueba en node.
  */
 import type { Principle } from '@/src/lib/coach-engine/types';

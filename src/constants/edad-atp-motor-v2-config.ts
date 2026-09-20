@@ -45,7 +45,7 @@ export const MOTOR_V2_VERSION = 'v2';
  * Cognición v2.1 — latencia añadida por captura en pantalla táctil (display + touch
  * sampling) vs el botón físico de Der & Deary 2006. Se RESTA al RT medido antes de
  * mapear a edad: un RT de teléfono NO es comparable a uno de laboratorio.
- * Valor de ARRANQUE — Enrique + Mariana lo calibran con datos reales.
+ * Valor de ARRANQUE — Enrique lo calibra con datos reales.
  */
 export const RT_TOUCH_LATENCY_MS = 65;
 

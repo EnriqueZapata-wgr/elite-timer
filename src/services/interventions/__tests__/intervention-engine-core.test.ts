@@ -36,7 +36,7 @@ const TEST_CATALOG: Intervention[] = [
     categories: ['piel'], roots: ['toxicidad_ambiental'],
     assignRule: 'r', priority: 3,
   },
-  // Gating clínico: pendientes de firma de Mariana → el motor NUNCA las devuelve.
+  // Gating clínico: pendientes de firma clínica → el motor NUNCA las devuelve.
   {
     key: 'p_pending', name: 'Pendiente clínica', how: 'x', benefit: 'y',
     categories: ['metabolismo'], roots: ['resistencia_insulina'],

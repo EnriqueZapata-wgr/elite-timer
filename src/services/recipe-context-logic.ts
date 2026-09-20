@@ -4,7 +4,7 @@
  * el prompt de recetas. Sin imports de supabase/RN (testeable en node).
  *
  * Criterio medicina funcional: rangos FUNCIONALES (no de laboratorio
- * convencional), comida primero. FLAG validación Mariana pendiente.
+ * convencional), comida primero. FLAG validación clínica pendiente.
  */
 
 export interface BiomarkerReading {

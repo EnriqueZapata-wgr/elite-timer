@@ -1,5 +1,5 @@
 /**
- * Rutas de captura por parámetro pendiente (Mariana #16).
+ * Rutas de captura por parámetro pendiente (beta-01 #16).
  *
  * Cada item de "Datos por capturar" (my-health) debe llevar al input EXACTO, no a
  * una pantalla genérica. La clave es la columna de health_measurements; el valor es

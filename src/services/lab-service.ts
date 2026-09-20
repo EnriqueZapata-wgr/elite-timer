@@ -333,7 +333,7 @@ Solo valores encontrados. No mapeados→other_values.`;
 
     // ── Validación clínica (doctrina: null antes que basura) ──────────────────────
     // Cada valor extraído por la IA se compara contra su rango clínico ABSOLUTO. Los
-    // imposibles (LDL 2.27, HDL 2.15, Col 672 — casos reales de Mariana) se DESCARTAN:
+    // imposibles (LDL 2.27, HDL 2.15, Col 672 — casos reales del beta-01) se DESCARTAN:
     // no se escriben a lab_results ni a lab_values. El motor Edad ATP ya maneja el null
     // (renormaliza CE). Mejor un biomarcador "no detectado" que un número absurdo.
     const values: Record<string, any> = {};

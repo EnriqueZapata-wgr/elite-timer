@@ -14,7 +14,7 @@
  * NO INVENTA NINGÚN NÚMERO. Ni uno. Los arreglos de aquí no están escritos a mano:
  * se construyen en tiempo de carga leyendo `MATRIZ_MUJERES` de
  * `src/constants/edad-atp-matriz-v7-v6.ts`, que cita archivo Excel fuente, autoría
- * y fecha de extracción, y que es lo que firma la Chief Science Officer. Si mañana
+ * y fecha de extracción, y que es lo que lleva la firma clínica de ATP. Si mañana
  * se corrige la matriz, esto se corrige solo.
  *
  * POR QUÉ SE INVIERTE EL ARREGLO

@@ -9,7 +9,7 @@
 --   Pro: auto/gratis · Base: 1000 H+ con cache (no cobra si no hay dato nuevo).
 -- intervention_rationale: narrativa opcional "por qué estas intervenciones"
 --   (el match es determinístico; ARGOS solo explica). ≈ costo de chat.
--- bha_scan: escaneo Biohacker Approved (OCR + criterios Mariana, multimodal).
+-- bha_scan: escaneo Biohacker Approved (OCR + criterios del equipo clínico, multimodal).
 --   500-1000 H+ → 800. Se usa en el sprint SUPS.
 --
 -- Idempotente (ON CONFLICT DO NOTHING — preserva overrides manuales).

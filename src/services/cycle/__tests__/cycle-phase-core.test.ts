@@ -57,9 +57,9 @@ describe('getPhase: el corte canónico (la misma cuenta que predecirOvulacion)',
   // día 5 aún es menstrual con periodo de 5). getPhase deja ganar a menstrual
   // (el sangrado es dato registrado; la ovulación es estimada), así que la
   // tarjeta dice "menstrual" un día que el calendario pinta fértil. Qué debe
-  // mandar ahí lo decide Mariana; este test solo fija el comportamiento actual
+  // mandar ahí es criterio clínico de ATP; este test solo fija el comportamiento actual
   // para que un cambio sea consciente.
-  it('límite conocido (pendiente de Mariana): L=21 P=5, el día 5 es menstrual aunque esté en la banda alta', () => {
+  it('límite conocido (pendiente de firma clínica): L=21 P=5, el día 5 es menstrual aunque esté en la banda alta', () => {
     const v = predecirOvulacion({ cycleLen: 21, cyclesUsed: 3 })!;
     expect([v.altaInicio, v.altaFin]).toEqual([5, 7]);
     expect(getPhase(5, 21, 5)).toBe('menstrual');

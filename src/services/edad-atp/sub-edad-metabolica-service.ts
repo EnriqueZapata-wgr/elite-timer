@@ -1,7 +1,7 @@
 /**
  * Sub-edad Metabólica DISPLAY — desde SF del dominio `metabolismo` de la matriz V7/V6.
  * Reemplaza las curvas inventadas por scoring 9-band real. Mapeo SF→edad piecewise.
- * TODO Mariana Sprint 5: validar curva con datos clínicos.
+ * TODO Sprint 5 (revisión clínica): validar curva con datos clínicos.
  */
 import type { Sex, SubEdadResult } from '@/src/types/edad-atp-v2';
 import { scoreDomain, getMatriz } from './sf-9band-service';

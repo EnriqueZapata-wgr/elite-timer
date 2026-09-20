@@ -113,7 +113,7 @@ export default function CommunityRankingScreen() {
 
   const load = useCallback(async () => {
     // 7.1 (31-ago-2026): si mi fila pública no trae nombre (display_name vacío,
-    // el caso real de Mariana), se cura con mi full_name ANTES de leer el
+    // el caso real beta-01), se cura con mi full_name ANTES de leer el
     // ranking, para que mi propia fila ya salga con nombre y no como "A".
     if (user?.id) await ensureOwnPublicName(user.id);
     // getMyPosition es all-time (la card "Tu posición" siempre habla de por vida).

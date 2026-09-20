@@ -416,7 +416,7 @@ export interface Candidato {
  *
  * Se muestra solo nombre, correo y nivel: nada de salud. Fuera quedan las
  * cuentas de prueba, el propio Enrique, los perfiles excluidos por nombre
- * (Mariana) y cualquiera que sea coach de alguien mas.
+ * (PERFILES_EXCLUIDOS) y cualquiera que sea coach de alguien mas.
  */
 export async function cargarCandidatos(coachId: string): Promise<Lectura<Candidato[]>> {
   try {

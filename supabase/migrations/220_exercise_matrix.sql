@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS exercise_matrix (
   metodos             text[] NOT NULL DEFAULT '{}',   -- eje 8: métodos ATP aplicables
   emom_apto           text NOT NULL DEFAULT 'No',     -- eje 8: Todos | Intermedio+ | Avanzado | No
   benchmark_edad      text NOT NULL DEFAULT 'No',     -- eje 11: No | Tier A (…) | Tier B (…)
-  contraindicaciones  text[] NOT NULL DEFAULT '{}',   -- eje 9 (capa Mariana)
+  contraindicaciones  text[] NOT NULL DEFAULT '{}',   -- eje 9 (capa clínica)
   familia             text NOT NULL,             -- eje 7: familia de progresión/regresión
   media_url           text,                      -- poster hoy; clip MoveKit después (mismo campo)
   origen              text NOT NULL DEFAULT 'movekit' CHECK (origen IN ('movekit', 'atp')),

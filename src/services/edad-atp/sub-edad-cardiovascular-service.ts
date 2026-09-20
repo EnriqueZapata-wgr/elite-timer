@@ -3,7 +3,7 @@
  * Reemplaza el modelo ASCVD vanilla 2013 (AHA/ACC) por la matriz funcional propietaria.
  * 23 params del dominio Cardiovascular evaluados con scoring 9-band.
  *
- * Mapeo SF→edad: curva piecewise interim. TODO Mariana Sprint 5: validar con datos clínicos.
+ * Mapeo SF→edad: curva piecewise interim. TODO Sprint 5 (revisión clínica): validar con datos clínicos.
  */
 import type { Sex, SubEdadResult } from '@/src/types/edad-atp-v2';
 import { scoreDomain, getMatriz } from './sf-9band-service';

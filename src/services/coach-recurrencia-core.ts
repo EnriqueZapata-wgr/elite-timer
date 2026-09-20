@@ -18,7 +18,7 @@
  */
 
 /** Días hacia atrás que cuentan como "recurre". Sin fuente clínica: es el
- *  horizonte operativo del coach (dos semanas), pendiente de firma de Mariana. */
+ *  horizonte operativo del coach (dos semanas), pendiente de firma clínica. */
 export const VENTANA_RECURRENCIA_DIAS = 14;
 
 export interface TurnoPrevio {

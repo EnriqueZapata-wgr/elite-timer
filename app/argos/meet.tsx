@@ -2,7 +2,7 @@
  * Meet ARGOS — primer contacto post-onboarding (T6 MAGIA ARGOS · T1 ONBOARDING épico).
  *
  * Secuencia cinemática de 5 pantallas (Propuesta A, guion en
- * src/constants/argos-meet-copy.ts — ⚠️ approval Mariana para cambios):
+ * src/constants/argos-meet-copy.ts — ⚠️ revisión clínica de ATP para cambios):
  * typing effect en las primeras 3, auto-avance ~6-8s o tap para adelantar,
  * avatar sube de intensidad (idle → speaking) y pasa a fondo en la 4ta.
  *
@@ -190,7 +190,7 @@ export default function MeetArgosScreen() {
                 <EliteText style={s.ctaText}>{loading ? 'Un momento…' : MEET_CTA_LABEL}</EliteText>
               </AnimatedPressable>
               {/* C5 COMUNIDAD: bridge secundario a la Tribu (Skool) — solo pantalla 5,
-                  no toca el guion (argos-meet-copy, approval Mariana). */}
+                  no toca el guion (argos-meet-copy, revisión clínica de ATP). */}
               <AnimatedPressable
                 style={s.tribeLink}
                 onPress={() => { haptic.light(); Linking.openURL(SKOOL_URL).catch(() => {}); }}

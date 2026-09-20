@@ -7,7 +7,7 @@
  * safety_params (migración 210) cuando hay red.
  *
  * Umbrales = BORRADOR del HANDOFF_DEV_CIERRE_COMPLIANCE_2026-07-21
- * (Mariana confirma como contenido; ajustables en DB sin re-deploy).
+ * (el equipo clínico de ATP confirma como contenido; ajustables en DB sin re-deploy).
  */
 
 export interface FeverScreeningParams {

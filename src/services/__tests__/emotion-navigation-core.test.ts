@@ -89,7 +89,7 @@ describe('plan con disponibilidad condicional (MB-9 · Track B · análisis v2)'
     }
   });
 
-  it('el umbral es una constante editable (calibración clínica pendiente de Mariana)', () => {
+  it('el umbral es una constante editable (calibración clínica pendiente)', () => {
     expect(SINGLE_EXIT_INTENSITY).toBe(6);
   });
 

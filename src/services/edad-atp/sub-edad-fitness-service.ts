@@ -1,7 +1,7 @@
 /**
  * Sub-edad Fitness DISPLAY — desde SF del dominio `vitalidad` de la matriz V7/V6
  * (incluye fuerza de agarre, músculo, energía/recuperación). Reemplaza las curvas
- * inventadas por scoring 9-band real. TODO Mariana Sprint 5: validar curva + dominio fitness.
+ * inventadas por scoring 9-band real. TODO Sprint 5 (revisión clínica): validar curva + dominio fitness.
  */
 import type { Sex, SubEdadResult } from '@/src/types/edad-atp-v2';
 import { scoreDomain, getMatriz } from './sf-9band-service';

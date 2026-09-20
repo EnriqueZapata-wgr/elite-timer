@@ -52,7 +52,7 @@ Y hay dos clases de revisor, y las dos hacen falta cuando el bloque es grande:
 - **No se toca `app.json` ni `plugins/`** sin un build nativo inmediato: cambia el runtime y deja a los teléfonos instalados sin poder recibir actualizaciones.
 - **No se corre `npm install`, `npx tsc` ni `npx eslint`** desde la sesión: no caben en el tope de tiempo. El type check y los tests los corre Enrique.
 - **No se inventa nada clínico.** Sin fuente, no hay dato: null y raya. Un rango inventado es peor que un hueco.
-- **No se toca la cuenta ni los datos de Mariana.**
+- **No se tocan las cuentas de personas ajenas al equipo** (ex colaboradores, suscriptores de tienda): ni sus datos ni sus accesos, salvo instrucción escrita del dueño.
 
 ## 6. La regla que está por encima de todas
 
@@ -76,7 +76,7 @@ Y hay dos clases de revisor, y las dos hacen falta cuando el bloque es grande:
 **Se va a FIFO, escrito con su motivo:**
 - Lo que no estorba para lo que sigue.
 - Lo que necesita una decisión de Enrique que no urge.
-- Lo que necesita firma clínica de Mariana.
+- Lo que necesita firma clínica.
 - Lo que se descubrió de paso y no es del bloque.
 - Deuda vieja que ya estaba antes de esta sesión: se anota con la fecha en que nació, no se arregla de contrabando dentro de otro cambio.
 
@@ -87,7 +87,7 @@ Y hay dos clases de revisor, y las dos hacen falta cuando el bloque es grande:
 **Cada agente, en su informe final**, obligatorio, máximo unas 700 palabras:
 1. Archivo por archivo, con ruta exacta, qué cambió y por qué.
 2. **Qué decidió solo y por qué**, para que Enrique lo pueda revertir de un vistazo. Esta sección es la más valiosa y la que más se olvida.
-3. Qué NO cerró, con FLAG explícito si necesita a Enrique o a Mariana.
+3. Qué NO cerró, con FLAG explícito si necesita a Enrique o firma clínica.
 4. Cómo lo verificó: la salida real de los scripts y los tests, pegada, no resumida.
 5. Migraciones nuevas y funciones edge tocadas, para el despliegue.
 

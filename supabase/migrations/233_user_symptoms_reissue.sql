@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS user_symptoms (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   severity INT NOT NULL DEFAULT 3 CHECK (severity BETWEEN 1 AND 5),
-  -- NULLABLE: los síntomas "sueltos" no tienen sistema. Los 7 sistemas de Mariana o NULL.
+  -- NULLABLE: los síntomas "sueltos" no tienen sistema. Los 7 sistemas del método ATP o NULL.
   system_key TEXT CHECK (system_key IS NULL OR system_key IN (
     'asimilacion','defensa','energia','biotransformacion',
     'transporte','comunicacion','estructura'

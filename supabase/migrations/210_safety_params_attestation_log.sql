@@ -1,7 +1,7 @@
 -- 210: Parámetros de seguridad + log de atestaciones (Sprint Compliance 3).
 --
 -- A) safety_params: umbrales clínicos BORRADOR (fiebre, ayuno, respiración,
---    condiciones bloqueadas por familia de protocolo). Mariana los confirma
+--    condiciones bloqueadas por familia de protocolo). El equipo clínico los confirma
 --    como CONTENIDO en paralelo — por eso viven en tabla: se ajustan con un
 --    UPDATE, sin re-deploy ni OTA. El cliente los lee con fallback a
 --    defaults compilados (fail-safe si no hay red).

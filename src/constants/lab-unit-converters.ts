@@ -3,7 +3,7 @@
  *
  * Convierte el valor extraído (en la unidad detectada en el PDF) a la unidad CANÓNICA
  * que espera el resto del pipeline (lab_results → lab_values → motor). Es la primera
- * defensa contra los absurdos de Mariana (ej. LDL en mmol/L leído como mg/dL).
+ * defensa contra los absurdos de la beta-01 (ej. LDL en mmol/L leído como mg/dL).
  *
  * Orden de resolución en normalizeLabValue:
  *   1. conversión explícita si la unidad detectada está en el catálogo,

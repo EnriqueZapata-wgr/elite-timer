@@ -34,7 +34,7 @@ export interface PostMealSummary {
 
 /**
  * Prompt breve del insight (1-2 oraciones, editorial, accionable).
- * COPY del system para review de Enrique/Mariana.
+ * COPY del system para review de Enrique.
  */
 export function buildPostMealPrompt(s: PostMealSummary): { system: string; user: string } {
   return {

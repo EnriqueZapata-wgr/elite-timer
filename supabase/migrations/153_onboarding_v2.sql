@@ -7,7 +7,7 @@
 --    Configurable en onboarding paso 4 + Settings de Ciclo.
 --
 -- 2) profiles.medical_consent_at — timestamp del consentimiento médico
---    (pantalla 6 del onboarding v2, disclaimers de Mariana).
+--    (pantalla 6 del onboarding v2, disclaimers del equipo clínico).
 --
 -- Nota: el step del onboarding v2 REUTILIZA profiles.onboarding_step (TEXT
 -- sin CHECK, migración 032) con valores 'v2_welcome' … 'v2_notifications' /

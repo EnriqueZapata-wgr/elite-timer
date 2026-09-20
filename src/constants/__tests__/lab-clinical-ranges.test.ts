@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { isLabValueValid, LAB_ABSOLUTE_RANGES } from '@/src/constants/lab-clinical-ranges';
 
 describe('lab-clinical-ranges — isLabValueValid', () => {
-  describe('casos reales de Mariana (beta test) → deben rechazarse', () => {
+  describe('casos reales del beta test (beta-01) → deben rechazarse', () => {
     it('rechaza LDL 2.27 mg/dL (rango 30-400)', () => {
       expect(isLabValueValid('ldl', 2.27)).toBe(false);
     });

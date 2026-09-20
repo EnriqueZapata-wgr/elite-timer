@@ -6,7 +6,7 @@
  * elimina el abandono silencioso en "¿qué labs me hago?".
  *
  * Léxico México (biometría hemática, química clínica) + rangos de precio MXN
- * aproximados + laboratorios comerciales. Review Enrique + Mariana.
+ * aproximados + laboratorios comerciales. Review Enrique.
  *
  * Archivo puro (sin react-native): alimenta la pantalla in-app Y el PDF,
  * y es testeable con el harness Vitest node-only.

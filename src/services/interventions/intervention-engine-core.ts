@@ -112,7 +112,7 @@ const PRIORITY_WEIGHT: Record<Priority, number> = { 1: 3, 2: 2, 3: 1 };
  *  - Score = base por prioridad clínica + Σ (severidad × confianza) de raíces en común.
  *  - Orden: score desc, luego prioridad asc (🔴 antes que 🟢), luego nombre.
  *  - GATING CLÍNICO: entradas con `requiresClinicalValidation` (pendientes de firma
- *    de Mariana — task #9, ella quita el flag al firmar) NUNCA salen del motor:
+ *    clínica — task #9, el equipo clínico quita el flag al firmar) NUNCA salen del motor:
  *    ni en `suggestions` ni en `universals`. El user SÍ puede tenerlas/activarlas
  *    manualmente (resolveInterventionDef las resuelve normal — data existente intacta).
  */

@@ -93,7 +93,7 @@ export function ParameterChart({ series, bandLimits, todayISO, unit = '', width,
           </>
         ) : null}
 
-        {/* Banda funcional ATP (rango óptimo de Mariana). */}
+        {/* Banda funcional ATP (rango óptimo según criterio clínico de ATP). */}
         {model.band ? (
           <>
             <Rect

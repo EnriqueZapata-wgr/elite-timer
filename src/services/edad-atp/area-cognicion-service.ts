@@ -12,7 +12,7 @@
  *  3. Go/No-Go: castigo por error de comisión sensible (~0.7 año/punto%, techo 15).
  *
  * Pesos: simple 0.30, choice 0.30, go/no-go 0.25, subjetivos 0.15.
- * Pendiente Mariana (follow-up, NO en v2.1): aplanar la pendiente RT 30-50.
+ * Pendiente de revisión clínica (follow-up, NO en v2.1): aplanar la pendiente RT 30-50.
  */
 import { RT_TOUCH_LATENCY_MS } from '@/src/constants/edad-atp-motor-v2-config';
 import type { AreaCiegaResult, AreaComponent, MotorV2Input } from '@/src/types/motor-edad-atp-v2';

@@ -32,7 +32,7 @@ describe('onboarding-copy · estructura', () => {
     expect(ONBOARDING_COPY.consent.points[0].text).toMatch(/No diagnostica/i);
   });
 
-  it('consent incluye los 3 disclaimers aprobados por Mariana (doc 06, >>)', () => {
+  it('consent incluye los 3 disclaimers con revisión clínica de ATP (doc 06, >>)', () => {
     const texts = ONBOARDING_COPY.consent.points.map((p) => p.text).join(' ');
     // 1) ATP no reemplaza consulta médica o nutricional.
     expect(texts).toMatch(/no reemplaza una consulta médica o nutricional/i);

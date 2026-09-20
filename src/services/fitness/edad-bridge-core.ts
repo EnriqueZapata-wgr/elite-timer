@@ -1,7 +1,7 @@
 /**
  * Puente Fitness → Edad ATP (MB-3 Track C) — núcleo PURO.
  *
- * ADITIVO al motor congelado (edad-atp/*, validado por Mariana): NO recalcula
+ * ADITIVO al motor congelado (edad-atp/*, validado por el equipo clínico de ATP): NO recalcula
  * nada del motor. Hace dos cosas:
  *
  * 1. TIER A (primarias, norma clínica): traduce sets de la sesión de fuerza a
@@ -30,7 +30,7 @@ import type { MatrixExercise } from '@/src/constants/exercise-matrix';
 
 /**
  * false hasta que exista banda femenina PROPIA para push-ups (el 40 de Yang
- * 2019 es de hombres; no se extrapola con descuento — doctrina Mariana).
+ * 2019 es de hombres; no se extrapola con descuento — doctrina clínica de ATP).
  */
 export const PUSHUPS_NORMA_FEMENINA_DISPONIBLE = false;
 

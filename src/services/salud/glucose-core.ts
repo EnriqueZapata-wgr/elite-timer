@@ -6,7 +6,7 @@
  * que es lo que de verdad hay que blindar con tests.
  *
  * Vivía suelto dentro de app/glucose-log.tsx, donde no se podía testear: los
- * rangos de referencia son doctrina (Mariana), no detalle de una pantalla, y
+ * rangos de referencia son doctrina clínica de ATP, no detalle de una pantalla, y
  * cualquiera que edite el archivo podía moverlos sin que nada se quejara.
  *
  * Rangos (mg/dL), los mismos que la pantalla aplicaba desde siempre:

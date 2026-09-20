@@ -4,7 +4,7 @@
  *
  * El MODIFICADOR es exacto (fórmula del doc maestro, verificable).
  * Las NORMAS de tiempo de reacción (Deary-Liewald) son APROXIMADAS — refinar
- * con Mariana en un sprint posterior (los valores exactos viven en el doc maestro
+ * con el equipo clínico de ATP en un sprint posterior (los valores exactos viven en el doc maestro
  * ausente; aquí se usan las aproximaciones del buzón).
  */
 import type { Sex } from '@/src/types/edad-atp-v2';

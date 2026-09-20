@@ -248,7 +248,7 @@ export async function cargarPerfilCardio(userId: string): Promise<ResultadoPerfi
 /**
  * Clasificacion del VO2max con la banda `vo2_estimado` de la Matriz de Salud
  * Funcional V7 (hombres) / V6 (mujeres), src/constants/edad-atp-matriz-v7-v6.ts
- * (Zapata y Doria, extraida 2026-06-09). Es la unica tabla de la casa con
+ * (Zapata, extraida 2026-06-09). Es la unica tabla de la casa con
  * dueño; NO se agrega otra por edad. Sin sexo no hay matriz y se devuelve
  * null: la pantalla dice "clasificacion pendiente".
  */

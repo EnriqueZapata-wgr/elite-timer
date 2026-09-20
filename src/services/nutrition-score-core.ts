@@ -7,7 +7,7 @@
  *   COMPLETO → Proteína 25 · Hidratación 15 · Macros 20 · Micros 15 ·
  *              Timing 10 · Calidad 15
  *
- * Filosofía nutricional ATP (Mariana): macros por % de kcal en rangos
+ * Filosofía nutricional ATP (criterio clínico): macros por % de kcal en rangos
  * funcionales — carbos 0-25%, grasas 50-75%, proteína 20-35%. Proteína
  * target por peso corporal (1.6-2.2 g/kg, usamos punto medio 1.8).
  *

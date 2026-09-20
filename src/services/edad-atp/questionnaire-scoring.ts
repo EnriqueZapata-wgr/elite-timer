@@ -7,7 +7,7 @@
  * el orden de valores de MÁS SANO → MENOS SANO. El score es lineal (100..0); los valores
  * no listados (p. ej. "desconocido"/"No sé") se tratan como neutrales (50).
  *
- * // TODO Sprint 5: Mariana valida rangos de 9 bandas por pregunta. Este scoring lineal es interim.
+ * // TODO Sprint 5: el equipo clínico de ATP valida rangos de 9 bandas por pregunta. Este scoring lineal es interim.
  */
 import type { DomainKey } from '@/src/types/edad-atp-v2';
 

@@ -13,8 +13,8 @@
  *  - La hora se resuelve en zona América/Ciudad de México (patrón v6), pero
  *    la fuente de hora es inyectable para tests deterministas.
  *
- * NOTA DE COPY: encouragement/concern/celebration usan el copy APROBADO por
- * Mariana (Beta_Launch_Kit/06_COPY_MARIANA_REVIEW_COMPACTO.md, review
+ * NOTA DE COPY: encouragement/concern/celebration usan el copy APROBADO en el
+ * copy review del Beta Launch Kit (Business development/Beta_Launch_Kit/06_*, review
  * 2026-07-10, ítems marcados >>). Los greetings quedan como estaban por
  * decisión de Enrique (sprint POLISH).
  */

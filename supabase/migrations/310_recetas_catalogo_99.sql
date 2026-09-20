@@ -25,7 +25,7 @@
 -- La receta sin la nota sigue completa (ingredientes, pasos, macros,
 -- porciones); la nota sin firma es lo unico que nos podria costar la ficha de
 -- tienda. Las 70 notas estan integras en recetas.json y salen en la hoja de
--- revision de Mariana. Cuando las firme, un UPDATE las enciende sin tocar nada.
+-- revision clinica. Cuando queden firmadas, un UPDATE las enciende sin tocar nada.
 --
 -- LO QUE LA FICHA NO TRAIA, Y AQUI VA EN NULL (no inventado):
 --   category NULL en 6 recetas: la tarjeta no decia el momento.

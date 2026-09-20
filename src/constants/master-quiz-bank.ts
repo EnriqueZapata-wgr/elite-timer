@@ -15,9 +15,9 @@
  *  C1 · padecimientos con estado (activo/remisión/resuelto) — tipo 'condition_status'.
  *  C2 · embarazo/lactancia estado ACTUAL (D9.4b) — dispara flags, no la historia.
  *
- * [PEND-MARIANA]: listas clínicas parametrizables (padecimientos, contraindicaciones,
- * depleciones anticonceptivos, framing sensible). Marcadas con PEND_MARIANA para que
- * Mariana las cierre sin re-tocar arquitectura. Ver arrays *_PEND_MARIANA abajo.
+ * [PEND-FIRMA-CLINICA]: listas clínicas parametrizables (padecimientos, contraindicaciones,
+ * depleciones anticonceptivos, framing sensible). Marcadas con PEND_FIRMA_CLINICA para que
+ * el equipo clínico de ATP las cierre sin re-tocar arquitectura. Ver arrays *_PEND_FIRMA_CLINICA abajo.
  */
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
@@ -76,8 +76,8 @@ export interface MasterQuizQuestion {
   skipWhen?: (answers: Record<string, unknown>) => boolean;
   /** Es una sub-pregunta deep-dive (no aparece en el flujo base). */
   isFollowUp?: boolean;
-  /** La lista de opciones espera cierre clínico de Mariana. */
-  pendMariana?: boolean;
+  /** La lista de opciones espera cierre clínico del equipo de ATP. */
+  pendFirmaClinica?: boolean;
 }
 
 export interface MasterQuizSectionMeta {
@@ -87,11 +87,11 @@ export interface MasterQuizSectionMeta {
   intro: string;
 }
 
-// ── Listas parametrizables [PEND-MARIANA] ────────────────────────────────────
-// Mariana cierra el CONTENIDO de estas listas sin tocar la arquitectura del quiz.
+// ── Listas parametrizables [PEND-FIRMA-CLINICA] ────────────────────────────────────
+// El equipo clínico de ATP cierra el CONTENIDO de estas listas sin tocar la arquitectura del quiz.
 
-/** [PEND-MARIANA #1] Padecimientos crónicos (D9.2). Lista base editable. */
-export const PADECIMIENTOS_PEND_MARIANA: QuizOption[] = [
+/** [PEND-FIRMA-CLINICA #1] Padecimientos crónicos (D9.2). Lista base editable. */
+export const PADECIMIENTOS_PEND_FIRMA_CLINICA: QuizOption[] = [
   { value: 'hipertension', label: 'Hipertensión (presión alta)' },
   { value: 'diabetes_tipo_1', label: 'Diabetes tipo 1' },
   { value: 'diabetes_tipo_2', label: 'Diabetes tipo 2' },
@@ -107,7 +107,7 @@ export const PADECIMIENTOS_PEND_MARIANA: QuizOption[] = [
   { value: 'ansiedad', label: 'Trastorno de ansiedad' },
   { value: 'tdah', label: 'TDAH' },
   { value: 'cancer', label: 'Cáncer (cualquier tipo)' },
-  // Sprint Compliance 3 [PEND-MARIANA]: condiciones que alimentan el hard-block
+  // Sprint Compliance 3 [PEND-FIRMA-CLINICA]: condiciones que alimentan el hard-block
   // automático (capa 1) de los gates de protocolos de riesgo (safety_params).
   // Sin fuente declarable, la capa 1 no puede disparar y solo queda la atestación.
   { value: 'epilepsia', label: 'Epilepsia' },
@@ -116,8 +116,8 @@ export const PADECIMIENTOS_PEND_MARIANA: QuizOption[] = [
   { value: 'tca', label: 'Trastorno de la conducta alimentaria (actual o en recuperación)' },
 ];
 
-/** [PEND-MARIANA #2] Contraindicaciones extra que Mariana puede sumar a padecimientos. */
-export const CONTRAINDICACIONES_PEND_MARIANA: QuizOption[] = [
+/** [PEND-FIRMA-CLINICA #2] Contraindicaciones extra que el equipo clínico de ATP puede sumar a padecimientos. */
+export const CONTRAINDICACIONES_PEND_FIRMA_CLINICA: QuizOption[] = [
   { value: 'epilepsia', label: 'Epilepsia' },
   { value: 'marcapasos', label: 'Marcapasos' },
   { value: 'anticoagulantes', label: 'Uso de anticoagulantes' },
@@ -125,8 +125,8 @@ export const CONTRAINDICACIONES_PEND_MARIANA: QuizOption[] = [
   { value: 'insuficiencia_hepatica', label: 'Insuficiencia hepática' },
 ];
 
-/** [PEND-MARIANA #3] Depleciones por anticonceptivos (D6.4). Mapeo editable. */
-export const ANTICONCEPTIVO_DEPLECIONES_PEND_MARIANA: string[] = [
+/** [PEND-FIRMA-CLINICA #3] Depleciones por anticonceptivos (D6.4). Mapeo editable. */
+export const ANTICONCEPTIVO_DEPLECIONES_PEND_FIRMA_CLINICA: string[] = [
   'vitamina_b6', 'folato', 'zinc', 'magnesio',
 ];
 
@@ -329,7 +329,7 @@ export const MASTER_QUIZ_QUESTIONS: MasterQuizQuestion[] = [
     why: 'Los antibióticos prolongados alteran tu microbiota; puede necesitar un protocolo restaurativo.' },
   { code: 'D6.4', section: 'd6_medicamentos', type: 'single', femaleOnly: true,
     text: '¿Usas anticonceptivos hormonales?',
-    // [PEND-MARIANA #3]: las depleciones B6/folato/zinc/magnesio se mapean en el scoring.
+    // [PEND-FIRMA-CLINICA #3]: las depleciones B6/folato/zinc/magnesio se mapean en el scoring.
     options: [
       { value: 'no', label: 'No' }, { value: 'pildora', label: 'Píldora' }, { value: 'diu_hormonal', label: 'DIU hormonal' },
       { value: 'implante', label: 'Implante' }, { value: 'inyeccion', label: 'Inyección' }, { value: 'otro', label: 'Otro' },
@@ -384,11 +384,11 @@ export const MASTER_QUIZ_QUESTIONS: MasterQuizQuestion[] = [
       { value: 'cardiacas', label: 'Cardíacas' }, { value: 'ortopedicas', label: 'Ortopédicas' }, { value: 'ninguna', label: 'Ninguna' },
     ] },
   // C1 · Padecimientos con ESTADO (activo/remisión/resuelto).
-  { code: 'D9.2', section: 'd9_antecedentes', type: 'condition_status', pendMariana: true,
+  { code: 'D9.2', section: 'd9_antecedentes', type: 'condition_status', pendFirmaClinica: true,
     text: '¿Padecimientos crónicos confirmados por tu médico? Marca cada uno con su estado actual.',
     why: 'Historia no es lo mismo que estado actual: una hipertensión o un cáncer en remisión NO deben limitar tu protocolo si ya no están activos.',
-    // options = PADECIMIENTOS_PEND_MARIANA (se inyecta en la UI/scoring).
-    options: PADECIMIENTOS_PEND_MARIANA },
+    // options = PADECIMIENTOS_PEND_FIRMA_CLINICA (se inyecta en la UI/scoring).
+    options: PADECIMIENTOS_PEND_FIRMA_CLINICA },
   { code: 'D9.3', section: 'd9_antecedentes', type: 'multi', multiHelper: true,
     text: '¿Antecedentes familiares directos (padres o hermanos)?',
     options: [
@@ -420,9 +420,9 @@ export const MASTER_QUIZ_QUESTIONS: MasterQuizQuestion[] = [
       { value: 'fractura', label: 'Fractura mayor' }, { value: 'cirugia_trauma', label: 'Cirugía por trauma' },
       { value: 'ninguno', label: 'Ninguno' }, { value: 'otro', label: 'Otro' },
     ] },
-  { code: 'D9.6', section: 'd9_antecedentes', type: 'single', allowPreferNot: true, pendMariana: true,
+  { code: 'D9.6', section: 'd9_antecedentes', type: 'single', allowPreferNot: true, pendFirmaClinica: true,
     text: '¿Traumas emocionales activos o no resueltos que estén afectando tu vida hoy?',
-    // [PEND-MARIANA #4]: framing sensible final.
+    // [PEND-FIRMA-CLINICA #4]: framing sensible final.
     options: [
       { value: 'no', label: 'No' }, { value: 'terapia', label: 'Sí, y estoy en terapia' },
       { value: 'sin_acompanamiento', label: 'Sí, sin acompañamiento' },

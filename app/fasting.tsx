@@ -81,7 +81,7 @@ const BREAK_END_PRESETS = [
 // fasting-autoclose-core desde el 31-ago-2026: la regla de cierre ya no es de
 // esta pantalla.
 
-// CONTENIDO MÉDICO — PENDIENTE FIRMA MARIANA (31-ago-2026: son afirmaciones
+// CONTENIDO MÉDICO — PENDIENTE FIRMA CLÍNICA (31-ago-2026: son afirmaciones
 // fisiológicas con reloj, mismas fuentes que fasting-phases.ts; no se tocaron)
 // Sprint Compliance 3: los hitos de CELEBRACIÓN terminan en 48h. A partir de
 // 36h corren las ALERTAS DE SEGURIDAD escalantes del sign-off legal
@@ -1189,7 +1189,7 @@ export default function FastingScreen() {
             >
               <Ionicons name={currentZone.icon} size={15} color={currentZone.color} />
               <Text style={{ color: currentZone.color, fontSize: 13, fontWeight: '700' }}>{currentZone.label}</Text>
-              {/* 31-ago-2026 (backlog 15.5): ventana sin firma de Mariana. */}
+              {/* 31-ago-2026 (backlog 15.5): ventana sin firma clínica. */}
               <Text style={{ color: t.textoSecundario, fontSize: 11 }}>aproximado</Text>
               <Ionicons name="chevron-up" size={13} color={t.textoSecundario} />
             </Pressable>
@@ -1387,7 +1387,7 @@ export default function FastingScreen() {
             {nextZone && nextZone.hours < selectedProtocol.hours && (
               <View style={{ backgroundColor: t.hundido, borderRadius: 12, padding: 12, marginTop: 14 }}>
                 {/* 31-ago-2026 (backlog 15.5): las ventanas de fase no están
-                    firmadas por Mariana; se dicen como aproximadas. */}
+                    firmadas (pendiente de firma clínica); se dicen como aproximadas. */}
                 <Text style={{ color: t.textoSecundario, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>
                   SIGUIENTE · {nextZone.label.toUpperCase()} · EN {formatDuration(timeToNext).toUpperCase()} (APROXIMADO)
                 </Text>

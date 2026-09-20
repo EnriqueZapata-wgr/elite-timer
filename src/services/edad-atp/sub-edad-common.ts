@@ -4,7 +4,7 @@
  *
  * Convención de score: 0-100, donde 50 = neutral (≈ edad cronológica), >50 más
  * joven, <50 más viejo. El mapeo score→edad usa una pendiente k años por punto.
- * // TODO Mariana Sprint 5: validar pendiente k y anchors por sexo/edad.
+ * // TODO Sprint 5 (revisión clínica): validar pendiente k y anchors por sexo/edad.
  */
 import type { SubEdadResult } from '@/src/types/edad-atp-v2';
 

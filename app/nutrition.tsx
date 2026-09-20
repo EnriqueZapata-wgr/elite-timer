@@ -69,7 +69,7 @@ export default function NutritionScreen() {
     return () => sub.remove();
   }, []);
 
-  // Banner una sola vez cuando macros OFF (PRD §6.6 — borrador, validar Mariana)
+  // Banner una sola vez cuando macros OFF (PRD §6.6 — borrador, pendiente de revisión clínica)
   useEffect(() => {
     if (macroMode) { setShowMacroBanner(false); return; }
     AsyncStorage.getItem(MACRO_BANNER_KEY).then(seen => {

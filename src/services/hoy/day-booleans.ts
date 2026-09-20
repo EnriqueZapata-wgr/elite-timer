@@ -44,7 +44,7 @@ export const DEFAULT_BOOLEANS = ['sunlight', 'meditation', 'supplements', 'cold_
  * Se fuerzan SIEMPRE en activeBoolKeys vía unión, respetando la (de)selección de los seleccionables.
  * `cardio` (#v13e 3.A.3) es verificado y tampoco es seleccionable → también va aquí.
  *
- * `checkin` (bug Mariana M1, 2026-08-03): cayó EXACTAMENTE en este hueco. Este comentario
+ * `checkin` (bug beta M1, 2026-08-03): cayó EXACTAMENTE en este hueco. Este comentario
  * afirmaba que "checkin sí palomea porque es seleccionable" y era falso: nunca estuvo en
  * ALL_BOOLEAN_OPTIONS ni en el default de la columna, así que cualquier usuaria con fila
  * persistida (la crean editar meta de agua/ayuno, quitar un evento, el backfill 063) perdía la

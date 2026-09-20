@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { processParserItems, needsConfirmation, type RawParserItem } from '@/src/services/edad-atp/lab-parser-process';
 
 /**
- * E2E del pipeline puro (Capas 2 → 2.5 → 3) con la respuesta que dio absurdos en el beta
- * de Mariana, más casos de conversión. No toca DB ni LLM. Verifica la doctrina del sprint:
+ * E2E del pipeline puro (Capas 2 → 2.5 → 3) con la respuesta que dio absurdos en el caso
+ * beta-01, más casos de conversión. No toca DB ni LLM. Verifica la doctrina del sprint:
  * los absurdos se marcan (no se guardan en silencio) y todo dispara la pantalla de confirmación.
  */
-describe('parser-v2 — caso Mariana (pipeline completo)', () => {
+describe('parser-v2: caso beta-01 (pipeline completo)', () => {
   const llmResponse: RawParserItem[] = [
     { key: 'ldl', value: 2.27, unit_in_document: 'mg/dL', confidence: 'high', raw_text_snippet: 'LDL 2.27' },
     { key: 'hdl', value: 2.15, unit_in_document: 'mg/dL', confidence: 'high', raw_text_snippet: 'HDL 2.15' },

@@ -1,7 +1,7 @@
 /**
  * Sprint Compliance 3 — Parámetros de seguridad server-driven.
  *
- * Los umbrales clínicos son BORRADOR (Mariana los confirma como contenido):
+ * Los umbrales clínicos son BORRADOR (el equipo clínico de ATP los confirma como contenido):
  * viven en la tabla safety_params (migración 210) para poder ajustarlos con
  * un UPDATE sin re-deploy ni OTA. El cliente los lee con cache en memoria y
  * fallback a los defaults compilados (fail-safe sin red = umbrales

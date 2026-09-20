@@ -17,7 +17,7 @@ export interface DetectedRedFlag {
 /**
  * Patrones heurísticos categoría → regex flexibles + severidad base (Bloque 11).
  * Los patrones aceptan variantes naturales ("me duele el pecho", "siento dolor en
- * el pecho", "dolor torácico"), no solo keywords literales. Refinable post-Mariana.
+ * el pecho", "dolor torácico"), no solo keywords literales. Refinable, pendiente de revisión clínica.
  * NOTA: las categorías usan el enum real del schema (sistemica_aguda, etc.).
  */
 const RED_FLAG_PATTERNS: { category: RedFlagCategory; severity: RedFlagSeverity; patterns: RegExp[] }[] = [

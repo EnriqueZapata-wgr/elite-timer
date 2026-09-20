@@ -26,8 +26,8 @@ la cambio antes del OTA.
    no lo quito yo. Si quieres que la evaluación se abra sin ese modal, es
    tu firma.
 2. **Etiqueta del peldaño premium: "ATP completo"** (`etiquetaMembresia`).
-   "ATP Pro" violaba la regla escrita de cero rastros de venta. Lo ve
-   Mariana bajo "Tu membresía" y quien active un código no Elite. Nombre
+   "ATP Pro" violaba la regla escrita de cero rastros de venta. Lo ven
+   las cuentas premium existentes bajo "Tu membresía" y quien active un código no Elite. Nombre
    tuyo: cámbialo en `tier-logic.ts:104` y en el test.
 3. **Icono de "Tu servicio" en Ajustes: `star-outline`** (el `ribbon-outline`
    rompía el censo de glifos).

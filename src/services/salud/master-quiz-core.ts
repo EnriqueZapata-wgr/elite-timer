@@ -230,7 +230,7 @@ export function scoreToPhenotype(answers: QuizAnswers): QuizPhenotype {
   // Hormonal (D2.5 + D12.1 libido + anticonceptivos).
   const d121 = asNum(answers['D12.1']);
   if (d121 != null) { dx.hormonal = clamp(d121); if (d121 <= 2) roots.add('baja_testosterona'); }
-  // [PEND-MARIANA #3] anticonceptivos → depleciones (contexto, no contraindicación dura).
+  // [PEND-FIRMA-CLINICA #3] anticonceptivos → depleciones (contexto, no contraindicación dura).
   if (asStr(answers['D6.4']) && asStr(answers['D6.4']) !== 'no') roots.add('dominancia_estrogenica');
 
   // ── C1 · Padecimientos con estado (contraindicación SOLO si activo) ──

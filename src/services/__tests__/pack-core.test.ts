@@ -81,8 +81,8 @@ describe('anclaje de horas', () => {
     expect(p.habitTimes.screen_time_cutoff).toBe('22:00'); // dormir −60
     // 7-sep-2026: se cayó la aserción de `red_glasses` (dormir −120) porque el
     // hábito salió de dormir-mejor, no porque el anclaje haya cambiado. Su
-    // gemela en el catálogo, `lentes_rojos`, espera la firma clínica de
-    // Mariana, y encender el hábito la brincaba por la puerta de `enciende`.
+    // gemela en el catálogo, `lentes_rojos`, espera la firma clínica,
+    // y encender el hábito la brincaba por la puerta de `enciende`.
     // El dato de entrada cambió; la regla de anclaje que este test vigila, no.
     // Vuelve el día que se firme la práctica.
     expect(p.habitTimes.red_glasses).toBeUndefined();

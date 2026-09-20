@@ -142,7 +142,7 @@ export function nameCandidate(raw: string | null | undefined): string | null {
 /**
  * Nombre visible fail-soft para cualquier proyección pública.
  *
- * 31-ago-2026 (pendiente 7.1): la fila pública de Mariana tiene
+ * 31-ago-2026 (pendiente 7.1): la fila pública de la cuenta beta-01 tiene
  * display_name = '' (el backfill de la migración 177 copió profiles.full_name
  * cuando aún estaba vacío, y su edición posterior del nombre nunca volvió a
  * tocar user_profile_public). El `??` de antes dejaba pasar la cadena vacía:

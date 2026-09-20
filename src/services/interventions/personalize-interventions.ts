@@ -161,9 +161,9 @@ export function computeScore(intervention: Intervention, phenotype: UserPhenotyp
 
   if (rules?.boostIf) {
     for (const rule of rules.boostIf) {
-      // TODO (Mega-Sprint A · task #130 · PENDIENTE validación Mariana): el
+      // TODO (Mega-Sprint A · task #130 · PENDIENTE validación clínica): el
       // multiplicador ×10 satura el score a 100 y el top 5 pierde discriminación.
-      // Code recomendó bajar a ×5. NO aplicar hasta que Enrique valide con Mariana.
+      // Code recomendó bajar a ×5. NO aplicar hasta que Enrique lo valide.
       if (matchesRule(rule, phenotype)) score += boostWeight * 10;
     }
   }

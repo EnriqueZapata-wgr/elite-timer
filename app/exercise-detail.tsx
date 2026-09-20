@@ -156,7 +156,7 @@ export default function ExerciseDetailScreen() {
             </View>
           )}
 
-          {/* Contraindicaciones (capa Mariana) */}
+          {/* Contraindicaciones (criterio clínico de ATP) */}
           {ex.contraindicaciones.length > 0 && (
             <View style={s.warnCard}>
               <Ionicons name="alert-circle-outline" size={16} color={SEMANTIC.error} />

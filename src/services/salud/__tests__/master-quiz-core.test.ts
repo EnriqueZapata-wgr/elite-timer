@@ -95,7 +95,7 @@ describe('C1 · padecimientos activo vs resuelto (contraindicación solo si acti
     expect(p.historicalConditions).toContainEqual({ condition: 'hipertension', status: 'resuelto' });
   });
 
-  it('cáncer EN REMISIÓN no dispara flag (caso Mariana)', () => {
+  it('cáncer EN REMISIÓN no dispara flag (caso beta-01)', () => {
     const p = scoreToPhenotype({ 'D9.2': [{ condition: 'cancer', status: 'remision' }] });
     expect(p.contraindications).not.toContain('cancer');
     expect(p.historicalConditions.some((h) => h.condition === 'cancer')).toBe(true);

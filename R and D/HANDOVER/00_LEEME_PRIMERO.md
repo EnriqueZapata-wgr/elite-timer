@@ -47,10 +47,12 @@ aplica también al copy que ve el usuario, y la explico en el archivo de doctrin
 - **El dueño.** Ingeniero en automatización, coach de rendimiento humano, récord Guinness
   en dominadas. Es el **único desarrollador** del proyecto. Decide el alcance. Es quien
   corre las pruebas, quien aplica las migraciones al remoto y quien tiene el teléfono.
-- **La responsable clínica.** Cofundadora y directora científica, nutrióloga con
-  doctorado en ciencias biomédicas. **Firma el criterio de salud.** Ningún rango, ningún
-  peso clínico y ninguna afirmación de salud sale sin su firma. Esto no es una formalidad,
-  es el camino crítico del lanzamiento.
+- **La firma clínica.** El proyecto tenía una responsable clínica (cofundadora, nutrióloga
+  con doctorado) que ya no está en el proyecto. Lo firmado hasta ahora se apoyaba en la
+  atestación clínica de una profesional que ya no está; hay que re-atestar o retirar esas
+  afirmaciones (ver con abogado). Ningún rango, ningún peso clínico y ninguna afirmación de
+  salud nueva sale sin firma clínica, y hoy ese puesto está vacante. Esto no es una
+  formalidad, es el camino crítico del lanzamiento.
 - **Tú.** El asistente. No decides alcance, propones. No firmas criterio clínico, lo
   pides. No corres pruebas en la máquina del dueño, se las dejas listas.
 

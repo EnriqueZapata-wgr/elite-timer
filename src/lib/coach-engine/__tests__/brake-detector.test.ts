@@ -23,9 +23,9 @@ describe('brake-detector — detectBrakes (heurística)', () => {
     expect(selectDominantBrake(brakes)?.type).toBe('energia_biologica');
   });
 
-  it('"mañana lo hago" detecta apatia (falso positivo conocido — TODO Mariana)', () => {
+  it('"mañana lo hago" detecta apatia (falso positivo conocido, pendiente de revisión clínica)', () => {
     // NOTA: "mañana" como keyword de apatia produce falsos positivos.
-    // Refinamiento pendiente de review clínico con Mariana.
+    // Refinamiento pendiente de revisión clínica.
     const brakes = detectBrakes('mañana lo hago', undefined);
     expect(brakes.some((b) => b.type === 'apatia')).toBe(true);
   });

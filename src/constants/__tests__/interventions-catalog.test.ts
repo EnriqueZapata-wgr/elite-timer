@@ -96,14 +96,14 @@ describe('interventions-catalog structure', () => {
     const FORBIDDEN = /suplement|cápsula de|capsula de|tableta|pastilla|comprimido|fármaco|farmaco|melatonina exógena|ashwagandha|creatina|berberina|metformina|omeprazol|ibuprofeno|estatina/i;
     for (const iv of INTERVENTIONS_CATALOG) {
       const text = `${iv.key} ${iv.name} ${iv.how}`;
-      expect(FORBIDDEN.test(text), `${iv.key} parece suplemento/fármaco: revisar con Mariana`).toBe(false);
+      expect(FORBIDDEN.test(text), `${iv.key} parece suplemento/fármaco: revisar con el equipo clínico de ATP`).toBe(false);
     }
   });
 });
 
 describe('gating clínico (CLINICAL_VALIDATION_PENDING)', () => {
-  it('la lista pendiente es EXACTAMENTE la firmada como pendiente (Mariana la reduce al firmar — task #9)', () => {
-    // Al firmar una, Mariana/Cowork quita `requiresClinicalValidation` del catálogo
+  it('la lista pendiente es EXACTAMENTE la firmada como pendiente (la revisión clínica de ATP la reduce al firmar — task #9)', () => {
+    // Al firmar una, el equipo clínico de ATP/Cowork quita `requiresClinicalValidation` del catálogo
     // y su key de esta lista (edición consciente, nunca accidental).
     // Firma v4 epigenético (db206fd 2026-07-14): +agua_fuera_comidas, +ayuno_16_8
     // (post investigación Longo/OMAD), +hidratacion_ushapan_avanzado, +lentes_rojos,

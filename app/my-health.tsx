@@ -273,7 +273,7 @@ function MyHealthScreen() {
       soltarCandado(token);
       return;
     }
-    // Galería permite selección múltiple (Mariana #9: antes solo dejaba una foto).
+    // Galería permite selección múltiple (beta-01 #9: antes solo dejaba una foto).
     // La cámara captura de a una.
     const opts: any = useCamera
       ? { quality: 0.8, base64: true }

@@ -1,15 +1,15 @@
 /**
  * Onboarding v2 — copy centralizado (Sprint ONBOARDING épico T4).
  *
- * Todas las cadenas de las 7 pantallas viven aquí para review (Enrique +
- * Mariana), iteración de tono e i18n futura. Los textos de OPCIONES de datos
+ * Todas las cadenas de las 7 pantallas viven aquí para review (Enrique),
+ * iteración de tono e i18n futura. Los textos de OPCIONES de datos
  * (GOAL_OPTIONS, modalidades de ciclo, preguntas de cronotipo) siguen en
  * onboarding-v2-core.ts porque son parte del modelo, no del chrome de UI.
  *
  * El copy de consent está alineado con
  * Business development/Legal/04_Disclaimers_Medicos_por_Pantalla.md y con el
- * review aprobado de Mariana (Beta_Launch_Kit/06_COPY_MARIANA_REVIEW_COMPACTO.md,
- * sección 9, ítems >>) — cambios ahí requieren review de Mariana.
+ * review clínico aprobado (review compacto de copy del Beta Launch Kit, Beta_Launch_Kit/06_*,
+ * sección 9, ítems >>) — cambios ahí requieren revisión clínica de ATP.
  *
  * Archivo puro (sin react-native): testeable con el harness Vitest node-only.
  */

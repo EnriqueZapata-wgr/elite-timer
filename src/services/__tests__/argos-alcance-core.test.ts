@@ -62,7 +62,7 @@ describe('buildAlcanceInjection — el límite que faltaba escribir', () => {
   });
 
   it('no nombra a ninguna persona ni ningún padecimiento', () => {
-    for (const prohibida of ['Enrique', 'Mariana', 'diabetes', 'hipotiroidismo', 'cáncer']) {
+    for (const prohibida of ['Enrique', 'diabetes', 'hipotiroidismo', 'cáncer']) {
       expect(bloque).not.toContain(prohibida);
     }
   });

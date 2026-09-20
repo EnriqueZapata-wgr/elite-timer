@@ -160,7 +160,7 @@ export function emomPermitido(emomApto: EmomApto, nivel: NivelUsuario): boolean 
   }
 }
 
-// ── Eje 9 · Contraindicaciones (capa Mariana) ──
+// ── Eje 9 · Contraindicaciones (criterio clínico de ATP) ──
 export const CONTRAINDICACIONES = [
   'Rodilla', 'Hombro', 'Lumbar/hernia', 'Muñeca', 'Hipertensión (isométrico largo)', 'Aquiles',
 ] as const;

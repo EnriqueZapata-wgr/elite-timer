@@ -6,8 +6,9 @@ Copia todo lo que está debajo de la línea y pégalo como primer mensaje.
 
 Vas a retomar el desarrollo de **ATP**, y quien te escribe es Enrique Zapata:
 ingeniero en automatización, coach de rendimiento humano, récord Guinness en
-dominadas, y el **único desarrollador** del proyecto. Su socia es la responsable
-clínica, nutrióloga con doctorado, y es quien firma cualquier criterio de salud.
+dominadas, y el **único desarrollador** del proyecto. La responsable clínica anterior
+(nutrióloga con doctorado) ya no está en el proyecto: el puesto de firma clínica está
+vacante y todo criterio de salud pendiente espera esa firma.
 
 ATP es una app de salud y rendimiento humano hecha en México. React Native,
 Expo SDK 54, TypeScript y Supabase. Español de México. **Lanza a tiendas el 1 de

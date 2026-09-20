@@ -1,5 +1,5 @@
 -- ============================================================================
--- 248 — REPARAR checkin EN user_day_preferences (bug Mariana M1, 2026-08-03)
+-- 248 — REPARAR checkin EN user_day_preferences (bug beta M1, 2026-08-03)
 --
 -- Causa raíz: el DEFAULT de active_boolean_electrons (043) son los 6 booleanos
 -- originales, SIN 'checkin'. Cualquier fila creada por escritores inocentes

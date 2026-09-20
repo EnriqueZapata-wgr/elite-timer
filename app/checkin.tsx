@@ -499,7 +499,7 @@ export default function CheckinScreen() {
 
   // === DONE ===
   if (step === 3) {
-    // MARIANA-M2: el cierre crece condicionalmente (racha, banner de crisis,
+    // BETA-M2: el cierre crece condicionalmente (racha, banner de crisis,
     // dos cards, puente a Tribu) y "Volver" es el último hijo. Sin scroll y
     // con flex:1 centrado, lo que sobraba se recortaba arriba y abajo. Ahora:
     // scrollea cuando no cabe, se centra cuando sí, y reserva el área segura

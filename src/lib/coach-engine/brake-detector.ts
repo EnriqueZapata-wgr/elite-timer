@@ -26,7 +26,7 @@ export interface BrakeContextSignals {
  */
 const BRAKE_PRIORITY: BrakeType[] = ['no_saber', 'miedo', 'energia_biologica', 'apatia'];
 
-/** Keywords heurísticas por freno (caso-insensible). Refinables post-Mariana. */
+/** Keywords heurísticas por freno (caso-insensible). Refinables, pendientes de revisión clínica. */
 const BRAKE_KEYWORDS: Record<BrakeType, string[]> = {
   no_saber: ['no sé', 'no se', 'cómo hago', 'como hago', 'qué hago', 'que hago', 'no tengo idea'],
   miedo: ['me da miedo', 'tengo miedo', 'y si', 'no me atrevo', 'pero qué tal si', 'pero que tal si'],

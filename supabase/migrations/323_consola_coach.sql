@@ -42,10 +42,10 @@
 --   · NO cambia que el vínculo nazca en 'active' sin que el cliente acepte.
 --     Es la deuda que la migración 306 dejó agendada y sigue abierta; cambiarla
 --     toca el panel de coach y no es decisión de esta pieza.
---   · NO da acceso a nada de Mariana. Ella no es cliente de Enrique: no hay
---     fila suya en `coach_clients` con `coach_id` = él, así que ninguna de
---     estas políticas le abre un solo renglón. La app además la excluye por
---     nombre en `consola-core.ts` (segundo candado, con motivo escrito).
+--   · NO da acceso a las cuentas de otros coaches: no son clientes de Enrique,
+--     no hay fila suya en `coach_clients` con `coach_id` = él, así que ninguna
+--     de estas políticas les abre un solo renglón. La app además los excluye
+--     por id en `consola-core.ts` (segundo candado, con motivo escrito).
 --
 -- ─────────────────────────────────────────────────────────────────────────────
 

@@ -2,12 +2,12 @@
 
 ## Quién soy
 Enrique Zapata — Ingeniero en automatización, coach de rendimiento humano,
-Guinness World Record en pull-ups. Co-fundo ATP con Mariana Zapata
-(Co-Founder & Chief Science Officer, PhD en Ciencias Biomédicas).
+Guinness World Record en pull-ups. Dueño de ATP.
 
 ## Quién prueba la app (y cómo se llaman en Sentry)
 - **Enrique** — Android. El build que trae actualizado es el suyo.
-- **Mariana Zapata** — iPhone. Co-founder y CSO.
+- Existe una cuenta iPhone de una persona que ya no está en el equipo. No se toca ni se usa
+  como referencia de pruebas (ver regla de cuentas ajenas al equipo).
 - **Pato = Paty = Patricia Aguilar** — iPhone. Es UNA sola persona con tres
   nombres. En Sentry aparece como `d.i.patriciaaguilar@gmail.com`. Anotado
   porque ya la trate como dos personas distintas una vez.
@@ -78,7 +78,7 @@ Roadmap → v2.0.0 (julio-agosto 2026 — publicación a stores)
 - R and D/AUDIT_REPORT_2026_05_07.md — auditoría externa Cowork
 - R and D/PATY_CRASH_TEST_5_RAW.md — bugs reales reportados por usuario
 - R and D/CC_PROMPT_*.md — prompts quirúrgicos por tema
-- Business development/Legal/04_Disclaimers_Medicos_por_Pantalla.md — copy Mariana
+- Business development/Legal/04_Disclaimers_Medicos_por_Pantalla.md — copy de disclaimers por pantalla
 - Business development/ATP_App_Modelo_Financiero_v4.xlsx — modelo financiero
 
 ## Filosofía de medicina funcional (no negociable)
@@ -130,8 +130,9 @@ Elite, matriz de gating Free/Pro/Elite, customer journey) y `R and D/RUTA_A_ATP_
 con dueno y criterio de terminado; se trabaja en ese orden). Hermanos: `R and D/ORNAMENT_MEXICO_Y_MARCO_LEGAL_ATP.md`
 (marco legal y copy seguro), `R and D/COSTOS_ATP_PRO_449_VS_399.md` + `.xlsx` (economia por suscriptor).
 Resumen: una sola app; Free / Pro (lista 499, lanzamiento 349 congelado, anual 3,990) / Founders 8,900
-(5 anios de Pro, solo web) / Elite ~40k (codigo + evaluacion cargada); vender por web; Mariana fuera de
-la operacion, su cuenta y sus datos no se tocan; palabras rojas: diagnostico, tratamiento, previene, cura.
+(5 anios de Pro, solo web) / Elite ~40k (codigo + evaluacion cargada); vender por web; las cuentas de personas
+ajenas al equipo (ex colaboradores, suscriptores de tienda) no se tocan: ni sus datos ni sus accesos, salvo
+instruccion escrita del dueno; palabras rojas: diagnostico, tratamiento, previene, cura.
 `R and D/embudo/DECISIONES_PREVENTA.md` ya esta reescrito a 3.0 (6-sep-2026; mismo contenido que
 `ATP/comercial/00_DECISIONES.md`, nombre historico). Si ese resumen y el pivote se contradicen, gana el pivote y se avisa. El pivote fue APROBADO el 4 de septiembre; la noche del 4 al 5
 se construyo 3.0 completa en codigo (ver `R and D/ENTREGA_NOCHE_2026-09-04.md`).
@@ -160,10 +161,11 @@ Datos que se han vuelto a preguntar mas de una vez:
 - La cuenta de Stripe **esta viva** desde antes de agosto. No hay activacion pendiente.
 - `supabase/functions/payment-webhook` **ya existe**, desplegado y en vivo. Exige `metadata.tier`;
   `tier=pro` sigue siendo el valor correcto (el arbitro lo resuelve como `premium`).
-- Los pagos en `needs_review` sin `metadata.tier` son **consultas de Mariana**, no suscripciones.
+- Los pagos en `needs_review` sin `metadata.tier` son **cobros de consultas clinicas de la etapa anterior**
+  (de una persona ajena al equipo), no suscripciones; no se tocan.
 - Los tres Payment Links de la preventa (449, 620, 890) estan superados y se desactivan; los precios 3.0
   se crean desde la sesion comercial con Enrique. La sesion del repo no toca Stripe.
-- **No hay comunidad** en la oferta. Nada nuevo menciona comunidad, mentorias, Skool ni a Mariana.
+- **No hay comunidad** en la oferta. Nada nuevo menciona comunidad, mentorias, Skool ni a personas que ya no estan en el equipo.
 
 ## Calibración al proponer planes
 
@@ -198,7 +200,7 @@ app nunca "web", "Stripe", "mas barato afuera" ni precios de la web. Tabla compl
 con ellos". Frase de marca: "Tus habitos hacen tu salud".
 
 `R and D/embudo/narrativa/MANUAL_DE_COMUNICACION.md` salio de una conversacion del 27-ago-2026 en la que
-Mariana habla el 90% del tiempo; esta marcado PENDIENTE DE DECISION (conservar, anonimizar o reescribir).
+una ex colaboradora habla el 90% del tiempo; esta marcado PENDIENTE DE DECISION (conservar, anonimizar o reescribir).
 Su idea central sigue siendo el porque del producto: **se monitorea porque se perdio la intuicion, y se
 monitorea para volver a necesitar menos.** Mientras Enrique decide, se lee como contexto y no se cita a
-Mariana en material nuevo.
+personas fuera del equipo en material nuevo.

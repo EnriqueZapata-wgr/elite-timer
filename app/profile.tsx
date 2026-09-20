@@ -1,13 +1,13 @@
 /**
  * Perfil — identidad del usuario: nombre, fecha de nacimiento (calcula edad
- * cronológica), sexo biológico. Accesible desde el header de YO (Mariana #1:
+ * cronológica), sexo biológico. Accesible desde el header de YO (beta-01 #1:
  * nombre/edad/sexo no se encontraban en ningún lado).
  *
  * Persistencia:
  *  - nombre → profiles.full_name + auth user_metadata.full_name (refresca el header)
  *  - date_of_birth, biological_sex → client_profiles (upsert real, editable)
  *
- * La edad cronológica NO se captura: se DERIVA de date_of_birth (Mariana #2: la app
+ * La edad cronológica NO se captura: se DERIVA de date_of_birth (beta-01 #2: la app
  * mostraba una edad que no correspondía → aquí el usuario la ve y corrige su fecha).
  */
 import { useState, useEffect, useMemo } from 'react';

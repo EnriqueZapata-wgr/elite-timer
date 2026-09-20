@@ -2,7 +2,7 @@
  * ArgosReactionToast — toast global de reacción ARGOS al ganar electrones (hotfix-ux FIX 4).
  *
  * Escucha 'electron_awarded' (emitido por electron-service tras un award EXITOSO) y muestra
- * ~2.5s una reacción del pool `encouragement` (copy aprobado por Mariana, VoiceRotator para
+ * ~2.5s una reacción del pool `encouragement` (copy aprobado por el equipo clínico de ATP, VoiceRotator para
  * no repetir) + la línea de atribución "+2.5 ⚡ Cardio". Awards en ráfaga (<2s) se colapsan
  * en un solo toast ("+4.5 ⚡ Cardio · Sin procesados") — semántica en reaction-toast-core.ts.
  *

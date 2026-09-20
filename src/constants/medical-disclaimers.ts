@@ -2,7 +2,7 @@
  * Disclaimers médicos — fuente única de copy + versión (#42).
  *
  * Source: Business development/Legal/04_Disclaimers_Medicos_por_Pantalla.md
- * El contenido científico lo valida Mariana como CONTENIDO educativo; la
+ * El contenido científico lo valida el equipo clínico de ATP como CONTENIDO educativo; la
  * redacción legal la cierra Cowork Legal. Ninguna persona figura como
  * avaladora/responsable médica del servicio (PRIME DIRECTIVE compliance).
  * Al actualizar el copy, hacer bump de MEDICAL_DISCLAIMER_VERSION

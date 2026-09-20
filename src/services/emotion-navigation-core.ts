@@ -230,7 +230,7 @@ const HIGH_AROUSAL = 6;
  *
  * ⚠️ Honestidad: la ventana de tolerancia es un constructo clínico de diseño,
  * NO una medida validada con puntos de corte universales. Este umbral es
- * editable y su calibración final es criterio clínico (Mariana).
+ * editable y su calibración final es criterio clínico de ATP.
  */
 export const SINGLE_EXIT_INTENSITY = 6;
 /** Máxima diferencia de energía para que el par cuente como "misma activación". */

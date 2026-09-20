@@ -1,6 +1,6 @@
-// COPY MÉDICO — borrador v1 (pendiente validación final con Mariana antes de Founders M1)
-// CALIBRACIÓN MÉDICA — pesos v1.1 pendiente cierre final con Mariana.
-// Si Mariana ajusta, solo tocar este archivo.
+// COPY MÉDICO — borrador v1 (pendiente revisión clínica final antes de Founders M1)
+// CALIBRACIÓN MÉDICA — pesos v1.1 pendiente cierre clínico final.
+// Si el equipo clínico de ATP ajusta, solo tocar este archivo.
 
 export type FactorKey =
   | 'tabaco' | 'dieta' | 'actividad' | 'composicion'

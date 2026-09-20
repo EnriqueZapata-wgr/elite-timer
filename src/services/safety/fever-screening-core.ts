@@ -1,7 +1,7 @@
 /**
  * Sprint Compliance 3 — Screening de fiebre (núcleo PURO).
  *
- * Umbrales BORRADOR del handoff (Mariana confirma como contenido; viven en
+ * Umbrales BORRADOR del handoff (el equipo clínico de ATP confirma como contenido; viven en
  * safety_params → ajustables sin re-deploy):
  *   - Temperatura > 39°C
  *   - Duración > 48 horas

@@ -54,7 +54,7 @@ export interface FunctionalScoreResult {
 /**
  * Criterios del ATP Functional Score — system prompt del scan.
  *
- * ⚠️ Cowork/Mariana amplían criterios aquí. Fuente: decisión aprobada #5 +
+ * ⚠️ Cowork y el equipo clínico de ATP amplían criterios aquí. Fuente: decisión aprobada #5 +
  * reformulación compliance §4.2 (score por atributos, lenguaje objetivo).
  */
 export const FUNCTIONAL_SCORE_PROMPT = `Eres el evaluador del ATP Functional Score, una evaluación educativa y propietaria de calidad de formulación bajo criterios de medicina funcional.

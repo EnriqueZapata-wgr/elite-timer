@@ -2,7 +2,7 @@
  * SwipeToDeleteRow — Affordance visible de eliminación.
  *
  * Wrappea contenido y revela un botón rojo de "Eliminar" al deslizar a la
- * izquierda. Pensado para los 4 contextos donde Paty/Mariana reportaron
+ * izquierda. Pensado para los 4 contextos donde Paty/beta-01 reportaron
  * "no sabía que se podía eliminar" (food-register, supplements, my-recipes,
  * journal). El long-press queda disponible como fallback (sigue funcionando
  * en el componente que envuelve, no se desactiva).

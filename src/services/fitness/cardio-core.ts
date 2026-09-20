@@ -4,7 +4,7 @@
  * todo lo que falta sale como null: aquí no se inventa ningún dato.
  *
  * BETA (31-ago-2026). Regla de la casa: cada número fisiológico lleva su fuente
- * publicada junto al número y la marca PENDIENTE FIRMA MARIANA. Si Mariana
+ * publicada junto al número y la marca PENDIENTE FIRMA CLÍNICA. Si el equipo clínico de ATP
  * rechaza una fórmula, se quita la función y la pantalla pinta raya; no se
  * sustituye por otra sin cita.
  *
@@ -64,7 +64,7 @@ function partirFecha(s: string): { y: number; m: number; d: number } | null {
  * años). No se usa 220 - edad: no tiene autor trazable y sobreestima en
  * jóvenes y subestima en mayores (es lo que Tanaka corrige).
  * Fuera del rango de edad estudiado (18 a 81) devuelve null: no extrapolamos.
- * PENDIENTE FIRMA MARIANA.
+ * PENDIENTE FIRMA CLÍNICA.
  */
 export function fcMaxima(edad: number | null | undefined): number | null {
   if (edad == null || !Number.isFinite(edad)) return null;
@@ -95,7 +95,7 @@ export interface ZonaFC {
  * moderada 40-59, vigorosa 60-89 y casi máxima >= 90; los cortes de aquí son
  * los que pidió el brief del 31-ago-2026 y NO coinciden uno a uno con esa
  * tabla. Se dejan como beta explicable: cinco zonas, un corte cada 10 puntos.
- * PENDIENTE FIRMA MARIANA.
+ * PENDIENTE FIRMA CLÍNICA.
  */
 export const CORTES_ZONAS_PCT = [50, 60, 70, 80, 90, 100] as const;
 // 4EP (31-ago-2026): 50-59 %FCR ya es "moderado" para ACSM; "Muy suave" lo contradecia.
@@ -105,7 +105,7 @@ const NOMBRES_ZONAS = ['Suave', 'Ligera', 'Moderada', 'Intensa', 'Máxima'] as c
  * Zonas por el método de Karvonen (1957): FCR = FCmax - FCreposo y
  * FC objetivo = FCreposo + %FCR. Fuente: FUENTES_CARDIO.karvonen1957.
  * null si falta cualquiera de las dos o si no tienen sentido (reposo >= máxima).
- * PENDIENTE FIRMA MARIANA.
+ * PENDIENTE FIRMA CLÍNICA.
  */
 export function zonasKarvonen(fcMax: number | null | undefined, fcReposo: number | null | undefined): ZonaFC[] | null {
   if (fcMax == null || fcReposo == null) return null;
@@ -151,7 +151,7 @@ export function zonaDeFC(fc: number | null | undefined, zonas: ZonaFC[] | null):
  * hombres entrenados de 21 a 51 años; en la pantalla se dice que es estimado
  * y con qué FCmax se calculó (aquí normalmente la de Tanaka, o sea estimación
  * sobre estimación: por eso se muestra el método completo).
- * PENDIENTE FIRMA MARIANA.
+ * PENDIENTE FIRMA CLÍNICA.
  */
 export function vo2maxUth(fcMax: number | null | undefined, fcReposo: number | null | undefined): number | null {
   if (fcMax == null || fcReposo == null) return null;
@@ -178,7 +178,7 @@ export interface EntradaRockport {
  * Es una CAMINATA cronometrada con FC al final: hoy la app no distingue
  * caminata de trote ni guarda la FC final, así que esta función existe y
  * está probada pero no se alimenta sola de cardio_sessions (ver informe).
- * PENDIENTE FIRMA MARIANA.
+ * PENDIENTE FIRMA CLÍNICA.
  */
 export function vo2maxRockport(e: EntradaRockport): number | null {
   const { pesoKg, edad, sexo, tiempoMin, fcFinal } = e;
@@ -196,7 +196,7 @@ export function vo2maxRockport(e: EntradaRockport): number | null {
  * Fuente: FUENTES_CARDIO.cooper1968. Misma fórmula y mismo rango (505 a
  * 5000 m) que la captura de /tests/run/cooper (constants/assessments/physical.ts),
  * que guarda el resultado en health_measurements.vo2max_estimate.
- * PENDIENTE FIRMA MARIANA.
+ * PENDIENTE FIRMA CLÍNICA.
  */
 export function vo2maxCooper(metrosEn12Min: number | null | undefined): number | null {
   if (metrosEn12Min == null || !Number.isFinite(metrosEn12Min)) return null;

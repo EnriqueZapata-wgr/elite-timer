@@ -4,7 +4,7 @@
  * camino, ingeniero de la creencia — muere el "asistente humano" genérico).
  *
  * ⚠️ SENSIBILIDAD CLÍNICA: cambios a estos textos requieren approval de
- * Mariana antes de merge (GATE VIGENTE para esta versión — ver delivery).
+ * la revisión clínica de ATP antes de merge (GATE VIGENTE para esta versión — ver delivery).
  * Tono directo + cálido + exigente; NO "me llamo ARGOS", NO diminutivos,
  * NO auto-nombrarse más de una vez (spec D3).
  *

@@ -176,7 +176,7 @@ describe('ARGOS_VOICE — integridad del contenido', () => {
     expect(ARGOS_VOICE.celebration.length).toBeGreaterThan(0);
   });
 
-  it('reacciones usan el copy aprobado por Mariana (doc 06, >>)', () => {
+  it('reacciones usan el copy aprobado en el copy review (doc 06, >>)', () => {
     expect(ARGOS_VOICE.encouragement).toContain('Bien. Un paso más.');
     expect(ARGOS_VOICE.encouragement).toContain('Confirmado. Te llevo la cuenta.');
     expect(ARGOS_VOICE.concern).toContain(

@@ -4,7 +4,7 @@
  * no insertar como dato del usuario.
  *
  * Doctrina del sprint (fix/lab-parser-validation): mejor `null` (pendiente) que un
- * número absurdo. Origen: Mariana subió labs por foto y el parser AI devolvió
+ * número absurdo. Origen: en la beta-01 se subieron labs por foto y el parser AI devolvió
  * LDL 2.27, HDL 2.15, Colesterol total 672 — clínicamente imposibles. El usuario
  * nunca debe ver basura como si fuera su dato.
  *
@@ -16,7 +16,7 @@
  * matriz (hba1c %→decimal, hematocrito %→decimal). La validación corre en el borde
  * de extracción sobre los keys ingleses del parser. Ver COWORK_REPORT.md → flags de
  * ambigüedad de unidad (wbc en miles vs /µL, hematocrito decimal) pendientes de
- * validar con Mariana.
+ * validar con el equipo clínico de ATP.
  */
 export type LabAbsoluteRange = {
   min: number;
@@ -282,6 +282,6 @@ const ALIAS_A_INGLES: Record<string, string> = (() => {
 export function isLabValueValid(key: string, value: number | null | undefined): boolean {
   if (value == null || !Number.isFinite(value)) return false;
   const range = LAB_ABSOLUTE_RANGES[key] ?? LAB_ABSOLUTE_RANGES[ALIAS_A_INGLES[key] ?? ''];
-  if (!range) return true; // si no hay rango definido, aceptar (TODO Mariana validar)
+  if (!range) return true; // si no hay rango definido, aceptar (TODO revisión clínica)
   return value >= range.min && value <= range.max;
 }

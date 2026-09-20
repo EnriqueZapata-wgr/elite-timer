@@ -1,4 +1,4 @@
-/** Cuestionario Inflamación. Copy MVP — // TODO Mariana Sprint 5: validar. */
+/** Cuestionario Inflamación. Copy MVP — // TODO revisión clínica Sprint 5: validar. */
 import { QuestionnaireScreen, type DomainQuestion } from '@/src/components/edad-atp/QuestionnaireScreen';
 
 const QUESTIONS: DomainQuestion[] = [

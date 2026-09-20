@@ -17,7 +17,7 @@
  *
  * Cada número que sale de una fórmula lleva la palabra "estimado" y el
  * método; las fórmulas y sus citas viven en cardio-core.ts (PENDIENTE FIRMA
- * MARIANA). Esta pantalla no calcula nada: pinta lo que el servicio trae y
+ * CLÍNICA). Esta pantalla no calcula nada: pinta lo que el servicio trae y
  * dice qué dato falta cuando algo no se puede estimar.
  */
 import { useCallback, useState } from 'react';

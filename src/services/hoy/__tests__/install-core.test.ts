@@ -38,7 +38,7 @@ describe('togglesForApp', () => {
   });
 
   it('journal, cardio y emociones no tienen toggles: sus electrones son MANDATORY', () => {
-    // Bug Mariana M1: checkin entró a MANDATORY (misma red que journal/cardio),
+    // Bug beta M1: checkin entró a MANDATORY (misma red que journal/cardio),
     // así que emociones dejó de ser instalable/desinstalable — es fija.
     expect(togglesForApp('journal').booleans).toEqual([]);
     expect(togglesForApp('cardio').booleans).toEqual([]);
@@ -130,7 +130,7 @@ describe('applyInstall / applyUninstall', () => {
       expect(installAlertBody(app)).toContain('Aparece su fila en TAREAS');
       expect(uninstallAlertBody(app)).toContain('Su fila sale de TAREAS');
     }
-    // emociones ya no está aquí: con checkin MANDATORY (bug Mariana M1) es
+    // emociones ya no está aquí: con checkin MANDATORY (bug beta M1) es
     // fija, y el prompt de instalar/desinstalar nunca se le muestra.
     expect(appInstallState('emociones', EMPTY)).toBe('fija');
   });

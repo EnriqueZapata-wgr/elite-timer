@@ -388,7 +388,7 @@ después de 5). Cada parte está en un commit incremental.
 - **T2 (UI Braverman para todos los tests). ❌** No iniciado — requiere un `<TestQuestionScreen>`
   reusable + migrar 8 tests (multi-hora).
 - **T3 + HC5 (módulo cuestionarios Historia Clínica). ❌** No iniciado — requiere migración 079
-  `historia_clinica` + pantalla índice + ≥3 cuestionarios + validación de preguntas con Mariana.
+  `historia_clinica` + pantalla índice + ≥3 cuestionarios + validación clínica de las preguntas.
 
 ---
 

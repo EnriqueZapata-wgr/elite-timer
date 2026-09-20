@@ -1,6 +1,6 @@
 /**
  * useFormDraft — persiste el borrador de un formulario de captura en AsyncStorage
- * para que NO se pierda al navegar a otra pantalla y volver (Mariana #11, #15:
+ * para que NO se pierda al navegar a otra pantalla y volver (beta-01 #11, #15:
  * "meto datos, navego, regreso y ya no están").
  *
  * Uso:

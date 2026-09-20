@@ -1,8 +1,8 @@
 /**
  * Vocabulario controlado de Intervenciones (categorías + raíces).
  *
- * Fuente doctrinal: `Business development/Beta_Launch_Kit/09_CATALOGO_INTERVENCIONES_MARIANA_ENRIQUE.md`.
- * Normalizado por Fable a keys estables. Mariana+Enrique pueden agregar términos
+ * Fuente doctrinal: catálogo de intervenciones del Beta Launch Kit (Business development/Beta_Launch_Kit/09_*).
+ * Normalizado por Fable a keys estables. Enrique puede agregar términos
  * nuevos → se catalogan aquí (Cowork).
  *
  * Doble uso:

@@ -60,7 +60,7 @@ no lo muevas de esa carpeta ni lo subas a ningún chat.
    vocabulario controlado, plantillas deterministas) y la elección cambia toda la
    arquitectura. Pregunta 2 para Enrique.
 8. **Regla dura aplicada en todo el spec:** cualquier umbral, rango, objetivo o
-   afirmación causal que no esté ya en la matriz V7/V6 va marcado `FIRMA MARIANA`. Hay
+   afirmación causal que no esté ya en la matriz V7/V6 va marcado `FIRMA CLINICA`. Hay
    más de lo que parece: las metas de composición corporal del ejemplo (≤20% grasa,
    ≥45% músculo, visceral ≤7) NO coinciden con la banda óptima de la matriz, y varios
    objetivos de marcadores tampoco.
@@ -245,7 +245,7 @@ el clínico para esa persona; `GEN` requiere genética).
   rango del laboratorio, y un criterio propio por persona. El título de la sección lo
   dice literal: "Y quién puso esa marca". **La app tiene que modelar la fuente del
   objetivo como dato** (`matriz` / `laboratorio` / `clinico`), y cualquier objetivo de
-  origen `clinico` necesita `FIRMA MARIANA` o al menos autoría registrada.
+  origen `clinico` necesita `FIRMA CLINICA` o al menos autoría registrada.
 - Tipo: valor, riel y estado `CALC` + `TABLA`; objetivo `TABLA` nueva; comentario
   `EDITORIAL`; "Lo que falta por medir" `EDITORIAL` (es prescripción de estudios).
 
@@ -263,7 +263,7 @@ el clínico para esa persona; `GEN` requiere genética).
   parecen puestas a mano. Las metas **no son las de la matriz** (grasa óptima V7 10 a
   14%, aceptable hasta 18.5%, riesgo hasta 24%; músculo óptimo 40 a 60%; visceral óptimo
   1 a 2, aceptable hasta 9). Son metas por persona.
-- Tipo: barra y kg `CALC`; metas `EDITORIAL` con `FIRMA MARIANA`.
+- Tipo: barra y kg `CALC`; metas `EDITORIAL` con `FIRMA CLINICA`.
 
 #### 07 Tu química cerebral (`braverman`)
 - Muestra: intro "La tuya es Empuje [n] · Memoria y foco [n] · Ánimo tranquilo [n] ·
@@ -306,7 +306,7 @@ el clínico para esa persona; `GEN` requiere genética).
   D/magnesio). Las otras cuatro dependen de genética o de un dato de consumo de alcohol
   cruzado con enzimas hepáticas y Braverman.
 - Tipo: estructura `TABLA` (catálogo); prosa por persona `EDITORIAL`; reglas nuevas
-  `FIRMA MARIANA`.
+  `FIRMA CLINICA`.
 
 #### 10 Lo que falta cerrar (`medico`)
 - Muestra: (a) tabla **Dentro del rango del laboratorio, fuera del tuyo**: marcador,
@@ -427,7 +427,7 @@ Braverman; el spec tiene que aguantar la app vacía.**
 | 05 | "lo que falta por medir" | parcial | `bandera` de cada cruce en Mi lectura; `labs-guide` | prescripción EDITORIAL |
 | 06 | peso, estatura, % grasa, músculo, visceral | sí | `health_measurements` (`muscle_mass_kg`, no %; convertir con peso) | nada |
 | 06 | edad corporal de báscula | sí | `client_profiles.metabolic_age_impedance`, `edad_atp_body_composition` | nada |
-| 06 | metas | no | matriz tiene bandas, no metas | `FIRMA MARIANA` o mostrar la banda óptima de la matriz como "rango ATP" |
+| 06 | metas | no | matriz tiene bandas, no metas | `FIRMA CLINICA` o mostrar la banda óptima de la matriz como "rango ATP" |
 | 07 | 8 ejes | sí | `braverman_results` | nada |
 | 07 | lecturas por eje | parcial | contenido del Braverman premium (`braverman-premium-service`) | revisar si hay texto por eje reutilizable; lo personalizado es EDITORIAL |
 | 08 | genética | **no** | | tabla, parser y vocabulario; TODO requiere firma |
@@ -469,7 +469,7 @@ diagnóstico. Se revisó y se descarta.
   ranking. Lecturas genéricas por eje si el Braverman premium ya las tiene.
 - 09: Mi lectura embebido o enlazado (los cruces que disparen con las 10 reglas
   actuales) y el "hilo" solo si se etiqueta `palanca` en las reglas existentes (es
-  metadato, no umbral; pero la etiqueta la debe validar Mariana porque afirma causa).
+  metadato, no umbral; pero la etiqueta necesita firma clínica porque afirma causa).
 - 10: (a) marcadores en `aceptable`/`atencion` cuyo `lab_revision.confirmado_fuera_de_rango`
   sea falso, si el dato existe; si no, se oculta. (b) banderas de los cruces como "lo
   que conviene revisar con un profesional" (copy ya validado en `lectura-core`).
@@ -503,7 +503,7 @@ diagnóstico. Se revisó y se descarta.
   año, horas de pantalla al día si no viene de D10, veces de entrenamiento por semana
   si no viene de `client_profiles.exercise_frequency`).
 
-### 3.3 Necesita firma de Mariana (umbral, rango o causa)
+### 3.3 Necesita firma clínica (umbral, rango o causa)
 
 - Los objetivos por marcador de origen `clinico` (tabla arriba: GGT ≤ 30, insulina ≤ 5,
   ApoB ≤ 80, LDL ≤ 100, HDL ≥ 40, cortisol 10 a 20, B12 ≥ 500, glucosa 80 a 90, HbA1c
@@ -641,7 +641,7 @@ iconos por `AppIcon`; cero em dashes; el glifo `'—'` solo como raya de sin dat
    defensivo en el core (patrón `parseArgosDxResponse`). Si P2 = clínico: spec aparte
    para el editor.
 
-**Noche C · lo que requiere a Mariana (después de la firma, no antes).**
+**Noche C · lo que requiere firma clínica (después de la firma, no antes).**
 1. Cargar objetivos `clinico` firmados a `dx_targets` con autor y fecha.
 2. Metas de composición y cortes de color de sistemas como constantes con cita.
 3. Reglas de cruce nuevas en el catálogo con `bandera` donde toque.
@@ -659,7 +659,7 @@ iconos por `AppIcon`; cero em dashes; el glifo `'—'` solo como raya de sin dat
    edades" se rediseña (no hay "sangre vs vida" en v2)? No puedo mostrar dos edades ATP
    distintas en dos pantallas.
 2. **Quién escribe la prosa por persona** ("por qué" de cada sistema, comentario por
-   marcador, narrativa de cruces, tres palancas): ¿tú/Mariana en un editor, ARGOS con
+   marcador, narrativa de cruces, tres palancas): ¿tú o el equipo clínico en un editor, ARGOS con
    vocabulario cerrado, o plantillas deterministas? Cambia toda la noche B.
 3. **Objetivos que no son de la matriz** ("Te queremos en X"): ¿son por persona (y
    entonces necesitan autor y firma en una tabla), o quieres una tercera columna
@@ -708,5 +708,5 @@ iconos por `AppIcon`; cero em dashes; el glifo `'—'` solo como raya de sin dat
 - `src/services/dx/{dx-quality-core, dx-engine-core, dx-engine, dx-service, dx-html,
   dx-pdf-service, dx-prompt}.ts` (nivel de calidad, versionado, export).
 - `supabase/migrations/170_functional_dx.sql`, `195_create_dx_version_rpc.sql`.
-- `R and D/MATRIZ_V7_V6_10_PENDIENTES_PARA_FIRMA.md` y `ATP_Firma_clinica_Mariana`
+- `R and D/MATRIZ_V7_V6_10_PENDIENTES_PARA_FIRMA.md` y el documento `ATP_Firma_clinica_*`
   (lo que ya está esperando firma y de lo que este spec depende).

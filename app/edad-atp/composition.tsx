@@ -23,7 +23,7 @@ import { SEMANTIC, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
-// Acepta coma O punto decimal (Mariana flag #10).
+// Acepta coma O punto decimal (beta-01 flag #10).
 const num = (s: string): number | undefined => parseDecimalInput(s) ?? undefined;
 
 function daysAgo(dateStr: string): number {
@@ -71,7 +71,7 @@ export default function CompositionCapture() {
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const { load: loadDraft, save: saveDraft, clear: clearDraft } = useFormDraft('composition', user?.id);
-  // Persistir el borrador al teclear → sobrevive navegación (Mariana #11/#15).
+  // Persistir el borrador al teclear → sobrevive navegación (beta-01 #11/#15).
   const set = (k: string, val: string) => setV((p) => { const next = { ...p, [k]: val }; saveDraft(next); return next; });
 
   // Si llega con ?focus, mostrar el formulario editable directo (no el resumen read-only).
@@ -107,7 +107,7 @@ export default function CompositionCapture() {
       }
       setSnapshot(init);
       setPrefilled(pre);
-      // Restaurar borrador no guardado encima de lo de DB (Mariana #11/#15).
+      // Restaurar borrador no guardado encima de lo de DB (beta-01 #11/#15).
       const saved = await loadDraft();
       if (saved && Object.keys(saved).length > 0) {
         setV({ ...init, ...saved });

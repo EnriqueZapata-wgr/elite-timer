@@ -95,7 +95,7 @@ describe('parseFunctionalScoreResponse — JSON defensivo (Sprint Compliance 4)'
 });
 
 describe('FUNCTIONAL_SCORE_PROMPT — criterios + compliance §4.2', () => {
-  it('conserva los criterios de formulación de Mariana (decisión #5)', () => {
+  it('conserva los criterios de formulación del equipo clínico de ATP (decisión #5)', () => {
     expect(FUNCTIONAL_SCORE_PROMPT).toContain('sucralosa');
     expect(FUNCTIONAL_SCORE_PROMPT).toContain('aspartame');
     expect(FUNCTIONAL_SCORE_PROMPT).toContain('acesulfame-K');

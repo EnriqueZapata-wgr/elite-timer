@@ -31,7 +31,7 @@ import { routeForBool } from '@/src/services/hoy/tareas-core';
  * El modelo viejo de este test era DEFAULT ∪ MANDATORY ∪ seleccionables, un
  * universo que ninguna usuaria tiene: los seleccionables solo entran si están
  * en SU lista persistida. Por eso el test pasaba y producción fallaba (bug
- * Mariana M1: checkin invisible para toda fila persistida vieja).
+ * beta M1: checkin invisible para toda fila persistida vieja).
  */
 function universeFor(persisted: string[] | null): Set<string> {
   return new Set([...(persisted ?? DEFAULT_BOOLEANS), ...MANDATORY_BOOLEANS]);
@@ -54,7 +54,7 @@ describe('patrón 3 lugares — electrones booleanos', () => {
     expect(routeForBool('journal')).toBe('/journal');
   });
 
-  it('checkin sobrevive una fila persistida vieja (bug Mariana M1)', () => {
+  it('checkin sobrevive una fila persistida vieja (bug beta M1)', () => {
     // El caso real de las dos usuarias: fila creada con el DEFAULT de 043.
     // Antes del fix, checkin no estaba en esa fila, ni en MANDATORY, ni era
     // seleccionable: invisible para siempre. MANDATORY es la red.

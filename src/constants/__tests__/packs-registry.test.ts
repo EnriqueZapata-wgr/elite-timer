@@ -224,7 +224,7 @@ describe('contrato del registro de packs', () => {
    * POR QUÉ EXISTE: el candado de validación clínica solo miraba `prescribe`,
    * y encender un hábito es pedirle a la persona que haga la práctica igual
    * que prescribírsela. `dormir-mejor` encendía `red_glasses` mientras su
-   * gemela `lentes_rojos` seguía esperando la firma de Mariana: la firma se
+   * gemela `lentes_rojos` seguía esperando la firma clínica: la firma se
    * brincaba por la puerta de `enciende`. Este mapa cierra esa puerta.
    *
    * Solo se listan los electrones que TIENEN gemelo real en el catálogo. Un

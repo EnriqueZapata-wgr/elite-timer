@@ -1,5 +1,5 @@
 /**
- * Longitud de ciclo observada (bug Mariana M3.b) — el promedio que la
+ * Longitud de ciclo observada (bug beta M3.b) — el promedio que la
  * pantalla de ciclo ignoraba. Reglas: ventana fisiológica (20, 45), hasta 6
  * periodos, y NO se aprende con menos de 2 ciclos válidos (manda el ajuste).
  */

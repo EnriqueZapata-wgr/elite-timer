@@ -12,7 +12,7 @@ import { clasificarVo2 } from '../cardio-perfil-service';
 
 // Valores de las publicaciones originales (ver FUENTES_CARDIO). Si un test de
 // aqui falla porque alguien "ajusto" una constante, el ratchet gana: la
-// constante vuelve a la de la fuente o la funcion se retira con Mariana.
+// constante vuelve a la de la fuente o la funcion se retira tras revisión clínica.
 
 describe('fcMaxima (Tanaka 2001: 208 - 0.7 * edad)', () => {
   it('40 años -> 180, 20 -> 194, 60 -> 166', () => {

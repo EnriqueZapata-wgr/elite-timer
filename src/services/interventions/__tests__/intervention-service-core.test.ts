@@ -165,7 +165,7 @@ describe('resolveRows + orden', () => {
     const match = matchInterventions([{ root_key: 'resistencia_insulina', severity: 5 }]);
     const resolved = resolveRows([row({ intervention_key: 'ayuno_16_8' })], match);
     expect(resolved).toHaveLength(1); // el user SÍ puede tenerla activa
-    expect(resolved[0].score).toBe(0); // el motor no la sugiere hasta firma Mariana
+    expect(resolved[0].score).toBe(0); // el motor no la sugiere hasta firma clínica
   });
 
   it('sortProtocol: semáforo asc (🔴 antes que 🟢), luego nombre', () => {

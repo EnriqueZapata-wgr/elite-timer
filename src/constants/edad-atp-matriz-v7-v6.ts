@@ -1,7 +1,7 @@
 /**
  * MATRIZ DE SALUD FUNCIONAL — V7 HOMBRES / V6 MUJERES
  * Fuente: Matriz_calculo_salud_funcional_MasterV7_HOMBRES.xlsx + MasterV6_MUJERES.xlsx
- * Autor: Enrique Zapata + Mariana Doria (Co-Founder & CSO)
+ * Autor: Enrique Zapata
  * Extraído: 2026-06-09 desde los Excel master.
  *
  * 9 bandas por parámetro. Lógica: `value <= bandLimits[i]` → `SCORES_9[i]`.

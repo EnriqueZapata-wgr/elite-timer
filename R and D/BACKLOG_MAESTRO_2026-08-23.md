@@ -310,7 +310,7 @@ reducción autorizada que no se aplicó. Necesito ubicarla.
   grupo. Detectar por ejemplo que los fines de semana se olvidan.
 
 ### 3.7 · Tribu y ranking · `SIN EMPEZAR`
-El perfil de Mariana aparece como "A" sin nombre aunque ella ya lo modificó. Hay
+Un perfil del beta-01 aparece como "A" sin nombre aunque su dueño ya lo modificó. Hay
 un dato que no se está refrescando. (El reinicio de electrones va en la sección 2.)
 
 ### 3.8 · Fuerza · `SIN EMPEZAR`

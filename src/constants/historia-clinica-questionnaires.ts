@@ -1,9 +1,9 @@
 /**
  * Cuestionarios de Historia Clínica (T3 + HC5).
  *
- * ⚠️ FLAG MARIANA: preguntas propuestas por CC basadas en estándares de medicina funcional
+ * ⚠️ FLAG REVISIÓN CLÍNICA: preguntas propuestas por CC basadas en estándares de medicina funcional
  * (IFM toolkit, NAQ — Nutritional Assessment Questionnaire, MSQ — Medical Symptoms Questionnaire,
- * historia clínica estándar). Mariana valida/afina después. NO son diagnósticas: son de captura.
+ * historia clínica estándar). El equipo clínico de ATP valida/afina después. NO son diagnósticas: son de captura.
  *
  * Cada categoría → un cuestionario que usa <TestQuestionScreen>. Las respuestas se guardan en
  * historia_clinica.data[category] como JSONB { [questionId]: optionId | optionId[] }.
@@ -248,7 +248,7 @@ export const HC_QUESTIONNAIRES: HCQuestionnaire[] = [
 // + 9 sub-áreas funcionales. Alimentan el nivel de calidad del DX (integral → L2,
 // ≥3 áreas + hábitos → L3). Ramificación con optional/multi (no bloquean avance).
 //
-// ⚠️ FLAG MARIANA: validar — preguntas de captura funcional propuestas por CC
+// ⚠️ FLAG REVISIÓN CLÍNICA: validar — preguntas de captura funcional propuestas por CC
 // (IFM toolkit, NAQ, MSQ, ATP protocol). NO diagnósticas.
 // ═══════════════════════════════════════════════════════════════════════════
 

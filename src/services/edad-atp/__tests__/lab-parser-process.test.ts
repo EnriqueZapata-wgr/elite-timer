@@ -49,7 +49,7 @@ describe('lab-parser-process — processParserItems', () => {
     expect(r.items[0].conversionMethod).toBe('heuristic');
   });
 
-  it('caso Mariana: LDL 2.27 mg/dL → normaliza sin cambio y FALLA validación', () => {
+  it('caso beta-01: LDL 2.27 mg/dL → normaliza sin cambio y FALLA validación', () => {
     const r = processParserItems([
       { key: 'ldl', value: 2.27, unit_in_document: 'mg/dL', confidence: 'high' },
     ]);

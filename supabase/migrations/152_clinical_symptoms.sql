@@ -3,7 +3,7 @@
 -- UX blockers V1.3, rango Fable 150-199).
 --
 -- `clinical_symptoms`: un síntoma activo/resuelto por fila, agrupado en los
--- 7 sistemas funcionales (matriz de medicina funcional / framework Mariana).
+-- 7 sistemas funcionales (matriz de medicina funcional / método ATP).
 -- `clinical_symptom_logs`: timeline de severidad por síntoma (drill-down).
 --
 -- Idempotente. RLS: dueño full + coach lectura (patrón 079_historia_clinica).

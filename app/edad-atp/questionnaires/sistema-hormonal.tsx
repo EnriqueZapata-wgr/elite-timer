@@ -1,4 +1,4 @@
-/** Cuestionario Sistema hormonal. Copy MVP — // TODO Mariana Sprint 5: validar
+/** Cuestionario Sistema hormonal. Copy MVP — // TODO revisión clínica Sprint 5: validar
  *  (incl. preguntas específicas por sexo + fase del ciclo en mujeres). */
 import { QuestionnaireScreen, type DomainQuestion } from '@/src/components/edad-atp/QuestionnaireScreen';
 

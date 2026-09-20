@@ -15,7 +15,7 @@
  *    cronotipo — es estado transitorio a sanar hacia León/Oso/Lobo.
  *
  * ✅ v3 CURADO ENRIQUE 2026-07-11: 86 intervenciones aprobadas. Fuente:
- *  `Business development/Beta_Launch_Kit/09b_SEEDS_CATALOGO_ARRANQUE_MARIANA.md`
+ *  seeds del catálogo de arranque del Beta Launch Kit (Business development/Beta_Launch_Kit/09b_*)
  *
  * 🧬 v4 EPIGENÉTICO 2026-07-14: 86 intervenciones enriquecidas con rastro epigenético completo
  *  (epigeneticImpact, sideEffects, contraindications, recommendationRules, sources)
@@ -23,11 +23,11 @@
  *  + 1 renombrada (jawzercise → omt_masticatorios)
  *  = 88 intervenciones totales. Fuente: R and D/RESEARCH_MAPEO_PILOTO/BATCH_A/B/C_2026-07-14.md
  *
- * ⏳ PENDIENTE 2da sesión Mariana: validar ajustes v3 + agregar ciclo femenino,
+ * ⏳ PENDIENTE 2da sesión de revisión clínica: validar ajustes v3 + agregar ciclo femenino,
  * tiroides, postparto, salud masculina, piel, immune post-infección.
  *
- * ⚠️ REQUIEREN VALIDACIÓN CLÍNICA MARIANA (campo `requiresClinicalValidation: true`;
- * Mariana quita el flag al firmar cada una — task #9). El motor NO las sugiere
+ * ⚠️ REQUIEREN VALIDACIÓN CLÍNICA DE ATP (campo `requiresClinicalValidation: true`;
+ * el equipo clínico de ATP quita el flag al firmar cada una — task #9). El motor NO las sugiere
  * (matchInterventions las excluye de suggestions/universals); el user sí puede
  * activarlas manualmente si ya las tiene en user_interventions. Flaggeadas hoy:
  *  bulletproof_coffee (Cowork corregido: doctrina Enrique BPC no sube insulina),
@@ -164,7 +164,7 @@ export interface Intervention {
   scientificInfo?: string;
   /** Nivel de evidencia (jerarquía ARGOS multi-paradigma). */
   evidenceLevel?: EvidenceLevel;
-  /** ⚠️ Requiere validación clínica adicional de Mariana antes de activar producción. */
+  /** ⚠️ Requiere validación clínica adicional del equipo de ATP antes de activar producción. */
   requiresClinicalValidation?: boolean;
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -3658,7 +3658,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     benefit: 'Hiperventilación controlada + retención en vacío genera alcalosis respiratoria transitoria + hipoxia intermitente que dispara adrenalina 200-300%, IL-10 antiinflamatoria (Kox 2014 PNAS · primer estudio replicable de control voluntario sobre inmunidad innata), y produce estado alterado de conciencia con dopamina/endorfinas elevadas.',
     categories: ['estres', 'inmunologico', 'energia', 'cognitivo', 'ritual'],
     roots: ['deficit_neurotransmisores', 'cortisol_elevado_sostenido', 'estres_cronico', 'inflamacion_silenciosa'],
-    assignRule: '⚠️ Adulto sano sin epilepsia, cardiopatía, hipertensión no controlada, embarazo, trastorno psicótico, historia de convulsiones. Flag P1 si: inflamación crónica sub-clínica, autoinmunidad estable (con validación Mariana), burnout con anhedonia. JAMÁS en agua/ducha/tina/piscina.',
+    assignRule: '⚠️ Adulto sano sin epilepsia, cardiopatía, hipertensión no controlada, embarazo, trastorno psicótico, historia de convulsiones. Flag P1 si: inflamación crónica sub-clínica, autoinmunidad estable (con revisión clínica de ATP), burnout con anhedonia. JAMÁS en agua/ducha/tina/piscina.',
     priority: 3,
     family: 'wim_hof',
     evidenceLevel: 'N3',
@@ -8691,7 +8691,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
   {
     key: 'protocolo_ayuno_sardinas',
     name: 'Protocolo Ayuno de Sardinas',
-    how: '⏳ Detalles Enrique-Mariana pendientes. Formato genérico base (referencia D\'Agostino "Sardine Fast"): 3 días consumiendo únicamente sardinas enlatadas en aceite oliva o agua + agua + electrolitos (sodio, potasio, magnesio). Ventana ~600-900 kcal/día · proteína alta + grasa marina densa. NO carbohidratos. Suspender café si genera ansiedad. Romper con caldo + fruto + huevos.',
+    how: '⏳ Detalles del equipo ATP pendientes. Formato genérico base (referencia D\'Agostino "Sardine Fast"): 3 días consumiendo únicamente sardinas enlatadas en aceite oliva o agua + agua + electrolitos (sodio, potasio, magnesio). Ventana ~600-900 kcal/día · proteína alta + grasa marina densa. NO carbohidratos. Suspender café si genera ansiedad. Romper con caldo + fruto + huevos.',
     benefit: 'Combina ayuno con proteína marina de alta calidad: preservación masa magra durante fase catabólica, cetosis nutricional acelerada (β-hidroxibutirato), autofagia sistémica, insulino-sensibilización robusta, ω-3 alto reduciendo inflamación durante ayuno.',
     categories: ['inflamacion', 'metabolismo', 'nutricion', 'mitocondrial'],
     roots: ['inflamacion_silenciosa', 'hiperinsulinemia', 'resistencia_insulina', 'sobrecarga_procesados', 'disfuncion_mitocondrial'],
@@ -8831,7 +8831,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         paradigm: 'traditional_documented',
       },
       {
-        citation: '⏳ PENDIENTE · Enrique-Mariana protocolo específico ATP con dosis exactas, ventanas, criterios de entrada/salida · task #8',
+        citation: '⏳ PENDIENTE · Enrique protocolo específico ATP con dosis exactas, ventanas, criterios de entrada/salida · task #8',
         paradigm: 'functional_independent',
       },
     ],

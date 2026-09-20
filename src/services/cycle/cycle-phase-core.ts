@@ -53,7 +53,7 @@ export const FRESCURA_DIAS_EXTRA = 14;
  *
  * La DEFINICION "fase ovulatoria = ovulacion-2 .. ovulacion" es una decision
  * de calculo alineada a la banda alta de ASRM, no una constante del cuerpo.
- * Pendiente de firma de Mariana (ver informe 31-ago).
+ * Pendiente de firma clínica (ver informe 31-ago).
  */
 export function getPhase(day: number, cycleLen = 28, periodLen = 5): CyclePhase {
   if (day <= periodLen) return 'menstrual';

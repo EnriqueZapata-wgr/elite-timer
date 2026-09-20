@@ -53,7 +53,7 @@ export default function VitalsCapture() {
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const { load: loadDraft, save: saveDraft, clear: clearDraft } = useFormDraft('vitals', user?.id);
-  // Persistir el borrador al teclear → sobrevive navegación (Mariana #11/#15).
+  // Persistir el borrador al teclear → sobrevive navegación (beta-01 #11/#15).
   const set = (k: string, val: string) => setV((p) => { const next = { ...p, [k]: val }; saveDraft(next); return next; });
   const hasData = Object.keys(prefilled).length > 0;
 
@@ -76,7 +76,7 @@ export default function VitalsCapture() {
       }
       setSnapshot(init);
       setPrefilled(pre);
-      // Restaurar borrador no guardado encima de lo de DB (Mariana #11/#15).
+      // Restaurar borrador no guardado encima de lo de DB (beta-01 #11/#15).
       const saved = await loadDraft();
       if (saved && Object.keys(saved).length > 0) {
         setV({ ...init, ...saved });
