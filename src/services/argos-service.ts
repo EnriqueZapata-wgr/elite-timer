@@ -31,13 +31,21 @@ import { ultimaRutaVisitada } from './argos-last-route';
 import { chatFailureOutcome } from './argos-chat-core';
 import { buildHistoryWindow } from './argos-history-core';
 import {
-  buildContextPrompt, canLoadRichContext, compararConMeta,
+  buildContextPrompt, compararConMeta, nombreDeBloque, puedeCargarContextoRico,
   type PersonalRecord, type UserContext,
 } from './argos-context-core';
 import { computeStreak } from './adherence-service';
 // ATP 3.0 (ruta 3.6): la evaluación Elite en el contexto del chat.
-import { cargarBloqueElite } from './argos-elite-contexto-service';
+// 20-sep-2026: ahora llegan resumen, detalle y firma (cargarContextoElite).
+import { cargarContextoElite } from './argos-elite-contexto-service';
 import { traeBloqueElite } from './argos-elite-contexto-core';
+import { traeDetalleElite } from './argos-elite-detalle-core';
+import type { FilaSuplementoArgos } from './argos-suplementos-plan-core';
+// 20-sep-2026: el sueño se lee con `leerNochesUnificadas` (sleep_nights +
+// health_os_daily.sleep_minutes) de './sleep/sueno-unificado-service'. Va
+// como import dinámico dentro del bloque de sueño, igual que uv-service y
+// consent-service: ese módulo trae react-native y un hook, y no tiene por
+// qué cargarse con este archivo en los tests de nodo.
 import { contarHabitosHoy } from './argos-habitos-hoy-core';
 import type { HabitEstadoRow } from './hoy/habit-states-core';
 
@@ -694,24 +702,39 @@ capa de dominio permanentemente.`;
 // MB-21 P7: UserContext + buildContextPrompt + la decisión del gate viven en
 // argos-context-core.ts (puros, con tests). Aquí queda solo la carga (I/O).
 
-async function fetchUserPRs(userId: string): Promise<PersonalRecord[]> {
+/**
+ * 20-sep-2026: los récords con el error a la vista. `{ ok: false }` es "no se
+ * pudo leer" y loadUserContext lo reporta como tal; un `[]` con ok es "no hay
+ * récords". Antes los dos casos eran el mismo `[]`.
+ */
+async function fetchUserPRsResultado(
+  userId: string,
+): Promise<{ ok: true; prs: PersonalRecord[] } | { ok: false; error: unknown }> {
   try {
     // personal_records no tiene `reps` — el equivalente es rep_range (fantasma MB-6).
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('personal_records')
       .select('exercise_id, estimated_1rm, weight_kg, rep_range, exercises(name, name_es)')
       .eq('user_id', userId)
       .order('estimated_1rm', { ascending: false })
       .limit(10);
-    return (data || []).map((pr: any) => ({
+    if (error) return { ok: false, error };
+    const prs = (data || []).map((pr: any) => ({
       exercise: pr.exercises?.name_es || pr.exercises?.name || 'unknown',
       estimated1rm: pr.estimated_1rm,
       weight: pr.weight_kg,
       reps: pr.rep_range,
     }));
-  } catch {
-    return [];
+    return { ok: true, prs };
+  } catch (error) {
+    return { ok: false, error };
   }
+}
+
+/** Contrato viejo (generateRoutine): sin récords o sin lectura, lista vacía. */
+async function fetchUserPRs(userId: string): Promise<PersonalRecord[]> {
+  const r = await fetchUserPRsResultado(userId);
+  return r.ok ? r.prs : [];
 }
 
 /**
@@ -754,13 +777,14 @@ export function registrarBloqueDeContexto(
  * comportamiento previo byte por byte, sin migración y por OTA.
  */
 async function cargarLabsLegacy(userId: string, context: UserContext): Promise<void> {
-  const { data: labs } = await supabase
+  const { data: labs, error } = await supabase
     .from('lab_results')
     .select('lab_date, vitamin_d, hba1c, ferritin, tsh, cholesterol_total, hdl, ldl, triglycerides, testosterone, estradiol, cortisol')
     .eq('user_id', userId)
     .order('lab_date', { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (error) throw error;
   if (!labs) return;
   const l = labs as any;
   const candidates: { name: string; value: any; unit: string }[] = [
@@ -799,9 +823,15 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
   // y no en argos-proxy.
   //
   // MB-21 P7: FAIL-CLOSED. Si el servicio de consentimiento falla, no hay
-  // verificación → no viajan datos de salud (canLoadRichContext decide; antes
-  // el catch abría el gate y un usuario que revocó veía su salud viajar).
-  const allowed = await canLoadRichContext(async () => {
+  // verificación → no viajan datos de salud (antes el catch abría el gate y
+  // un usuario que revocó veía su salud viajar).
+  //
+  // 20-sep-2026: fail-closed SOLO para quien nunca se verificó en esta
+  // sesión. A quien ya se le verificó el consentimiento, una consulta fallida
+  // (red, timeout) no lo deja sin nombre ni evaluación oyendo "Todavía no te
+  // conozco lo suficiente". La respuesta del servicio, cuando responde, manda
+  // siempre (puedeCargarContextoRico, argos-context-core).
+  const allowed = await puedeCargarContextoRico(userId, async () => {
     const { hasArgosMemoryConsent } = await import('./consent-service');
     return hasArgosMemoryConsent(userId);
   });
@@ -809,23 +839,38 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
     return context; // contexto mínimo: sin nombre, labs, hábitos ni historial
   }
 
+  // 20-sep-2026: los bloques que FALLAN (no los vacíos) se juntan aquí y
+  // viajan al modelo como "En este turno no pude leer: ...". Sentry sigue
+  // recibiendo el error; lo nuevo es que el modelo también se entera.
+  const noLeidos: string[] = [];
+  const registrar = (bloque: string, motivo: 'error' | 'vacio', detalle: unknown): void => {
+    registrarBloqueDeContexto(bloque, motivo, detalle);
+    if (motivo === 'error' && !noLeidos.includes(bloque)) noLeidos.push(bloque);
+  };
+
   try {
     // Perfil básico (profiles.full_name)
-    const { data: profile } = await supabase
+    // 20-sep-2026: supabase-js no lanza en 4xx; sin este `throw` un error de
+    // lectura dejaba al cliente sin nombre en silencio, como si no lo tuviera.
+    // `.maybeSingle()`: una cuenta sin fila en profiles no es un fallo de
+    // lectura (con `.single()` viajaba como "no pude leer tu perfil").
+    const { data: profile, error } = await supabase
       .from('profiles')
       .select('full_name')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
+    if (error) throw error;
     if (profile) context.name = profile.full_name || '';
-  } catch (e) { registrarBloqueDeContexto('perfil', 'error', e); }
+  } catch (e) { registrar('perfil', 'error', e); }
 
   try {
     // Datos extendidos (client_profiles: date_of_birth, biological_sex)
-    const { data: cp } = await supabase
+    const { data: cp, error } = await supabase
       .from('client_profiles')
       .select('date_of_birth, biological_sex')
       .eq('user_id', userId)
       .maybeSingle();
+    if (error) throw error;
     if (cp) {
       context.gender = cp.biological_sex || undefined;
       if (cp.date_of_birth) {
@@ -837,25 +882,26 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         }
       }
     }
-  } catch (e) { registrarBloqueDeContexto('perfil-extendido', 'error', e); }
+  } catch (e) { registrar('perfil-extendido', 'error', e); }
 
   try {
     // Cronotipo (user_chronotype). updated_at es la ÚNICA fecha que tiene la
     // tabla — sin ella el cronotipo viaja como si se hubiera medido hoy.
-    const { data: chrono } = await supabase
+    const { data: chrono, error } = await supabase
       .from('user_chronotype')
       .select('chronotype, updated_at')
       .eq('user_id', userId)
       .maybeSingle();
+    if (error) throw error;
     if (chrono) {
       context.chronotype = chrono.chronotype;
       context.chronotypeUpdatedAt = (chrono as any).updated_at || undefined;
     }
-  } catch (e) { registrarBloqueDeContexto('cronotipo', 'error', e); }
+  } catch (e) { registrar('cronotipo', 'error', e); }
 
   try {
     // Protocolo activo (más reciente — defensa ante múltiples activos)
-    const { data: protocol } = await supabase
+    const { data: protocol, error } = await supabase
       .from('user_protocols')
       .select('name, created_at')
       .eq('user_id', userId)
@@ -863,8 +909,9 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (error) throw error;
     if (protocol) context.activeProtocol = protocol.name;
-  } catch (e) { registrarBloqueDeContexto('protocolo-activo', 'error', e); }
+  } catch (e) { registrar('protocolo-activo', 'error', e); }
 
   try {
     // Electrones de hoy + hábitos de hoy (13.2, 31-ago-2026).
@@ -899,7 +946,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         .maybeSingle(),
     ]);
     if (logsRes.error) {
-      registrarBloqueDeContexto('electrones-hoy', 'error', logsRes.error.message);
+      registrar('electrones-hoy', 'error', logsRes.error.message);
     } else {
       const logs = (logsRes.data ?? []) as { electrons: number; source: string; category: string | null }[];
       const earned = logs.reduce((acc, e) => acc + Number(e.electrons), 0);
@@ -908,7 +955,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
       // Ciclo son opcionales (tabla ausente o error → como HOY: todos activos,
       // modo null). context.gender ya se leyó arriba de client_profiles.
       if (prefsRes.error || blobRes.error) {
-        registrarBloqueDeContexto('habitos-hoy', 'error', (prefsRes.error ?? blobRes.error)?.message);
+        registrar('habitos-hoy', 'error', (prefsRes.error ?? blobRes.error)?.message);
       } else {
         context.habitosHoy = contarHabitosHoy({
           persistedBoolKeys: (prefsRes.data?.active_boolean_electrons as string[] | null | undefined) ?? null,
@@ -920,20 +967,21 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         });
       }
     }
-  } catch (e) { registrarBloqueDeContexto('electrones-hoy', 'error', e); }
+  } catch (e) { registrar('electrones-hoy', 'error', e); }
 
   try {
     // Nutrición reciente (últimos 3 días)
     const threeDaysAgoCursor = parseLocalDate(getLocalToday());
     threeDaysAgoCursor.setDate(threeDaysAgoCursor.getDate() - 3);
     const threeDaysAgo = toLocalDateString(threeDaysAgoCursor);
-    const { data: foods } = await supabase
+    const { data: foods, error } = await supabase
       .from('food_logs')
       .select('calories, protein_g, date')
       .eq('user_id', userId)
       .gte('date', threeDaysAgo)
       .order('date', { ascending: false })
       .limit(15);
+    if (error) throw error;
     if (foods && foods.length > 0) {
       const todayFoods = foods.filter(f => f.date === today);
       context.recentNutrition = {
@@ -943,36 +991,39 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         avgCalories3d: Math.round(foods.reduce((s, f) => s + (f.calories || 0), 0) / 3),
       };
     }
-  } catch (e) { registrarBloqueDeContexto('nutricion-3d', 'error', e); }
+  } catch (e) { registrar('nutricion-3d', 'error', e); }
 
   try {
     // Ejercicio reciente (última semana)
     const weekAgoCursor = parseLocalDate(getLocalToday());
     weekAgoCursor.setDate(weekAgoCursor.getDate() - 7);
     const weekAgo = toLocalDateString(weekAgoCursor);
-    const { data: exercises } = await supabase
+    const { data: exercises, error } = await supabase
       .from('exercise_logs')
       .select('date')
       .eq('user_id', userId)
       .gte('date', weekAgo);
+    if (error) throw error;
     const uniqueDays = new Set((exercises || []).map(e => e.date)).size;
     context.recentExercise = { sessionsThisWeek: uniqueDays };
-  } catch (e) { registrarBloqueDeContexto('ejercicio-semana', 'error', e); }
+  } catch (e) { registrar('ejercicio-semana', 'error', e); }
 
   try {
     // Récords personales (top por 1RM estimado)
-    const prs = await fetchUserPRs(userId);
-    if (prs.length > 0) context.personalRecords = prs;
-  } catch (e) { registrarBloqueDeContexto('records-personales', 'error', e); }
+    const r = await fetchUserPRsResultado(userId);
+    if (!r.ok) throw r.error;
+    if (r.prs.length > 0) context.personalRecords = r.prs;
+  } catch (e) { registrar('records-personales', 'error', e); }
 
   try {
     // Glucosa reciente
-    const { data: glucose } = await supabase
+    const { data: glucose, error } = await supabase
       .from('glucose_logs')
       .select('value_mg_dl, context, date')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(5);
+    if (error) throw error;
     if (glucose && glucose.length > 0) {
       context.recentGlucose = {
         lastValue: glucose[0].value_mg_dl,
@@ -980,17 +1031,18 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         readings: glucose.length,
       };
     }
-  } catch (e) { registrarBloqueDeContexto('glucosa', 'error', e); }
+  } catch (e) { registrar('glucosa', 'error', e); }
 
   try {
     // Ayuno actual (fasting_logs: fast_start, target_hours, status)
-    const { data: fast } = await supabase
+    const { data: fast, error } = await supabase
       .from('fasting_logs')
       .select('fast_start, target_hours, status')
       .eq('user_id', userId)
       .eq('status', 'active')
       .limit(1)
       .maybeSingle();
+    if (error) throw error;
     if (fast?.fast_start) {
       const startMs = new Date(fast.fast_start).getTime();
       if (Number.isFinite(startMs)) {
@@ -1009,14 +1061,15 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         };
       }
     }
-  } catch (e) { registrarBloqueDeContexto('ayuno-actual', 'error', e); }
+  } catch (e) { registrar('ayuno-actual', 'error', e); }
 
   try {
     // Rango de electrones
-    const { data: allElectrons } = await supabase
+    const { data: allElectrons, error } = await supabase
       .from('electron_logs')
       .select('electrons')
       .eq('user_id', userId);
+    if (error) throw error;
     const total = (allElectrons || []).reduce((s, e) => s + Number(e.electrons), 0);
     if (total >= 2501) context.rank = 'Supernova';
     else if (total >= 1001) context.rank = 'Fusión';
@@ -1024,11 +1077,11 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
     else if (total >= 201) context.rank = 'Molécula';
     else if (total >= 51) context.rank = 'Átomo';
     else context.rank = 'Partícula';
-  } catch (e) { registrarBloqueDeContexto('rango-electrones', 'error', e); }
+  } catch (e) { registrar('rango-electrones', 'error', e); }
 
   try {
     // Braverman (perfil de neurotransmisores)
-    const { data: braverman } = await supabase
+    const { data: braverman, error } = await supabase
       .from('braverman_results')
       .select('dominant_type, primary_deficiency, deficiency_level, completed_at')
       .eq('user_id', userId)
@@ -1036,6 +1089,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
       .order('completed_at', { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (error) throw error;
     if (braverman?.dominant_type) {
       context.bravermanProfile = {
         dominant: braverman.dominant_type,
@@ -1046,16 +1100,17 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         completedAt: (braverman as any).completed_at || undefined,
       };
     }
-  } catch (e) { registrarBloqueDeContexto('braverman', 'error', e); }
+  } catch (e) { registrar('braverman', 'error', e); }
 
   try {
     // Resultados de quizzes funcionales
-    const { data: quizResults } = await supabase
+    const { data: quizResults, error } = await supabase
       .from('functional_quiz_results')
       .select('quiz_id, domain_scores, active_insights, completed_at')
       .eq('user_id', userId)
       .eq('is_complete', true)
       .order('completed_at', { ascending: false });
+    if (error) throw error;
     if (quizResults && quizResults.length > 0) {
       context.functionalQuizzes = quizResults.map(r => ({
         quiz: r.quiz_id,
@@ -1064,7 +1119,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         completedAt: (r as any).completed_at || undefined,
       }));
     }
-  } catch (e) { registrarBloqueDeContexto('quizzes-funcionales', 'error', e); }
+  } catch (e) { registrar('quizzes-funcionales', 'error', e); }
 
   // UV actual (ATP SOL)
   try {
@@ -1083,7 +1138,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         };
       }
     }
-  } catch (e) { registrarBloqueDeContexto('uv-atp-sol', 'error', e); }
+  } catch (e) { registrar('uv-atp-sol', 'error', e); }
 
   // Rango 7 días para fuentes recientes (computado una vez)
   const sevenDaysAgoCursor = parseLocalDate(today);
@@ -1092,11 +1147,12 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
 
   try {
     // Sesiones mente (últimos 7 días)
-    const { data: mind } = await supabase
+    const { data: mind, error } = await supabase
       .from('mind_sessions')
       .select('type, duration_seconds, date')
       .eq('user_id', userId)
       .gte('date', sevenDaysAgo);
+    if (error) throw error;
     if (mind && mind.length > 0) {
       const meditationDays = new Set(mind.filter((m: any) => m.type === 'meditation').map((m: any) => m.date)).size;
       const breathworkDays = new Set(mind.filter((m: any) => m.type === 'breathing').map((m: any) => m.date)).size;
@@ -1107,16 +1163,17 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         avgMinutes: Math.round(avgSec / 60),
       };
     }
-  } catch (e) { registrarBloqueDeContexto('sesiones-mente-7d', 'error', e); }
+  } catch (e) { registrar('sesiones-mente-7d', 'error', e); }
 
   try {
     // Journal (últimos 7 días)
-    const { data: journal } = await supabase
+    const { data: journal, error } = await supabase
       .from('journal_entries')
       .select('date, tags')
       .eq('user_id', userId)
       .gte('date', sevenDaysAgo)
       .order('date', { ascending: false });
+    if (error) throw error;
     if (journal && journal.length > 0) {
       const tagCounts: Record<string, number> = {};
       for (const j of journal as any[]) {
@@ -1129,17 +1186,18 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         dominantTag,
       };
     }
-  } catch (e) { registrarBloqueDeContexto('journal-7d', 'error', e); }
+  } catch (e) { registrar('journal-7d', 'error', e); }
 
   try {
     // Mood check-ins (últimos 7 días, usa created_at — no hay col `date`)
     const sinceISO = parseLocalDate(sevenDaysAgo).toISOString();
-    const { data: checkins } = await supabase
+    const { data: checkins, error } = await supabase
       .from('emotional_checkins')
       .select('pleasantness, created_at, quadrant, emotions')
       .eq('user_id', userId)
       .gte('created_at', sinceISO)
       .order('created_at', { ascending: false });
+    if (error) throw error;
     if (checkins && checkins.length > 0) {
       // H.4 (MB-10): SOLO el check-in más reciente de HOY entra como estado
       // emocional actual. El historial de navegación de otros días no viaja.
@@ -1170,7 +1228,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         checkInsLast7: checkins.length,
       };
     }
-  } catch (e) { registrarBloqueDeContexto('mood-7d', 'error', e); }
+  } catch (e) { registrar('mood-7d', 'error', e); }
 
   // Ciclo menstrual — solo si gender indica femenino. Usa cycle-service
   // (única fuente de derivación de fase, fórmula proporcional al cycleLen).
@@ -1178,6 +1236,15 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
   if (isFemale) {
     try {
       const info = await getCycleInfo(userId);
+      if (!info) {
+        // getCycleInfo devuelve null tanto sin periodos como cuando la lectura
+        // de cycle_periods falló (cycle-service se traga ese error y lo
+        // comparten ocho pantallas, así que su contrato no se toca aquí).
+        // Esta lectura mínima separa los dos casos: si la tabla no contesta,
+        // el bloque viaja como "no pude leer el ciclo", no como "sin ciclo".
+        const sonda = await supabase.from('cycle_periods').select('id').eq('user_id', userId).limit(1);
+        if (sonda.error) throw sonda.error;
+      }
       if (info) {
         context.cycleInfo = {
           cycleDay: info.currentDay,
@@ -1190,17 +1257,18 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
           diasDeRetraso: info.prediction.retrasada ? info.prediction.diasDeRetraso : undefined,
         };
       }
-    } catch (e) { registrarBloqueDeContexto('ciclo-menstrual', 'error', e); }
+    } catch (e) { registrar('ciclo-menstrual', 'error', e); }
   }
 
   try {
     // Medidas corporales (última + trend 30d)
-    const { data: measurements } = await supabase
+    const { data: measurements, error } = await supabase
       .from('body_measurements')
       .select('measured_at, weight_kg, body_fat_pct')
       .eq('user_id', userId)
       .order('measured_at', { ascending: false })
       .limit(10);
+    if (error) throw error;
     if (measurements && measurements.length > 0) {
       const last = measurements[0] as any;
       let trend: 'up' | 'down' | 'stable' | 'no_data' = 'no_data';
@@ -1220,7 +1288,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         lastMeasuredAt: last.measured_at,
       };
     }
-  } catch (e) { registrarBloqueDeContexto('medidas-corporales', 'error', e); }
+  } catch (e) { registrar('medidas-corporales', 'error', e); }
 
   try {
     // Labs — el expediente COMPLETO desde `lab_values` (la tabla canónica
@@ -1241,69 +1309,94 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         context.labsExpediente = { lineas: bloque.lineas, ultimaMedicion: ultima };
       } else {
         // Sin biomarcadores no es una falla: es un expediente vacío.
-        registrarBloqueDeContexto('labs', 'vacio', 'el usuario no tiene biomarcadores cargados');
+        registrar('labs', 'vacio', 'el usuario no tiene biomarcadores cargados');
       }
     } else {
       await cargarLabsLegacy(userId, context);
     }
   } catch (e) {
-    registrarBloqueDeContexto('labs', 'error', e);
+    registrar('labs', 'error', e);
   }
 
+  // 20-sep-2026: quién firma la evaluación, para "asignado por" en el plan.
+  let firmaElite: string | null = null;
   try {
     // ATP 3.0 (ruta 3.6): la evaluación Elite, si existe, entra al contexto
     // por EXISTENCIA (no por nivel vigente: se queda aunque Pro venza). Va
     // cacheada por sesión en el servicio; un usuario sin evaluación no es un
     // vacío que reportar, es lo normal.
     if (ARGOS_LEE_EVALUACION_ELITE) {
-      const bloque = await cargarBloqueElite(userId);
-      if (bloque) context.evaluacionElite = { bloque };
+      const elite = await cargarContextoElite(userId);
+      if (elite.bloque) context.evaluacionElite = { bloque: elite.bloque, detalle: elite.detalle || undefined };
+      firmaElite = elite.firma;
     }
   } catch (e) {
-    registrarBloqueDeContexto('evaluacion-elite', 'error', e);
+    registrar('evaluacion-elite', 'error', e);
   }
 
   try {
-    // Suplementos: activos + tomados hoy
+    // Suplementos: el plan COMPLETO (activos y pausados, con reason, dosage,
+    // timing, notes y quién lo asignó) + tomados hoy.
+    //
+    // 20-sep-2026: antes se leían `id, name` de los activos y nada más. La
+    // fila trae el porqué que Enrique escribió a mano (RPC 318) y nadie lo
+    // leía: "por qué me pusiste magnesio" se contestaba inventando. Los
+    // pausados también viajan, marcados, para que ARGOS no los sugiera de
+    // nuevo ni pregunte por ellos como si faltaran. Un error en la lectura
+    // de filas tumba las dos cosas (plan y tomados hoy) y se reporta; un
+    // error solo en los logs deja el plan y reporta "suplementos-hoy".
     const [suppRes, logRes] = await Promise.all([
-      supabase.from('user_supplements').select('id, name').eq('user_id', userId).eq('is_active', true),
+      supabase.from('user_supplements')
+        .select('id, name, dosage, timing, reason, notes, source, is_plan, is_active, amount_per_unit, amount_unit, units_per_dose, dose_times, created_at')
+        .eq('user_id', userId)
+        .order('is_active', { ascending: false })
+        .order('created_at', { ascending: true }),
       supabase.from('supplement_logs').select('supplement_id, taken').eq('user_id', userId).eq('date', today),
     ]);
-    const active = (suppRes.data as any[]) || [];
-    if (active.length > 0) {
-      const takenIds = new Set(((logRes.data as any[]) || []).filter(l => l.taken).map(l => l.supplement_id));
-      const taken: string[] = [];
-      const pending: string[] = [];
-      for (const s of active) {
-        if (takenIds.has(s.id)) taken.push(s.name);
-        else pending.push(s.name);
+    if (suppRes.error) throw suppRes.error;
+    const filas = ((suppRes.data ?? []) as unknown[]).map((f) => f as FilaSuplementoArgos);
+    if (filas.length > 0) {
+      context.planSuplementos = { asignadoPor: firmaElite, filas };
+      const active = filas.filter((f) => f.is_active !== false);
+      if (logRes.error) {
+        registrar('suplementos-hoy', 'error', logRes.error.message);
+      } else if (active.length > 0) {
+        const takenIds = new Set(((logRes.data ?? []) as { supplement_id: string; taken: boolean | null }[])
+          .filter(l => l.taken).map(l => l.supplement_id));
+        const taken: string[] = [];
+        const pending: string[] = [];
+        for (const f of active) {
+          if (takenIds.has(f.id)) taken.push(f.name);
+          else pending.push(f.name);
+        }
+        context.todaySupplements = { taken, pending };
       }
-      context.todaySupplements = { taken, pending };
     }
-  } catch (e) { registrarBloqueDeContexto('suplementos-hoy', 'error', e); }
+  } catch (e) { registrar('plan-suplementos', 'error', e); }
 
   try {
     // Hidratación (reusar helper de hydration-service)
     const hydro = await getHydrationStats(userId);
     if (hydro) context.hydrationStats = hydro;
-  } catch (e) { registrarBloqueDeContexto('hidratacion', 'error', e); }
+  } catch (e) { registrar('hidratacion', 'error', e); }
 
   try {
     // Health score más reciente
-    const { data: hs } = await supabase
+    const { data: hs, error } = await supabase
       .from('health_scores')
       .select('functional_health_score, calculated_at')
       .eq('user_id', userId)
       .order('calculated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (error) throw error;
     if (hs && typeof (hs as any).functional_health_score === 'number') {
       context.currentHealthScore = {
         score: Math.round((hs as any).functional_health_score),
         calculatedAt: (hs as any).calculated_at,
       };
     }
-  } catch (e) { registrarBloqueDeContexto('health-score', 'error', e); }
+  } catch (e) { registrar('health-score', 'error', e); }
 
   // === IMPL-03 · los cuatro bloques nuevos ===
   // Mismo patrón que el resto: queries en paralelo, fail-soft por bloque, y
@@ -1311,14 +1404,18 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
   // los cuatro).
 
   try {
-    // Sueño — últimas 7 noches (sleep_nights; night_date = fecha del despertar)
-    const { data: nights } = await supabase
-      .from('sleep_nights')
-      .select('night_date, duration_minutes, score, source')
-      .eq('user_id', userId)
-      .gte('night_date', sevenDaysAgo)
-      .order('night_date', { ascending: false });
-    const rows = ((nights as any[]) || []).filter(n => typeof n.duration_minutes === 'number');
+    // Sueño — últimas 7 noches UNIFICADAS (20-sep-2026): sleep_nights más
+    // health_os_daily.sleep_minutes (la sincronización del teléfono), por la
+    // misma lectura que usa la pantalla de Sueño. Antes ARGOS leía solo
+    // sleep_nights y era ciego a lo que el teléfono sincronizaba. La fecha es
+    // la del despertar; { ok: false } es "no se pudo leer" y viaja al modelo
+    // como tal; cero noches es "no hay datos" y no se reporta.
+    const { leerNochesUnificadas } = await import('./sleep/sueno-unificado-service');
+    const lectura = await leerNochesUnificadas(userId, 7);
+    if (!lectura.ok) throw new Error('leerNochesUnificadas: sleep_nights o health_os_daily no contestaron');
+    const rows = lectura.noches
+      .filter((n) => typeof n.durationMinutes === 'number')
+      .map((n) => ({ night_date: n.nightDate, duration_minutes: n.durationMinutes as number, score: n.score, source: n.fuente }));
     if (rows.length > 0) {
       const horas = rows.map(n => n.duration_minutes / 60);
       const avgHours = Math.round((horas.reduce((s, h) => s + h, 0) / horas.length) * 10) / 10;
@@ -1346,18 +1443,19 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         source: rows[0].source || 'externo',
       };
     }
-  } catch (e) { registrarBloqueDeContexto('sueno-7n', 'error', e); }
+  } catch (e) { registrar('sueno-7n', 'error', e); }
 
   try {
     // Edad ATP — último cálculo. OJO: NO vive en functional_dx (esa tabla no
     // tiene columnas de edad); la fuente real es edad_atp_calculations.
-    const { data: edad } = await supabase
+    const { data: edad, error } = await supabase
       .from('edad_atp_calculations')
       .select('edad_integral, chronological_age, edad_riesgos, edad_composicion, edad_labs, edad_fitness, edad_cognicion, calculated_at')
       .eq('user_id', userId)
       .order('calculated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (error) throw error;
     const e = edad as any;
     if (e && typeof e.edad_integral === 'number') {
       const candidatas: { area: string; valor: any }[] = [
@@ -1376,7 +1474,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         calculatedAt: e.calculated_at,
       };
     }
-  } catch (e) { registrarBloqueDeContexto('edad-atp', 'error', e); }
+  } catch (e) { registrar('edad-atp', 'error', e); }
 
   try {
     // Agenda de hoy — agenda_events es la plantilla recurrente (sin columna
@@ -1397,6 +1495,9 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         .eq('date', today)
         .maybeSingle(),
     ]);
+    // supabase-js no lanza: sin esto una tabla caída era "agenda vacía".
+    const fallaAgenda = evRes.error ?? logRes.error ?? planRes.error;
+    if (fallaAgenda) throw fallaAgenda;
     const eventos = ((evRes.data as any[]) || []);
     const estados = new Map<string, string>(
       ((logRes.data as any[]) || []).map(l => [l.event_id, l.status]),
@@ -1427,7 +1528,7 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         nextTime: null,
       };
     }
-  } catch (e) { registrarBloqueDeContexto('agenda-hoy', 'error', e); }
+  } catch (e) { registrar('agenda-hoy', 'error', e); }
 
   try {
     // Adherencia 7d + racha.
@@ -1456,6 +1557,8 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         ))
         .order('date'),
     ]);
+    const fallaAdherencia = plansRes.error ?? electronsRes.error ?? streakPlansRes.error;
+    if (fallaAdherencia) throw fallaAdherencia;
     const plans7 = ((plansRes.data as any[]) || []);
     const diasConActividad = ((electronsRes.data as any[]) || []).filter(d =>
       Object.values((d.electrons || {}) as Record<string, boolean>).some(Boolean),
@@ -1470,7 +1573,11 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
         currentStreak: computeStreak(((streakPlansRes.data as any[]) || [])),
       };
     }
-  } catch (e) { registrarBloqueDeContexto('adherencia-racha', 'error', e); }
+  } catch (e) { registrar('adherencia-racha', 'error', e); }
+
+  // 20-sep-2026: lo que falló viaja al modelo en lenguaje llano (ver
+  // argos-context-core: lineaFuentesNoLeidas y REGLA_FUENTES_NO_LEIDAS).
+  if (noLeidos.length > 0) context.fuentesNoLeidas = noLeidos.map(nombreDeBloque);
 
   return context;
 }
@@ -1591,7 +1698,15 @@ async function prepareChatTurn(
   const context = await loadUserContext(userId);
   // ATP 3.0 (ruta 3.6): si la pantalla ya mandó el bloque Elite en
   // `extraContext` (mismo encabezado), no se repite en el contexto.
-  if (traeBloqueElite(options?.extraContext)) delete context.evaluacionElite;
+  // 20-sep-2026: cada bloque se deduplica por su propio encabezado; el
+  // detalle no se pierde porque la pantalla haya mandado solo el resumen.
+  if (context.evaluacionElite) {
+    const extra = options?.extraContext;
+    const bloque = traeBloqueElite(extra) ? '' : context.evaluacionElite.bloque;
+    const detalle = traeDetalleElite(extra) ? undefined : context.evaluacionElite.detalle;
+    if (!bloque && !detalle) delete context.evaluacionElite;
+    else context.evaluacionElite = { bloque, detalle };
+  }
   const contextPrompt = buildContextPrompt(context);
   const cycleGuard = buildCycleGuard(context.gender);
   const protocolGuard = buildProtocolGuard(context.activeProtocol);

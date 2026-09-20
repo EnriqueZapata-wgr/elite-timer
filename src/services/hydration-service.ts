@@ -140,35 +140,36 @@ export const HYDRATION_DEFAULTS = {
 /**
  * Estadísticas resumidas de hidratación: promedio últimos 7 días y
  * progreso de HOY contra la meta del usuario. Para contexto a ARGOS.
+ *
+ * 20-sep-2026: LANZA si hydration_logs no contesta. Su único consumidor es
+ * loadUserContext (ARGOS), que reporta el bloque como "no pude leer la
+ * hidratación"; antes devolvía null y el modelo lo leía como "sin datos".
+ * Sin registros no es error: promedio 0 y 0% del día.
  */
 export async function getHydrationStats(userId: string): Promise<{
   last7dAvgMl: number;
   todayProgressPct: number;
-} | null> {
-  try {
-    const todayStr = getLocalToday();
-    const since = parseLocalDate(todayStr);
-    since.setDate(since.getDate() - 6); // incluye hoy = 7 días
-    const sinceStr = toLocalDateString(since);
+}> {
+  const todayStr = getLocalToday();
+  const since = parseLocalDate(todayStr);
+  since.setDate(since.getDate() - 6); // incluye hoy = 7 días
+  const sinceStr = toLocalDateString(since);
 
-    const { data, error } = await supabase
-      .from('hydration_logs')
-      .select('date, total_ml')
-      .eq('user_id', userId)
-      .gte('date', sinceStr);
-    if (error) return null;
+  const { data, error } = await supabase
+    .from('hydration_logs')
+    .select('date, total_ml')
+    .eq('user_id', userId)
+    .gte('date', sinceStr);
+  if (error) throw error;
 
-    const rows = data ?? [];
-    const last7dAvgMl = rows.length > 0
-      ? Math.round(rows.reduce((s: number, r: any) => s + (Number(r.total_ml) || 0), 0) / rows.length)
-      : 0;
+  const rows = data ?? [];
+  const last7dAvgMl = rows.length > 0
+    ? Math.round(rows.reduce((s: number, r: any) => s + (Number(r.total_ml) || 0), 0) / rows.length)
+    : 0;
 
-    const todayTotal = Number(rows.find((r: any) => r.date === todayStr)?.total_ml || 0);
-    const goal = await getUserWaterGoal(userId);
-    const todayProgressPct = goal > 0 ? Math.round((todayTotal / goal) * 100) : 0;
+  const todayTotal = Number(rows.find((r: any) => r.date === todayStr)?.total_ml || 0);
+  const goal = await getUserWaterGoal(userId);
+  const todayProgressPct = goal > 0 ? Math.round((todayTotal / goal) * 100) : 0;
 
-    return { last7dAvgMl, todayProgressPct };
-  } catch {
-    return null;
-  }
+  return { last7dAvgMl, todayProgressPct };
 }

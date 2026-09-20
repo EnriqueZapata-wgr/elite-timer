@@ -136,7 +136,7 @@ export const TITULOS_RUTA: Readonly<Record<string, string>> = {
   '/argos/conversations': 'Historial de conversaciones',
   '/atp-orden': 'Mi orden de la sala ATP',
   '/braverman': 'Test de Braverman',
-  '/braverman-premium': 'Reporte premium de Braverman',
+  '/braverman-premium': 'Reporte completo de Braverman',
   '/breathing': 'Respiración guiada',
   '/centro': 'El Centro ATP, instalar funciones',
   '/checkin': 'Check-in emocional',

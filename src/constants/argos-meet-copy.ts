@@ -76,8 +76,12 @@ export const MEET_SCREENS: MeetArgosScreenCopy[] = [
   },
   {
     key: 'promesa',
+    // 20-sep-2026: decia "yo soy tu memoria de ellas" y hoy ARGOS no guarda
+    // memoria entre conversaciones. Lo que si cumple: en cada turno lee lo que
+    // la persona registra (habitos, datos, evaluacion, plan). Se promete eso.
+    // Tambien salio el em dash visible (regla de la casa).
     text:
-      'Voy a recordarte lo que YA lograste — la gente olvida sus victorias; yo soy tu memoria de ellas.\n' +
+      'Leo lo que registras en la app: tus hábitos, tus datos y tu plan. No tienes que explicarme de cero.\n' +
       'Y cuando algo falte, te lo voy a decir de frente: no como muro, como el siguiente tramo de tu ruta.',
     typing: false,
     textVariant: 'body',

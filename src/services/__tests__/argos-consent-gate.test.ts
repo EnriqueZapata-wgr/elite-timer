@@ -37,7 +37,7 @@ vi.mock('@/src/services/consent-service', () => ({
 }));
 
 import { loadUserContext } from '@/src/services/argos-service';
-import { buildContextPrompt } from '@/src/services/argos-context-core';
+import { buildContextPrompt, olvidarVerificacionConsentimiento } from '@/src/services/argos-context-core';
 
 /** Tablas de salud con datos REALES en el fake — si el gate se abre, salen. */
 function fakeWithHealthData() {
@@ -52,9 +52,12 @@ function fakeWithHealthData() {
 beforeEach(() => {
   state.fake = fakeWithHealthData();
   state.consent = async () => true;
+  // 20-sep-2026: el gate recuerda a quién ya verificó en la sesión; cada
+  // test arranca sin memoria para que el orden no importe.
+  olvidarVerificacionConsentimiento();
 });
 
-describe('loadUserContext — la raíz del contexto hacia el modelo', () => {
+describe('loadUserContext: la raíz del contexto hacia el modelo', () => {
   it('consentimiento ENCENDIDO → carga contexto rico (lo de siempre)', async () => {
     const ctx = await loadUserContext('user-test');
     expect(ctx.name).toBe('Enrique');
@@ -80,5 +83,36 @@ describe('loadUserContext — la raíz del contexto hacia el modelo', () => {
     expect(ctx).toEqual({ name: '' });
     expect(state.fake.queried).toEqual([]);
     expect(buildContextPrompt(ctx)).toBe('');
+  });
+});
+
+describe('loadUserContext, 20-sep-2026: el gate con memoria de sesión', () => {
+  it('ya verificado con SÍ en esta sesión → si el servicio FALLA, el contexto sigue (fail-open solo para él)', async () => {
+    await loadUserContext('user-test');
+    state.fake = fakeWithHealthData();
+    state.consent = async () => { throw new Error('consent service caído'); };
+    const ctx = await loadUserContext('user-test');
+    expect(ctx.name).toBe('Enrique');
+    expect(state.fake.queried).toContain('profiles');
+  });
+
+  it('un NO explícito borra la memoria: después de revocar, un fallo vuelve a cerrar', async () => {
+    await loadUserContext('user-test');
+    state.consent = async () => false;
+    await loadUserContext('user-test');
+    state.fake = fakeWithHealthData();
+    state.consent = async () => { throw new Error('consent service caído'); };
+    const ctx = await loadUserContext('user-test');
+    expect(ctx).toEqual({ name: '' });
+    expect(state.fake.queried).toEqual([]);
+  });
+
+  it('otro usuario nunca verificado sigue cerrado aunque el primero esté abierto', async () => {
+    await loadUserContext('user-test');
+    state.fake = fakeWithHealthData();
+    state.consent = async () => { throw new Error('consent service caído'); };
+    const ctx = await loadUserContext('user-otro');
+    expect(ctx).toEqual({ name: '' });
+    expect(state.fake.queried).toEqual([]);
   });
 });

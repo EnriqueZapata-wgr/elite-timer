@@ -53,6 +53,29 @@ function translateError(message: string): string {
   return message;
 }
 
+/**
+ * 20-sep-2026: ARGOS guarda por sesión dos memorias por usuario (el contexto
+ * Elite cacheado y la verificación del consentimiento). Al cerrar sesión se
+ * vacían las dos, para que en un teléfono compartido la siguiente cuenta no
+ * herede nada de la anterior. Import dinámico a propósito: auth-context no
+ * debe arrastrar el grafo de ARGOS al arranque. Nunca bloquea el cierre.
+ */
+async function olvidarMemoriasDeArgos(): Promise<void> {
+  try {
+    const [elite, contexto, hoy] = await Promise.all([
+      import('@/src/services/argos-elite-contexto-service'),
+      import('@/src/services/argos-context-core'),
+      import('@/src/services/hoy/elite-hoy-service'),
+    ]);
+    elite.invalidarContextoElite();
+    contexto.olvidarVerificacionConsentimiento();
+    // 20-sep-2026 (A6): la evaluacion que HOY tenia en memoria tampoco se queda para la siguiente cuenta.
+    hoy.invalidarEvaluacionEliteHoy();
+  } catch {
+    // defensivo: si el módulo no carga, el cierre de sesión sigue.
+  }
+}
+
 // === CONTEXTO ===
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -84,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Escuchar cambios de sesión (login, logout, refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, s) => {
+      (event, s) => {
         setSession(s);
         setUser(s?.user ?? null);
         if (s?.user) {
@@ -93,6 +116,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           Sentry.setUser(null);
           pushRegisteredFor.current = null;
+          // Cubre también el cierre que no pasa por signOut() (sesión
+          // revocada o expirada en el servidor).
+          if (event === 'SIGNED_OUT') void olvidarMemoriasDeArgos();
         }
       }
     );
@@ -133,6 +159,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Primero se vacían las memorias de ARGOS: aunque signOut falle en red,
+    // localmente ya no queda contexto del usuario que se va.
+    await olvidarMemoriasDeArgos();
     await supabase.auth.signOut();
   }, []);
 

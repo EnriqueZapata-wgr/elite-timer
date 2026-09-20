@@ -10,10 +10,14 @@ import { resolve } from 'node:path';
 import {
   BLOQUE_ELITE_MAX,
   ENCABEZADO_EVALUACION_ELITE,
+  cambioLaVersion,
   construirBloqueElite,
+  detalleDesdeFila,
+  firmaDesdeFila,
   resumenDesdeFila,
   traeBloqueElite,
 } from '@/src/services/argos-elite-contexto-core';
+import { ENCABEZADO_DETALLE_ELITE } from '@/src/services/argos-elite-detalle-core';
 import { RESUMEN_ARGOS_MAX, palabrasRojasEn, resumenParaArgos, type EliteV3 } from '@/src/services/elite/elite-v3-core';
 
 const ejemplo: unknown = JSON.parse(
@@ -84,5 +88,52 @@ describe('traeBloqueElite', () => {
     expect(traeBloqueElite('Contexto de pantalla.')).toBe(false);
     expect(traeBloqueElite(null)).toBe(false);
     expect(traeBloqueElite(undefined)).toBe(false);
+  });
+});
+
+// 20-sep-2026: detalle, firma y la invalidación del cache por versión.
+describe('detalleDesdeFila y firmaDesdeFila', () => {
+  it('el detalle sale del snapshot aunque haya summary_text (ese texto solo guarda el resumen)', () => {
+    const d = detalleDesdeFila({ summary_text: 'Guardado.', sources_snapshot: { elite_v3: ejemplo } });
+    expect(d.startsWith(ENCABEZADO_DETALLE_ELITE)).toBe(true);
+    expect(d).toContain('Alimentación (plan de su equipo)');
+  });
+
+  it('sin snapshot válido no hay detalle ni firma', () => {
+    expect(detalleDesdeFila({ summary_text: 'Guardado.', sources_snapshot: null })).toBe('');
+    expect(detalleDesdeFila(null)).toBe('');
+    expect(firmaDesdeFila({ summary_text: null, sources_snapshot: { elite_v3: { schema: 'elite_v3' } } })).toBe(null);
+  });
+
+  it('la firma es quien interpreta la evaluación', () => {
+    expect(firmaDesdeFila({ summary_text: null, sources_snapshot: { elite_v3: ejemplo } })).toBe('Enrique Zapata');
+  });
+});
+
+describe('cambioLaVersion', () => {
+  const v1 = { version: 1, created_at: '2026-09-06T10:00:00Z' };
+  const v2 = { version: 2, created_at: '2026-09-20T10:00:00Z' };
+
+  it('misma versión y misma fecha: no cambió', () => {
+    expect(cambioLaVersion(v1, { ...v1 })).toBe(false);
+    expect(cambioLaVersion(null, null)).toBe(false);
+  });
+
+  it('versión nueva: cambió (aunque la fecha no viniera)', () => {
+    expect(cambioLaVersion(v1, v2)).toBe(true);
+    expect(cambioLaVersion({ version: 1, created_at: null }, { version: 2, created_at: null })).toBe(true);
+  });
+
+  it('misma versión pero created_at distinto: cambió (fila reemplazada)', () => {
+    expect(cambioLaVersion(v1, { version: 1, created_at: '2026-09-21T10:00:00Z' })).toBe(true);
+  });
+
+  it('apareció o desapareció la evaluación: cambió', () => {
+    expect(cambioLaVersion(null, v1)).toBe(true);
+    expect(cambioLaVersion(v1, null)).toBe(true);
+  });
+
+  it('sin nada con qué comparar se relee (mejor una consulta de más que un bloque viejo)', () => {
+    expect(cambioLaVersion({ version: null, created_at: null }, { version: null, created_at: null })).toBe(true);
   });
 });

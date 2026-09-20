@@ -13,6 +13,12 @@
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 // 31-ago-2026: una sola definición de "ya llegué a la meta" para toda la app.
 import { metaAlcanzada } from '@/src/services/fasting-cumplido-core';
+// 20-sep-2026: el plan de suplementos completo (dosis, momento, porqué, nota).
+import {
+  construirBloquePlanSuplementos,
+  REGLA_PLAN_SUPLEMENTOS,
+  type PlanSuplementosArgos,
+} from '@/src/services/argos-suplementos-plan-core';
 
 export interface PersonalRecord {
   exercise: string;
@@ -134,11 +140,30 @@ export interface UserContext {
    */
   evaluacionElite?: {
     bloque: string;
+    /**
+     * 20-sep-2026: segundo bloque (alimentación, entrenamiento, genética,
+     * sistemas con score, porqués), armado por `argos-elite-detalle-core`.
+     * Aparte del resumen: el resumen no se toca.
+     */
+    detalle?: string;
   };
   todaySupplements?: {
     taken: string[];
     pending: string[];
   };
+  /**
+   * 20-sep-2026: el plan de suplementos completo (`user_supplements` con
+   * reason, dosage, timing, notes, source, is_active). Antes solo viajaban
+   * los nombres y "por qué me pusiste magnesio" se contestaba inventando.
+   */
+  planSuplementos?: PlanSuplementosArgos;
+  /**
+   * 20-sep-2026: bloques que FALLARON al leerse en este turno (no los vacíos),
+   * en lenguaje llano ("la evaluación Elite"). Antes iban a Sentry y el
+   * modelo contestaba como si el dato no existiera. "No se pudo leer" y "no
+   * hay datos" son cosas distintas y las dos tienen que llegar al modelo.
+   */
+  fuentesNoLeidas?: string[];
   hydrationStats?: {
     last7dAvgMl: number;
     todayProgressPct: number;
@@ -197,6 +222,61 @@ export async function canLoadRichContext(hasConsent: () => Promise<boolean>): Pr
   } catch {
     return false;
   }
+}
+
+/**
+ * 20-sep-2026: el gate con memoria de sesión.
+ *
+ * EL PROBLEMA: fail-closed puro dejaba a un cliente Elite sin nombre ni
+ * evaluación en cuanto la consulta de consentimiento fallaba una vez (red,
+ * timeout), y encima oyendo "Todavía no te conozco lo suficiente". Para
+ * quien YA se verificó con consentimiento en esta sesión, una consulta
+ * fallida no es una revocación: es una consulta fallida.
+ *
+ * LA REGLA: la respuesta del servicio manda siempre (sí abre, no cierra y
+ * borra la memoria). Solo ante FALLO se consulta la memoria: abierto si en
+ * esta sesión ya se verificó que sí, cerrado si nunca se verificó. El costo
+ * es que una revocación hecha en OTRO dispositivo, con la red caída aquí,
+ * tarda en verse hasta que la consulta vuelva a responder; el beneficio es
+ * que un cliente con permiso no pierde su contexto por una falla de red.
+ */
+export type RespuestaConsentimiento = { ok: true; permitido: boolean } | { ok: false };
+
+/** Usuarios verificados CON consentimiento en esta sesión. Vive lo que viva el bundle. */
+const verificadosConConsentimiento = new Set<string>();
+
+export async function consultarConsentimiento(hasConsent: () => Promise<boolean>): Promise<RespuestaConsentimiento> {
+  try {
+    return { ok: true, permitido: await hasConsent() };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/** Puro: decide con la respuesta y con si ya se había verificado antes. */
+export function decidirContextoRico(respuesta: RespuestaConsentimiento, yaVerificadoAntes: boolean): boolean {
+  if (respuesta.ok) return respuesta.permitido;
+  return yaVerificadoAntes;
+}
+
+/**
+ * El gate completo: consulta, decide y actualiza la memoria. Fail-open solo
+ * para quien ya tuvo contexto cargado; fail-closed para quien nunca lo tuvo.
+ */
+export async function puedeCargarContextoRico(userId: string, hasConsent: () => Promise<boolean>): Promise<boolean> {
+  const respuesta = await consultarConsentimiento(hasConsent);
+  const permitido = decidirContextoRico(respuesta, verificadosConConsentimiento.has(userId));
+  if (respuesta.ok) {
+    if (respuesta.permitido) verificadosConConsentimiento.add(userId);
+    else verificadosConConsentimiento.delete(userId);
+  }
+  return permitido;
+}
+
+/** Para tests y para el cierre de sesión: olvida a un usuario (o a todos). */
+export function olvidarVerificacionConsentimiento(userId?: string): void {
+  if (userId) verificadosConConsentimiento.delete(userId);
+  else verificadosConConsentimiento.clear();
 }
 
 // === VIGENCIA DE LOS DATOS (Pieza 1) ===
@@ -357,6 +437,68 @@ export const REGLA_HABITOS_HOY =
   '"Hábitos de hoy" (es lo mismo que ve en su pantalla HOY). Los electrones y la agenda son otras cuentas; ' +
   'no las mezcles con los hábitos.';
 
+/**
+ * 20-sep-2026: nombres en lenguaje llano de los bloques del contexto, para
+ * decirle al modelo qué NO se pudo leer. Un bloque sin traducción viaja con
+ * su clave, que igual se entiende.
+ */
+export const NOMBRES_DE_BLOQUES: Readonly<Record<string, string>> = {
+  'perfil': 'tu perfil (nombre)',
+  'perfil-extendido': 'tu edad y sexo',
+  'cronotipo': 'tu cronotipo',
+  'protocolo-activo': 'tu protocolo activo',
+  'electrones-hoy': 'los electrones de hoy',
+  'habitos-hoy': 'los hábitos de hoy',
+  'nutricion-3d': 'la nutrición reciente',
+  'ejercicio-semana': 'el ejercicio de la semana',
+  'records-personales': 'tus récords',
+  'glucosa': 'la glucosa',
+  'ayuno-actual': 'el ayuno actual',
+  'rango-electrones': 'tu rango',
+  'braverman': 'tu perfil Braverman',
+  'quizzes-funcionales': 'tus evaluaciones funcionales',
+  'uv-atp-sol': 'el UV de hoy',
+  'sesiones-mente-7d': 'las sesiones de mente',
+  'journal-7d': 'el journal',
+  'mood-7d': 'los check-ins emocionales',
+  'ciclo-menstrual': 'el ciclo',
+  'medidas-corporales': 'las medidas corporales',
+  'labs': 'los laboratorios',
+  'evaluacion-elite': 'la evaluación Elite',
+  'suplementos-hoy': 'los suplementos de hoy',
+  'plan-suplementos': 'el plan de suplementos',
+  'hidratacion': 'la hidratación',
+  'health-score': 'el Health Score',
+  'sueno-7n': 'el sueño',
+  'edad-atp': 'la Edad ATP',
+  'agenda-hoy': 'la agenda de hoy',
+  'adherencia-racha': 'la adherencia y la racha',
+};
+
+export function nombreDeBloque(clave: string): string {
+  return NOMBRES_DE_BLOQUES[clave] ?? clave;
+}
+
+/**
+ * La línea que viaja al modelo cuando algo no se pudo leer. Una sola voz,
+ * dirigida al modelo: "no pude leer" es el contexto hablando de sí mismo, y
+ * "el usuario" es quien pregunta. Antes mezclaba "tu perfil" (voz al usuario)
+ * con "si te preguntan" (voz al modelo) en la misma frase.
+ */
+export function lineaFuentesNoLeidas(fuentes: string[]): string {
+  return `En este turno no pude leer: ${fuentes.join(', ')}. Si el usuario pregunta por eso, dilo tal cual y no inventes.`;
+}
+
+/**
+ * 20-sep-2026: "no se pudo leer" no es "no hay datos". La frase canónica del
+ * cerebro ("Todavía no te conozco lo suficiente") es para quien no tiene
+ * datos; un cliente con evaluación cuya lectura falló NO la debe oír.
+ */
+export const REGLA_FUENTES_NO_LEIDAS =
+  'REGLA DE FUENTES NO LEÍDAS: el renglón "En este turno no pude leer" lista datos que EXISTEN pero no se pudieron leer ahora. ' +
+  'Si preguntan por alguno, di que en este momento no lo pudiste leer y que lo intenten de nuevo en un rato; no lo inventes ' +
+  'y no digas "Todavía no te conozco lo suficiente", porque no es falta de datos, es una lectura que falló.';
+
 /** IMPL-03: el sueño lo mide un aparato ajeno y ATP no lo audita. */
 export const REGLA_FUENTE_EXTERNA =
   'REGLA DE FUENTE EXTERNA: el sueño lo mide el dispositivo del cliente, es dato NO verificado por ATP. ' +
@@ -513,6 +655,10 @@ export function buildContextPrompt(ctx: UserContext): string {
   if (ctx.evaluacionElite?.bloque) {
     parts.push(ctx.evaluacionElite.bloque);
   }
+  // 20-sep-2026: el detalle va pegado al resumen (misma fuente, mismo equipo).
+  if (ctx.evaluacionElite?.detalle) {
+    parts.push(ctx.evaluacionElite.detalle);
+  }
   // El expediente completo gana sobre el resumen viejo de once columnas: si
   // ambos vinieran, mostrar los dos sería contradecirse a sí mismo.
   if (ctx.labsExpediente) {
@@ -538,6 +684,16 @@ export function buildContextPrompt(ctx: UserContext): string {
     const t = s.taken.length > 0 ? s.taken.join(', ') : 'ninguno';
     const p = s.pending.length > 0 ? s.pending.join(', ') : 'ninguno';
     parts.push(`Suplementos hoy: tomados [${t}], pendientes [${p}]`);
+  }
+  // 20-sep-2026: el plan completo (dosis, momento, porqué, nota, pausados).
+  // La regla viaja con el dato para que el insight diario, que no lleva el
+  // bloque SUPLEMENTOS Y AYUNO, también respete el plan del equipo.
+  if (ctx.planSuplementos) {
+    const bloquePlan = construirBloquePlanSuplementos(ctx.planSuplementos);
+    if (bloquePlan) {
+      parts.push(bloquePlan);
+      regla(REGLA_PLAN_SUPLEMENTOS);
+    }
   }
   if (ctx.hydrationStats) {
     const h = ctx.hydrationStats;
@@ -582,6 +738,14 @@ export function buildContextPrompt(ctx: UserContext): string {
   if (ctx.currentHealthScore) {
     const hs = ctx.currentHealthScore;
     parts.push(sellar(`Health Score: ${hs.score}`, hs.calculatedAt, { verbo: 'calculado' }));
+  }
+  // 20-sep-2026: lo que falló al leerse va al FINAL de los datos, dicho una
+  // vez, y su regla junto a las demás. Antes se registraba en Sentry y al
+  // modelo no le llegaba nada: con labs sí y evaluación no, contestaba como
+  // si el cliente no tuviera evaluación.
+  if (ctx.fuentesNoLeidas && ctx.fuentesNoLeidas.length > 0) {
+    parts.push(lineaFuentesNoLeidas(ctx.fuentesNoLeidas));
+    regla(REGLA_FUENTES_NO_LEIDAS);
   }
   if (parts.length === 0) return '';
   // La de vigencia va primero de las reglas y solo si algún dato salió fechado:

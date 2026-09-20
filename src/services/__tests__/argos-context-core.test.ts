@@ -8,10 +8,17 @@ import { describe, it, expect } from 'vitest';
 import {
   buildContextPrompt,
   canLoadRichContext,
+  decidirContextoRico,
+  lineaFuentesNoLeidas,
+  nombreDeBloque,
+  puedeCargarContextoRico,
+  olvidarVerificacionConsentimiento,
+  REGLA_FUENTES_NO_LEIDAS,
   type UserContext,
 } from '@/src/services/argos-context-core';
+import { ENCABEZADO_PLAN_EQUIPO, REGLA_PLAN_SUPLEMENTOS } from '@/src/services/argos-suplementos-plan-core';
 
-describe('canLoadRichContext — la política del gate', () => {
+describe('canLoadRichContext: la política del gate', () => {
   it('consentimiento ENCENDIDO → contexto rico', async () => {
     expect(await canLoadRichContext(async () => true)).toBe(true);
   });
@@ -25,6 +32,92 @@ describe('canLoadRichContext — la política del gate', () => {
     // default es ON") — con eso, un usuario que REVOCÓ su consentimiento
     // veía su salud viajar al modelo cada vez que la query fallara.
     expect(await canLoadRichContext(async () => { throw new Error('red caída'); })).toBe(false);
+  });
+});
+
+describe('20-sep-2026 · el gate con memoria de sesión', () => {
+  it('decidirContextoRico: la respuesta manda; ante fallo, solo abre a quien ya se verificó', () => {
+    expect(decidirContextoRico({ ok: true, permitido: true }, false)).toBe(true);
+    expect(decidirContextoRico({ ok: true, permitido: false }, true)).toBe(false);
+    expect(decidirContextoRico({ ok: false }, true)).toBe(true);
+    expect(decidirContextoRico({ ok: false }, false)).toBe(false);
+  });
+
+  it('puedeCargarContextoRico: nunca verificado + fallo → cerrado; verificado + fallo → abierto; NO explícito borra', async () => {
+    olvidarVerificacionConsentimiento();
+    const falla = async () => { throw new Error('red caída'); };
+    expect(await puedeCargarContextoRico('u1', falla)).toBe(false);
+    expect(await puedeCargarContextoRico('u1', async () => true)).toBe(true);
+    expect(await puedeCargarContextoRico('u1', falla)).toBe(true);
+    // Otro usuario no hereda la verificación.
+    expect(await puedeCargarContextoRico('u2', falla)).toBe(false);
+    // Un NO explícito cierra y borra la memoria: el siguiente fallo cierra.
+    expect(await puedeCargarContextoRico('u1', async () => false)).toBe(false);
+    expect(await puedeCargarContextoRico('u1', falla)).toBe(false);
+    olvidarVerificacionConsentimiento();
+  });
+});
+
+describe('20-sep-2026 · honestidad ante fallos de lectura', () => {
+  it('lo que falló viaja como renglón + regla, y no usa la frase de "no hay datos"', () => {
+    const prompt = buildContextPrompt({ name: 'Omar', fuentesNoLeidas: ['la evaluación Elite', 'los laboratorios'] });
+    // 20-sep-2026 (revisión en frío): una sola voz, dirigida al modelo. Antes
+    // decía "Si te preguntan de eso", que mezclaba la voz al usuario con la
+    // voz al modelo en el mismo renglón.
+    expect(prompt).toContain('En este turno no pude leer: la evaluación Elite, los laboratorios. Si el usuario pregunta por eso, dilo tal cual y no inventes.');
+    expect(prompt).toContain('REGLA DE FUENTES NO LEÍDAS');
+    expect(prompt.indexOf('REGLA DE FUENTES NO LEÍDAS')).toBeGreaterThan(prompt.indexOf('## CÓMO USAR ESTOS DATOS'));
+    // El "obligatorio" sigue dicho una sola vez.
+    expect(prompt.split('obligatori').length - 1).toBe(1);
+  });
+
+  it('sin fallos no aparece nada de esto', () => {
+    const prompt = buildContextPrompt(fullContext());
+    expect(prompt).not.toContain('no pude leer');
+    expect(prompt).not.toContain('REGLA DE FUENTES NO LEÍDAS');
+  });
+
+  it('la línea y los nombres legibles', () => {
+    expect(lineaFuentesNoLeidas(['el sueño'])).toBe('En este turno no pude leer: el sueño. Si el usuario pregunta por eso, dilo tal cual y no inventes.');
+    expect(lineaFuentesNoLeidas(['el sueño'])).not.toContain('Si te preguntan');
+    expect(nombreDeBloque('evaluacion-elite')).toBe('la evaluación Elite');
+    expect(nombreDeBloque('plan-suplementos')).toBe('el plan de suplementos');
+    expect(nombreDeBloque('bloque-nuevo-sin-nombre')).toBe('bloque-nuevo-sin-nombre');
+    expect(REGLA_FUENTES_NO_LEIDAS).toContain('no es falta de datos');
+    expect(REGLA_FUENTES_NO_LEIDAS.includes('\u2014')).toBe(false);
+  });
+});
+
+describe('20-sep-2026 · el plan de suplementos y el detalle Elite en el prompt', () => {
+  it('el plan completo viaja con dosis, momento, porqué y nota, y trae su regla una vez', () => {
+    const ctx = fullContext();
+    ctx.planSuplementos = {
+      asignadoPor: 'Enrique Zapata',
+      filas: [
+        { id: '1', name: 'Magnesio (glicinato)', dosage: '400 mg', timing: 'evening', reason: 'Corrige el nivel bajo (1.83).', notes: 'Con la cena.', source: 'coach', is_plan: true, is_active: true, amount_per_unit: null, amount_unit: null, units_per_dose: null, dose_times: null },
+        { id: '2', name: 'Zinc', dosage: '15 mg', timing: 'morning', reason: 'x', notes: null, source: 'coach', is_plan: true, is_active: false, amount_per_unit: null, amount_unit: null, units_per_dose: null, dose_times: null },
+      ],
+    };
+    const prompt = buildContextPrompt(ctx);
+    expect(prompt).toContain(`${ENCABEZADO_PLAN_EQUIPO} (asignado por Enrique Zapata):`);
+    expect(prompt).toContain('- Magnesio (glicinato): 400 mg, noche. Por qué: Corrige el nivel bajo (1.83). Nota: Con la cena.');
+    expect(prompt).toContain('Suplementos pausados');
+    expect(prompt).toContain('Zinc (del plan)');
+    expect(prompt.split(REGLA_PLAN_SUPLEMENTOS).length - 1).toBe(1);
+    // "Suplementos hoy" (tomados/pendientes) sigue igual que siempre.
+    expect(prompt).toContain('Suplementos hoy: tomados [Magnesio], pendientes [Omega 3]');
+    expect(prompt.split('obligatori').length - 1).toBe(1);
+  });
+
+  it('el detalle Elite va después del resumen y solo si viene', () => {
+    const ctx = fullContext();
+    ctx.evaluacionElite = { bloque: 'RESUMEN ELITE', detalle: 'DETALLE ELITE' };
+    const prompt = buildContextPrompt(ctx);
+    expect(prompt.indexOf('DETALLE ELITE')).toBeGreaterThan(prompt.indexOf('RESUMEN ELITE'));
+    ctx.evaluacionElite = { bloque: '', detalle: 'DETALLE ELITE' };
+    expect(buildContextPrompt(ctx)).toContain('DETALLE ELITE');
+    ctx.evaluacionElite = { bloque: 'RESUMEN ELITE' };
+    expect(buildContextPrompt(ctx)).not.toContain('DETALLE ELITE');
   });
 });
 
@@ -64,7 +157,7 @@ function fullContext(): UserContext {
   return ctx;
 }
 
-describe('buildContextPrompt — los 25 bloques', () => {
+describe('buildContextPrompt: los 25 bloques', () => {
   it('contexto MÍNIMO (gate cerrado) → prompt VACÍO: cero datos de salud viajan', () => {
     // Este es el contrato del gate: loadUserContext devuelve { name: '' } y
     // con eso el prompt de contexto es exactamente ''.
