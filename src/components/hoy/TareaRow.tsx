@@ -99,7 +99,7 @@ export function TareaRow({
 
       <View style={{ flex: 1 }}>
         <EliteText style={[s.name, { color: t.texto }, tarea.completed && [s.nameDone, { color: t.textoSecundario }]]}>{tarea.name}</EliteText>
-        {tarea.meta ? <EliteText style={[s.meta, { color: t.sinDatos }]}>{tarea.meta}</EliteText> : null}
+        {tarea.meta ? <EliteText style={[s.meta, { color: t.textoTenue }]}>{tarea.meta}</EliteText> : null}
         {tarea.kind === 'quant' && tarea.progress != null && (
           <View style={[s.track, !dark && { backgroundColor: t.hundido }]}>
             <View style={[s.trackFill, { width: `${Math.round(tarea.progress * 100)}%`, backgroundColor: accent }]} />

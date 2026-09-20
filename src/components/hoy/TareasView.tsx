@@ -273,7 +273,7 @@ export function TareasView({ day, userId, uvMini }: Props) {
       tareasChildren.push(
         <Animated.View key="header-hechas" layout={rowLayout} style={s.blockHeader}>
           <EliteText style={[s.blockLabel, { color: t.textoSecundario }]}>HECHAS</EliteText>
-          <EliteText style={[s.blockCount, { color: t.sinDatos }]}>{hechas.length}</EliteText>
+          <EliteText style={[s.blockCount, { color: t.textoTenue }]}>{hechas.length}</EliteText>
         </Animated.View>,
       );
       for (const t of hechas) {
@@ -298,7 +298,7 @@ export function TareasView({ day, userId, uvMini }: Props) {
           style={s.blockHeader}
         >
           <EliteText style={[s.blockLabel, { color: t.textoSecundario }]}>{b.label}</EliteText>
-          <EliteText style={[s.blockCount, { color: t.sinDatos }]}>{b.done} de {b.total}</EliteText>
+          <EliteText style={[s.blockCount, { color: t.textoTenue }]}>{b.done} de {b.total}</EliteText>
         </Animated.View>,
       );
       for (const t of b.pending) {

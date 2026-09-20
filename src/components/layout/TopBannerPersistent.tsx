@@ -10,6 +10,8 @@
 import { View, Pressable, StyleSheet } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
+import { useSubscription } from '@/src/hooks/useSubscription';
+import { ocultarPildoraEconomia } from '@/src/services/hoy/elite-hoy-core';
 import { HomeIcon } from '@/src/components/ui/HomeIcon';
 import { isHomePath } from '@/src/components/ui/global-topbar-utils';
 import { haptic } from '@/src/utils/haptics';
@@ -19,6 +21,11 @@ export function TopBannerPersistent() {
   const pathname = usePathname();
   const router = useRouter();
   const home = isHomePath(pathname);
+  // 20-sep-2026 (A10): la misma condicion que HOY. Un cliente Elite no ve la
+  // pildora de electrones en ninguna barra (antes la veia en YO y MI ATP y no
+  // en HOY). Mientras el nivel se lee, tampoco (evita el parpadeo).
+  const { tier, tieneEvaluacionElite, isLoading } = useSubscription();
+  const pildoraOculta = ocultarPildoraEconomia({ tier, tieneEvaluacionElite, cargando: isLoading });
 
   return (
     <View style={styles.banner}>
@@ -30,7 +37,7 @@ export function TopBannerPersistent() {
         <View style={styles.homeBtn} />
       )}
       <View style={{ flex: 1 }} />
-      <EconomyHeaderPill />
+      <EconomyHeaderPill oculta={pildoraOculta} />
     </View>
   );
 }

@@ -224,7 +224,7 @@ function renderJournaling(a: ActionData, t: AppThemeTokens) {
       <EliteText style={[s.text, { color: t.textoSecundario }]}>{a.instructions}</EliteText>
       <View style={s.promptBox}>
         <EliteText style={[s.label, { color: tenue(t) }]}>Prompt de hoy:</EliteText>
-        <EliteText style={[s.promptText, { color: t.textoSecundario }]}>¿Qué fue lo más estresante de hoy? Escríbelo sin filtro. No busques soluciones — solo sácalo de la cabeza al papel.</EliteText>
+        <EliteText style={[s.promptText, { color: t.textoSecundario }]}>¿Qué fue lo más estresante de hoy? Escríbelo sin filtro. No busques soluciones, solo sácalo de la cabeza al papel.</EliteText>
       </View>
       <Tip text="Escribir lo que te preocupa reduce cortisol en 24 horas. No es terapia: es fisiología." t={t} />
     </View>

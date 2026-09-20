@@ -46,7 +46,19 @@ function filaDesdeProyeccion(row: Record<string, unknown>): FilaDxElite {
   };
 }
 
-export async function fetchEvaluacionesElite(userId: string): Promise<LecturaEvaluacionesElite> {
+/** Tope de versiones que trae la lista (la pantalla Mi evaluacion Elite las muestra todas). */
+const MAX_VERSIONES = 20;
+
+/**
+ * `soloVigente` (20-sep-2026, ronda de arreglos): HOY solo usa la primera
+ * version; traer las secciones de hasta 20 en cada entrada era pagar el JSON
+ * completo de cada revision para tirarlo. Con `soloVigente` la consulta es
+ * `limit(1)` y todo lo demas (proyeccion, orden, validacion) es identico.
+ */
+export async function fetchEvaluacionesElite(
+  userId: string,
+  opts?: { soloVigente?: boolean },
+): Promise<LecturaEvaluacionesElite> {
   try {
     const { data, error } = await supabase
       .from('functional_dx')
@@ -54,7 +66,7 @@ export async function fetchEvaluacionesElite(userId: string): Promise<LecturaEva
       .eq('user_id', userId)
       .not('sources_snapshot->elite_v3', 'is', null)
       .order('version', { ascending: false })
-      .limit(20);
+      .limit(opts?.soloVigente ? 1 : MAX_VERSIONES);
     if (error) return { estado: 'error' };
     const filas = ((data ?? []) as unknown as Record<string, unknown>[]).map(filaDesdeProyeccion);
     return { estado: 'ok', versiones: versionesDesdeFilas(filas) };

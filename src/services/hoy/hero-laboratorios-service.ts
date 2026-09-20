@@ -25,9 +25,19 @@ import {
 import type { Sex } from '@/src/types/edad-atp-v2';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { numeroDePg } from '@/src/utils/pg-number';
-import type { DatosHero, EdadHero, MarcadorHero } from './hero-laboratorios-core';
+import {
+  marcadoresConSexo, sexoDePerfil,
+  type DatosHero, type EdadHero, type JuezPorSexo, type MarcadorHero, type ValorMedidoHero,
+} from './hero-laboratorios-core';
 
-async function leerSexo(userId: string): Promise<Sex> {
+/**
+ * El sexo del perfil, o null si no esta (sin fila, NULL, o un valor que la
+ * matriz no conoce). 20-sep-2026 (ronda de arreglos): antes caia a hombre
+ * en todos esos casos y el hero y "Que hacer hoy" juzgaban con rangos de
+ * hombre a quien nunca lo dijo. Dato del usuario sagrado: si falta, falta.
+ * Un error de consulta sigue rechazando (regla 7).
+ */
+async function leerSexo(userId: string): Promise<Sex | null> {
   const { data, error } = await supabase
     .from('client_profiles')
     .select('biological_sex')
@@ -35,7 +45,7 @@ async function leerSexo(userId: string): Promise<Sex> {
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(`[hero-labs] perfil: ${error.message}`);
-  return (data as { biological_sex?: string } | null)?.biological_sex === 'female' ? 'female' : 'male';
+  return sexoDePerfil((data as { biological_sex?: unknown } | null)?.biological_sex);
 }
 
 /** Último valor por parámetro, o rechaza si la lectura falló. */
@@ -68,28 +78,69 @@ export async function leerUltimaEdadAtp(userId: string): Promise<EdadHero | null
   return { integral, cronologica };
 }
 
-/** Los marcadores medidos con su estado y su peso, listos para el core. */
-export function marcadoresDesdeCanon(sexo: Sex, canon: CanonicalMap): MarcadorHero[] {
-  const out: MarcadorHero[] = [];
+/** La matriz V7 por sexo: peso y estado de un valor. Solo se llama con sexo conocido. */
+const JUEZ_MATRIZ: JuezPorSexo = (sexo, key, value) => ({
+  peso: findMatrizParam(sexo, key)?.weight ?? 0,
+  estado: estadoDeParametro(sexo, key, value),
+});
+
+/**
+ * Los marcadores medidos con su estado, su peso y su fecha de toma, listos
+ * para el core. Con `sexo` null no se juzga nada: todo sale `sin_banda`
+ * (marcadoresConSexo, con test).
+ */
+export function marcadoresDesdeCanon(sexo: Sex | null, canon: CanonicalMap): MarcadorHero[] {
+  const valores: ValorMedidoHero[] = [];
   for (const [key, cv] of Object.entries(canon)) {
     if (!cv || cv.value == null || !Number.isFinite(cv.value)) continue;
-    out.push({
+    valores.push({
       key,
       etiqueta: getLabParamMeta(key).display_name,
-      peso: findMatrizParam(sexo, key)?.weight ?? 0,
-      estado: estadoDeParametro(sexo, key, cv.value),
+      value: cv.value,
+      // 20-sep-2026: la fecha viaja hasta la UI ("toma de ...") y decide que
+      // un valor de hace meses no gane sobre el ultimo estudio (core).
+      fecha: typeof cv.measured_at === 'string' && cv.measured_at ? cv.measured_at.slice(0, 10) : null,
     });
   }
-  return out;
+  return marcadoresConSexo(sexo, valores, JUEZ_MATRIZ);
+}
+
+export interface SexoYLabs {
+  /** null: el perfil no tiene sexo; los estados por rango no se calculan. */
+  sexo: Sex | null;
+  canon: CanonicalMap;
+}
+
+/**
+ * 20-sep-2026: una sola lectura de sexo y lab_values por entrada a HOY. El
+ * hero y "Que hacer hoy" se montan a la vez y cada uno pedia lo mismo (dos
+ * viajes a client_profiles y dos a lab_values, y otros dos con cada evento).
+ * La promesa en vuelo se comparte y el resultado bueno vive unos segundos;
+ * un fallo no se cachea (el reintento tiene que ir a la base). `forzar`
+ * salta la cache (el boton Reintentar).
+ */
+const TTL_LABS_MS = 3_000;
+let cacheLabs: { userId: string; promesa: Promise<SexoYLabs>; resueltaEn: number | null } | null = null;
+
+export function leerSexoYLabs(userId: string, opts?: { forzar?: boolean }): Promise<SexoYLabs> {
+  const hit = cacheLabs;
+  if (hit && hit.userId === userId && !opts?.forzar && (hit.resueltaEn === null || Date.now() - hit.resueltaEn < TTL_LABS_MS)) {
+    return hit.promesa;
+  }
+  const promesa = Promise.all([leerSexo(userId), leerLabsEstricto(userId)]).then(([sexo, canon]) => ({ sexo, canon }));
+  const entrada = { userId, promesa, resueltaEn: null as number | null };
+  cacheLabs = entrada;
+  promesa.then(() => { if (cacheLabs === entrada) entrada.resueltaEn = Date.now(); })
+    .catch(() => { if (cacheLabs === entrada) cacheLabs = null; });
+  return promesa;
 }
 
 /** Todo lo que el hero necesita. Rechaza si CUALQUIER lectura falló (regla 7). */
-export async function cargarHeroLaboratorios(userId: string): Promise<DatosHero> {
-  const [sexo, canon, edad] = await Promise.all([
-    leerSexo(userId),
-    leerLabsEstricto(userId),
+export async function cargarHeroLaboratorios(userId: string, opts?: { forzar?: boolean }): Promise<DatosHero> {
+  const [{ sexo, canon }, edad] = await Promise.all([
+    leerSexoYLabs(userId, opts),
     leerUltimaEdadAtp(userId),
   ]);
   const marcadores = marcadoresDesdeCanon(sexo, canon);
-  return { tieneEstudio: marcadores.length > 0, edad, marcadores };
+  return { tieneEstudio: marcadores.length > 0, edad, marcadores, faltaSexo: sexo === null };
 }

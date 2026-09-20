@@ -14,6 +14,11 @@
  *   2. En background → fetch remoto. Si devuelve null (RLS hidratando o sin fila) → mantener
  *      cache. Solo actualizar cuando venga data real.
  *   3. Tras cada fetch exitoso → persistir a cache para próxima apertura.
+ *
+ * 20-sep-2026: `oculta` la retira sin tocar la economia. HOY la pasa en true
+ * para un cliente Elite (nivel o evaluacion cargada): "N electrones · Rank"
+ * es ruido de app publica para quien entra a recibir su producto. Los
+ * electrones siguen contando; solo no se pintan ahi.
  */
 import { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, DeviceEventEmitter } from 'react-native';
@@ -35,13 +40,18 @@ import { Fonts, FontSizes } from '@/constants/theme';
 type BalanceData = { e: number | null; rank: number | null };
 const CACHE_KEY = (userId: string) => `atp:econ:balance:${userId}`;
 
-export function EconomyHeaderPill() {
+interface Props {
+  /** true = no se pinta (sin cargar nada). Por defecto se comporta como siempre. */
+  oculta?: boolean;
+}
+
+export function EconomyHeaderPill({ oculta = false }: Props = {}) {
   const { user } = useAuth();
   const [data, setData] = useState<BalanceData | null>(null);
 
   // Hidratar desde cache al montar (evita flash a 0). Corre una sola vez por user.
   useEffect(() => {
-    if (!LAB_ECONOMY_ENABLED || !user?.id) return;
+    if (oculta || !LAB_ECONOMY_ENABLED || !user?.id) return;
     (async () => {
       try {
         const raw = await AsyncStorage.getItem(CACHE_KEY(user.id));
@@ -51,10 +61,10 @@ export function EconomyHeaderPill() {
         }
       } catch {} // Silencioso: si falla el cache, seguimos con fetch remoto
     })();
-  }, [user?.id]);
+  }, [user?.id, oculta]);
 
   const load = useCallback(async () => {
-    if (!LAB_ECONOMY_ENABLED || !user?.id) return;
+    if (oculta || !LAB_ECONOMY_ENABLED || !user?.id) return;
     const e = await getElectronBalance(user.id);
     // Si la query no trajo dato, se conserva el valor previo en vez de pintar 0.
     if (!e) return;
@@ -67,7 +77,7 @@ export function EconomyHeaderPill() {
       AsyncStorage.setItem(CACHE_KEY(user.id), JSON.stringify(next)).catch(() => {});
       return next;
     });
-  }, [user?.id]);
+  }, [user?.id, oculta]);
 
   useFocusEffect(useCallback(() => {
     if (!LAB_ECONOMY_ENABLED) return;
@@ -76,7 +86,7 @@ export function EconomyHeaderPill() {
     return () => sub.remove();
   }, [load]));
 
-  if (!LAB_ECONOMY_ENABLED || !data || data.e === null) return null;
+  if (oculta || !LAB_ECONOMY_ENABLED || !data || data.e === null) return null;
 
   return (
     <AnimatedPressable onPress={() => { haptic.light(); router.push('/economy/admin'); }} style={styles.pill}>

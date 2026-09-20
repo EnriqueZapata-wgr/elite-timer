@@ -20,6 +20,8 @@ import { BackButton } from '@/src/components/ui/BackButton';
 import { HomeIcon } from '@/src/components/ui/HomeIcon';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
+import { useSubscription } from '@/src/hooks/useSubscription';
+import { ocultarPildoraEconomia } from '@/src/services/hoy/elite-hoy-core';
 import { haptic } from '@/src/utils/haptics';
 import { BG, BORDER, TEXT } from '@/src/constants/brand';
 import { Fonts, FontSizes, Spacing } from '@/constants/theme';
@@ -44,6 +46,11 @@ export function GlobalTopBar({ title, showBack, onBellPress, onBack }: GlobalTop
   const pathname = usePathname();
   const home = isHomePath(pathname);
   const backVisible = showBack ?? !home;
+  // 20-sep-2026 (A10): la misma condicion que HOY. Un cliente Elite no ve la
+  // pildora de electrones en ninguna barra (antes la veia en Salud y no en
+  // HOY). Mientras el nivel se lee, tampoco (evita el parpadeo).
+  const { tier, tieneEvaluacionElite, isLoading } = useSubscription();
+  const pildoraOculta = ocultarPildoraEconomia({ tier, tieneEvaluacionElite, cargando: isLoading });
 
   return (
     <View style={[styles.bar, { paddingTop: insets.top + 6 }]}>
@@ -54,7 +61,7 @@ export function GlobalTopBar({ title, showBack, onBellPress, onBack }: GlobalTop
 
       <View style={styles.right}>
         {/* La pill ya trae marginTop:8 — lo neutralizamos para alinear en la barra. */}
-        <View style={styles.pillWrap}><EconomyHeaderPill /></View>
+        <View style={styles.pillWrap}><EconomyHeaderPill oculta={pildoraOculta} /></View>
         {home ? (
           onBellPress ? (
             <AnimatedPressable onPress={() => { haptic.light(); onBellPress(); }} style={styles.iconBtn}>

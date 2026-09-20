@@ -40,6 +40,11 @@ import { GraduacionCard } from '@/src/components/hoy/GraduacionCard';
 // ATP 3.0 (6-sep-2026, ruta 2.1 y 2.2): el hero de laboratorios y las tres de hoy.
 import { HeroLaboratorios } from '@/src/components/hoy/HeroLaboratorios';
 import { QueHacerHoy } from '@/src/components/hoy/QueHacerHoy';
+// 20-sep-2026 (cliente Elite): el indice de su producto bajo el hero, y el
+// nivel leido UNA vez aqui para el hero y la pildora (antes lo leia el hero).
+import { PuertasElite } from '@/src/components/hoy/PuertasElite';
+import { useSubscription } from '@/src/hooks/useSubscription';
+import { ocultarPildoraEconomia, TOPE_HERO_ELITE_MS, type NivelHoy } from '@/src/services/hoy/elite-hoy-core';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { getLocalToday, getLocalHour } from '@/src/utils/date-helpers';
@@ -53,6 +58,10 @@ import { INSIGHT_EN_VENTANA } from '@/src/constants/flags';
 import { getWeeklyInsight, isWeeklyInsightTime, type WeeklyInsightData } from '@/src/services/weekly-insight-service';
 import { syncAppAvisos } from '@/src/services/app-avisos-service';
 import { reconciliarAvisosDeObjetivos } from '@/src/services/pack-avisos-service';
+// 20-sep-2026 (A13): el sueno del telefono se reconcilia en silencio junto a
+// los avisos (mismos tres momentos). Nunca abre dialogos, atrapa todo y trae
+// su propio respiro de 2 h; desde HOY no se le pasa `forzar`.
+import { reconciliarSuenoSilencioso } from '@/src/services/sleep/sueno-unificado-service';
 import { syncWidgetsFromCompiled } from '@/src/services/widgets/widget-sync-service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TopBanner } from '@/src/components/global/TopBanner';
@@ -79,10 +88,36 @@ export default function TodayScreen() {
   const { kind, tokens } = useAppTheme();
   const dark = kind === 'dark';
   const acento = dark ? ATP_BRAND.lime : tokens.tealTexto;
+  // 20-sep-2026: una sola lectura del nivel para toda la pantalla. El hero
+  // decide con esto si pinta la evaluacion Elite, "en camino" o lo de
+  // siempre; la pildora de electrones se retira para un cliente Elite.
+  const sub = useSubscription();
+  const nivel: NivelHoy = {
+    tier: sub.tier,
+    cargando: sub.isLoading,
+    noSePudoLeer: sub.nivelNoSePudoLeer,
+    tieneEvaluacionElite: sub.tieneEvaluacionElite,
+    evaluacionEliteNoSePudoLeer: sub.evaluacionEliteNoSePudoLeer,
+  };
+  // 20-sep-2026 (ronda de arreglos, A8): la pildora se esconde mientras el
+  // nivel se lee (para no pintarsela medio segundo a un cliente Elite), pero
+  // no mas de 10 s: si el nivel (RevenueCat incluido) se cuelga, a quien no
+  // sabemos Elite no se le quita lo que tenia. El hero decide con `nivel`
+  // tal cual; el tope del hero vive en HeroLaboratorios.
+  const [nivelLento, setNivelLento] = useState(false);
+  useEffect(() => {
+    if (!sub.isLoading) { setNivelLento(false); return; }
+    const t = setTimeout(() => setNivelLento(true), TOPE_HERO_ELITE_MS);
+    return () => clearTimeout(t);
+  }, [sub.isLoading]);
+  const pildoraOculta = ocultarPildoraEconomia({ ...nivel, cargando: nivel.cargando && !nivelLento });
 
   // --- Estado único ---
   const [day, setDay] = useState<CompiledDay | null>(null);
   const [loading, setLoading] = useState(true);
+  // 20-sep-2026: compileDay se paso del techo (COMPILE_MAX_MS). Sin esto un
+  // fetch colgado dejaba el SplashLoader sin boton para siempre.
+  const [cargaLenta, setCargaLenta] = useState(false);
   // Progreso real del compile (alimenta SplashLoader 0-100% en vez del spinner indeterminado).
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState('Iniciando…');
@@ -114,6 +149,11 @@ export default function TodayScreen() {
   const pendienteRef = useRef(false);
   const rebotarRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const primerEventoRef = useRef(0);
+  // 20-sep-2026 (ronda de arreglos, A9): numero de intento. Al vencer el techo
+  // el compile viejo sigue vivo y un Reintentar lanza otro; sin esto el viejo
+  // podia llegar despues y pisar al nuevo. Cada resultado solo escribe si su
+  // intento sigue siendo el vigente.
+  const intentoRef = useRef(0);
 
   const loadDay = useCallback(async (_force = false) => {
     if (!user?.id) return;
@@ -124,9 +164,31 @@ export default function TodayScreen() {
       return;
     }
     enVueloDesdeRef.current = ahora;
+    const intento = ++intentoRef.current;
+    const vigente = () => intentoRef.current === intento;
+    // 20-sep-2026: techo de tiempo con reintentar. compileDay no tiene
+    // timeout ni AbortController; si un fetch se cuelga, aqui se suelta la
+    // pantalla a los 30 s (SplashLoader en modo error, con boton). Si el
+    // compile llega despues, se usa: nadie se queda con un dia viejo.
+    // Objeto y no dos `let`: TypeScript no ve las asignaciones dentro del
+    // callback del timer y dejaria los dos valores clavados en su inicial.
+    const techo: { id: ReturnType<typeof setTimeout> | null; vencio: boolean } = { id: null, vencio: false };
     try {
-      const compiled = await compileDay(user.id, (pct, label) => { setProgress(pct); setProgressLabel(label); });
-      if (compiled) {
+      const compilando = compileDay(user.id, (pct, label) => {
+        if (vigente()) { setProgress(pct); setProgressLabel(label); }
+      });
+      const compiled = await Promise.race([
+        compilando,
+        new Promise<null>((resolve) => { techo.id = setTimeout(() => { techo.vencio = true; resolve(null); }, COMPILE_MAX_MS); }),
+      ]);
+      if (!compiled && techo.vencio) {
+        logWarn('[HOY] compileDay se paso del techo; se suelta la pantalla con reintentar');
+        if (vigente()) setCargaLenta(true);
+        // Si llega tarde y nadie relanzo, se usa; si ya hay un intento nuevo, se descarta.
+        compilando.then((tarde) => { if (tarde && vigente()) { setDay(tarde); setCargaLenta(false); } }).catch(() => {});
+      }
+      if (compiled && vigente()) {
+        setCargaLenta(false);
         setDay(compiled);
         // MB-23 P3: los avisos por app se re-evalúan con el hecho/no-hecho
         // real del día (la condición "solo si no lo has hecho hoy"). Los
@@ -139,8 +201,9 @@ export default function TodayScreen() {
         syncWidgetsFromCompiled(user.id, compiled).catch(() => {});
       }
     } catch (e) {
-      console.warn('Error compiling day:', e);
+      logWarn('[HOY] error compilando el dia:', e);
     } finally {
+      if (techo.id) clearTimeout(techo.id);
       enVueloDesdeRef.current = 0;
       // 4EP: el reintento pasa por el MISMO rebote que los eventos. Antes salia
       // por un setTimeout(0) propio que se lo saltaba, encadenaba compiles y
@@ -260,8 +323,12 @@ export default function TodayScreen() {
     const userId = user?.id;
     if (!userId) return;
     reconciliarAvisosDeObjetivos(userId).catch(() => {});
+    reconciliarSuenoSilencioso(userId).catch(() => {});
     const sub = AppState.addEventListener('change', (estado) => {
-      if (estado === 'active') reconciliarAvisosDeObjetivos(userId).catch(() => {});
+      if (estado === 'active') {
+        reconciliarAvisosDeObjetivos(userId).catch(() => {});
+        reconciliarSuenoSilencioso(userId).catch(() => {});
+      }
     });
     return () => sub.remove();
   }, [user?.id]);
@@ -289,7 +356,10 @@ export default function TodayScreen() {
     // fondo (la ficha de una app, armar un objetivo). El reconciliador trae
     // su propio respiro, así que esto no le pega a la base cada vez que
     // cambias de pestaña.
-    if (user?.id) reconciliarAvisosDeObjetivos(user.id).catch(() => {});
+    if (user?.id) {
+      reconciliarAvisosDeObjetivos(user.id).catch(() => {});
+      reconciliarSuenoSilencioso(user.id).catch(() => {});
+    }
   }, [loadDay, user?.id]));
 
   // MB-20 Pieza 4: el tour ya no vive aquí — la orbe lo guía desde la carcasa
@@ -443,8 +513,8 @@ export default function TodayScreen() {
         <StatusBar style="light" />
         <SplashLoader
           progress={progress}
-          error="No se pudo cargar tu día."
-          onRetry={() => { haptic.medium(); setProgress(0); setLoading(true); loadDay(); }}
+          error={cargaLenta ? 'Tu día está tardando más de lo normal. Revisa tu conexión.' : 'No se pudo cargar tu día.'}
+          onRetry={() => { haptic.medium(); setProgress(0); setCargaLenta(false); setLoading(true); loadDay(); }}
         />
       </>
     );
@@ -484,8 +554,9 @@ export default function TodayScreen() {
                 <NotificationBellIcon />
               </View>
             </View>
-            {/* P6: pill E-/Rank (self-gated por LAB_ECONOMY_ENABLED; null si OFF) */}
-            <EconomyHeaderPill />
+            {/* P6: pill E-/Rank (self-gated por LAB_ECONOMY_ENABLED; null si OFF).
+                20-sep-2026: retirada para un cliente Elite (ruido de app publica). */}
+            <EconomyHeaderPill oculta={pildoraOculta} />
           </Animated.View>
 
           {/* Saludo */}
@@ -504,8 +575,12 @@ export default function TodayScreen() {
             su Edad ATP y sus tres marcadores; sin estudio, "Sube tu primer
             estudio". Debajo, las tres acciones que ARGOS eligió por sus
             marcadores. Lo demás de HOY no se toca. */}
-        <HeroLaboratorios userId={user?.id} />
-        <QueHacerHoy userId={user?.id} />
+        <HeroLaboratorios userId={user?.id} nivel={nivel} />
+        {/* 20-sep-2026: con evaluacion cargada, el indice de lo suyo a un toque:
+            Mi evaluacion, Mis suplementos, Mi alimentacion, Mi entrenamiento.
+            Sin evaluacion no pinta nada. */}
+        <PuertasElite userId={user?.id} />
+        <QueHacerHoy userId={user?.id} nivel={nivel} />
 
         {/* ═══════════════════════════════════════
             TAREAS — el checklist del día, dos lentes (MB-20)

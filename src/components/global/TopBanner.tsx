@@ -27,6 +27,8 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { getCurrentStreak } from '@/src/services/adherence-service';
 import { countUnreadInbox } from '@/src/services/user-notifications-service';
+// 20-sep-2026: la existencia de la evaluacion Elite (functional_dx con elite_v3).
+import { fetchTieneEvaluacionElite } from '@/src/services/subscription/subscription-service';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { Fonts, FontSizes, Radius } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, type AppThemeTokens } from '@/src/constants/brand';
@@ -85,7 +87,7 @@ export function TopBanner({ offset = 0 }: Props) {
     if (dismissedDate === today) { setDismissed(true); return; }
     setDismissed(false);
 
-    const [streakRes, unreadRes, insightRes, labsRes] = await Promise.allSettled([
+    const [streakRes, unreadRes, insightRes, labsRes, eliteRes] = await Promise.allSettled([
       getCurrentStreak(user.id),
       countUnreadInbox(user.id),
       supabase.from('argos_daily_insights')
@@ -97,6 +99,10 @@ export function TopBanner({ offset = 0 }: Props) {
       supabase.from('lab_uploads')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id),
+      // 20-sep-2026: con evaluacion Elite cargada, Enrique ya interpreto sus
+      // labs. Flotarle "¿No sabes qué labs hacerte?" encima de HOY era un
+      // error. Nunca rechaza: absorbe el fallo en `noSePudoLeer`.
+      fetchTieneEvaluacionElite(user.id),
     ]);
 
     const next: BannerVariant[] = [];
@@ -133,7 +139,10 @@ export function TopBanner({ offset = 0 }: Props) {
 
     // Sprint LABS GUÍA (trigger post-onboarding): sin estudios subidos →
     // invitar a la guía. count === 0 estricto: si la query falla no molestamos.
-    if (labsRes.status === 'fulfilled' && labsRes.value.count === 0) {
+    // 20-sep-2026: tampoco si hay evaluacion Elite, ni si no se pudo saber
+    // (ante la duda, no se molesta a quien pudo haber pagado su evaluacion).
+    const sinEvaluacionElite = eliteRes.status === 'fulfilled' && !eliteRes.value.noSePudoLeer && !eliteRes.value.tiene;
+    if (labsRes.status === 'fulfilled' && labsRes.value.count === 0 && sinEvaluacionElite) {
       next.push({
         id: 'labs_guide',
         icon: 'flask-outline',

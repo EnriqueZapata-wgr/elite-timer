@@ -16,6 +16,20 @@
  * esa llave se crea como 'suggested' (igual que hace el sync de
  * /salud/intervenciones, sin pisar nada: ignoreDuplicates) y luego se
  * registra. Así el cumplido siempre suma electrones.
+ *
+ * 20-sep-2026 (cliente Elite): si hay evaluacion `elite_v3` vigente, la terna
+ * se arma desde su plan (elite-hoy-core): la toma de suplementos del plan de
+ * Enrique, sus palancas del cierre y, si queda lugar, lo de siempre elegido
+ * por el `estado` que Enrique puso a cada marcador (no por la matriz V7). Si
+ * la evaluacion no se pudo leer, la terna lo dice (regla 7); si hay fila y
+ * no valida, cae a lo de siempre con aviso.
+ *
+ * 20-sep-2026 (ronda de arreglos, A7): el fallo de `functional_dx` solo es
+ * fatal cuando no sabemos que no hay plan (falloEvaluacionEsFatal, con
+ * test): Elite, evaluacion vista por el hook, o nivel/existencia sin leer.
+ * Si el nivel se leyo, no es Elite y el hook confirmo que no hay evaluacion,
+ * sigue lo de siempre. El objetivo (user_packs) y los suplementos del plan
+ * solo se leen cuando hay evaluacion.
  */
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
@@ -24,12 +38,17 @@ import { getLabParamMeta } from '@/src/components/edad-atp/component-meta';
 import { LAB_MARKER_MAP } from '@/src/services/interventions/prescription-core';
 import { getTodayCompletions, logCompletion } from '@/src/services/interventions/intervention-service';
 import { resolveInterventionDef, type UserInterventionRowLike } from '@/src/services/interventions/intervention-engine-core';
-import { leerLabsEstricto, marcadoresDesdeCanon } from './hero-laboratorios-service';
+import { leerSexoYLabs, marcadoresDesdeCanon } from './hero-laboratorios-service';
 import {
   elegirQueHacerHoy, habitosBaseSinExcluidas, HABITOS_BASE_KEYS,
   type AccionHoy, type CandidatoHoy, type MarcadorFuera,
 } from './que-hacer-hoy-core';
-import type { Sex } from '@/src/types/edad-atp-v2';
+import {
+  componerTernaElite, falloEvaluacionEsFatal, marcadoresFueraDeEvaluacion,
+  type NivelHoy, type ObjetivoHoy, type SuplementoHoy,
+} from './elite-hoy-core';
+import { leerEvaluacionEliteVigente, leerObjetivoActivo, leerSuplementosDeHoy } from './elite-hoy-service';
+import type { EliteV3 } from '@/src/services/elite/elite-v3-core';
 
 type StatusFila = 'active' | 'suggested' | 'paused' | 'dismissed';
 
@@ -86,20 +105,12 @@ export function universalesDeRelleno(): CandidatoHoy[] {
   return UNIVERSAL_INTERVENTIONS.filter((d) => !base.has(d.key)).map(candidatoBase);
 }
 
-async function leerSexo(userId: string): Promise<Sex> {
-  const { data, error } = await supabase
-    .from('client_profiles')
-    .select('biological_sex')
-    .eq('user_id', userId)
-    .limit(1)
-    .maybeSingle();
-  if (error) throw new Error(`[que-hacer-hoy] perfil: ${error.message}`);
-  return (data as { biological_sex?: string } | null)?.biological_sex === 'female' ? 'female' : 'male';
-}
-
 /** Marcadores fuera de la ventana óptima, con los nombres con los que el catálogo los conoce. */
-async function leerMarcadoresFuera(userId: string): Promise<MarcadorFuera[]> {
-  const [sexo, canon] = await Promise.all([leerSexo(userId), leerLabsEstricto(userId)]);
+async function leerMarcadoresFuera(userId: string, opts?: { forzar?: boolean }): Promise<MarcadorFuera[]> {
+  // 20-sep-2026: misma lectura (cacheada unos segundos) que el hero. Con
+  // `sexo` null (perfil sin sexo) no se juzga ningun rango: todo sale
+  // sin_banda y la terna se elige por prioridad, sin asumir un sexo.
+  const { sexo, canon } = await leerSexoYLabs(userId, opts);
   const out: MarcadorFuera[] = [];
   for (const m of marcadoresDesdeCanon(sexo, canon)) {
     if (m.estado !== 'atencion' && m.estado !== 'aceptable') continue;
@@ -128,25 +139,79 @@ function esCandidata(f: FilaHoy): boolean {
   return f.status === 'active' || f.status === 'suggested';
 }
 
+/** Los marcadores de la evaluacion con el puente al catalogo (LAB_MARKER_MAP) sumado a sus nombres. */
+function marcadoresFueraConPuente(e: EliteV3): MarcadorFuera[] {
+  return marcadoresFueraDeEvaluacion(e).map((m) => {
+    const puente = LAB_MARKER_MAP[m.key]?.marker;
+    return puente ? { ...m, nombres: [...m.nombres, puente] } : m;
+  });
+}
+
+export interface ResultadoQueHacerHoy {
+  acciones: AccionHoy[];
+  /** La evaluacion Elite vigente si la hay; null si no (o si hay fila y no valida). */
+  evaluacion: EliteV3 | null;
+  /** El objetivo activo con su senal, solo se lee con evaluacion. */
+  objetivo: ObjetivoHoy | null;
+}
+
 /**
  * Las tres acciones de hoy. Rechaza si no se pudieron leer las
  * intervenciones (regla 7). Los labs son complemento: si fallan, se eligen
  * por prioridad y se avisa en el log, porque una tarjeta sin "por qué" es
  * mejor que una tarjeta que no carga.
+ *
+ * 20-sep-2026: con evaluacion Elite, rechaza tambien si no se pudo leer la
+ * evaluacion o el plan de suplementos: una terna sin lo suyo le diria en
+ * silencio a un cliente que no tiene plan.
  */
-export async function cargarQueHacerHoy(userId: string): Promise<AccionHoy[]> {
-  const [filas, hechas, fuera] = await Promise.all([
-    leerFilas(userId),
-    getTodayCompletions(userId),
-    leerMarcadoresFuera(userId).catch((e) => {
-      logWarn('[que-hacer-hoy] labs no se pudieron leer; se elige por prioridad', e);
-      return [] as MarcadorFuera[];
-    }),
+export async function cargarQueHacerHoy(
+  userId: string,
+  opts?: { forzar?: boolean; nivel?: NivelHoy },
+): Promise<ResultadoQueHacerHoy> {
+  // Las lecturas que no dependen de la evaluacion salen en paralelo con ella.
+  const eliteP = leerEvaluacionEliteVigente(userId, { forzar: opts?.forzar });
+  const filasP = leerFilas(userId);
+  const hechasP = getTodayCompletions(userId);
+  const fueraP = leerMarcadoresFuera(userId, { forzar: opts?.forzar }).catch((e) => {
+    logWarn('[que-hacer-hoy] labs no se pudieron leer; se elige por prioridad', e);
+    return [] as MarcadorFuera[];
+  });
+  // Si abajo se lanza antes de esperar estas, que su rechazo no quede huerfano.
+  filasP.catch(() => {});
+  hechasP.catch(() => {});
+
+  const elite = await eliteP;
+  if (!elite.ok && elite.motivo === 'lectura') {
+    if (falloEvaluacionEsFatal(opts?.nivel)) throw new Error('[que-hacer-hoy] evaluacion Elite: no se pudo leer');
+    logWarn('[que-hacer-hoy] functional_dx no se pudo leer; nivel leido, sin plan: sigue lo de siempre');
+  }
+  if (!elite.ok && elite.motivo === 'formato') logWarn('[que-hacer-hoy] hay evaluacion Elite y no valida; la terna cae a lo de siempre');
+  const evaluacion = elite.ok ? elite.evaluacion : null;
+
+  // Suplementos del plan y objetivo (user_packs): solo con evaluacion.
+  const [filas, hechas, fueraLabs, suplementos, objetivo] = await Promise.all([
+    filasP,
+    hechasP,
+    fueraP,
+    evaluacion
+      ? leerSuplementosDeHoy(userId).catch((e) => {
+        logWarn('[que-hacer-hoy] suplementos del plan no se pudieron leer', e);
+        return null as SuplementoHoy[] | null;
+      })
+      : Promise.resolve(null as SuplementoHoy[] | null),
+    evaluacion ? leerObjetivoActivo(userId) : Promise.resolve(null as ObjetivoHoy | null),
   ]);
+  if (evaluacion && suplementos === null) throw new Error('[que-hacer-hoy] plan de suplementos: no se pudo leer');
+
   const candidatos = filas.filter(esCandidata).map(candidatoDeFila).filter((c): c is CandidatoHoy => c != null);
   // Regla 1: lo que la persona pausó o descartó no vuelve como hábito base.
   const excluidas = new Set(filas.filter((f) => !esCandidata(f)).map((f) => f.intervention_key));
-  return elegirQueHacerHoy(candidatos, fuera, habitosBaseSinExcluidas(habitosBase(), excluidas, universalesDeRelleno()), hechas);
+  // Con evaluacion, el juez de "fuera de ventana" es el estado de Enrique.
+  const fuera = evaluacion ? marcadoresFueraConPuente(evaluacion) : fueraLabs;
+  const deSiempre = elegirQueHacerHoy(candidatos, fuera, habitosBaseSinExcluidas(habitosBase(), excluidas, universalesDeRelleno()), hechas);
+  const acciones = evaluacion ? componerTernaElite(evaluacion, suplementos ?? [], deSiempre) : deSiempre;
+  return { acciones, evaluacion, objetivo: evaluacion ? objetivo : null };
 }
 
 /**

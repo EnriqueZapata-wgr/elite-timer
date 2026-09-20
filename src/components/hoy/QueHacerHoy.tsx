@@ -11,8 +11,15 @@
  *
  * Estados (regla 13): cargando, "no se pudo leer" con reintentar, y la
  * lista (nunca vacía: el core siempre devuelve tres).
+ *
+ * 20-sep-2026 (cliente Elite): con evaluacion cargada la tarjeta habla de su
+ * plan. La primera linea nombra su objetivo activo y la senal que va a ver
+ * moverse; las filas priorizan la toma de suplementos del plan de Enrique
+ * (se registra en Mis suplementos, donde viven dosis y hora) y sus palancas
+ * del cierre (abren la evaluacion: son palancas de semanas, no de un dia).
+ * Lo que no viene del plan sigue siendo lo de siempre, con paloma.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { DeviceEventEmitter, StyleSheet, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -22,8 +29,10 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { AppIcon } from '@/src/components/ui/AppIcon';
 import { warn as logWarn } from '@/src/lib/logger';
 import { INTERVENTIONS_CHANGED_EVENT } from '@/src/services/interventions/intervention-service';
-import { cargarQueHacerHoy, registrarCumplidoHoy } from '@/src/services/hoy/que-hacer-hoy-service';
+import { cargarQueHacerHoy, registrarCumplidoHoy, type ResultadoQueHacerHoy } from '@/src/services/hoy/que-hacer-hoy-service';
 import { marcarHecha, type AccionHoy } from '@/src/services/hoy/que-hacer-hoy-core';
+import { lineaPlanHoy, tituloTarjetaHoy, type NivelHoy } from '@/src/services/hoy/elite-hoy-core';
+import { EVALUACION_ELITE_CHANGED_EVENT } from '@/src/services/hoy/elite-hoy-service';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, withOpacity } from '@/src/constants/brand';
@@ -31,9 +40,15 @@ import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 interface Props {
   userId?: string;
+  /**
+   * 20-sep-2026 (ronda de arreglos, A7): el nivel leido UNA vez en HOY. Con
+   * el, un fallo de functional_dx solo tumba la terna cuando no sabemos que
+   * no hay plan. Sin el (undefined) se asume que no se sabe: fatal.
+   */
+  nivel?: NivelHoy;
 }
 
-export function QueHacerHoy({ userId }: Props) {
+export function QueHacerHoy({ userId, nivel }: Props) {
   const t = useSurfaceTokens();
   const router = useRouter();
   const dark = t.kind === 'dark';
@@ -52,14 +67,22 @@ export function QueHacerHoy({ userId }: Props) {
   }, [router]);
 
   const [acciones, setAcciones] = useState<AccionHoy[] | null>(null);
+  const [plan, setPlan] = useState<Pick<ResultadoQueHacerHoy, 'evaluacion' | 'objetivo'>>({ evaluacion: null, objetivo: null });
   const [cargando, setCargando] = useState(true);
   const [ocupada, setOcupada] = useState<string | null>(null);
 
-  const cargar = useCallback(async () => {
+  // Por ref y no como dependencia: `nivel` es un objeto nuevo en cada render
+  // de HOY y meterlo en `cargar` haria que el foco recargara sin parar.
+  const nivelRef = useRef(nivel);
+  nivelRef.current = nivel;
+
+  const cargar = useCallback(async (forzar = false) => {
     if (!userId) return;
     setCargando(true);
     try {
-      setAcciones(await cargarQueHacerHoy(userId));
+      const r = await cargarQueHacerHoy(userId, { forzar, nivel: nivelRef.current });
+      setAcciones(r.acciones);
+      setPlan({ evaluacion: r.evaluacion, objetivo: r.objetivo });
     } catch (e) {
       logWarn('[que-hacer-hoy] no se pudo leer', e);
     } finally {
@@ -68,14 +91,42 @@ export function QueHacerHoy({ userId }: Props) {
   }, [userId]);
 
   useFocusEffect(useCallback(() => { cargar(); }, [cargar]));
+  // (A7) Si la terna se cayo mientras el nivel estaba en vuelo (no se sabia si
+  // habia plan), al resolverse el nivel se intenta UNA vez mas, sin boton.
+  // Solo en esa transicion: nunca un bucle sobre un fallo persistente.
+  const nivelCargando = nivel?.cargando ?? false;
+  const nivelCargabaRef = useRef(nivelCargando);
+  const sinTernaRef = useRef(false);
+  sinTernaRef.current = acciones === null && !cargando;
+  useEffect(() => {
+    const cargaba = nivelCargabaRef.current;
+    nivelCargabaRef.current = nivelCargando;
+    if (cargaba && !nivelCargando && sinTernaRef.current) cargar();
+  }, [nivelCargando, cargar]);
   useEffect(() => {
     // Activar o pausar una práctica cambia la terna.
     const sub = DeviceEventEmitter.addListener(INTERVENTIONS_CHANGED_EVENT, () => { cargar(); });
-    return () => sub.remove();
-  }, [cargar]);
+    // 20-sep-2026 (A2): la evaluacion que HOY conoce cambio (Reintentar o
+    // Actualizar del hero, o una version nueva): la terna se rearma.
+    const subElite = DeviceEventEmitter.addListener(EVALUACION_ELITE_CHANGED_EVENT, (p?: { userId?: string }) => {
+      if (p?.userId && userId && p.userId !== userId) return;
+      cargar();
+    });
+    return () => { sub.remove(); subElite.remove(); };
+  }, [cargar, userId]);
+
+  // 20-sep-2026: las filas del plan no se palomean aqui. Los suplementos se
+  // registran en Mis suplementos (dosis, hora, cantidad) y las palancas se
+  // leen en la evaluacion. Tocar la paloma abre el lugar correcto.
+  const abrirDelPlan = useCallback((a: AccionHoy) => {
+    haptic.light();
+    if (a.tipo === 'suplementos') router.push('/supplements');
+    else router.push({ pathname: '/salud/evaluacion-elite', params: { seccion: 'cierre' } });
+  }, [router]);
 
   const palomear = useCallback(async (a: AccionHoy) => {
     if (!userId || a.hecha || ocupada) return;
+    if (a.tipo === 'suplementos' || a.tipo === 'palanca') { abrirDelPlan(a); return; }
     haptic.success();
     setOcupada(a.key);
     setAcciones((prev) => (prev ? marcarHecha(prev, a.key, true) : prev));
@@ -84,7 +135,7 @@ export function QueHacerHoy({ userId }: Props) {
     const ok = await registrarCumplidoHoy(userId, a);
     if (!ok) setAcciones((prev) => (prev ? marcarHecha(prev, a.key, false) : prev));
     setOcupada(null);
-  }, [userId, ocupada]);
+  }, [userId, ocupada, abrirDelPlan]);
 
   const card = [s.card, { backgroundColor: t.card, borderColor: dark ? withOpacity(ATP_BRAND.lime, 0.2) : t.bordeEditorial }];
 
@@ -93,7 +144,7 @@ export function QueHacerHoy({ userId }: Props) {
       <View style={[s.iconWrap, { backgroundColor: withOpacity(acento, 0.14) }]}>
         <AppIcon name="protocolos" size={18} color={acento} />
       </View>
-      <EliteText style={[s.label, { color: acento }]}>QUÉ HACER HOY</EliteText>
+      <EliteText style={[s.label, { color: acento }]}>{tituloTarjetaHoy(plan.evaluacion)}</EliteText>
     </View>
   );
 
@@ -114,7 +165,7 @@ export function QueHacerHoy({ userId }: Props) {
         <EliteText style={[s.body, { color: t.textoSecundario }]}>Revisa tu conexión y vuelve a intentar.</EliteText>
         <AnimatedPressable
           style={[s.btnQuiet, { borderColor: t.bordeMarcado }]}
-          onPress={() => { haptic.light(); cargar(); }}
+          onPress={() => { haptic.light(); cargar(true); }}
         >
           <Ionicons name="refresh" size={14} color={t.texto} />
           <EliteText style={[s.btnQuietText, { color: t.texto }]}>Reintentar</EliteText>
@@ -128,37 +179,49 @@ export function QueHacerHoy({ userId }: Props) {
     <Animated.View entering={FadeInUp.delay(130).springify()} style={card}>
       {cabecera}
       <EliteText style={[s.body, { color: t.textoSecundario }]}>
-        {ligadas
-          ? 'Tres hábitos elegidos por tus marcadores fuera de ventana.'
-          : 'Tres hábitos para hoy. Palomea lo que ya hiciste.'}
+        {lineaPlanHoy(plan.objetivo, plan.evaluacion, ligadas)}
       </EliteText>
       <View style={s.lista}>
-        {acciones.map((a) => (
+        {acciones.map((a) => {
+          const delPlan = a.tipo === 'suplementos' || a.tipo === 'palanca';
+          const firma = a.firma ?? (a.porMarcador ? `Por tu ${a.porMarcador}${plan.evaluacion ? ', según tu evaluación' : ''}` : null);
+          return (
           <View key={a.key} style={[s.fila, { backgroundColor: t.hundido }]}>
+            {a.tipo === 'palanca' ? (
+              // Una palanca no se palomea: es de semanas. El glifo dice "lee".
+              <View style={[s.check, { borderColor: 'transparent', backgroundColor: withOpacity(acento, 0.14) }]}>
+                <AppIcon name="evaluaciones" size={14} color={acento} />
+              </View>
+            ) : (
             <AnimatedPressable
               style={[s.check, { borderColor: a.hecha ? acento : t.bordeMarcado, backgroundColor: a.hecha ? acento : 'transparent' }]}
               onPress={() => palomear(a)}
               disabled={a.hecha || ocupada != null}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: a.hecha }}
-              accessibilityLabel={`Marcar ${a.titulo} como hecho`}
+              // La fila de suplementos no palomea: abre Mis suplementos. Un
+              // control que navega es un boton, no una casilla (A11).
+              accessibilityRole={a.tipo === 'suplementos' ? 'button' : 'checkbox'}
+              accessibilityState={a.tipo === 'suplementos' ? undefined : { checked: a.hecha }}
+              accessibilityLabel={a.tipo === 'suplementos' ? 'Registrar mis suplementos de hoy' : `Marcar ${a.titulo} como hecho`}
             >
               {a.hecha && <Ionicons name="checkmark" size={16} color={dark ? ATP_BRAND.black : t.textoSobreLima} />}
             </AnimatedPressable>
+            )}
             <AnimatedPressable
               style={{ flex: 1 }}
               // Sin fila propia (hábito base recién sugerido) el detalle diría
               // "no la encontramos": se abre la agenda, que sí la trae.
-              onPress={() => abrirPractica(a.userInterventionId ? a.key : undefined)}
+              onPress={() => (delPlan ? abrirDelPlan(a) : abrirPractica(a.userInterventionId ? a.key : undefined))}
             >
               <EliteText style={[s.filaTitulo, { color: t.texto }, a.hecha && s.tachado]} numberOfLines={1}>{a.titulo}</EliteText>
               <EliteText style={[s.filaDetalle, { color: t.textoSecundario }]} numberOfLines={2}>{a.detalle}</EliteText>
-              {a.porMarcador ? (
-                <EliteText style={[s.filaMotivo, { color: acento }]} numberOfLines={1}>Por tu {a.porMarcador}</EliteText>
+              {firma ? (
+                <EliteText style={[s.filaMotivo, { color: acento }]} numberOfLines={1}>{firma}</EliteText>
               ) : null}
             </AnimatedPressable>
+            {delPlan ? <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} /> : null}
           </View>
-        ))}
+          );
+        })}
       </View>
       <AnimatedPressable style={s.verTodo} onPress={() => abrirPractica()}>
         <EliteText style={[s.verTodoText, { color: acento }]}>Ver todo mi día</EliteText>

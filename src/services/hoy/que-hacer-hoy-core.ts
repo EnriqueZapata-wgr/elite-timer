@@ -15,7 +15,16 @@
  * entre cargas. Sin estudio o sin ligadas, salen las tres de mayor prioridad.
  */
 
-export type OrigenAccion = 'activa' | 'sugerida' | 'base';
+/** 20-sep-2026: `plan` es lo que viene de la evaluacion Elite (suplementos del plan, palancas). */
+export type OrigenAccion = 'activa' | 'sugerida' | 'base' | 'plan';
+
+/**
+ * 20-sep-2026: que clase de fila es. `practica` se palomea por logCompletion
+ * (lo de siempre); `suplementos` se registra en Mis suplementos (dosis y
+ * hora viven ahi) y `palanca` abre la evaluacion (es una palanca de semanas,
+ * no de un dia). Opcional: ausente = `practica`.
+ */
+export type TipoAccion = 'practica' | 'suplementos' | 'palanca';
 
 export interface CandidatoHoy {
   /** intervention_key del catálogo (o custom). */
@@ -55,6 +64,9 @@ export interface AccionHoy {
   /** Etiqueta del marcador que la justifica, o null si no está ligada. */
   porMarcador: string | null;
   hecha: boolean;
+  tipo?: TipoAccion;
+  /** Firma de quien la eligio ("Asignado por Enrique"). Opcional: sin firma se pinta "Por tu {marcador}". */
+  firma?: string | null;
 }
 
 export const ACCIONES_HOY = 3;
@@ -118,7 +130,7 @@ export function habitosBaseSinExcluidas(
   return out;
 }
 
-const RANGO_ORIGEN: Record<OrigenAccion, number> = { activa: 0, sugerida: 1, base: 2 };
+const RANGO_ORIGEN: Record<OrigenAccion, number> = { plan: 0, activa: 0, sugerida: 1, base: 2 };
 
 interface Puntuado {
   c: CandidatoHoy;
