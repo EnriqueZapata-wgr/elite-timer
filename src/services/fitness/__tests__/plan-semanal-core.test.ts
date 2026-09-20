@@ -12,6 +12,7 @@ import path from 'node:path';
 import {
   asignacionDeHoy, proximaAsignacion, planDeFilas, rutinasPorDia, diaSemanaLocal,
   tituloDeAsignacion, esEnfoquePlan, ENFOQUE_LABELS, precedencia,
+  resolverHoy, desplazadaDeHoy, esRutinaDeCoach, nombreRutinaParaCliente,
   type AsignacionRow,
 } from '@/src/services/fitness/plan-semanal-core';
 
@@ -147,6 +148,105 @@ describe('audit B7: precedencia explícita, jamás el orden de Postgres', () => 
   it('rutinasPorDia dice los días del coach (el editor ya no pinta Descanso encima)', () => {
     expect(rutinasPorDia([coachLunes, propioLunes])).toEqual({ 1: 'Piernas de acero' });
     expect(rutinasPorDia([propioLunes])).toEqual({});
+  });
+});
+
+describe('A1 (20-sep-2026): el cliente ve el nombre que le puso su coach, no el del clon', () => {
+  it('recorta el sufijo exacto " (copia)" de clone_routine, también repetido', () => {
+    expect(nombreRutinaParaCliente('Tren superior A (copia)')).toBe('Tren superior A');
+    expect(nombreRutinaParaCliente('Tren superior A (copia) (copia)')).toBe('Tren superior A');
+    expect(nombreRutinaParaCliente('  Piernas (copia)  ')).toBe('Piernas');
+  });
+  it('no toca nombres sin el sufijo ni "(copia)" en medio; vacío y nulo dan vacío', () => {
+    expect(nombreRutinaParaCliente('Tren superior A')).toBe('Tren superior A');
+    expect(nombreRutinaParaCliente('Copia de pierna')).toBe('Copia de pierna');
+    expect(nombreRutinaParaCliente('A (copia) B')).toBe('A (copia) B');
+    expect(nombreRutinaParaCliente('')).toBe('');
+    expect(nombreRutinaParaCliente(null)).toBe('');
+    expect(nombreRutinaParaCliente(undefined)).toBe('');
+  });
+});
+
+describe('A4 (20-sep-2026): lo que asigna el coach manda sobre lo propio, sin quitarlo en silencio', () => {
+  const YO = 'user-1';
+  const COACH = 'coach-1';
+  const LUNES = '2026-08-03';
+  const propia = (over: Partial<AsignacionRow> = {}): AsignacionRow => fila({
+    day_of_week: 1, routine_id: 'r-propia', routine_name: 'Mi rutina', user_id: YO, assigned_by: YO,
+    created_at: '2026-06-01T10:00:00Z', ...over,
+  });
+  const deCoach = (over: Partial<AsignacionRow> = {}): AsignacionRow => fila({
+    day_of_week: 1, routine_id: 'r-coach', routine_name: 'Tren superior A', user_id: YO, assigned_by: COACH,
+    created_at: '2026-07-01T10:00:00Z', ...over,
+  });
+
+  it('esRutinaDeCoach: assigned_by presente y distinto del dueño; null, igual al dueño o sin user_id = propia', () => {
+    expect(esRutinaDeCoach(deCoach())).toBe(true);
+    expect(esRutinaDeCoach(propia())).toBe(false);
+    expect(esRutinaDeCoach(propia({ assigned_by: null }))).toBe(false);
+    expect(esRutinaDeCoach(deCoach({ user_id: undefined }))).toBe(false);
+    expect(esRutinaDeCoach(fila({ day_of_week: 1, focus: 'empuje', user_id: YO, assigned_by: COACH }))).toBe(false);
+  });
+
+  it('(A) propia semanal más antigua vs coach semanal más nueva: gana el coach y la propia queda como desplazada', () => {
+    const rows = [propia(), deCoach()];
+    for (const orden of [rows, [...rows].reverse()]) {
+      const r = resolverHoy(orden, LUNES);
+      expect(r.elegida?.routine_id).toBe('r-coach');
+      expect(r.desplazada?.routine_id).toBe('r-propia');
+      expect(asignacionDeHoy(orden, LUNES)?.routine_id).toBe('r-coach');
+      expect(desplazadaDeHoy(orden, LUNES)?.routine_name).toBe('Mi rutina');
+    }
+    expect([propia(), deCoach()].sort(precedencia)[0].routine_id).toBe('r-coach');
+    // Y el editor del plan dice el mismo nombre que el hub.
+    expect(rutinasPorDia([propia(), deCoach()])).toEqual({ 1: 'Tren superior A' });
+  });
+
+  it('(B) propia semanal vs coach por fecha específica hoy: coach, y la propia como desplazada', () => {
+    const rows = [
+      propia(),
+      deCoach({ schedule_type: 'specific_date', day_of_week: null, specific_date: LUNES }),
+    ];
+    const r = resolverHoy(rows, LUNES);
+    expect(r.elegida?.routine_id).toBe('r-coach');
+    expect(r.desplazada?.routine_id).toBe('r-propia');
+  });
+
+  it('(C) dos propias: el criterio de siempre (la más antigua) y sin desplazada', () => {
+    const otra = propia({ routine_id: 'r-propia-2', routine_name: 'Otra', created_at: '2026-07-15T10:00:00Z' });
+    const r = resolverHoy([otra, propia()], LUNES);
+    expect(r.elegida?.routine_id).toBe('r-propia');
+    expect(r.desplazada).toBe(null);
+    expect(desplazadaDeHoy([otra, propia()], LUNES)).toBe(null);
+  });
+
+  it('(C bis) dos del coach: entre ellas la más antigua, y nada propio desplazado', () => {
+    const coach2 = deCoach({ routine_id: 'r-coach-2', routine_name: 'B', created_at: '2026-05-01T10:00:00Z' });
+    const r = resolverHoy([deCoach(), coach2], LUNES);
+    expect(r.elegida?.routine_id).toBe('r-coach-2');
+    expect(r.desplazada).toBe(null);
+  });
+
+  it('(D) el enfoque del plan propio también se nombra cuando el coach lo desplaza', () => {
+    const enfoque = fila({ day_of_week: 1, focus: 'empuje', user_id: YO, assigned_by: YO, created_at: '2026-08-01T10:00:00Z' });
+    const r = resolverHoy([enfoque, deCoach()], LUNES);
+    expect(r.elegida?.routine_id).toBe('r-coach');
+    expect(r.desplazada?.focus).toBe('empuje');
+    expect(tituloDeAsignacion(r.desplazada!)).toBe('Empuje');
+    // Y con rutina propia Y enfoque propio, la desplazada es la rutina (lo específico).
+    const r2 = resolverHoy([enfoque, propia(), deCoach()], LUNES);
+    expect(r2.desplazada?.routine_id).toBe('r-propia');
+  });
+
+  it('sin user_id en la fila (caché anterior a la regla) nadie es coach: cae al criterio de antigüedad', () => {
+    const rows = [propia({ user_id: undefined }), deCoach({ user_id: undefined })];
+    expect(asignacionDeHoy(rows, LUNES)?.routine_id).toBe('r-propia');
+    expect(desplazadaDeHoy(rows, LUNES)).toBe(null);
+  });
+
+  it('otro día no se contamina: la desplazada es solo de HOY', () => {
+    expect(resolverHoy([propia(), deCoach()], '2026-08-04').elegida).toBe(null);
+    expect(resolverHoy([propia(), deCoach()], '2026-08-04').desplazada).toBe(null);
   });
 });
 

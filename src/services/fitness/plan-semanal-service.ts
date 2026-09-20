@@ -17,7 +17,7 @@ import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import {
-  asignacionDeHoy, planDeFilas, proximaAsignacion, rutinasPorDia,
+  asignacionDeHoy, esRutinaDeCoach, nombreRutinaParaCliente, planDeFilas, proximaAsignacion, rutinasPorDia,
   type AsignacionRow, type PlanSemanal, type ProximaAsignacion,
 } from './plan-semanal-core';
 
@@ -55,7 +55,7 @@ async function leerCacheAsignaciones(userId: string): Promise<AsignacionRow[] | 
 export async function getAsignaciones(userId: string): Promise<AsignacionRow[] | null> {
   const { data, error } = await supabase
     .from('scheduled_routines')
-    .select('id, schedule_type, day_of_week, specific_date, focus, routine_id, is_active, created_at, routines(name)')
+    .select('id, schedule_type, day_of_week, specific_date, focus, routine_id, is_active, created_at, assigned_by, routines(name)')
     .eq('user_id', userId)
     .eq('is_active', true)
     .order('created_at', { ascending: true });
@@ -69,17 +69,33 @@ export async function getAsignaciones(userId: string): Promise<AsignacionRow[] |
     }
     return null;
   }
-  const rows: AsignacionRow[] = ((data ?? []) as any[]).map((r) => ({
-    id: r.id,
-    schedule_type: r.schedule_type,
-    day_of_week: r.day_of_week,
-    specific_date: r.specific_date,
-    focus: r.focus,
-    routine_id: r.routine_id,
-    routine_name: r.routines?.name ?? null,
-    is_active: r.is_active,
-    created_at: r.created_at ?? null,
-  }));
+  const rows: AsignacionRow[] = ((data ?? []) as any[]).map((r) => {
+    const fila: AsignacionRow = {
+      id: r.id,
+      schedule_type: r.schedule_type,
+      day_of_week: r.day_of_week,
+      specific_date: r.specific_date,
+      focus: r.focus,
+      routine_id: r.routine_id,
+      routine_name: r.routines?.name ?? null,
+      is_active: r.is_active,
+      created_at: r.created_at ?? null,
+      // 20-sep-2026: columna de la migración 001 (siempre existió); el hub la
+      // usa para decir "asignada por tu coach" cuando no la agendó el usuario,
+      // y la precedencia (A4) para que lo del coach gane sobre lo propio.
+      assigned_by: r.assigned_by ?? null,
+      // La query ya filtra por user_id: el dueño de la fila es quien pregunta.
+      user_id: userId,
+    };
+    // A1 (20-sep-2026): la rutina del coach llega clonada como
+    // "<nombre> (copia)" (assign_routine_to_client sin p_new_name). El
+    // cliente ve el nombre que le puso su coach. Solo en filas del coach:
+    // una copia que el propio usuario hizo se llama así también en Mis rutinas.
+    if (fila.routine_name != null && esRutinaDeCoach(fila)) {
+      fila.routine_name = nombreRutinaParaCliente(fila.routine_name) || fila.routine_name;
+    }
+    return fila;
+  });
   AsyncStorage.setItem(
     ASIGNACIONES_CACHE_KEY,
     JSON.stringify({ userId, date: getLocalToday(), rows } satisfies AsignacionesCache),
@@ -183,7 +199,7 @@ export async function savePlanSemanal(
       .eq('user_id', userId)
       .in('id', idsViejas);
     if (delErr) {
-      logWarn('[plan-semanal] prune failed — rolling back insert', delErr);
+      logWarn('[plan-semanal] prune failed, rolling back insert', delErr);
       if (idsNuevas.length > 0) {
         const { error: rbErr } = await supabase
           .from('scheduled_routines')

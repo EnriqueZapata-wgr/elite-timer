@@ -4,7 +4,11 @@
  * Antes eran dos pantallas girando sobre el mismo dato (PRs/benchmarks) — un
  * dato en dos lugares violaba la doctrina navegación-vs-consulta. Ahora una
  * sola casa con jerarquía:
- *   1. Hero RENDIMIENTO (protagonista): nivel + PRs + mejor 1RM.
+ *   1. Hero TU NIVEL (protagonista): el nivel que la persona DECLARÓ
+ *      (profiles.fitness_level, el mismo del hub) + PRs + mejor 1RM como
+ *      historia. 20-sep-2026: antes el nivel se calculaba por número de PRs
+ *      registrados y un cliente avanzado veía PRINCIPIANTE con 0 PRs el
+ *      primer día. Los PRs cuentan lo hecho; no juzgan a nadie.
  *   2. BENCHMARKS: los ejercicios estándar con variantes → registrar.
  *   3. TUS MARCAS: todos los PRs por grupo muscular, con progresión expandible.
  * /personal-records redirige aquí (deep-links y tab Progreso viven).
@@ -40,6 +44,8 @@ import {
   type ExerciseSessionEntry,
 } from '@/src/services/exercise-service';
 import { getBenchmarksWithVariants, type BenchmarkExercise } from '@/src/services/fitness-service';
+import { leerNivelDeclarado, setFitnessLevel } from '@/src/services/fitness/fitness-profile-service';
+import { NIVELES_USUARIO, type NivelUsuario } from '@/src/constants/exercise-matrix';
 import { MUSCLE_GROUPS, MUSCLE_GROUP_LABELS, MUSCLE_GROUP_COLORS } from '@/src/types/exercise';
 import type { PersonalRecord } from '@/src/types/exercise';
 
@@ -309,6 +315,13 @@ export default function FitnessStrengthScreen() {
   const [progressionData, setProgressionData] = useState<ProgressionPoint[]>([]);
   const [sessionHistory, setSessionHistory] = useState<ExerciseSessionEntry[]>([]);
   const [progressionLoading, setProgressionLoading] = useState(false);
+  // 20-sep-2026: el nivel DECLARADO (profiles.fitness_level). undefined = sin
+  // leer todavía; null = nunca lo declaró; 'fallo' = no se pudo leer (que no
+  // es lo mismo que no tenerlo). userId para poder declararlo aquí mismo.
+  const [nivel, setNivel] = useState<NivelUsuario | null | 'fallo' | undefined>(undefined);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [eligiendoNivel, setEligiendoNivel] = useState(false);
+  const [guardandoNivel, setGuardandoNivel] = useState(false);
 
   useEffect(() => {
     if (!selectedExerciseId) {
@@ -345,22 +358,62 @@ export default function FitnessStrengthScreen() {
     // MB-5 Bloque 3: hero editorial sex-aware (mismo criterio que fitness-hub).
     supabase.auth.getUser().then(({ data: { user: u } }) => {
       if (!u) return;
+      setUserId(u.id);
       supabase.from('client_profiles').select('biological_sex').eq('user_id', u.id).maybeSingle()
         .then(({ data }) => setBioSex((data as { biological_sex?: string | null } | null)?.biological_sex ?? null), () => {});
+      // 20-sep-2026: el nivel declarado, de la misma fuente que el hub.
+      leerNivel(u.id);
     });
   }, [loadRecords]));
+
+  function leerNivel(uid: string) {
+    leerNivelDeclarado(uid)
+      .then((r) => setNivel(r.fallo ? 'fallo' : r.nivel))
+      .catch((e) => {
+        logWarn('[fitness-strength] no se pudo leer el nivel', e);
+        setNivel('fallo');
+      });
+  }
 
   const exerciseGroups = groupByExercise(records);
   const groupedEntries = Array.from(exerciseGroups.values());
   const totalPRs = records.length;
 
-  // Nivel de rendimiento (por # de PRs registrados — criterio existente).
-  const getLevel = (count: number): string => {
-    if (count >= 26) return 'ELITE';
-    if (count >= 11) return 'AVANZADO';
-    if (count >= 4) return 'INTERMEDIO';
-    return 'PRINCIPIANTE';
+  // 20-sep-2026: el nivel es el DECLARADO, no un conteo de PRs. Etiquetas
+  // en mayúsculas porque el hero las pinta como titular.
+  const NIVEL_LABELS: Record<NivelUsuario, string> = {
+    principiante: 'PRINCIPIANTE', intermedio: 'INTERMEDIO', avanzado: 'AVANZADO', atleta: 'ATLETA',
   };
+  const tituloNivel = nivel === undefined
+    ? '…'
+    : nivel === 'fallo'
+      ? 'SIN LEER'
+      : nivel === null
+        ? 'SIN DECLARAR'
+        : NIVEL_LABELS[nivel];
+
+  async function declararNivel(n: NivelUsuario) {
+    if (!userId || guardandoNivel) return;
+    haptic.medium();
+    setGuardandoNivel(true);
+    const { ok } = await setFitnessLevel(userId, n);
+    setGuardandoNivel(false);
+    // A7 (20-sep-2026): si no se guardó, se dice y el titular no cambia:
+    // antes pintaba "Declarado por ti" con un nivel que no llegó al perfil.
+    if (!ok) {
+      Alert.alert(
+        'No se pudo guardar tu nivel',
+        'Revisa tu conexión.',
+        [
+          { text: 'Cerrar', style: 'cancel' },
+          { text: 'Reintentar', onPress: () => { declararNivel(n); } },
+        ],
+      );
+      return;
+    }
+    setNivel(n);
+    setEligiendoNivel(false);
+  }
 
   const best1RM = groupedEntries.length > 0
     ? Math.round(Math.max(...groupedEntries.map(e => e.estimated1rm)))
@@ -393,22 +446,55 @@ export default function FitnessStrengthScreen() {
               style={StyleSheet.absoluteFill}
             />
             <View style={styles.heroContent}>
-              <EliteText variant="caption" style={styles.heroLabel}>RENDIMIENTO</EliteText>
+              <EliteText variant="caption" style={styles.heroLabel}>TU NIVEL</EliteText>
               <View style={styles.heroLevelWrap}>
                 {/* Etiquetas largas (PRINCIPIANTE/INTERMEDIO) encogen, no se cortan */}
                 <EliteText style={styles.heroLevel} numberOfLines={1} adjustsFontSizeToFit>
-                  {getLevel(totalPRs)}
+                  {tituloNivel}
                 </EliteText>
               </View>
+              {/* 20-sep-2026: de dónde sale el nivel, siempre dicho. Sin
+                  declarar o al tocar CAMBIAR, los cuatro chips del hub. */}
+              {nivel === 'fallo' ? (
+                <AnimatedPressable
+                  onPress={() => { haptic.light(); if (userId) { setNivel(undefined); leerNivel(userId); } }}
+                  hitSlop={8}
+                  style={styles.heroNotaRow}
+                >
+                  <EliteText variant="caption" style={styles.heroNota}>No se pudo leer tu nivel · REINTENTAR</EliteText>
+                </AnimatedPressable>
+              ) : nivel === null || eligiendoNivel ? (
+                <View>
+                  <EliteText variant="caption" style={styles.heroNota}>
+                    {nivel === null ? 'Dinos tu nivel: define el volumen que el motor te prescribe.' : 'Elige tu nivel:'}
+                  </EliteText>
+                  <View style={styles.nivelRow}>
+                    {NIVELES_USUARIO.map((n) => (
+                      <AnimatedPressable
+                        key={n}
+                        onPress={() => declararNivel(n)}
+                        disabled={guardandoNivel}
+                        style={[styles.nivelChip, nivel === n && styles.nivelChipActivo]}
+                      >
+                        <EliteText style={styles.nivelChipText}>{NIVEL_LABELS[n]}</EliteText>
+                      </AnimatedPressable>
+                    ))}
+                  </View>
+                </View>
+              ) : nivel !== undefined ? (
+                <AnimatedPressable onPress={() => { haptic.light(); setEligiendoNivel(true); }} hitSlop={8} style={styles.heroNotaRow}>
+                  <EliteText variant="caption" style={styles.heroNota}>Declarado por ti · CAMBIAR</EliteText>
+                </AnimatedPressable>
+              ) : null}
 
               <View style={styles.heroMiniStats}>
                 <View style={styles.heroMiniStatItem}>
                   <EliteText style={styles.heroMiniStatValue}>{totalPRs}</EliteText>
-                  <EliteText variant="caption" style={styles.heroMiniStatLabel}>PRs</EliteText>
+                  <EliteText variant="caption" style={styles.heroMiniStatLabel}>PRs registrados</EliteText>
                 </View>
                 <View style={styles.heroMiniStatDivider} />
                 <View style={styles.heroMiniStatItem}>
-                  <EliteText style={styles.heroMiniStatValue}>{best1RM > 0 ? `${best1RM}kg` : '—'}</EliteText>
+                  <EliteText style={styles.heroMiniStatValue}>{best1RM > 0 ? `${best1RM}kg` : '–'}</EliteText>
                   <EliteText variant="caption" style={styles.heroMiniStatLabel}>Mejor 1RM est.</EliteText>
                 </View>
                 {/* §4.4 caza de redundancia: el "último PR" NO va aquí — ese dato
@@ -666,7 +752,7 @@ export default function FitnessStrengthScreen() {
                                       )}
                                     </>
                                   ) : (
-                                    <EliteText variant="body" style={[styles.repRangeEmpty, { color: tk.sinDatos }]}>—</EliteText>
+                                    <EliteText variant="body" style={[styles.repRangeEmpty, { color: tk.textoTenue }]}>—</EliteText>
                                   )}
                                 </View>
                               );
@@ -729,7 +815,7 @@ export default function FitnessStrengthScreen() {
         )}
 
         {groupedEntries.length > 0 && (
-          <EliteText variant="caption" style={[styles.hintText, { color: tk.sinDatos }]}>
+          <EliteText variant="caption" style={[styles.hintText, { color: tk.textoTenue }]}>
             Toca una marca para ver su progresión · mantén presionado para eliminar
           </EliteText>
         )}
@@ -761,6 +847,18 @@ const styles = StyleSheet.create({
   heroLevel: {
     fontSize: 34, fontFamily: Fonts.extraBold, color: ATP_BRAND.lime, letterSpacing: 3,
   },
+  // 20-sep-2026: fuente del nivel y chips para declararlo (mismo molde que
+  // el onboarding del hub). Van sobre imagen con overlay: tinta blanca fija
+  // en los dos temas, como el resto del hero.
+  heroNota: { color: 'rgba(255,255,255,0.75)', fontSize: FontSizes.xs, marginTop: Spacing.xs, letterSpacing: 0.3 },
+  heroNotaRow: { alignSelf: 'flex-start' },
+  nivelRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: Spacing.sm },
+  nivelChip: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+  },
+  nivelChipActivo: { borderColor: ATP_BRAND.lime, backgroundColor: withOpacity(ATP_BRAND.lime, 0.2) },
+  nivelChipText: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: 12 },
   heroMiniStats: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.md },
   heroMiniStatItem: { flex: 1, alignItems: 'flex-start' },
   heroMiniStatValue: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, color: TEXT.primary, fontVariant: ['tabular-nums'] },

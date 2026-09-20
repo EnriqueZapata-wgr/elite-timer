@@ -96,7 +96,7 @@ export interface ResultadoPerfilCardio {
 }
 
 /** Filas tal como llegan de PostgREST (numeric viaja como string). */
-interface FilaSesion { date: string; discipline: string | null; duration_seconds: number | null; distance_meters: number | string | null; avg_heart_rate: number | null; source: string | null }
+interface FilaSesion { date: string; discipline: string | null; duration_seconds: number | null; distance_meters: number | string | null; avg_heart_rate: number | null; source: string | null; avg_pace_seconds_per_km: number | null }
 interface FilaMedida { date: string; resting_hr: number | null; vo2max_estimate: number | string | null; weight_kg: number | string | null; source: string | null }
 interface FilaOs { date: string; resting_hr: number | null; source: string | null }
 
@@ -113,7 +113,7 @@ export async function cargarPerfilCardio(userId: string): Promise<ResultadoPerfi
   const [sesRes, perfilRes, medidasRes, osRes] = await Promise.allSettled([
     supabase
       .from('cardio_sessions')
-      .select('date, discipline, duration_seconds, distance_meters, avg_heart_rate, source')
+      .select('date, discipline, duration_seconds, distance_meters, avg_heart_rate, source, avg_pace_seconds_per_km')
       .eq('user_id', userId)
       .gte('date', desde28)
       .lte('date', hoy)
@@ -151,6 +151,9 @@ export async function cargarPerfilCardio(userId: string): Promise<ResultadoPerfi
     distance_meters: numOrNull(r.distance_meters),
     avg_heart_rate: numOrNull(r.avg_heart_rate),
     source: r.source ?? null,
+    // 20-sep-2026: el pace guardado (columna de la migración 036) viaja al
+    // historial de la pantalla; antes solo se veía mientras se escribía.
+    avg_pace_seconds_per_km: numOrNull(r.avg_pace_seconds_per_km),
   }));
 
   // Perfil (edad, sexo): secundario.

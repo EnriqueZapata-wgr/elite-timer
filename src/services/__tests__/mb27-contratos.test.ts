@@ -66,7 +66,7 @@ describe('doctrina V3 (contrato): el techo murió como límite', () => {
       }
     };
     for (const d of dirs) walk(path.join(ROOT, d));
-    expect(hits, 'el umbral renació — la doctrina dice solo orientar').toEqual([]);
+    expect(hits, 'el umbral renació: la doctrina dice solo orientar').toEqual([]);
   });
 
   it('HOY pinta el conteo SIEMPRE visible, sin umbral, con la salida al lado', () => {
@@ -156,8 +156,18 @@ describe('audit B5 (contrato): la asignación manda en la puerta real', () => {
     expect(src).toMatch(/OBJETIVO_LABELS\[today\.objetivoUsado\]/);
     expect(src).not.toMatch(/OBJETIVO_LABELS\[prefs\.objetivo\]/);
     expect(src).toMatch(/enfoqueLabel\(today\.enfoqueUsado\)/);
-    // Con rutina agendada, el hero la abre directo:
-    expect(src).toMatch(/params: \{ abrir: asignacion\.routine_id! \}/);
+    // Con rutina agendada, el hero la abre directo.
+    // 20-sep-2026 (re-apuntado, contrato cambiado a propósito): antes el
+    // hero mandaba a /my-routines?abrir=<id>, que cargaba TODA la lista
+    // para volver a empujar a /session. Ahora el hub lee la rutina
+    // (getRoutine) y abre /session con ella; /my-routines?abrir= queda
+    // como respaldo cuando la rutina no tiene bloques o no aparece.
+    expect(src).toMatch(/pathname: '\/session', params: \{ routine: JSON\.stringify\(rutina\)/);
+    expect(src).toMatch(/params: \{ abrir: a\.routine_id \}/);
+    // Y la rutina agendada se resuelve ANTES del onboarding del generador:
+    // el estado 'asignada' existe y el hero lo pinta.
+    expect(src).toMatch(/today\.kind === 'asignada'/);
+    expect(read('src/services/fitness/today-session-service.ts')).toMatch(/decidirHoy\(/);
   });
 
   it('el deep-link del generador no reescribe la pref: mirar no es elegir', () => {
@@ -185,7 +195,7 @@ describe('audit B4 + V2 (contrato): guardar el plan jamás destruye NI miente', 
     expect(body).toMatch(/\.in\('id', idsViejas\)/);
   });
 
-  it('V2: poda fallida = fracaso honesto con rollback — jamás éxito con el lunes revivido', () => {
+  it('V2: poda fallida = fracaso honesto con rollback, jamás éxito con el lunes revivido', () => {
     const src = read('src/services/fitness/plan-semanal-service.ts');
     const body = src.slice(src.indexOf('export async function savePlanSemanal'));
     // El insert guarda sus ids para poder revertirse:
@@ -235,7 +245,7 @@ describe('mutación 12 (ratchet): nadie nuevo lee goals.habit_times crudo', () =
     const nuevos = hits.filter((h) => !LECTORES_PERMITIDOS.has(h));
     expect(
       nuevos,
-      `lector nuevo de habit_times — pasa por resolverHabitTimes y decláralo aquí a conciencia: ${nuevos.join(', ')}`,
+      `lector nuevo de habit_times: pasa por resolverHabitTimes y decláralo aquí a conciencia: ${nuevos.join(', ')}`,
     ).toEqual([]);
   });
 });

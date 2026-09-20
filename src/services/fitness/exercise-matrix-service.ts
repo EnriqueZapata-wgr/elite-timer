@@ -25,6 +25,32 @@ export async function getExerciseMatrix(): Promise<MatrixExercise[]> {
   return cache;
 }
 
+/**
+ * 20-sep-2026: la misma lectura, DICIENDO si falló. getExerciseMatrix
+ * devuelve [] cuando la red truena y no hay caché, y la biblioteca pintaba
+ * "Nada con esos filtros" sobre un catálogo que nunca llegó. Con `fallo`
+ * la pantalla distingue "no se pudo leer" (con reintentar) de "sin
+ * resultados". Alimenta el mismo caché.
+ */
+export async function leerExerciseMatrix(): Promise<{ catalogo: MatrixExercise[]; fallo: boolean }> {
+  if (cache) return { catalogo: cache, fallo: false };
+  try {
+    const { data, error } = await supabase
+      .from('exercise_matrix')
+      .select('*')
+      .order('nombre');
+    if (error) {
+      logWarn('[exercise-matrix] leerExerciseMatrix failed:', error.message);
+      return { catalogo: [], fallo: true };
+    }
+    cache = ((data ?? []) as ExerciseMatrixRow[]).map(mapMatrixRow);
+    return { catalogo: cache, fallo: false };
+  } catch (e) {
+    logWarn('[exercise-matrix] leerExerciseMatrix threw:', e);
+    return { catalogo: [], fallo: true };
+  }
+}
+
 /** Un ejercicio por slug (usa el cache del catálogo). */
 export async function getMatrixExercise(slug: string): Promise<MatrixExercise | null> {
   const all = await getExerciseMatrix();

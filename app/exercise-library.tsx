@@ -22,7 +22,8 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { MetodosAtpInfo } from '@/src/components/training/MetodosAtpInfo';
 import { haptic } from '@/src/utils/haptics';
-import { getExerciseMatrix } from '@/src/services/fitness/exercise-matrix-service';
+import { leerExerciseMatrix } from '@/src/services/fitness/exercise-matrix-service';
+import { warn as logWarn } from '@/src/lib/logger';
 import {
   GRUPOS_MUSCULARES, PATRONES, EQUIPO_TOKENS, NIVELES_EJERCICIO,
   musculosPrincipalesDe, posterDe, type MatrixExercise,
@@ -72,10 +73,46 @@ export default function ExerciseLibraryScreen() {
   // (nada de scroll horizontal escondido).
   const [ejeAbierto, setEjeAbierto] = useState<EjeKey | null>(null);
 
+  // 20-sep-2026: el error de lectura es un estado propio. Antes un catálogo
+  // que no llegaba se pintaba como [] y la pantalla decía "Nada con esos
+  // filtros", que es mentira: no había filtros que soltar. Ahora: "no se
+  // pudo leer" con reintentar, y techo de 12 s por si la petición nunca
+  // contesta (mismo patrón que /session).
+  const [errorCatalogo, setErrorCatalogo] = useState<string | null>(null);
+  const [intento, setIntento] = useState(0);
+
   useEffect(() => {
     // D-2 (MB-12): sin catch, un rechazo dejaba la biblioteca cargando por siempre.
-    getExerciseMatrix().then(setCatalogo).catch(() => setCatalogo([]));
-  }, []);
+    let vigente = true;
+    leerExerciseMatrix()
+      .then((r) => {
+        if (!vigente) return;
+        if (r.fallo) {
+          setErrorCatalogo('No se pudo leer la biblioteca de ejercicios.');
+          return;
+        }
+        setErrorCatalogo(null);
+        setCatalogo(r.catalogo);
+      })
+      .catch((e) => {
+        if (!vigente) return;
+        logWarn('[exercise-library] catálogo', e);
+        setErrorCatalogo('No se pudo leer la biblioteca de ejercicios.');
+      });
+    return () => { vigente = false; };
+  }, [intento]);
+
+  useEffect(() => {
+    if (catalogo || errorCatalogo) return;
+    const t = setTimeout(() => setErrorCatalogo('La biblioteca tardó demasiado en cargar.'), 12000);
+    return () => clearTimeout(t);
+  }, [catalogo, errorCatalogo, intento]);
+
+  const reintentar = () => {
+    haptic.light();
+    setErrorCatalogo(null);
+    setIntento((n) => n + 1);
+  };
 
   const filtrados = useMemo(() => {
     if (!catalogo) return [];
@@ -210,9 +247,28 @@ export default function ExerciseLibraryScreen() {
         </View>
       )}
 
-      {/* Grid de cards con poster */}
-      {catalogo === null ? (
+      {/* Grid de cards con poster. 20-sep-2026: tres estados distintos y
+          que se ven distintos: no se pudo leer (con reintentar), cargando,
+          y sin resultados para esos filtros. */}
+      {errorCatalogo && catalogo === null ? (
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="No pudimos leer la biblioteca"
+          subtitle={`${errorCatalogo} Revisa tu conexión e inténtalo otra vez.`}
+          actionLabel="Reintentar"
+          onAction={reintentar}
+          color={tk.error}
+        />
+      ) : catalogo === null ? (
         <View style={s.center}><Text style={[s.metaText, { color: tk.textoSecundario }]}>Cargando catálogo…</Text></View>
+      ) : catalogo.length === 0 ? (
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="La biblioteca llegó vacía"
+          subtitle="No trajo ningún ejercicio. Inténtalo otra vez en un momento."
+          actionLabel="Reintentar"
+          onAction={reintentar}
+        />
       ) : filtrados.length === 0 ? (
         <EmptyState
           icon="barbell-outline"

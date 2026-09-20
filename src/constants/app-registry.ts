@@ -111,8 +111,13 @@ export const APP_REGISTRY: AppEntry[] = [
     description: 'Tu sesión de hoy, tus rutinas y la biblioteca de ejercicios. Genera la sesión, ejecútala y regístrala.' },
   // MB-22.1 §5.1: las disciplinas son las CUATRO de fitness-cardio.tsx —
   // decir "caminar" (que no existe) y omitir natación era inventar.
-  { key: 'cardio', label: 'Cardio', icon: 'cardio', section: 'cuerpo', route: '/log-cardio', installable: true, alias: ['correr', 'bici', 'caminar', 'zona 2'],
-    description: 'Correr, ciclismo, natación y remo: registra tus sesiones y ve tus marcas por distancia.' },
+  // 20-sep-2026: la puerta de la app es el PERFIL (/fitness-cardio: FC máxima,
+  // zonas, VO2max estimado, minutos por zona y tu semana), que ya calculaba
+  // todo eso y solo se alcanzaba por un link al fondo del formulario. Desde
+  // ahí se registra e importa. La tarjeta de HOY sigue mandando directo a
+  // registrar (day-booleans): registrar es acción, el perfil es la casa.
+  { key: 'cardio', label: 'Cardio', icon: 'cardio', section: 'cuerpo', route: '/fitness-cardio', installable: true, alias: ['correr', 'bici', 'caminar', 'zona 2', 'vo2max', 'zonas'],
+    description: 'Tus zonas de FC, tu VO2max estimado y tu semana. Registra correr, ciclismo, natación y remo, o impórtalo de tu app de salud.' },
   // Evaluación puntual, no hábito diario: no tiene electrón que activar.
   { key: 'movilidad', label: 'Movilidad', icon: 'movilidad', section: 'cuerpo', route: '/mobility-assessment', installable: false, minTier: 'premium', alias: ['flexibilidad', 'estiramiento', 'evaluación'],
     description: 'Evaluación guiada de movilidad en siete tests, con lectura por test, asimetrías y comparación contra tu anterior.' },

@@ -9,7 +9,6 @@
     "/strength-session": "Alias permanente de /session (Ola 2 Fitness PR1): re-exporta la misma pantalla para deep links, stashes en vuelo y builds OTA viejos. La puerta viva es /session.",
     "/fitness-train": "Redirect legacy (Ola 2 Fitness PR3) a /fitness-hub: la absorbió el hub. Solo deep links y OTA viejos.",
     "/fitness-my": "Redirect legacy (Ola 2 Fitness PR3) a /fitness-hub: la absorbió el hub. Solo deep links y OTA viejos.",
-    "/fitness-cardio": "Redirect legacy (Ola 2 Fitness PR3) a /log-cardio: la casa única del cardio. Solo deep links y OTA viejos.",
     "/cardio-import": "Redirect legacy (Ola 2 Fitness PR3) a /log-cardio?fase=importar: el import es fase de la casa del cardio. Solo deep links y OTA viejos.",
     "/fitness-hiit": "Redirect legacy (Ola 2 Fitness PR3) a /routine-generator?puerta=intervalos: la puerta INTERVALOS del generador. Solo deep links y OTA viejos.",
     "/log-exercise": "Redirect legacy (Ola 2 Fitness PR3) a /log-strength (conserva ?exerciseId=). Solo deep links y OTA viejos.",

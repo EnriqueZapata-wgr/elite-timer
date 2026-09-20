@@ -245,18 +245,35 @@ async function checkCardioRecords(session: CardioSession): Promise<{ distance_la
   return newPRs;
 }
 
-/** #v13e 3.B.3: sesiones de cardio de HOY (para el resumen km/min en la card del HOY). */
-export async function getCardioSessionsToday(userId: string): Promise<CardioSession[]> {
+/**
+ * A2 (20-sep-2026): las sesiones de cardio de HOY, DICIENDO si la lectura
+ * falló. today-session-core decide "entrenado" con este arreglo: un [] por
+ * error (400, RLS, red) no es "no hay cardio" y hacía que el hub volviera a
+ * pedir EMPEZAR una rutina ya corrida en modo intervalos. {ok:false} = no se
+ * pudo leer; el que lo consume decide (today-session-service lanza).
+ */
+export async function getCardioSessionsTodayResultado(
+  userId: string,
+): Promise<{ ok: true; sesiones: CardioSession[] } | { ok: false }> {
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('cardio_sessions')
       .select('*')
       .eq('user_id', userId)
       .eq('date', getLocalToday());
-    return (data as CardioSession[]) ?? [];
+    if (error) return { ok: false };
+    return { ok: true, sesiones: (data as CardioSession[]) ?? [] };
   } catch {
-    return [];
+    return { ok: false };
   }
+}
+
+/** #v13e 3.B.3: sesiones de cardio de HOY (para el resumen km/min en la card del HOY).
+ *  Fail-soft: [] también cuando la lectura falló. Para distinguirlo usa
+ *  getCardioSessionsTodayResultado (A2). */
+export async function getCardioSessionsToday(userId: string): Promise<CardioSession[]> {
+  const res = await getCardioSessionsTodayResultado(userId);
+  return res.ok ? res.sesiones : [];
 }
 
 /** Ultima sesion por disciplina (para mostrar en el hub). */

@@ -5,7 +5,7 @@ vi.mock('@/src/lib/logger', () => ({ warn: vi.fn(), error: vi.fn(), log: vi.fn()
 
 import {
   fcMaxima, zonasKarvonen, zonaDeFC, vo2maxUth, vo2maxCooper, vo2maxRockport,
-  edadDesdeFechas, restarDias, minutosPorZona, resumirSesiones,
+  edadDesdeFechas, restarDias, minutosPorZona, resumirSesiones, paceDe,
   type SesionCardioLite,
 } from '../cardio-core';
 import { clasificarVo2 } from '../cardio-perfil-service';
@@ -151,5 +151,20 @@ describe('minutosPorZona y resumen', () => {
     expect(rs).toMatchObject({ sesiones: 4, totalMin: 100, km: 7, conFC: 3 });
     expect(resumirSesiones(ses, '2026-08-04', '2026-08-31').sesiones).toBe(4);
     expect(resumirSesiones(ses, '2026-08-01', '2026-08-31').sesiones).toBe(5);
+  });
+});
+
+describe('paceDe (20-sep-2026: el pace guardado se muestra, no se recalcula)', () => {
+  it('el guardado manda aunque distancia y duracion digan otra cosa', () => {
+    expect(paceDe({ duration_seconds: 1800, distance_meters: 5000, avg_pace_seconds_per_km: 350 })).toBe(350);
+  });
+  it('sin guardado se deriva con la formula del guardado (seg / km)', () => {
+    expect(paceDe({ duration_seconds: 1800, distance_meters: 5000, avg_pace_seconds_per_km: null })).toBe(360);
+    expect(paceDe({ duration_seconds: 1800, distance_meters: 5000 })).toBe(360);
+  });
+  it('sin distancia o duracion no hay pace: null, nunca cero', () => {
+    expect(paceDe({ duration_seconds: 1800, distance_meters: null, avg_pace_seconds_per_km: null })).toBeNull();
+    expect(paceDe({ duration_seconds: null, distance_meters: 5000, avg_pace_seconds_per_km: null })).toBeNull();
+    expect(paceDe({ duration_seconds: 0, distance_meters: 5000, avg_pace_seconds_per_km: 0 })).toBeNull();
   });
 });

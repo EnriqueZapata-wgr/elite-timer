@@ -61,6 +61,41 @@ export interface AsignacionRow {
   is_active: boolean;
   /** Para el desempate determinista (audit B7). */
   created_at?: string | null;
+  /** 20-sep-2026: quién agendó. El coach (assign_routine_to_client) pone su
+   *  id; el plan propio pone el del usuario. Decide el copy del hero
+   *  ("asignada por tu coach") y, desde A4, la precedencia entre rutinas. */
+  assigned_by?: string | null;
+  /** A4 (20-sep-2026): dueño de la fila (scheduled_routines.user_id). Con
+   *  assigned_by decide si la rutina la agendó el coach. Opcional porque el
+   *  caché de un día anterior a esta regla no lo trae: sin él no se adivina. */
+  user_id?: string | null;
+}
+
+/**
+ * A1 (20-sep-2026): assign_routine_to_client (mig 002) clona la rutina del
+ * coach con clone_routine sin p_new_name, y clone_routine (mig 232:47) la
+ * bautiza `<nombre> (copia)`. El cliente no clonó nada: ve el nombre que le
+ * puso su coach. Recorta el sufijo exacto ` (copia)` (repetido, por si la
+ * copia venía de otra copia); clone_routine no produce ` (copia 2)`.
+ * El arreglo de raíz es pasar p_new_name := name en la migración.
+ */
+export function nombreRutinaParaCliente(nombre: string | null | undefined): string {
+  let n = (nombre ?? '').trim();
+  while (n.endsWith(' (copia)')) n = n.slice(0, -' (copia)'.length).trimEnd();
+  return n;
+}
+
+/**
+ * A4 (20-sep-2026): rutina concreta agendada por alguien que no es el dueño
+ * de la fila, es decir, su coach. El plan propio (savePlanSemanal) agenda con
+ * assigned_by = user_id y el agendado viejo (schedule-service) sin nadie:
+ * las dos son propias. Sin user_id en la fila no se adivina: false.
+ */
+export function esRutinaDeCoach(row: AsignacionRow): boolean {
+  if (row.routine_id == null) return false;
+  const por = row.assigned_by ?? null;
+  const dueno = row.user_id ?? null;
+  return por != null && dueno != null && por !== dueno;
 }
 
 const tsDe = (r: AsignacionRow): string => r.created_at ?? '';
@@ -74,8 +109,11 @@ const tsDe = (r: AsignacionRow): string => r.created_at ?? '';
  *     genérico, y la pantalla del plan lo dice en el día para que no sea
  *     silencioso. El usuario siempre tiene la salida (cambiar su plan o
  *     quitar la rutina).
- *  3. Entre rutinas: la más ANTIGUA (created_at ASC) — estable, nadie ve
- *     su rutina cambiar sola.
+ *  3. Entre rutinas, primero la del COACH (A4, decisión del dueño 8-sep:
+ *     lo que Enrique asigna manda sobre lo que el cliente armó solo, sin
+ *     quitarle lo suyo: sigue en Mis rutinas y el hub dice qué desplazó).
+ *     Entre dos del mismo origen, la más ANTIGUA (created_at ASC) — estable,
+ *     nadie ve su rutina cambiar sola.
  *  4. Entre enfoques: el guardado más NUEVO (created_at DESC) — el último
  *     "Guardar mi plan" es la verdad; los duplicados temporales de B4 se
  *     resuelven solos hacia lo que el usuario acaba de decidir.
@@ -84,30 +122,64 @@ export function precedencia(a: AsignacionRow, b: AsignacionRow): number {
   const aRutina = a.routine_id != null ? 0 : 1;
   const bRutina = b.routine_id != null ? 0 : 1;
   if (aRutina !== bRutina) return aRutina - bRutina;
-  if (aRutina === 0) return tsDe(a).localeCompare(tsDe(b));
+  if (aRutina === 0) {
+    const aCoach = esRutinaDeCoach(a) ? 0 : 1;
+    const bCoach = esRutinaDeCoach(b) ? 0 : 1;
+    if (aCoach !== bCoach) return aCoach - bCoach;
+    return tsDe(a).localeCompare(tsDe(b));
+  }
   return tsDe(b).localeCompare(tsDe(a));
 }
 
+export interface ResolucionHoy {
+  /** Lo que toca hoy. null = descanso o plan sin configurar. */
+  elegida: AsignacionRow | null;
+  /** A4: lo PROPIO del usuario que la rutina del coach desplazó hoy (su
+   *  rutina autoagendada o el enfoque de su plan), para que el hub lo diga
+   *  en vez de quitárselo en silencio. null si no hay coach de por medio. */
+  desplazada: AsignacionRow | null;
+}
+
 /**
- * La asignación de HOY: fecha específica gana sobre ciclo semanal; entre
+ * La resolución de HOY: fecha específica gana sobre ciclo semanal; entre
  * las que empatan el día decide `precedencia` (jamás el orden en que
- * Postgres entregó las filas). null = descanso o plan sin configurar.
+ * Postgres entregó las filas). Si la elegida es del coach, `desplazada` es
+ * la mejor de las propias del día (fecha específica antes que semanal, y
+ * dentro de cada grupo la misma precedencia).
  */
-export function asignacionDeHoy(
+export function resolverHoy(
   rows: AsignacionRow[] | null,
   hoyLocal: string,
-): AsignacionRow | null {
-  if (!rows || rows.length === 0) return null;
+): ResolucionHoy {
+  if (!rows || rows.length === 0) return { elegida: null, desplazada: null };
   const activas = rows.filter((r) => r?.is_active && (r.focus != null || r.routine_id != null));
   const especificas = activas
     .filter((r) => r.schedule_type === 'specific_date' && r.specific_date === hoyLocal)
     .sort(precedencia);
-  if (especificas.length > 0) return especificas[0];
   const dow = diaSemanaLocal(hoyLocal);
   const semanales = activas
     .filter((r) => r.schedule_type === 'weekly_cycle' && r.day_of_week === dow)
     .sort(precedencia);
-  return semanales[0] ?? null;
+  const elegida = especificas[0] ?? semanales[0] ?? null;
+  if (!elegida || !esRutinaDeCoach(elegida)) return { elegida, desplazada: null };
+  const propias = [...especificas, ...semanales].filter((r) => r !== elegida && !esRutinaDeCoach(r));
+  return { elegida, desplazada: propias[0] ?? null };
+}
+
+/** La asignación de HOY (la `elegida` de resolverHoy). null = descanso. */
+export function asignacionDeHoy(
+  rows: AsignacionRow[] | null,
+  hoyLocal: string,
+): AsignacionRow | null {
+  return resolverHoy(rows, hoyLocal).elegida;
+}
+
+/** A4: lo propio que la rutina del coach desplazó hoy; null si nada. */
+export function desplazadaDeHoy(
+  rows: AsignacionRow[] | null,
+  hoyLocal: string,
+): AsignacionRow | null {
+  return resolverHoy(rows, hoyLocal).desplazada;
 }
 
 export interface ProximaAsignacion {

@@ -268,7 +268,9 @@ export default function LogCardioScreen() {
                 <Ionicons name="repeat-outline" size={16} color={ATP_BRAND.teal} />
                 <EliteText style={[s.lastText, { color: tk.texto }]}>
                   La última vez: {formatDuration(ultima.duration_seconds)}
-                  {ultima.distance_meters ? ` · ${(ultima.distance_meters / 1000).toFixed(2)} km` : ''} · tocar para repetir
+                  {ultima.distance_meters ? ` · ${(ultima.distance_meters / 1000).toFixed(2)} km` : ''}
+                  {/* 20-sep-2026: el pace guardado de esa sesión, tal cual se guardó. */}
+                  {ultima.avg_pace_seconds_per_km != null && ultima.avg_pace_seconds_per_km > 0 ? ` · ${formatPace(Math.round(ultima.avg_pace_seconds_per_km))}` : ''} · tocar para repetir
                 </EliteText>
               </AnimatedPressable>
             </Animated.View>
@@ -367,7 +369,7 @@ export default function LogCardioScreen() {
                     value={hr}
                     onChangeText={setHr}
                     keyboardType="number-pad"
-                    placeholder="—"
+                    placeholder="opcional"
                     placeholderTextColor={tk.textoTenue}
                     maxLength={3}
                   />
@@ -414,10 +416,11 @@ export default function LogCardioScreen() {
               <Ionicons name="download-outline" size={18} color={acento} />
               <EliteText style={[s.importText, { color: acento }]}>IMPORTAR DE TU APP DE SALUD</EliteText>
             </AnimatedPressable>
-            {/* BETA cardio (31-ago-2026): el perfil vivo (FC máxima, zonas,
-                VO2max estimado, minutos por zona) vive en /fitness-cardio.
-                El hub y el registro de apps siguen entrando por aquí, así
-                que esta fila es la puerta al perfil hasta que se re-apunten. */}
+            {/* 31-ago-2026: el perfil vivo (FC máxima, zonas, VO2max
+                estimado, minutos por zona) vive en /fitness-cardio.
+                20-sep-2026: el tile Cardio del kit y la fila MI FITNESS del
+                hub ya entran por el perfil; esta fila queda para quien llegó
+                directo a registrar (tarjeta de HOY, fila REGISTRAR del hub). */}
             <AnimatedPressable
               style={[s.importRow, { borderColor: tk.borde }]}
               onPress={() => { haptic.light(); router.push('/fitness-cardio'); }}

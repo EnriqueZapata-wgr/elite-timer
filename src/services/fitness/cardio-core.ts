@@ -213,6 +213,24 @@ export interface SesionCardioLite {
   distance_meters: number | null;
   avg_heart_rate: number | null;
   source: string | null;
+  /** 20-sep-2026: el pace guardado (cardio_sessions.avg_pace_seconds_per_km).
+   *  Opcional: las sesiones importadas o viejas pueden no traerlo. */
+  avg_pace_seconds_per_km?: number | null;
+}
+
+/**
+ * 20-sep-2026: el pace de una sesión guardada, para el historial. Se muestra
+ * el GUARDADO tal cual (dato del usuario sagrado); si la fila no lo trae
+ * pero sí trae distancia y duración, se deriva con la misma fórmula con la
+ * que se guarda (segundos / km, redondeado). Sin distancia o duración: null.
+ */
+export function paceDe(s: Pick<SesionCardioLite, 'duration_seconds' | 'distance_meters' | 'avg_pace_seconds_per_km'>): number | null {
+  const guardado = s.avg_pace_seconds_per_km;
+  if (guardado != null && Number.isFinite(guardado) && guardado > 0) return Math.round(guardado);
+  const dur = s.duration_seconds;
+  const dist = s.distance_meters;
+  if (dur == null || dist == null || !(dur > 0) || !(dist > 0)) return null;
+  return Math.round(dur / (dist / 1000));
 }
 
 export interface MinutosPorZona {

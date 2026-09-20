@@ -262,6 +262,57 @@ export async function getRoutine(id: string): Promise<Routine | null> {
   };
 }
 
+/**
+ * A3 (20-sep-2026): la misma lectura que getRoutine, DICIENDO si falló.
+ * getRoutine devuelve null tanto por rutina inexistente (o de otra cuenta)
+ * como por error de red o RLS; el hub necesita distinguirlos: sin red se
+ * reintenta, sin rutina se va a la lista. maybeSingle en vez de single para
+ * que "0 filas" no sea un error. No fuerza refresh (igual que getRoutine);
+ * sin sesión es {ok:false}: no se pudo leer, no "no existe".
+ */
+export async function getRoutineResultado(
+  id: string,
+): Promise<{ ok: true; rutina: Routine | null } | { ok: false }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { ok: false };
+
+    const { data: routineRow, error: routineError } = await supabase
+      .from('routines')
+      .select('*')
+      .eq('id', id)
+      .eq('creator_id', user.id)
+      .maybeSingle();
+    if (routineError) return { ok: false };
+    if (!routineRow) return { ok: true, rutina: null };
+
+    const { data: blockRows, error: blockError } = await supabase
+      .from('blocks')
+      .select('*, exercises(name)')
+      .eq('routine_id', id);
+    if (blockError) return { ok: false };
+
+    const flatBlocks = (blockRows ?? []).map(row => {
+      const { _routine_id, ...block } = dbRowToBlock(row as any);
+      return block;
+    });
+
+    return {
+      ok: true,
+      rutina: {
+        id: routineRow.id,
+        name: routineRow.name,
+        description: routineRow.description ?? '',
+        category: routineRow.category ?? 'workout',
+        mode: (routineRow.mode ?? 'timer') as Routine['mode'],
+        blocks: buildTree(flatBlocks),
+      },
+    };
+  } catch {
+    return { ok: false };
+  }
+}
+
 /** Guarda o actualiza una rutina (upsert routine + delete/re-insert blocks).
  *  Si el insert de blocks falla después del upsert, hace rollback de la rutina. */
 export async function saveRoutine(routine: Routine): Promise<void> {

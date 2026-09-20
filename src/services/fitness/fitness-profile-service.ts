@@ -41,12 +41,57 @@ export async function getFitnessLevel(userId: string): Promise<NivelUsuario | nu
   return esNivel(cached) ? cached : null;
 }
 
-/** Persiste el nivel en el perfil (y en caché, optimista — la UI no espera red). */
-export async function setFitnessLevel(userId: string, nivel: NivelUsuario): Promise<void> {
+/**
+ * 20-sep-2026: la misma lectura, pero DICIENDO si falló. getFitnessLevel
+ * confunde "no se pudo leer y no hay caché" con "nunca lo declaró" (los dos
+ * son null); una pantalla que pinta el nivel como titular necesita
+ * distinguirlos para no decir SIN DECLARAR a quien sí lo declaró.
+ */
+export async function leerNivelDeclarado(userId: string): Promise<{ nivel: NivelUsuario | null; fallo: boolean }> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('fitness_level')
+      .eq('id', userId)
+      .maybeSingle();
+    if (!error) {
+      const nivel = (data as { fitness_level?: string | null } | null)?.fitness_level ?? null;
+      if (esNivel(nivel)) {
+        AsyncStorage.setItem(CACHE_KEY, nivel).catch(() => {});
+        return { nivel, fallo: false };
+      }
+      return { nivel: null, fallo: false };
+    }
+    logWarn('[fitness-profile] leerNivelDeclarado failed:', error.message);
+  } catch (e) {
+    logWarn('[fitness-profile] leerNivelDeclarado threw:', e);
+  }
+  const cached = await AsyncStorage.getItem(CACHE_KEY).catch(() => null);
+  if (esNivel(cached)) return { nivel: cached, fallo: false };
+  return { nivel: null, fallo: true };
+}
+
+/**
+ * Persiste el nivel en el perfil y DICE si quedó guardado.
+ * A7 (20-sep-2026): antes escribía la caché antes de la red y se tragaba el
+ * error; la pantalla decía "Declarado por ti" con un nivel que no se guardó.
+ * La caché se escribe SOLO cuando la red respondió ok; con {ok:false} nada
+ * cambió (ni perfil ni caché) y la pantalla debe decirlo sin mover lo pintado.
+ */
+export async function setFitnessLevel(userId: string, nivel: NivelUsuario): Promise<{ ok: boolean }> {
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ fitness_level: nivel })
+      .eq('id', userId);
+    if (error) {
+      logWarn('[fitness-profile] setFitnessLevel failed:', error.message);
+      return { ok: false };
+    }
+  } catch (e) {
+    logWarn('[fitness-profile] setFitnessLevel threw:', e);
+    return { ok: false };
+  }
   AsyncStorage.setItem(CACHE_KEY, nivel).catch(() => {});
-  const { error } = await supabase
-    .from('profiles')
-    .update({ fitness_level: nivel })
-    .eq('id', userId);
-  if (error) logWarn('[fitness-profile] setFitnessLevel failed:', error.message);
+  return { ok: true };
 }

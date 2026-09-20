@@ -4,14 +4,22 @@
  * Patrón Oura "one big thing": un solo protagonista — qué toca hoy, cuánto
  * dura y un botón grande para empezar (el motor es determinista, así que la
  * sesión de hoy se regenera aquí sin persistirla). Estados honestos:
+ *   · asignada   → la rutina agendada para hoy (del coach o propia) con
+ *                  EMPEZAR directo a /session. Va ANTES del onboarding:
+ *                  un cliente Elite con rutina asignada no pasa por
+ *                  "¿Cuál es tu nivel?" para ver SU rutina (20-sep-2026).
  *   · primer_uso → pregunta el nivel (onboarding de Fitness, va al perfil 224)
  *   · sin_prefs  → CTA "Genera tu sesión" (misma jerarquía, distinto copy)
  *   · lista      → sesión de hoy + EMPEZAR directo al runner
- *   · entrenado  → completado + qué logró (no ofrece entrenar como si nada)
+ *   · entrenado  → completado + qué logró (no ofrece entrenar como si nada);
+ *                  también con solo cardio o intervalos del día.
+ *   · error      → "no se pudo leer" con reintentar; la carga tiene techo
+ *                  (mismo patrón que /session, FIX-215). Nunca un
+ *                  "Preparando tu día…" eterno.
  * Debajo: la semana en tamaño secundario; las 3 navegaciones bajan a terciarias.
  */
-import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, ImageBackground, DeviceEventEmitter } from 'react-native';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { View, ScrollView, StyleSheet, ImageBackground, DeviceEventEmitter, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,6 +33,7 @@ import { Screen } from '@/src/components/ui/Screen';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { GradientCard } from '@/src/components/ui/GradientCard';
+import { AppIcon, type AppIconName } from '@/src/components/ui/AppIcon';
 import { haptic } from '@/src/utils/haptics';
 import { pickFitnessImage } from '@/src/utils/yo-image-picker';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
@@ -34,9 +43,14 @@ import { supabase } from '@/src/lib/supabase';
 import { toLocalDateString } from '@/src/utils/date-helpers';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getTodayFitnessState, type TodayFitnessState } from '@/src/services/fitness/today-session-service';
+import { diasEntrenados } from '@/src/services/fitness/today-session-core';
 import { flushPendingSessions } from '@/src/services/fitness/workout-session-service';
 import { setFitnessLevel } from '@/src/services/fitness/fitness-profile-service';
-import { DIA_LABELS, tituloDeAsignacion, diaSemanaLocal } from '@/src/services/fitness/plan-semanal-core';
+import { DIA_LABELS, tituloDeAsignacion, diaSemanaLocal, type AsignacionRow } from '@/src/services/fitness/plan-semanal-core';
+import { getRoutineResultado } from '@/src/services/routine-service';
+import type { Routine } from '@/src/engine/types';
+import { warn as logWarn } from '@/src/lib/logger';
+import type { CardioSession } from '@/src/services/fitness-service';
 import { getAsignacionHoy, type EstadoAsignacionHoy } from '@/src/services/fitness/plan-semanal-service';
 import { getCycleInfo, PHASES } from '@/src/services/cycle-service';
 import { NIVELES_USUARIO, type NivelUsuario } from '@/src/constants/exercise-matrix';
@@ -50,14 +64,53 @@ const OBJETIVO_LABELS: Record<Objetivo, string> = {
   fuerza: 'Fuerza', hipertrofia: 'Hipertrofia', metabolico: 'Metabólico', movilidad: 'Movilidad',
 };
 
+const CARDIO_LABELS: Record<string, string> = {
+  running: 'Correr', cycling: 'Ciclismo', swimming: 'Natación', rowing: 'Remo', other: 'Intervalos',
+};
+
+/**
+ * 20-sep-2026: techo de la carga del hero, copiado de /session (FIX-215).
+ * getTodayFitnessState pide varias tablas sin timeout de fetch; una petición
+ * colgada dejaba "Preparando tu día…" para siempre (captura de agosto).
+ */
+const TECHO_CARGA_MS = 12000;
+
+/** Bloques hoja de una rutina guardada (una con cero no se puede ejecutar). */
+function cuentaBloquesHoja(blocks: Routine['blocks']): number {
+  let n = 0;
+  for (const b of blocks) {
+    if (b.children && b.children.length > 0) n += cuentaBloquesHoja(b.children);
+    else n++;
+  }
+  return n;
+}
+
+/** Título del hero cuando hoy solo hubo cardio o intervalos. */
+function tituloCardio(cardioHoy: CardioSession[]): string {
+  if (cardioHoy.length === 1) {
+    const c = cardioHoy[0];
+    if (c.discipline === 'other' && c.notes) {
+      const nombre = c.notes.split(' · ')[0].trim();
+      if (nombre) return nombre;
+    }
+    return CARDIO_LABELS[c.discipline] ?? 'Cardio';
+  }
+  return `${cardioHoy.length} sesiones de cardio`;
+}
+
 // Navegación terciaria en secciones (Ola 2 PR2, anexo §4: el hub es LA única
 // puerta del pilar). ENTRENAR y REGISTRAR absorben los 4 secundarios de
 // fitness-train; la fila "Intervalos" mitiga la descubribilidad de la puerta
 // del generador (§6.4).
 type NavItem = {
-  name: string; subtitle: string; icon: any; color: string;
+  name: string; subtitle: string; color: string;
   route: string; params?: Record<string, string>;
-};
+} & (
+  { icon: any; appIcon?: undefined }
+  /** 20-sep-2026: una fila que dibuja una APP del registro pasa por
+   *  <AppIcon> (doctrina del censo de iconos), no por un Ionicon a mano. */
+  | { appIcon: AppIconName; icon?: undefined }
+);
 const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: 'ENTRENAR',
@@ -87,6 +140,11 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     label: 'MI FITNESS',
     items: [
       { name: 'Fuerza y récords', subtitle: 'Benchmarks · variantes · todos tus PRs', icon: 'barbell-outline', color: CATEGORY_COLORS.fitness, route: '/fitness-strength' },
+      // 20-sep-2026: el perfil de cardio (zonas Karvonen, VO2max estimado,
+      // FC máxima, minutos por zona) ya se calculaba y no tenía puerta en el
+      // hub: solo un link al fondo del formulario de registro. REGISTRAR →
+      // Cardio sigue yendo a registrar (es la acción); esto es la lectura.
+      { name: 'Cardio', subtitle: 'Zonas de FC · VO2max estimado · tu semana', appIcon: 'cardio', color: SEMANTIC.error, route: '/fitness-cardio' },
       { name: 'Mi progreso', subtitle: 'Resumen del mes · frecuencia · volumen', icon: 'trending-up-outline', color: ATP_BRAND.teal, route: '/progress' },
       { name: 'Historial', subtitle: 'Todas tus sesiones, por fecha', icon: 'time-outline', color: SEMANTIC.info, route: '/history' },
     ],
@@ -101,6 +159,15 @@ export default function FitnessHubScreen() {
   // D-3 (MB-12): null = aún sin leer o falló — jamás pintar ceros por error.
   const [stats, setStats] = useState<{ sessions: number; volume: number; prs: number } | null>(null);
   const [today, setToday] = useState<TodayFitnessState | null>(null);
+  // 20-sep-2026: el error de carga es un estado propio, distinto del vacío
+  // y del cargando (patrón FIX-215 de /session). intento re-dispara la
+  // lectura y el techo; cargaRef descarta respuestas de un intento viejo.
+  const [errorHoy, setErrorHoy] = useState<string | null>(null);
+  const [intento, setIntento] = useState(0);
+  const cargaRef = useRef(0);
+  const todayRef = useRef<TodayFitnessState | null>(null);
+  todayRef.current = today;
+  const [abriendoRutina, setAbriendoRutina] = useState(false);
   // Batch 3 (#22): hero editorial sex-aware (fitness-el/ella).
   const [bioSex, setBioSex] = useState<string | null>(null);
   const [guardandoNivel, setGuardandoNivel] = useState(false);
@@ -118,8 +185,41 @@ export default function FitnessHubScreen() {
 
   const cargarHoy = useCallback(() => {
     if (!user) return;
-    getTodayFitnessState(user.id).then(setToday).catch(() => {});
+    const id = ++cargaRef.current;
+    getTodayFitnessState(user.id)
+      .then((estado) => {
+        if (id !== cargaRef.current) return;
+        setToday(estado);
+        setErrorHoy(null);
+      })
+      .catch((e) => {
+        if (id !== cargaRef.current) return;
+        logWarn('[fitness-hub] no se pudo leer el día', e);
+        // Con un día ya pintado, una relectura fallida no lo borra (lo que
+        // ya tenía se queda); sin nada pintado, se dice y se reintenta.
+        if (!todayRef.current) {
+          setErrorHoy(e instanceof Error && e.message ? e.message : 'No se pudo leer tu día.');
+        }
+      });
   }, [user]);
+
+  const reintentarHoy = useCallback(() => {
+    haptic.light();
+    setErrorHoy(null);
+    setIntento((n) => n + 1);
+    cargarHoy();
+    loadWeekStats();
+  }, [cargarHoy]);
+
+  // 20-sep-2026: techo de la carga (FIX-215). Pasado el techo sin respuesta,
+  // el hero se vuelve error, que sí tiene reintento. Si la respuesta llega
+  // después y es del intento vigente, cargarHoy la acepta y limpia el error.
+  useEffect(() => {
+    // Sin usuario todavía no hay petición en vuelo: el techo no corre.
+    if (today || errorHoy || !user) return;
+    const t = setTimeout(() => setErrorHoy('Tu día tardó demasiado en cargar.'), TECHO_CARGA_MS);
+    return () => clearTimeout(t);
+  }, [today, errorHoy, intento, user]);
 
   useFocusEffect(useCallback(() => {
     loadWeekStats();
@@ -166,9 +266,19 @@ export default function FitnessHubScreen() {
       // D-3: las SESIONES salen de workout_sessions (fuente que sí se escribe
       // bien, con `date` local) — contar días de exercise_logs daba 0 en una
       // semana entrenada solo con timer HIIT o cardio.
-      const [sessionsRes, logsRes, prsRes] = await Promise.all([
+      // 20-sep-2026: y también de cardio_sessions. El runner de intervalos
+      // (Tabata, EMOM) y el registro de cardio escriben AHÍ, no en
+      // workout_sessions: una semana de puro cardio marcaba cero. Se cuenta
+      // por día (unión de fechas), así una sesión que escribió en las dos
+      // tablas no suma dos.
+      const [sessionsRes, cardioRes, logsRes, prsRes] = await Promise.all([
         supabase
           .from('workout_sessions')
+          .select('date')
+          .eq('user_id', u.id)
+          .gte('date', weekAgo),
+        supabase
+          .from('cardio_sessions')
           .select('date')
           .eq('user_id', u.id)
           .gte('date', weekAgo),
@@ -186,9 +296,12 @@ export default function FitnessHubScreen() {
           .gte('achieved_at', weekAgo),
       ]);
       // D-3: si algo falló, NO pintar ceros junto al dato que sí cargó.
-      if (sessionsRes.error || logsRes.error || prsRes.error) return;
+      if (sessionsRes.error || cardioRes.error || logsRes.error || prsRes.error) return;
 
-      const uniqueDays = new Set((sessionsRes.data ?? []).map(r => String((r as any).date).slice(0, 10))).size;
+      const uniqueDays = diasEntrenados(
+        (sessionsRes.data ?? []).map((r: { date: string }) => String(r.date)),
+        (cardioRes.data ?? []).map((r: { date: string }) => String(r.date)),
+      );
       const totalVolume = (logsRes.data ?? []).reduce((sum, l: any) => sum + ((l.weight_kg || 0) * (l.reps || 0)), 0);
 
       setStats({ sessions: uniqueDays, volume: Math.round(totalVolume), prs: prsRes.data?.length || 0 });
@@ -199,8 +312,21 @@ export default function FitnessHubScreen() {
     if (!user || guardandoNivel) return;
     haptic.medium();
     setGuardandoNivel(true);
-    await setFitnessLevel(user.id, nivel);
+    const { ok } = await setFitnessLevel(user.id, nivel);
     setGuardandoNivel(false);
+    // A7 (20-sep-2026): si no se guardó, se dice y el hero se queda como
+    // está (primer_uso); antes se releía el día como si el nivel existiera.
+    if (!ok) {
+      Alert.alert(
+        'No se pudo guardar tu nivel',
+        'Revisa tu conexión.',
+        [
+          { text: 'Cerrar', style: 'cancel' },
+          { text: 'Reintentar', onPress: () => { elegirNivel(nivel); } },
+        ],
+      );
+      return;
+    }
     cargarHoy();
   }
 
@@ -213,15 +339,136 @@ export default function FitnessHubScreen() {
     });
   }
 
+  /**
+   * 20-sep-2026: la rutina agendada abre /session DIRECTO (antes pasaba por
+   * /my-routines?abrir=, que cargaba toda la lista para volver a empujar
+   * aquí). La rutina asignada por el coach se clona bajo la cuenta del
+   * cliente (assign_routine_to_client), así que getRoutine la encuentra. Si
+   * no tiene bloques o no aparece bajo esta cuenta, la lista sabe qué hacer
+   * (manda al builder o muestra la lista). Si la red falla, se dice.
+   * A3 (20-sep-2026): getRoutine confundía "no existe" con "no se pudo
+   * leer" (null en los dos) y una caída de red mandaba a /my-routines;
+   * getRoutineResultado los separa: {ok:false} avisa con reintento.
+   * A1: /session recibe el nombre que ve el cliente (sin " (copia)"), y con
+   * ese nombre se guarda la sesión, que es lo que reconoce el hub.
+   */
+  function avisarNoSeAbrio(a: AsignacionRow) {
+    Alert.alert(
+      'No se pudo abrir tu rutina',
+      'Revisa tu conexión.',
+      [
+        { text: 'Cerrar', style: 'cancel' },
+        { text: 'Reintentar', onPress: () => { abrirAsignada(a); } },
+      ],
+    );
+  }
+
+  async function abrirAsignada(a: AsignacionRow) {
+    if (!a.routine_id || abriendoRutina) return;
+    haptic.success();
+    setAbriendoRutina(true);
+    try {
+      const res = await getRoutineResultado(a.routine_id);
+      if (!res.ok) {
+        logWarn('[fitness-hub] no se pudo leer la rutina asignada');
+        avisarNoSeAbrio(a);
+        return;
+      }
+      const rutina = res.rutina;
+      if (rutina && cuentaBloquesHoja(rutina.blocks) > 0) {
+        router.push({ pathname: '/session', params: { routine: JSON.stringify(rutina), name: a.routine_name?.trim() || rutina.name } });
+      } else {
+        router.push({ pathname: '/my-routines', params: { abrir: a.routine_id } });
+      }
+    } catch (e) {
+      logWarn('[fitness-hub] no se pudo abrir la rutina asignada', e);
+      avisarNoSeAbrio(a);
+    } finally {
+      setAbriendoRutina(false);
+    }
+  }
+
   const heroImg = pickFitnessImage(bioSex);
 
   // ── El protagonista: la sesión de hoy ──
   function renderHoy() {
+    // 20-sep-2026: el error va primero (FIX-215): si algo falló, decirlo gana
+    // sobre seguir aparentando que carga. "No se pudo leer" no es "no hay".
+    if (!today && errorHoy) {
+      return (
+        <View style={[s.heroLoading, { backgroundColor: t.card, borderColor: t.borde }]}>
+          <Ionicons name="cloud-offline-outline" size={36} color={t.textoSecundario} />
+          <EliteText style={[s.heroErrorTitulo, { color: t.texto }]}>No pudimos leer tu día</EliteText>
+          <EliteText style={[s.heroLoadingText, { color: t.textoSecundario, textAlign: 'center' }]}>
+            {errorHoy} Tus sesiones siguen guardadas.
+          </EliteText>
+          <GradientCTA
+            label="REINTENTAR"
+            variant="quiet"
+            icon="refresh-outline"
+            onPress={reintentarHoy}
+            style={{ marginTop: Spacing.sm }}
+          />
+        </View>
+      );
+    }
     if (!today) {
       return (
         <View style={[s.heroLoading, { backgroundColor: t.card, borderColor: t.borde }]}>
           <EliteText style={[s.heroLoadingText, { color: t.textoSecundario }]}>Preparando tu día…</EliteText>
         </View>
+      );
+    }
+
+    // 20-sep-2026: la rutina agendada para hoy GANA sobre el onboarding del
+    // generador. Un cliente Elite el día uno ve SU rutina, no "¿Cuál es tu
+    // nivel?". Si ya hizo cardio o intervalos hoy, se dice, pero la rutina
+    // del coach sigue siendo lo que toca.
+    if (today.kind === 'asignada') {
+      const { asignacion, porCoach, coachNombre, cardioHoy, desplazada } = today;
+      const nombreRutina = asignacion.routine_name?.trim() || 'Tu rutina asignada';
+      return (
+        <ImageBackground source={heroImg} style={s.heroCard} imageStyle={s.heroImg}>
+          <LinearGradient colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.55)', 'rgba(10,10,10,0.96)']} style={StyleSheet.absoluteFill} />
+          <View style={s.heroInner}>
+            <EliteText style={s.heroKicker}>{porCoach ? 'TU RUTINA DE HOY' : 'TU PLAN · HOY TOCA'}</EliteText>
+            <EliteText style={s.heroTitle}>{nombreRutina}</EliteText>
+            <EliteText style={s.heroBody}>
+              {porCoach
+                ? `Asignada por ${coachNombre ?? 'tu coach'}. Ábrela y empieza cuando quieras.`
+                : 'Tu rutina agendada para hoy, lista para ejecutar.'}
+            </EliteText>
+            {/* A4 (20-sep-2026): lo del coach manda, pero lo propio no se
+                quita en silencio: se dice qué tenía programado el usuario
+                (sigue en Mis rutinas y en su plan de días). */}
+            {desplazada && (
+              <EliteText style={s.tambienLine}>
+                También tenías programada: {tituloDeAsignacion(desplazada)}
+              </EliteText>
+            )}
+            {cardioHoy.length > 0 && (
+              <EliteText style={s.cardioLine}>
+                + cardio hoy: {cardioHoy.length} {cardioHoy.length === 1 ? 'sesión' : 'sesiones'}
+              </EliteText>
+            )}
+            <View style={{ marginTop: Spacing.md }}>
+              <GradientCTA
+                label={abriendoRutina ? 'ABRIENDO…' : 'EMPEZAR'}
+                pillar="fitness"
+                icon="play"
+                disabled={abriendoRutina}
+                onPress={() => { abrirAsignada(asignacion); }}
+              />
+            </View>
+            <GradientCTA
+              label={porCoach ? 'Ver mis rutinas' : 'Generar otra cosa'}
+              variant="quiet"
+              icon={porCoach ? 'albums-outline' : 'options-outline'}
+              onPress={() => { haptic.light(); router.push(porCoach ? '/my-routines' : '/routine-generator'); }}
+              style={{ marginTop: 2 }}
+            />
+          </View>
+        </ImageBackground>
       );
     }
 
@@ -249,9 +496,13 @@ export default function FitnessHubScreen() {
     }
 
     // Ya entrenó hoy → completado + qué logró (no "entrena de nuevo" como si nada).
+    // 20-sep-2026: también cuando hoy solo hubo cardio o intervalos (sesion
+    // null): el Tabata cuenta. Si quedó una rutina agendada sin hacer, se
+    // ofrece en quiet en lugar de "entrenar otra vez" hacia el generador.
     if (today.kind === 'entrenado') {
-      const { sesion, cardioHoy } = today;
-      const min = Math.max(1, Math.round(sesion.duration_seconds / 60));
+      const { sesion, cardioHoy, asignadaPendiente } = today;
+      const cardioMin = cardioHoy.reduce((acc, c) => acc + (c.duration_seconds ?? 0), 0);
+      const cardioKm = cardioHoy.reduce((acc, c) => acc + (Number(c.distance_meters) || 0), 0) / 1000;
       return (
         <ImageBackground source={heroImg} style={s.heroCard} imageStyle={s.heroImg}>
           <LinearGradient colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0.6)', 'rgba(10,10,10,0.96)']} style={StyleSheet.absoluteFill} />
@@ -260,25 +511,49 @@ export default function FitnessHubScreen() {
               <Ionicons name="checkmark-circle" size={18} color={ATP_BRAND.lime} />
               <EliteText style={s.heroKickerLime}>SESIÓN DE HOY COMPLETADA</EliteText>
             </View>
-            <EliteText style={s.heroTitle}>{sesion.routine_name ?? 'Entrenamiento'}</EliteText>
-            <View style={s.logrosRow}>
-              <Logro valor={String(sesion.exercises_count)} label="Ejercicios" />
-              <Logro valor={`${Math.round(sesion.volume_kg)}`} label="Kg movidos" />
-              <Logro valor={`${min}′`} label="Duración" />
-              {sesion.prs_count > 0 && <Logro valor={`${sesion.prs_count}`} label="PRs" destacado />}
-            </View>
-            {cardioHoy.length > 0 && (
-              <EliteText style={s.cardioLine}>
-                + cardio hoy: {cardioHoy.length} {cardioHoy.length === 1 ? 'sesión' : 'sesiones'}
-              </EliteText>
+            {sesion ? (
+              <>
+                <EliteText style={s.heroTitle}>{sesion.routine_name ?? 'Entrenamiento'}</EliteText>
+                <View style={s.logrosRow}>
+                  <Logro valor={String(sesion.exercises_count)} label="Ejercicios" />
+                  <Logro valor={`${Math.round(sesion.volume_kg)}`} label="Kg movidos" />
+                  <Logro valor={`${Math.max(1, Math.round(sesion.duration_seconds / 60))}′`} label="Duración" />
+                  {sesion.prs_count > 0 && <Logro valor={`${sesion.prs_count}`} label="PRs" destacado />}
+                </View>
+                {cardioHoy.length > 0 && (
+                  <EliteText style={s.cardioLine}>
+                    + cardio hoy: {cardioHoy.length} {cardioHoy.length === 1 ? 'sesión' : 'sesiones'}
+                  </EliteText>
+                )}
+              </>
+            ) : (
+              <>
+                <EliteText style={s.heroTitle}>{tituloCardio(cardioHoy)}</EliteText>
+                <View style={s.logrosRow}>
+                  <Logro valor={String(cardioHoy.length)} label={cardioHoy.length === 1 ? 'Sesión' : 'Sesiones'} />
+                  {cardioMin > 0 && <Logro valor={`${Math.max(1, Math.round(cardioMin / 60))}′`} label="Duración" />}
+                  {cardioKm > 0 && <Logro valor={cardioKm.toFixed(1)} label="Km" />}
+                </View>
+              </>
             )}
-            <GradientCTA
-              label="ENTRENAR OTRA VEZ"
-              variant="quiet"
-              icon="refresh-outline"
-              onPress={() => { haptic.light(); router.push('/routine-generator'); }}
-              style={{ marginTop: Spacing.sm, alignSelf: 'flex-start' }}
-            />
+            {asignadaPendiente?.routine_id ? (
+              <GradientCTA
+                label={abriendoRutina ? 'Abriendo…' : `Abrir ${asignadaPendiente.routine_name?.trim() || 'tu rutina asignada'}`}
+                variant="quiet"
+                icon="play-outline"
+                disabled={abriendoRutina}
+                onPress={() => { abrirAsignada(asignadaPendiente); }}
+                style={{ marginTop: Spacing.sm, alignSelf: 'flex-start' }}
+              />
+            ) : (
+              <GradientCTA
+                label="ENTRENAR OTRA VEZ"
+                variant="quiet"
+                icon="refresh-outline"
+                onPress={() => { haptic.light(); router.push('/routine-generator'); }}
+                style={{ marginTop: Spacing.sm, alignSelf: 'flex-start' }}
+              />
+            )}
           </View>
         </ImageBackground>
       );
@@ -286,45 +561,14 @@ export default function FitnessHubScreen() {
 
     // Sesión lista: qué toca, cuánto dura, y EMPEZAR.
     // Audit B5: la asignación del día MANDA aquí, en la puerta real. Con
-    // rutina agendada (coach o propia) el hero la anuncia y la abre; con
     // enfoque del plan, la sesión ya viene generada CON ese enfoque
     // (enfoqueUsado/objetivoUsado dicen la verdad de lo generado).
+    // 20-sep-2026: la rutina agendada (routine_id) ya no llega a 'lista':
+    // el servicio la resuelve antes como 'asignada' (arriba), con /session
+    // directo. Aquí solo queda la sesión generada.
     if (today.kind === 'lista') {
       const { rutina, asignacion } = today;
       const min = Math.max(1, Math.round(rutina.tiempoTotalSeg / 60));
-      if (asignacion?.routine_id != null) {
-        const nombreRutina = asignacion.routine_name?.trim() || 'Tu rutina asignada';
-        return (
-          <ImageBackground source={heroImg} style={s.heroCard} imageStyle={s.heroImg}>
-            <LinearGradient colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.55)', 'rgba(10,10,10,0.96)']} style={StyleSheet.absoluteFill} />
-            <View style={s.heroInner}>
-              <EliteText style={s.heroKicker}>TU PLAN · HOY TOCA</EliteText>
-              <EliteText style={s.heroTitle}>{nombreRutina}</EliteText>
-              <EliteText style={s.heroBody}>
-                Tu rutina agendada para hoy, lista para ejecutar.
-              </EliteText>
-              <View style={{ marginTop: Spacing.md }}>
-                <GradientCTA
-                  label="ABRIR RUTINA"
-                  pillar="fitness"
-                  icon="play"
-                  onPress={() => {
-                    haptic.success();
-                    router.push({ pathname: '/my-routines', params: { abrir: asignacion.routine_id! } });
-                  }}
-                />
-              </View>
-              <GradientCTA
-                label="Generar otra cosa"
-                variant="quiet"
-                icon="options-outline"
-                onPress={() => { haptic.light(); router.push('/routine-generator'); }}
-                style={{ marginTop: 2 }}
-              />
-            </View>
-          </ImageBackground>
-        );
-      }
       return (
         <ImageBackground source={heroImg} style={s.heroCard} imageStyle={s.heroImg}>
           <LinearGradient colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.55)', 'rgba(10,10,10,0.96)']} style={StyleSheet.absoluteFill} />
@@ -405,13 +649,18 @@ export default function FitnessHubScreen() {
           >
             <Ionicons name="calendar-outline" size={16} color={t.textoSecundario} />
             <EliteText style={[s.planLinkText, { color: t.textoSecundario }]}>
+              {/* 20-sep-2026: "cambiar mi plan de días" solo a quien ELIGIÓ
+                  un plan (tienePlan). A quien hoy le toca una rutina agendada
+                  por su coach se le ofrece ver su semana, y el próximo día se
+                  anuncia aunque no tenga plan propio (las rutinas del coach
+                  también son su semana). */}
               {asignacion?.hoy
-                ? 'Cambiar mi plan de días'
-                : asignacion?.tienePlan
-                  ? asignacion.proxima
-                    ? `Hoy descansas · próximo: ${DIA_LABELS[diaSemanaLocal(asignacion.proxima.date)]} · ${tituloDeAsignacion(asignacion.proxima.row)}`
-                    : 'Hoy descansas · cambiar mi plan de días'
-                  : 'Dí qué días entrenas y el hub te contesta'}
+                ? (asignacion.tienePlan ? 'Cambiar mi plan de días' : 'Ver mi semana de entrenamiento')
+                : asignacion?.proxima
+                  ? `Hoy descansas · próximo: ${DIA_LABELS[diaSemanaLocal(asignacion.proxima.date)]} · ${tituloDeAsignacion(asignacion.proxima.row)}`
+                  : asignacion?.tienePlan
+                    ? 'Hoy descansas · cambiar mi plan de días'
+                    : 'Di qué días entrenas y el hub te contesta'}
             </EliteText>
             <Ionicons name="chevron-forward" size={14} color={t.textoTenue} />
           </AnimatedPressable>
@@ -492,7 +741,9 @@ export default function FitnessHubScreen() {
                   <GradientCard color={item.color} style={s.navCard}>
                     <View style={s.navRow}>
                       <View style={[s.navIcon, { backgroundColor: withOpacity(item.color, 0.15) }]}>
-                        <Ionicons name={item.icon} size={20} color={item.color} />
+                        {item.appIcon
+                          ? <AppIcon name={item.appIcon} size={20} color={item.color} />
+                          : <Ionicons name={item.icon} size={20} color={item.color} />}
                       </View>
                       <View style={{ flex: 1 }}>
                         <EliteText style={[s.navName, { color: t.texto }]}>{item.name}</EliteText>
@@ -543,7 +794,8 @@ const s = StyleSheet.create({
     borderRadius: 20, minHeight: 300, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1,
   },
-  heroLoadingText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm },
+  heroLoadingText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, paddingHorizontal: Spacing.lg },
+  heroErrorTitulo: { fontFamily: Fonts.bold, fontSize: FontSizes.md, marginTop: Spacing.sm, marginBottom: 4 },
   heroKicker: {
     fontSize: 10, fontFamily: Fonts.bold, color: 'rgba(255,255,255,0.7)',
     letterSpacing: 2, marginBottom: 6,
@@ -570,6 +822,8 @@ const s = StyleSheet.create({
   logroValor: { fontSize: 22, fontFamily: Fonts.extraBold, color: TEXT.primary, fontVariant: ['tabular-nums'] },
   logroLabel: { fontSize: 10, fontFamily: Fonts.semiBold, color: 'rgba(255,255,255,0.6)', marginTop: 1 },
   cardioLine: { color: 'rgba(255,255,255,0.75)', fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, marginTop: Spacing.sm },
+  // A4: línea discreta bajo el hero asignado (lo propio que el coach desplazó).
+  tambienLine: { color: 'rgba(255,255,255,0.7)', fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 6 },
 
   // La semana (secundario)
   weekCard: {

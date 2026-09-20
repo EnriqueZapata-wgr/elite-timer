@@ -2,9 +2,13 @@
  * Tu perfil de cardio: zonas de frecuencia cardiaca, VO2max estimado y tu semana.
  * Desde aquí registras sesiones a mano o las importas de tu app de salud.
  *
- * BETA (31-ago-2026): la pantalla VIVA del cardio. Antes era un redirect a
+ * 31-ago-2026: la pantalla VIVA del cardio. Antes era un redirect a
  * /log-cardio (Ola 2 PR3); el registro y la importación siguen viviendo allá,
  * aquí vive lo que ninguna otra pantalla decía: qué significa tu cardio.
+ * 20-sep-2026: es la PUERTA de la app Cardio (tile del kit y fila MI FITNESS
+ * del hub). Sale el sello BETA: lo que se pinta ya calculaba bien y el
+ * cliente recibe un producto, no una prueba. El historial muestra el pace
+ * guardado de cada sesión.
  *
  *   Arriba:  perfil (FC máxima estimada, FC en reposo, zonas, VO2max
  *            estimado con su método y su fuente).
@@ -40,7 +44,8 @@ import {
   cargarPerfilCardio, guardarFcReposo,
   type PerfilCardio, type FuenteFcReposo,
 } from '@/src/services/fitness/cardio-perfil-service';
-import { FUENTES_CARDIO, type MinutosPorZona } from '@/src/services/fitness/cardio-core';
+import { FUENTES_CARDIO, paceDe, type MinutosPorZona } from '@/src/services/fitness/cardio-core';
+import { formatPace } from '@/src/services/fitness-service';
 
 const FUENTE_FC: Record<FuenteFcReposo, string> = {
   manual: 'capturada a mano',
@@ -91,14 +96,7 @@ export default function FitnessCardioScreen() {
     <ThemeReady>
     <View style={[s.screen, { backgroundColor: t.fondo }]}>
       <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
-      <ScreenHeader
-        title="Cardio"
-        rightAction={(
-          <View style={[s.beta, { borderColor: t.bordeMarcado }]}>
-            <EliteText variant="caption" style={{ color: t.textoSecundario, fontSize: 10, letterSpacing: 1 }}>BETA</EliteText>
-          </View>
-        )}
-      />
+      <ScreenHeader title="Cardio" />
 
       {cargando ? (
         <View style={s.centered}>
@@ -129,8 +127,8 @@ export default function FitnessCardioScreen() {
           )}
         >
           <Animated.View entering={FadeInUp.delay(40).springify()}>
-            <EliteText variant="caption" style={[s.betaNota, { color: t.textoSecundario }]}>
-              Beta. Lo marcado como estimado sale de una fórmula publicada, no de una medición. Cada una dice su método.
+            <EliteText variant="caption" style={[s.nota, { color: t.textoSecundario }]}>
+              Lo marcado como estimado sale de una fórmula publicada, no de una medición. Cada una dice su método.
             </EliteText>
           </Animated.View>
 
@@ -205,7 +203,7 @@ export default function FitnessCardioScreen() {
                         {ESTADO_VO2[perfil.clasificacionVo2.estado]} según la matriz de salud funcional ATP: tu valor cae en la banda {perfil.clasificacionVo2.banda.lo != null ? `${perfil.clasificacionVo2.banda.lo} a ${perfil.clasificacionVo2.banda.hi}` : `hasta ${perfil.clasificacionVo2.banda.hi}`} ml/kg/min.
                       </EliteText>
                       <EliteText variant="caption" style={{ color: t.textoSecundario, lineHeight: 17, marginTop: 4 }}>
-                        La matriz ATP usa una sola banda para todas las edades y sexos; pendiente de validación clínica.
+                        La matriz ATP usa una sola banda para todas las edades y sexos. Pendiente de validación.
                       </EliteText>
                     </>
                   ) : (
@@ -214,7 +212,7 @@ export default function FitnessCardioScreen() {
                         ? (perfil.sexoRegistrado
                           ? 'Clasificación pendiente: la matriz ATP solo tiene bandas para hombre y mujer.'
                           : 'Clasificación pendiente: falta tu sexo biológico en tu perfil.')
-                        : 'Clasificación pendiente de validación clínica.'}
+                        : 'Pendiente de validación.'}
                     </EliteText>
                   )}
                   {perfil.vo2Alternativas.length > 1 ? (
@@ -258,7 +256,7 @@ export default function FitnessCardioScreen() {
                   <View style={s.statsRow}>
                     <Stat valor={String(perfil.semana.sesiones)} label={perfil.semana.sesiones === 1 ? 'sesión' : 'sesiones'} acento={acento} tenue={t.textoSecundario} />
                     <Stat valor={String(perfil.semana.totalMin)} label="min" acento={acento} tenue={t.textoSecundario} />
-                    <Stat valor={perfil.semana.km > 0 ? perfil.semana.km.toFixed(1) : '—'} label="km" acento={acento} tenue={t.textoSecundario} />
+                    <Stat valor={perfil.semana.km > 0 ? perfil.semana.km.toFixed(1) : '–'} label="km" acento={acento} tenue={t.textoSecundario} />
                     <Stat valor={`${perfil.semana.conFC}/${perfil.semana.sesiones}`} label="con FC" acento={acento} tenue={t.textoSecundario} />
                   </View>
                   <EliteText variant="caption" style={{ color: t.textoSecundario, marginTop: Spacing.xs }}>
@@ -282,17 +280,23 @@ export default function FitnessCardioScreen() {
             <Animated.View entering={FadeInUp.delay(280).springify()}>
               <EliteText style={[s.label, { color: t.textoSecundario }]}>SESIONES RECIENTES</EliteText>
               <View style={[s.card, { backgroundColor: t.card, borderColor: t.borde }]}>
-                {perfil.sesiones28.slice(0, 5).map((ses, i) => (
+                {perfil.sesiones28.slice(0, 5).map((ses, i) => {
+                  // 20-sep-2026: el pace guardado por fin se ve en algún lado
+                  // (antes solo mientras se escribía el formulario).
+                  const pace = paceDe(ses);
+                  return (
                   <View key={`${ses.date}-${i}`} style={[s.sesRow, i > 0 && { borderTopColor: t.borde, borderTopWidth: StyleSheet.hairlineWidth }]}>
                     <EliteText variant="caption" style={{ color: t.textoSecundario, width: 78 }}>{fechaCorta(ses.date)}</EliteText>
                     <EliteText variant="caption" style={{ color: t.texto, flex: 1 }}>{DISCIPLINA[ses.discipline] ?? ses.discipline}</EliteText>
-                    <EliteText variant="caption" style={{ color: t.texto }}>
-                      {ses.duration_seconds != null ? `${Math.round(ses.duration_seconds / 60)} min` : '—'}
+                    <EliteText variant="caption" style={{ color: t.texto, flexShrink: 1, textAlign: 'right' }}>
+                      {ses.duration_seconds != null ? `${Math.round(ses.duration_seconds / 60)} min` : 'sin duración'}
                       {ses.distance_meters != null ? ` · ${(ses.distance_meters / 1000).toFixed(1)} km` : ''}
+                      {pace != null ? ` · ${formatPace(pace)}` : ''}
                       {ses.avg_heart_rate != null ? ` · ${ses.avg_heart_rate} bpm` : ''}
                     </EliteText>
                   </View>
-                ))}
+                  );
+                })}
               </View>
             </Animated.View>
           ) : null}
@@ -348,7 +352,7 @@ function PerfilFila({ titulo, valor, unidad, detalle, accion, acento }: {
         ) : null}
       </View>
       <View style={s.perfilValorCol}>
-        <EliteText style={[s.perfilValor, { color: valor != null ? acento : t.textoSecundario }]}>{valor ?? '—'}</EliteText>
+        <EliteText style={[s.perfilValor, { color: valor != null ? acento : t.textoSecundario }]}>{valor ?? '–'}</EliteText>
         <EliteText variant="caption" style={{ color: t.textoSecundario }}>{unidad}</EliteText>
       </View>
     </View>
@@ -434,7 +438,7 @@ function FcReposoFila({ perfil, userId, acento, onGuardada }: {
         )}
       </View>
       <View style={s.perfilValorCol}>
-        <EliteText style={[s.perfilValor, { color: fc ? acento : t.textoSecundario }]}>{fc ? String(fc.bpm) : '—'}</EliteText>
+        <EliteText style={[s.perfilValor, { color: fc ? acento : t.textoSecundario }]}>{fc ? String(fc.bpm) : '–'}</EliteText>
         <EliteText variant="caption" style={{ color: t.textoSecundario }}>bpm</EliteText>
       </View>
     </View>
@@ -510,8 +514,7 @@ const s = StyleSheet.create({
   centerTitle: { marginTop: Spacing.md, textAlign: 'center' },
   centerSub: { marginTop: Spacing.xs, textAlign: 'center' },
   reintentar: { marginTop: 20, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 24, borderWidth: 1 },
-  beta: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
-  betaNota: { lineHeight: 18, marginTop: Spacing.sm, marginBottom: Spacing.xs },
+  nota: { lineHeight: 18, marginTop: Spacing.sm, marginBottom: Spacing.xs },
   label: {
     fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 1.5,
     marginTop: Spacing.lg, marginBottom: Spacing.sm,
