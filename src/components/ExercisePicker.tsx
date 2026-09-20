@@ -234,7 +234,7 @@ export function ExercisePicker({ visible, onClose, onSelect }: ExercisePickerPro
                           ]}>
                             <EliteText variant="caption" style={[
                               s.badgeText,
-                              { color: MUSCLE_GROUP_COLORS[item.muscle_group] ?? t.sinDatos },
+                              { color: MUSCLE_GROUP_COLORS[item.muscle_group] ?? t.textoTenue },
                             ]}>
                               {MUSCLE_GROUP_LABELS[item.muscle_group] ?? item.muscle_group}
                             </EliteText>

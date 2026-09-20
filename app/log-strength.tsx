@@ -799,7 +799,7 @@ export default function LogStrengthScreen() {
                       onChangeText={v => updateSet(index, 'weight', v)}
                       keyboardType="decimal-pad"
                       placeholder="0"
-                      placeholderTextColor={tk.sinDatos}
+                      placeholderTextColor={tk.textoTenue}
                       maxLength={6}
                     />
                   </View>
@@ -812,7 +812,7 @@ export default function LogStrengthScreen() {
                       onChangeText={v => updateSet(index, 'reps', v)}
                       keyboardType="number-pad"
                       placeholder="0"
-                      placeholderTextColor={tk.sinDatos}
+                      placeholderTextColor={tk.textoTenue}
                       maxLength={3}
                     />
                   </View>
@@ -825,7 +825,7 @@ export default function LogStrengthScreen() {
                       onChangeText={v => updateSet(index, 'rir', v)}
                       keyboardType="number-pad"
                       placeholder="-"
-                      placeholderTextColor={tk.sinDatos}
+                      placeholderTextColor={tk.textoTenue}
                       maxLength={2}
                     />
                   </View>

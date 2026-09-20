@@ -23,6 +23,8 @@ import { syncAppAvisos } from '@/src/services/app-avisos-service';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND, PILL, withOpacity } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { useColchonOrbe } from '@/src/components/argos/useColchonOrbe';
+import { paddingBottomConColchon } from '@/src/components/argos/argos-floating-core';
 import { StatusBar } from 'expo-status-bar';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
@@ -44,6 +46,9 @@ export default function SettingsNotificationsScreen() {
   // MB-31B: pantalla migrada — superficies/texto del tema; el lima de radios
   // y switches es indicador (no texto) y se queda en los dos modos.
   const { kind, tokens } = useAppTheme();
+  // 20-sep-2026: colchón para la orbe de ARGOS (esta pantalla no usa <Screen>,
+  // que lo aplicaría solo). Gana el mayor, no la suma.
+  const colchonOrbe = useColchonOrbe();
   const dark = kind === 'dark';
   const thCard = { backgroundColor: tokens.card, borderColor: tokens.borde };
   const thDesc = { color: dark ? tokens.textoTenue : tokens.textoSecundario };
@@ -85,7 +90,7 @@ export default function SettingsNotificationsScreen() {
     <ThemeReady>
     <ScrollView
       style={[s.screen, { backgroundColor: tokens.fondo }]}
-      contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: 60 }}
+      contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: paddingBottomConColchon(60, colchonOrbe) }}
     >
       <StatusBar style={dark ? 'light' : 'dark'} />
       <View style={{ paddingTop: insets.top + 8 }}>
@@ -135,7 +140,7 @@ export default function SettingsNotificationsScreen() {
             <View key={c.key} style={[s.toggleRow, thCard, disabled && { opacity: 0.5 }]}>
               <View style={{ flex: 1 }}>
                 <EliteText style={[s.rowTitle, { color: tokens.texto }]}>{c.title}</EliteText>
-                <EliteText style={[s.rowDesc, thDesc]}>{disabled ? 'Silenciado por el modo Silent' : c.description}</EliteText>
+                <EliteText style={[s.rowDesc, thDesc]}>{disabled ? 'En silencio mientras el modo Silencio esté activo' : c.description}</EliteText>
               </View>
               <Switch
                 value={(prefs?.[c.column] as boolean) ?? true}

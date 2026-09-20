@@ -78,7 +78,7 @@ export function WaterGoalEditor({ userId, visible, onClose, onSaved }: Props) {
             <TextInput
               style={s.input}
               placeholder="Custom (ml)"
-              placeholderTextColor={t.sinDatos}
+              placeholderTextColor={t.textoTenue}
               keyboardType="numeric"
               value={custom}
               onChangeText={setCustom}

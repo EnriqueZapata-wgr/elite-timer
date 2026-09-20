@@ -413,7 +413,7 @@ export default function Solar() {
           </Pressable>
 
           <Pressable onPress={() => { loadUV(); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }} style={{ alignItems: 'center', paddingVertical: 12 }}>
-            <Text style={{ color: t.sinDatos, fontSize: 11 }}>Toca para actualizar UV</Text>
+            <Text style={{ color: t.textoSecundario, fontSize: 11 }}>Toca para actualizar UV</Text>
           </Pressable>
         </View>
       ) : errorState === 'fetch' ? (

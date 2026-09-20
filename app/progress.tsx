@@ -18,6 +18,8 @@ import { haptic } from '@/src/utils/haptics';
 import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { useColchonOrbe } from '@/src/components/argos/useColchonOrbe';
+import { paddingBottomConColchon } from '@/src/components/argos/argos-floating-core';
 import { StatusBar } from 'expo-status-bar';
 import { MUSCLE_GROUP_COLORS } from '@/src/types/exercise';
 import {
@@ -143,6 +145,9 @@ export default function ProgressScreen() {
   const router = useRouter();
   // MB-31B3: la pantalla migro a tokens y sigue el tema global.
   const { kind, tokens: t } = useAppTheme();
+  // 20-sep-2026: colchón para la orbe de ARGOS (esta pantalla no usa <Screen>,
+  // que lo aplicaría solo). Gana el mayor, no la suma.
+  const colchonOrbe = useColchonOrbe();
   const acento = kind === 'dark' ? Colors.neonGreen : t.tealTexto;
   const [loading, setLoading] = useState(true);
   const [monthly, setMonthly] = useState<MonthlyStats | null>(null);
@@ -194,7 +199,7 @@ export default function ProgressScreen() {
       {/* Header */}
       <ScreenHeader title="Progreso" />
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: paddingBottomConColchon(0, colchonOrbe) }}>
         {/* ── Sección 1: Resumen del mes ── */}
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <LinearGradient colors={kind === 'dark' ? ['#0a2a2a', '#0a1a1a'] : [t.card, t.card]} style={[styles.heroCard, { borderColor: kind === 'dark' ? '#1a3a3a' : t.borde }]}>
@@ -317,7 +322,7 @@ export default function ProgressScreen() {
             <View style={styles.emptyState}>
               <Ionicons name="trophy-outline" size={32} color={t.textoSecundario} />
               <EliteText variant="caption" style={{ color: t.textoSecundario, marginTop: Spacing.sm }}>
-                Aún no tienes récords. ¡A entrenar!
+                Tus récords aparecerán aquí conforme entrenes.
               </EliteText>
             </View>
           ) : (

@@ -111,7 +111,7 @@ function CmInput({ valor, onChange, permiteNegativo }: {
           onChangeText={commit}
           keyboardType={permiteNegativo ? 'numbers-and-punctuation' : 'decimal-pad'}
           placeholder="0"
-          placeholderTextColor={tk.sinDatos}
+          placeholderTextColor={tk.textoTenue}
           maxLength={5}
         />
         <EliteText style={[cm.unidad, { color: tk.textoSecundario }]}>cm</EliteText>

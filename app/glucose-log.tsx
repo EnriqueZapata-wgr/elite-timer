@@ -153,7 +153,7 @@ export default function GlucoseLogScreen() {
               onChangeText={setValue}
               keyboardType="number-pad"
               placeholder="95"
-              placeholderTextColor={t.sinDatos}
+              placeholderTextColor={t.textoTenue}
               maxLength={3}
             />
             {previewStatus && (
@@ -194,7 +194,7 @@ export default function GlucoseLogScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder="Después de tacos..."
-            placeholderTextColor={t.sinDatos}
+            placeholderTextColor={t.textoTenue}
             multiline
           />
         </Animated.View>

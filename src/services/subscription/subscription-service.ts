@@ -123,6 +123,13 @@ export interface OrigenMembresiaLectura {
   plan: 'anual' | 'mensual' | null;
   /** Días que cubre el grant (expires_at menos starts_at); null si no vence o falta. */
   diasGrant: number | null;
+  /**
+   * 20-sep-2026: las fechas crudas del grant vigente, para que "Tu servicio"
+   * (Ajustes) diga desde cuándo y hasta cuándo sin volver a consultar.
+   * `expiresAt` null = sin vencimiento.
+   */
+  startsAt: string | null;
+  expiresAt: string | null;
   noSePudoLeer: boolean;
 }
 
@@ -137,7 +144,7 @@ export async function fetchOrigenMembresia(userId: string): Promise<OrigenMembre
       .or(`expires_at.is.null,expires_at.gt.${ahora}`)
       .order('created_at', { ascending: false })
       .limit(1);
-    if (error) return { productId: null, codeSource: null, plan: null, diasGrant: null, noSePudoLeer: true };
+    if (error) return { productId: null, codeSource: null, plan: null, diasGrant: null, startsAt: null, expiresAt: null, noSePudoLeer: true };
     const fila = Array.isArray(data) && data.length > 0 ? data[0] : null;
     const meta = (fila?.metadata ?? {}) as Record<string, unknown>;
     const plan = meta.plan === 'anual' || meta.plan === 'mensual' ? meta.plan : null;
@@ -146,10 +153,12 @@ export async function fetchOrigenMembresia(userId: string): Promise<OrigenMembre
       codeSource: typeof meta.code_source === 'string' ? meta.code_source : null,
       plan,
       diasGrant: diasEntre(fila?.starts_at ?? null, fila?.expires_at ?? null),
+      startsAt: typeof fila?.starts_at === 'string' ? fila.starts_at : null,
+      expiresAt: typeof fila?.expires_at === 'string' ? fila.expires_at : null,
       noSePudoLeer: false,
     };
   } catch {
-    return { productId: null, codeSource: null, plan: null, diasGrant: null, noSePudoLeer: true };
+    return { productId: null, codeSource: null, plan: null, diasGrant: null, startsAt: null, expiresAt: null, noSePudoLeer: true };
   }
 }
 

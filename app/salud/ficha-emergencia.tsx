@@ -419,7 +419,7 @@ export default function FichaEmergenciaScreen() {
         </EliteText>
 
         <EliteText variant="caption" style={s.disclaimer}>
-          Datos capturados por ti, sin validación clínica. Las intervenciones de un protocolo ATP
+          Datos capturados por ti, sin validación clínica. Las prácticas de un plan ATP
           no son prescripción médica.
         </EliteText>
         <View style={{ height: Spacing.xxl }} />

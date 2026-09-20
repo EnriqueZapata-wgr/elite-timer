@@ -26,6 +26,8 @@ import { haptic } from '@/src/utils/haptics';
 import { Colors, Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, CATEGORY_COLORS, TEXT_COLORS } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { useColchonOrbe } from '@/src/components/argos/useColchonOrbe';
+import { paddingBottomConColchon } from '@/src/components/argos/argos-floating-core';
 
 const COACH_TEAL = CATEGORY_COLORS.metrics;
 
@@ -35,6 +37,9 @@ export default function SettingsConexionesScreen() {
   // TEXTO no llega en claro (regla 3 del manual 3.6) — ahí sube al teal
   // calibrado; como relleno lleva negro encima.
   const { kind, tokens } = useAppTheme();
+  // 20-sep-2026: colchón para la orbe de ARGOS (esta pantalla no usa <Screen>,
+  // que lo aplicaría solo). Gana el mayor, no la suma.
+  const colchonOrbe = useColchonOrbe();
   const dark = kind === 'dark';
   const tealTexto = dark ? COACH_TEAL : tokens.tealTexto;
   const [coachCode, setCoachCode] = useState<string | null>(null);
@@ -132,7 +137,7 @@ export default function SettingsConexionesScreen() {
     <View style={[ui.screenRoot, { backgroundColor: tokens.fondo }]}>
       <StatusBar style={dark ? 'light' : 'dark'} />
       <ScreenHeader title="Conexiones" onBack={() => router.back()} />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: paddingBottomConColchon(0, colchonOrbe) }}>
 
         {/* ══════ CONECTAR CON COACH ══════ */}
         <Animated.View entering={FadeInUp.delay(80).springify()}>
@@ -147,7 +152,7 @@ export default function SettingsConexionesScreen() {
                 value={connectCode}
                 onChangeText={t => setConnectCode(t.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
                 placeholder="ABC123"
-                placeholderTextColor={tokens.sinDatos}
+                placeholderTextColor={tokens.textoTenue}
                 maxLength={6}
                 autoCapitalize="characters"
               />
@@ -269,7 +274,7 @@ export default function SettingsConexionesScreen() {
             {/* Una integración, todas las fuentes: cualquier app o reloj que
                 escriba en la plataforma de salud del sistema llega por aquí,
                 sin integrar cada marca por separado. */}
-            <EliteText variant="caption" style={[styles.wearableCompatible, { color: dark ? tokens.sinDatos : tokens.textoSecundario }]}>
+            <EliteText variant="caption" style={[styles.wearableCompatible, { color: dark ? tokens.textoTenue : tokens.textoSecundario }]}>
               Llega lo que escriban ahí tu reloj y tus apps de salud
             </EliteText>
           </View>

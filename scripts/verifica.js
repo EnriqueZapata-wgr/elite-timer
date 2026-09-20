@@ -6,6 +6,16 @@ let fallas = 0, avisos = 0;
 const PROSA = /\p{L}{2}[^'"`]{0,120}—[^'"`]{0,120}\p{L}{2}/u;
 const CADENAS = /(['"`])((?:(?!\1).)*)\1/g;
 const REGISTROS = ['app-registry.ts', 'hoy-cards.ts', 'salud-puertas.ts', 'app-icon-names.ts', 'argos-hub.ts'];
+// sinDatos es el glifo de "sin dato", nunca tinta de texto ni placeholder. Se caza
+// con los tres alias de tokens de la casa (t, tk, tokens), como color directo
+// y en cualquier rama de un ternario (`color: c ? x.sinDatos : y` / `: x.sinDatos`).
+// 20-sep-2026 (ronda de arreglos): antes solo t/tokens y solo el uso directo.
+const ALIAS_TOKENS = '(?:t|tk|tokens)';
+const SIN_DATOS_TINTA = [
+  new RegExp(`\\bcolor:\\s*${ALIAS_TOKENS}\\.sinDatos\\b`),
+  new RegExp(`\\bcolor:\\s*[^,;{}]*\\?[^,;{}]*\\b${ALIAS_TOKENS}\\.sinDatos\\b`),
+  new RegExp(`placeholderTextColor=\\{[^}]*\\b${ALIAS_TOKENS}\\.sinDatos\\b`),
+];
 for (const f of process.argv.slice(2)) {
   if (!fs.existsSync(f)) { console.log(`FALLA ${f}: no existe`); fallas++; continue; }
   const src = fs.readFileSync(f, 'utf8');
@@ -28,7 +38,7 @@ for (const f of process.argv.slice(2)) {
         if (m[2].includes('—') && PROSA.test(m[2])) { console.log(`FALLA ${f}:${i + 1} em dash en copy: ${m[2].trim().slice(0, 80)}`); fallas++; break; }
       }
     }
-    if (/\bcolor:\s*(t|tokens)\.sinDatos\b/.test(linea) || /placeholderTextColor=\{(t|tokens)\.sinDatos\}/.test(linea)) {
+    if (!comentario && SIN_DATOS_TINTA.some((re) => re.test(linea))) {
       console.log(`FALLA ${f}:${i + 1} sinDatos como tinta`); fallas++;
     }
     if (esTs && /\bas any\b/.test(linea) && !comentario) { console.log(`AVISO ${f}:${i + 1} as any`); avisos++; }

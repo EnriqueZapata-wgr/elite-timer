@@ -284,7 +284,7 @@ export default function DiagnosticoScreen() {
                     <EliteText style={styles.summaryEmpty}>
                       {puedeGenerar !== false
                         ? 'Aún no tienes un mapa funcional. Genera el primero para que ARGOS sintetice tus raíces funcionales desde tus datos.'
-                        : 'Aún no tienes un mapa funcional. Está incluido en el plan anual: ARGOS sintetiza tus raíces funcionales desde tus datos.'}
+                        : 'Aún no tienes un mapa funcional. Cuando esté disponible para ti, ARGOS sintetiza tus raíces funcionales desde tus datos.'}
                     </EliteText>
                   )}
                 </View>

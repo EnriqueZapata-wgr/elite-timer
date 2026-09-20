@@ -319,7 +319,7 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
                 </View>
               )}
 
-              <Text style={{ color: t.sinDatos, fontSize: 10, lineHeight: 15, marginBottom: 16, textAlign: 'center' }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 10, lineHeight: 15, marginBottom: 16, textAlign: 'center' }}>
                 Esto es tu registro. No es recomendación. Es responsabilidad de quien te lo indicó.
               </Text>
 

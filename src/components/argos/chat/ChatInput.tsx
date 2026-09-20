@@ -35,7 +35,7 @@ export function ChatInput({ value, onChangeText, onSend, loading, offline, botto
         value={value}
         onChangeText={onChangeText}
         placeholder="Pregunta a ARGOS..."
-        placeholderTextColor={t.sinDatos}
+        placeholderTextColor={t.textoTenue}
         multiline
         maxLength={1000}
         style={s.input}

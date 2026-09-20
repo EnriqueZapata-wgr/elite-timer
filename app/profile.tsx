@@ -312,7 +312,7 @@ export default function ProfileScreen() {
             <TextInput
               style={styles.input}
               placeholder="Tu nombre"
-              placeholderTextColor={t.sinDatos}
+              placeholderTextColor={t.textoTenue}
               value={name}
               onChangeText={setName}
               autoCapitalize="words"
@@ -326,21 +326,21 @@ export default function ProfileScreen() {
             <View style={styles.dateRow}>
               <TextInput
                 style={[styles.input, styles.dateInput]}
-                placeholder="DD" placeholderTextColor={t.sinDatos}
+                placeholder="DD" placeholderTextColor={t.textoTenue}
                 value={day} onChangeText={(t) => setDay(t.replace(/\D/g, '').slice(0, 2))}
                 keyboardType="number-pad" maxLength={2}
               />
               <EliteText style={styles.dateSep}>/</EliteText>
               <TextInput
                 style={[styles.input, styles.dateInput]}
-                placeholder="MM" placeholderTextColor={t.sinDatos}
+                placeholder="MM" placeholderTextColor={t.textoTenue}
                 value={month} onChangeText={(t) => setMonth(t.replace(/\D/g, '').slice(0, 2))}
                 keyboardType="number-pad" maxLength={2}
               />
               <EliteText style={styles.dateSep}>/</EliteText>
               <TextInput
                 style={[styles.input, styles.dateInputYear]}
-                placeholder="AAAA" placeholderTextColor={t.sinDatos}
+                placeholder="AAAA" placeholderTextColor={t.textoTenue}
                 value={year} onChangeText={(t) => setYear(t.replace(/\D/g, '').slice(0, 4))}
                 keyboardType="number-pad" maxLength={4}
               />
@@ -415,7 +415,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   ageText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
   ageHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.textoTenue, textAlign: 'center' },
   inputLabel: { fontSize: 10, fontFamily: Fonts.semiBold, color: t.textoSecundario, letterSpacing: 2, marginTop: 24, marginBottom: 8 },
-  inputHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.sinDatos, marginTop: -4, marginBottom: 8 },
+  inputHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: t.textoSecundario, marginTop: -4, marginBottom: 8 },
   input: {
     backgroundColor: t.hundido, borderRadius: Radius.lg, paddingHorizontal: 16, paddingVertical: 14,
     fontSize: FontSizes.md, fontFamily: Fonts.regular, color: t.texto, borderWidth: 0.5, borderColor: t.borde,
@@ -423,7 +423,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dateInput: { flex: 1, textAlign: 'center' },
   dateInputYear: { flex: 1.5, textAlign: 'center' },
-  dateSep: { fontSize: FontSizes.lg, fontFamily: Fonts.regular, color: t.sinDatos },
+  dateSep: { fontSize: FontSizes.lg, fontFamily: Fonts.regular, color: t.textoTenue },
   sexRow: { flexDirection: 'row', gap: 12 },
   sexBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,

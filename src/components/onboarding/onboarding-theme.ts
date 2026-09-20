@@ -24,11 +24,11 @@ export function useOnboardingTheme() {
     sub: { color: tokens.textoSecundario } as const,
     /** Texto apagado (era #666: el gris canónico de PILL). */
     subTenue: { color: dark ? PILL.textColor : tokens.textoSecundario } as const,
-    /** Hint mínimo (era #444). */
-    hint: { color: tokens.sinDatos } as const,
+    /** Hint mínimo (era #444). 20-sep-2026: sinDatos nunca es tinta ni placeholder. */
+    hint: { color: tokens.textoSecundario } as const,
     /** Campo de captura (era #0a0a0a / #222 / #fff). */
     input: { backgroundColor: tokens.hundido, borderColor: tokens.borde, color: tokens.texto } as const,
-    placeholder: tokens.sinDatos,
+    placeholder: tokens.textoTenue,
     /** CTA deshabilitado (era #1a1a1a = PILL.borderColor). */
     ctaDisabled: { backgroundColor: dark ? PILL.borderColor : tokens.hundido } as const,
     /** Flecha del CTA deshabilitado (era #666). */

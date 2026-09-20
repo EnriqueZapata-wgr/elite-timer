@@ -36,9 +36,11 @@ export const NOTIFICATION_PREFS_DEFAULTS: NotificationPrefs = {
 // Adaptive ARGOS sobre un modo que nunca estuvo gateado, y con una sola membresía
 // no queda nada que etiquetar.
 export const MODE_META: { value: NotificationMode; title: string; description: string }[] = [
-  { value: 'standard', title: 'Standard', description: 'Notificaciones normales según tus toggles.' },
-  { value: 'adaptive_argos', title: 'Adaptive ARGOS', description: 'ARGOS decide cuándo notificar, menos ruido y más relevancia.' },
-  { value: 'silent', title: 'Silent', description: 'Solo notificaciones críticas del sistema.' },
+  // 20-sep-2026: los tres modos se llamaban Standard, Adaptive ARGOS y Silent.
+  // Inglés suelto en una pantalla en español; los valores guardados no cambian.
+  { value: 'standard', title: 'Normal', description: 'Notificaciones normales según lo que actives abajo.' },
+  { value: 'adaptive_argos', title: 'ARGOS adaptativo', description: 'ARGOS decide cuándo avisarte: menos ruido y más relevancia.' },
+  { value: 'silent', title: 'Silencio', description: 'Solo avisos críticos del sistema.' },
 ];
 
 export const CHANNEL_META: { key: NotificationChannel; column: keyof NotificationPrefs; title: string; description: string }[] = [

@@ -269,8 +269,9 @@ export default function PadecimientosScreen() {
                                 </Pressable>
                               )}
                               <Pressable onPress={() => onDelete(v)} style={styles.pedActionBtn} hitSlop={6}>
-                                <Ionicons name="trash-outline" size={14} color={t.sinDatos} />
-                                <EliteText style={[styles.pedActionText, { color: t.sinDatos }]}>Eliminar</EliteText>
+                                {/* 20-sep-2026: sinDatos no es tinta; una acción no puede ser invisible. */}
+                                <Ionicons name="trash-outline" size={14} color={t.textoSecundario} />
+                                <EliteText style={[styles.pedActionText, { color: t.textoSecundario }]}>Eliminar</EliteText>
                               </Pressable>
                             </View>
                           </View>
@@ -298,7 +299,7 @@ export default function PadecimientosScreen() {
                   value={fName}
                   onChangeText={setFName}
                   placeholder="¿Qué padecimiento? (ej. gripe, gastritis)"
-                  placeholderTextColor={t.sinDatos}
+                  placeholderTextColor={t.textoTenue}
                   style={styles.input}
                   maxLength={80}
                   autoFocus
@@ -327,7 +328,7 @@ export default function PadecimientosScreen() {
                   value={fStartedOn}
                   onChangeText={setFStartedOn}
                   placeholder="AAAA-MM-DD"
-                  placeholderTextColor={t.sinDatos}
+                  placeholderTextColor={t.textoTenue}
                   style={styles.input}
                   maxLength={10}
                   keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
@@ -366,7 +367,7 @@ export default function PadecimientosScreen() {
                   value={fNotes}
                   onChangeText={setFNotes}
                   placeholder="Notas opcionales (manejo, contexto)…"
-                  placeholderTextColor={t.sinDatos}
+                  placeholderTextColor={t.textoTenue}
                   style={[styles.input, { minHeight: 60 }]}
                   maxLength={500}
                   multiline

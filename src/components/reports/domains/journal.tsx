@@ -146,7 +146,7 @@ function JournalContent({ data, reload }: { data: JournalReportData; reload: () 
           value={search}
           onChangeText={setSearch}
           placeholder="Buscar en tus entradas…"
-          placeholderTextColor={t.sinDatos}
+          placeholderTextColor={t.textoTenue}
           returnKeyType="search"
         />
         {search.length > 0 && (
@@ -252,7 +252,7 @@ function JournalContent({ data, reload }: { data: JournalReportData; reload: () 
               multiline
               autoFocus
               placeholder="Escribe…"
-              placeholderTextColor={t.sinDatos}
+              placeholderTextColor={t.textoTenue}
             />
             <View style={s.modalActions}>
               <AnimatedPressable onPress={() => setEditing(null)} style={s.modalBtnSecondary}>

@@ -245,7 +245,7 @@ export function FeedbackButton() {
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Describe el problema o sugerencia..."
-                placeholderTextColor={t.sinDatos}
+                placeholderTextColor={t.textoTenue}
                 multiline
                 numberOfLines={4}
                 style={{
@@ -263,7 +263,7 @@ export function FeedbackButton() {
                 value={expected}
                 onChangeText={setExpected}
                 placeholder="Qué debería haber pasado..."
-                placeholderTextColor={t.sinDatos}
+                placeholderTextColor={t.textoTenue}
                 multiline
                 numberOfLines={2}
                 style={{

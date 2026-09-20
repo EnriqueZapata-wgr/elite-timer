@@ -15,7 +15,7 @@ import {
   GLUCOSE_CONTEXT_NAMES, GLUCOSE_MIN_MG_DL, GLUCOSE_MAX_MG_DL,
 } from '../glucose-core';
 
-describe('classifyGlucose — en ayuno', () => {
+describe('classifyGlucose: en ayuno', () => {
   it('por debajo de 70 es bajo (y 70 ya no lo es)', () => {
     expect(classifyGlucose(69, 'fasting').estado).toBe('bajo');
     expect(classifyGlucose(70, 'fasting').estado).toBe('normal');
@@ -33,7 +33,7 @@ describe('classifyGlucose — en ayuno', () => {
   });
 });
 
-describe('classifyGlucose — fuera de ayuno', () => {
+describe('classifyGlucose: fuera de ayuno', () => {
   const otros = ['pre_meal', 'post_meal_1h', 'post_meal_2h', 'random', 'bedtime'];
 
   it('por debajo de 140 es normal en todos los contextos no-ayuno', () => {
@@ -64,7 +64,7 @@ describe('classifyGlucose — fuera de ayuno', () => {
   });
 });
 
-describe('classifyGlucose — etiqueta visible', () => {
+describe('classifyGlucose: etiqueta visible', () => {
   it('cada estado trae su label en español', () => {
     expect(classifyGlucose(60, 'fasting').label).toBe('Bajo');
     expect(classifyGlucose(90, 'fasting').label).toBe('Normal');
@@ -104,9 +104,9 @@ describe('glucoseContextName', () => {
     expect(Object.keys(GLUCOSE_CONTEXT_NAMES)).toHaveLength(6);
   });
 
-  it('un registro viejo sin contexto se lee como Random, no vacío', () => {
-    expect(glucoseContextName(null)).toBe('Random');
-    expect(glucoseContextName(undefined)).toBe('Random');
+  it('un registro viejo sin contexto se lee como Al azar, no vacío', () => {
+    expect(glucoseContextName(null)).toBe('Al azar');
+    expect(glucoseContextName(undefined)).toBe('Al azar');
   });
 
   it('un contexto desconocido se muestra tal cual (nunca en blanco)', () => {

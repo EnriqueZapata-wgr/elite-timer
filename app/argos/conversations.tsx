@@ -171,7 +171,7 @@ export default function ArgosConversationsScreen() {
           value={query}
           onChangeText={setQuery}
           placeholder="Buscar en tus conversaciones..."
-          placeholderTextColor={t.sinDatos}
+          placeholderTextColor={t.textoTenue}
           style={s.searchInput}
           autoCorrect={false}
         />
@@ -278,7 +278,7 @@ export default function ArgosConversationsScreen() {
               onChangeText={setDraftTitle}
               style={s.modalInput}
               placeholder="Título"
-              placeholderTextColor={t.sinDatos}
+              placeholderTextColor={t.textoTenue}
               maxLength={80}
               autoFocus
             />
@@ -336,7 +336,7 @@ const makeStyles = (t: AppThemeTokens) => {
     },
     newBtnText: { color: t.textoSobreLima, fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 1 },
     empty: {
-      color: t.sinDatos, fontSize: FontSizes.sm, fontFamily: Fonts.regular,
+      color: t.textoSecundario, fontSize: FontSizes.sm, fontFamily: Fonts.regular,
       textAlign: 'center', marginTop: Spacing.xl, lineHeight: 20,
     },
     groupLabel: {
@@ -363,7 +363,7 @@ const makeStyles = (t: AppThemeTokens) => {
       color: accent, fontSize: 8, fontFamily: Fonts.bold, letterSpacing: 1,
     },
     rowPreview: { color: t.textoSecundario, fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
-    rowDate: { color: t.sinDatos, fontSize: 10, fontFamily: Fonts.regular, marginTop: 3 },
+    rowDate: { color: t.textoSecundario, fontSize: 10, fontFamily: Fonts.regular, marginTop: 3 },
     moreBtn: {
       alignItems: 'center', justifyContent: 'center',
       borderWidth: 1, borderColor: t.borde, borderRadius: Radius.lg,

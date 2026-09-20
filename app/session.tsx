@@ -172,7 +172,7 @@ function StandardBlockRunner({ block, onCue, onDone, onSetLogged, initialLogged 
                   onChangeText={setDistancia}
                   keyboardType="decimal-pad"
                   placeholder="0"
-                  placeholderTextColor={tk.sinDatos}
+                  placeholderTextColor={tk.textoTenue}
                   maxLength={5}
                 />
               </View>
@@ -187,7 +187,7 @@ function StandardBlockRunner({ block, onCue, onDone, onSetLogged, initialLogged 
                   onChangeText={setPeso}
                   keyboardType="decimal-pad"
                   placeholder="0"
-                  placeholderTextColor={tk.sinDatos}
+                  placeholderTextColor={tk.textoTenue}
                   maxLength={6}
                 />
               </View>
@@ -199,7 +199,7 @@ function StandardBlockRunner({ block, onCue, onDone, onSetLogged, initialLogged 
                   onChangeText={setReps}
                   keyboardType="number-pad"
                   placeholder="0"
-                  placeholderTextColor={tk.sinDatos}
+                  placeholderTextColor={tk.textoTenue}
                   maxLength={3}
                 />
               </View>

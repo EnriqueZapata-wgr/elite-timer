@@ -221,7 +221,7 @@ function RachasTab({ data, s, t }: { data: AdherenciaReportData; s: Styles; t: A
                           isNew && s.medalNew,
                         ]}
                       >
-                        <EliteText style={[s.medalText, { color: earned ? acento : t.sinDatos }]}>
+                        <EliteText style={[s.medalText, { color: earned ? acento : t.textoTenue }]}>
                           {tier.tier}
                         </EliteText>
                       </View>
@@ -253,7 +253,7 @@ export function AdherenciaResumen({ avgPct, streak }: { avgPct: number; streak: 
     <>
       <SectionHeader icon={META.icon} color={META.accent} title="ADHERENCIA" />
       <StatsRow>
-        <Stat value={avgPct > 0 ? `${avgPct}%` : '—'} label="compliance" />
+        <Stat value={avgPct > 0 ? `${avgPct}%` : '—'} label="adherencia" />
         <Stat value={streak != null ? `${streak}` : '—'} label="racha" />
       </StatsRow>
     </>

@@ -60,7 +60,9 @@ import { haptic } from '@/src/utils/haptics';
 const cardTheme = (t: AppThemeTokens) => ({ backgroundColor: t.card, borderColor: t.borde });
 const chipTheme = (t: AppThemeTokens) =>
   t.kind === 'dark' ? null : { backgroundColor: t.hundido, borderColor: t.borde };
-const hintColor = (t: AppThemeTokens) => (t.kind === 'dark' ? t.sinDatos : t.textoSecundario);
+// 20-sep-2026 (ronda de arreglos): `sinDatos` es el glifo de sin dato, nunca
+// tinta de texto; el hint lleva la tenue en los dos temas (como `tenue`).
+const hintColor = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
 const tenue = (t: AppThemeTokens) => (t.kind === 'dark' ? t.textoTenue : t.textoSecundario);
 
 const WATER_PRESETS_ML = [1500, 2000, 2500, 3000, 3500];

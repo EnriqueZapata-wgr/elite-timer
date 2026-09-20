@@ -39,7 +39,7 @@ const CONTEXTS = [
   { id: 'fasting',       name: 'Ayuno',          icon: 'moon-outline' as const },
   { id: 'post_meal',     name: 'Post-comida',    icon: 'restaurant-outline' as const },
   { id: 'post_exercise', name: 'Post-ejercicio', icon: 'fitness-outline' as const },
-  { id: 'random',        name: 'Random',         icon: 'shuffle-outline' as const },
+  { id: 'random',        name: 'Al azar',        icon: 'shuffle-outline' as const },
   { id: 'bedtime',       name: 'Antes dormir',   icon: 'bed-outline' as const },
 ];
 
@@ -200,7 +200,7 @@ export default function KetonesLogScreen() {
                 onChangeText={setValue}
                 keyboardType="decimal-pad"
                 placeholder={source === 'breath' ? '12' : '1.5'}
-                placeholderTextColor={t.sinDatos}
+                placeholderTextColor={t.textoTenue}
                 maxLength={5}
               />
               {previewStatus && (
@@ -241,7 +241,7 @@ export default function KetonesLogScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder="Día 3 de ayuno..."
-            placeholderTextColor={t.sinDatos}
+            placeholderTextColor={t.textoTenue}
             multiline
           />
         </Animated.View>

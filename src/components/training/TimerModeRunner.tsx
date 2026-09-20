@@ -131,6 +131,11 @@ export function TimerModeRunner({ routine }: { routine: EngineRoutine }) {
         // C-2 (MB-12): supabase-js NO lanza en 4xx — sin leer { error }, el
         // electrón se otorgaba por una sesión que no existe y el reconcile se
         // lo quitaba después. El premio SOLO tras insert confirmado.
+        // 20-sep-2026: esta fila es la que hace que el hub de Fitness marque
+        // el día como entrenado y sume la semana (today-session-core cuenta
+        // cardio_sessions junto a workout_sessions). El prefijo de `notes`
+        // ("<nombre de la rutina> · ") es CONTRATO: con él el hub reconoce
+        // que la rutina agendada para hoy ya se corrió en modo timer.
         const { error } = await supabase.from('cardio_sessions').insert({
           id: generateUUID(),
           user_id: user.id,

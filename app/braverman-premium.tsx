@@ -99,14 +99,15 @@ export default function BravermanPremiumScreen() {
   return (
     <MedicalDisclaimerGate>
     <Screen edges={[]} themed>
-      <ScreenHeader title="Reporte Premium" onBack={() => router.back()} />
+      {/* 20-sep-2026: "Premium" era rastro de venta; el reporte es el completo. */}
+      <ScreenHeader title="Reporte completo" onBack={() => router.back()} />
 
       {/* Card previa: qué vas a recibir y que tarda un rato. Sin precio. */}
       {state === 'offer' && quote && (
         <View style={styles.lockContainer}>
           <Animated.View entering={FadeInUp.delay(60).springify()} style={styles.lockCard}>
             <EliteText style={{ fontSize: 44 }}>🧠</EliteText>
-            <EliteText style={styles.lockTitle}>Reporte Premium · Braverman</EliteText>
+            <EliteText style={styles.lockTitle}>Reporte completo · Braverman</EliteText>
             <EliteText style={styles.lockBody}>
               Análisis ARGOS de tu naturaleza neurotransmisora: proporciones
               exactas, fortalezas, vulnerabilidades y un plan específico de
@@ -141,7 +142,7 @@ export default function BravermanPremiumScreen() {
           <EliteText style={{ fontSize: 40 }}>🧬</EliteText>
           <EliteText style={styles.lockTitle}>Primero el test</EliteText>
           <EliteText style={styles.lockBody}>
-            El reporte premium se construye sobre tu test de Braverman completo.
+            El reporte completo se construye sobre tu test de Braverman terminado.
           </EliteText>
           <AnimatedPressable
             onPress={() => { haptic.medium(); router.push('/braverman'); }}
@@ -169,7 +170,7 @@ export default function BravermanPremiumScreen() {
           <Animated.View entering={FadeInUp.springify()}>
             <View style={styles.badgeRow}>
               <View style={styles.reportBadge}>
-                <EliteText style={styles.reportBadgeText}>ANÁLISIS ARGOS · PREMIUM</EliteText>
+                <EliteText style={styles.reportBadgeText}>ANÁLISIS ARGOS · COMPLETO</EliteText>
               </View>
               {/* #143: comunica cache permanente — releer nunca vuelve a costar */}
               <View style={styles.ownedBadge}>

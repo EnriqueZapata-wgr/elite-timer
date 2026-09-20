@@ -211,7 +211,7 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
             value={search}
             onChangeText={setSearch}
             placeholder="Buscar cliente..."
-            placeholderTextColor={t.sinDatos}
+            placeholderTextColor={tenue}
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch('')}>
@@ -280,7 +280,7 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
                 value={inviteEmail}
                 onChangeText={setInviteEmail}
                 placeholder="correo@ejemplo.com"
-                placeholderTextColor={t.sinDatos}
+                placeholderTextColor={tenue}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
@@ -292,7 +292,7 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
                 value={inviteName}
                 onChangeText={setInviteName}
                 placeholder="Nombre del cliente"
-                placeholderTextColor={t.sinDatos}
+                placeholderTextColor={tenue}
               />
             </View>
             {inviteError ? (

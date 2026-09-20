@@ -23,6 +23,7 @@ import {
   redeemActivationCode,
   type RedeemCodeResult,
 } from '@/src/services/subscription/subscription-service';
+import { etiquetaMembresia } from '@/src/services/subscription/tier-logic';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
@@ -142,7 +143,14 @@ export default function RedeemCodeScreen() {
           <Animated.View entering={FadeInUp.springify()} style={styles.successCard}>
             <Ionicons name="checkmark-circle" size={28} color={ATP_BRAND.lime} />
             <EliteText style={styles.successTitle}>
-              {`Listo. Tu membresía ${result.tier === 'elite' ? 'ATP Elite' : 'ATP Premium'} ya está activa.`}
+              {/* 20-sep-2026: es la primera frase que lee quien canjea su código.
+                  "Membresía" y "Premium" son lenguaje de tienda; aquí se activa
+                  un servicio contratado con ATP. Ronda de arreglos: el nombre
+                  sale de `etiquetaMembresia` (una sola fuente; ya no dice "Pro").
+                  El RPC puede devolver un valor histórico distinto de
+                  'elite'/'premium', así que todo lo que no es elite se lee como
+                  el peldaño completo, igual que antes. */}
+              {`Listo. Tu acceso ${etiquetaMembresia(result.tier === 'elite' ? 'elite' : 'premium')} ya está activo.`}
             </EliteText>
             <EliteText style={styles.successDetail}>
               {result.expiresAt

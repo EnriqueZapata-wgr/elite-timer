@@ -115,7 +115,7 @@ type SectionKey = typeof SECTION_KEYS[number];
 const SECTION_NAMES: Record<SectionKey, string> = {
   calendario: 'Calendario', electrones: 'Electrones', nutricion: 'Nutrición',
   hidratacion: 'Hidratación', ayuno: 'Ayuno', ejercicio: 'Ejercicio',
-  glucosa: 'Glucosa', compliance: 'Compliance', mente: 'Mente',
+  glucosa: 'Glucosa', compliance: 'Adherencia', mente: 'Mente',
   journal: 'Journal', emociones: 'Emociones', nback: 'N-Back', ciclo: 'Ciclo',
   labs: 'Labs', expediente: 'Expediente',
 };
@@ -508,7 +508,7 @@ export default function ReportsScreen() {
             <SectionHeader icon="document-text-outline" color={ATP_BRAND.teal} title="PARA TU CONSULTA" />
             <EliteText style={s.consultaBody}>
               Un PDF con lo que registraste en el rango que elijas: mediciones, laboratorios,
-              síntomas e intervenciones. Sin interpretar nada: la lectura la hace tu médico.
+              síntomas y prácticas. Sin interpretar nada: la lectura la hace tu médico.
             </EliteText>
             <View style={s.consultaRangeRow}>
               {CONSULTA_RANGES.map((d) => (

@@ -88,8 +88,18 @@ export function esElite(tier: Tier): boolean {
   return tier === 'elite';
 }
 
-/** Etiqueta de la membresía para pantallas de cuenta y suscripción. */
+/**
+ * Etiqueta del nivel para Ajustes > Tu servicio.
+ * 20-sep-2026: decía "ATP Premium" y "Sin membresía". "Premium" y "membresía"
+ * son lenguaje de tienda y un cliente Elite no compró en ninguna; quien no
+ * tiene nada activo lee "Sin servicio activo", que es lo que es.
+ * Ronda de arreglos (20-sep-2026, decisión tomada, reversible por el dueño):
+ * el peldaño `premium` tampoco se llama "ATP Pro" en pantalla. "Pro" es un
+ * nombre de plan de tienda (rastro de venta, y con VENTA_AL_PUBLICO apagada
+ * no hay nada que vender). La etiqueta es "ATP completo", con el mismo
+ * criterio que "Reporte completo": dice lo que tiene, no lo que pagó.
+ */
 export function etiquetaMembresia(tier: Tier): string {
   if (tier === 'elite') return 'ATP Elite';
-  return tier === 'premium' ? 'ATP Premium' : 'Sin membresía';
+  return tier === 'premium' ? 'ATP completo' : 'Sin servicio activo';
 }

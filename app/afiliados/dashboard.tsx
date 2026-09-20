@@ -253,7 +253,7 @@ export default function AfiliadosDashboardScreen() {
       <Animated.View entering={FadeInUp.delay(290).springify()}>
         <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Historial de payouts</SectionTitle>
         {payouts.length === 0 && (
-          <EliteText style={{ color: t.sinDatos, fontSize: FontSizes.sm, fontFamily: Fonts.regular }}>
+          <EliteText style={{ color: t.textoSecundario, fontSize: FontSizes.sm, fontFamily: Fonts.regular }}>
             Aún no hay payouts. Las comisiones se pagan mes vencido.
           </EliteText>
         )}

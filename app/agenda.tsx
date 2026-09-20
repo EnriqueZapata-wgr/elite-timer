@@ -304,7 +304,7 @@ export default function AgendaScreen() {
         <View style={styles.center}>
           <Ionicons name="calendar-outline" size={48} color={dark ? 'rgba(255,255,255,0.2)' : tokens.sinDatos} />
           <EliteText style={[styles.emptyTitle, { color: tokens.texto }]}>Sin eventos hoy</EliteText>
-          <EliteText style={[styles.emptyText, !dark && { color: tokens.textoSecundario }]}>Crea tu primer evento con el botón +, o configura tu protocolo y cronotipo para auto-generarlos.</EliteText>
+          <EliteText style={[styles.emptyText, !dark && { color: tokens.textoSecundario }]}>Crea tu primer evento con el botón +. Con tu plan y tu cronotipo configurados, ATP los genera solo.</EliteText>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>

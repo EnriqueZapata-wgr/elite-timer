@@ -168,7 +168,7 @@ export default function SintomasScreen() {
                   value={tag}
                   onChangeText={setTag}
                   placeholder="Otro síntoma (texto libre)…"
-                  placeholderTextColor={t.sinDatos}
+                  placeholderTextColor={t.textoTenue}
                   style={styles.input}
                   maxLength={60}
                 />
@@ -197,7 +197,7 @@ export default function SintomasScreen() {
                   value={note}
                   onChangeText={setNote}
                   placeholder="Nota opcional (ej. después de comer)…"
-                  placeholderTextColor={t.sinDatos}
+                  placeholderTextColor={t.textoTenue}
                   style={styles.input}
                   maxLength={280}
                 />

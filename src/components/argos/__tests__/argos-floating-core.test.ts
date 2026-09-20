@@ -7,6 +7,9 @@ import {
   shouldHideFloatingButton,
   tieneAccionAnclada,
   RUTAS_CON_ACCION_ANCLADA,
+  ORB_SAFE_BOTTOM,
+  colchonOrbe,
+  paddingBottomConColchon,
 } from '@/src/components/argos/argos-floating-core';
 
 const base = {
@@ -192,5 +195,63 @@ describe('shouldHideFloatingButton', () => {
     expect(
       shouldHideFloatingButton({ pathname: '/', keyboardVisible: false, manualHidden: false, introduced: false }),
     ).toBe(true);
+  });
+});
+
+/**
+ * 20-sep-2026: el colchón que <Screen> aplica por defecto al scroll para que
+ * la orbe no tape el último renglón. Antes era opt-in en 17 de 136 pantallas.
+ */
+describe('colchonOrbe (Screen por defecto)', () => {
+  const normal = { pathname: '/nutrition', manualHidden: false, introduced: true, insetBottom: 34, bordeInferiorSeguro: false };
+
+  it('la constante no se movió de valor al bajar al core', () => {
+    expect(ORB_SAFE_BOTTOM).toBe(140);
+  });
+
+  it('en una pantalla empujada suma el inset inferior: la orbe se dibuja sobre él', () => {
+    expect(colchonOrbe(normal)).toBe(140 + 34);
+  });
+
+  it('si el contenedor ya respeta el inset, no lo suma dos veces', () => {
+    expect(colchonOrbe({ ...normal, bordeInferiorSeguro: true })).toBe(140);
+  });
+
+  it('sin inset (Android con botones) es exactamente ORB_SAFE_BOTTOM', () => {
+    expect(colchonOrbe({ ...normal, insetBottom: 0 })).toBe(140);
+    expect(colchonOrbe({ ...normal, insetBottom: Number.NaN })).toBe(140);
+  });
+
+  it('cero donde la orbe no se pinta: salas, Mente, chat, onboarding, acción anclada, oculta, no presentada', () => {
+    expect(colchonOrbe({ ...normal, pathname: '/' })).toBe(0);
+    expect(colchonOrbe({ ...normal, pathname: '/salud' })).toBe(0);
+    expect(colchonOrbe({ ...normal, pathname: '/mente/player' })).toBe(0);
+    expect(colchonOrbe({ ...normal, pathname: '/argos-chat' })).toBe(0);
+    expect(colchonOrbe({ ...normal, pathname: '/onboarding/v2/welcome' })).toBe(0);
+    expect(colchonOrbe({ ...normal, pathname: '/profile' })).toBe(0);
+    expect(colchonOrbe({ ...normal, pathname: '/ficha-emergencia' })).toBe(0);
+    expect(colchonOrbe({ ...normal, manualHidden: true })).toBe(0);
+    expect(colchonOrbe({ ...normal, introduced: false })).toBe(0);
+  });
+
+  it('el editor de la ficha y las pantallas de Ajustes sí llevan colchón', () => {
+    expect(colchonOrbe({ ...normal, pathname: '/salud/ficha-emergencia' })).toBeGreaterThan(0);
+    expect(colchonOrbe({ ...normal, pathname: '/settings/subscription' })).toBeGreaterThan(0);
+  });
+});
+
+describe('paddingBottomConColchon (sin doble margen)', () => {
+  it('gana el mayor, nunca la suma: quien ya sumaba ORB_SAFE_BOTTOM a mano queda igual', () => {
+    expect(paddingBottomConColchon(40 + ORB_SAFE_BOTTOM, 174)).toBe(180);
+    expect(paddingBottomConColchon(ORB_SAFE_BOTTOM, 140)).toBe(140);
+  });
+  it('un paddingBottom chico sube justo hasta el colchón', () => {
+    expect(paddingBottomConColchon(40, 174)).toBe(174);
+    expect(paddingBottomConColchon(undefined, 174)).toBe(174);
+    expect(paddingBottomConColchon(Number.NaN, 174)).toBe(174);
+  });
+  it('con colchón cero no toca nada', () => {
+    expect(paddingBottomConColchon(40, 0)).toBe(40);
+    expect(paddingBottomConColchon(undefined, 0)).toBe(0);
   });
 });

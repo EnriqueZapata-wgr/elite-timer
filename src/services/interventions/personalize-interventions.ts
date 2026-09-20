@@ -461,7 +461,7 @@ export function buildSummarySentence(reasons: RationaleReason[], intervention: I
   const top = concrete.filter((r) => r.impact === 'high').slice(0, 3);
   const list = (top.length ? top : concrete.slice(0, 3)).map((r) => r.detail).join(' + ');
   return list
-    ? `Basado en tu ${list}, ATP prioriza esta intervención para ti.`
+    ? `Basado en tu ${list}, ATP prioriza esta práctica para ti.`
     : 'ATP la incluye como complemento válido para tu perfil general.';
 }
 
@@ -499,9 +499,10 @@ export function getCyclePhaseNote(intervention: Intervention, phenotype: UserPhe
 
   const phase = phenotype.cyclePhase.currentPhase;
   if (boost > 0) {
-    return `Ideal en tu fase ${phaseLabel(phase)} actual — máximo aprovechamiento. En lútea, escucha tu cuerpo y baja la intensidad.`;
+    // 20-sep-2026: sin em dashes en copy (regla de la casa).
+    return `Ideal en tu fase ${phaseLabel(phase)} actual: máximo aprovechamiento. En lútea, escucha tu cuerpo y baja la intensidad.`;
   }
-  return `Estás en fase ${phaseLabel(phase)} — reduce la intensidad o pospón a folicular. Prioriza recuperación.`;
+  return `Estás en fase ${phaseLabel(phase)}: reduce la intensidad o pospón a folicular. Prioriza recuperación.`;
 }
 
 function phaseLabel(phase: string): string {
@@ -564,7 +565,9 @@ export function categorizeBiomarkersByTier(biomarkers: string[]): SuggestedBioma
 export function buildContextNote(phenotype: UserPhenotype): string | undefined {
   const active = (phenotype.profile as any).activeInterventionCount as number | undefined;
   if (typeof active === 'number' && active >= 9) {
-    return `Trabajas ${active} intervenciones. ATP recomienda menos, mejor: considera pausar algunas para lograr consistencia real antes de agregar más.`;
+    // 20-sep-2026 (ronda de arreglos): copy de usuario dice "prácticas", nunca
+    // "intervenciones" (la palabra es del código, no de la pantalla).
+    return `Trabajas ${active} prácticas. ATP recomienda menos, mejor: considera pausar algunas para lograr consistencia real antes de agregar más.`;
   }
   return undefined;
 }

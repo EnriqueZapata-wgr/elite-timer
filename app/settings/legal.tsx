@@ -18,6 +18,8 @@ import { haptic } from '@/src/utils/haptics';
 import { MEDICAL_DISCLAIMER_VERSION } from '@/src/constants/medical-disclaimers';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { useColchonOrbe } from '@/src/components/argos/useColchonOrbe';
+import { paddingBottomConColchon } from '@/src/components/argos/argos-floating-core';
 import { StatusBar } from 'expo-status-bar';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
@@ -46,6 +48,9 @@ export default function SettingsLegalScreen() {
 
   // MB-31B: pantalla migrada — superficies y texto del tema.
   const { kind, tokens } = useAppTheme();
+  // 20-sep-2026: colchón para la orbe de ARGOS (esta pantalla no usa <Screen>,
+  // que lo aplicaría solo). Gana el mayor, no la suma.
+  const colchonOrbe = useColchonOrbe();
   const dark = kind === 'dark';
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -111,7 +116,7 @@ export default function SettingsLegalScreen() {
     <ThemeReady>
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.fondo }}
-      contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: 40 }}
+      contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: paddingBottomConColchon(40, colchonOrbe) }}
     >
       <StatusBar style={dark ? 'light' : 'dark'} />
       <View style={{ paddingTop: insets.top + 8, marginBottom: Spacing.md }}>

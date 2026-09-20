@@ -197,7 +197,7 @@ export default function ConsolaClienteScreen() {
             ))}
             {detalle.intervenciones.length === 0 && (
               <EliteText variant="caption" style={s.nota}>
-                No tiene intervenciones activas. Es lo primero que hay que cargarle.
+                No tiene prácticas activas. Es lo primero que hay que cargarle.
               </EliteText>
             )}
           </Card>

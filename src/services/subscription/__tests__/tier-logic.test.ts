@@ -105,8 +105,12 @@ describe('esMiembro, esElite y etiquetaMembresia', () => {
   it('los estados se nombran en español', () => {
     expect(esMiembro('premium')).toBe(true);
     expect(esMiembro('free')).toBe(false);
-    expect(etiquetaMembresia('premium')).toBe('ATP Premium');
-    expect(etiquetaMembresia('free')).toBe('Sin membresía');
+    // 20-sep-2026: sin "Premium" ni "membresía" en la etiqueta (lenguaje de tienda).
+    // 20-sep-2026 (ronda de arreglos): tampoco "Pro". Sin rastros de venta en
+    // pantalla: "Pro" es nombre de plan de tienda. Queda "ATP completo" (mismo
+    // criterio que "Reporte completo"). Decisión tomada, reversible por el dueño.
+    expect(etiquetaMembresia('premium')).toBe('ATP completo');
+    expect(etiquetaMembresia('free')).toBe('Sin servicio activo');
   });
 
   it('ATP 3.0: elite es miembro (incluye Pro) y solo elite es elite', () => {

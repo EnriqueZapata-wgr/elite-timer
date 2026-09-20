@@ -178,32 +178,32 @@ export default function AfiliadosAplicarScreen() {
 
           <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Tus datos</SectionTitle>
           <EliteText style={[s.label, secTxt]}>NOMBRE COMPLETO</EliteText>
-          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={fullName} onChangeText={setFullName} placeholder="Tu nombre" placeholderTextColor={t.sinDatos} autoCapitalize="words" />
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={fullName} onChangeText={setFullName} placeholder="Tu nombre" placeholderTextColor={t.textoTenue} autoCapitalize="words" />
           <EliteText style={[s.label, secTxt]}>EMAIL</EliteText>
-          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={email} onChangeText={setEmail} placeholder="tu@email.com" placeholderTextColor={t.sinDatos} keyboardType="email-address" autoCapitalize="none" />
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={email} onChangeText={setEmail} placeholder="tu@email.com" placeholderTextColor={t.textoTenue} keyboardType="email-address" autoCapitalize="none" />
           <EliteText style={[s.label, secTxt]}>TELÉFONO</EliteText>
-          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={phone} onChangeText={setPhone} placeholder="+52 ..." placeholderTextColor={t.sinDatos} keyboardType="phone-pad" />
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={phone} onChangeText={setPhone} placeholder="+52 ..." placeholderTextColor={t.textoTenue} keyboardType="phone-pad" />
           <EliteText style={[s.label, secTxt]}>ESPECIALIDAD</EliteText>
-          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={specialty} onChangeText={setSpecialty} placeholder="Ej. medicina funcional, CrossFit, nutrición…" placeholderTextColor={t.sinDatos} />
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={specialty} onChangeText={setSpecialty} placeholder="Ej. medicina funcional, CrossFit, nutrición…" placeholderTextColor={t.textoTenue} />
 
           {requiresCedula(vertical) && (
             <>
               <EliteText style={[s.label, secTxt]}>CÉDULA PROFESIONAL (OBLIGATORIA PARA CLÍNICOS)</EliteText>
-              <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={cedula} onChangeText={setCedula} placeholder="Número de cédula" placeholderTextColor={t.sinDatos} />
+              <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={cedula} onChangeText={setCedula} placeholder="Número de cédula" placeholderTextColor={t.textoTenue} />
             </>
           )}
           <EliteText style={[s.label, secTxt]}>RFC (FACTURACIÓN MÉXICO · OPCIONAL)</EliteText>
-          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={rfc} onChangeText={(t) => setRfc(t.toUpperCase())} placeholder="XXXX000000XXX" placeholderTextColor={t.sinDatos} autoCapitalize="characters" />
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={rfc} onChangeText={(t) => setRfc(t.toUpperCase())} placeholder="XXXX000000XXX" placeholderTextColor={t.textoTenue} autoCapitalize="characters" />
 
           <EliteText style={[s.label, secTxt]}>CUÉNTANOS DE TI ({bioWords}/150 PALABRAS)</EliteText>
           <TextInput
             style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }, s.textArea, bioWords > 150 && { borderColor: '#ef4444' }]}
             value={bio} onChangeText={setBio} multiline
             placeholder="Tu experiencia, a quién atiendes y por qué quieres ser afiliado ATP…"
-            placeholderTextColor={t.sinDatos}
+            placeholderTextColor={t.textoTenue}
           />
           <EliteText style={[s.label, secTxt]}>REDES / SITIO WEB (OPCIONAL)</EliteText>
-          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={social} onChangeText={setSocial} placeholder="instagram.com/tuperfil · tusitio.com" placeholderTextColor={t.sinDatos} autoCapitalize="none" />
+          <TextInput style={[s.input, { backgroundColor: t.hundido, color: t.texto, borderColor: t.borde }]} value={social} onChangeText={setSocial} placeholder="instagram.com/tuperfil · tusitio.com" placeholderTextColor={t.textoTenue} autoCapitalize="none" />
 
           <Pressable onPress={() => { haptic.light(); setAcceptTerms(a => !a); }} style={s.checkRow}>
             <View style={[s.checkbox, { borderColor: t.bordeMarcado }, acceptTerms && s.checkboxOn]}>

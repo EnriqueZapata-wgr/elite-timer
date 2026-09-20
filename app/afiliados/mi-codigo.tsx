@@ -131,7 +131,7 @@ export default function AfiliadosMiCodigoScreen() {
             </View>
           ))}
         </View>
-        <EliteText style={[s.funnelNote, { color: t.sinDatos }]}>
+        <EliteText style={[s.funnelNote, { color: t.textoSecundario }]}>
           Los clicks se cuentan cuando alguien abre tu landing; los signups cuando crean cuenta
           con tu código.
         </EliteText>
@@ -155,7 +155,7 @@ export default function AfiliadosMiCodigoScreen() {
             <View style={s.previewCta}>
               <EliteText style={s.previewCtaText}>EMPEZAR CON ATP</EliteText>
             </View>
-            <EliteText style={[s.previewFootnote, { color: t.sinDatos }]}>
+            <EliteText style={[s.previewFootnote, { color: t.textoSecundario }]}>
               Así verán tu invitación. El landing web (somosatp.com/{code?.code ?? 'CÓDIGO'}) se
               publica en la siguiente fase.
             </EliteText>

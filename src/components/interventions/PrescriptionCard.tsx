@@ -225,7 +225,7 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   tierTabActive: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderColor: withOpacity(ATP_BRAND.lime, 0.4) },
   tierTabText: { fontFamily: Fonts.semiBold, fontSize: 10, color: tenue(t) },
   tierTabTextActive: { color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto },
-  tierHint: { fontFamily: Fonts.regular, fontSize: 10, color: t.sinDatos, fontStyle: 'italic' },
+  tierHint: { fontFamily: Fonts.regular, fontSize: 10, color: t.textoSecundario, fontStyle: 'italic' },
   bioList: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: t.textoSecundario, lineHeight: 16 },
   cta: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,

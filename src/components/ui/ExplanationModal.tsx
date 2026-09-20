@@ -176,7 +176,7 @@ const makeStyles = (t: AppThemeTokens) => {
   disclaimer: {
     fontSize: 10,
     fontFamily: Fonts.regular,
-    color: dark ? t.sinDatos : t.textoSecundario,
+    color: dark ? t.textoTenue : t.textoSecundario,
     marginTop: Spacing.md,
     fontStyle: 'italic',
     textAlign: 'center',

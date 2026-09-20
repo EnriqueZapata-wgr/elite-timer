@@ -171,7 +171,7 @@ export default function OrdenarDiaScreen() {
             <EliteText style={s.caminoDesc}>
               {packRow && PACK_BY_KEY[packRow.pack_key]
                 ? `Quedan activos los hábitos de ${PACK_BY_KEY[packRow.pack_key].nombre}. El resto descansa.`
-                : 'Necesita un pack aplicado. Aún no has aplicado ninguno.'}
+                : 'Se activa con un plan de hábitos aplicado. Todavía no hay uno.'}
             </EliteText>
           </View>
           <Ionicons name="chevron-forward" size={16} color={t.sinDatos} />

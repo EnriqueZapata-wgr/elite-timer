@@ -202,7 +202,7 @@ export function DayCalendar({ habits, onAdd, onEdit, onDelete, readOnly }: Props
                 <EliteText variant="caption" style={s.fieldLabel}>Inicio</EliteText>
                 <TimePicker value={form.start} onChange={v => setForm(p => ({ ...p, start: v }))} t={t} />
               </View>
-              <EliteText style={{ color: t.sinDatos, fontSize: 18, paddingTop: 18 }}>→</EliteText>
+              <EliteText style={{ color: t.textoTenue, fontSize: 18, paddingTop: 18 }}>→</EliteText>
               <View style={{ flex: 1 }}>
                 <EliteText variant="caption" style={s.fieldLabel}>Fin</EliteText>
                 <TimePicker value={form.end} onChange={v => setForm(p => ({ ...p, end: v }))} t={t} />
@@ -211,7 +211,7 @@ export function DayCalendar({ habits, onAdd, onEdit, onDelete, readOnly }: Props
 
             <EliteText variant="caption" style={s.fieldLabel}>Actividad</EliteText>
             <TextInput style={s.input} value={form.title} onChangeText={v => setForm(p => ({ ...p, title: v }))}
-              placeholder="Ej: Desayuno, Oficina, Gym" placeholderTextColor={t.sinDatos} />
+              placeholder="Ej: Desayuno, Oficina, Gym" placeholderTextColor={t.textoTenue} />
 
             <EliteText variant="caption" style={s.fieldLabel}>Categoría</EliteText>
             <View style={s.catGrid}>
@@ -226,7 +226,7 @@ export function DayCalendar({ habits, onAdd, onEdit, onDelete, readOnly }: Props
 
             <EliteText variant="caption" style={s.fieldLabel}>Notas</EliteText>
             <TextInput style={[s.input, { height: 40 }]} value={form.notes}
-              onChangeText={v => setForm(p => ({ ...p, notes: v }))} placeholder="Opcional" placeholderTextColor={t.sinDatos} multiline />
+              onChangeText={v => setForm(p => ({ ...p, notes: v }))} placeholder="Opcional" placeholderTextColor={t.textoTenue} multiline />
 
             <View style={s.actions}>
               {modal?.habit && (

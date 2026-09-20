@@ -175,7 +175,7 @@ export default function FichaEmergenciaPantalla() {
 
               <EliteText style={s.pie}>
                 Esta es la ficha de emergencia, no el expediente clínico. Datos capturados por la
-                persona, sin validación clínica. Las intervenciones de un protocolo ATP no son
+                persona, sin validación clínica. Las prácticas de un plan ATP no son
                 prescripción médica.
               </EliteText>
             </>

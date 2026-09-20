@@ -17,9 +17,34 @@
  * ATP 3.0 (5-sep-2026, ruta 2.6): el código de activación vive SOLO aquí,
  * como "servicio contratado con ATP" (Apple 3.1.1: no es vía de compra).
  * Nada en esta pantalla nombra proveedores externos ni precios de fuera.
+ *
+ * TU SERVICIO (20-sep-2026, cliente Elite día uno). La pantalla tenía una
+ * sola cara, la de tienda: "Suscripción", "TU MEMBRESÍA", trial, "Cancelar
+ * suscripción", "Restaurar compras". Un cliente Elite no compró nada en la
+ * app: contrató una evaluación con Enrique y entró por código. A esa
+ * persona se le enseña OTRA cara: qué servicio tiene, desde y hasta cuándo
+ * (del grant vigente en tier_grants) y cómo escribirle a Enrique. La cara de
+ * tienda se conserva intacta para quien tiene un entitlement de tienda vivo
+ * (regla de la casa: a nadie se le quita lo que ya tenía). El discriminador
+ * es el entitlement activo de RevenueCat, no el nivel: Elite nunca sale de
+ * una tienda.
+ *
+ * RONDA DE ARREGLOS (20-sep-2026):
+ *  · La cara no se elige hasta que el hook terminó de leer (`isLoading`):
+ *    antes una suscriptora de tienda veía "Tu servicio" un instante y luego
+ *    "Suscripción". Mientras, un spinner y ningún título.
+ *  · "No se pudo leer" no es "no hay datos". Con `nivelNoSePudoLeer` en true y
+ *    sin entitlement de tienda, un Elite por código con la red caída veía
+ *    "Sin servicio activo" y la invitación a canjear. Ahora ve un estado
+ *    propio: no se pudo leer, revisa tu conexión, Reintentar y el contacto.
+ *    Sin etiqueta de nivel, sin invitación a canjear. Si el hook conserva un
+ *    nivel de miembro confirmado antes, se sigue pintando ese (fail-open).
+ *  · Restaurar compras vive al final de AMBAS caras: Apple lo exige mientras
+ *    haya suscriptores, y una suscriptora con RevenueCat sin sincronizar caía
+ *    en "Tu servicio" sin salida.
  */
-import { useCallback, useState } from 'react';
-import { Alert, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,10 +56,14 @@ import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import {
+  fetchOrigenMembresia,
   fetchSubscriptionEvents,
+  type OrigenMembresiaLectura,
   type SubscriptionEvent,
 } from '@/src/services/subscription/subscription-service';
 import { etiquetaMembresia } from '@/src/services/subscription/tier-logic';
+import { CONTACTO_ELITE_EMAIL, NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
+import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, ELEVATION, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
@@ -86,14 +115,25 @@ export default function SubscriptionSettingsScreen() {
   const thCard = { backgroundColor: tokens.card, borderColor: tokens.borde };
   const thTenue = { color: dark ? tokens.textoTenue : tokens.textoSecundario };
   const {
-    tier, esMiembro, customerInfo, offerings, restore, isLoading,
+    tier, esMiembro, esElite, customerInfo, offerings, restore, refresh, isLoading, nivelNoSePudoLeer,
   } = useSubscription();
   const [events, setEvents] = useState<SubscriptionEvent[]>([]);
   const [restoring, setRestoring] = useState(false);
+  const [reintentando, setReintentando] = useState(false);
+  // 20-sep-2026: el grant vigente (código, alta manual, pago web) es la fuente
+  // de "desde cuándo" y "hasta cuándo" para quien no compró en tienda.
+  const [origen, setOrigen] = useState<OrigenMembresiaLectura | null>(null);
 
   useFocusEffect(useCallback(() => {
     if (user?.id) fetchSubscriptionEvents(user.id).then(setEvents);
   }, [user?.id]));
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let vivo = true;
+    fetchOrigenMembresia(user.id).then((o) => { if (vivo) setOrigen(o); });
+    return () => { vivo = false; };
+  }, [user?.id, tier]);
 
   // Entitlement activo más relevante (para renovación/trial)
   const activeEntitlement = customerInfo
@@ -171,20 +211,101 @@ export default function SubscriptionSettingsScreen() {
 
   const hasPaidPlan = esMiembro;
 
+  /**
+   * 20-sep-2026: qué cara se pinta. Con un entitlement de tienda vivo, la de
+   * siempre (renovación, método de pago, cancelar, restaurar). Sin él, la de
+   * "Tu servicio": lo que contrató con ATP, su vigencia y cómo escribir. Elite
+   * y los códigos nunca pasan por una tienda, así que caen aquí.
+   */
+  const caraDeTienda = activeEntitlement !== null;
+  const asuntoContacto = esElite ? 'Soy cliente ATP Elite' : 'Sobre mi servicio ATP';
+
+  /**
+   * Ronda de arreglos (20-sep-2026): tres estados de la pantalla.
+   *  · `listo`: el hook ya leyó; antes no se elige cara (spinner, sin título).
+   *  · `nivelIlegible`: la lectura del nivel falló, no hay entitlement de tienda
+   *    que hable por la persona y el hook no conserva un nivel de miembro
+   *    confirmado antes. No es "free": es "no sé". Se dice y se ofrece
+   *    reintentar. Si el hook sí conserva un nivel de miembro (una lectura
+   *    anterior en esta misma sesión), se pinta ese: a nadie se le quita lo que
+   *    tenía por una lectura caída.
+   *  · `caraNormal`: cualquiera de las dos caras de siempre.
+   */
+  const listo = !isLoading;
+  const nivelIlegible = listo && nivelNoSePudoLeer && !caraDeTienda && !esMiembro;
+  const caraNormal = listo && !nivelIlegible;
+
+  async function onReintentar() {
+    if (reintentando) return;
+    haptic.medium();
+    setReintentando(true);
+    try { await refresh(); } finally { setReintentando(false); }
+  }
+
+  function onEscribir() {
+    haptic.medium();
+    const url = `mailto:${CONTACTO_ELITE_EMAIL}?subject=${encodeURIComponent(asuntoContacto)}`;
+    // Sin app de correo (Android limpio) openURL rechaza: se enseña el correo
+    // para copiarlo, en vez de un botón que no hace nada.
+    Linking.openURL(url).catch((e) => {
+      logWarn('[tu-servicio] no se pudo abrir el correo', e);
+      Alert.alert('Escríbenos', `Escríbenos a ${CONTACTO_ELITE_EMAIL} con el asunto "${asuntoContacto}".`);
+    });
+  }
+
+  const descripcionServicio = (() => {
+    if (isLoading) return null;
+    if (esElite) return `Evaluación personalizada con ${NOMBRE_COACH_ELITE} y la plataforma ATP con ARGOS conociendo tu caso.`;
+    if (esMiembro) return 'La plataforma ATP completa, con ARGOS.';
+    return 'Si contrataste un servicio con ATP, activa tu código aquí abajo.';
+  })();
+
   return (
     <Screen edges={[]} themed>
       <StatusBar style={dark ? 'light' : 'dark'} />
-      <ScreenHeader title="Suscripción" onBack={() => router.back()} />
+      <ScreenHeader title={isLoading ? '' : caraDeTienda ? 'Suscripción' : 'Tu servicio'} onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* ── Leyendo: sin cara todavía (ver cabecera). ── */}
+        {isLoading && (
+          <View style={styles.cargando} accessibilityLabel="Leyendo tu servicio">
+            <ActivityIndicator size="small" color={tokens.textoSecundario} />
+          </View>
+        )}
+
+        {/* ── El nivel no se pudo leer y nadie más habla por esta persona. ── */}
+        {nivelIlegible && (
+          <Animated.View entering={FadeInUp.delay(40).springify()} style={[styles.tierCard, thCard]}>
+            <Ionicons name="cloud-offline-outline" size={22} color={tokens.textoSecundario} />
+            <EliteText style={[styles.servicioDesc, { color: tokens.texto }]}>
+              No se pudo leer tu servicio. Revisa tu conexión.
+            </EliteText>
+            <AnimatedPressable
+              onPress={onReintentar}
+              disabled={reintentando}
+              style={[styles.reintentarBtn, { borderColor: tokens.borde }]}
+              accessibilityRole="button"
+              accessibilityLabel="Reintentar la lectura de tu servicio"
+            >
+              <EliteText style={[styles.reintentarText, { color: tokens.texto }]}>
+                {reintentando ? 'Reintentando…' : 'Reintentar'}
+              </EliteText>
+            </AnimatedPressable>
+          </Animated.View>
+        )}
 
         {/* ── Membresía actual. PREMIUM: no hay planes que comparar, así que
              tampoco hay "TU PLAN": hay membresía o no la hay. ── */}
+        {caraNormal && (
         <Animated.View entering={FadeInUp.delay(40).springify()} style={[styles.tierCard, thCard]}>
-          <EliteText style={[styles.tierLabel, thTenue]}>TU MEMBRESÍA</EliteText>
+          <EliteText style={[styles.tierLabel, thTenue]}>{caraDeTienda ? 'TU MEMBRESÍA' : 'SERVICIO CONTRATADO'}</EliteText>
           <EliteText style={[styles.tierName, { color: colorMembresia(esMiembro, tokens) }]}>
             {isLoading ? '…' : etiquetaMembresia(tier)}
           </EliteText>
-          {inTrial && trialDaysLeft !== null && (
+          {!caraDeTienda && descripcionServicio && (
+            <EliteText style={[styles.servicioDesc, { color: tokens.textoSecundario }]}>{descripcionServicio}</EliteText>
+          )}
+          {caraDeTienda && inTrial && trialDaysLeft !== null && (
             <View style={[styles.trialBadge, !dark && { backgroundColor: ATP_BRAND.lime }]}>
               <EliteText style={[styles.trialText, !dark && { color: tokens.textoSobreLima }]}>
                 Trial · {trialDaysLeft === 1 ? 'queda 1 día' : `quedan ${trialDaysLeft} días`}
@@ -204,9 +325,69 @@ export default function SubscriptionSettingsScreen() {
             </AnimatedPressable>
           )}
         </Animated.View>
+        )}
 
-        {/* ── Renovación y gestión (solo con membresía activa) ── */}
-        {hasPaidPlan && (
+        {/* ── Vigencia y contacto (cara "Tu servicio", 20-sep-2026). Las fechas
+             salen del grant vigente; si no hay grant, no se inventa nada: se
+             manda con Enrique, que es quien las tiene. Si la lectura FALLÓ se
+             dice eso, que es otra cosa (ronda de arreglos). ── */}
+        {caraNormal && !caraDeTienda && hasPaidPlan && (
+          <Animated.View entering={FadeInUp.delay(90).springify()}>
+            <EliteText style={[styles.sectionTitle, thTenue]}>VIGENCIA</EliteText>
+            <View style={[styles.card, thCard]}>
+              {origen && !origen.noSePudoLeer && (origen.startsAt || origen.expiresAt) ? (
+                <>
+                  <View style={styles.row}>
+                    <EliteText style={[styles.rowLabel, { color: tokens.texto }]}>Desde</EliteText>
+                    <EliteText style={[styles.rowValue, { color: tokens.textoSecundario }]}>
+                      {origen.startsAt ? formatDate(origen.startsAt) : 'Sin fecha registrada'}
+                    </EliteText>
+                  </View>
+                  <View style={[styles.divider, { backgroundColor: tokens.borde }]} />
+                  <View style={styles.row}>
+                    <EliteText style={[styles.rowLabel, { color: tokens.texto }]}>Hasta</EliteText>
+                    <EliteText style={[styles.rowValue, { color: tokens.textoSecundario }]}>
+                      {origen.expiresAt ? formatDate(origen.expiresAt) : 'Sin vencimiento'}
+                    </EliteText>
+                  </View>
+                </>
+              ) : (
+                <EliteText style={[styles.emptyText, thTenue]}>
+                  {origen === null
+                    ? '…'
+                    : origen.noSePudoLeer
+                      ? 'No se pudieron leer las fechas de tu servicio. Revisa tu conexión.'
+                      : `Las fechas de tu servicio las tiene ${NOMBRE_COACH_ELITE}. Si necesitas confirmarlas, escríbele aquí abajo.`}
+                </EliteText>
+              )}
+            </View>
+          </Animated.View>
+        )}
+
+        {listo && !caraDeTienda && (
+          <Animated.View entering={FadeInUp.delay(100).springify()}>
+            <EliteText style={[styles.sectionTitle, thTenue]}>CONTACTO</EliteText>
+            <AnimatedPressable
+              onPress={onEscribir}
+              style={[styles.card, thCard]}
+              accessibilityRole="button"
+              accessibilityLabel={esElite ? `Escribir a ${NOMBRE_COACH_ELITE}` : 'Escribir a ATP'}
+            >
+              <View style={styles.row}>
+                <View style={{ flex: 1 }}>
+                  <EliteText style={[styles.rowLabel, { color: tokens.texto }]}>
+                    {esElite ? `Escribir a ${NOMBRE_COACH_ELITE}` : 'Escríbenos'}
+                  </EliteText>
+                  <EliteText style={[styles.eventDate, thTenue]}>{CONTACTO_ELITE_EMAIL}</EliteText>
+                </View>
+                <Ionicons name="mail-outline" size={16} color={tokens.textoSecundario} />
+              </View>
+            </AnimatedPressable>
+          </Animated.View>
+        )}
+
+        {/* ── Renovación y gestión (solo con suscripción de tienda viva) ── */}
+        {caraNormal && caraDeTienda && hasPaidPlan && (
           <Animated.View entering={FadeInUp.delay(90).springify()}>
             <EliteText style={[styles.sectionTitle, thTenue]}>GESTIÓN</EliteText>
             <View style={[styles.card, thCard]}>
@@ -239,7 +420,10 @@ export default function SubscriptionSettingsScreen() {
           </Animated.View>
         )}
 
-        {/* ── Código de activación (MB-13; ATP 3.0 ruta 2.6: servicio contratado, no vía de compra) ── */}
+        {/* ── Código de activación (MB-13; ATP 3.0 ruta 2.6: servicio contratado,
+             no vía de compra). No se invita a canjear mientras no se sepa qué
+             tiene la persona (leyendo o nivel ilegible). ── */}
+        {caraNormal && (
         <Animated.View entering={FadeInUp.delay(110).springify()}>
           <AnimatedPressable
             onPress={() => { haptic.medium(); router.push('/redeem-code'); }}
@@ -256,19 +440,38 @@ export default function SubscriptionSettingsScreen() {
             </View>
           </AnimatedPressable>
         </Animated.View>
+        )}
 
-        {/* ── Restaurar ── */}
-        <Animated.View entering={FadeInUp.delay(130).springify()}>
-          <AnimatedPressable onPress={onRestore} disabled={restoring} style={styles.restoreBtn}>
-            <EliteText style={[styles.restoreText, { color: tokens.textoSecundario }]}>
-              {restoring ? 'Restaurando…' : 'Restaurar compras'}
-            </EliteText>
-          </AnimatedPressable>
-        </Animated.View>
+        {/* ── Restaurar. Ronda de arreglos (20-sep-2026): antes en la cara "Tu
+             servicio" solo se pintaba con la venta al público encendida, y una
+             suscriptora de tienda con RevenueCat sin sincronizar caía ahí sin
+             salida (Apple exige restore mientras haya suscriptores). Ahora es
+             una fila discreta al final de AMBAS caras y del estado ilegible;
+             en la de tienda sigue diciendo lo de siempre. ── */}
+        {listo && (
+          <Animated.View entering={FadeInUp.delay(130).springify()}>
+            <AnimatedPressable
+              onPress={onRestore}
+              disabled={restoring}
+              style={styles.restoreBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Restaurar compras de la tienda"
+            >
+              {!caraDeTienda && (
+                <EliteText style={[styles.restoreHint, thTenue]}>¿Ya tenías una suscripción de la tienda?</EliteText>
+              )}
+              <EliteText style={[styles.restoreText, { color: tokens.textoSecundario }]}>
+                {restoring ? 'Restaurando…' : 'Restaurar compras'}
+              </EliteText>
+            </AnimatedPressable>
+          </Animated.View>
+        )}
 
-        {/* ── Historial ── */}
+        {/* ── Historial. En "Tu servicio" solo si hay movimientos: el vacío
+             hablaba de compras y renovaciones a quien no compra aquí. ── */}
+        {caraNormal && (caraDeTienda || events.length > 0) && (
         <Animated.View entering={FadeInUp.delay(170).springify()}>
-          <EliteText style={[styles.sectionTitle, thTenue]}>HISTORIAL DE PAGOS</EliteText>
+          <EliteText style={[styles.sectionTitle, thTenue]}>{caraDeTienda ? 'HISTORIAL DE PAGOS' : 'HISTORIAL'}</EliteText>
           {events.length === 0 ? (
             <View style={[styles.card, thCard]}>
               <EliteText style={[styles.emptyText, thTenue]}>
@@ -298,6 +501,7 @@ export default function SubscriptionSettingsScreen() {
             </View>
           )}
         </Animated.View>
+        )}
 
       </ScrollView>
     </Screen>
@@ -321,6 +525,13 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   tierName: { fontFamily: Fonts.extraBold, fontSize: FontSizes.display },
+  servicioDesc: {
+    fontFamily: Fonts.regular,
+    fontSize: FontSizes.sm,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+  },
   trialBadge: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.12),
     borderRadius: Radius.xs,
@@ -361,8 +572,18 @@ const styles = StyleSheet.create({
   rowValue: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   eventDate: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: 2 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: ELEVATION[1].border },
-  restoreBtn: { alignItems: 'center', paddingVertical: Spacing.xs },
+  restoreBtn: { alignItems: 'center', paddingVertical: Spacing.xs, gap: 2 },
+  restoreHint: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, textAlign: 'center' },
   restoreText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  cargando: { alignItems: 'center', paddingVertical: Spacing.xl },
+  reintentarBtn: {
+    marginTop: Spacing.sm,
+    borderWidth: 1,
+    borderRadius: Radius.sm,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.xl,
+  },
+  reintentarText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   emptyText: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,

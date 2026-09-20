@@ -35,6 +35,8 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { useColchonOrbe } from '@/src/components/argos/useColchonOrbe';
+import { paddingBottomConColchon } from '@/src/components/argos/argos-floating-core';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const TOP_SIZE = 20;
@@ -97,6 +99,9 @@ export default function CommunityRankingScreen() {
 
   const insets = useSafeAreaInsets();
   const { kind, tokens: t } = useAppTheme();
+  // 20-sep-2026: colchón para la orbe de ARGOS (esta pantalla no usa <Screen>,
+  // que lo aplicaría solo). Gana el mayor, no la suma.
+  const colchonOrbe = useColchonOrbe();
   const { user } = useAuth();
   const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const secTxt = { color: t.textoSecundario };
@@ -132,7 +137,7 @@ export default function CommunityRankingScreen() {
     <ThemeReady>
     <ScrollView
       style={[s.screen, { backgroundColor: t.fondo }]}
-      contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: 60 }}
+      contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: paddingBottomConColchon(60, colchonOrbe) }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ATP_BRAND.lime} />}
     >
       <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
@@ -194,7 +199,7 @@ export default function CommunityRankingScreen() {
         {loading ? (
           <EliteText style={[s.empty, secTxt]}>Cargando…</EliteText>
         ) : rows.length === 0 ? (
-          <EliteText style={[s.empty, secTxt]}>Aún no hay suficientes atletas en el ranking. Sé de los primeros.</EliteText>
+          <EliteText style={[s.empty, secTxt]}>Todavía no hay suficientes atletas para armar el ranking.</EliteText>
         ) : (
           rows.map((row) => (
             <LeaderRow

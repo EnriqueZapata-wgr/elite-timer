@@ -28,6 +28,8 @@ import { SectionLabel, Divider, SettingRow, ui } from '@/src/components/settings
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, ELEVATION, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { useColchonOrbe } from '@/src/components/argos/useColchonOrbe';
+import { paddingBottomConColchon } from '@/src/components/argos/argos-floating-core';
 import { Fonts, Spacing, Radius } from '@/constants/theme';
 
 const NIVEL_LABELS: Record<NivelUsuario, string> = {
@@ -42,6 +44,9 @@ export default function SettingsSaludScreen() {
   const { user } = useAuth();
   // MB-31B: pantalla migrada — chips de nivel y superficies del tema.
   const { kind, tokens } = useAppTheme();
+  // 20-sep-2026: colchón para la orbe de ARGOS (esta pantalla no usa <Screen>,
+  // que lo aplicaría solo). Gana el mayor, no la suma.
+  const colchonOrbe = useColchonOrbe();
   const dark = kind === 'dark';
   // MB-3.6 §1.3: nivel de fitness editable desde Ajustes (vive en profiles.fitness_level).
   const [nivel, setNivel] = useState<NivelUsuario | null>(null);
@@ -86,7 +91,7 @@ export default function SettingsSaludScreen() {
     <View style={[ui.screenRoot, { backgroundColor: tokens.fondo }]}>
       <StatusBar style={dark ? 'light' : 'dark'} />
       <ScreenHeader title="Salud y protocolo" onBack={() => router.back()} />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: paddingBottomConColchon(0, colchonOrbe) }}>
 
         {/* SIMPLE (17-ago-2026): aquí estaba la sección MI PROTOCOLO con dos
             filas que no eran ajustes y ya tenían casa:

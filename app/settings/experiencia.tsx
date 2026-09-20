@@ -24,6 +24,8 @@ import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { SectionLabel, Divider, Chip, TestButton, SettingRow, ui } from '@/src/components/settings/settings-ui';
 import { Colors, Spacing, Radius } from '@/constants/theme';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
+import { useColchonOrbe } from '@/src/components/argos/useColchonOrbe';
+import { paddingBottomConColchon } from '@/src/components/argos/argos-floating-core';
 import type { ThemeModeSetting } from '@/src/services/theme/theme-mode-core';
 import { minutesToHHMM } from '@/src/services/night-filter-core';
 import { ATP_BRAND } from '@/src/constants/brand';
@@ -62,6 +64,9 @@ export default function SettingsExperienciaScreen() {
   const router = useRouter();
   const { settings, updateSetting } = useSettings();
   const { mode, setMode, veilEnabled, setVeilEnabled, corteMinutes, kind, tokens } = useAppTheme();
+  // 20-sep-2026: colchón para la orbe de ARGOS (esta pantalla no usa <Screen>,
+  // que lo aplicaría solo). Gana el mayor, no la suma.
+  const colchonOrbe = useColchonOrbe();
   const [edadSound, setEdadSound] = useState(true);
   useEffect(() => { loadSoundPref().then(setEdadSound); }, []);
 
@@ -76,7 +81,7 @@ export default function SettingsExperienciaScreen() {
     <View style={[ui.screenRoot, { backgroundColor: tokens.fondo }]}>
       <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Experiencia" onBack={() => router.back()} />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: paddingBottomConColchon(0, colchonOrbe) }}>
 
         {/* ── App (display-only por ahora) ── */}
         <Animated.View entering={FadeInUp.delay(80).springify()}>

@@ -29,13 +29,14 @@ export const GLUCOSE_CONTEXT_NAMES: Record<GlucoseContextId, string> = {
   pre_meal:     'Pre-comida',
   post_meal_1h: '1h post',
   post_meal_2h: '2h post',
-  random:       'Random',
+  // 20-sep-2026: decía 'Random'; inglés suelto en una app en español (el id guardado no cambia).
+  random:       'Al azar',
   bedtime:      'Antes dormir',
 };
 
 /** Nombre visible de un contexto; si viene uno desconocido, se devuelve tal cual. */
 export function glucoseContextName(id: string | null | undefined): string {
-  if (!id) return 'Random';
+  if (!id) return 'Al azar';
   return GLUCOSE_CONTEXT_NAMES[id as GlucoseContextId] ?? id;
 }
 

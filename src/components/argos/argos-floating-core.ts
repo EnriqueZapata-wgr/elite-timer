@@ -173,3 +173,71 @@ export function shouldHideFloatingButton(input: FloatingVisibilityInput): boolea
   if (input.keyboardVisible) return true;
   return false;
 }
+
+/**
+ * OLA0 QW-1: espacio que la orbe ocupa sobre el borde inferior de la ventana.
+ *
+ * BLOQ-4: valía 96 y NO alcanzaba. La orbe se dibuja con `marginBottom:
+ * insets.bottom + 78` y mide 56 de alto, así que su borde SUPERIOR queda a
+ * insets.bottom + 134 del fondo de la ventana. 140 = 78 + 56 + 6 de respiro.
+ * Si el `marginBottom` de la orbe cambia, este número cambia con él.
+ *
+ * 20-sep-2026: vivía en ArgosFloatingButton.tsx (que lo sigue reexportando).
+ * Se baja aquí, a la lógica pura, porque ahora lo consume `colchonOrbe` y el
+ * test. OJO: NO incluye `insets.bottom`; por eso el colchón real lo suma
+ * (ver abajo). Las 17 pantallas que lo sumaban a mano se quedaban 34 px
+ * cortas en iPhone.
+ */
+export const ORB_SAFE_BOTTOM = 140;
+
+export interface ColchonOrbeInput {
+  pathname: string | null | undefined;
+  /** Ocultado manualmente por una pantalla vía contexto. */
+  manualHidden: boolean;
+  /** Falso hasta que el usuario conoce a ARGOS (Meet ARGOS, T6). */
+  introduced: boolean;
+  /** `insets.bottom` del device. */
+  insetBottom: number;
+  /**
+   * true si el contenedor YA termina encima del inset inferior (SafeAreaView
+   * con 'bottom' en edges): entonces el inset no se vuelve a sumar.
+   */
+  bordeInferiorSeguro: boolean;
+}
+
+/**
+ * 20-sep-2026: cuánto paddingBottom necesita un scroll para que su último
+ * renglón quede por ENCIMA de la orbe. Cero cuando la orbe no se pinta en
+ * esa ruta (salas del tab bar, Mente, chat, acción anclada, onboarding, no
+ * presentado): ahí no hay nada que despejar y el scroll queda como estaba.
+ *
+ * El teclado no entra a propósito: la orbe se esconde mientras se escribe,
+ * pero el colchón no debe aparecer y desaparecer con cada tecla.
+ *
+ * Lo aplica <Screen> por defecto a su scroll hijo (src/components/ui/Screen.tsx)
+ * y lo expone `useColchonOrbe` para pantallas sin <Screen> o con el scroll
+ * anidado. Antes era opt-in y solo 17 de 136 pantallas con scroll lo hacían:
+ * en 8 de 12 capturas la orbe tapaba contenido.
+ */
+export function colchonOrbe(input: ColchonOrbeInput): number {
+  const oculta = shouldHideFloatingButton({
+    pathname: input.pathname,
+    manualHidden: input.manualHidden,
+    introduced: input.introduced,
+    keyboardVisible: false,
+  });
+  if (oculta) return 0;
+  const inset = Number.isFinite(input.insetBottom) ? Math.max(0, input.insetBottom) : 0;
+  return ORB_SAFE_BOTTOM + (input.bordeInferiorSeguro ? 0 : inset);
+}
+
+/**
+ * Cómo se combina el colchón con el paddingBottom que la pantalla ya tenía:
+ * gana el MAYOR, nunca la suma. Así una pantalla que ya sumaba ORB_SAFE_BOTTOM
+ * a mano no queda con doble margen, y una con `paddingBottom: 40` sube justo
+ * hasta despejar la orbe.
+ */
+export function paddingBottomConColchon(base: number | undefined, colchon: number): number {
+  const b = typeof base === 'number' && Number.isFinite(base) ? base : 0;
+  return Math.max(b, colchon);
+}

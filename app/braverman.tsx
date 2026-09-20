@@ -506,7 +506,7 @@ function BravermanTest() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
             <Text style={{ fontSize: 16 }}>{neuroMeta.emoji}</Text>
             <Text style={{ color: colTxt(neuroMeta.color), fontSize: 11, fontFamily: Fonts.semiBold }}>{neuroMeta.name}</Text>
-            <Text style={{ color: t.sinDatos, fontSize: 11 }}>·</Text>
+            <Text style={{ color: t.textoTenue, fontSize: 11 }}>·</Text>
             <Text style={{ color: t.textoTenue, fontSize: 11, fontFamily: Fonts.regular }}>{categoryLabel}</Text>
           </View>
         </View>
@@ -637,7 +637,7 @@ function BravermanTest() {
               <Text style={{ fontSize: 24 }}>🧠</Text>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: dark ? '#A8E02A' : t.tealTexto, fontSize: 14, fontFamily: Fonts.bold }}>
-                  Reporte PREMIUM ARGOS
+                  Reporte completo ARGOS
                 </Text>
                 <Text style={{ color: t.textoSecundario, fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 }}>
                   Análisis profundo de tus 4 naturalezas + plan específico

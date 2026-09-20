@@ -40,7 +40,8 @@ import { haptic } from '@/src/utils/haptics';
 import { Colors, Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS } from '@/src/constants/brand';
 import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
-import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
+import { useColchonOrbe } from '@/src/components/argos/useColchonOrbe';
+import { paddingBottomConColchon } from '@/src/components/argos/argos-floating-core';
 
 interface SettingsGroup {
   icon: string;
@@ -52,10 +53,17 @@ interface SettingsGroup {
 
 const GROUPS: SettingsGroup[] = [
   {
-    icon: 'diamond-outline',
+    // 20-sep-2026 (cliente Elite día uno): la fila decía "Membresía · Tu plan,
+    // renovación e historial de pagos". Quien entra aquí no compra nada en la
+    // app: contrató un servicio con Enrique. La fila dice lo que hay detrás
+    // (qué tiene, desde y hasta cuándo, cómo escribirle) y la ruta se queda
+    // para no tocar el registro de rutas. El icono es chrome (la fila dibuja
+    // Ionicons por tipo) y tiene que ser uno que el set SVG no reemplazó
+    // (el ribbon sí lo está y rompía el censo de iconos: 92/1).
+    icon: 'star-outline',
     iconColor: Colors.neonGreen,
-    title: 'Membresía',
-    subtitle: 'Tu plan, renovación e historial de pagos',
+    title: 'Tu servicio',
+    subtitle: 'Qué tienes contratado, vigencia y contacto',
     route: '/settings/subscription' as const,
   },
   {
@@ -119,6 +127,9 @@ export default function SettingsScreen() {
   // grupo son identidad de sección y quedan igual en los dos modos.
   const { kind, tokens } = useAppTheme();
   const thCard = { backgroundColor: tokens.card, borderColor: tokens.borde };
+  // 20-sep-2026: el colchón de la orbe sale del hook (suma el inset inferior,
+  // que ORB_SAFE_BOTTOM a secas no traía). Este hub no usa <Screen>.
+  const colchonOrbe = useColchonOrbe();
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
 
@@ -128,7 +139,7 @@ export default function SettingsScreen() {
       <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <ScreenHeader title="Ajustes" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: ORB_SAFE_BOTTOM }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: paddingBottomConColchon(40, colchonOrbe) }}>
         {/* Header de cuenta → editar perfil DIRECTO. Antes paraba en
             /settings/cuenta, que solo servía para ofrecerte esta misma fila. */}
         <Animated.View entering={FadeInUp.delay(100).springify()}>

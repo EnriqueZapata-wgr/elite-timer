@@ -208,9 +208,11 @@ export function adherenciaIntervenciones(
   return { estado: 'ok', pct: Math.min(100, Math.round((hechos / esperados) * 100)), hechos, esperados };
 }
 
-/** Como se lee un motivo de sin dato. Copy de usuario: sin em dashes. */
+/** Como se lee un motivo de sin dato. Copy de usuario: sin em dashes y con
+ * "prácticas" (20-sep-2026, ronda de arreglos: "intervención" es palabra del
+ * código, no de la pantalla; la clave del motivo se queda como está). */
 export const TEXTO_SIN_ADHERENCIA: Readonly<Record<MotivoSinAdherencia, string>> = {
-  'sin-intervenciones': 'Sin intervenciones activas. No hay nada que medir todavía.',
+  'sin-intervenciones': 'Sin prácticas activas. No hay nada que medir todavía.',
   'recien-cargado': 'Lo que le cargaste empieza hoy. Todavía no hay días que medir.',
   'sin-senal': 'No hay dato. No ha dejado ningún registro en estos días, así que no se puede saber si cumple.',
 };

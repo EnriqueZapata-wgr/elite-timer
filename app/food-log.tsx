@@ -438,7 +438,7 @@ export default function FoodLogScreen() {
                   </Pressable>
                 </SwipeToDeleteRow>
               ))}
-              <Text style={{ color: t.sinDatos, fontSize: 9, textAlign: 'center', marginTop: 6 }}>
+              <Text style={{ color: t.textoSecundario, fontSize: 9, textAlign: 'center', marginTop: 6 }}>
                 Desliza ← para eliminar
               </Text>
             </View>
