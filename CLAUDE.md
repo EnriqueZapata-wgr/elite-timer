@@ -114,6 +114,15 @@ nunca se toca, que se hace ya y que se va a FIFO, que se documenta y quien, que
 se le pregunta a Enrique y que no, cuando se avisa en tiempo real y cuando se
 discute. Es ley para toda sesion de Cowork, no solo para las de codigo.
 
+## ATP ELITE (8 de septiembre de 2026): manda sobre el pivote 3.0 de abajo
+
+La app es hoy EXCLUSIVA para clientes Elite de Enrique: `VENTA_AL_PUBLICO = false`, sin
+venta en la app, acceso por codigo de activacion ("servicio contratado"), evaluacion cargada
+con `elite_cargar_completa` (324). Free/Pro siguen en el codigo como aparato apagado, no
+borrado. Fuente de verdad: `R and D/ATP_ELITE_2026-09-07.md` (decisiones) y la ultima
+entrega `R and D/ATP_ELITE_NOCHE1_2026-09-20.md` (estado, decisiones tomadas solo, deuda
+con fecha y el plan de dos semanas noche por noche hasta el 4 de octubre).
+
 ## PIVOTE ATP 3.0 (4 de septiembre de 2026): leer antes que nada
 
 **Fuente de verdad del pivote:** `R and D/PIVOTE_ATP_3.0_2026-09-04.md` (decisiones, add-on
