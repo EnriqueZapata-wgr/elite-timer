@@ -123,3 +123,65 @@ de git se queda.
   (vigila "Enrique" y padecimientos). Propuesta de la revisión: sustituir la
   lista por una aserción genérica de "cero nombres propios" con allowlist.
 - ARGOS-BRAIN: manifiesto arreglado (`12_cuatro_ojos.md`); versión 1.24.1.
+
+---
+
+## 6. LO QUE FALTA POR LIMPIAR (inventario completo, 20-sep 23:00)
+
+Barrido con grep (mariana | doria) sobre las seis carpetas conectadas:
+EliteTimer, ARGOS-BRAIN, argos-coach, ATP, Programas High ticket,
+ARNtro_ATP_v4.0_Research (ATP-audio-pipeline: cero).
+
+### P0 · Vivo: sigue generando responsabilidad hacia clientes o público
+
+| # | Dónde | Qué dice | Quién | Estado |
+|---|---|---|---|---|
+| 1 | Tabla `argos_brain` en producción (store) | El prompt de ARGOS en prod trae las 3 frases con su nombre | Dueño: `publish-brain.mjs` → regresión → `promote-brain.mjs all 1.24.1`; luego `functions deploy argos-proxy` | Fuente limpia (v1.24.1), store pendiente |
+| 2 | `Programas High ticket/Elite Enterprice/ARGOS_Skill/**` (10 archivos, 27 ocurrencias: SKILL.md 6, tono_y_estilo 5, reglas_seguridad 3, INSTRUCCIONES 3, Prompt_MAESTRO 2, plantilla_reporte 2, cruce_fenotipico 2, rangos_funcionales 2, metodologia 1, COMO_ACTIVAR 1) | Es el skill que procesa cada cliente Elite nuevo y firma los reportes "ARGOS \| Mariana Doria \| Enrique Zapata" | Cowork (siguiente tanda, misma política que ARGOS-BRAIN) | Pendiente |
+| 3 | Entregables YA enviados a clientes: Fabiola (Manual y Portal 12-sep, index), Vicente (Manual 9-sep), Víctor Milke (DX 7-sep, DX 9-sep, Manual 9-sep) | Firma "ARGOS \| Mariana Doria \| Enrique Zapata \| Elite Diagnostics" y "Mariana Doria, nutrición funcional" | Dueño decide si se reenvían | Copias limpias creadas junto a cada original: `*_sin_firma_anterior.html` (7). Los originales no se tocaron: son el registro de lo que se entregó |
+| 4 | Pitch / brochure Elite: `Elite Enterprice/ATP_ELITE_DIAGNOSTICS_Pitch_2026.html`, `_Movil_2026.html` (4 c/u) y las versiones v1 a v10 | "Enrique Zapata & Mariana Doria" como autores; sesión de Oncogenética a su cargo (PIVOTE 1.3 ya lo pedía: brochure 2026-B sin ella) | Cowork edita los dos vigentes; el dueño confirma cuál es el que circula | Pendiente |
+| 5 | Web: `ATP/Business development/landing/index.html` (8), `founders.html` (7), `precios.html` (1) | "Marco clínico funcional co-firmado por Mariana Doria", "sesiones donde Enrique y Mariana enseñan", "presenciales con Enrique, Mariana" | Dueño: confirmar si es lo publicado en somosatp.com (WordPress); Cowork edita los HTML | Pendiente |
+| 6 | Textos legales y de tienda: PRIVACY_POLICY_v1 L219 y TERMS_OF_SERVICE_v1 L222 "Firmado por: Mariana Doria, PhD, Co-Fundadora, CSO"; APP_STORE_METADATA L82 "co-fundado por ... Mariana Doria" | Firma legal y copy público | Abogado + dueño | Pendiente (sección 4) |
+| 7 | Datos en producción que la app pinta al cliente: `functional_dx ... interpretado_por`, `nutrition_plans` ("Lo asignó ..."), `scheduled_routines.assigned_by` (vista `assigned_by_name`), `lab_results.reviewed_by` | Si alguna fila trae su nombre o su UUID, el cliente lo ve | Dueño, con instrucción escrita; Cowork prepara el SELECT de inventario | Pendiente |
+| 8 | argos-coach `api/brain.generated.js` | Limpio a mano en 1.21.0; `npm run sync:brain` lo trae a 1.24.1 | Dueño (con deploy) | Opcional |
+
+### P1 · Histórico: no genera responsabilidad nueva; se queda por decisión del dueño
+
+- **EliteTimer, 210 archivos rastreados**: `R and D/` raíz 138 y subcarpetas 24
+  (embudo 8, decks 8, ARGOS_COSTOS_2026-08 5, web 1, research_notes 1,
+  02_pending 1), `Business development/` 30 (Legal 17, Beta_Launch_Kit 9,
+  00_CIMIENTO 2, ATP_DIFY_MASTER, App_Store_Assets), `docs/` 8 (edad-atp 7,
+  ECONOMIA_OPERACION), `cowork_handoff/` 10.
+- **14 archivos con su nombre en el TÍTULO** (rastreados): Beta_Launch_Kit
+  06_COPY_MARIANA_REVIEW_COMPACTO, 09_CATALOGO_INTERVENCIONES_MARIANA_ENRIQUE,
+  09_CURACION_50_ACCIONABLES_MARIANA_ENRIQUE, 09b_SEEDS_CATALOGO_ARRANQUE_MARIANA;
+  R and D: AWAY_RUN_BUGS_MARIANA, DELIVERY_BUGS_MARIANA_2026-08-03,
+  FLAGS_MARIANA_CONSOLIDADO_2026-07-14, MARIANA_VISION_BACKEND_CLINICO_2026-07-06,
+  VALIDACION_MARIANA_CUESTIONARIO_MAESTRO (.docx, _2026-07-16.md,
+  _revisado.docx), VALIDACION_MARIANA_MB11_PAQUETE (.docx, _2026-07-19.md) y
+  un `.~lock.VALIDACION_MARIANA_MB11_PAQUETE.pdf#` (basura de LibreOffice,
+  rastreada por error).
+- **No rastreados en EliteTimer**: `R and D/embudo/` 8 (RUTA_COMERCIAL_3.0,
+  _archivo 2, comunidad/SKOOL_ABOUT y SKOOL_RUNBOOK, correos/SUPERSEDED,
+  narrativa/MANUAL_DE_COMUNICACION, narrativa/TRANSCRIPT_MARIANA_ENRIQUE_2026-08-27),
+  `_respaldo_enrique_20260829-040028/` 5, `_to_delete/CLAUDE.md.bak-2026-09-06`.
+- **ARGOS-BRAIN**: VERSION.md (changelog) y 7 `_*.md` (auditorías, handoffs).
+- **ATP (carpeta)**: 122 archivos (105 md, 8 html, 3 py, pptx, pdf...):
+  `Business development/MARIANA_TRABAJO_CLINICO_v2.0.0.md`,
+  `MARIANA_WORKSHOP_DECISIONES.md`, `BUSINESS_MODEL_CANVAS_ATP.html`, la
+  landing (P0-5), `BACKUP_EDAD_ATP_2026-06-10/.../edad-atp-matriz-v7-v6.ts`
+  (copia vieja con la coautoría), `MKTNG/.../ATP_Logo_Final.html`,
+  `ATP_Presentacion_Alianza.pptx`, `ATP_Manual_de_Marca.pdf`, reportes
+  Cowork de julio.
+- **Programas High ticket**: además de P0-2/3/4: `CUESTIONARIO_LEVANTAMIENTO_DX_ELITE.md`,
+  `ELITE (LEGACY)/_SISTEMA/referencias/PROMPT_Calculadora_EdadBiologica_ARGOS.md`,
+  `Clientes/*/_Legacy_Original` y `00_Interno` (Alexis, Vicente, Víctor: 8).
+- **ARNtro_ATP_v4.0_Research**: 7 (índice, ciencia del genoma, pipeline,
+  bases de datos, competitivo, arquitectura, roadmap).
+- **Fuera de archivos** (dueño): comunidad Skool (PIVOTE decía que era de
+  ella), material en redes y YouTube que la cite, Payment Links de Stripe de
+  sus consultas, su cuenta en RevenueCat / Sentry / PostHog, alias de correo.
+
+Regla para cualquier limpieza futura: misma política de reemplazo de esta
+noche (equipo clínico de ATP / método ATP / Enrique / beta-01 / firma
+clínica), cero cambios de contenido, cero borrado de datos, historial intacto.
