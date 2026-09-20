@@ -92,6 +92,25 @@ export function planEliteSoloLectura(
   return !nivel.esMiembro;
 }
 
+/**
+ * Desde cuando existe el plan de Enrique: el `created_at` mas antiguo entre
+ * las fichas `source='coach'`, activas o en pausa (20-sep-2026). Sirve para
+ * la cabecera "Tu plan de Enrique · desde el ...". Una recarga del plan
+ * actualiza las filas sin recrearlas (RPC 321), asi que la fecha se conserva.
+ * Sin fichas del coach, o sin fecha legible, null (no se inventa).
+ */
+export function inicioPlanCoach(
+  rows: readonly ({ source?: string | null; created_at?: string | null } | null | undefined)[],
+): string | null {
+  let min: string | null = null;
+  for (const r of rows) {
+    if (!esDelCoach(r) || typeof r?.created_at !== 'string' || !r.created_at) continue;
+    if (Number.isNaN(Date.parse(r.created_at))) continue;
+    if (min === null || r.created_at < min) min = r.created_at;
+  }
+  return min;
+}
+
 // ═══ Números y unidades ═════════════════════════════════════════════════════
 
 /** Número finito o null. Acepta string numérico (NUMERIC de Postgres llega como string). */

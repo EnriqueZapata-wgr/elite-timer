@@ -22,6 +22,11 @@
 # cuales se usaron, hoy se usa scripts/elite/codigos.js (corre igual en
 # PowerShell). El 'codigo' de aqui se queda porque emite de a uno y ya esta
 # en los dedos de Enrique; los dos llaman al mismo RPC.
+#
+# 20 de septiembre de 2026 (migracion 324): 'cargar' llama a
+# elite_cargar_completa, que envuelve al RPC de siempre y ademas deja el
+# vinculo coach-cliente, el plan de alimentacion, las metas del dia y los
+# laboratorios en lab_values. Misma firma, misma respuesta mas contadores.
 
 set -euo pipefail
 
@@ -72,7 +77,7 @@ explica_http() {
   case "$http" in
     2*) return 0 ;;
     401) echo "HTTP 401: el JWT vencio o no es valido. Genera uno nuevo (scripts/elite/obtener-jwt.md)." >&2 ;;
-    404) echo "HTTP 404: el RPC no existe en produccion. Falta 'npx supabase db push' de las migraciones 315 y 318." >&2 ;;
+    404) echo "HTTP 404: el RPC no existe en produccion. Falta 'npx supabase db push' (315 y 318 para codigos y carga; 324 para elite_cargar_completa)." >&2 ;;
     *)   echo "HTTP $http" >&2 ;;
   esac
   echo "$cuerpo" >&2
@@ -127,9 +132,14 @@ cmd_cargar() {
     if (!Array.isArray(p.p_payload.roots_detected)) {
       console.log("Aviso: este payload no trae roots_detected. Vuelve a correr preparar-payload.js si quieres raices en el Mapa funcional.");
     }
+    // 20-sep-2026 (324): el cuarto derivado. Sin el, el expediente de labs
+    // y ARGOS no ven los marcadores de la evaluacion.
+    if (!Array.isArray(p.p_payload.lab_values_filas)) {
+      console.log("Aviso: este payload no trae lab_values_filas. Vuelve a correr preparar-payload.js para que los laboratorios lleguen al expediente.");
+    }
   ' "$archivo" || exit 1
   local salida http body
-  salida="$(rpc_archivo elite_cargar_evaluacion "$archivo")"
+  salida="$(rpc_archivo elite_cargar_completa "$archivo")"
   http="$(http_de "$salida")"; body="$(cuerpo_de "$salida")"
   explica_http "$http" "$body" || exit 1
   node -e '
@@ -159,13 +169,35 @@ cmd_cargar() {
       console.log("  ya eran ficha del cliente:        " + r.suplementos_ya_del_cliente + "  (no se duplicaron)");
     }
     if (r.raices_detectadas !== undefined) console.log("  raices detectadas:                " + r.raices_detectadas);
+    // 20-sep-2026 (324): las cuatro piezas nuevas de la carga completa.
+    if (r.coach_client !== undefined) {
+      const cc = { creado: "creado (Enrique ya es su coach activo)", ya_activo: "ya existia activo", inactivo_respetado: "existe INACTIVO y no se toco (ver avisos)" };
+      console.log("  vinculo coach-cliente:            " + (cc[r.coach_client] || r.coach_client));
+      console.log("  plan de alimentacion:             " + (r.nutrition_plan_id ? "escrito (" + r.nutrition_plan_id + ")" : "no se escribio (ver avisos)") + (r.nutrition_plans_pausados ? ", " + r.nutrition_plans_pausados + " anterior(es) en pausa" : ""));
+      console.log("  metas del dia escritas:           " + ((r.metas_escritas || []).join(", ") || "ninguna") + ((r.metas_respetadas || []).length ? "  (" + r.metas_respetadas.length + " del cliente respetadas)" : ""));
+      console.log("  laboratorios a lab_values:        " + r.lab_values_escritos + " escritos, " + r.lab_values_respetados + " ya existian, " + r.lab_values_omitidos + " fuera por tipo o clave" + (r.lab_values_measured_at ? "  (fecha " + r.lab_values_measured_at + ")" : ""));
+    }
     // 8-sep-2026 (mig 321): lo que se cargo a medias se dice aqui, no se
     // descubre semanas despues en la pantalla del cliente.
-    if (Array.isArray(r.avisos) && r.avisos.length) {
-      console.log("");
-      console.log("AVISOS de la carga (la evaluacion si quedo guardada):");
-      for (const a of r.avisos) console.log("  - [" + a.codigo + "] " + a.detalle);
+    // 20-sep-2026 (revision en frio, A10): el bloque va SIEMPRE al final y
+    // separado, con conteo; incluye los codigos de la 324 (coach_client_inactivo,
+    // nutrition_plan_pausado, metas_del_cliente_respetadas,
+    // labs_existentes_respetados) y los de la 321 (suplementos_ya_del_cliente,
+    // suplementos_pausados, ...). Un aviso sin `detalle` se imprime crudo para
+    // no perderlo. Sin avisos tambien se dice, para que no quede la duda.
+    const avisos = Array.isArray(r.avisos) ? r.avisos : [];
+    console.log("");
+    console.log("==================================================");
+    if (avisos.length) {
+      console.log("AVISOS de la carga: " + avisos.length + " (la evaluacion si quedo guardada; lee cada uno)");
+      for (const a of avisos) {
+        if (a && typeof a === "object" && a.codigo) console.log("  - [" + a.codigo + "] " + (a.detalle || JSON.stringify(a)));
+        else console.log("  - " + JSON.stringify(a));
+      }
+    } else {
+      console.log("AVISOS de la carga: ninguno (todo entro completo).");
     }
+    console.log("==================================================");
   ' "$body"
 }
 

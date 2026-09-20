@@ -5,6 +5,14 @@
  * ATP nunca sugiere suplementos — el usuario crea sus fichas desde cero
  * (biblioteca vacía por default; el catálogo curado y las recomendaciones
  * Braverman se degradaron en este sprint). Sello BHA por ficha vía scanner.
+ *
+ * 20-sep-2026 (Elite como producto): para el cliente Elite esta pantalla es
+ * donde RECIBE el plan de suplementos que Enrique le asignó (filas
+ * `source='coach'`). Con plan, abre con la cabecera "Tu plan de Enrique",
+ * no con un aviso que niegue el producto; la leyenda legal (LGS 216, la
+ * misma que usa ARGOS) va al pie. Las fichas del plan no se eliminan con un
+ * gesto: se pausan, y el plan lo ajusta Enrique. Sin plan, la pantalla sigue
+ * siendo el registro propio de siempre.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, Alert, DeviceEventEmitter, KeyboardAvoidingView, Platform, Modal, ActivityIndicator } from 'react-native';
@@ -24,12 +32,16 @@ import { normalizeSupplementName } from '@/src/services/supplements-plan-core';
 // 312 (backlog 3.6): plan vs eventual, dosis por unidad, registro variable.
 import {
   AMOUNT_UNITS, SIN_DATO, activosTexto, dosisPorUnidadTexto, esDelCoach, esPlan, formatNumero,
-  numeroONull, planEliteSoloLectura, tomaTexto, unidadLabel,
+  inicioPlanCoach, numeroONull, planEliteSoloLectura, tomaTexto, unidadLabel,
 } from '@/src/services/supplements/adherencia-core';
 import { isPregnancyActive } from '@/src/services/supplements-service';
 // ATP 3.0 (6-sep-2026, ruta 3.5): etiqueta, confirmación y solo lectura del plan Elite.
 import { useSubscription } from '@/src/hooks/useSubscription';
 import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
+// 20-sep-2026: leyenda LGS 216 al pie (la misma de ARGOS y de la evaluacion) y
+// la fecha "desde" de la cabecera del plan.
+import { LEYENDA_SUPLEMENTOS } from '@/src/services/argos-suplementos-ayuno-core';
+import { formatearFecha } from '@/src/services/elite/evaluacion-elite-core';
 import { contextoCandado } from '@/src/constants/rutas-3-0';
 import { BhaScanSheet } from '@/src/components/supplements/BhaScanSheet';
 import { SupplementScanSheet } from '@/src/components/supplements/SupplementScanSheet';
@@ -581,22 +593,50 @@ export default function SupplementsScreen() {
     setBhaVisible(true);
   }
 
+  /**
+   * 20-sep-2026: una ficha del plan de Enrique NO se elimina desde aqui. El
+   * plan lo ajusta el; el cliente puede pausarla (queda a la vista en EN
+   * PAUSA, sin contar para su adherencia, y la reanuda cuando quiera). Antes
+   * el mismo gesto que borra una ficha propia apagaba una del plan y un
+   * cliente podia quedarse sin su plan con un dedo. Pausar es el mismo
+   * `is_active=false` de siempre: la fila, sus logs y el plan se conservan.
+   *
+   * 20-sep-2026 (revision en frio, A7): pausar es un acto sobre el dato del
+   * propio cliente y no depende del nivel; se quito el Alert que mandaba a la
+   * pagina de venta (rastro de venta, codigo muerto con VENTA_AL_PUBLICO=false).
+   */
+  function pausarSupplement(id: string, name: string) {
+    Alert.alert(
+      'Pausar un suplemento de tu plan',
+      `"${name}" es parte del plan que te asignó ${NOMBRE_COACH_ELITE}. Se queda en pausa, a la vista, y lo reanudas cuando quieras. Si crees que ya no va, díselo a ${NOMBRE_COACH_ELITE}: el plan lo ajusta él.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Pausar',
+          onPress: async () => {
+            const { error } = await supabase.from('user_supplements').update({ is_active: false }).eq('id', id);
+            if (error) {
+              logWarn('[supplements] pausar failed:', error.message);
+              Alert.alert('No se pudo pausar', 'Intenta de nuevo.');
+              return;
+            }
+            loadSupplements();
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          },
+        },
+      ],
+    );
+  }
+
   async function removeSupplement(id: string, name: string, source?: string | null) {
-    // ATP 3.0 (ruta 3.5): las del plan Elite piden confirmación propia y, sin
-    // membresía, no se borran: el plan se conserva (dato sagrado).
-    const delCoach = esDelCoach({ source });
-    if (delCoach && planSoloLectura) {
-      Alert.alert('Tu plan Elite se conserva', 'Con Pro puedes editarlo.', [
-        { text: 'Entendido', style: 'cancel' },
-        { text: 'Ver Pro', onPress: () => router.push({ pathname: '/paywall', params: { contexto: contextoCandado('suplementos') } }) },
-      ]);
+    // ATP 3.0 (ruta 3.5) y 20-sep-2026: las del plan de Enrique no se
+    // eliminan, se pausan. Cualquier camino que llegue aqui con una ficha del
+    // plan cae en pausarSupplement (la pausa no depende del nivel).
+    if (esDelCoach({ source })) {
+      pausarSupplement(id, name);
       return;
     }
-    const titulo = delCoach ? 'Suplemento de tu plan Elite' : 'Eliminar suplemento';
-    const mensaje = delCoach
-      ? 'Este suplemento es parte de tu plan Elite. ¿Quitarlo de todos modos?'
-      : `¿Eliminar "${name}" de tu plan?`;
-    Alert.alert(titulo, mensaje, [
+    Alert.alert('Eliminar suplemento', `¿Eliminar "${name}" de tu plan?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar', style: 'destructive',
@@ -626,6 +666,21 @@ export default function SupplementsScreen() {
       { key: 'eventual', label: 'EVENTUALES', nota: 'Se registran, no penalizan', groups: agruparPorTiming(eventuales), count: eventuales.length },
     ].filter(sec => sec.count > 0);
   }, [supplements]);
+
+  // 20-sep-2026: el plan de Enrique como producto. Cuenta las fichas del
+  // coach activas y en pausa; la fecha "desde" es la mas antigua de todas.
+  const { filasCoach, coachEnPausa, hayPlanCoach, planDesde } = useMemo(() => {
+    const activas = supplements.filter(esDelCoach);
+    const enPausa = pausados.filter(esDelCoach);
+    const inicio = inicioPlanCoach([...supplements, ...pausados]);
+    return {
+      filasCoach: activas,
+      coachEnPausa: enPausa.length,
+      hayPlanCoach: activas.length + enPausa.length > 0,
+      // Fecha local del alta: el ISO viene en UTC y a medianoche cambia de dia.
+      planDesde: inicio ? toLocalDateString(new Date(inicio)) : null,
+    };
+  }, [supplements, pausados]);
 
   // Multi-dosis (188): el progreso cuenta TOMAS, no suplementos (N tomas = N checks)
   // #35: memoizado junto con grouped. 312: HOY mide solo el plan; las
@@ -698,19 +753,48 @@ export default function SupplementsScreen() {
         </View>
       )}
 
-      {/* Doctrina: registro, no recomendación (copy obligatorio del sprint) */}
-      <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
-        <View style={{
-          backgroundColor: t.card, borderRadius: 12, padding: 12,
-          borderWidth: 1, borderColor: t.borde,
-        }}>
-          <Text style={{ color: t.textoSecundario, fontSize: 11, lineHeight: 16 }}>
-            Esto es tu registro. No es recomendación. Es responsabilidad de quien te lo indicó.
-          </Text>
+      {/* 20-sep-2026: la pantalla abria con "Esto es tu registro. No es
+          recomendacion. Es responsabilidad de quien te lo indico", negando el
+          producto en la pantalla del producto. Ahora abre con el plan: de
+          quien es, cuantas fichas y desde cuando. La leyenda legal vive al
+          pie. Sin plan del coach no se pinta nada aqui. */}
+      {cargado && hayPlanCoach && (
+        <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+          <View style={{
+            backgroundColor: t.card, borderRadius: 16, padding: 16,
+            borderWidth: 1, borderColor: kind === 'dark' ? 'rgba(29,158,117,0.35)' : 'rgba(29,158,117,0.3)',
+          }}>
+            <Text style={{ color: tealTx, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 }}>
+              TU PLAN DE {NOMBRE_COACH_ELITE.toUpperCase()}
+            </Text>
+            <Text style={{ color: t.texto, fontSize: 16, fontWeight: '700', marginTop: 4, lineHeight: 22 }}>
+              {filasCoach.length === 1 ? '1 suplemento asignado' : `${filasCoach.length} suplementos asignados`}
+              {coachEnPausa > 0 ? ` · ${coachEnPausa} en pausa` : ''}
+            </Text>
+            {planDesde ? (
+              <Text style={{ color: t.textoSecundario, fontSize: 12, marginTop: 2 }}>
+                Desde el {formatearFecha(planDesde)}
+              </Text>
+            ) : null}
+            <Text style={{ color: t.textoSecundario, fontSize: 12, lineHeight: 17, marginTop: 8 }}>
+              Lo armó {NOMBRE_COACH_ELITE} a partir de tu evaluación. Aquí registras tus tomas; si algo no te va, díselo y él lo ajusta.
+            </Text>
+            <Pressable
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/salud/evaluacion-elite'); }}
+              hitSlop={6}
+              accessibilityRole="link"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, alignSelf: 'flex-start' }}
+            >
+              <Text style={{ color: tealTx, fontSize: 12, fontWeight: '700' }}>Ver el porqué en mi evaluación</Text>
+              <Ionicons name="chevron-forward" size={14} color={tealTx} />
+            </Pressable>
+          </View>
         </View>
-      </View>
+      )}
 
-      {/* Progreso del día + adherencia semanal */}
+      {/* Progreso del día + adherencia semanal. 20-sep-2026: solo con fichas
+          leidas; antes abria con "0/0" encima del estado vacio. */}
+      {cargado && supplements.length > 0 && (
       <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
         <View style={{
           backgroundColor: 'rgba(29,158,117,0.08)', borderRadius: 16, padding: 18,
@@ -746,6 +830,7 @@ export default function SupplementsScreen() {
           )}
         </View>
       </View>
+      )}
 
       {/* B9 (4EP): senal de carga explicita mientras la consulta va y viene. */}
       {!cargado && (
@@ -794,7 +879,9 @@ export default function SupplementsScreen() {
       {/* Suplementos: MI PLAN y EVENTUALES (312), cada uno agrupado por timing */}
       {sections.length > 0 && (
         <Text style={{ color: t.textoSecundario, fontSize: 11, paddingHorizontal: 20, marginBottom: 8 }}>
-          Toca ✏️ para editar tomas y cantidades · desliza ← para eliminar
+          {hayPlanCoach
+            ? 'Toca ✏️ para editar · desliza ← para eliminar una ficha tuya · mantén presionada una del plan para pausarla'
+            : 'Toca ✏️ para editar tomas y cantidades · desliza ← para eliminar'}
         </Text>
       )}
       {sections.map(sec => (
@@ -829,7 +916,9 @@ export default function SupplementsScreen() {
             return (
               <SwipeToDeleteRow
                 key={supp.id}
-                disabled={bloqueada}
+                // 20-sep-2026: una ficha del plan de Enrique no se borra con un
+                // dedo. Se pausa con toque largo (removeSupplement la desvia).
+                disabled={delCoach || bloqueada}
                 onConfirmDelete={() => removeSupplement(supp.id, supp.name, supp.source)}
               >
                 <Pressable
@@ -881,10 +970,13 @@ export default function SupplementsScreen() {
                           <Text style={{ color: t.textoSecundario, fontSize: 8, fontWeight: '800' }}>EVALUADO · RE-ESCANEA</Text>
                         </View>
                       ) : null}
-                      {/* ATP 3.0 (ruta 3.5): etiqueta del plan Elite. */}
+                      {/* ATP 3.0 (ruta 3.5): etiqueta del plan Elite. 20-sep-2026:
+                          era de 8 px, la mano de Enrique casi invisible en su
+                          propio producto. Ahora 11 px, en teal (texto legible
+                          en los dos temas). */}
                       {delCoach && (
-                        <View style={{ backgroundColor: kind === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,21,24,0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                          <Text style={{ color: t.textoSecundario, fontSize: 8, fontWeight: '800' }}>ASIGNADO POR {NOMBRE_COACH_ELITE.toUpperCase()}</Text>
+                        <View style={{ backgroundColor: 'rgba(29,158,117,0.12)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
+                          <Text style={{ color: tealTx, fontSize: 11, fontWeight: '800', letterSpacing: 0.3 }}>Asignado por {NOMBRE_COACH_ELITE}</Text>
                         </View>
                       )}
                     </View>
@@ -899,8 +991,16 @@ export default function SupplementsScreen() {
                       {doseCount === 1 && doseLabels[0] && isCustomDoseTime(doseLabels[0]) && (
                         <Text style={{ color: tealTx, fontSize: 11 }}>· {doseLabels[0]}</Text>
                       )}
-                      {supp.reason && <Text style={{ color: t.textoSecundario, fontSize: 11 }}>· {supp.reason}</Text>}
+                      {supp.reason && !delCoach && <Text style={{ color: t.textoSecundario, fontSize: 11 }}>· {supp.reason}</Text>}
                     </View>
+                    {/* 20-sep-2026: el porque de cada suplemento del plan se lee
+                        en la lista, no solo en la ficha. Es lo que Enrique
+                        escribio para esa persona: va en tinta de texto. */}
+                    {delCoach && supp.reason ? (
+                      <Text style={{ color: t.texto, fontSize: 12, lineHeight: 17, marginTop: 4 }}>
+                        <Text style={{ color: t.textoSecundario }}>Por qué: </Text>{supp.reason}
+                      </Text>
+                    ) : null}
                     {/* 8-sep-2026: las notas de la ficha (la advertencia que
                         escribió quien asignó el plan, como la del B12) solo se
                         veían dentro del formulario de edición. Es información
@@ -1011,7 +1111,9 @@ export default function SupplementsScreen() {
 
       {supplements.length > 0 && (
         <Text style={{ color: t.textoSecundario, fontSize: 10, textAlign: 'center', marginTop: 4, paddingHorizontal: 20 }}>
-          Toca para marcar · ×N para registrar cuántas tomaste hoy · Desliza ← (o mantén presionado) para eliminar
+          {hayPlanCoach
+            ? 'Toca para marcar · ×N para registrar cuántas tomaste hoy · Mantén presionada una ficha del plan para pausarla'
+            : 'Toca para marcar · ×N para registrar cuántas tomaste hoy · Desliza ← (o mantén presionado) para eliminar'}
         </Text>
       )}
 
@@ -1051,8 +1153,8 @@ export default function SupplementsScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <Text style={{ color: t.texto, fontSize: 14, fontWeight: '600' }}>{supp.name}</Text>
                 {esDelCoach(supp) && (
-                  <View style={{ backgroundColor: kind === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,21,24,0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                    <Text style={{ color: t.textoSecundario, fontSize: 8, fontWeight: '800' }}>ASIGNADO POR {NOMBRE_COACH_ELITE.toUpperCase()}</Text>
+                  <View style={{ backgroundColor: 'rgba(29,158,117,0.12)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 }}>
+                    <Text style={{ color: tealTx, fontSize: 11, fontWeight: '800', letterSpacing: 0.3 }}>Asignado por {NOMBRE_COACH_ELITE}</Text>
                   </View>
                 )}
               </View>
@@ -1506,7 +1608,23 @@ export default function SupplementsScreen() {
         onClose={() => setScanVisible(false)}
         onPlanChanged={loadSupplements}
       />
-      <MedicalDisclaimer feature="supplements" />
+      {/* 20-sep-2026: el pie legal. Con plan de Enrique va la leyenda propia de
+          ATP sobre suplementos (cumple lo que pide la LGS 216: decir que no son
+          medicamentos; la misma de ARGOS y de la evaluacion), chica y sin negar
+          el producto; el pie de "ATP no prescribe ni sugiere suplementos" es
+          para el registro propio, no para un plan que si asigno una persona. */}
+      {cargado && hayPlanCoach ? (
+        <View style={{ paddingHorizontal: 20, paddingVertical: 16, marginTop: 24, marginBottom: 32, gap: 6 }}>
+          <Text style={{ color: t.textoSecundario, fontSize: 11, lineHeight: 16 }}>
+            {LEYENDA_SUPLEMENTOS}
+          </Text>
+          <Text style={{ color: t.textoSecundario, fontSize: 11, lineHeight: 16 }}>
+            Este plan lo asignó {NOMBRE_COACH_ELITE} a partir de tu evaluación y lo ajusta él. Lo que registras aquí es tuyo.
+          </Text>
+        </View>
+      ) : (
+        <MedicalDisclaimer feature="supplements" />
+      )}
     </ScrollView>
     </ThemeReady>
   );

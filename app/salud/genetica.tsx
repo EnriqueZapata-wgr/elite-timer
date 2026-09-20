@@ -12,6 +12,12 @@
  * ("segunda entrega, semana 8"), y quien no es Elite (candado que abre la
  * página Elite; sin precio ni botón de compra, Apple 3.1.3). Más los estados
  * de cargando y no se pudo leer con reintentar. Tema claro y oscuro.
+ *
+ * 20-sep-2026: quien ya es Elite (nivel o grant) y todavía no tiene la
+ * evaluación cargada NO ve la página de venta: ve que Enrique la está
+ * preparando. La leyenda legal va al pie, visible, y la puerta de
+ * consentimiento (MedicalDisclaimerGate, migración 155) se conserva como en
+ * las demás pantallas de salud.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -22,6 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { CandadoBloque } from '@/src/components/ui/CandadoBloque';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
 import { EliteText } from '@/components/elite-text';
@@ -56,11 +63,14 @@ export default function GeneticaScreen() {
   const { tokens: t } = useAppTheme();
   const s = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
-  const { tieneEvaluacionElite, evaluacionEliteNoSePudoLeer, isLoading: nivelCargando } = useSubscription();
+  const { tieneEvaluacionElite, evaluacionEliteNoSePudoLeer, esElite, nivelNoSePudoLeer, isLoading: nivelCargando, refresh: refrescarNivel } = useSubscription();
   const [carga, setCarga] = useState<Carga>({ estado: 'cargando' });
   const [intento, setIntento] = useState(0);
 
-  const gateCerrado = !nivelCargando && !tieneEvaluacionElite && !evaluacionEliteNoSePudoLeer;
+  // 20-sep-2026: a quien ya pagó no se le vende lo que compró. Con nivel Elite
+  // (o grant) sin evaluación, o con el nivel ilegible, el candado no cierra.
+  const gateCerrado = !nivelCargando && !tieneEvaluacionElite && !evaluacionEliteNoSePudoLeer
+    && !esElite && !nivelNoSePudoLeer;
 
   useEffect(() => {
     if (!user?.id || gateCerrado) return;
@@ -79,19 +89,19 @@ export default function GeneticaScreen() {
     </Pressable>
   );
 
+  const candado = (
+    <View style={s.bloque}>
+      <CandadoBloque
+        titulo="Disponible en ATP Elite"
+        texto="Disponible en ATP Elite: evaluación personalizada con Enrique."
+        boton="Escríbenos"
+        destino={RUTA_ELITE}
+      />
+    </View>
+  );
+
   const cuerpo = () => {
-    if (gateCerrado) {
-      return (
-        <View style={s.bloque}>
-          <CandadoBloque
-            titulo="Disponible en ATP Elite"
-            texto="Disponible en ATP Elite: evaluación personalizada con Enrique."
-            boton="Escríbenos"
-            destino={RUTA_ELITE}
-          />
-        </View>
-      );
-    }
+    if (gateCerrado) return candado;
     if (nivelCargando || carga.estado === 'cargando') {
       return (
         <View style={s.center}>
@@ -111,10 +121,30 @@ export default function GeneticaScreen() {
     }
     const vigente = carga.vigente;
     if (!vigente) {
+      // 20-sep-2026 (revision en frio, A5): "Enrique está preparando tu
+      // evaluación" solo se le promete a quien la contrató (nivel Elite o
+      // evaluación registrada). Sin ninguna de las dos y con el nivel
+      // ilegible: no se pudo leer la cuenta, con reintentar de ambas
+      // lecturas. Con nivel legible que no es Elite y sin evaluación en
+      // esta lectura directa, va el candado.
+      if (!esElite && !tieneEvaluacionElite) {
+        if (nivelNoSePudoLeer) {
+          return (
+            <View style={s.aviso}>
+              <EliteText style={s.avisoTitulo}>No se pudo leer tu cuenta</EliteText>
+              <EliteText style={s.avisoTexto}>Revisa tu conexión. Nada se perdió.</EliteText>
+              <Pressable style={s.cta} onPress={() => { haptic.light(); refrescarNivel(); setIntento((n) => n + 1); }} accessibilityRole="button">
+                <EliteText style={s.ctaText}>Reintentar</EliteText>
+              </Pressable>
+            </View>
+          );
+        }
+        return candado;
+      }
       return (
         <View style={s.aviso}>
-          <EliteText style={s.avisoTitulo}>Tu evaluación todavía no está cargada</EliteText>
-          <EliteText style={s.avisoTexto}>Cuando Enrique termine de interpretarla, tu genética aparece aquí.</EliteText>
+          <EliteText style={s.avisoTitulo}>Enrique está preparando tu evaluación</EliteText>
+          <EliteText style={s.avisoTexto}>Cuando esté lista, tu genética aparece aquí y él te avisa. Si ya te la entregó y no la ves, reintenta.</EliteText>
           {reintentar}
         </View>
       );
@@ -216,6 +246,7 @@ export default function GeneticaScreen() {
         <ScreenHeader title="Genética" onBack={() => router.back()} />
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
           {cuerpo()}
+          <MedicalDisclaimer feature="genetics" />
           <ResultDisclaimerFooter />
         </ScrollView>
       </Screen>

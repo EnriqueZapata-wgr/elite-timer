@@ -30,7 +30,9 @@ import {
 import { aUnidadDeMatriz } from '@/src/constants/lab-unidades-core';
 import { isLabValueValid } from '@/src/constants/lab-clinical-ranges';
 
-export type LabValueSource = 'lab_pdf' | 'manual' | 'upload_extract' | 'wearable' | 'form';
+// 20-sep-2026 (migracion 324): 'elite' = marcador que escribio la evaluacion
+// Elite (elite_cargar_completa) con la fecha de toma del documento.
+export type LabValueSource = 'lab_pdf' | 'manual' | 'upload_extract' | 'wearable' | 'form' | 'elite';
 
 export interface LabValueRow {
   parameter_key: string;

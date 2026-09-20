@@ -85,6 +85,8 @@ type SortMode = 'panel' | 'fecha' | 'estado';
 
 const SOURCE_LABEL: Record<LabValueSource, string> = {
   lab_pdf: 'PDF de lab', manual: 'Manual', upload_extract: 'PDF parseado', wearable: 'Wearable', form: 'Captura',
+  // 20-sep-2026 (324): sin esta etiqueta la fila del cliente Elite decia "undefined".
+  elite: 'Evaluación Elite',
 };
 
 /** Valor para mostrar: las claves pct (hba1c/hematocrito/rdw_cv) se enseñan en %. */
@@ -310,7 +312,7 @@ function AtpLabsScreen() {
           onPress={() => { haptic.medium(); router.push('/edad-atp/comparar'); }}
           style={styles.compararRow}
           accessibilityRole="button"
-          accessibilityLabel={compararConCandado ? 'Comparar con mi estudio anterior. Disponible en ATP Pro' : 'Comparar con mi estudio anterior'}
+          accessibilityLabel={compararConCandado ? 'Comparar con mi estudio anterior. Disponible con tu servicio ATP' : 'Comparar con mi estudio anterior'}
         >
           <AppIcon name="salud-evolucion" size={18} color={t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto} />
           <EliteText variant="body" style={styles.compararText}>Comparar con mi estudio anterior</EliteText>

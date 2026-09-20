@@ -160,6 +160,43 @@ describe('validarEliteV3 rechaza', () => {
     o.cierre.palancas.pop();
     expect(erroresDe(o)).toContain('cierre.palancas: exactamente tres');
   });
+
+  // 20-sep-2026 (324): las metas con numero son opcionales, pero si vienen
+  // tienen que ser numeros mayores que cero o null.
+  it('metas de alimentacion: opcionales, y cero o negativo no es una meta', () => {
+    const o = clon();
+    o.alimentacion.metas = { proteina_g_dia: 140, agua_ml_dia: null };
+    expect(erroresDe(o)).toEqual([]);
+    const o2 = clon();
+    o2.alimentacion.metas = null;
+    expect(erroresDe(o2)).toEqual([]);
+    const o3 = clon();
+    o3.alimentacion.metas = { proteina_g_dia: 0, agua_ml_dia: -1 };
+    const err = erroresDe(o3);
+    expect(err).toContain('alimentacion.metas.proteina_g_dia: numero mayor que cero o null');
+    expect(err).toContain('alimentacion.metas.agua_ml_dia: numero mayor que cero o null');
+  });
+
+  // 20-sep-2026 (revision en frio, A1): una llave ausente en `metas` no puede
+  // salir como `undefined` (la pantalla pintaba "undefined g de proteina").
+  // Si `metas` es objeto, el valor validado trae las dos llaves: numero o null.
+  it('metas de alimentacion: llave ausente sale como null, nunca undefined', () => {
+    const o = clon();
+    o.alimentacion.metas = {};
+    const r = validarEliteV3(o);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.alimentacion.metas).toEqual({ proteina_g_dia: null, agua_ml_dia: null });
+
+    const o2 = clon();
+    o2.alimentacion.metas = { proteina_g_dia: 150 };
+    const r2 = validarEliteV3(o2);
+    expect(r2.ok).toBe(true);
+    if (!r2.ok) return;
+    expect(r2.valor.alimentacion.metas).toEqual({ proteina_g_dia: 150, agua_ml_dia: null });
+    // La entrada no se muta: quien mando el objeto lo conserva tal cual.
+    expect(o2.alimentacion.metas).toEqual({ proteina_g_dia: 150 });
+  });
 });
 
 describe('palabrasRojasEn', () => {

@@ -30,7 +30,9 @@ export const DISCLAIMERS: Record<DisclaimerFeature, string> = {
   quiz: 'Este quiz es educativo. No sustituye evaluación médica. Si los síntomas persisten o empeoran, consulta a un especialista.',
   fasting: 'El ayuno intermitente no es para todos. Personas con diabetes, embarazadas, lactando, con trastornos alimentarios actuales o pasados, niños, adolescentes y adultos mayores deben consultar a su médico antes. Si te sientes mareado, débil, o presentas síntomas inusuales, rompe el ayuno y busca atención.',
   cycle: 'Las predicciones de ciclo son estimaciones basadas en tu historial. No son método anticonceptivo. Tus datos están encriptados y nunca se comparten.',
-  genetics: 'ATP Genética interpreta tu RAW de pruebas comerciales. Es educativa, no diagnóstico, no predice enfermedades específicas, ni reemplaza asesoramiento genético profesional.',
+  // 20-sep-2026 (revision en frio, A8): la pantalla ya no lee un RAW; muestra
+  // hallazgos que tu equipo interpretó a partir de tu prueba. Sin palabras rojas.
+  genetics: 'Estos hallazgos los interpretó tu equipo a partir de tu prueba genética. Son material educativo: no predicen enfermedades específicas ni sustituyen la valoración de tu médico ni el asesoramiento genético profesional.',
   argos: 'ARGOS es un asistente educativo basado en IA. No es médico. Para preocupaciones de salud, consulta a un profesional. En emergencia, contacta servicios médicos.',
   interpretation: 'Esta interpretación es material educativo de ATP, elaborado con criterios de medicina funcional. Es orientativa: no constituye diagnóstico ni tratamiento, ni reemplaza consulta con un profesional de la salud.',
   nutrition: 'ATP estima macros y orienta tu nutrición. No sustituye atención de nutriólogo profesional. Para condiciones específicas (diabetes, enfermedad renal, trastornos alimentarios), consulta especialista.',

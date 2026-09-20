@@ -263,6 +263,19 @@ export interface EliteHorario {
   que: string;
 }
 
+/**
+ * Metas diarias que el manual fija con numero (20-sep-2026, migracion 324).
+ * Van a `user_day_preferences.goals` (protein_goal_g, water_goal_ml) SOLO si
+ * el cliente no tiene ya las suyas: un numero que la persona fijo no se
+ * cambia en silencio. Opcional: el formato Omar no siempre las trae.
+ */
+export interface EliteMetasAlimentacion {
+  /** Gramos de proteina al dia; null si el manual no lo fija. */
+  proteina_g_dia: number | null;
+  /** Mililitros de agua al dia; null si el manual no lo fija. */
+  agua_ml_dia: number | null;
+}
+
 export interface EliteAlimentacion {
   prioriza: string[];
   evita: string[];
@@ -270,6 +283,8 @@ export interface EliteAlimentacion {
   ventana: { inicio: string; fin: string } | null;
   horarios: EliteHorario[];
   notas: string[];
+  /** Metas con numero (proteina, agua). Opcional; null o ausente = el manual no las fija. */
+  metas?: EliteMetasAlimentacion | null;
 }
 
 export interface EliteSuplemento {
@@ -647,6 +662,18 @@ export function validarEliteV3(obj: unknown): { ok: true; valor: EliteV3 } | { o
   if (!Array.isArray(alimentacion.horarios)) e.push('alimentacion.horarios: arreglo obligatorio');
   else alimentacion.horarios.forEach((h, i) => validarTextos(h, `alimentacion.horarios[${i}]`, ['momento', 'que'], e));
   validarListaTexto(alimentacion.notas, 'alimentacion.notas', e);
+  // 20-sep-2026 (324): metas con numero, opcionales. Cero o negativo no es una
+  // meta: se rechaza en vez de escribirse como tal en las preferencias.
+  if (alimentacion.metas !== undefined && alimentacion.metas !== null) {
+    const m = alimentacion.metas;
+    if (!esObj(m)) e.push('alimentacion.metas: {proteina_g_dia, agua_ml_dia} o null');
+    else {
+      for (const k of ['proteina_g_dia', 'agua_ml_dia']) {
+        const v = m[k];
+        if (v !== null && v !== undefined && !(esNum(v) && v > 0)) e.push(`alimentacion.metas.${k}: numero mayor que cero o null`);
+      }
+    }
+  }
 
   (obj.suplementos as unknown[]).forEach((s, i) => {
     const ruta = `suplementos[${i}]`;
@@ -702,6 +729,19 @@ export function validarEliteV3(obj: unknown): { ok: true; valor: EliteV3 } | { o
   }
 
   if (e.length) return { ok: false, errores: e };
+  // 20-sep-2026 (revision en frio, A1): si `metas` viene como objeto, el valor
+  // validado trae SIEMPRE `proteina_g_dia` y `agua_ml_dia` (numero valido o
+  // null; ausente = null). Antes una llave ausente pasaba como `undefined` y
+  // la pantalla pintaba "undefined g de proteina". No se muta la entrada.
+  const metasCrudas = alimentacion.metas;
+  if (esObj(metasCrudas)) {
+    const metas: EliteMetasAlimentacion = {
+      proteina_g_dia: esNum(metasCrudas.proteina_g_dia) ? metasCrudas.proteina_g_dia : null,
+      agua_ml_dia: esNum(metasCrudas.agua_ml_dia) ? metasCrudas.agua_ml_dia : null,
+    };
+    const normalizado = { ...obj, alimentacion: { ...alimentacion, metas } };
+    return { ok: true, valor: normalizado as unknown as EliteV3 };
+  }
   return { ok: true, valor: obj as unknown as EliteV3 };
 }
 

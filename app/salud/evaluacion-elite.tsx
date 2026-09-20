@@ -16,10 +16,19 @@
  * (gate abierto pero sin filas), no se pudo leer (con reintentar) y el
  * documento. Tinta: t.texto y t.textoSecundario; estados con t.critico,
  * t.advertencia y t.exito. Nunca sinDatos como color de texto.
+ *
+ * 20-sep-2026 (recibir un producto): el lead ("Tienes 38 años. Tu cuerpo
+ * funciona como uno de 44.5") abre la pantalla, con la firma de Enrique y la
+ * fecha de toma; "Versión 1 · Hombre de 48 años" baja a metadato. La leyenda
+ * legal va al pie, visible, y la puerta de consentimiento
+ * (MedicalDisclaimerGate, user_consent.medical_disclaimer_accepted_at,
+ * migración 155) se conserva como en las demás pantallas de salud. Quien ya
+ * es Elite y todavía no tiene evaluación ve "Enrique está preparando tu
+ * evaluación", nunca la página de venta.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -27,6 +36,7 @@ import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { CandadoBloque } from '@/src/components/ui/CandadoBloque';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
 import { EliteText } from '@/components/elite-text';
@@ -81,7 +91,7 @@ export default function EvaluacionEliteScreen() {
   const { tokens: t } = useAppTheme();
   const s = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
-  const { tieneEvaluacionElite, evaluacionEliteNoSePudoLeer, isLoading: nivelCargando } = useSubscription();
+  const { tieneEvaluacionElite, evaluacionEliteNoSePudoLeer, esElite, nivelNoSePudoLeer, isLoading: nivelCargando, refresh: refrescarNivel } = useSubscription();
 
   const [carga, setCarga] = useState<Carga>({ estado: 'cargando' });
   const [intento, setIntento] = useState(0);
@@ -89,6 +99,17 @@ export default function EvaluacionEliteScreen() {
   const [compartiendo, setCompartiendo] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const offsets = useRef<Partial<Record<SeccionUiKey, number>>>({});
+
+  // 20-sep-2026 (revision en frio, A4): Home manda `seccion` (PuertasElite:
+  // 'alimentacion' | 'entrenamiento'; QueHacerHoy: 'cierre'). Se valida contra
+  // las llaves de SECCIONES_UI; una llave desconocida se ignora sin error.
+  const params = useLocalSearchParams<{ seccion?: string }>();
+  const seccionPedida = useMemo<SeccionUiKey | null>(() => {
+    const cruda = Array.isArray(params.seccion) ? params.seccion[0] : params.seccion;
+    return typeof cruda === 'string' && SECCIONES_UI.some((x) => x.key === cruda) ? (cruda as SeccionUiKey) : null;
+  }, [params.seccion]);
+  /** A que seccion ya se desplazo por `seccion`: se hace UNA sola vez por llave. */
+  const desplazadoA = useRef<SeccionUiKey | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -109,15 +130,31 @@ export default function EvaluacionEliteScreen() {
   const esAnterior = actual !== null && vigente !== null && actual.id !== vigente.id;
   const evaluacion = actual?.evaluacion ?? null;
 
-  const irA = useCallback((key: SeccionUiKey) => {
-    haptic.light();
+  const irA = useCallback((key: SeccionUiKey, conHaptica = true) => {
+    if (conHaptica) haptic.light();
     const y = offsets.current[key];
     if (y !== undefined) scrollRef.current?.scrollTo({ y: Math.max(0, y - 8), animated: true });
   }, []);
 
+  // Desplaza a la seccion pedida cuando su offset ya existe, una sola vez.
+  // `offsets` es un ref (no dispara renders), asi que se intenta desde el
+  // efecto (por si el bloque ya registro su posicion) y desde `registrar`
+  // (onLayout llega despues del primer render del documento).
+  const desplazarSiPendiente = useCallback((key: SeccionUiKey) => {
+    if (seccionPedida === null || key !== seccionPedida || desplazadoA.current === key) return;
+    if (offsets.current[key] === undefined) return;
+    desplazadoA.current = key;
+    irA(key, false);
+  }, [seccionPedida, irA]);
+
   const registrar = useCallback((key: SeccionUiKey) => (e: LayoutChangeEvent) => {
     offsets.current[key] = e.nativeEvent.layout.y;
-  }, []);
+    desplazarSiPendiente(key);
+  }, [desplazarSiPendiente]);
+
+  useEffect(() => {
+    if (seccionPedida !== null) desplazarSiPendiente(seccionPedida);
+  }, [seccionPedida, desplazarSiPendiente]);
 
   const descargarPdf = useCallback(async () => {
     if (!evaluacion || compartiendo) return;
@@ -136,21 +173,25 @@ export default function EvaluacionEliteScreen() {
 
   // Gate por existencia. Ante la duda (no se pudo leer si existe) se abre y
   // la lectura de aquí decide (regla 1: no cerrarle nada a quien pagó).
-  const gateCerrado = !nivelCargando && !tieneEvaluacionElite && !evaluacionEliteNoSePudoLeer;
+  // 20-sep-2026: quien ya es Elite (nivel o grant) y todavía no tiene la
+  // evaluación cargada NO ve la página de venta: ve que Enrique la está
+  // preparando. Si el nivel no se pudo leer, tampoco se cierra (fail-open).
+  const gateCerrado = !nivelCargando && !tieneEvaluacionElite && !evaluacionEliteNoSePudoLeer
+    && !esElite && !nivelNoSePudoLeer;
+
+  const candado = (
+    <View style={s.bloque}>
+      <CandadoBloque
+        titulo="Disponible en ATP Elite"
+        texto="Tu evaluación personalizada con Enrique: laboratorios, genética, composición corporal y química cerebral leídos juntos, con tu plan de alimentación, suplementos y entrenamiento."
+        boton="Conocer ATP Elite"
+        destino={RUTA_ELITE}
+      />
+    </View>
+  );
 
   const cuerpo = () => {
-    if (gateCerrado) {
-      return (
-        <View style={s.bloque}>
-          <CandadoBloque
-            titulo="Disponible en ATP Elite"
-            texto="Tu evaluación personalizada con Enrique: laboratorios, genética, composición corporal y química cerebral leídos juntos, con tu plan de alimentación, suplementos y entrenamiento."
-            boton="Conocer ATP Elite"
-            destino={RUTA_ELITE}
-          />
-        </View>
-      );
-    }
+    if (gateCerrado) return candado;
     if (nivelCargando || carga.estado === 'cargando') {
       return (
         <View style={s.center}>
@@ -171,11 +212,33 @@ export default function EvaluacionEliteScreen() {
       );
     }
     if (!actual) {
+      // 20-sep-2026 (revision en frio, A5): "Enrique está preparando tu
+      // evaluación" es una promesa y solo se le hace a quien la contrató:
+      // nivel Elite (o grant) o evaluación registrada. Sin ninguna de las dos
+      // y con el nivel ilegible, se dice que no se pudo leer la cuenta y se
+      // reintentan las dos lecturas. Con nivel legible que no es Elite, y esta
+      // lectura directa que tampoco encontró evaluación, va el candado.
+      if (!esElite && !tieneEvaluacionElite) {
+        if (nivelNoSePudoLeer) {
+          return (
+            <View style={s.aviso}>
+              <EliteText style={s.avisoTitulo}>No se pudo leer tu cuenta</EliteText>
+              <EliteText style={s.avisoTexto}>Revisa tu conexión. Nada se perdió.</EliteText>
+              <Pressable style={s.cta} onPress={() => { haptic.light(); refrescarNivel(); setIntento((n) => n + 1); }} accessibilityRole="button">
+                <EliteText style={s.ctaText}>Reintentar</EliteText>
+              </Pressable>
+            </View>
+          );
+        }
+        return candado;
+      }
+      // Sin fecha estimada en la base (no existe ese campo en tier_grants ni
+      // en profiles); cuando exista, va aquí.
       return (
         <View style={s.aviso}>
-          <EliteText style={s.avisoTitulo}>Tu evaluación todavía no está cargada</EliteText>
+          <EliteText style={s.avisoTitulo}>Enrique está preparando tu evaluación</EliteText>
           <EliteText style={s.avisoTexto}>
-            Cuando Enrique termine de interpretarla aparece aquí. Si ya te la entregaron y no la ves, reintenta.
+            Está leyendo tus laboratorios y tu contexto. Cuando esté lista aparece aquí y él te avisa. Si ya te la entregó y no la ves, reintenta.
           </EliteText>
           <Pressable style={s.cta} onPress={() => { haptic.light(); setIntento((n) => n + 1); }} accessibilityRole="button">
             <EliteText style={s.ctaText}>Reintentar</EliteText>
@@ -220,6 +283,7 @@ export default function EvaluacionEliteScreen() {
         <ScreenHeader title="Mi evaluación Elite" onBack={() => router.back()} />
         <ScrollView ref={scrollRef} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
           {cuerpo()}
+          <MedicalDisclaimer feature="interpretation" />
           <ResultDisclaimerFooter />
         </ScrollView>
       </Screen>
@@ -245,20 +309,34 @@ interface DocumentoProps {
 
 function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, compartiendo, registrar, irA, s, t }: DocumentoProps) {
   const sistemas = ordenarSistemas(e.sistemas);
+  // 20-sep-2026 (revision en frio, A1): cada meta se pinta solo si trae numero
+  // (`!= null` cubre null y una llave ausente). Con una sola, va esa sola; sin
+  // ninguna, el bloque "Metas del dia" no se pinta.
+  const metaProteina = e.alimentacion.metas?.proteina_g_dia ?? null;
+  const metaAgua = e.alimentacion.metas?.agua_ml_dia ?? null;
+  const metasTexto = [
+    metaProteina != null ? `${metaProteina} g de proteína` : null,
+    metaAgua != null ? `${metaAgua} ml de agua` : null,
+  ].filter((x): x is string => x !== null);
   // SeccionBloque vive fuera de este componente: definirla aqui adentro la
   // remontaria en cada render y perderia los offsets de las secciones.
   return (
     <>
-      {/* Cabecera */}
+      {/* Cabecera. 20-sep-2026: estaba al reves. Abria con "Versión 1 · toma ·
+          generada · Hombre de 48 años" y el lead (las dos edades) quedaba
+          abajo, en la tarjeta Inicio. Ahora primero lo que la persona vino a
+          leer, luego quien firma y cuando se tomo la muestra; version, sexo y
+          edad bajan a metadato al final de la tarjeta. */}
       <View style={s.cabecera}>
-        <EliteText style={s.cabeceraNombre}>{e.cliente.nombre_preferido}</EliteText>
-        <EliteText style={s.cabeceraMeta}>
-          Versión {e.version} · toma {formatearFecha(e.cliente.fecha_toma)} · generada {formatearFecha(e.generado_en)}
+        <EliteText style={s.cabeceraEyebrow}>Para {e.cliente.nombre_preferido}</EliteText>
+        {e.inicio.lead ? (
+          <EliteText style={s.cabeceraLead}>{e.inicio.lead}</EliteText>
+        ) : (
+          <EliteText style={s.cabeceraNombre}>Tu evaluación Elite</EliteText>
+        )}
+        <EliteText style={s.cabeceraFirma}>
+          Interpretada por {e.interpretado_por.evaluacion} · toma: {formatearFecha(e.cliente.fecha_toma)}
         </EliteText>
-        <EliteText style={s.cabeceraMeta}>
-          {e.cliente.sexo === 'female' ? 'Mujer' : 'Hombre'} de {e.cliente.edad} años
-        </EliteText>
-        <EliteText style={s.cabeceraMeta}>Interpretada por {e.interpretado_por.evaluacion}</EliteText>
         {esAnterior && (
           <View style={s.anteriorRow}>
             <View style={s.anteriorPill}><EliteText style={s.anteriorPillText}>Versión anterior</EliteText></View>
@@ -271,6 +349,9 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
           <Ionicons name="download-outline" size={16} color={t.textoSobreLima} />
           <EliteText style={s.pdfBotonText}>{compartiendo ? 'Generando PDF…' : 'Descargar PDF'}</EliteText>
         </AnimatedPressable>
+        <EliteText style={s.cabeceraMeta}>
+          Versión {e.version} · {e.cliente.sexo === 'female' ? 'Mujer' : 'Hombre'} de {e.cliente.edad} años · generada {formatearFecha(e.generado_en)}
+        </EliteText>
       </View>
 
       {/* Versiones (ruta 3.10) */}
@@ -306,7 +387,7 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
             <Dato etiqueta="Edad ATP" valor={formatearValor(e.inicio.edad_atp, 'años')} s={s} />
             <Dato etiqueta="Diferencia" valor={formatearDiferenciaAnios(e.inicio.diferencia_anios)} s={s} />
           </View>
-          {e.inicio.lead ? <EliteText style={s.lead}>{e.inicio.lead}</EliteText> : null}
+          {/* 20-sep-2026: el lead subio a la cabecera; aqui no se repite. */}
           {e.inicio.programa_semanas !== null ? (
             <EliteText style={s.meta}>Programa de {e.inicio.programa_semanas} semanas</EliteText>
           ) : null}
@@ -613,11 +694,29 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
               {e.alimentacion.horarios.map((h, i) => <EliteText key={i} style={s.parrafo}><EliteText style={s.negrita}>{h.momento}: </EliteText>{h.que}</EliteText>)}
             </View>
           )}
+          {/* 20-sep-2026 (324): metas con numero, si el manual las fija. Van
+              tambien a las metas del dia del cliente cuando no tiene las suyas. */}
+          {metasTexto.length > 0 ? (
+            <EliteText style={s.parrafo}>
+              <EliteText style={s.negrita}>Metas del día: </EliteText>
+              {metasTexto.join(' · ')}
+            </EliteText>
+          ) : null}
           {e.alimentacion.notas.map((n, i) => <EliteText key={i} style={s.meta}>{n}</EliteText>)}
-          {e.alimentacion.prioriza.length + e.alimentacion.evita.length + e.alimentacion.horarios.length === 0 && !e.alimentacion.ventana ? (
-            <EliteText style={s.parrafo}>Tu plan de alimentación llega con la siguiente entrega.</EliteText>
+          {/* 20-sep-2026: "llega con la siguiente entrega" sonaba a faltante en
+              un producto ya entregado. Se dice lo que hay: esta version no lo
+              trae por escrito. */}
+          {e.alimentacion.prioriza.length + e.alimentacion.evita.length + e.alimentacion.horarios.length === 0 && !e.alimentacion.ventana && metasTexto.length === 0 ? (
+            <EliteText style={s.parrafo}>Esta versión no incluye un plan de alimentación por escrito. Lo que Enrique te indicó sigue valiendo.</EliteText>
           ) : null}
         </View>
+        {/* 20-sep-2026: la seccion enlaza a donde se registra la comida. El
+            plan cargado por la 324 vive en nutrition_plans y Comida es su
+            pantalla; si esa pantalla estrena "Mi plan", este enlace cae ahi. */}
+        <Pressable onPress={() => { haptic.light(); router.push('/nutrition'); }} accessibilityRole="link" style={s.enlaceRow}>
+          <EliteText style={s.enlace}>Abrir Comida</EliteText>
+          <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} />
+        </Pressable>
       </SeccionBloque>
 
       {/* Suplementos */}
@@ -649,7 +748,9 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
                 {sup.advertencia ? <EliteText style={[s.meta, { color: t.advertencia }]}>{sup.advertencia}</EliteText> : null}
               </View>
             ))}
-            {/* ATP 3.0 (ruta 2.0, 5-sep-2026): leyenda fija de LGS 216, la misma que usa ARGOS. */}
+            {/* ATP 3.0 (ruta 2.0, 5-sep-2026): leyenda propia de ATP sobre suplementos
+                (cumple lo que pide la LGS 216: decir que no son medicamentos), la
+                misma que usa ARGOS y el modulo de Suplementos. */}
             <EliteText style={[s.meta, { marginTop: 4 }]}>{LEYENDA_SUPLEMENTOS}</EliteText>
             <Pressable onPress={() => { haptic.light(); router.push('/supplements'); }} accessibilityRole="link" style={s.enlaceRow}>
               <EliteText style={s.enlace}>Abrir mi módulo de Suplementos</EliteText>
@@ -680,9 +781,15 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
           )}
           {e.entrenamiento.notas.map((n, i) => <EliteText key={i} style={s.meta}>{n}</EliteText>)}
           {!e.entrenamiento.base && e.entrenamiento.sesiones.length === 0 && e.entrenamiento.descanso.length === 0 ? (
-            <EliteText style={s.parrafo}>Tu plan de entrenamiento llega con la siguiente entrega.</EliteText>
+            <EliteText style={s.parrafo}>Esta versión no incluye un plan de entrenamiento por escrito. Lo que Enrique te indicó sigue valiendo.</EliteText>
           ) : null}
         </View>
+        {/* 20-sep-2026: las rutinas que Enrique asigne (assign_routine_to_client,
+            con el vinculo coach_clients que deja la 324) se ejecutan en Entrenar. */}
+        <Pressable onPress={() => { haptic.light(); router.push('/fitness-hub'); }} accessibilityRole="link" style={s.enlaceRow}>
+          <EliteText style={s.enlace}>Abrir Entrenar</EliteText>
+          <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} />
+        </Pressable>
       </SeccionBloque>
     </>
   );
@@ -819,7 +926,12 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     padding: Spacing.md, gap: 4,
   },
   cabeceraNombre: { color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.xl },
-  cabeceraMeta: { color: t.textoSecundario, fontSize: FontSizes.xs },
+  // 20-sep-2026: eyebrow con el nombre, lead grande, firma en tinta de texto y
+  // el metadato (version, sexo, edad) chico al final.
+  cabeceraEyebrow: { color: t.textoSecundario, fontSize: FontSizes.xs, letterSpacing: 1, textTransform: 'uppercase' },
+  cabeceraLead: { color: t.texto, fontFamily: Fonts.bold, fontSize: FontSizes.xl, lineHeight: 26 },
+  cabeceraFirma: { color: t.texto, fontSize: FontSizes.sm, lineHeight: 18, marginTop: 2 },
+  cabeceraMeta: { color: t.textoSecundario, fontSize: FontSizes.xs, marginTop: 6 },
   anteriorRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 4 },
   anteriorPill: { paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.pill, backgroundColor: t.hundido, borderWidth: 1, borderColor: t.bordeMarcado },
   anteriorPillText: { color: t.texto, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
@@ -852,7 +964,6 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   parrafo: { color: t.texto, fontSize: FontSizes.sm, lineHeight: 20 },
   negrita: { color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   meta: { color: t.textoSecundario, fontSize: FontSizes.xs, lineHeight: 17 },
-  lead: { color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.md, lineHeight: 22 },
   cita: { color: t.textoSecundario, fontStyle: 'italic', fontSize: FontSizes.sm, lineHeight: 20, paddingLeft: Spacing.sm, borderLeftWidth: 2, borderLeftColor: t.bordeMarcado },
 
   edadesRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.xs },

@@ -1,6 +1,6 @@
 // ATP 3.0 (6-sep-2026, ruta 3.5): reglas puras del plan Elite en Suplementos.
 import { describe, it, expect } from 'vitest';
-import { esDelCoach, planEliteSoloLectura } from '@/src/services/supplements/adherencia-core';
+import { esDelCoach, inicioPlanCoach, planEliteSoloLectura } from '@/src/services/supplements/adherencia-core';
 
 describe('esDelCoach', () => {
   it('solo las filas source=coach son del plan Elite', () => {
@@ -34,5 +34,21 @@ describe('planEliteSoloLectura', () => {
   });
   it('con la venta al público apagada nadie queda en solo lectura', () => {
     expect(planEliteSoloLectura({ esMiembro: false, nivelNoSePudoLeer: false, cargando: false }, NO_VENDIENDO)).toBe(false);
+  });
+});
+
+// 20-sep-2026: la cabecera del modulo dice desde cuando existe el plan.
+describe('inicioPlanCoach', () => {
+  it('toma la fecha mas antigua de las fichas del coach, activas o en pausa', () => {
+    expect(inicioPlanCoach([
+      { source: 'coach', created_at: '2026-09-12T10:00:00+00:00' },
+      { source: 'manual', created_at: '2026-01-01T00:00:00+00:00' },
+      { source: 'coach', created_at: '2026-09-09T03:12:00+00:00' },
+    ])).toBe('2026-09-09T03:12:00+00:00');
+  });
+  it('sin fichas del coach o sin fecha legible devuelve null', () => {
+    expect(inicioPlanCoach([{ source: 'manual', created_at: '2026-09-09T03:12:00+00:00' }])).toBeNull();
+    expect(inicioPlanCoach([{ source: 'coach', created_at: 'ayer' }, { source: 'coach', created_at: null }])).toBeNull();
+    expect(inicioPlanCoach([])).toBeNull();
   });
 });

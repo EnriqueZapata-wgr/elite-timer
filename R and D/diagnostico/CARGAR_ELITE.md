@@ -1,8 +1,10 @@
 # Cargar una evaluación Elite: guía para Enrique (10 minutos)
 
-Fecha: 6 de septiembre de 2026. Ruta 3.7 de ATP 3.0. Complementa a `ESQUEMA_ELITE_V3.md` (qué es el JSON) y a `scripts/elite/obtener-jwt.md` (cómo sacas tu sesión). Todo se hace desde Git Bash en la raíz del repo, con tu cuenta de admin. Nadie más lo puede hacer: los dos RPC comprueban `role='admin'`.
+Fecha: 6 de septiembre de 2026; actualizada el 20 de septiembre de 2026 (migración 324, carga completa). Ruta 3.7 de ATP 3.0. Complementa a `ESQUEMA_ELITE_V3.md` (qué es el JSON) y a `scripts/elite/obtener-jwt.md` (cómo sacas tu sesión). Todo se hace desde Git Bash en la raíz del repo, con tu cuenta de admin. Nadie más lo puede hacer: los RPC comprueban `role='admin'`.
 
-Requisitos que se cumplen una sola vez: las migraciones 314, 315 y 318 ya empujadas con `npx supabase db push` (si el paso 5 responde `HTTP 404`, falta ese push), y que el cliente ya haya creado su cuenta en la app con el correo que te dio (sin cuenta no hay `user_id` y no hay dónde cargar).
+Requisitos que se cumplen una sola vez: las migraciones 314, 315, 318, 321, 323 y 324 ya empujadas con `npx supabase db push` (si el paso 5 responde `HTTP 404`, falta ese push), y que el cliente ya haya creado su cuenta en la app con el correo que te dio (sin cuenta no hay `user_id` y no hay dónde cargar). La 323 no es opcional: el gate de admin de la carga lee `profiles.role`, y es la 323 la que blinda esa columna (sin ella, cualquiera podía nombrarse admin con una consulta y cargar evaluaciones).
+
+Qué cambió el 20 de septiembre: el paso 5 llama a `elite_cargar_completa`, que hace lo de siempre (`elite_cargar_evaluacion`) y además, en la misma transacción, deja al cliente como tu cliente activo en `coach_clients` (sin eso no le podías asignar rutinas ni verlo en la consola), escribe su plan de alimentación en `nutrition_plans` desde la sección `alimentacion`, pone sus metas de proteína y agua del día solo si él no tenía las suyas, y lleva sus marcadores medidos a `lab_values` para que el expediente de labs, el comparador y ARGOS los vean. Nada de esto pisa un dato del cliente: lo que ya existía se respeta y se te dice en los avisos.
 
 ## Los siete pasos
 
@@ -11,6 +13,11 @@ Requisitos que se cumplen una sola vez: las migraciones 314, 315 y 318 ya empuja
 Tú entregas los insumos como siempre (laboratorios, genética si ya llegó, cruces, plan). El equipo los convierte con el generador de siempre al formato `elite_v3` (la plantilla es `R and D/diagnostico/elite_v3_ejemplo_omar_anonimizado.json`: mismas claves, misma profundidad) y te deja un archivo, por ejemplo `clientes/omar_v1.json`. Revísalo tú antes de cargarlo: nombre preferido correcto, que no diga "tienes [enfermedad]" y que cada afirmación tenga respaldo. El validador no ve eso.
 
 El campo `version` del JSON manda: debe ser el número de evaluaciones Elite previas de ese cliente más 1 (la primera es `1`, la revisión o corrección siguiente es `2`, y así). Cuenta solo las evaluaciones Elite (`elite_v3`), no otras filas de `functional_dx`. Si no coincide, el RPC la rechaza con `version_mismatch` y te dice la versión que espera.
+
+Dos campos que conviene llenar bien desde el 20 de septiembre:
+
+- `cliente.fecha_toma` con día (`2026-05-14`, no solo `2026-05`): es la fecha con la que los laboratorios entran al expediente. Si solo trae el mes, entran con el día 1 y queda anotado que el día se asumió.
+- `alimentacion.metas` (opcional): `{ "proteina_g_dia": 150, "agua_ml_dia": 2800 }`. Es lo que va a las metas del día del cliente (proteína en gramos, agua en mililitros) cuando él no tiene ya las suyas. Sin este campo, sus metas se quedan como están.
 
 ### 2. Preparar el payload
 
@@ -31,13 +38,17 @@ Payload listo para elite_cargar_evaluacion
   marcadores:           34 (15 piden accion)
   hallazgos geneticos:  22
   suplementos (filas):  6
+  raices detectadas:    3 (resistencia_insulina, hiperinsulinemia, deficit_sueno_profundo)
+  labs a lab_values:    25 filas (11 marcadores fuera; fecha 2026-05-01, dia 1 asumido)
   resumen_argos:        1796 caracteres (tope 1800)
   quality_level:        5 (con genetica)
   html incluido:        no
-  archivo:              clientes/omar_v1.payload.json (76.0 KB)
+  archivo:              clientes/omar_v1.payload.json (82.9 KB)
 ```
 
 Lee el resumen: si dice `quality_level 4 (sin genetica)` cuando sí mandaste genética, el JSON trae `genetica.hallazgos` vacío y hay que regresarlo al equipo.
+
+La línea `labs a lab_values` dice cuántos marcadores van a entrar al expediente de labs del cliente y cuántos se quedan fuera. Abajo, en los avisos, están por nombre y motivo: los estimados (no medidos), la composición corporal, los wearables y los cálculos (relación TG/HDL) no van a `lab_values` porque no son laboratorios; un marcador "sin clave canónica" es uno que el documento nombra con una clave que la app no conoce (con el ejemplo de Omar: osmolalidad, peso, estatura). Esos se leen en la evaluación, no en el expediente; si quieres que entren, el equipo le pone la clave canónica en el JSON (`src/constants/lab-canonical-map.ts` y la matriz V7/V6 son la lista).
 
 ### 3. Obtener tu JWT
 
@@ -67,7 +78,14 @@ Mándale el código al cliente por el canal que uses con él y dile dónde va: e
 bash scripts/elite/curl-elite.sh cargar clientes/omar_v1.payload.json
 ```
 
-Llama a `elite_cargar_evaluacion` con tu JWT. El RPC escribe una fila nueva en `functional_dx` (`model='enrique'`, `generated_by='manual'`, `quality_level` 5 con genética o 4 sin ella, la evaluación completa en `sources_snapshot.elite_v3`) y las filas del plan en `user_supplements` (`source='coach'`, `is_plan=true`). Si todo sale bien imprime:
+Llama a `elite_cargar_completa` con tu JWT (migración 324; envuelve a `elite_cargar_evaluacion`, de la 318 y 321). En una sola transacción escribe: una fila nueva en `functional_dx` (`model='enrique'`, `generated_by='manual'`, `quality_level` 5 con genética o 4 sin ella, la evaluación completa en `sources_snapshot.elite_v3`), las filas del plan en `user_supplements` (`source='coach'`, `is_plan=true`), tu vínculo activo con el cliente en `coach_clients`, su plan de alimentación en `nutrition_plans` (`Plan Elite vN`, con `created_by` tú), sus metas de proteína y agua en `user_day_preferences.goals` solo donde no tenía las suyas, y sus marcadores medidos en `lab_values` (`source='elite'`, fecha = la toma del documento, sin pisar un valor que ya existiera para ese dato y esa fecha).
+
+Dos detalles que conviene tener claros antes de correrlo:
+
+- `coach_clients.coach_id` es **quien corre el script**: el usuario del JWT del paso 3. Por eso el JWT tiene que ser el de Enrique. Si lo corre otra cuenta admin, el cliente queda vinculado a esa cuenta y no a Enrique (y la consola de coach y las rutinas se verían desde ahí).
+- Al cargar la sección `alimentacion`, **todo plan activo previo** del cliente en `nutrition_plans` (la versión anterior, o uno creado desde el panel de coach) pasa a `paused` para dejar vigente el de esta versión; se avisa con `nutrition_plan_pausado`. No se borra ninguno.
+
+Si todo sale bien imprime:
 
 ```
 Evaluacion cargada (esta respuesta es la verificacion oficial):
@@ -78,9 +96,24 @@ Evaluacion cargada (esta respuesta es la verificacion oficial):
   suplementos actualizados:         0
   suplementos desactivados:         0
   suplementos pausados respetados:  0
+  ya eran ficha del cliente:        0  (no se duplicaron)
+  raices detectadas:                3
+  vinculo coach-cliente:            creado (Enrique ya es su coach activo)
+  plan de alimentacion:             escrito (<uuid del plan>)
+  metas del dia escritas:           ninguna
+  laboratorios a lab_values:        24 escritos, 1 ya existian, 11 fuera por tipo o clave  (fecha 2026-05-01)
 ```
 
-**Esa respuesta es la verificación oficial de la carga.** Guárdala (copia y pega en tu nota del cliente): trae el `dx_id` de la fila. Los contadores de suplementos dicen qué pasó con el plan: insertados (nuevos), actualizados (ya existían con ese nombre y se les puso la dosis nueva), desactivados (del plan anterior y ya no están en este) y pausados respetados (el cliente los había pausado y se quedan así: dato del usuario sagrado).
+**Esa respuesta es la verificación oficial de la carga.** Guárdala (copia y pega en tu nota del cliente): trae el `dx_id` de la fila. Los contadores de suplementos dicen qué pasó con el plan: insertados (nuevos), actualizados (ya existían con ese nombre y se les puso la dosis nueva), desactivados (del plan anterior y ya no están en este) y pausados respetados (el cliente los había pausado y se quedan así: dato del usuario sagrado). Las cuatro líneas nuevas dicen qué pasó con el vínculo, el plan de comida, las metas y los labs; debajo vienen los `AVISOS` cuando algo se respetó o se quedó fuera:
+
+- `coach_client_inactivo`: el vínculo existía pero el cliente (o tú) lo había puesto inactivo; no se reactiva desde una carga. Si el cliente está de acuerdo, se reactiva desde el panel de coach.
+- `sin_plan_alimentacion`: la sección `alimentacion` vino vacía; Comida no muestra plan.
+- `nutrition_plan_pausado`: el cliente tenía otro plan activo (por ejemplo la versión anterior) y pasó a pausa; nada se borró.
+- `metas_del_cliente_respetadas`: ya tenía fijada su meta de proteína o agua y se dejó la suya; la del plan se lee en la evaluación.
+- `labs_dia_asumido`: `fecha_toma` traía solo el mes; los labs entraron con el día 1 y quedó anotado.
+- `labs_existentes_respetados`: ese dato ya tenía un valor vivo con esa fecha (lo capturó o corrigió el cliente, o lo dejó una versión anterior de la evaluación) y no se pisó. Consecuencia real: una **corrección de un valor de laboratorio en una versión nueva con la MISMA `fecha_toma` no entra** a `lab_values` (la fila vieja sigue viva y gana). Para corregir una errata hay que anular a mano la fila vieja en la base (`lab_values.is_voided = true`; si vino de una evaluación anterior, se ubica por su `metadata->>'dx_id'` y la clave del marcador) y después cargar la versión nueva; si no, la evaluación trae el valor corregido pero el expediente de labs conserva el dato viejo.
+- `marcadores_sin_clave` y `marcadores_fuera_de_labs`: lo que no entró al expediente, por nombre y motivo (ver paso 2).
+- `sin_lab_values`: el payload se armó con un `preparar-payload.js` anterior al 20 de septiembre; vuelve a armarlo.
 
 Si responde `version_mismatch`, el mensaje dice la versión que la base espera; se corrige `version` en el JSON, se repite el paso 2 y este. Cualquier otro `ok: false` dice por qué (usuario inexistente, JSON que no valida en el servidor); nada se escribe a medias.
 
@@ -88,7 +121,7 @@ No importa si el cliente ya canjeó el código o todavía no: la evaluación se 
 
 ### 6. Verificar
 
-La verificación oficial ya la tienes: es la respuesta `ok: true` del paso 5 con su `dx_id`. Como apoyo, si el cliente aparece como tu cliente activo en `coach_clients`:
+La verificación oficial ya la tienes: es la respuesta `ok: true` del paso 5 con su `dx_id`. Como apoyo (desde la 324 el paso 5 te deja como coach activo del cliente en `coach_clients`, así que este comando sí ve sus filas):
 
 ```bash
 bash scripts/elite/curl-elite.sh ver <user_id>
@@ -102,19 +135,20 @@ Al canjear el código, la pantalla le confirma la activación con la fecha de ve
 
 - **Mi evaluación Elite** (pantalla `/salud/evaluacion-elite`; se llega por la tarjeta dentro del Mapa funcional ATP y desde Genética): las secciones del formato Omar navegables, con los tres estados (pide acción, en rango no en su mejor punto, donde queremos), chips de fuente, escalera de evidencia y botón de PDF.
 - **Genética** encendida en el launcher, con los hallazgos de la sección `genetica`. Para todos los demás sigue apagada con "Disponible en ATP Elite".
-- **Suplementos** con las filas del plan marcadas "Asignado por Enrique", con dosis y momento del día, contando adherencia como las demás.
-- **Alimentación y entrenamiento** dentro de la evaluación (secciones `alimentacion`, `entrenamiento` y `cierre`).
+- **Suplementos** abre con la cabecera "Tu plan de Enrique" (cuántos, desde cuándo, enlace al porqué en la evaluación), cada fila con la etiqueta "Asignado por Enrique" y su porqué, contando adherencia como las demás. Las fichas del plan no se eliminan con un gesto: el cliente puede pausarlas (quedan a la vista en "En pausa" y él las reanuda); el plan lo ajustas tú con una versión nueva.
+- **Alimentación y entrenamiento** dentro de la evaluación (secciones `alimentacion`, `entrenamiento` y `cierre`), con enlace a Comida y a Entrenar. Comida además tiene el plan en `nutrition_plans` (desde la 324) y, si el manual traía metas con número, sus metas del día de proteína y agua.
+- **Laboratorios** (`/edad-atp/labs`, el comparador y ARGOS) con los marcadores medidos de la evaluación, fechados con la toma del documento y etiquetados "Evaluación Elite".
 - **ARGOS** contesta con el contexto de su evaluación (el `resumen_argos` que preparaste en el paso 2) cuando pregunta por un marcador, un suplemento o su plan.
 
-Si el código vence sin renovar Pro, la cuenta baja a Free pero la evaluación, su Genética, el plan en solo lectura y el contexto de ARGOS se quedan (dato del usuario sagrado).
+Si el código vence y no hay un contrato nuevo, la cuenta pierde el nivel Elite pero la evaluación, su Genética, el plan de suplementos y el contexto de ARGOS se quedan (dato del usuario sagrado).
 
 ## Política de versiones (no negociable)
 
 - **Una versión nueva por cada corrección o revisión. Nunca UPDATE.** `functional_dx` es append-only: la fila vieja se queda con `is_current=false` y la nueva sube con `version + 1`. Para corregir, el equipo entrega el JSON con `version` incrementado y repites los pasos 2, 5 y 6. La pantalla del cliente muestra la vigente y permite navegar a las anteriores (ruta 3.10, "Evolución").
 - **La genética entra en la segunda entrega como versión 2.** La Entrega 1 del brochure (semana 2 o 3, laboratorios y contexto) se carga con `genetica.hallazgos` vacío y queda con `quality_level 4`. Cuando llega la interpretación genética (semana 8), el equipo produce el JSON completo con `version: 2` y se carga como fila nueva: `quality_level 5`, Genética se enciende en ese momento. No se edita la versión 1 para meterle la genética.
 - **Un código por contrato.** Renovaciones (6 o 12 meses): código Elite nuevo en el paso 4 más versión nueva en el paso 5; nunca se alarga un grant a mano.
-- **Las filas del plan de suplementos de una versión anterior no se borran** desde aquí; qué hace el RPC con ellas (desactivar o dejar) está escrito en la migración 318. El cliente puede borrarlas él mismo con confirmación.
-- Si te equivocaste de `user_id`, no hay borrado: avísale al equipo, se anota en `tier_history`, y se carga bien al cliente correcto. Por eso el paso 2 imprime el nombre del cliente junto al `user_id`: léelos juntos antes del paso 5.
+- **Las filas del plan de suplementos de una versión anterior no se borran** desde aquí; qué hace el RPC con ellas (desactivar o dejar) está escrito en la migración 318. El cliente tampoco las borra: desde el módulo de Suplementos solo puede pausarlas (quedan a la vista en "En pausa" y él las reanuda cuando quiera); el plan lo ajustas tú con una versión nueva.
+- Si te equivocaste de `user_id`, no hay borrado: avísale al equipo, se anota en `tier_history`, y se carga bien al cliente correcto. Por eso el paso 2 imprime el nombre del cliente junto al `user_id`: léelos juntos antes del paso 5. Lo que la 324 escribió se puede anular sin tocar nada del cliente: las filas de `lab_values` llevan `metadata->>'dx_id'` de la evaluación (se anulan con `is_voided`), el plan de comida se llama `Plan Elite vN` (se pone en `paused`), y el vínculo en `coach_clients` se pone en `inactive`.
 
 ## Cronómetro
 

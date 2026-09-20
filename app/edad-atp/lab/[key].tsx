@@ -137,10 +137,10 @@ function FichaBiomarcadorScreen() {
           </View>
         ) : !f ? (
           <View style={styles.avisoBox}>
-            <EliteText variant="body" style={styles.avisoTitulo}>Todavía no tienes este parámetro medido</EliteText>
+            <EliteText variant="body" style={styles.avisoTitulo}>Este marcador aún no está en tus estudios</EliteText>
             <EliteText variant="caption" style={styles.avisoTexto}>
-              Cuando subas un estudio que lo incluya, aquí vas a ver tu número contra tu ventana
-              funcional, tu historia y con qué otros marcadores se lee.
+              En cuanto un estudio que lo incluya esté cargado, aquí vas a ver tu número contra tu
+              ventana funcional, tu historia y con qué otros marcadores se lee.
             </EliteText>
             <Pressable style={styles.cta} onPress={() => { haptic.medium(); router.push('/my-health'); }}>
               <EliteText style={styles.ctaText}>Subir un estudio</EliteText>

@@ -29,6 +29,8 @@ const SOURCE_LABEL: Record<LabValueSource, string> = {
   upload_extract: 'PDF parseado',
   wearable: 'Wearable',
   form: 'Captura',
+  // 20-sep-2026 (324): marcador cargado con la evaluacion Elite.
+  elite: 'Evaluación Elite',
 };
 
 export interface FichaCargada {

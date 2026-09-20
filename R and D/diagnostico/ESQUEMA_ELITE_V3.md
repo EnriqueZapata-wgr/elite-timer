@@ -45,7 +45,7 @@ cliente: { nombre_preferido, sexo: 'male'|'female', edad, fecha_toma: 'YYYY-MM' 
 | `cruces` | `hilo {variable, en, de}` (la variable que aparece en N de N cruces) y `lista[]` | `lista` |
 | `medico` | `intro`, `fuera_del_tuyo[]` (dentro del rango del laboratorio, fuera del nuestro), `pendientes[]`, `advertencias[]` | `pendientes` |
 | `cierre` | `palancas` (exactamente tres), `vigencia`, `firma`, `disclaimer` | `palancas` |
-| `alimentacion` | `prioriza[]`, `evita[]`, `ventana {inicio, fin}` en HH:MM o `null`, `horarios[] {momento, que}`, `notas[]` | arreglos |
+| `alimentacion` | `prioriza[]`, `evita[]`, `ventana {inicio, fin}` en HH:MM o `null`, `horarios[] {momento, que}`, `notas[]`, y opcional `metas {proteina_g_dia, agua_ml_dia}` (números mayores que cero o `null`; desde el 20-sep-2026 alimentan `nutrition_plans` y las metas del día del cliente cuando él no tiene las suyas) | arreglos |
 | `suplementos[]` | el plan (ver abajo) | puede ir vacío |
 | `entrenamiento` | `base`, `sesiones[] {tipo, frecuencia_semana, duracion, intensidad, nota}`, `descanso[]`, `notas[]` | arreglos |
 | `html?` | HTML completo del entregable (opcional; cabe en JSONB) | exento del candado de texto: lo produce el generador de Enrique |

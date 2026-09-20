@@ -20,11 +20,17 @@
  *
  * Escribe `<nombre>.payload.json` junto al JSON de entrada (o en --salida):
  *   { p_user: <user_id>, p_payload: { ...elite_v3, resumen_argos,
- *     suplementos_filas, roots_detected } }
+ *     suplementos_filas, roots_detected, lab_values_filas, lab_values_omitidos } }
  * y sale con codigo 1 si el JSON no valida.
  *
  * 8-sep-2026: `roots_detected` es el tercer derivado. Sin el, la fila de
  * functional_dx entraba con '[]' y el Mapa funcional se quedaba sin raices.
+ *
+ * 20-sep-2026 (migracion 324): `lab_values_filas` es el cuarto. Los marcadores
+ * medidos de la evaluacion entran a `lab_values` con clave canonica, para que
+ * el expediente de labs, el comparador y ARGOS los vean. La clave la resuelve
+ * `elite-lab-values-core.ts` con los MISMOS mapas que usa la app; lo que no
+ * mapea viaja en `lab_values_omitidos` y el RPC lo devuelve como aviso.
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -101,6 +107,9 @@ const {
   validarEliteV3, resumenParaArgos, suplementosAFilas, nivelCalidadEliteV3,
   marcadoresDe, palabrasRojasEn, raicesDetectadas, ELITE_SECCIONES, RESUMEN_ARGOS_MAX,
 } = core;
+// 20-sep-2026 (324): marcadores -> lab_values, con los mapas canonicos del cliente.
+const { labValuesDeEvaluacion, fechaMedicionDeToma, MOTIVO_OMISION_TEXTO } =
+  require(path.join(RAIZ, 'src', 'services', 'elite', 'elite-lab-values-core.ts'));
 
 // ---------------------------------------------------------------------------
 // Leer, validar, derivar
@@ -125,6 +134,8 @@ const resumenArgos = resumenParaArgos(eliteV3);
 const suplementosFilas = suplementosAFilas(eliteV3, userId);
 const raices = raicesDetectadas(eliteV3);
 const qualityLevel = nivelCalidadEliteV3(eliteV3);
+const labValues = labValuesDeEvaluacion(eliteV3);
+const fechaMedicion = fechaMedicionDeToma(eliteV3.cliente.fecha_toma);
 
 // Candado extra sobre lo derivado: el resumen va al system prompt de ARGOS y
 // no puede llevar palabras rojas ni em dashes (el core solo reordena texto ya
@@ -148,12 +159,17 @@ const payload = {
     resumen_argos: resumenArgos,
     suplementos_filas: suplementosFilas,
     roots_detected: raices,
+    lab_values_filas: labValues.filas,
+    lab_values_omitidos: labValues.omitidos,
   },
 };
 
-// Comprobacion de ida y vuelta: quitando los tres derivados, el objeto que va
+// Comprobacion de ida y vuelta: quitando los derivados, el objeto que va
 // dentro de p_payload debe seguir validando tal cual.
-const { resumen_argos: _r, suplementos_filas: _s, roots_detected: _t, ...deVuelta } = payload.p_payload;
+const {
+  resumen_argos: _r, suplementos_filas: _s, roots_detected: _t,
+  lab_values_filas: _l, lab_values_omitidos: _o, ...deVuelta
+} = payload.p_payload;
 const revalida = validarEliteV3(deVuelta);
 if (!revalida.ok) {
   console.error('El payload armado ya no valida (esto es un bug del script, no del JSON):');
@@ -183,6 +199,7 @@ console.log(`  marcadores:           ${marcadores.length} (${att} piden accion)`
 console.log(`  hallazgos geneticos:  ${eliteV3.genetica.hallazgos.length}`);
 console.log(`  suplementos (filas):  ${suplementosFilas.length}`);
 console.log(`  raices detectadas:    ${raices.length}${raices.length ? ` (${raices.map((r) => r.root_key).join(', ')})` : ''}`);
+console.log(`  labs a lab_values:    ${labValues.filas.length} filas (${labValues.omitidos.length} marcadores fuera; fecha ${fechaMedicion ? fechaMedicion.measured_at + (fechaMedicion.diaAsumido ? ', dia 1 asumido' : '') : 'sin fecha'})`);
 console.log(`  resumen_argos:        ${resumenArgos.length} caracteres (tope ${RESUMEN_ARGOS_MAX})`);
 console.log(`  quality_level:        ${qualityLevel} (${qualityLevel === 5 ? 'con genetica' : 'sin genetica'})`);
 console.log(`  html incluido:        ${typeof eliteV3.html === 'string' ? `si (${eliteV3.html.length} caracteres)` : 'no'}`);
@@ -204,6 +221,16 @@ if (sinMomento) avisos.push(`${sinMomento} suplementos sin momento: entran sin h
 if (sinUnidad) avisos.push(`${sinUnidad} marcadores con valor y sin unidad: el cliente lee el numero pelon.`);
 if (sinRangoLab) avisos.push(`${sinRangoLab} marcadores sin rango del laboratorio: esa columna sale con raya.`);
 if (sinEvidencia) avisos.push(`${sinEvidencia} tarjetas sin nivel de evidencia: la escalera no se pinta en ninguna de ellas.`);
+// 20-sep-2026 (324): lo que no entra a lab_values se dice aqui, por nombre y
+// motivo, ANTES de cargar. Un estimado o una composicion corporal fuera es lo
+// esperado; una clave sin equivalente canonico es un marcador que el cliente
+// no va a ver en su expediente de labs hasta que se le ponga clave.
+const sinClave = labValues.omitidos.filter((m) => m.motivo === 'sin_clave_canonica');
+if (sinClave.length) avisos.push(`${sinClave.length} marcadores con valor y sin clave canonica no van a lab_values: ${sinClave.map((m) => `${m.nombre} (${m.key})`).join(', ')}. Se leen en la evaluacion, no en el expediente de labs.`);
+const fueraPorTipo = labValues.omitidos.filter((m) => m.motivo !== 'sin_clave_canonica' && m.motivo !== 'sin_valor');
+if (fueraPorTipo.length) avisos.push(`${fueraPorTipo.length} marcadores fuera de lab_values por tipo: ${fueraPorTipo.map((m) => `${m.nombre} (${MOTIVO_OMISION_TEXTO[m.motivo]})`).join('; ')}.`);
+if (fechaMedicion && fechaMedicion.diaAsumido) avisos.push(`cliente.fecha_toma trae solo el mes: los laboratorios entran con fecha ${fechaMedicion.measured_at} (dia 1 asumido, anotado en metadata). Si tienes el dia exacto, ponlo en el JSON.`);
+if (labValues.filas.length && (!eliteV3.alimentacion.metas || (eliteV3.alimentacion.metas.proteina_g_dia === null && eliteV3.alimentacion.metas.agua_ml_dia === null))) avisos.push('alimentacion.metas no trae proteina ni agua con numero: las metas del dia del cliente se quedan como estan.');
 if (avisos.length) {
   console.log('');
   console.log('Avisos (el payload se escribio igual; esto se arregla en el documento):');
