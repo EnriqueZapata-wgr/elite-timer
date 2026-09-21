@@ -186,16 +186,168 @@ describe('validarEliteV3 rechaza', () => {
     const r = validarEliteV3(o);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.valor.alimentacion.metas).toEqual({ proteina_g_dia: null, agua_ml_dia: null });
+    // 21-sep-2026 (325): las cinco llaves, siempre (kcal, grasa y
+    // carbohidrato se suman a proteina y agua).
+    expect(r.valor.alimentacion.metas).toEqual({ proteina_g_dia: null, agua_ml_dia: null, kcal_dia: null, grasa_g_dia: null, carbohidrato_g_dia: null });
 
     const o2 = clon();
     o2.alimentacion.metas = { proteina_g_dia: 150 };
     const r2 = validarEliteV3(o2);
     expect(r2.ok).toBe(true);
     if (!r2.ok) return;
-    expect(r2.valor.alimentacion.metas).toEqual({ proteina_g_dia: 150, agua_ml_dia: null });
+    expect(r2.valor.alimentacion.metas).toEqual({ proteina_g_dia: 150, agua_ml_dia: null, kcal_dia: null, grasa_g_dia: null, carbohidrato_g_dia: null });
     // La entrada no se muta: quien mando el objeto lo conserva tal cual.
     expect(o2.alimentacion.metas).toEqual({ proteina_g_dia: 150 });
+  });
+});
+
+// 21-sep-2026 (migracion 325): los campos que siembran el perfil (cardio y
+// fitness) y los que se convierten en rutinas y comidas. Todos opcionales:
+// el ejemplo de Omar no trae ninguno y sigue validando (arriba). Si vienen,
+// se revisan tipo, enum y rango sano; ausente sale como null o [].
+describe('validarEliteV3 con los campos de la 325', () => {
+  const comida = { momento: 'desayuno', hora: '07:30', nombre: 'Huevos con verdura', componentes: ['3 huevos', 'espinaca', 'aguacate'], notas: null };
+  const rutina = {
+    nombre: 'Fuerza A', objetivo: 'Base de fuerza', dias_semana: [1, 4],
+    bloques: [
+      { ejercicio: 'Sentadilla', series: 3, reps: '8-10', descanso_s: 120, notas: null },
+      { ejercicio: 'Plancha', series: 3, reps: '30 s', descanso_s: 60, notas: 'Sin arquear' },
+    ],
+    notas: null,
+  };
+
+  it('acepta el contrato completo y lo devuelve normalizado', () => {
+    const o = clon();
+    o.cliente = { ...o.cliente, fecha_nacimiento: '1988-03-14', estatura_cm: 176, peso_kg: 84.5, nivel_fitness: 'intermedio', fc_reposo: 58 };
+    o.alimentacion.metas = { proteina_g_dia: 150, agua_ml_dia: 2800, kcal_dia: 2200, grasa_g_dia: 70, carbohidrato_g_dia: 200 };
+    o.alimentacion.comidas = [comida, { momento: 'cena', hora: null, nombre: 'Pescado con ensalada', componentes: ['salmon'] }];
+    o.entrenamiento.rutinas = [rutina, { nombre: 'Caminata', objetivo: null, dias_semana: null, bloques: [{ ejercicio: 'Caminar', series: null, reps: null, descanso_s: null, notas: null }], notas: null }];
+    const r = validarEliteV3(o);
+    if (!r.ok) throw new Error(r.errores.join('\n'));
+    expect(r.valor.cliente.fc_reposo).toBe(58);
+    expect(r.valor.cliente.nivel_fitness).toBe('intermedio');
+    expect(r.valor.alimentacion.metas?.kcal_dia).toBe(2200);
+    expect(r.valor.alimentacion.comidas).toHaveLength(2);
+    // hora y notas ausentes salen como null, nunca undefined.
+    expect(r.valor.alimentacion.comidas?.[1]).toEqual({ momento: 'cena', hora: null, nombre: 'Pescado con ensalada', componentes: ['salmon'], notas: null });
+    expect(r.valor.entrenamiento.rutinas).toHaveLength(2);
+    expect(r.valor.entrenamiento.rutinas?.[0].dias_semana).toEqual([1, 4]);
+    expect(r.valor.entrenamiento.rutinas?.[1].dias_semana).toBeNull();
+  });
+
+  it('el ejemplo de Omar (sin nada de esto) sale con null y listas vacias', () => {
+    const r = validarEliteV3(ejemplo);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.cliente.fecha_nacimiento).toBeNull();
+    expect(r.valor.cliente.estatura_cm).toBeNull();
+    expect(r.valor.cliente.peso_kg).toBeNull();
+    expect(r.valor.cliente.nivel_fitness).toBeNull();
+    expect(r.valor.cliente.fc_reposo).toBeNull();
+    expect(r.valor.alimentacion.comidas).toEqual([]);
+    expect(r.valor.entrenamiento.rutinas).toEqual([]);
+    // La entrada no se muta.
+    expect((ejemplo as { cliente: Record<string, unknown> }).cliente.fc_reposo).toBeUndefined();
+  });
+
+  it('rechaza rangos fuera de lo sano y fechas que no existen', () => {
+    const o = clon();
+    o.cliente = { ...o.cliente, fecha_nacimiento: '1988-02-30', estatura_cm: 99, peso_kg: 301, nivel_fitness: 'atleta', fc_reposo: 20 };
+    const err = erroresDe(o);
+    expect(err).toContain('cliente.fecha_nacimiento: YYYY-MM-DD real, entre 1900 y hoy, o null');
+    expect(err).toContain('cliente.estatura_cm: numero entre 100 y 250 o null');
+    expect(err).toContain('cliente.peso_kg: numero entre 30 y 300 o null');
+    expect(err).toContain('cliente.fc_reposo: numero entre 30 y 120 o null');
+    expect(err).toContain('cliente.nivel_fitness: principiante|intermedio|avanzado o null');
+    const o2 = clon();
+    o2.cliente.fecha_nacimiento = '2999-01-01';
+    expect(erroresDe(o2).some((x) => x.startsWith('cliente.fecha_nacimiento'))).toBe(true);
+    const o3 = clon();
+    o3.alimentacion.metas = { kcal_dia: 0, grasa_g_dia: -5 };
+    expect(erroresDe(o3)).toContain('alimentacion.metas.kcal_dia: numero mayor que cero o null');
+    expect(erroresDe(o3)).toContain('alimentacion.metas.grasa_g_dia: numero mayor que cero o null');
+  });
+
+  it('comidas: momento fuera del enum, hora que no es de reloj y componentes que no son texto', () => {
+    const o = clon();
+    o.alimentacion.comidas = [
+      { ...comida, momento: 'merienda' },
+      { ...comida, hora: '25:00' },
+      { ...comida, hora: '7:30' },
+      { ...comida, componentes: [1, 2] },
+      { ...comida, nombre: '' },
+    ];
+    const err = erroresDe(o);
+    expect(err).toContain('alimentacion.comidas[0].momento: desayuno|comida|cena|colacion|pre_entreno|post_entreno');
+    expect(err).toContain('alimentacion.comidas[1].hora: HH:MM o null');
+    expect(err).toContain('alimentacion.comidas[2].hora: HH:MM o null');
+    expect(err).toContain('alimentacion.comidas[3].componentes: arreglo de textos');
+    expect(err).toContain('alimentacion.comidas[4].nombre: texto obligatorio');
+    const o2 = clon();
+    o2.alimentacion.comidas = null;
+    expect(erroresDe(o2)).toEqual([]);
+  });
+
+  it('rutinas: dias repetidos o fuera de 1..7, sin ejercicios, series y descanso fuera de rango', () => {
+    const o = clon();
+    o.entrenamiento.rutinas = [
+      { ...rutina, dias_semana: [1, 1] },
+      { ...rutina, dias_semana: [0, 8] },
+      { ...rutina, bloques: [] },
+      { ...rutina, bloques: [{ ejercicio: 'Sentadilla', series: 0, reps: null, descanso_s: 601, notas: null }] },
+      { ...rutina, nombre: '' },
+    ];
+    const err = erroresDe(o);
+    expect(err).toContain('entrenamiento.rutinas[0].dias_semana: dias repetidos');
+    expect(err).toContain('entrenamiento.rutinas[1].dias_semana: enteros 1..7 (1 = lunes, 7 = domingo) o null');
+    expect(err).toContain('entrenamiento.rutinas[2].bloques: al menos un ejercicio');
+    expect(err).toContain('entrenamiento.rutinas[3].bloques[0].series: entero 1..20 o null');
+    expect(err).toContain('entrenamiento.rutinas[3].bloques[0].descanso_s: segundos 0..600 o null');
+    expect(err).toContain('entrenamiento.rutinas[4].nombre: texto obligatorio');
+  });
+
+  // 21-sep-2026 (ronda de arreglos, M1-b): `slug` fija el clip contra el
+  // catalogo en ingles. Opcional; si viene, con forma de slug. Ausente sale
+  // como null en cada bloque (nunca undefined) y no se muta la entrada.
+  it('rutinas: slug del catalogo opcional, con forma de slug, y ausente sale como null', () => {
+    const o = clon();
+    o.entrenamiento.rutinas = [{
+      ...rutina,
+      bloques: [
+        { ejercicio: 'Press de banca con mancuernas', series: 4, reps: '6', descanso_s: 120, notas: null, slug: 'dumbbell-bench-press' },
+        { ejercicio: 'Prensa de pierna', series: 4, reps: '6', descanso_s: 120, notas: null, slug: null },
+        { ejercicio: 'Zancada', series: 3, reps: '8', descanso_s: 60, notas: null },
+      ],
+    }];
+    const r = validarEliteV3(o);
+    if (!r.ok) throw new Error(r.errores.join('\n'));
+    const bloques = r.valor.entrenamiento.rutinas?.[0].bloques ?? [];
+    expect(bloques.map((b) => b.slug)).toEqual(['dumbbell-bench-press', null, null]);
+    expect('slug' in (o.entrenamiento.rutinas[0].bloques[2] as Record<string, unknown>)).toBe(false);
+
+    const malo = clon();
+    malo.entrenamiento.rutinas = [{
+      ...rutina,
+      bloques: [
+        { ...rutina.bloques[0], slug: 'Barbell Bench Press' },
+        { ...rutina.bloques[0], slug: 'barbell_bench_press' },
+        { ...rutina.bloques[0], slug: '' },
+        { ...rutina.bloques[0], slug: 7 },
+      ],
+    }];
+    const err = erroresDe(malo);
+    for (const j of [0, 1, 2, 3]) {
+      expect(err).toContain(`entrenamiento.rutinas[0].bloques[${j}].slug: slug de exercise_matrix en minusculas y guiones (barbell-bench-press) o null`);
+    }
+  });
+
+  it('el candado de texto tambien cubre comidas y rutinas', () => {
+    const o = clon();
+    o.alimentacion.comidas = [{ ...comida, notas: 'Este desayuno previene la fatiga' }];
+    o.entrenamiento.rutinas = [{ ...rutina, objetivo: 'Fuerza \u2014 base' }];
+    const err = erroresDe(o);
+    expect(err.some((x) => x.startsWith('alimentacion.comidas[0].notas') && x.includes('previene'))).toBe(true);
+    expect(err.some((x) => x.startsWith('entrenamiento.rutinas[0].objetivo') && x.includes('em dash'))).toBe(true);
   });
 });
 

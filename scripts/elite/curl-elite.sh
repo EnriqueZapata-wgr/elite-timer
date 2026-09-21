@@ -7,6 +7,7 @@
 #   bash scripts/elite/curl-elite.sh cargar <payload.json>      carga una evaluacion (salida de preparar-payload.js)
 #   bash scripts/elite/curl-elite.sh ver <user_id>              lista las evaluaciones Elite de un usuario
 #   bash scripts/elite/curl-elite.sh quien <correo>             busca el user_id de un cliente por su correo
+#   bash scripts/elite/curl-elite.sh sembrar <user_id>          (325) siembra perfil y convierte rutinas y comidas de la evaluacion vigente
 #
 # Variables de entorno:
 #   ATP_JWT             obligatoria. Ver scripts/elite/obtener-jwt.md (dura 1 hora).
@@ -27,6 +28,13 @@
 # elite_cargar_completa, que envuelve al RPC de siempre y ademas deja el
 # vinculo coach-cliente, el plan de alimentacion, las metas del dia y los
 # laboratorios en lab_values. Misma firma, misma respuesta mas contadores.
+#
+# 21 de septiembre de 2026 (migracion 325): DESPUES de elite_cargar_completa,
+# 'cargar' llama con el mismo JWT a elite_sembrar_perfil, elite_cargar_rutinas
+# y elite_cargar_comidas (solo user_id: leen la evaluacion recien guardada) y
+# junta sus avisos en un segundo bloque AVISOS. 'sembrar <user_id>' corre solo
+# esas tres, para un cliente cargado antes de la 325 o para repetir (son
+# idempotentes: la segunda vez no duplican nada y lo dicen).
 
 set -euo pipefail
 
@@ -77,7 +85,7 @@ explica_http() {
   case "$http" in
     2*) return 0 ;;
     401) echo "HTTP 401: el JWT vencio o no es valido. Genera uno nuevo (scripts/elite/obtener-jwt.md)." >&2 ;;
-    404) echo "HTTP 404: el RPC no existe en produccion. Falta 'npx supabase db push' (315 y 318 para codigos y carga; 324 para elite_cargar_completa)." >&2 ;;
+    404) echo "HTTP 404: el RPC no existe en produccion. Falta 'npx supabase db push' (315 y 318 para codigos y carga; 324 para elite_cargar_completa; 325 para sembrar perfil, rutinas y comidas)." >&2 ;;
     *)   echo "HTTP $http" >&2 ;;
   esac
   echo "$cuerpo" >&2
@@ -199,6 +207,82 @@ cmd_cargar() {
     }
     console.log("==================================================");
   ' "$body"
+
+  # 21-sep-2026 (325): la carga ya quedo guardada arriba. Ahora, con el mismo
+  # JWT, se siembra el perfil y se convierten rutinas y comidas. Si esto
+  # falla, la evaluacion NO se deshace: se dice como repetirlo.
+  local uid
+  uid="$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).p_user)' "$archivo")"
+  echo ""
+  cmd_sembrar "$uid" || {
+    echo "La evaluacion si quedo cargada; la siembra (325) no termino. Repitela con:" >&2
+    echo "  bash scripts/elite/curl-elite.sh sembrar $uid" >&2
+    exit 1
+  }
+}
+
+# 325: elite_sembrar_perfil + elite_cargar_rutinas + elite_cargar_comidas.
+# Las tres leen la evaluacion Elite vigente del cliente y solo rellenan lo
+# vacio; lo que el cliente ya tenia se respeta y sale en AVISOS.
+cmd_sembrar() {
+  local uid="${1:-}"
+  [ -n "$uid" ] || falla "uso: sembrar <user_id>"
+  case "$uid" in
+    [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]-*) ;;
+    *) falla "user_id no tiene forma de uuid: $uid" ;;
+  esac
+  local cuerpo salida http b_perfil b_rutinas b_comidas
+  cuerpo="$(node -e 'process.stdout.write(JSON.stringify({ p_user_id: process.argv[1] }))' "$uid")"
+  echo "Siembra y conversion (325) para $uid..."
+
+  salida="$(rpc elite_sembrar_perfil "$cuerpo")"
+  http="$(http_de "$salida")"; b_perfil="$(cuerpo_de "$salida")"
+  explica_http "$http" "$b_perfil" || return 1
+
+  salida="$(rpc elite_cargar_rutinas "$cuerpo")"
+  http="$(http_de "$salida")"; b_rutinas="$(cuerpo_de "$salida")"
+  explica_http "$http" "$b_rutinas" || return 1
+
+  salida="$(rpc elite_cargar_comidas "$cuerpo")"
+  http="$(http_de "$salida")"; b_comidas="$(cuerpo_de "$salida")"
+  explica_http "$http" "$b_comidas" || return 1
+
+  node -e '
+    const [perfilTxt, rutinasTxt, comidasTxt] = process.argv.slice(1);
+    const parse = (t) => { try { return JSON.parse(t); } catch { return { ok: false, error: "respuesta no es JSON", cruda: t }; } };
+    const perfil = parse(perfilTxt), rutinas = parse(rutinasTxt), comidas = parse(comidasTxt);
+    let fallo = false;
+    const linea = (nombre, r, texto) => {
+      if (!r || r.ok !== true) { fallo = true; console.log("  " + nombre.padEnd(9) + "FALLO: " + (r && r.error ? r.error : JSON.stringify(r))); return; }
+      console.log("  " + nombre.padEnd(9) + texto(r));
+    };
+    const pares = (o) => Object.entries(o || {}).map(([k, v]) => k + "=" + (typeof v === "object" ? JSON.stringify(v) : v)).join(", ") || "nada";
+    linea("perfil:", perfil, (r) => "sembrado: " + pares(r.sembrado) + "  |  respetado: " + pares(r.respetado) + "  |  sin dato en el documento: " + ((r.sin_dato || []).join(", ") || "nada"));
+    linea("rutinas:", rutinas, (r) => r.aviso === "sin_rutinas" ? "ninguna (la evaluacion no trae rutinas)"
+      : r.rutinas + " creada(s) con " + r.bloques + " ejercicio(s) (" + r.bloques_con_matriz + " con clip, " + r.bloques_sin_matriz + " como tiempo), " + r.agendas + " dia(s) agendado(s), " + r.rutinas_ya_cargadas + " ya estaban");
+    linea("comidas:", comidas, (r) => r.aviso === "sin_comidas" ? "ninguna (la evaluacion no trae comidas ni metas de macros)"
+      : r.aviso === "sin_plan_elite" ? "no hay Plan Elite v" + r.version_elite + " donde escribirlas (ver avisos)"
+      : r.comidas + " escrita(s) en el plan " + r.nutrition_plan_id + (r.comidas_respetadas ? " (" + r.comidas_respetadas + " ya estaban)" : "") + "; macros escritos: " + ((r.macros_escritos || []).join(", ") || "ninguno"));
+    const avisos = [];
+    for (const [origen, r] of [["perfil", perfil], ["rutinas", rutinas], ["comidas", comidas]]) {
+      for (const a of (r && Array.isArray(r.avisos) ? r.avisos : [])) avisos.push({ origen, a });
+    }
+    console.log("");
+    console.log("==================================================");
+    if (avisos.length) {
+      console.log("AVISOS de la siembra (325): " + avisos.length + " (nada se piso; lee cada uno)");
+      for (const { origen, a } of avisos) {
+        if (a && typeof a === "object" && a.codigo) console.log("  - [" + origen + " / " + a.codigo + "] " + (a.detalle || JSON.stringify(a)));
+        else console.log("  - [" + origen + "] " + JSON.stringify(a));
+      }
+    } else if (fallo) {
+      console.log("AVISOS de la siembra (325): ninguno, pero una o mas funciones fallaron (arriba). La que fallo no escribio nada.");
+    } else {
+      console.log("AVISOS de la siembra (325): ninguno (todo entro completo).");
+    }
+    console.log("==================================================");
+    if (fallo) process.exit(1);
+  ' "$b_perfil" "$b_rutinas" "$b_comidas"
 }
 
 cmd_ver() {
@@ -258,7 +342,8 @@ case "${1:-}" in
   codigo) shift; requiere_entorno; cmd_codigo "$@" ;;
   cargar) shift; requiere_entorno; cmd_cargar "$@" ;;
   ver)    shift; requiere_entorno; cmd_ver "$@" ;;
+  sembrar) shift; requiere_entorno; cmd_sembrar "$@" ;;
   *)
-    sed -n '2,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit 2 ;;
 esac

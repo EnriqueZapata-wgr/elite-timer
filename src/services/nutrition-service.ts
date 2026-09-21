@@ -8,6 +8,8 @@ import { callAnthropic, extractResponseText } from './anthropic-client';
 import { generateAIReferencePrompt } from '@/src/constants/argos-food-library';
 import { getArgosCallMetadata } from './argos-service';
 import { ATP_LLM } from '@/src/constants/llm-config';
+import { comidasDePlan, type ComidaPlan } from './nutrition/plan-comidas-core';
+import { primerNombre } from './fitness/today-session-core';
 
 // === AUTH ===
 async function getUserId(): Promise<string> {
@@ -28,6 +30,8 @@ export interface NutritionPlan {
   foods_to_avoid: string[]; foods_to_prioritize: string[]; allergies: string[];
   supplement_notes: string | null; status: string; start_date: string | null;
   end_date: string | null; notes: string | null; created_at: string;
+  /** 325: comidas por momento (jsonb). Ausente si el remoto aun no tiene la columna. */
+  meals?: unknown;
 }
 
 export interface FoodLog {
@@ -72,6 +76,64 @@ export async function getActivePlan(userId?: string): Promise<NutritionPlan | nu
     .eq('user_id', uid).eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (error) logWarn('[nutrition] getActivePlan failed:', error.message);
   return data;
+}
+
+/** El plan activo del cliente con sus comidas (325) y quien lo asigno. */
+export interface PlanDelCoach {
+  plan: NutritionPlan;
+  comidas: ComidaPlan[];
+  /** Primer nombre del coach que lo creo (vinculo activo); null si no se pudo leer. */
+  coachNombre: string | null;
+  /** true cuando lo creo el propio usuario: no es de un coach. */
+  propio: boolean;
+}
+
+/**
+ * 21-sep-2026 (325): el primer nombre del coach que creo el plan, por el
+ * mismo join que usa Entrenar para la rutina asignada (coach_clients ->
+ * profiles). Fail-soft: null y la tarjeta dice "tu coach".
+ */
+async function leerNombreCoachDelPlan(userId: string, coachId: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('coach_clients')
+      .select('coach_id, coach:profiles!coach_clients_coach_id_fkey(full_name)')
+      .eq('client_id', userId)
+      .eq('coach_id', coachId)
+      .eq('status', 'active')
+      .limit(1);
+    if (error || !data || data.length === 0) return null;
+    const fila = data[0] as { coach?: { full_name?: string | null } | { full_name?: string | null }[] | null };
+    const coach = Array.isArray(fila.coach) ? fila.coach[0] : fila.coach;
+    return primerNombre(coach?.full_name ?? null);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 21-sep-2026 (325): la misma lectura que getActivePlan, DICIENDO si fallo.
+ * getActivePlan devuelve null tanto por "sin plan" como por error de red o
+ * RLS; Comida necesita distinguirlos: sin plan no pinta nada, sin lectura
+ * dice "no se pudo leer". Trae las comidas ya ordenadas (plan-comidas-core)
+ * y el nombre de quien lo asigno.
+ */
+export async function getPlanDelCoachResultado(
+  userId: string,
+): Promise<{ ok: true; plan: PlanDelCoach | null } | { ok: false }> {
+  try {
+    const { data, error } = await supabase.from('nutrition_plans').select('*')
+      .eq('user_id', userId).eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if (error) { logWarn('[nutrition] getPlanDelCoachResultado failed:', error.message); return { ok: false }; }
+    if (!data) return { ok: true, plan: null };
+    const plan = data as NutritionPlan;
+    const propio = plan.created_by === userId;
+    const coachNombre = propio ? null : await leerNombreCoachDelPlan(userId, plan.created_by);
+    return { ok: true, plan: { plan, comidas: comidasDePlan(plan.meals), coachNombre, propio } };
+  } catch (e) {
+    logWarn('[nutrition] getPlanDelCoachResultado threw:', e);
+    return { ok: false };
+  }
 }
 
 export async function createPlan(planData: Partial<NutritionPlan> & { user_id: string }): Promise<NutritionPlan> {

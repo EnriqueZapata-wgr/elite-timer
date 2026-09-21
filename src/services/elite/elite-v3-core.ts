@@ -45,6 +45,19 @@ export type EliteFuente = 'gen' | 'lab' | 'ctx';
 export type EliteEvidencia = 1 | 2 | 3 | 4;
 export type EliteSexo = 'male' | 'female';
 
+/**
+ * 21-sep-2026 (migracion 325): nivel de entrenamiento que la carga siembra en
+ * `profiles.fitness_level` cuando el cliente no lo declaro. Son tres de los
+ * cuatro valores del enum real de la app (224); 'atleta' no se asigna desde
+ * un documento: lo declara la persona.
+ */
+export const ELITE_NIVELES_FITNESS = ['principiante', 'intermedio', 'avanzado'] as const;
+export type EliteNivelFitness = typeof ELITE_NIVELES_FITNESS[number];
+
+/** Momentos de comida del plan (325). Van tal cual a `nutrition_plans.meals`. */
+export const ELITE_MOMENTOS_COMIDA = ['desayuno', 'comida', 'cena', 'colacion', 'pre_entreno', 'post_entreno'] as const;
+export type EliteMomentoComida = typeof ELITE_MOMENTOS_COMIDA[number];
+
 export const ELITE_ESTADOS: readonly EliteEstado[] = ['att', 'sub', 'opt'];
 export const ELITE_FUENTES: readonly EliteFuente[] = ['gen', 'lab', 'ctx'];
 
@@ -274,6 +287,24 @@ export interface EliteMetasAlimentacion {
   proteina_g_dia: number | null;
   /** Mililitros de agua al dia; null si el manual no lo fija. */
   agua_ml_dia: number | null;
+  /** 21-sep-2026 (325): calorias, grasa y carbohidrato al dia. Van a nutrition_plans (calorie_target, fat_target, carb_target) solo si el plan Elite no los tiene. */
+  kcal_dia?: number | null;
+  grasa_g_dia?: number | null;
+  carbohidrato_g_dia?: number | null;
+}
+
+/**
+ * Una comida del plan (21-sep-2026, migracion 325). Se guarda tal cual en
+ * `nutrition_plans.meals` y Comida la pinta por momento con hora, nombre y
+ * componentes. `hora` null = el manual no fija la hora.
+ */
+export interface EliteComida {
+  momento: EliteMomentoComida;
+  /** HH:MM o null. */
+  hora: string | null;
+  nombre: string;
+  componentes: string[];
+  notas: string | null;
 }
 
 export interface EliteAlimentacion {
@@ -285,6 +316,8 @@ export interface EliteAlimentacion {
   notas: string[];
   /** Metas con numero (proteina, agua). Opcional; null o ausente = el manual no las fija. */
   metas?: EliteMetasAlimentacion | null;
+  /** Comidas por momento (325). Opcional; ausente = []. */
+  comidas?: EliteComida[];
 }
 
 export interface EliteSuplemento {
@@ -308,11 +341,56 @@ export interface EliteSesion {
   nota: string | null;
 }
 
+/**
+ * Un ejercicio de una rutina del plan (325). `series` entero, `reps` texto
+ * libre ("10", "8-12", "30 s"), `descanso_s` en segundos. Lo que el manual no
+ * fija va en null: la carga no inventa series ni descansos.
+ *
+ * `slug` (ronda de arreglos, 21-sep-2026): el slug exacto de
+ * `exercise_matrix` (catalogo MoveKit, en INGLES: barbell-bench-press,
+ * machine-leg-press). Es la forma segura de que el bloque corra con clip y
+ * registro de series: la carga empareja PRIMERO por slug, despues por
+ * nombre y al final por familia unica. `ejercicio` se conserva en espanol
+ * como etiqueta para el cliente. null o ausente = sin slug.
+ *
+ * Como deriva la carga el tiempo de un bloque SIN clip: solo cuando `reps`
+ * es limpio ("8", "8-10" -> 4 s por rep con el ultimo numero; "30 s";
+ * "45 min", tope 1800). Con prosa ("10 por lado", "6 reps") queda en 40 s y
+ * se avisa por nombre.
+ */
+export interface EliteBloqueRutina {
+  ejercicio: string;
+  series: number | null;
+  reps: string | null;
+  descanso_s: number | null;
+  notas: string | null;
+  slug?: string | null;
+}
+
+/** Slug de exercise_matrix: minusculas, digitos y guiones (barbell-bench-press). */
+const SLUG_MATRIZ = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/**
+ * Una rutina del plan de entrenamiento (21-sep-2026, migracion 325). La carga
+ * la convierte en una rutina real del cliente (`routines` + `blocks`) y la
+ * agenda en `scheduled_routines` por cada dia de `dias_semana`
+ * (1 = lunes ... 7 = domingo). null = sin agenda: solo en Mis rutinas.
+ */
+export interface EliteRutina {
+  nombre: string;
+  objetivo: string | null;
+  dias_semana: number[] | null;
+  bloques: EliteBloqueRutina[];
+  notas: string | null;
+}
+
 export interface EliteEntrenamiento {
   base: string | null;
   sesiones: EliteSesion[];
   descanso: string[];
   notas: string[];
+  /** Rutinas ejecutables (325). Opcional; ausente = []. */
+  rutinas?: EliteRutina[];
 }
 
 /**
@@ -344,6 +422,16 @@ export interface EliteV3 {
     edad: number;
     /** Fecha de la toma de sangre (YYYY-MM-DD, o YYYY-MM si el documento solo trae el mes). */
     fecha_toma: string;
+    /**
+     * 21-sep-2026 (325): lo que cardio y fitness necesitan para calcular
+     * (edad exacta, zonas de FC, nivel del generador). Opcionales; la carga
+     * los siembra SOLO donde el cliente no tiene ya el suyo. Ausente = null.
+     */
+    fecha_nacimiento?: string | null;
+    estatura_cm?: number | null;
+    peso_kg?: number | null;
+    nivel_fitness?: EliteNivelFitness | null;
+    fc_reposo?: number | null;
   };
   inicio: EliteInicio;
   conteo: EliteConteo;
@@ -496,6 +584,35 @@ function textoOrNull(v: unknown, ruta: string, e: Errores): void {
   if (v !== null && !esTexto(v)) e.push(`${ruta}: texto o null`);
 }
 
+/** Como textoOrNull, pero la llave puede faltar (campos opcionales de la 325). */
+function textoOpcional(v: unknown, ruta: string, e: Errores): void {
+  if (v !== undefined && v !== null && !esTexto(v)) e.push(`${ruta}: texto o null`);
+}
+
+/** Numero dentro de [min, max]; null o ausente pasan (campos opcionales de la 325). */
+function numEnRango(v: unknown, ruta: string, min: number, max: number, e: Errores): void {
+  if (v === undefined || v === null) return;
+  if (!esNum(v) || v < min || v > max) e.push(`${ruta}: numero entre ${min} y ${max} o null`);
+}
+
+/** YYYY-MM-DD que existe en el calendario (el 31 de septiembre no). */
+function esFechaReal(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const anio = Number(m[1]);
+  const mes = Number(m[2]);
+  const dia = Number(m[3]);
+  if (mes < 1 || mes > 12 || dia < 1) return false;
+  return dia <= new Date(Date.UTC(anio, mes, 0)).getUTCDate();
+}
+
+function hoyIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Reloj de 24 horas: 07:30 si, 25:00 no. */
+const HHMM_RELOJ = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 const ISO_FECHA = /^\d{4}-\d{2}-\d{2}/;
 /** La toma puede venir solo con mes (el formato Omar dice "mayo 2026"); nunca se inventa el dia. */
 const FECHA_TOMA = /^\d{4}-\d{2}(-\d{2})?$/;
@@ -521,6 +638,20 @@ export function validarEliteV3(obj: unknown): { ok: true; valor: EliteV3 } | { o
     if (c.sexo !== 'male' && c.sexo !== 'female') e.push('cliente.sexo: male|female');
     if (!(esNum(c.edad) && Number.isInteger(c.edad) && c.edad >= 0 && c.edad <= 120)) e.push('cliente.edad: entero 0..120');
     if (!esTexto(c.fecha_toma) || !FECHA_TOMA.test(c.fecha_toma)) e.push('cliente.fecha_toma: YYYY-MM o YYYY-MM-DD');
+    // 21-sep-2026 (325): datos que cardio y fitness necesitan. Opcionales;
+    // si vienen, con rango sano. Nada se rellena aqui: eso lo hace la carga,
+    // y solo donde el cliente no tiene ya el suyo.
+    if (c.fecha_nacimiento !== undefined && c.fecha_nacimiento !== null) {
+      if (!esTexto(c.fecha_nacimiento) || !esFechaReal(c.fecha_nacimiento) || c.fecha_nacimiento < '1900-01-01' || c.fecha_nacimiento > hoyIso()) {
+        e.push('cliente.fecha_nacimiento: YYYY-MM-DD real, entre 1900 y hoy, o null');
+      }
+    }
+    numEnRango(c.estatura_cm, 'cliente.estatura_cm', 100, 250, e);
+    numEnRango(c.peso_kg, 'cliente.peso_kg', 30, 300, e);
+    numEnRango(c.fc_reposo, 'cliente.fc_reposo', 30, 120, e);
+    if (c.nivel_fitness !== undefined && c.nivel_fitness !== null && !ELITE_NIVELES_FITNESS.includes(c.nivel_fitness as EliteNivelFitness)) {
+      e.push(`cliente.nivel_fitness: ${ELITE_NIVELES_FITNESS.join('|')} o null`);
+    }
   }
 
   for (const s of ELITE_SECCIONES) {
@@ -668,11 +799,26 @@ export function validarEliteV3(obj: unknown): { ok: true; valor: EliteV3 } | { o
     const m = alimentacion.metas;
     if (!esObj(m)) e.push('alimentacion.metas: {proteina_g_dia, agua_ml_dia} o null');
     else {
-      for (const k of ['proteina_g_dia', 'agua_ml_dia']) {
+      // 21-sep-2026 (325): kcal, grasa y carbohidrato con la misma regla.
+      for (const k of METAS_ALIMENTACION) {
         const v = m[k];
         if (v !== null && v !== undefined && !(esNum(v) && v > 0)) e.push(`alimentacion.metas.${k}: numero mayor que cero o null`);
       }
     }
+  }
+  // 21-sep-2026 (325): comidas por momento. Opcionales; si vienen, cada una
+  // con momento del enum, hora de reloj o null, nombre y componentes.
+  if (alimentacion.comidas !== undefined && alimentacion.comidas !== null) {
+    if (!Array.isArray(alimentacion.comidas)) e.push('alimentacion.comidas: arreglo si viene');
+    else alimentacion.comidas.forEach((c, i) => {
+      const ruta = `alimentacion.comidas[${i}]`;
+      if (!esObj(c)) { e.push(`${ruta}: objeto`); return; }
+      if (!ELITE_MOMENTOS_COMIDA.includes(c.momento as EliteMomentoComida)) e.push(`${ruta}.momento: ${ELITE_MOMENTOS_COMIDA.join('|')}`);
+      if (c.hora !== undefined && c.hora !== null && !(esTexto(c.hora) && HHMM_RELOJ.test(c.hora))) e.push(`${ruta}.hora: HH:MM o null`);
+      if (!esTexto(c.nombre)) e.push(`${ruta}.nombre: texto obligatorio`);
+      if (!Array.isArray(c.componentes) || !c.componentes.every(esTexto)) e.push(`${ruta}.componentes: arreglo de textos`);
+      textoOpcional(c.notas, `${ruta}.notas`, e);
+    });
   }
 
   (obj.suplementos as unknown[]).forEach((s, i) => {
@@ -699,6 +845,40 @@ export function validarEliteV3(obj: unknown): { ok: true; valor: EliteV3 } | { o
   });
   validarListaTexto(entrenamiento.descanso, 'entrenamiento.descanso', e);
   validarListaTexto(entrenamiento.notas, 'entrenamiento.notas', e);
+  // 21-sep-2026 (325): rutinas ejecutables. Opcionales; si vienen, con
+  // nombre, al menos un ejercicio, y dias 1..7 sin repetir (o null).
+  if (entrenamiento.rutinas !== undefined && entrenamiento.rutinas !== null) {
+    if (!Array.isArray(entrenamiento.rutinas)) e.push('entrenamiento.rutinas: arreglo si viene');
+    else entrenamiento.rutinas.forEach((r, i) => {
+      const ruta = `entrenamiento.rutinas[${i}]`;
+      if (!esObj(r)) { e.push(`${ruta}: objeto`); return; }
+      if (!esTexto(r.nombre)) e.push(`${ruta}.nombre: texto obligatorio`);
+      textoOpcional(r.objetivo, `${ruta}.objetivo`, e);
+      textoOpcional(r.notas, `${ruta}.notas`, e);
+      if (r.dias_semana !== undefined && r.dias_semana !== null) {
+        const d = r.dias_semana;
+        if (!Array.isArray(d) || !d.every((x) => esNum(x) && Number.isInteger(x) && x >= 1 && x <= 7)) {
+          e.push(`${ruta}.dias_semana: enteros 1..7 (1 = lunes, 7 = domingo) o null`);
+        } else if (new Set(d).size !== d.length) {
+          e.push(`${ruta}.dias_semana: dias repetidos`);
+        }
+      }
+      if (!Array.isArray(r.bloques) || r.bloques.length === 0) { e.push(`${ruta}.bloques: al menos un ejercicio`); return; }
+      r.bloques.forEach((b: unknown, j: number) => {
+        const rb = `${ruta}.bloques[${j}]`;
+        if (!esObj(b)) { e.push(`${rb}: objeto`); return; }
+        if (!esTexto(b.ejercicio)) e.push(`${rb}.ejercicio: texto obligatorio`);
+        if (b.series !== undefined && b.series !== null && !(esNum(b.series) && Number.isInteger(b.series) && b.series >= 1 && b.series <= 20)) e.push(`${rb}.series: entero 1..20 o null`);
+        textoOpcional(b.reps, `${rb}.reps`, e);
+        if (b.descanso_s !== undefined && b.descanso_s !== null && !(esNum(b.descanso_s) && b.descanso_s >= 0 && b.descanso_s <= 600)) e.push(`${rb}.descanso_s: segundos 0..600 o null`);
+        textoOpcional(b.notas, `${rb}.notas`, e);
+        // 21-sep-2026 (ronda de arreglos): slug del catalogo, opcional; si
+        // viene, con forma de slug (no se comprueba aqui que exista: eso lo
+        // avisa la carga con slug_no_encontrado).
+        if (b.slug !== undefined && b.slug !== null && !(esTexto(b.slug) && SLUG_MATRIZ.test(b.slug))) e.push(`${rb}.slug: slug de exercise_matrix en minusculas y guiones (barbell-bench-press) o null`);
+      });
+    });
+  }
 
   // Raices declaradas (8-sep-2026): opcionales, pero si vienen se revisan
   // contra el vocabulario controlado. Una raiz inventada mueve la agenda.
@@ -729,20 +909,72 @@ export function validarEliteV3(obj: unknown): { ok: true; valor: EliteV3 } | { o
   }
 
   if (e.length) return { ok: false, errores: e };
-  // 20-sep-2026 (revision en frio, A1): si `metas` viene como objeto, el valor
-  // validado trae SIEMPRE `proteina_g_dia` y `agua_ml_dia` (numero valido o
-  // null; ausente = null). Antes una llave ausente pasaba como `undefined` y
-  // la pantalla pintaba "undefined g de proteina". No se muta la entrada.
+  return { ok: true, valor: normalizarEliteV3(obj) };
+}
+
+const METAS_ALIMENTACION = ['proteina_g_dia', 'agua_ml_dia', 'kcal_dia', 'grasa_g_dia', 'carbohidrato_g_dia'] as const;
+
+/**
+ * 20-sep-2026 (revision en frio, A1): si `metas` viene como objeto, el valor
+ * validado trae SIEMPRE todas sus llaves (numero valido o null; ausente =
+ * null). Antes una llave ausente pasaba como `undefined` y la pantalla
+ * pintaba "undefined g de proteina". 21-sep-2026 (325): la misma regla para
+ * los campos nuevos del cliente (ausente = null), para `comidas` y
+ * `rutinas` (ausente = []) y para `slug` de cada bloque (ausente = null).
+ * No se muta la entrada: se devuelve una copia.
+ */
+function normalizarEliteV3(obj: Record<string, unknown>): EliteV3 {
+  const c = obj.cliente as Record<string, unknown>;
+  const cliente = {
+    ...c,
+    fecha_nacimiento: esTexto(c.fecha_nacimiento) ? c.fecha_nacimiento : null,
+    estatura_cm: esNum(c.estatura_cm) ? c.estatura_cm : null,
+    peso_kg: esNum(c.peso_kg) ? c.peso_kg : null,
+    nivel_fitness: ELITE_NIVELES_FITNESS.includes(c.nivel_fitness as EliteNivelFitness) ? c.nivel_fitness : null,
+    fc_reposo: esNum(c.fc_reposo) ? c.fc_reposo : null,
+  };
+
+  const alimentacion = obj.alimentacion as Record<string, unknown>;
   const metasCrudas = alimentacion.metas;
+  let metas: EliteMetasAlimentacion | null = null;
   if (esObj(metasCrudas)) {
-    const metas: EliteMetasAlimentacion = {
-      proteina_g_dia: esNum(metasCrudas.proteina_g_dia) ? metasCrudas.proteina_g_dia : null,
-      agua_ml_dia: esNum(metasCrudas.agua_ml_dia) ? metasCrudas.agua_ml_dia : null,
-    };
-    const normalizado = { ...obj, alimentacion: { ...alimentacion, metas } };
-    return { ok: true, valor: normalizado as unknown as EliteV3 };
+    metas = { proteina_g_dia: null, agua_ml_dia: null, kcal_dia: null, grasa_g_dia: null, carbohidrato_g_dia: null };
+    for (const k of METAS_ALIMENTACION) metas[k] = esNum(metasCrudas[k]) ? (metasCrudas[k] as number) : null;
   }
-  return { ok: true, valor: obj as unknown as EliteV3 };
+  const comidas: EliteComida[] = Array.isArray(alimentacion.comidas)
+    ? (alimentacion.comidas as Record<string, unknown>[]).map((x) => ({
+        momento: x.momento as EliteMomentoComida,
+        hora: esTexto(x.hora) ? x.hora : null,
+        nombre: x.nombre as string,
+        componentes: x.componentes as string[],
+        notas: esTexto(x.notas) ? x.notas : null,
+      }))
+    : [];
+
+  const entrenamiento = obj.entrenamiento as Record<string, unknown>;
+  const rutinas: EliteRutina[] = Array.isArray(entrenamiento.rutinas)
+    ? (entrenamiento.rutinas as Record<string, unknown>[]).map((r) => ({
+        nombre: r.nombre as string,
+        objetivo: esTexto(r.objetivo) ? r.objetivo : null,
+        dias_semana: Array.isArray(r.dias_semana) ? (r.dias_semana as number[]) : null,
+        bloques: (r.bloques as Record<string, unknown>[]).map((b) => ({
+          ejercicio: b.ejercicio as string,
+          series: esNum(b.series) ? b.series : null,
+          reps: esTexto(b.reps) ? b.reps : null,
+          descanso_s: esNum(b.descanso_s) ? b.descanso_s : null,
+          notas: esTexto(b.notas) ? b.notas : null,
+          slug: esTexto(b.slug) ? b.slug : null,
+        })),
+        notas: esTexto(r.notas) ? r.notas : null,
+      }))
+    : [];
+
+  return {
+    ...obj,
+    cliente,
+    alimentacion: { ...alimentacion, metas, comidas },
+    entrenamiento: { ...entrenamiento, rutinas },
+  } as unknown as EliteV3;
 }
 
 // ---------------------------------------------------------------------------

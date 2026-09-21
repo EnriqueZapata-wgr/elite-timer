@@ -5,7 +5,8 @@
  * De donde sale cada dato (verificado en la base el 31-ago-2026):
  *   - edad y sexo:  client_profiles.date_of_birth / biological_sex (misma
  *     lectura que edad-atp-v2-service).
- *   - FC en reposo: health_measurements.resting_hr (manual o captura Edad ATP)
+ *   - FC en reposo: health_measurements.resting_hr (manual, captura Edad ATP
+ *     o sembrada por la evaluacion Elite con source='elite', migracion 325)
  *     y health_os_daily.resting_hr (Health Connect / HealthKit, via
  *     health-platform-service). Gana la fecha mas reciente; se dice la fuente.
  *   - VO2max registrado: health_measurements.vo2max_estimate (Cooper de
@@ -37,7 +38,13 @@ import {
   type SesionCardioLite, type ZonaFC, type MinutosPorZona, type ResumenSesiones, type MetodoVo2,
 } from './cardio-core';
 
-export type FuenteFcReposo = 'manual' | 'edad_atp' | 'healthkit' | 'health_connect' | 'otra';
+/**
+ * De donde salio la FC en reposo que se usa. 'elite' (21-sep-2026, migracion
+ * 325): la sembro la carga de la evaluacion Elite en health_measurements con
+ * source='elite'; antes caia en 'manual' y la pantalla decia "capturada a
+ * mano" de un dato que el cliente nunca tecleo.
+ */
+export type FuenteFcReposo = 'manual' | 'edad_atp' | 'elite' | 'healthkit' | 'health_connect' | 'otra';
 
 export interface FcReposoLeida {
   bpm: number;
@@ -179,7 +186,7 @@ export async function cargarPerfilCardio(userId: string): Promise<ResultadoPerfi
       const fecha = String(r.date);
       const rhr = numOrNull(r.resting_hr);
       if (fcReposoManual == null && rhr != null && rhr > 0) {
-        fcReposoManual = { bpm: rhr, fecha, fuente: r.source === 'edad_atp' ? 'edad_atp' : 'manual' };
+        fcReposoManual = { bpm: rhr, fecha, fuente: r.source === 'edad_atp' ? 'edad_atp' : r.source === 'elite' ? 'elite' : 'manual' };
       }
       const vo2 = numOrNull(r.vo2max_estimate);
       if (vo2Registrado == null && vo2 != null && vo2 > 0) vo2Registrado = { valor: vo2, fecha };

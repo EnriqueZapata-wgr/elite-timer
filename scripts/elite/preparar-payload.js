@@ -31,6 +31,20 @@
  * el expediente de labs, el comparador y ARGOS los vean. La clave la resuelve
  * `elite-lab-values-core.ts` con los MISMOS mapas que usa la app; lo que no
  * mapea viaja en `lab_values_omitidos` y el RPC lo devuelve como aviso.
+ *
+ * 21-sep-2026 (migracion 325): los campos nuevos del contrato (cliente.
+ * fecha_nacimiento, estatura_cm, peso_kg, nivel_fitness, fc_reposo;
+ * alimentacion.metas kcal/grasa/carbohidrato y comidas[]; entrenamiento.
+ * rutinas[]) viajan dentro del elite_v3 tal cual (el validador los normaliza:
+ * ausente = null o []). No son derivados: los lee la base despues de la carga
+ * (elite_sembrar_perfil, elite_cargar_rutinas, elite_cargar_comidas). Aqui
+ * solo se cuentan y se avisa lo que falta.
+ *
+ * 21-sep-2026 (ronda de arreglos): `entrenamiento.rutinas[].bloques[].slug`
+ * viaja tal cual (el validador lo normaliza: ausente = null). Es el slug
+ * exacto de exercise_matrix, un catalogo en INGLES (MoveKit): sin slug el
+ * nombre en espanol casi nunca empareja y el bloque corre como tiempo. Aqui
+ * se cuenta cuantos bloques traen slug y se avisa cuantos no.
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -202,6 +216,21 @@ console.log(`  raices detectadas:    ${raices.length}${raices.length ? ` (${raic
 console.log(`  labs a lab_values:    ${labValues.filas.length} filas (${labValues.omitidos.length} marcadores fuera; fecha ${fechaMedicion ? fechaMedicion.measured_at + (fechaMedicion.diaAsumido ? ', dia 1 asumido' : '') : 'sin fecha'})`);
 console.log(`  resumen_argos:        ${resumenArgos.length} caracteres (tope ${RESUMEN_ARGOS_MAX})`);
 console.log(`  quality_level:        ${qualityLevel} (${qualityLevel === 5 ? 'con genetica' : 'sin genetica'})`);
+// 21-sep-2026 (325): lo que siembra el perfil y lo que se convierte.
+const cli = eliteV3.cliente;
+const perfilFaltan = ['fecha_nacimiento', 'estatura_cm', 'peso_kg', 'fc_reposo', 'nivel_fitness'].filter((k) => cli[k] === null || cli[k] === undefined);
+const rutinas = eliteV3.entrenamiento.rutinas || [];
+const comidas = eliteV3.alimentacion.comidas || [];
+const ejercicios = rutinas.reduce((n, r) => n + r.bloques.length, 0);
+const conDias = rutinas.filter((r) => Array.isArray(r.dias_semana) && r.dias_semana.length > 0).length;
+const conSlug = rutinas.reduce((n, r) => n + r.bloques.filter((b) => typeof b.slug === 'string' && b.slug.length > 0).length, 0);
+// reps "limpio" = el que la carga convierte en tiempo para un bloque sin clip
+// (misma regla que elite_cargar_rutinas): "8", "8-10", "30 s", "45 min".
+const REPS_LIMPIO = /^(\d+(-\d+)?|\d+ ?(s|seg)|\d+ ?min)$/i;
+const sinSlugConProsa = rutinas.reduce((n, r) => n + r.bloques.filter((b) => !(typeof b.slug === 'string' && b.slug.length > 0) && !(typeof b.reps === 'string' && REPS_LIMPIO.test(b.reps.trim()))).length, 0);
+console.log(`  perfil (325):         ${perfilFaltan.length === 0 ? 'completo (fecha de nacimiento, estatura, peso, FC en reposo, nivel)' : `faltan ${perfilFaltan.join(', ')}`}`);
+console.log(`  rutinas (325):        ${rutinas.length}${rutinas.length ? ` (${ejercicios} ejercicios, ${conSlug} con slug del catalogo; ${conDias} con dias de la semana)` : ''}`);
+console.log(`  comidas (325):        ${comidas.length}`);
 console.log(`  html incluido:        ${typeof eliteV3.html === 'string' ? `si (${eliteV3.html.length} caracteres)` : 'no'}`);
 console.log(`  archivo:              ${rutaSalida} (${(tamano / 1024).toFixed(1)} KB)`);
 // Avisos (8-sep-2026): lo que se carga incompleto y el cliente va a notar. No
@@ -231,6 +260,18 @@ const fueraPorTipo = labValues.omitidos.filter((m) => m.motivo !== 'sin_clave_ca
 if (fueraPorTipo.length) avisos.push(`${fueraPorTipo.length} marcadores fuera de lab_values por tipo: ${fueraPorTipo.map((m) => `${m.nombre} (${MOTIVO_OMISION_TEXTO[m.motivo]})`).join('; ')}.`);
 if (fechaMedicion && fechaMedicion.diaAsumido) avisos.push(`cliente.fecha_toma trae solo el mes: los laboratorios entran con fecha ${fechaMedicion.measured_at} (dia 1 asumido, anotado en metadata). Si tienes el dia exacto, ponlo en el JSON.`);
 if (labValues.filas.length && (!eliteV3.alimentacion.metas || (eliteV3.alimentacion.metas.proteina_g_dia === null && eliteV3.alimentacion.metas.agua_ml_dia === null))) avisos.push('alimentacion.metas no trae proteina ni agua con numero: las metas del dia del cliente se quedan como estan.');
+// 21-sep-2026 (325): sin estos datos el cliente del dia uno ve "falta tu
+// fecha de nacimiento", "sin FC maxima ni reposo no hay estimacion" y nivel
+// sin declarar; sin rutinas y comidas el plan se queda como prosa.
+if (perfilFaltan.length) avisos.push(`cliente sin ${perfilFaltan.join(', ')}: la carga no los siembra y cardio o fitness se los van a pedir al cliente. Si Enrique los tiene, van en cliente.* del JSON.`);
+if (!rutinas.length) avisos.push('entrenamiento.rutinas vacio: no se crea ninguna rutina en Mis rutinas ni agenda semanal; el plan de entrenamiento se lee como prosa en la evaluacion.');
+// 21-sep-2026 (ronda de arreglos): el catalogo esta en ingles; sin slug el
+// bloque corre como tiempo, y si ademas las reps son prosa el tiempo queda en
+// 40 s fijos. Se dice ANTES de cargar para que Enrique ponga el slug o reps
+// limpio donde importe.
+if (ejercicios && ejercicios - conSlug > 0) avisos.push(`${ejercicios - conSlug} de ${ejercicios} ejercicios sin slug del catalogo: corren como bloque de tiempo, sin clip ni registro de series (exercise_matrix esta en ingles, MoveKit: el nombre en espanol no empareja). Pon "slug" en el bloque con el slug exacto del catalogo (barbell-bench-press, machine-leg-press) donde quieras clip.`);
+if (sinSlugConProsa) avisos.push(`${sinSlugConProsa} ejercicios sin slug y con reps en prosa ("10 por lado", "6 reps"): quedan con 40 s fijos por serie. Para que el tiempo salga de las reps escribe reps limpio ("8", "8-10", "30 s", "45 min").`);
+if (!comidas.length) avisos.push('alimentacion.comidas vacio: Comida muestra el plan sin comidas por momento.');
 if (avisos.length) {
   console.log('');
   console.log('Avisos (el payload se escribio igual; esto se arregla en el documento):');

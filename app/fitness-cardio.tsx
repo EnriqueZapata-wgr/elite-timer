@@ -50,6 +50,7 @@ import { formatPace } from '@/src/services/fitness-service';
 const FUENTE_FC: Record<FuenteFcReposo, string> = {
   manual: 'capturada a mano',
   edad_atp: 'capturada en Edad ATP',
+  elite: 'de tu evaluación Elite',
   healthkit: 'de Apple Salud',
   health_connect: 'de Health Connect',
   otra: 'de tu app de salud',

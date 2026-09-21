@@ -35,6 +35,8 @@ import { getTodayInsight, NUTRITION_INSIGHT_EVENT, type CachedInsight } from '@/
 import { openArgosChat } from '@/src/services/argos-nav';
 import type { ScoreBreakdown } from '@/src/services/nutrition-score-core';
 import { NutritionScoreCard } from '@/src/components/nutricion/NutritionScoreCard';
+import { getPlanDelCoachResultado, type PlanDelCoach } from '@/src/services/nutrition-service';
+import { encabezadoComida, metasDelPlan } from '@/src/services/nutrition/plan-comidas-core';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, TEXT_COLORS } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
@@ -60,6 +62,12 @@ export default function NutritionScreen() {
   const [scoreTrend, setScoreTrend] = useState<ScoreTrendPoint[]>([]);
   // T6: insight post-meal de ARGOS (opt-in; null si no hay de hoy)
   const [insight, setInsight] = useState<CachedInsight | null>(null);
+  // 21-sep-2026 (325): el plan del coach con sus comidas. Tres estados a
+  // proposito: "no se pudo leer" no es "sin plan" (sin plan no se pinta nada;
+  // sin lectura se dice y se reintenta con el pull).
+  const [planCoach, setPlanCoach] = useState<
+    { estado: 'cargando' } | { estado: 'error' } | { estado: 'ok'; plan: PlanDelCoach | null }
+  >({ estado: 'cargando' });
 
   useEffect(() => {
     getTodayInsight().then(setInsight);
@@ -87,6 +95,11 @@ export default function NutritionScreen() {
     // T3: score funcional — calcula + persiste (daily_nutrition_scores) y trae
     // trend. Es la ÚNICA lectura del hub: proteína y agua viajan dentro del
     // desglose, así que no hay que volver a preguntarle a las tablas.
+    // 325: el plan del coach se lee aparte del score: si uno falla, el otro
+    // se pinta igual.
+    const planPromesa = getPlanDelCoachResultado(user.id)
+      .then((r) => setPlanCoach(r.ok ? { estado: 'ok', plan: r.plan } : { estado: 'error' }))
+      .catch(() => setPlanCoach({ estado: 'error' }));
     try {
       const [breakdown, trend] = await Promise.all([
         computeAndSaveDailyScore(user.id),
@@ -95,6 +108,7 @@ export default function NutritionScreen() {
       setScoreBreakdown(breakdown);
       setScoreTrend(trend);
     } catch { /* score fail-soft */ }
+    await planPromesa;
     setRefreshing(false);
   }, [user?.id]);
 
@@ -146,6 +160,26 @@ export default function NutritionScreen() {
             waterMl={scoreBreakdown?.waterMl ?? 0}
           />
         </Animated.View>
+
+        {/* 21-sep-2026 (325): el plan de alimentación que asignó el coach
+            (nutrition_plans, desde la 324) con sus comidas por momento
+            (meals, desde la 325). Sin plan no se pinta nada: no todos tienen
+            coach. "No se pudo leer" es un estado distinto de "sin comidas". */}
+        {planCoach.estado === 'error' && (
+          <Animated.View entering={FadeInUp.delay(40).springify()} style={{ marginBottom: Spacing.md }}>
+            <View style={[s.planAviso, { borderColor: t.borde }]}>
+              <Ionicons name="cloud-offline-outline" size={16} color={t.textoSecundario} />
+              <EliteText style={[s.planAvisoText, { color: t.textoSecundario }]}>
+                No se pudo leer tu plan de alimentación. Desliza hacia abajo para reintentar.
+              </EliteText>
+            </View>
+          </Animated.View>
+        )}
+        {planCoach.estado === 'ok' && planCoach.plan && (
+          <Animated.View entering={FadeInUp.delay(40).springify()} style={{ marginBottom: Spacing.md }}>
+            <PlanDelCoachCard plan={planCoach.plan} />
+          </Animated.View>
+        )}
 
         {/* MB-8 Track E.2: el hub es navegación, no tablero. La card RESUMEN
             DEL DÍA duplicaba los macros que ya viven en el registro (un dato
@@ -262,6 +296,40 @@ export default function NutritionScreen() {
   );
 }
 
+// ═══ PLAN DEL COACH (325) ═══
+function PlanDelCoachCard({ plan }: { plan: PlanDelCoach }) {
+  const { tokens: t } = useAppTheme();
+  const { plan: p, comidas, coachNombre, propio } = plan;
+  // Un plan que creó el propio usuario no es "de tu coach".
+  const quien = propio ? null : (coachNombre ?? 'tu coach');
+  const kicker = quien ? `TU PLAN DE ${quien.toUpperCase()}` : 'TU PLAN';
+  const metas = metasDelPlan(p);
+  const vacio = quien
+    ? `Este plan no trae comidas por escrito. Lo que te indicó ${quien} sigue valiendo.`
+    : 'Este plan no trae comidas por escrito.';
+  return (
+    <GradientCard gradient={{ start: `${BLUE}12`, end: `${BLUE}04` }} accentColor={BLUE} accentPosition="left" padding={16}>
+      <EliteText style={[s.planKicker, { color: BLUE }]}>{kicker}</EliteText>
+      <EliteText style={[s.planTitle, { color: t.texto }]}>{p.name}</EliteText>
+      {metas.length > 0 ? (
+        <EliteText style={[s.planMetas, { color: t.textoSecundario }]}>{metas.join(' · ')}</EliteText>
+      ) : null}
+      {comidas.length === 0 ? (
+        <EliteText style={[s.planVacio, { color: t.textoSecundario }]}>{vacio}</EliteText>
+      ) : comidas.map((c, i) => (
+        <View key={`${c.momento}-${i}`} style={[s.mealRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.borde }]}>
+          <EliteText style={[s.mealHead, { color: BLUE }]}>{encabezadoComida(c)}</EliteText>
+          <EliteText style={[s.mealNombre, { color: t.texto }]}>{c.nombre}</EliteText>
+          {c.componentes.length > 0 ? (
+            <EliteText style={[s.mealComp, { color: t.textoSecundario }]}>{c.componentes.join(' · ')}</EliteText>
+          ) : null}
+          {c.notas ? <EliteText style={[s.mealNotas, { color: t.textoSecundario }]}>{c.notas}</EliteText> : null}
+        </View>
+      ))}
+    </GradientCard>
+  );
+}
+
 // ═══ NAV CARD COMPONENT ═══
 function NavCard({ icon, mark, color, title, subtitle, badge, badgeColor, onPress }: {
   icon?: string; mark?: boolean; color: string; title: string; subtitle: string;
@@ -307,6 +375,21 @@ const s = StyleSheet.create({
   macroBannerText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, lineHeight: 18 },
 
   navCard: { marginBottom: Spacing.sm },
+  // 325: plan del coach con comidas por momento.
+  planAviso: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1, borderRadius: 14, padding: 12,
+  },
+  planAvisoText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, lineHeight: 18 },
+  planKicker: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 1.2 },
+  planTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, marginTop: 4 },
+  planMetas: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 4, lineHeight: 18 },
+  planVacio: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 10, lineHeight: 19 },
+  mealRow: { paddingTop: 10, marginTop: 10 },
+  mealHead: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, letterSpacing: 0.6 },
+  mealNombre: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, marginTop: 2 },
+  mealComp: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 2, lineHeight: 18 },
+  mealNotas: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, fontStyle: 'italic', marginTop: 2, lineHeight: 18 },
   // T1: vías de registro — 4 desde MB-28B, en cuadrícula 2x2 para que
   // "Guardados" no se aplaste en una sola fila.
   registerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },

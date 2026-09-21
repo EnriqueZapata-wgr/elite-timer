@@ -1,6 +1,6 @@
 # Esquema `elite_v3`: la evaluación ATP Elite dentro de la app
 
-**Fecha:** 6 de septiembre de 2026 (noche ATP 3.0, agente A4). **Paso de la ruta:** 3.1. **Código:** `src/services/elite/elite-v3-core.ts` (tipos, validador, resumen para ARGOS, filas de suplementos) y su test `src/services/elite/__tests__/elite-v3-core.test.ts`. **Ejemplo real anonimizado:** `elite_v3_ejemplo_omar_anonimizado.json` (pasa el validador; es la referencia de cómo se ve un documento completo). Sin em dashes.
+**Fecha:** 6 de septiembre de 2026 (noche ATP 3.0, agente A4); campos de perfil, comidas y rutinas agregados el 21 de septiembre de 2026 (migración 325, ver la sección "Lo que siembra y lo que se convierte"). **Paso de la ruta:** 3.1. **Código:** `src/services/elite/elite-v3-core.ts` (tipos, validador, resumen para ARGOS, filas de suplementos) y su test `src/services/elite/__tests__/elite-v3-core.test.ts`. **Ejemplo real anonimizado:** `elite_v3_ejemplo_omar_anonimizado.json` (pasa el validador; es la referencia de cómo se ve un documento completo). Sin em dashes.
 
 ## Qué es
 
@@ -24,8 +24,12 @@ schema: 'elite_v3'
 version: entero >= 1 (número de revisión de la evaluación)
 generado_en: fecha ISO
 interpretado_por: { evaluacion: string; genetica?: string }
-cliente: { nombre_preferido, sexo: 'male'|'female', edad, fecha_toma: 'YYYY-MM' o 'YYYY-MM-DD' }
+cliente: { nombre_preferido, sexo: 'male'|'female', edad, fecha_toma: 'YYYY-MM' o 'YYYY-MM-DD',
+           fecha_nacimiento?: 'YYYY-MM-DD'|null, estatura_cm?: number|null, peso_kg?: number|null,
+           nivel_fitness?: 'principiante'|'intermedio'|'avanzado'|null, fc_reposo?: number|null }
 ```
+
+Los cinco campos opcionales de `cliente` (21 de septiembre de 2026, migración 325) son lo que cardio y fitness necesitan para calcular; la carga los siembra en el perfil del cliente solo donde él no tiene ya el suyo. Ausente = `null`. Rangos que el validador exige si vienen: fecha real entre 1900 y hoy, estatura 100 a 250 cm, peso 30 a 300 kg, FC en reposo 30 a 120.
 
 `interpretado_por.evaluacion` es quien firma el documento. `interpretado_por.genetica` es quien firma la interpretación genética y es obligatorio si `genetica.hallazgos` trae algo: la app es agnóstica del proveedor (pivote 1.3, punto 1). `fecha_toma` admite solo mes porque el formato Omar dice "mayo 2026" y el día no se inventa.
 
@@ -45,9 +49,9 @@ cliente: { nombre_preferido, sexo: 'male'|'female', edad, fecha_toma: 'YYYY-MM' 
 | `cruces` | `hilo {variable, en, de}` (la variable que aparece en N de N cruces) y `lista[]` | `lista` |
 | `medico` | `intro`, `fuera_del_tuyo[]` (dentro del rango del laboratorio, fuera del nuestro), `pendientes[]`, `advertencias[]` | `pendientes` |
 | `cierre` | `palancas` (exactamente tres), `vigencia`, `firma`, `disclaimer` | `palancas` |
-| `alimentacion` | `prioriza[]`, `evita[]`, `ventana {inicio, fin}` en HH:MM o `null`, `horarios[] {momento, que}`, `notas[]`, y opcional `metas {proteina_g_dia, agua_ml_dia}` (números mayores que cero o `null`; desde el 20-sep-2026 alimentan `nutrition_plans` y las metas del día del cliente cuando él no tiene las suyas) | arreglos |
+| `alimentacion` | `prioriza[]`, `evita[]`, `ventana {inicio, fin}` en HH:MM o `null`, `horarios[] {momento, que}`, `notas[]`, opcional `metas {proteina_g_dia, agua_ml_dia, kcal_dia?, grasa_g_dia?, carbohidrato_g_dia?}` (números mayores que cero o `null`; desde el 20-sep-2026 alimentan `nutrition_plans` y las metas del día del cliente cuando él no tiene las suyas; kcal, grasa y carbohidrato desde el 21-sep-2026) y opcional `comidas[]` (ver abajo) | arreglos |
 | `suplementos[]` | el plan (ver abajo) | puede ir vacío |
-| `entrenamiento` | `base`, `sesiones[] {tipo, frecuencia_semana, duracion, intensidad, nota}`, `descanso[]`, `notas[]` | arreglos |
+| `entrenamiento` | `base`, `sesiones[] {tipo, frecuencia_semana, duracion, intensidad, nota}`, `descanso[]`, `notas[]`, y opcional `rutinas[]` (ver abajo) | arreglos |
 | `html?` | HTML completo del entregable (opcional; cabe en JSONB) | exento del candado de texto: lo produce el generador de Enrique |
 
 ### Marcador (`EliteMarcador`)
@@ -79,6 +83,31 @@ Reglas: `estado` debe ser `null` si `valor` es `null`; `min <= max`; un rango no
 
 `{ nombre, dosis_cantidad, dosis_unidad ('mg'|'mcg'|'g'|'UI'|'ml'), unidades_por_toma, momento, por_que, duracion?, advertencia? }`, alineado a `user_supplements` de la migración 312: `dosis_cantidad` es `amount_per_unit`, `dosis_unidad` es `amount_unit`, `unidades_por_toma` es `units_per_dose`, `momento` es `timing` (`morning`, `with_food`, `afternoon`, `evening`, `bedtime`; `null` si el manual no fija la hora y la fila toma el default `morning` de la 055), `por_que` es `reason`. `suplementosAFilas(e, userId)` devuelve las filas con `source: 'coach'`, `is_plan: true`, `is_active: true`, `dosage` como texto (raya cuando no hay cantidad) y `notes` con duración y advertencia. Las inserta el RPC `elite_cargar_evaluacion` (ruta 3.2); ATP no inventa dosis: si el manual no la fija, va `null`.
 
+### Comida del plan (`alimentacion.comidas[]`, migración 325)
+
+```
+{ momento: 'desayuno'|'comida'|'cena'|'colacion'|'pre_entreno'|'post_entreno',
+  hora: 'HH:MM' | null, nombre: string, componentes: string[], notas: string | null }
+```
+
+Ausente = `[]`. `hora` es reloj de 24 horas (`07:30` sí, `7:30` y `25:00` no); `null` cuando el manual no fija la hora. Van tal cual a `nutrition_plans.meals` del `Plan Elite vN` de esa versión (`elite_cargar_comidas`) y Comida las pinta por momento bajo "Tu plan de Enrique". No se derivan calorías ni macros de las comidas: las metas con número van en `metas`.
+
+### Rutina del plan (`entrenamiento.rutinas[]`, migración 325)
+
+```
+{ nombre: string, objetivo: string | null,
+  dias_semana: number[] | null,          // 1 = lunes ... 7 = domingo, sin repetidos; null = sin agenda
+  bloques: [{ ejercicio: string, series: number | null, reps: string | null, descanso_s: number | null, notas: string | null,
+              slug?: string | null }],   // slug exacto de exercise_matrix (barbell-bench-press); fija el clip
+  notas: string | null }
+```
+
+Ausente = `[]`. `bloques` trae al menos un ejercicio; `series` entero 1 a 20; `reps` texto libre (`"10"`, `"8-12"`, `"30 s"`, `"45 min"`); `descanso_s` 0 a 600; `slug` opcional con forma de slug (minúsculas, dígitos y guiones). La carga (`elite_cargar_rutinas`) la convierte en una rutina real del cliente (`routines` + `blocks`, un bloque `work` por ejercicio con `rounds` = series y `rest_between_seconds` = descanso) y la agenda en `scheduled_routines` por cada día único de `dias_semana` con `assigned_by` = quien la cargó.
+
+**El catálogo está en inglés.** `exercise_matrix` (migración 220, seed 223) es el catálogo MoveKit: 214 ejercicios con `nombre` en inglés (`Barbell Bench Press`, `Machine Leg Press`, `Band High Face Pull`) y `familia` en español (`Press de pecho`, `Peso muerto`, `Face pull`). Un nombre en español como `Press de banca con mancuernas` no empareja con nada (revisión en frío del 21 de septiembre: 0 de 23 y 0 de 16 en los dos primeros clientes reales). La forma de fijar el clip es `slug`: la carga empareja primero por `slug` exacto contra `exercise_matrix.slug`, después por nombre normalizado (solo pega si el documento lo escribe en inglés) y al final por `familia` cuando esa familia tiene una sola fila en el catálogo (`Curl femoral`, `Puente de glúteo`); nunca por prefijo ni parecido. Con emparejamiento, el runner corre el bloque con clip y registro de series y el nombre en español se conserva como etiqueta del bloque (`label`, tope 80 caracteres; la prescripción completa y las notas van a `notes`, tope 500). Un `slug` que no existe se avisa (`slug_no_encontrado`) y el bloque sigue por nombre.
+
+Sin emparejamiento, el bloque corre como tiempo y la carga lo avisa por nombre (`ejercicios_fuera_del_catalogo`). El tiempo se deriva **solo** cuando `reps` es limpio: `"8"` u `"8-10"` (4 s por repetición con el último número), `"30 s"`, `"45 min"` (tope 1800 s). Con prosa (`"10 por lado"`, `"6 reps"`, `"8 min · 8 al minuto"`, `"15 dejando 2 en el tanque"`) queda en 40 s fijos por serie y se avisa (`duracion_no_derivada`): no se adivina un número dentro de una frase. Para que un ejercicio sin clip corra con el tiempo correcto, escribe `reps` limpio y deja la explicación en `notas`.
+
 ## Lo que el validador hace cumplir (`validarEliteV3`)
 
 Sin librerías. Devuelve `{ ok: true, valor }` o `{ ok: false, errores[] }` con la ruta exacta de cada error (`marcadores.grupos[0].marcadores[3].estado: ...`).
@@ -87,6 +116,7 @@ Sin librerías. Devuelve `{ ok: true, valor }` o `{ ok: false, errores[] }` con 
 2. `estado` en `null` cuando `valor` (o `score`) es `null`; `evidencia` en 1..4 o `null`; rangos con `min <= max`; scores y calidad en 0..100; `palancas` exactamente tres; `fuente` con al menos un chip válido.
 3. Dosis: `dosis_cantidad` y `unidades_por_toma` mayores que cero o `null`; unidad obligatoria cuando hay cantidad.
 4. `interpretado_por.genetica` obligatorio si hay hallazgos genéticos.
+4b. (325) `cliente.fecha_nacimiento` real y no futura; estatura 100..250; peso 30..300; FC en reposo 30..120; `nivel_fitness` en su enum; `comidas[].momento` en su enum y `hora` de reloj; `rutinas[].dias_semana` enteros 1..7 sin repetir; `bloques` con al menos un ejercicio, series 1..20, descanso 0..600, `slug` con forma de slug o `null` (que exista en el catálogo lo avisa la carga, no el validador). Todo opcional: el ejemplo de Omar no trae nada de esto y valida igual. El valor devuelto sale normalizado: los cinco campos del cliente y las cinco metas siempre presentes (número o `null`), `comidas` y `rutinas` siempre arreglos, `slug` de cada bloque siempre presente (texto o `null`).
 5. **Candado de texto** sobre TODO string del objeto (menos `html`): cero em dashes, y ninguna palabra roja del informe legal (diagnóstico, diagnosticar, tratamiento, terapéutico, previene, cura, receta médica, médico de IA, chequeo, clínicamente validado; se comparan sin acentos) salvo en `medico.pendientes[].con_quien`. "Tienes [enfermedad]" no se detecta por regex: queda para la revisión humana antes de cargar.
 
 Lo que NO valida (a propósito): coherencia clínica (si `att` es correcto para ese valor), unidades contra la matriz, ni que los conteos de `conteo` cuadren con las filas. Eso lo decide quien firma; el test del ejemplo sí comprueba que en Omar cuadran (28 filas = 13 + 7 + 8; 22 hallazgos).
@@ -115,6 +145,18 @@ Cada evaluación y cada revisión (6 o 12 meses, brochure) es **una fila nueva d
 2. Se corre `validarEliteV3` (el test lo hace sobre el ejemplo; para un cliente nuevo se puede correr con el mismo runner o desde la herramienta de la ruta 3.7). Los errores dicen la ruta exacta.
 3. Se revisa a mano lo que el validador no ve: "tienes [enfermedad]", afirmaciones sin respaldo, nombre preferido correcto.
 4. Enrique lo carga con su JWT vía `elite_cargar_evaluacion` (ruta 3.2), nunca desde Cowork.
+
+## Lo que siembra y lo que se convierte (migración 325, 21 de septiembre de 2026)
+
+Decisión del dueño: el plan de entrenamiento y alimentación se convierten en rutinas y comidas dentro de la app, y la carga siembra lo que cardio y fitness necesitan. Después de `elite_cargar_completa`, el script llama con el mismo JWT a tres funciones que leen la evaluación recién guardada y solo rellenan lo vacío (lo que el cliente ya puso se respeta y se dice en avisos):
+
+| Función | Lee del `elite_v3` | Escribe (solo si está vacío) |
+|---|---|---|
+| `elite_sembrar_perfil` | `cliente.sexo`, `fecha_nacimiento`, `estatura_cm`, `peso_kg`, `fc_reposo`, `nivel_fitness` | `client_profiles.biological_sex`, `date_of_birth`, `height_cm`; `health_measurements.weight_kg`, `height_cm`, `resting_hr` (fila `source='elite'` fechada con `fecha_toma` o `generado_en`; es lo que lee cardio y Edad ATP); `profiles.fitness_level` |
+| `elite_cargar_rutinas` | `entrenamiento.rutinas[]` | `routines` + `blocks` del cliente (clip por `slug`, nombre o familia única de `exercise_matrix`), `scheduled_routines` por día, rastro en `elite_rutinas_cargadas` (idempotencia por cliente, evaluación y nombre). Una versión nueva archiva las rutinas que la carga creó para la anterior (`archived_at`) y apaga sus agendas del coach; las propias del cliente no se tocan |
+| `elite_cargar_comidas` | `alimentacion.comidas[]` y `metas.kcal_dia`, `grasa_g_dia`, `carbohidrato_g_dia` | `nutrition_plans.meals`, `calorie_target`, `fat_target`, `carb_target` del `Plan Elite vN` de esa versión |
+
+El detalle de avisos y de qué NO hacen está en `CARGAR_ELITE.md` (sección "325: qué siembra y qué convierte") y en la cabecera de `supabase/migrations/325_elite_sembrar_y_convertir.sql`.
 
 ## Decisiones tomadas al escribir el esquema (para que Enrique pueda revertirlas)
 
