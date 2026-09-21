@@ -40,6 +40,10 @@ import { computeStreak } from './adherence-service';
 import { cargarContextoElite } from './argos-elite-contexto-service';
 import { traeBloqueElite } from './argos-elite-contexto-core';
 import { traeDetalleElite } from './argos-elite-detalle-core';
+// 21-sep-2026: memoria de conversaciones previas ("LO QUE HABLARON ANTES").
+import {
+  anotarConversacionGuardada, leerMemoriaConversaciones, olvidarMemoriaConversaciones,
+} from './argos-memoria-service';
 import type { FilaSuplementoArgos } from './argos-suplementos-plan-core';
 // 20-sep-2026: el sueño se lee con `leerNochesUnificadas` (sleep_nights +
 // health_os_daily.sleep_minutes) de './sleep/sueno-unificado-service'. Va
@@ -809,10 +813,23 @@ async function cargarLabsLegacy(userId: string, context: UserContext): Promise<v
 }
 
 /**
+ * 21-sep-2026: qué extras pide el llamador de loadUserContext.
+ */
+export interface OpcionesDeContexto {
+  /**
+   * Memoria de conversaciones previas ("LO QUE HABLARON ANTES"). Solo el chat
+   * la pide (prepareChatTurn); el insight diario, las rutinas y las recetas no
+   * la necesitan y no pagan la lectura. `conversacionActualId` se excluye del
+   * bloque porque esa conversación ya viaja completa en el turno.
+   */
+  memoria?: { conversacionActualId: string | null };
+}
+
+/**
  * Carga el contexto rico del usuario. Exportada para el test raíz del gate
  * de consentimiento (MB-21 P7) — la UI no la llama directo.
  */
-export async function loadUserContext(userId: string): Promise<UserContext> {
+export async function loadUserContext(userId: string, opciones?: OpcionesDeContexto): Promise<UserContext> {
   const today = getLocalToday();
   const context: UserContext = { name: '' };
 
@@ -1298,10 +1315,19 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
     // tendencia de años, y con un solo estudio no hay respuesta posible.
     if (ARGOS_LEE_LABS_DE_VERDAD) {
       const rango = resolveRange('all', new Date());
-      const { mediciones, sexo, faseCiclo } = await loadLabsReport(rango, userId);
+      const { mediciones, sexo, sexoIlegible, faseCiclo } = await loadLabsReport(rango, userId);
       const historias = construirHistorias(mediciones, sexo, faseCiclo);
       const bloque = construirBloqueLabs(historias, resumirLabs(historias));
       if (bloque) {
+        // 2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo nada se calificó. ARGOS lo
+        // sabe para no leer "pendiente de rango" como que la matriz no lo define.
+        if (sexo === null) {
+          bloque.lineas.push(
+            sexoIlegible
+              ? 'AVISO: el perfil no se pudo leer y por eso ningún valor se calificó contra su ventana funcional. Pide reintentar; no asumas sexo.'
+              : 'AVISO: el perfil no tiene sexo registrado y por eso ningún valor se calificó contra su ventana funcional. Manda a completar el perfil; no asumas sexo.',
+          );
+        }
         const ultima = historias
           .map((h) => h.ultimo.measured_at)
           .sort()
@@ -1575,6 +1601,19 @@ export async function loadUserContext(userId: string): Promise<UserContext> {
     }
   } catch (e) { registrar('adherencia-racha', 'error', e); }
 
+  if (opciones?.memoria) {
+    try {
+      // 21-sep-2026: lo que hablaron en conversaciones previas, resumido sin
+      // llamar al modelo (argos-memoria-core, leído por argos-memoria-service
+      // con `.eq('user_id', userId)` + RLS). Va DETRÁS del gate de
+      // consentimiento como todo lo demás: sin permiso no se lee ni se
+      // menciona. Un usuario sin conversaciones previas no es un vacío que
+      // reportar; una lectura fallida sí, y viaja como "no pude leer".
+      const bloque = await leerMemoriaConversaciones(userId, opciones.memoria.conversacionActualId);
+      if (bloque) context.memoriaConversaciones = bloque;
+    } catch (e) { registrar('memoria-conversaciones', 'error', e); }
+  }
+
   // 20-sep-2026: lo que falló viaja al modelo en lenguaje llano (ver
   // argos-context-core: lineaFuentesNoLeidas y REGLA_FUENTES_NO_LEIDAS).
   if (noLeidos.length > 0) context.fuentesNoLeidas = noLeidos.map(nombreDeBloque);
@@ -1695,7 +1734,9 @@ async function prepareChatTurn(
     logError('[ARGOS] coach-engine gate failed, continuing without:', err);
   }
 
-  const context = await loadUserContext(userId);
+  // 21-sep-2026: el chat es el único que pide la memoria de conversaciones
+  // previas; la actual se excluye porque ya viaja en `messages`.
+  const context = await loadUserContext(userId, { memoria: { conversacionActualId: conversationId } });
   // ATP 3.0 (ruta 3.6): si la pantalla ya mandó el bloque Elite en
   // `extraContext` (mismo encabezado), no se repite en el contexto.
   // 20-sep-2026: cada bloque se deduplica por su propio encabezado; el
@@ -2009,17 +2050,21 @@ export async function saveConversation(
   sessionId?: string | null,
 ): Promise<string | null> {
   const title = messages[0]?.content?.slice(0, 50) || 'Conversación';
+  // 21-sep-2026: la memoria de conversaciones (argos-memoria-service) adopta
+  // la fila recién guardada sin releer la base.
+  const updatedAt = new Date().toISOString();
 
   if (existingId) {
     // Actualizar conversación existente
     const { error } = await supabase
       .from('argos_conversations')
       .update({
-        messages, title, updated_at: new Date().toISOString(),
+        messages, title, updated_at: updatedAt,
         ...(sessionId ? { session_id: sessionId } : {}),
       })
       .eq('id', existingId);
     if (error) console.error('Update conversation error:', error);
+    else anotarConversacionGuardada(userId, { id: existingId, title, messages, updated_at: updatedAt });
     return existingId;
   }
 
@@ -2039,6 +2084,7 @@ export async function saveConversation(
     console.error('Save conversation error:', error);
     return null;
   }
+  if (data?.id) anotarConversacionGuardada(userId, { id: data.id, title, messages, updated_at: updatedAt });
   return data?.id || null;
 }
 
@@ -2075,6 +2121,8 @@ export async function renameConversation(conversationId: string, title: string):
     console.warn('[argos] renameConversation:', error.message);
     return false;
   }
+  // 21-sep-2026: el título propio entra a la memoria de conversaciones.
+  olvidarMemoriaConversaciones();
   return true;
 }
 
@@ -2124,6 +2172,8 @@ export async function deleteConversation(conversationId: string): Promise<boolea
     console.warn('[argos] deleteConversation:', error.message);
     return false;
   }
+  // 21-sep-2026: lo borrado no se recuerda.
+  olvidarMemoriaConversaciones();
   return true;
 }
 

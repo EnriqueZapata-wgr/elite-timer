@@ -19,6 +19,8 @@ import {
   REGLA_PLAN_SUPLEMENTOS,
   type PlanSuplementosArgos,
 } from '@/src/services/argos-suplementos-plan-core';
+// 21-sep-2026: la regla de "lo que hablaron antes" (memoria de conversaciones).
+import { REGLA_MEMORIA_CONVERSACIONES } from '@/src/services/argos-memoria-core';
 
 export interface PersonalRecord {
   exercise: string;
@@ -164,6 +166,12 @@ export interface UserContext {
    * hay datos" son cosas distintas y las dos tienen que llegar al modelo.
    */
   fuentesNoLeidas?: string[];
+  /**
+   * 21-sep-2026: lo que hablaron en conversaciones previas, ya resumido por
+   * argos-memoria-core (bloque "LO QUE HABLARON ANTES"). Solo lo pide el chat
+   * y solo detrás del gate de consentimiento: sin permiso no existe.
+   */
+  memoriaConversaciones?: string;
   hydrationStats?: {
     last7dAvgMl: number;
     todayProgressPct: number;
@@ -473,6 +481,7 @@ export const NOMBRES_DE_BLOQUES: Readonly<Record<string, string>> = {
   'edad-atp': 'la Edad ATP',
   'agenda-hoy': 'la agenda de hoy',
   'adherencia-racha': 'la adherencia y la racha',
+  'memoria-conversaciones': 'las conversaciones previas',
 };
 
 export function nombreDeBloque(clave: string): string {
@@ -743,6 +752,13 @@ export function buildContextPrompt(ctx: UserContext): string {
   // vez, y su regla junto a las demás. Antes se registraba en Sentry y al
   // modelo no le llegaba nada: con labs sí y evaluación no, contestaba como
   // si el cliente no tuviera evaluación.
+  // 21-sep-2026: lo que hablaron en conversaciones previas va al final de los
+  // datos, con su regla junto a las demás: sirve para continuidad, no para
+  // repetirlo, y lo que el usuario dice hoy manda sobre la memoria.
+  if (ctx.memoriaConversaciones) {
+    parts.push(ctx.memoriaConversaciones);
+    regla(REGLA_MEMORIA_CONVERSACIONES);
+  }
   if (ctx.fuentesNoLeidas && ctx.fuentesNoLeidas.length > 0) {
     parts.push(lineaFuentesNoLeidas(ctx.fuentesNoLeidas));
     regla(REGLA_FUENTES_NO_LEIDAS);

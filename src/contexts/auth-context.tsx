@@ -62,15 +62,18 @@ function translateError(message: string): string {
  */
 async function olvidarMemoriasDeArgos(): Promise<void> {
   try {
-    const [elite, contexto, hoy] = await Promise.all([
+    const [elite, contexto, hoy, memoria] = await Promise.all([
       import('@/src/services/argos-elite-contexto-service'),
       import('@/src/services/argos-context-core'),
       import('@/src/services/hoy/elite-hoy-service'),
+      import('@/src/services/argos-memoria-service'),
     ]);
     elite.invalidarContextoElite();
     contexto.olvidarVerificacionConsentimiento();
     // 20-sep-2026 (A6): la evaluacion que HOY tenia en memoria tampoco se queda para la siguiente cuenta.
     hoy.invalidarEvaluacionEliteHoy();
+    // 21-sep-2026: las conversaciones previas cacheadas tampoco.
+    memoria.olvidarMemoriaConversaciones();
   } catch {
     // defensivo: si el módulo no carga, el cierre de sesión sigue.
   }
