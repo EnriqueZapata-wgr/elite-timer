@@ -88,6 +88,7 @@ for (const objetivo of objetivos) {
     continue;
   }
   console.log(`\n=== ${objetivo} ===`);
+  shim.vi.archivoActual = compilado; // para que vi.mock resuelva rutas relativas
   require(compilado);
 }
 

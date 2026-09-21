@@ -5,6 +5,7 @@
  * + controles. Integra TTS, sonidos y vibración háptica.
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { AppState } from 'react-native';
 import { speak as speakTTS, stopSpeech } from '@/src/utils/speech';
 import { playSound, playStepStart, playStepEnd, playRoutineComplete, initAudio, cleanupAudio, setSoundStyle } from '@/src/utils/sounds';
 import { vibrateLight, vibrateMedium, vibrateHeavy, vibrateCountdown } from '@/src/utils/haptics';
@@ -203,6 +204,16 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
       cleanupAudio();
     };
   }, [steps]);
+
+  // Bloque TIMERS: al volver del segundo plano el motor se pone al día con el
+  // reloj de una vez (el poll puede tardar en despertar). El tiempo lo lleva
+  // reloj-core dentro del engine; aquí solo se le avisa que mire la hora.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') engineRef.current?.sincronizar();
+    });
+    return () => sub.remove();
+  }, []);
 
   // Controles — skip, pause y restartStep cancelan TTS inmediatamente
   const play = useCallback(() => engineRef.current?.play(), []);

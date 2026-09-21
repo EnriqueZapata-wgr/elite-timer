@@ -11,25 +11,40 @@ const pila = [];
 
 function describe(nombre, fn) {
   pila.push(nombre);
-  try { fn(); } finally { pila.pop(); }
+  hooks.push({ antes: [], despues: [] });
+  try { fn(); } finally { pila.pop(); hooks.pop(); }
 }
 
 const pendientes = [];
+// Hooks de verdad (2026-09-21). Antes beforeEach corría una sola vez al
+// registrarse y afterEach era un no-op: un test que deja un setInterval vivo
+// (RoutineEngine.play) colgaba el proceso, y el estado que un beforeEach
+// reinicia se filtraba entre tests. Cada hook queda ligado al describe donde
+// se declaró y corre para los `it` de ese describe y sus hijos.
+const hooks = []; // paralelo a `pila`: [{ antes: [], despues: [] }, ...]
+hooks.push({ antes: [], despues: [] }); // raíz (fuera de todo describe)
+const beforeEach = (f) => { hooks[hooks.length - 1].antes.push(f); };
+const afterEach = (f) => { hooks[hooks.length - 1].despues.push(f); };
 
+// Los tests se ENCOLAN al registrarse y corren uno tras otro en reportar(),
+// como en vitest. Antes los async arrancaban todos a la vez y el beforeEach
+// del siguiente pisaba el estado del anterior a mitad de un await.
 function it(nombre, fn) {
   const ruta = [...pila, nombre].join(' > ');
+  const antes = hooks.flatMap((h) => h.antes);
+  const despues = hooks.slice().reverse().flatMap((h) => h.despues);
+  pendientes.push({ ruta, fn, antes, despues });
+}
+
+async function correr({ ruta, fn, antes, despues }) {
   try {
-    const r = fn();
-    if (r && typeof r.then === 'function') {
-      // Los tests async se dejan corriendo y se cobran en reportar(). Marcarlos
-      // como no soportados sería un verde por omisión, que es peor que no
-      // tener runner.
-      pendientes.push(r.then(() => { pasados++; }, (e) => { fallas.push({ ruta, error: e }); }));
-      return;
-    }
+    for (const f of antes) await f();
+    await fn();
     pasados++;
   } catch (e) {
     fallas.push({ ruta, error: e });
+  } finally {
+    for (const f of despues) await f();
   }
 }
 
@@ -82,6 +97,8 @@ function construir(actual, negado) {
     toBeGreaterThanOrEqual: (e) => chk(actual >= e, `esperaba >= ${e}`),
     toBeLessThan: (e) => chk(actual < e, `esperaba < ${e}`),
     toBeLessThanOrEqual: (e) => chk(actual <= e, `esperaba <= ${e}`),
+    // Igual que vitest: |a-b| < 10^-d / 2, d = 2 por defecto.
+    toBeCloseTo: (e, d = 2) => chk(Math.abs(actual - e) < Math.pow(10, -d) / 2, `esperaba ≈ ${e} (${d} decimales)`),
     toBeNull: () => chk(actual === null, 'esperaba null'),
     toBeUndefined: () => chk(actual === undefined, 'esperaba undefined'),
     toBeDefined: () => chk(actual !== undefined, 'esperaba definido'),
@@ -116,10 +133,31 @@ const vi = {
     f.mockClear = () => { f.mock.calls = []; };
     return f;
   },
+  /**
+   * vi.mock(ruta, factory) (2026-09-21): siembra el módulo en require.cache
+   * ANTES de que el test importe lo que lo usa. Funciona porque tsc emite los
+   * require en el orden del archivo: el test debe escribir los vi.mock antes
+   * de los import del módulo bajo prueba (así están los cuatro que lo usan).
+   * `archivoActual` lo fija el runner para resolver rutas relativas.
+   */
+  mock: (ruta, factory) => {
+    const Module = require('module');
+    const path = require('path');
+    const desde = vi.archivoActual ? path.dirname(vi.archivoActual) : process.cwd();
+    const resuelto = require.resolve(ruta, { paths: [desde] });
+    const m = new Module(resuelto, null);
+    m.filename = resuelto;
+    m.loaded = true;
+    m.exports = factory ? factory() : {};
+    require.cache[resuelto] = m;
+  },
+  /** vi.hoisted(fn): en vitest sube `fn` por encima de los import; aquí los vi.mock ya van antes, así que basta con evaluarla. */
+  hoisted: (fn) => fn(),
+  archivoActual: null,
 };
 
 async function reportar() {
-  await Promise.all(pendientes);
+  for (const t of pendientes) await correr(t);
   console.log(`\n${pasados} pasaron, ${fallas.length} fallaron`);
   for (const f of fallas) {
     console.log(`\n  FALLA: ${f.ruta}\n    ${f.error && f.error.message}`);
@@ -127,4 +165,4 @@ async function reportar() {
   return fallas.length === 0;
 }
 
-module.exports = { describe, it, test: it, expect, vi, reportar, beforeEach: (f) => f(), afterEach: () => {} };
+module.exports = { describe, it, test: it, expect, vi, reportar, beforeEach, afterEach };

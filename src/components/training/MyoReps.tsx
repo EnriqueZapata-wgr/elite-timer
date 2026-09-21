@@ -10,6 +10,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useReloj } from '@/src/hooks/useReloj';
+import { faseMyoReps } from '@/src/services/fitness/reloj-core';
 
 interface Props {
   exerciseName: string;
@@ -29,27 +31,29 @@ export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
   const dark = t.kind === 'dark';
   const [phase, setPhase] = useState<'activation' | 'rest' | 'overload' | 'done'>('activation');
   const [overloadSets, setOverloadSets] = useState<number[]>([]);
-  const [restTimer, setRestTimer] = useState(5);
+  // Bloque TIMERS: el descanso de 5 s sale del reloj único (Date.now
+  // inyectado); antes era un setTimeout encadenado que el segundo plano
+  // congelaba. El reloj arranca al entrar en 'rest' y se apaga al salir.
+  // Tick de 1 s: solo muestra segundos enteros (sin cues de fracción).
+  const reloj = useReloj({ tickMs: 1000 });
+  const { restanteSeg: restTimer, terminado: descansoListo } = faseMyoReps(reloj.transcurridoMs, { sobrecargas: overloadSets.length });
   // MB-3.5 #2: tocar reps SELECCIONA (corregible); la sobrecarga cierra con CONFIRMAR.
   const [seleccion, setSeleccion] = useState<number | null>(null);
 
   // 5 second rest timer
   useEffect(() => {
-    if (phase !== 'rest') return;
-    if (restTimer <= 0) {
-      setPhase('overload');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      onCue?.(`Sobrecarga ${overloadSets.length + 1}. 5 repeticiones.`);
-      return;
-    }
-    const t = setTimeout(() => setRestTimer(prev => prev - 1), 1000);
-    return () => clearTimeout(t);
-  }, [phase, restTimer]);
+    if (phase !== 'rest' || !descansoListo) return;
+    reloj.reiniciar();
+    setPhase('overload');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    onCue?.(`Sobrecarga ${overloadSets.length + 1}. 5 repeticiones.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, descansoListo]);
 
   function completeActivation() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setPhase('rest');
-    setRestTimer(5);
+    reloj.iniciar();
     onCue?.('Activación completa. 5 segundos de descanso.');
   }
 
@@ -82,7 +86,7 @@ export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
     } else {
       // Siguiente overload
       setPhase('rest');
-      setRestTimer(5);
+      reloj.iniciar();
     }
   }
 

@@ -8,6 +8,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
+import { useReloj } from '@/src/hooks/useReloj';
+import { descansoRestante } from '@/src/services/fitness/reloj-core';
 import { ATP_BRAND, TEXT, ELEVATION } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
 
@@ -21,7 +23,12 @@ interface Props {
 }
 
 export function RestTimer({ seconds, siguiente, onDone, onCue }: Props) {
-  const [restante, setRestante] = useState(seconds);
+  // Bloque TIMERS: el tiempo sale del reloj único (Date.now inyectado), no de
+  // un setTimeout encadenado que el segundo plano congelaba. +30 s alarga la
+  // duración y SALTAR la pone en 0; el reloj no se toca.
+  const reloj = useReloj({ autoIniciar: true });
+  const [duracionSeg, setDuracionSeg] = useState(seconds);
+  const { restanteSeg: restante, terminado } = descansoRestante(reloj.transcurridoMs, duracionSeg);
   const anuncioRef = useRef(false);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
@@ -42,7 +49,9 @@ export function RestTimer({ seconds, siguiente, onDone, onCue }: Props) {
   }, []);
 
   useEffect(() => {
-    if (restante <= 0) {
+    if (terminado) {
+      // Cierra el interval del reloj aunque el host tarde en desmontar.
+      reloj.pausar();
       haptic.heavy();
       onCueRef.current?.('¡Vamos!', { hito: true });
       onDoneRef.current();
@@ -52,9 +61,7 @@ export function RestTimer({ seconds, siguiente, onDone, onCue }: Props) {
       haptic.medium();
       onCueRef.current?.(String(restante));
     }
-    const t = setTimeout(() => setRestante((r) => r - 1), 1000);
-    return () => clearTimeout(t);
-  }, [restante]);
+  }, [restante, terminado, reloj.pausar]);
 
   const min = Math.floor(restante / 60);
   const seg = restante % 60;
@@ -66,13 +73,13 @@ export function RestTimer({ seconds, siguiente, onDone, onCue }: Props) {
       {siguiente ? <Text style={s.next}>Siguiente: {siguiente}</Text> : null}
       <View style={s.actions}>
         <AnimatedPressable
-          onPress={() => { haptic.light(); setRestante((r) => r + 30); }}
+          onPress={() => { haptic.light(); setDuracionSeg((d) => d + 30); }}
           style={s.secondaryBtn}
         >
           <Text style={s.secondaryText}>+30 s</Text>
         </AnimatedPressable>
         <AnimatedPressable
-          onPress={() => { haptic.light(); setRestante(0); }}
+          onPress={() => { haptic.light(); setDuracionSeg(0); }}
           style={s.skipBtn}
         >
           <Ionicons name="play-skip-forward" size={16} color="#000" />

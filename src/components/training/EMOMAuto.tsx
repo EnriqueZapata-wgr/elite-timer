@@ -21,6 +21,8 @@ import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Fonts, Radius } from '@/constants/theme';
 import { EMOM_CLASE_LABEL, type EmomPrescripcion } from '@/src/services/fitness/emom-core';
+import { useReloj } from '@/src/hooks/useReloj';
+import { faseEmom } from '@/src/services/fitness/reloj-core';
 
 // MB-31B: naranja de fase EMOM = señal de dominio (doctrina), se queda
 // hardcodeado como relleno/icono en los dos temas. Como TEXTO no alcanza
@@ -60,8 +62,15 @@ export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, on
   const [repsCfg, setRepsCfg] = useState(prescripcion?.reps ?? legacy.targetReps);
   const config = { rounds: rondasCfg, targetReps: repsCfg };
   const [phase, setPhase] = useState<'ready' | 'active' | 'captura' | 'debt' | 'done'>('ready');
-  const [currentRound, setCurrentRound] = useState(0);
-  const [timer, setTimer] = useState(60);
+  // Bloque TIMERS: el minuto sale del reloj único (Date.now inyectado). Corre
+  // FIJO desde INICIAR y nada lo reinicia: la ronda y sus segundos se derivan
+  // del transcurrido (faseEmom). Antes un setInterval contaba ticks y el
+  // segundo plano estiraba el minuto sin que nadie lo viera. Tick de 1 s:
+  // solo muestra segundos enteros.
+  const reloj = useReloj({ tickMs: 1000 });
+  const fase = faseEmom(reloj.transcurridoMs, { rondas: config.rounds });
+  const currentRound = fase.ronda - 1;
+  const timer = fase.restanteSeg;
   /** Reps commiteadas por ronda; null = el minuto murió sin registro (pendiente). */
   const [results, setResults] = useState<(number | null)[]>([]);
   /** Selección de la ronda ACTUAL — corregible hasta que el reloj llegue a 0. */
@@ -75,41 +84,54 @@ export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, on
   const resultsRef = useRef<(number | null)[]>([]);
   resultsRef.current = results;
 
-  // El reloj: corre FIJO mientras la fase es activa. Nada lo reinicia.
-  useEffect(() => {
-    if (phase !== 'active') return;
-    const id = setInterval(() => setTimer((t) => t - 1), 1000);
-    return () => clearInterval(id);
-  }, [phase, currentRound]);
-
   // Cuenta regresiva hablada del minuto (3-2-1) — cue aditivo, la regla no cambia.
   useEffect(() => {
     if (phase !== 'active') return;
     if (timer === 3 || timer === 2 || timer === 1) onCue?.(String(timer));
-    if (timer <= 0) finalizarMinuto();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timer, phase]);
 
-  /** El minuto cerró: commit de la selección (o pendiente) y arranca la ronda siguiente. */
-  function finalizarMinuto() {
+  // Cierre del minuto: toda ronda que el reloj ya cerró y no está commiteada
+  // se commitea DE UNA VEZ (tras segundo plano pueden ser varias: un solo
+  // háptico y un solo cue; las que murieron sin registro quedan pendientes,
+  // nunca en 0).
+  useEffect(() => {
+    if (phase !== 'active') return;
+    if (fase.rondasCerradas > results.length) finalizarMinuto(fase.rondasCerradas - results.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fase.rondasCerradas, results.length, phase]);
+
+  /**
+   * Cerraron `cuantas` rondas (1 en vivo; varias al volver del segundo plano):
+   * la selección va a la primera (era la que corría), el resto queda
+   * pendiente, y arranca la ronda siguiente.
+   */
+  function finalizarMinuto(cuantas: number) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const reps = seleccionRef.current; // null = sin registro → NO se asume 0
-    const nuevos = [...resultsRef.current, reps];
+    const previas = resultsRef.current;
+    const cerradas: (number | null)[] = Array.from({ length: cuantas }, (_, i) => (i === 0 ? reps : null));
+    const nuevos = [...previas, ...cerradas];
     setResults(nuevos);
     setSeleccion(null);
-    if (reps == null) {
-      onCue?.(`Ronda ${nuevos.length} sin registro. Marca tus repeticiones.`);
+    // Rondas recién cerradas sin registro, 1-based (siempre contiguas: solo la primera pudo tener selección).
+    const sinRegistro = cerradas.map((r, i) => (r == null ? previas.length + i + 1 : 0)).filter((n) => n > 0);
+    if (sinRegistro.length === 1) {
+      onCue?.(`Ronda ${sinRegistro[0]} sin registro. Marca tus repeticiones.`);
+    } else if (sinRegistro.length > 1) {
+      onCue?.(`Rondas ${sinRegistro[0]} a ${sinRegistro[sinRegistro.length - 1]} sin registro. Marca tus repeticiones.`);
     }
 
     if (nuevos.length >= config.rounds) {
+      reloj.reiniciar();
       if (nuevos.some((r) => r == null)) {
         setPhase('captura');
       } else {
         cerrarEmom(nuevos as number[]);
       }
-    } else {
-      setCurrentRound((r) => r + 1);
-      setTimer(60);
+    } else if (nuevos.length + 1 === fase.ronda) {
+      // Solo se anuncia la ronda que de verdad está en curso: al ponerse al
+      // día tras segundo plano no se cantan las que ya pasaron.
       onCue?.(`Ronda ${nuevos.length + 1}.`);
     }
   }
@@ -253,7 +275,7 @@ export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, on
             )}
           </View>
           <Pressable
-            onPress={() => { setPhase('active'); setTimer(60); onCue?.(`EMOM iniciado: ${rondasCfg} rondas de ${repsCfg} repeticiones. Ronda 1.`, { hito: true }); }}
+            onPress={() => { setPhase('active'); reloj.iniciar(); onCue?.(`EMOM iniciado: ${rondasCfg} rondas de ${repsCfg} repeticiones. Ronda 1.`, { hito: true }); }}
             style={s.ctaBtn}
           >
             <Text style={s.ctaText}>INICIAR EMOM</Text>

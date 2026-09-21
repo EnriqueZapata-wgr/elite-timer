@@ -15,6 +15,7 @@ import { TRAINING_METHODS } from '../../constants/training-methods';
 import { Fonts, Radius } from '@/constants/theme';
 import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { faseMethod35, feedbackMethod35 } from '@/src/services/fitness/reloj-core';
 
 // B9: el único amarillo de la casa es ATP_BRAND.amber (doctrina MB-3.6).
 const AMBAR = ATP_BRAND.amber;
@@ -43,6 +44,9 @@ export function Method35({ exerciseName, userLevel, lastWeight, onComplete, onCu
   const [currentWeight, setCurrentWeight] = useState(lastWeight || 20);
   const [seleccion, setSeleccion] = useState<number | null>(null);
   const [completedSets, setCompletedSets] = useState<{ weight: number; reps: number; feedback: string }[]>([]);
+  // Bloque TIMERS: el 3-5 no lleva reloj (las series se cierran a mano); su
+  // máquina de series vive en reloj-core (faseMethod35) junto a los otros modos.
+  const serie = faseMethod35({ seriesHechas: completedSets.length });
 
   /** Cierre explícito de la serie — la comparación vs target NO cambia. */
   function confirmarSerie() {
@@ -50,24 +54,16 @@ export function Method35({ exerciseName, userLevel, lastWeight, onComplete, onCu
     const reps = seleccion;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-    let feedback = '';
-    if (reps > targetReps) {
-      feedback = `${reps} reps → Sube peso`;
-      onCue?.('Sube peso.', { hito: true });
-    } else if (reps < targetReps) {
-      feedback = `${reps} reps → Baja peso`;
-      onCue?.('Baja peso.', { hito: true });
-    } else {
-      feedback = `${reps} reps → Peso perfecto`;
-      onCue?.('Peso perfecto.', { hito: true });
-    }
+    // Regla de peso intacta (feedbackMethod35: sube · baja · perfecto).
+    const { texto: feedback, cue } = feedbackMethod35(reps, targetReps);
+    onCue?.(cue, { hito: true });
 
     const newSet = { weight: currentWeight, reps, feedback };
     const updated = [...completedSets, newSet];
     setCompletedSets(updated);
     setSeleccion(null);
 
-    if (updated.length >= 5) {
+    if (faseMethod35({ seriesHechas: updated.length }).terminado) {
       onComplete(updated);
     }
   }
@@ -110,7 +106,7 @@ export function Method35({ exerciseName, userLevel, lastWeight, onComplete, onCu
 
       {/* Set actual */}
       <Text style={s.setHint}>
-        Set {completedSets.length + 1} de 3-5 · {seleccion == null ? '¿Cuántas reps? (tocar selecciona)' : `${seleccion} reps. Confirma o corrige`}
+        Set {serie.serie} de 3-5 · {seleccion == null ? '¿Cuántas reps? (tocar selecciona)' : `${seleccion} reps. Confirma o corrige`}
       </Text>
 
       {/* Botones de reps — tap = seleccionar (corregible), no cerrar */}
@@ -157,7 +153,7 @@ export function Method35({ exerciseName, userLevel, lastWeight, onComplete, onCu
       )}
 
       {/* Botón terminar (después de 3+ sets) */}
-      {completedSets.length >= 3 && (
+      {serie.puedeTerminar && (
         <Pressable onPress={() => onComplete(completedSets)} style={s.endBtn}>
           <Text style={s.endText}>TERMINAR EJERCICIO</Text>
         </Pressable>

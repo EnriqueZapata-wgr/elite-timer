@@ -34,6 +34,8 @@ import { RestTimer } from '@/src/components/training/RestTimer';
 import { KeepAwakeActive } from '@/src/components/training/KeepAwakeActive';
 import { ExerciseClip } from '@/src/components/training/ExerciseClip';
 import { useMethodVoice } from '@/src/hooks/useMethodVoice';
+import { useReloj } from '@/src/hooks/useReloj';
+import { descansoRestante } from '@/src/services/fitness/reloj-core';
 import { useSettings, type FitnessVoiceMode } from '@/src/contexts/settings-context';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
@@ -52,6 +54,8 @@ import {
 } from '@/src/services/fitness/workout-session-service';
 import { generateUUID } from '@/src/utils/uuid';
 import type { SessionSet } from '@/src/services/fitness/workout-session-core';
+import { rutaDelAviso } from '@/src/services/fitness/edad-bridge-core';
+import { ACCION_COMPLETAR_PERFIL } from '@/src/services/salud/sexo-core';
 import type { GeneratedRoutine, RoutineBlock } from '@/src/services/fitness/routine-generator-core';
 import { bridgeRoutineToSession, routineUsesClipRunner, type SessionBlock } from '@/src/services/fitness/routine-bridge-core';
 import { TimerModeRunner } from '@/src/components/training/TimerModeRunner';
@@ -247,14 +251,20 @@ function TiempoBlockRunner({ block, onCue, onDone }: {
   onCue: (t: string, opts?: { hito?: boolean }) => void;
   onDone: () => void;
 }) {
-  const [restante, setRestante] = useState(block.tiempoSeg);
+  // Bloque TIMERS: mismo reloj único que RestTimer (Date.now inyectado). El
+  // setTimeout encadenado de antes se congelaba en segundo plano.
+  const reloj = useReloj({ autoIniciar: true });
+  const [duracionSeg, setDuracionSeg] = useState(block.tiempoSeg);
+  const { restanteSeg: restante, terminado } = descansoRestante(reloj.transcurridoMs, duracionSeg);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
   const onCueRef = useRef(onCue);
   onCueRef.current = onCue;
 
   useEffect(() => {
-    if (restante <= 0) {
+    if (terminado) {
+      // Cierra el interval del reloj aunque el host tarde en desmontar.
+      reloj.pausar();
       haptic.heavy();
       onCueRef.current?.(block.esDescansoTiempo ? '¡Vamos!' : 'Tiempo.', { hito: true });
       onDoneRef.current();
@@ -264,10 +274,8 @@ function TiempoBlockRunner({ block, onCue, onDone }: {
       haptic.medium();
       onCueRef.current?.(String(restante));
     }
-    const t = setTimeout(() => setRestante((r) => r - 1), 1000);
-    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [restante]);
+  }, [restante, terminado]);
 
   const min = Math.floor(restante / 60);
   const seg = restante % 60;
@@ -281,10 +289,10 @@ function TiempoBlockRunner({ block, onCue, onDone }: {
         {min}:{String(seg).padStart(2, '0')}
       </Text>
       <View style={s.tiempoActions}>
-        <AnimatedPressable onPress={() => { haptic.light(); setRestante((r) => r + 30); }} style={[s.tiempoSecondary, { backgroundColor: tk.flotante, borderColor: tk.bordeMarcado }]}>
+        <AnimatedPressable onPress={() => { haptic.light(); setDuracionSeg((d) => d + 30); }} style={[s.tiempoSecondary, { backgroundColor: tk.flotante, borderColor: tk.bordeMarcado }]}>
           <Text style={[s.tiempoSecondaryText, { color: tk.texto }]}>+30 s</Text>
         </AnimatedPressable>
-        <AnimatedPressable onPress={() => { haptic.light(); setRestante(0); }} style={s.tiempoSkip}>
+        <AnimatedPressable onPress={() => { haptic.light(); setDuracionSeg(0); }} style={s.tiempoSkip}>
           <Ionicons name="play-skip-forward" size={16} color={TEXT_COLORS.onAccent} />
           <Text style={s.tiempoSkipText}>SALTAR</Text>
         </AnimatedPressable>
@@ -717,12 +725,29 @@ export default function SessionScreen() {
                   <Text style={[s.edadText, { color: tk.texto }]}>{edadSignal.proyeccion.texto}</Text>
                 </View>
               )}
-              {edadSignal.avisos.map((a) => (
-                <View key={a} style={s.edadRow}>
-                  <Ionicons name="information-circle-outline" size={15} color={tk.textoSecundario} />
-                  <Text style={[s.edadText, secTxt]}>{a}</Text>
-                </View>
-              ))}
+              {/* Ronda de arreglos: un aviso que pide completar el perfil se toca y
+                  lleva a /profile (nadie sin salida). El resto es solo informativo. */}
+              {edadSignal.avisos.map((a) => {
+                const ruta = rutaDelAviso(a);
+                return ruta ? (
+                  <AnimatedPressable
+                    key={a}
+                    onPress={() => { haptic.light(); router.push(ruta); }}
+                    style={s.edadRow}
+                    accessibilityRole="button"
+                    accessibilityLabel={ACCION_COMPLETAR_PERFIL}
+                  >
+                    <Ionicons name="person-outline" size={15} color={tk.textoSecundario} />
+                    <Text style={[s.edadText, secTxt]}>{a} {ACCION_COMPLETAR_PERFIL}.</Text>
+                    <Ionicons name="chevron-forward" size={14} color={tk.textoSecundario} />
+                  </AnimatedPressable>
+                ) : (
+                  <View key={a} style={s.edadRow}>
+                    <Ionicons name="information-circle-outline" size={15} color={tk.textoSecundario} />
+                    <Text style={[s.edadText, secTxt]}>{a}</Text>
+                  </View>
+                );
+              })}
             </Animated.View>
           )}
 

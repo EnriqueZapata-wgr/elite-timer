@@ -2,8 +2,13 @@
  * RoutineEngine — State machine que ejecuta una secuencia de ExecutionStep[].
  *
  * Estados: idle → running ↔ paused → completed
- * Usa setInterval(1000ms) para el countdown.
  * Invoca callbacks en cada transición, tick, y al completar.
+ *
+ * Bloque TIMERS (21-sep-2026): el tiempo ya NO se cuenta con ticks. El step
+ * en curso lleva un EstadoReloj de reloj-core y los segundos restantes se
+ * LEEN de `ahora()` (Date.now inyectable para tests). El setInterval que
+ * queda es solo un poll (sincronizar): si la app estuvo en segundo plano, al
+ * volver el motor avanza de golpe por todos los steps que el reloj ya cubrió.
  */
 import type {
   ExecutionStep,
@@ -11,23 +16,44 @@ import type {
   EngineCallbacks,
   ExecutionStats,
 } from './types';
+import {
+  RELOJ_DETENIDO,
+  iniciar,
+  pausar,
+  reanudar,
+  normalizar,
+  transcurridoMs,
+  segundosRestantes,
+  type EstadoReloj,
+} from '@/src/services/fitness/reloj-core';
+
+export interface EngineOpciones {
+  /** Fuente de tiempo (ms). Producción: Date.now. Tests: reloj inyectado. */
+  ahora?: () => number;
+  /** Cadencia del poll mientras corre. 250 ms: el fin de step se nota antes de 1 s. */
+  tickMs?: number;
+}
 
 export class RoutineEngine {
   private steps: ExecutionStep[];
   private callbacks: EngineCallbacks;
   private state: EngineState = 'idle';
   private currentStepIndex = 0;
-  private remainingSeconds = 0;
+  /** Reloj del step en curso (reloj-core): el tiempo se lee, no se cuenta. */
+  private reloj: EstadoReloj = RELOJ_DETENIDO;
+  /** Último "segundos restantes" emitido por onTick: se emite solo al cambiar. */
+  private ultimoEmitido = -1;
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private startedAt: Date | null = null;
   private stepsSkipped = 0;
+  private readonly ahora: () => number;
+  private readonly tickMs: number;
 
-  constructor(steps: ExecutionStep[], callbacks: EngineCallbacks) {
+  constructor(steps: ExecutionStep[], callbacks: EngineCallbacks, opciones: EngineOpciones = {}) {
     this.steps = steps;
     this.callbacks = callbacks;
-    if (steps.length > 0) {
-      this.remainingSeconds = steps[0].durationSeconds;
-    }
+    this.ahora = opciones.ahora ?? Date.now;
+    this.tickMs = opciones.tickMs ?? 250;
   }
 
   // === CONTROLES PÚBLICOS ===
@@ -35,9 +61,13 @@ export class RoutineEngine {
   /** Iniciar o reanudar la ejecución */
   play(): void {
     if (this.state === 'completed' || this.steps.length === 0) return;
+    const ahora = this.ahora();
     if (this.state === 'idle') {
-      this.startedAt = new Date();
+      this.startedAt = new Date(ahora);
       this.announceStep();
+      this.reloj = iniciar(this.reloj, ahora);
+    } else {
+      this.reloj = reanudar(this.reloj, ahora);
     }
     this.setState('running');
     this.startTicking();
@@ -46,6 +76,7 @@ export class RoutineEngine {
   /** Pausar la ejecución */
   pause(): void {
     if (this.state !== 'running') return;
+    this.reloj = pausar(this.reloj, this.ahora());
     this.setState('paused');
     this.stopTicking();
   }
@@ -63,22 +94,24 @@ export class RoutineEngine {
   skip(): void {
     if (this.state === 'completed' || this.steps.length === 0) return;
     this.stepsSkipped++;
-    this.advanceToNextStep();
+    this.advanceToNextStep(this.ahora(), true);
   }
 
   /** Reiniciar el step actual desde el principio */
   restartCurrentStep(): void {
     if (this.state === 'completed' || this.steps.length === 0) return;
     const step = this.steps[this.currentStepIndex];
-    this.remainingSeconds = step.durationSeconds;
-    this.callbacks.onTick(this.remainingSeconds, step);
+    this.reiniciarRelojDelStep(this.ahora());
+    this.ultimoEmitido = step.durationSeconds;
+    this.callbacks.onTick(step.durationSeconds, step);
   }
 
   /** Reiniciar toda la rutina desde el principio */
   restart(): void {
     this.stopTicking();
     this.currentStepIndex = 0;
-    this.remainingSeconds = this.steps[0]?.durationSeconds ?? 0;
+    this.reloj = RELOJ_DETENIDO;
+    this.ultimoEmitido = -1;
     this.stepsSkipped = 0;
     this.startedAt = null;
     this.setState('idle');
@@ -107,8 +140,11 @@ export class RoutineEngine {
     return this.steps[this.currentStepIndex + 2] ?? null;
   }
 
-  getRemainingSeconds(): number {
-    return this.remainingSeconds;
+  /** Segundos restantes del step en curso, leídos del reloj (techo: nunca 0 antes de tiempo). */
+  getRemainingSeconds(ahoraMs: number = this.ahora()): number {
+    const step = this.steps[this.currentStepIndex];
+    if (!step) return 0;
+    return segundosRestantes(transcurridoMs(this.reloj, ahoraMs), step.durationSeconds);
   }
 
   getTotalSteps(): number {
@@ -127,8 +163,7 @@ export class RoutineEngine {
     const elapsedBefore = this.steps
       .slice(0, this.currentStepIndex)
       .reduce((sum, s) => sum + s.durationSeconds, 0);
-    const currentStepDuration = this.steps[this.currentStepIndex]?.durationSeconds ?? 0;
-    const elapsedInCurrent = currentStepDuration - this.remainingSeconds;
+    const elapsedInCurrent = this.transcurridoEnStepSeg();
 
     return (elapsedBefore + elapsedInCurrent) / totalSeconds;
   }
@@ -137,7 +172,14 @@ export class RoutineEngine {
   getCurrentStepProgress(): number {
     const step = this.steps[this.currentStepIndex];
     if (!step || step.durationSeconds === 0) return 0;
-    return (step.durationSeconds - this.remainingSeconds) / step.durationSeconds;
+    return this.transcurridoEnStepSeg() / step.durationSeconds;
+  }
+
+  /** Segundos (con fracción) cubiertos del step en curso, acotados a su duración. */
+  private transcurridoEnStepSeg(ahoraMs: number = this.ahora()): number {
+    const step = this.steps[this.currentStepIndex];
+    if (!step) return 0;
+    return Math.min(step.durationSeconds, transcurridoMs(this.reloj, ahoraMs) / 1000);
   }
 
   // === LÓGICA INTERNA ===
@@ -149,7 +191,8 @@ export class RoutineEngine {
 
   private startTicking(): void {
     this.stopTicking();
-    this.intervalId = setInterval(() => this.tick(), 1000);
+    // Solo un poll: el tiempo sale de reloj-core, no de contar estos disparos.
+    this.intervalId = setInterval(() => this.sincronizar(), this.tickMs);
   }
 
   private stopTicking(): void {
@@ -160,50 +203,72 @@ export class RoutineEngine {
   }
 
   /**
-   * Un tick = un segundo transcurrido.
+   * Sincroniza el motor con el reloj. La llama el poll y el hook al volver del
+   * segundo plano; `ahoraMs` se inyecta en tests.
    *
-   * Regla crítica: el usuario NUNCA ve 00:00.
-   * Cuando remainingSeconds llega a 0, avanzamos inmediatamente
-   * al siguiente step y emitimos tick con la duración del nuevo step.
-   * Esto evita acumular 1s extra por step (239 steps = 4 min de desfase).
+   * Regla crítica: el usuario NUNCA ve 00:00. Los segundos restantes son
+   * techo (segundosRestantes): al cumplirse la duración se avanza de
+   * inmediato y se emite tick con la duración completa del nuevo step. Lo que
+   * sobró del step anterior arranca ya descontado en el nuevo (239 steps no
+   * acumulan desfase). Si el reloj cubrió varios steps (segundo plano), se
+   * avanza por todos de una vez y solo se anuncia el step donde aterriza.
    */
-  private tick(): void {
+  sincronizar(ahoraMs: number = this.ahora()): void {
     if (this.state !== 'running') return;
+    // Re-anclar en cada poll: si el reloj del sistema retrocede (ajuste NTP)
+    // lo ya corrido queda en acumulado y el step no vuelve a su duración.
+    this.reloj = normalizar(this.reloj, ahoraMs);
 
-    this.remainingSeconds--;
+    let step = this.steps[this.currentStepIndex];
+    let transcurrido = transcurridoMs(this.reloj, ahoraMs);
+    let saltos = 0;
+    while (step && transcurrido >= step.durationSeconds * 1000) {
+      const sobra = transcurrido - step.durationSeconds * 1000;
+      // Sonido de fin solo del primer step cerrado: tres a la vez es ruido.
+      if (saltos === 0) this.callbacks.onSound(step.soundEnd);
+      saltos++;
+      this.advanceToNextStep(ahoraMs, false, sobra);
+      if (this.state !== 'running') return;
+      step = this.steps[this.currentStepIndex];
+      transcurrido = transcurridoMs(this.reloj, ahoraMs);
+    }
+    if (saltos > 0) {
+      this.callbacks.onStepChange(step, this.steps[this.currentStepIndex + 1] ?? null);
+      this.announceStep();
+    }
 
-    // Countdown hablado en los últimos 3 segundos (solo si queda tiempo)
-    if (this.remainingSeconds > 0 && this.remainingSeconds <= 3) {
-      this.callbacks.onSpeak(`${this.remainingSeconds}`);
+    const restante = segundosRestantes(transcurrido, step.durationSeconds);
+    if (restante === this.ultimoEmitido) return;
+    this.ultimoEmitido = restante;
+
+    // Countdown hablado en los últimos 3 segundos (una vez por segundo)
+    if (restante > 0 && restante <= 3) {
+      this.callbacks.onSpeak(`${restante}`);
       this.callbacks.onSound('countdown');
     }
 
-    // Si llegó a 0 → avanzar INMEDIATAMENTE sin mostrar 00:00
-    if (this.remainingSeconds <= 0) {
-      const finishedStep = this.steps[this.currentStepIndex];
-      this.callbacks.onSound(finishedStep.soundEnd);
-      this.advanceToNextStep();
-      // Si hay nuevo step activo, emitir tick con su duración completa
-      if (this.state === 'running') {
-        const newStep = this.steps[this.currentStepIndex];
-        this.callbacks.onTick(this.remainingSeconds, newStep);
-      }
-      return;
-    }
-
-    // Tick normal — notificar con segundos restantes > 0
-    const step = this.steps[this.currentStepIndex];
-    this.callbacks.onTick(this.remainingSeconds, step);
+    this.callbacks.onTick(restante, step);
   }
 
-  /** Avanza al siguiente step o completa la rutina */
-  private advanceToNextStep(): void {
+  /** Reloj del step nuevo: corre desde `ahora - sobraMs` (lo que sobró del anterior no se pierde). */
+  private reiniciarRelojDelStep(ahoraMs: number, sobraMs = 0): void {
+    this.ultimoEmitido = -1;
+    this.reloj = this.state === 'running' ? iniciar(this.reloj, ahoraMs - sobraMs) : RELOJ_DETENIDO;
+  }
+
+  /**
+   * Avanza al siguiente step o completa la rutina. `anunciar` = false cuando
+   * sincronizar() está cruzando varios steps de golpe (anuncia solo el último).
+   */
+  private advanceToNextStep(ahoraMs: number, anunciar: boolean, sobraMs = 0): void {
     this.currentStepIndex++;
 
     // ¿Terminamos todos los steps?
     if (this.currentStepIndex >= this.steps.length) {
       this.stopTicking();
-      const completedAt = new Date();
+      this.reloj = RELOJ_DETENIDO;
+      // El fin real fue cuando el reloj cubrió el último step, no cuando se notó.
+      const completedAt = new Date(ahoraMs - sobraMs);
       const stats = this.calculateStats(completedAt);
       this.setState('completed');
       this.callbacks.onComplete(stats);
@@ -213,7 +278,8 @@ export class RoutineEngine {
 
     // Preparar el nuevo step
     const step = this.steps[this.currentStepIndex];
-    this.remainingSeconds = step.durationSeconds;
+    this.reiniciarRelojDelStep(ahoraMs, sobraMs);
+    if (!anunciar) return;
     const nextStep = this.steps[this.currentStepIndex + 1] ?? null;
     this.callbacks.onStepChange(step, nextStep);
     this.announceStep();
