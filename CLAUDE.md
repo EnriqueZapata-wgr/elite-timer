@@ -48,6 +48,8 @@ Roadmap → v2.0.0 (julio-agosto 2026 — publicación a stores)
    - El runtime del update sale de version en app.json (policy appVersion): hoy 2.2.0,
      del build de 15-ago-2026. Que el update diga 2.2.0 es correcto aunque el producto
      se llame ATP 3.0. Subir esa version deja al binario instalado SIN OTA (ver regla 11).
+     El bump a 3.0.0 se hace SOLO con `scripts/release-3.0.ps1` (21-sep-2026), justo antes
+     del `eas build`; cuando el binario 3.0.0 este instalado, esta linea pasa a 3.0.0.
    - Publicar con npm run sourcemaps:ota -- --branch preview (necesita SENTRY_AUTH_TOKEN
      en la sesion, sale de 1Password). eas update suelto deja los stacktraces ofuscados.
 10. Native builds solo para cambios nativos o nueva versión
@@ -118,10 +120,20 @@ discute. Es ley para toda sesion de Cowork, no solo para las de codigo.
 
 La app es hoy EXCLUSIVA para clientes Elite de Enrique: `VENTA_AL_PUBLICO = false`, sin
 venta en la app, acceso por codigo de activacion ("servicio contratado"), evaluacion cargada
-con `elite_cargar_completa` (324). Free/Pro siguen en el codigo como aparato apagado, no
-borrado. Fuente de verdad: `R and D/ATP_ELITE_2026-09-07.md` (decisiones) y la ultima
-entrega `R and D/ATP_ELITE_NOCHE1_2026-09-20.md` (estado, decisiones tomadas solo, deuda
-con fecha y el plan de dos semanas noche por noche hasta el 4 de octubre).
+con `elite_cargar_completa` (324) y sembrada en perfil, rutinas y comidas por la 325
+(`elite_sembrar_perfil`, `elite_cargar_rutinas`, `elite_cargar_comidas`; solo llenan vacios).
+Free/Pro siguen en el codigo como aparato apagado, no borrado. Fuente de verdad:
+`R and D/ATP_ELITE_2026-09-07.md` (decisiones), `R and D/ATP_ELITE_NOCHE1_2026-09-20.md`
+(noche 1) y `R and D/ATP_ELITE_NOCHE2_2026-09-21.md` (noche 2: 325, timers, sexo nunca
+asumido, agenda, memoria de ARGOS, payloads de tres clientes; deuda con fecha). El release
+del binario 3.0.0 (bump + build + orden completo de despliegue) esta en `R and D/RELEASE_3.0.md`
+y `scripts/release-3.0.ps1`; hasta que Enrique lo corra, `app.json` sigue en 2.2.0 y el OTA
+a `preview` lleva ese runtime.
+Reglas fijadas el 21-sep: SEXO NUNCA ASUMIDO (`sexoDePerfil` en `src/services/salud/sexo-core.ts`
+es el unico traductor; con null no se califica nada y se dice; perfil ilegible pide Reintentar,
+no Completar perfil); un solo reloj de pared para timers (`src/services/fitness/reloj-core.ts` +
+`useReloj`; nada cuenta ticks); `exercise_matrix` esta en ingles (MoveKit): las rutinas Elite
+emparejan por `slug`, sin slug corren como bloque de tiempo.
 
 ## PIVOTE ATP 3.0 (4 de septiembre de 2026): leer antes que nada
 
