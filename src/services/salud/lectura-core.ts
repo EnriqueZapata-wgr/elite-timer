@@ -31,7 +31,7 @@ import { score9Bands } from '@/src/services/edad-atp/sf-9band-service';
 import { aUnidadDeMatriz } from '@/src/constants/lab-unidades-core';
 import { getLabParamMeta } from '@/src/components/edad-atp/component-meta';
 import type { Sex } from '@/src/types/edad-atp-v2';
-import { AVISO_FALTA_SEXO_RANGOS, AVISO_PERFIL_ILEGIBLE, RUTA_PERFIL, ACCION_COMPLETAR_PERFIL } from '@/src/services/salud/sexo-core';
+import { AVISO_FALTA_SEXO_RANGOS, AVISO_PERFIL_ILEGIBLE, RUTA_PERFIL, ACCION_COMPLETAR_PERFIL, ACCION_REINTENTAR } from '@/src/services/salud/sexo-core';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrada
@@ -599,6 +599,8 @@ export interface Faltante {
   porque: string;
   accionLabel: string;
   route: string;
+  /** true: la acción relee en sitio (perfil ilegible, regla 7); la pantalla no navega. */
+  reintentar?: boolean;
 }
 
 /** Las seis fuentes que alimentan la lectura, con lo que aporta cada una. */
@@ -613,9 +615,12 @@ export function faltantesDe(snap: LecturaSnapshot): Faltante[] {
     out.push({
       key: 'sexo',
       titulo: snap.sexoIlegible ? AVISO_PERFIL_ILEGIBLE : AVISO_FALTA_SEXO_RANGOS,
-      porque: 'La ventana funcional de cada parámetro es distinta por sexo. Sin ese dato ningún valor se califica: no se asume.',
-      accionLabel: ACCION_COMPLETAR_PERFIL,
+      porque: snap.sexoIlegible
+        ? 'La ventana funcional de cada parámetro es distinta por sexo y tu perfil no se pudo leer. Hasta leerlo, ningún valor se califica: no se asume.'
+        : 'La ventana funcional de cada parámetro es distinta por sexo. Sin ese dato ningún valor se califica: no se asume.',
+      accionLabel: snap.sexoIlegible ? ACCION_REINTENTAR : ACCION_COMPLETAR_PERFIL,
       route: RUTA_PERFIL,
+      reintentar: snap.sexoIlegible === true,
     });
   }
 

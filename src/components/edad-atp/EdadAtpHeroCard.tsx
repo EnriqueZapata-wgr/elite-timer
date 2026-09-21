@@ -12,7 +12,7 @@ import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
-import { ACCION_COMPLETAR_PERFIL, RUTA_PERFIL } from '@/src/services/salud/sexo-core';
+import { RUTA_PERFIL, accionDeAviso } from '@/src/services/salud/sexo-core';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
 import type { EdadAtpV2Result, SubEdadKey } from '@/src/types/edad-atp-v2';
 import { EDAD_DIMS, statusColor, SUB_EDAD_CE_PENDING_THRESHOLD, EDAD_PENDING_COLOR } from './tokens';
@@ -28,6 +28,9 @@ export function EdadAtpHeroCard({ userId }: { userId: string }) {
   // 2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo en el perfil no hay número y el
   // héroe lo dice con salida al perfil, en vez de calcular como hombre.
   const [avisoSexo, setAvisoSexo] = useState<string | null>(null);
+  // Perfil ilegible (red, RLS) no es perfil sin sexo: ahí el botón reintenta
+  // en vez de mandar al perfil. `intento` fuerza la relectura.
+  const [intento, setIntento] = useState(0);
   const [ce, setCe] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -47,16 +50,21 @@ export function EdadAtpHeroCard({ userId }: { userId: string }) {
       if (alive) setLoading(false);
     })();
     return () => { alive = false; };
-  }, [userId]));
+  }, [userId, intento]));
 
   if (loading) {
     return <View style={styles.card}><EliteText variant="caption" style={styles.muted}>Calculando tu Edad ATP…</EliteText></View>;
   }
   if (!result && avisoSexo) {
+    const accion = accionDeAviso(avisoSexo);
+    const onPress = () => {
+      if (accion.reintentar) { setLoading(true); setIntento((n) => n + 1); }
+      else router.push(RUTA_PERFIL);
+    };
     return (
-      <Pressable style={styles.card} onPress={() => router.push(RUTA_PERFIL)} accessibilityRole="button" accessibilityLabel={ACCION_COMPLETAR_PERFIL}>
+      <Pressable style={styles.card} onPress={onPress} accessibilityRole="button" accessibilityLabel={accion.label}>
         <EliteText style={styles.title}>Edad ATP</EliteText>
-        <EliteText variant="caption" style={styles.muted}>{avisoSexo}. {ACCION_COMPLETAR_PERFIL}.</EliteText>
+        <EliteText variant="caption" style={styles.muted}>{accion.reintentar ? `${avisoSexo}.` : `${avisoSexo}. ${accion.label}.`}</EliteText>
       </Pressable>
     );
   }

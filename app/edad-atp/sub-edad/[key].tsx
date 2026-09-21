@@ -23,7 +23,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
-import { ACCION_COMPLETAR_PERFIL, RUTA_PERFIL } from '@/src/services/salud/sexo-core';
+import { RUTA_PERFIL, accionDeAviso } from '@/src/services/salud/sexo-core';
 import { saveHealthMeasurement, saveQuestionnaireResponses } from '@/src/services/edad-atp/capture-service';
 import type { EdadAtpV2Result, SubEdadComponent, SubEdadKey, SubEdadResult } from '@/src/types/edad-atp-v2';
 import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
@@ -174,15 +174,24 @@ export default function SubEdadDrillDown() {
       <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="metrics" title={meta.label} />
       <ScrollView contentContainerStyle={styles.content}>
-        {avisoSexo ? (
-          <View style={styles.actionCard}>
-            <EliteText variant="body" style={styles.actionTitle}>Falta un dato de tu perfil</EliteText>
-            <EliteText variant="caption" style={styles.actionText}>{avisoSexo}. Sin ese dato no se calcula: no se asume.</EliteText>
-            <Pressable onPress={() => { haptic.medium(); router.push(RUTA_PERFIL); }} style={styles.actionBtn} accessibilityRole="button">
-              <EliteText variant="body" style={styles.actionBtnText}>{ACCION_COMPLETAR_PERFIL}</EliteText>
-            </Pressable>
-          </View>
-        ) : !sub ? (
+        {avisoSexo ? (() => {
+          // Perfil ilegible (red, RLS): Reintentar relee; sin sexo: al perfil.
+          const accion = accionDeAviso(avisoSexo);
+          return (
+            <View style={styles.actionCard}>
+              <EliteText variant="body" style={styles.actionTitle}>{accion.reintentar ? 'Sin lectura por ahora' : 'Falta un dato de tu perfil'}</EliteText>
+              <EliteText variant="caption" style={styles.actionText}>{accion.reintentar ? `${avisoSexo}.` : `${avisoSexo}. Sin ese dato no se calcula: no se asume.`}</EliteText>
+              <Pressable
+                onPress={() => { haptic.medium(); if (accion.reintentar) refresh(); else router.push(RUTA_PERFIL); }}
+                style={styles.actionBtn}
+                accessibilityRole="button"
+                accessibilityLabel={accion.label}
+              >
+                <EliteText variant="body" style={styles.actionBtnText}>{accion.label}</EliteText>
+              </Pressable>
+            </View>
+          );
+        })() : !sub ? (
           <EliteText variant="caption" style={styles.calc}>Calculando…</EliteText>
         ) : (
           <>

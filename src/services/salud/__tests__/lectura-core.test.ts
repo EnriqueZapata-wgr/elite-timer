@@ -171,6 +171,8 @@ describe('estados honestos', () => {
     const l = construirLectura(snap({ sexo: null, sexoIlegible: true }));
     expect(l.faltantes[0].key).toBe('sexo');
     expect(l.faltantes[0].titulo).toContain('No se pudo leer');
+    expect(l.faltantes[0].accionLabel).toBe('Reintentar');
+    expect(l.faltantes[0].reintentar).toBe(true);
     expect(l.sintesis[0]).toContain('No se pudo leer');
   });
 

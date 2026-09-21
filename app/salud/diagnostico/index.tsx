@@ -35,7 +35,7 @@ import { ROOT_LABELS, type InterventionRoot } from '@/src/constants/intervention
 // Mega-Sprint B B2.3: Edad ATP como MÉTRICA aquí (no árbol paralelo). El motor
 // V7/V6 (edad-atp-v2-service) queda INTOCADO — solo se LEE el resultado.
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
-import { ACCION_COMPLETAR_PERFIL, RUTA_PERFIL } from '@/src/services/salud/sexo-core';
+import { RUTA_PERFIL, accionDeAviso } from '@/src/services/salud/sexo-core';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
 import { formatEdadDeltaValue } from '@/src/services/edad-atp/edad-delta-core';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
@@ -383,24 +383,28 @@ export default function DiagnosticoScreen() {
               </Animated.View>
             )}
 
-            {/* 2026-09-21: sin sexo en el perfil la métrica no existe; se dice y se manda al perfil. */}
-            {!edadAtp && avisoSexo && (
-              <Animated.View entering={FadeInUp.delay(130).springify()}>
-                <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>EDAD ATP</SectionTitle>
-                <AnimatedPressable
-                  onPress={() => { haptic.light(); router.push(RUTA_PERFIL); }}
-                  style={styles.edadCard}
-                  accessibilityRole="button"
-                  accessibilityLabel={ACCION_COMPLETAR_PERFIL}
-                >
-                  <View style={{ flex: 1 }}>
-                    <EliteText style={styles.edadMeta}>{avisoSexo}.</EliteText>
-                    <EliteText style={styles.edadMeta}>{ACCION_COMPLETAR_PERFIL}</EliteText>
-                  </View>
-                  <EliteText style={styles.edadArrow}>→</EliteText>
-                </AnimatedPressable>
-              </Animated.View>
-            )}
+            {/* 2026-09-21: sin sexo en el perfil la métrica no existe; se dice y se manda al perfil.
+                Si el perfil no se pudo LEER (red, RLS), el botón reintenta en vez de mandar al perfil. */}
+            {!edadAtp && avisoSexo && (() => {
+              const accion = accionDeAviso(avisoSexo);
+              return (
+                <Animated.View entering={FadeInUp.delay(130).springify()}>
+                  <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>EDAD ATP</SectionTitle>
+                  <AnimatedPressable
+                    onPress={() => { haptic.light(); if (accion.reintentar) load().catch(() => {}); else router.push(RUTA_PERFIL); }}
+                    style={styles.edadCard}
+                    accessibilityRole="button"
+                    accessibilityLabel={accion.label}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <EliteText style={styles.edadMeta}>{avisoSexo}.</EliteText>
+                      <EliteText style={styles.edadMeta}>{accion.label}</EliteText>
+                    </View>
+                    {accion.reintentar ? <Ionicons name="refresh" size={18} color={t.textoSecundario} /> : <EliteText style={styles.edadArrow}>→</EliteText>}
+                  </AnimatedPressable>
+                </Animated.View>
+              );
+            })()}
 
             {/* ── Raíces detectadas ── */}
             {roots.length > 0 && (

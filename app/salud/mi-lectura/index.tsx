@@ -82,6 +82,8 @@ function MiLecturaScreen() {
   };
 
   const ir = (route: string) => { haptic.medium(); router.push(route as Href); };
+  // Regla 7: si el perfil no se pudo leer, el faltante relee en sitio en vez de mandar al perfil.
+  const reintentar = () => { haptic.medium(); setCargando(true); load().catch(() => setCargando(false)); };
 
   return (
     <Screen themed>
@@ -171,7 +173,7 @@ function MiLecturaScreen() {
                   </EliteText>
                 </Animated.View>
                 {lectura.faltantes.map((f, i) => (
-                  <FaltanteRow key={f.key} faltante={f} idx={i} onIr={ir} styles={s} t={t} />
+                  <FaltanteRow key={f.key} faltante={f} idx={i} onIr={ir} onReintentar={reintentar} styles={s} t={t} />
                 ))}
               </>
             )}
@@ -248,19 +250,19 @@ function Bloque({ label, texto, s, destacado }: {
   );
 }
 
-function FaltanteRow({ faltante, idx, onIr, styles: s, t }: {
-  faltante: Faltante; idx: number; onIr: (route: string) => void;
+function FaltanteRow({ faltante, idx, onIr, onReintentar, styles: s, t }: {
+  faltante: Faltante; idx: number; onIr: (route: string) => void; onReintentar: () => void;
   styles: ReturnType<typeof makeStyles>; t: AppThemeTokens;
 }) {
   return (
     <Animated.View entering={FadeInUp.delay(140 + idx * 35).springify()}>
-      <AnimatedPressable onPress={() => onIr(faltante.route)} style={s.faltanteCard}>
+      <AnimatedPressable onPress={() => (faltante.reintentar ? onReintentar() : onIr(faltante.route))} style={s.faltanteCard}>
         <View style={{ flex: 1 }}>
           <EliteText style={s.faltanteTitulo}>{faltante.titulo}</EliteText>
           <EliteText style={s.faltantePorque}>{faltante.porque}</EliteText>
           <EliteText style={s.faltanteAccion}>{faltante.accionLabel}</EliteText>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={t.textoTenue} />
+        <Ionicons name={faltante.reintentar ? 'refresh' : 'chevron-forward'} size={18} color={t.textoTenue} />
       </AnimatedPressable>
     </Animated.View>
   );

@@ -21,7 +21,7 @@ import { EliteText } from '@/components/elite-text';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useAuth } from '@/src/contexts/auth-context';
 import { computeEdadAtpV2, loadUserData, countFields, type UnifiedUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
-import { ACCION_COMPLETAR_PERFIL, RUTA_PERFIL } from '@/src/services/salud/sexo-core';
+import { RUTA_PERFIL, accionDeAviso } from '@/src/services/salud/sexo-core';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { SubEdadConstellation } from '@/src/components/edad-atp/SubEdadConstellation';
@@ -212,19 +212,24 @@ function ResultScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {error ? (
           <EliteText variant="caption" style={styles.calc}>No se pudo calcular tu Edad ATP. Revisa tu conexión y vuelve a intentar.</EliteText>
-        ) : avisoSexo ? (
-          <>
-            <EliteText variant="caption" style={styles.calc}>{avisoSexo}. Sin ese dato no se calcula: no se asume.</EliteText>
-            <AnimatedPressable
-              onPress={() => router.push(RUTA_PERFIL)}
-              style={styles.backBtn}
-              accessibilityRole="button"
-              accessibilityLabel={ACCION_COMPLETAR_PERFIL}
-            >
-              <EliteText variant="body" style={styles.backText}>{ACCION_COMPLETAR_PERFIL}</EliteText>
-            </AnimatedPressable>
-          </>
-        ) : !result ? (
+        ) : avisoSexo ? (() => {
+          // Perfil ilegible (red, RLS): Reintentar vuelve a correr; sin sexo: al perfil.
+          const accion = accionDeAviso(avisoSexo);
+          return (
+            <>
+              <EliteText variant="caption" style={styles.calc}>{accion.reintentar ? `${avisoSexo}.` : `${avisoSexo}. Sin ese dato no se calcula: no se asume.`}</EliteText>
+              <AnimatedPressable
+                onPress={() => { if (!accion.reintentar) router.push(RUTA_PERFIL); else if (calcState === 'idle') run(); }}
+                style={styles.backBtn}
+                disabled={accion.reintentar && calcState === 'calculating'}
+                accessibilityRole="button"
+                accessibilityLabel={accion.label}
+              >
+                <EliteText variant="body" style={styles.backText}>{accion.reintentar && calcState === 'calculating' ? 'Reintentando…' : accion.label}</EliteText>
+              </AnimatedPressable>
+            </>
+          );
+        })() : !result ? (
           <EliteText variant="caption" style={styles.calc}>Calculando…</EliteText>
         ) : (
           <>
