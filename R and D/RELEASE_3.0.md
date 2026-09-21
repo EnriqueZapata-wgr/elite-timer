@@ -93,6 +93,37 @@ npx supabase functions deploy argos-proxy
 quieres: `build/STORE_RUNBOOK.md`). El deploy de `argos-proxy` lleva el fallback embebido
 limpio (`brain.generated.ts` de `066c736`).
 
+**El mismo deploy enciende el ruteo de modelos (21-sep):**
+
+| Clase | Principal | Respaldo |
+|---|---|---|
+| Extracción (fotos de comida, etiquetas, suplementos) | Gemini 2.5 Pro | Sonnet 5 |
+| Clínico (chat, voz, labs, evaluación, insights, recomendaciones) | Sonnet 5 | Gemini 2.5 Pro |
+| Navegación (a qué pantalla ir, título de conversación) | Gemini 3.5 Flash-Lite | Haiku 4.5 |
+
+Antes de desplegar, mira los secretos y quita la variable vieja (ya no se lee; así no
+queda la duda de qué valor tenía):
+```powershell
+cd "D:\Proyectos_ClaudeCode\ELITE_Timer\EliteTimer"
+npx supabase secrets list
+npx supabase secrets unset MODEL_ROUTING_ENABLED_TYPES
+```
+En la lista debe estar `GEMINI_API_KEY`. Si `unset` dice que no existe, no pasa nada.
+
+Después del deploy, la prueba de humo (cuesta centavos):
+```powershell
+cd "D:\Proyectos_ClaudeCode\ELITE_Timer\EliteTimer"
+$env:ATP_JWT = "<tu JWT>"
+node scripts\probar-ruteo.mjs
+```
+Debe decir `principal` en las cuatro líneas: nav_intent con gemini-3.5-flash-lite,
+food_estimate_text y food_estimate_photo con gemini-2.5-pro (la foto de un cuadro rojo
+debe contestar "rojo"), chat con claude-sonnet-5. Si alguna dice `respaldo`, funciona
+pero algo falló: pégame la salida.
+
+Apagado de emergencia, sin redeploy: `npx supabase secrets set MODEL_ROUTING=off`
+(vuelve a la conducta de antes). Para regresar: `npx supabase secrets unset MODEL_ROUTING`.
+
 ## Fase 5 · OTA al binario que tienes (2.2.0): así pruebas hoy
 
 ```powershell
