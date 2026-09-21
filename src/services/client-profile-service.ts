@@ -85,6 +85,31 @@ export async function getClientProfile(userId: string) {
   return data;
 }
 
+/**
+ * Ronda de arreglos (regla 7): `getClientProfile` devuelve null tanto cuando
+ * NO HAY fila como cuando la lectura FALLÓ (RLS, red, 400), y el coach leía
+ * "sin sexo en el perfil" de un perfil que no se pudo leer. Esta variante lo
+ * distingue: `{ ok: true, profile: null }` es ausencia; `{ ok: false }` es
+ * error, y la pantalla pide reintentar.
+ */
+export type LecturaPerfilCliente =
+  | { ok: true; profile: Record<string, any> | null }
+  | { ok: false; error: string };
+
+export async function leerPerfilCliente(userId: string): Promise<LecturaPerfilCliente> {
+  try {
+    const { data, error } = await supabase
+      .from('client_profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, profile: (data as Record<string, any> | null) ?? null };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 export async function upsertClientProfile(userId: string, profileData: Record<string, any>) {
   const { error } = await supabase
     .from('client_profiles')

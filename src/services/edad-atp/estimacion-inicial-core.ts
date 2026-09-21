@@ -164,8 +164,10 @@ function efectoDeScore(score: number | null): EfectoPalanca {
  * calendario no sería una estimación, sería un invento.
  */
 export function estimarPuntoDePartida(entrada: EntradaEstimacion): EstimacionInicial {
+  // `sexo` viene en la entrada y NO se usa: el modulador de hábitos no lo
+  // necesita y aquí no se asume ninguno (2026-09-21, SEXO NUNCA ASUMIDO).
   const {
-    edadAnios, sexo, pesoKg, tallaCm, horasVentanaSueno, horasMovimientoSemana,
+    edadAnios, pesoKg, tallaCm, horasVentanaSueno, horasMovimientoSemana,
   } = entrada;
 
   const imc =
@@ -223,11 +225,10 @@ export function estimarPuntoDePartida(entrada: EntradaEstimacion): EstimacionIni
     return sinNumero('Tu fecha de nacimiento');
   }
 
-  // El motor pide sexo para su input; aquí no cambia el resultado (el
-  // modulador de hábitos no lo usa) y por eso su ausencia no bloquea nada.
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): antes aquí iba `sex: sexo ?? 'male'`
+  // porque el tipo del motor lo exigía aunque el modulador no lo use. Ahora
+  // el modulador recibe solo hábitos y no hay sexo inventado en ningún lado.
   const habitos = computeHabitosModulador({
-    chronological_age: edadAnios,
-    sex: sexo ?? 'male',
     sueno_h: suenoPuntuableDeLaVentana(horasVentanaSueno),
     ejercicio_h_sem: horasMovimientoSemana ?? undefined,
   });

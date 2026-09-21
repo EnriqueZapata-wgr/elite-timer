@@ -201,6 +201,17 @@ describe('las palancas dicen la verdad sobre lo que mueven', () => {
     expect(sinSexo.edadEstimada).toBe(conSexo.edadEstimada);
   });
 
+  it('2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo no se inventa uno; mujer, hombre y null dan lo mismo y nadie lanza', () => {
+    // Antes el core pasaba `sex: sexo ?? 'male'` al modulador solo por el tipo.
+    const m = estimarPuntoDePartida({ ...BASE, sexo: 'male', horasVentanaSueno: 5, horasMovimientoSemana: 8 });
+    const f = estimarPuntoDePartida({ ...BASE, sexo: 'female', horasVentanaSueno: 5, horasMovimientoSemana: 8 });
+    const n = estimarPuntoDePartida({ ...BASE, sexo: null, horasVentanaSueno: 5, horasMovimientoSemana: 8 });
+    expect(n.ok).toBe(true);
+    expect(n.edadEstimada).toBe(m.edadEstimada);
+    expect(n.edadEstimada).toBe(f.edadEstimada);
+    expect(n.factor).toBe(m.factor);
+  });
+
   it('el efecto de cada palanca se lee de su propio score', () => {
     const r = estimarPuntoDePartida({ ...BASE, horasVentanaSueno: 5, horasMovimientoSemana: 8 });
     expect(r.palancas.find((p) => p.clave === 'sueno')!.efecto).toBe('en_contra');

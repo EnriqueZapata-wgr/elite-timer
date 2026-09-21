@@ -27,6 +27,7 @@ import {
   type LecturaSnapshot,
 } from './lectura-core';
 import type { Sex } from '@/src/types/edad-atp-v2';
+import { sexoDePerfil } from '@/src/services/salud/sexo-core';
 import { SALUD_DEL_SISTEMA_ALIMENTA_EL_DIA } from '@/src/constants/flags';
 import { LECTURA_VACIA } from '@/src/services/health/health-read-core';
 import { leerSaludDelDia } from '@/src/services/health/health-read-service';
@@ -42,14 +43,24 @@ async function suave<T>(etiqueta: string, fn: () => Promise<T>, fallback: T): Pr
   }
 }
 
-async function leerSexo(userId: string): Promise<Sex> {
-  const { data } = await supabase
+/**
+ * 2026-09-21 (SEXO NUNCA ASUMIDO): antes `=== 'female' ? 'female' : 'male'`
+ * convertía en hombre a quien no lo dijo (y a quien no se pudo leer). Ahora
+ * null cuando falta, y rechaza si la consulta falló para que `suave` lo
+ * distinga de "no tiene" (regla 7).
+ */
+async function leerSexo(userId: string): Promise<Sex | null> {
+  const { data, error } = await supabase
     .from('client_profiles')
     .select('biological_sex')
     .eq('user_id', userId)
     .maybeSingle();
-  return (data as { biological_sex?: string } | null)?.biological_sex === 'female' ? 'female' : 'male';
+  if (error) throw new Error(`[lectura] perfil: ${error.message}`);
+  return sexoDePerfil((data as { biological_sex?: unknown } | null)?.biological_sex);
 }
+
+/** Centinela de `suave` para el sexo: la lectura falló, no es que falte. */
+const SEXO_ILEGIBLE = 'ilegible' as const;
 
 async function leerEdad(userId: string) {
   const { data } = await supabase
@@ -85,9 +96,9 @@ async function leerCronotipo(userId: string): Promise<string | null> {
 
 /** Junta las nueve fuentes en el snapshot que el núcleo sabe leer. */
 export async function gatherLecturaSnapshot(userId: string): Promise<LecturaSnapshot> {
-  const [sexo, labs, medicion, braverman, sintomas, historia, protocolo, cronotipo, edad, ciclo, salud] =
+  const [sexoRaw, labs, medicion, braverman, sintomas, historia, protocolo, cronotipo, edad, ciclo, salud] =
     await Promise.all([
-      suave('sexo', () => leerSexo(userId), 'male' as Sex),
+      suave<Sex | null | typeof SEXO_ILEGIBLE>('sexo', () => leerSexo(userId), SEXO_ILEGIBLE),
       suave('labs', () => loadCanonicalLabValues(userId), {} as Record<string, { value: number; measured_at: string; is_stale: boolean }>),
       suave('composicion', () => getLatestMeasurement(userId), null),
       suave('quimica', () => getLatestCompleteBravermanResult(userId), null),
@@ -118,7 +129,8 @@ export async function gatherLecturaSnapshot(userId: string): Promise<LecturaSnap
 
   return {
     ...SNAPSHOT_VACIO,
-    sexo,
+    sexo: sexoRaw === SEXO_ILEGIBLE ? null : sexoRaw,
+    sexoIlegible: sexoRaw === SEXO_ILEGIBLE,
     labs: labs ?? {},
     composicion: medicion
       ? {

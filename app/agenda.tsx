@@ -26,9 +26,14 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { Spacing, FontSizes, Fonts, Radius } from '@/constants/theme';
 import {
-  generateAgendaEvents, getAgendaForDate, getRestrictionsForDate, createCustomEvent, updateAgendaEvent,
+  generateAgendaEvents, leerAgendaDelDia, getRestrictionsForDate, createCustomEvent, updateAgendaEvent,
   deleteAgendaEvent, setEventStatus, snoozeEvent, syncElectronFromEvent, type AgendaEventInstance,
 } from '@/src/services/agenda-service';
+// 21-sep-2026 (AGENDA DEL DÍA UNO ELITE): la rutina del día la decide el hub
+// (today-session-service); aquí solo se consume y se pinta como bloque.
+import { leerAsignacionDeHoyLigera } from '@/src/services/fitness/today-session-service';
+import { AppIcon } from '@/src/components/ui/AppIcon';
+import { warn as logWarn } from '@/src/lib/logger';
 import {
   completeInterventionByKey, adjustIntervention, syncSuggestedInterventions,
 } from '@/src/services/interventions/intervention-service';
@@ -39,6 +44,13 @@ import { syncAgendaLocalNotifications } from '@/src/services/agenda-local-notifi
 // test — pospuestos donde cayeron, sin hora al final bajo SIN HORA.
 import { insertDayPartDividers, localHHMM } from '@/src/services/agenda-core';
 import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
+
+/** 21-sep-2026: el bloque de la rutina del día, derivado del estado del hub. */
+type RutinaHoy =
+  | { estado: 'asignada'; nombre: string; porCoach: boolean; coach: string | null }
+  | { estado: 'entrenado'; nombre: string; pendiente: string | null }
+  | { estado: 'error' }
+  | null;
 
 function formatToday(): string {
   const d = new Date(getLocalToday() + 'T12:00:00');
@@ -58,6 +70,14 @@ export default function AgendaScreen() {
   const [events, setEvents] = useState<AgendaEventInstance[]>([]);
   const [restrictions, setRestrictions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  // 21-sep-2026 (regla 7): "no se pudo leer" no es "sin eventos".
+  const [lecturaFallo, setLecturaFallo] = useState<string | null>(null);
+  // 21-sep-2026: tomas del plan de Enrique sin hora (no están en la lista; se dice).
+  const [tomasCoachSinHora, setTomasCoachSinHora] = useState(0);
+  // 21-sep-2026: la rutina de hoy según el hub. Fail-soft: un fallo aquí no
+  // tumba la lista; se dice en su bloque con reintento.
+  const [rutinaHoy, setRutinaHoy] = useState<RutinaHoy>(null);
+  const [intentoRutina, setIntentoRutina] = useState(0);
   const [selected, setSelected] = useState<AgendaEventInstance | null>(null);
   const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null);
   // 12.1: "Cambiar hora" abre la rueda (TimeWheelPicker, la misma de journal y
@@ -67,17 +87,59 @@ export default function AgendaScreen() {
 
   const reload = useCallback(async () => {
     if (!userId) { setEvents([]); setRestrictions([]); setLoading(false); return; }
-    const [list, restr] = await Promise.all([
-      getAgendaForDate(userId, getLocalToday()),
+    const [lectura, restr] = await Promise.all([
+      leerAgendaDelDia(userId, getLocalToday()),
       getRestrictionsForDate(userId, getLocalToday()),
     ]);
-    setEvents(list);
+    if (lectura.ok) {
+      setEvents(lectura.eventos);
+      setTomasCoachSinHora(lectura.tomasCoachSinHora);
+      setLecturaFallo(null);
+    } else {
+      // Se conserva lo último que sí se leyó; el aviso pide reintentar.
+      setLecturaFallo(lectura.error);
+    }
     setRestrictions(restr);
     setLoading(false);
     // #28: (re)programar notificaciones LOCALES de los eventos con recordatorio.
     // Fire-and-forget e idempotente — el push server queda como refuerzo.
     syncAgendaLocalNotifications(userId, getLocalToday()).catch(() => {});
   }, [userId]);
+
+  // 21-sep-2026: la rutina asignada del día, con la misma decisión que el hub
+  // (decidirHoy) pero por la lectura LIGERA: no genera la rutina que esta
+  // pantalla no pinta. Ronda de arreglos: corre en useFocusEffect para que se
+  // refresque al volver del stack (entrenar en /session y regresar).
+  useFocusEffect(useCallback(() => {
+    if (!userId) { setRutinaHoy(null); return; }
+    let alive = true;
+    (async () => {
+      try {
+        const today = await leerAsignacionDeHoyLigera(userId);
+        if (!alive) return;
+        if (today.kind === 'asignada') {
+          setRutinaHoy({
+            estado: 'asignada',
+            nombre: today.asignacion.routine_name?.trim() || 'Tu rutina asignada',
+            porCoach: today.porCoach,
+            coach: today.coachNombre,
+          });
+        } else if (today.kind === 'entrenado') {
+          setRutinaHoy({
+            estado: 'entrenado',
+            nombre: today.sesion?.routine_name?.trim() || (today.cardioHoy.length > 0 ? 'Cardio' : 'Sesión de hoy'),
+            pendiente: today.asignadaPendiente?.routine_name?.trim() || null,
+          });
+        } else {
+          setRutinaHoy(null);
+        }
+      } catch (e) {
+        logWarn('[agenda] no se pudo leer la rutina de hoy', e);
+        if (alive) setRutinaHoy({ estado: 'error' });
+      }
+    })();
+    return () => { alive = false; };
+  }, [userId, intentoRutina]));
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -283,6 +345,77 @@ export default function AgendaScreen() {
         </View>
       ) : null}
 
+      {/* 21-sep-2026 (AGENDA DEL DÍA UNO ELITE): la rutina del día como bloque,
+          antes del timeline (no tiene hora: scheduled_routines no la guarda).
+          Destino /fitness-hub, que ya sabe abrirla en /session con reintento. */}
+      {rutinaHoy ? (
+        <View style={styles.bannerWrap}>
+          {rutinaHoy.estado === 'error' ? (
+            <AnimatedPressable onPress={() => { haptic.light(); setIntentoRutina((n) => n + 1); }} style={styles.rutinaBanner} accessibilityRole="button">
+              <AppIcon name="entrenar" size={18} color={dark ? ATP_BRAND.lime : tokens.tealTexto} />
+              <View style={{ flex: 1 }}>
+                <EliteText style={[styles.rutinaTitle, { color: tokens.texto }]}>No se pudo leer tu plan de hoy</EliteText>
+                <EliteText style={[styles.rutinaSub, { color: tokens.textoSecundario }]}>Revisa tu conexión. Toca para reintentar.</EliteText>
+              </View>
+            </AnimatedPressable>
+          ) : rutinaHoy.estado === 'asignada' ? (
+            <AnimatedPressable onPress={() => { haptic.medium(); router.push('/fitness-hub'); }} style={styles.rutinaBanner} accessibilityRole="button" accessibilityLabel={`Abrir ${rutinaHoy.nombre}`}>
+              <AppIcon name="entrenar" size={18} color={dark ? ATP_BRAND.lime : tokens.tealTexto} />
+              <View style={{ flex: 1 }}>
+                <EliteText style={[styles.rutinaKicker, !dark && { color: tokens.tealTexto }]}>TU RUTINA DE HOY</EliteText>
+                <EliteText style={[styles.rutinaTitle, { color: tokens.texto }]} numberOfLines={1}>{rutinaHoy.nombre}</EliteText>
+                {/* El destino es el hub (ahí se toca EMPEZAR): el copy no promete lo que no hace. */}
+                <EliteText style={[styles.rutinaSub, { color: tokens.textoSecundario }]} numberOfLines={1}>
+                  {rutinaHoy.porCoach ? `Asignada por ${rutinaHoy.coach ?? 'tu coach'}. Toca para abrir tu rutina.` : 'Tu rutina agendada. Toca para abrir tu rutina.'}
+                </EliteText>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={tokens.textoSecundario} />
+            </AnimatedPressable>
+          ) : (
+            <AnimatedPressable onPress={() => { haptic.light(); router.push('/fitness-hub'); }} style={styles.rutinaBanner} accessibilityRole="button">
+              <Ionicons name="checkmark-circle" size={18} color={dark ? ATP_BRAND.lime : tokens.tealTexto} />
+              <View style={{ flex: 1 }}>
+                <EliteText style={[styles.rutinaTitle, { color: tokens.texto }]} numberOfLines={1}>Entrenaste hoy: {rutinaHoy.nombre}</EliteText>
+                {rutinaHoy.pendiente ? (
+                  <EliteText style={[styles.rutinaSub, { color: tokens.textoSecundario }]} numberOfLines={1}>Tenías asignada {rutinaHoy.pendiente}; sigue en Fitness.</EliteText>
+                ) : null}
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={tokens.textoSecundario} />
+            </AnimatedPressable>
+          )}
+        </View>
+      ) : null}
+
+      {/* 21-sep-2026: tomas del plan de Enrique sin hora. No se les inventa una
+          (antes caían a las 08:00); viven en Suplementos hasta que tengan hora. */}
+      {tomasCoachSinHora > 0 ? (
+        <View style={styles.bannerWrap}>
+          <AnimatedPressable onPress={() => { haptic.light(); router.push('/supplements'); }} style={styles.rutinaBanner} accessibilityRole="button">
+            <AppIcon name="suplementos" size={18} color={dark ? ATP_BRAND.lime : tokens.tealTexto} />
+            <EliteText style={[styles.rutinaSub, { color: tokens.texto, flex: 1 }]} numberOfLines={2}>
+              {tomasCoachSinHora === 1
+                ? 'Un suplemento de tu plan no tiene hora asignada. Está en Suplementos.'
+                : `${tomasCoachSinHora} suplementos de tu plan no tienen hora asignada. Están en Suplementos.`}
+            </EliteText>
+            <Ionicons name="chevron-forward" size={16} color={tokens.textoSecundario} />
+          </AnimatedPressable>
+        </View>
+      ) : null}
+
+      {/* 21-sep-2026 (regla 7): la lectura falló. Se dice y se reintenta; lo
+          último leído se queda abajo si lo hubo. */}
+      {lecturaFallo ? (
+        <View style={styles.bannerWrap}>
+          <AnimatedPressable onPress={() => { haptic.light(); setLoading(true); reload(); }} style={styles.rutinaBanner} accessibilityRole="button">
+            <Ionicons name="cloud-offline-outline" size={18} color={tokens.textoSecundario} />
+            <View style={{ flex: 1 }}>
+              <EliteText style={[styles.rutinaTitle, { color: tokens.texto }]}>{lecturaFallo}</EliteText>
+              <EliteText style={[styles.rutinaSub, { color: tokens.textoSecundario }]}>Revisa tu conexión. Toca para reintentar.</EliteText>
+            </View>
+          </AnimatedPressable>
+        </View>
+      ) : null}
+
       {/* P2.10: merge asistido de duplicados del user — 1 tap, el user decide. */}
       {dupGroups.map((g) => (
         <View key={`dup-${g[0].time}-${g[0].eventId}`} style={styles.bannerWrap}>
@@ -300,7 +433,7 @@ export default function AgendaScreen() {
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={dark ? ATP_BRAND.lime : tokens.tealTexto} /></View>
-      ) : events.length === 0 ? (
+      ) : events.length === 0 && !lecturaFallo ? (
         <View style={styles.center}>
           <Ionicons name="calendar-outline" size={48} color={dark ? 'rgba(255,255,255,0.2)' : tokens.sinDatos} />
           <EliteText style={[styles.emptyTitle, { color: tokens.texto }]}>Sin eventos hoy</EliteText>
@@ -389,6 +522,15 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md, paddingHorizontal: Spacing.sm + 2, paddingVertical: Spacing.sm,
   },
   dupBannerText: { flex: 1, color: 'rgba(255,255,255,0.85)', fontSize: FontSizes.sm },
+  // 21-sep-2026: bloque de la rutina del día / avisos de lectura (mismo peso que una fila de card).
+  rutinaBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: 'rgba(168,224,42,0.08)', borderWidth: 1, borderColor: 'rgba(168,224,42,0.25)',
+    borderRadius: Radius.md, paddingHorizontal: Spacing.sm + 2, paddingVertical: Spacing.sm,
+  },
+  rutinaKicker: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, letterSpacing: 2 },
+  rutinaTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.sm },
+  rutinaSub: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, lineHeight: 16 },
   dupBannerCta: { color: ATP_BRAND.amber, fontFamily: Fonts.bold, fontSize: FontSizes.sm, letterSpacing: 1 },
   title: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, letterSpacing: 2 },
   date: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 3, marginTop: 3 },

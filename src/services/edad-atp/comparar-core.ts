@@ -103,7 +103,9 @@ export interface FilaComparacion {
 }
 
 /** La ventana funcional de la matriz para este sexo y clave, en unidad de matriz. */
-export function ventanaDe(sex: Sex, key: string): { lo: number; hi: number } | null {
+export function ventanaDe(sex: Sex | null, key: string): { lo: number; hi: number } | null {
+  // 2026-09-21: sin sexo no hay ventana (findMatrizParam devuelve undefined) y
+  // la flecha queda sin juicio. Nunca se compara contra la matriz de hombres.
   return functionalBand(findMatrizParam(sex, key));
 }
 
@@ -113,7 +115,7 @@ export function ventanaDe(sex: Sex, key: string): { lo: number; hi: number } | n
  * grupo, alfabetico por clave: la pantalla reordena por dominio si quiere.
  */
 export function emparejar(
-  sex: Sex,
+  sex: Sex | null,
   series: SeriesPorMarcador,
   fechaA: string,
   fechaB: string,

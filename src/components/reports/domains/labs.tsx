@@ -34,6 +34,9 @@ import {
   loadLabsReport, type LabsReportData,
 } from '@/src/services/reports/labs-report-service';
 import { SectionHeader, Stat, StatsRow } from '../ReportStats';
+import {
+  AVISO_FALTA_SEXO_RANGOS, AVISO_PERFIL_ILEGIBLE, RUTA_PERFIL, accionDeAviso,
+} from '@/src/services/salud/sexo-core';
 import type { ReportDomainDefinition } from '../ReportDomainShell';
 
 const META = REPORT_DOMAINS.labs;
@@ -73,7 +76,11 @@ function fechaCorta(f: string): string {
   return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: '2-digit' });
 }
 
-export function LabsContent({ data }: { data: LabsReportData }) {
+/**
+ * `onReintentar` relanza la lectura del dominio (el `reload` del shell). Regla
+ * 7: con el perfil ILEGIBLE el aviso ofrece Reintentar, no ir a /profile.
+ */
+export function LabsContent({ data, onReintentar }: { data: LabsReportData; onReintentar?: () => void }) {
   const t = useAppTheme().tokens;
   const s = useMemo(() => makeStyles(t), [t]);
   const [soloAtencion, setSoloAtencion] = useState(false);
@@ -92,7 +99,28 @@ export function LabsContent({ data }: { data: LabsReportData }) {
       <View style={[s.card, { backgroundColor: t.card, borderColor: t.borde }]}>
         <EliteText style={[s.kicker, { color: t.textoSecundario }]}>TU HISTORIA</EliteText>
         <EliteText style={[s.body, { color: t.texto }]}>{fraseResumenLabs(resumen)}</EliteText>
-        {resumen.sinBanda > 0 && (
+        {/* 2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo nada se calificó. Se dice
+            en vez de "la matriz no los define", que sería falso. */}
+        {data.sexo === null && (() => {
+          const aviso = data.sexoIlegible ? AVISO_PERFIL_ILEGIBLE : AVISO_FALTA_SEXO_RANGOS;
+          const accion = accionDeAviso(aviso);
+          return (
+            <AnimatedPressable
+              onPress={() => {
+                haptic.light();
+                if (accion.reintentar) onReintentar?.();
+                else router.push(RUTA_PERFIL);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={accion.label}
+            >
+              <EliteText style={[s.sub, { color: t.textoSecundario, marginTop: 6 }]}>
+                {aviso}. Sin ese dato ningún valor se califica: no se asume. {accion.label}.
+              </EliteText>
+            </AnimatedPressable>
+          );
+        })()}
+        {resumen.sinBanda > 0 && data.sexo !== null && (
           <EliteText style={[s.sub, { color: t.textoTenue, marginTop: 6 }]}>
             {resumen.sinBanda} {resumen.sinBanda === 1 ? 'está' : 'están'} pendientes de rango funcional. No cuentan ni a favor ni en contra: la matriz de la casa todavía no los define.
           </EliteText>
@@ -274,7 +302,7 @@ export const labsDomain: ReportDomainDefinition<LabsReportData> = {
     }
     return rows;
   },
-  render: (d) => <LabsContent data={d} />,
+  render: (d, reload) => <LabsContent data={d} onReintentar={reload} />,
 };
 
 type Styles = ReturnType<typeof makeStyles>;

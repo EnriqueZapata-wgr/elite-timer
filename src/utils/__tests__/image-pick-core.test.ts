@@ -81,11 +81,15 @@ describe('agendaCategoryToFolder', () => {
 });
 
 describe('sexKey', () => {
-  it('female → female; resto → male', () => {
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): antes este test fijaba "resto → male".
+  // Se cambia porque ni la imagen le asigna sexo a quien no lo dijo: null.
+  it('female → female; male → male; resto → null (nunca hombre por defecto)', () => {
     expect(sexKey('female')).toBe('female');
     expect(sexKey('male')).toBe('male');
-    expect(sexKey(undefined)).toBe('male');
-    expect(sexKey('intersex')).toBe('male');
+    expect(sexKey(undefined)).toBeNull();
+    expect(sexKey(null)).toBeNull();
+    expect(sexKey('')).toBeNull();
+    expect(sexKey('intersex')).toBeNull();
   });
 });
 

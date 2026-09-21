@@ -25,6 +25,7 @@
  * (heurísticas de experto, etiquetadas honestamente como no-clínicas).
  */
 import type { MatrixExercise } from '@/src/constants/exercise-matrix';
+import { AVISO_PERFIL_ILEGIBLE, RUTA_PERFIL } from '@/src/services/salud/sexo-core';
 
 // ── Flags de rigor ──
 
@@ -70,16 +71,30 @@ const TIER_A_FEED: Record<string, { testKey: 'pushups' | 'plank'; label: string;
  * edad_atp_functional_tests. Toma el MEJOR set por benchmark (reps máximas /
  * hold más largo) y solo sets SIN lastre (la norma es a peso corporal).
  */
-export function tierAFunctionalEntries(sets: SessionSetLike[], sexo: Sexo): TierAResult {
+/** 2026-09-21 (SEXO NUNCA ASUMIDO): copy cuando push-ups se omite por falta de sexo. */
+export const AVISO_PUSHUPS_SIN_SEXO =
+  'Push-ups: la norma es por sexo y tu perfil no lo tiene. No se registra en tu Edad ATP; completa tu perfil y se toma en tu próxima sesión.';
+
+/** 2026-09-21: copy cuando la proyección Tier B no se calcula por falta de sexo. */
+export const AVISO_PROYECCION_SIN_SEXO =
+  'Para proyectar tu Edad ATP con estos benchmarks falta tu sexo en tu perfil. No se estima con un sexo asumido.';
+
+export function tierAFunctionalEntries(sets: SessionSetLike[], sexo: Sexo | null): TierAResult {
   const entries: FunctionalEntry[] = [];
   const alimentado: string[] = [];
   const avisos: string[] = [];
   for (const [slug, spec] of Object.entries(TIER_A_FEED)) {
     const propios = sets.filter((s) => s.slug === slug && (s.weightKg == null || s.weightKg === 0) && s.reps > 0);
     if (propios.length === 0) continue;
+    // 2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo la norma de push-ups no aplica
+    // (antes null se trataba como 'female' en silencio). Plancha es unisex y entra.
+    if (spec.soloConNorma === 'pushups' && sexo === null) {
+      avisos.push(AVISO_PUSHUPS_SIN_SEXO);
+      continue;
+    }
     if (spec.soloConNorma === 'pushups' && sexo === 'female' && !PUSHUPS_NORMA_FEMENINA_DISPONIBLE) {
       avisos.push(
-        'Push-ups: la norma clínica disponible se derivó en hombres. No aplicamos ese umbral a tu score — mejor omitir que mentir.',
+        'Push-ups: la norma clínica disponible se derivó en hombres. No aplicamos ese umbral a tu score: mejor omitir que mentir.',
       );
       continue;
     }
@@ -198,9 +213,13 @@ export interface TierBProjection {
 export function computeTierBProjection(
   sets: SessionSetLike[],
   bodyweightKg: number | null,
-  sexo: Sexo,
+  sexo: Sexo | null,
   estaturaCm: number | null = null,
 ): TierBProjection {
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): los targets de experto son por sexo
+  // (2.0 vs 1.5 x peso, 10 vs 5 reps...). Sin sexo no hay proyección; antes
+  // el servicio pasaba `sexo ?? 'male'` y proyectaba con targets de hombre.
+  if (sexo === null) return { years: 0, detalle: [], texto: null };
   const bw = bodyweightKg ?? 0;
   const porKey = new Map<TierBKey, { label: string; progreso: number; fuente: string }>();
   for (const [slug, spec] of Object.entries(TIER_B_SPECS)) {
@@ -231,6 +250,52 @@ export function computeTierBProjection(
     ? `Vas en camino a bajar ~${Math.abs(years).toFixed(1)} años (referencia de experto). Confírmalo con tu benchmark medido.`
     : null;
   return { years, detalle, texto };
+}
+
+/**
+ * ¿La sesión trae al menos un set de un benchmark Tier B? Solo entonces tiene
+ * sentido avisar que la proyección no se calculó por falta de sexo: una sesión
+ * de curls sin sexo no tenía nada que proyectar y no recibe ese aviso.
+ */
+export function sesionTraeBenchmarksTierB(sets: readonly SessionSetLike[]): boolean {
+  return sets.some((s) => Object.prototype.hasOwnProperty.call(TIER_B_SPECS, s.slug));
+}
+
+/**
+ * Los avisos de sexo que lleva el cierre de sesión (regla 7: "no se pudo
+ * leer" no es "no hay"). Con sexo: los de Tier A tal cual. Sin sexo y perfil
+ * legible: los de Tier A y, si la sesión traía benchmarks Tier B, el de la
+ * proyección. Perfil ILEGIBLE: no se le dice a nadie que "su perfil no lo
+ * tiene"; los avisos que piden completar el perfil se sustituyen por UNO que
+ * pide reintentar, y solo si algo dependía del sexo.
+ */
+export function avisosDeSexoDelPuente(
+  avisosTierA: readonly string[],
+  sets: readonly SessionSetLike[],
+  sexo: Sexo | null,
+  perfilIlegible: boolean,
+): string[] {
+  if (sexo !== null) return [...avisosTierA];
+  const dependiaDelSexo = avisosTierA.includes(AVISO_PUSHUPS_SIN_SEXO) || sesionTraeBenchmarksTierB(sets);
+  if (perfilIlegible) {
+    const out = avisosTierA.filter((a) => a !== AVISO_PUSHUPS_SIN_SEXO);
+    if (dependiaDelSexo) out.push(AVISO_PERFIL_ILEGIBLE);
+    return out;
+  }
+  const out = [...avisosTierA];
+  if (sesionTraeBenchmarksTierB(sets) && !out.includes(AVISO_PROYECCION_SIN_SEXO)) {
+    out.push(AVISO_PROYECCION_SIN_SEXO);
+  }
+  return out;
+}
+
+/**
+ * A dónde lleva un aviso del puente cuando se toca. Los que piden completar
+ * el perfil llevan a /profile (donde ya existe la UI para capturar el sexo);
+ * el resto no es tocable. Por identidad del copy, no por subcadena.
+ */
+export function rutaDelAviso(aviso: string): typeof RUTA_PERFIL | null {
+  return aviso === AVISO_PUSHUPS_SIN_SEXO || aviso === AVISO_PROYECCION_SIN_SEXO ? RUTA_PERFIL : null;
 }
 
 /** ¿Este slug es un benchmark de DISTANCIA? (el runner captura cm, no reps). */

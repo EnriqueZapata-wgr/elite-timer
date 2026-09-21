@@ -612,6 +612,30 @@ export const UMBRALES_FEMENINOS_EN_EL_SCORE = true;
  *  se deja de guardar un número que sabemos que se calculó con el perfil
  *  equivocado.
  *
+ * CERRADO EL 2026-09-21 (SEXO NUNCA ASUMIDO)
+ *  La línea `=== 'female' ? 'female' : 'male'` ya no existe en `loadUserData`
+ *  ni en los otros nueve sitios que asumían hombre. El único traductor es
+ *  `sexoDePerfil` en `src/services/salud/sexo-core.ts`: solo 'male' y
+ *  'female' son sexo; NULL, intersex, fila ausente o consulta fallida son
+ *  null. Con null NO se calcula por sexo:
+ *   · `computeEdadAtpV2` devuelve `{ faltaSexo: true, aviso }` y no persiste
+ *     (edad-atp-v2-service.ts); las pantallas de Edad ATP, el hero de Mi Salud
+ *     y el diagnóstico pintan el aviso con salida a `/profile`.
+ *   · `findMatrizParam` / `findMatrizDomain` / `estadoDeParametro` devuelven
+ *     undefined / `sin_banda` con null: ATP Labs, comparar, ficha, Mi lectura,
+ *     reportes y ARGOS muestran los valores sin calificarlos y lo dicen.
+ *   · Free (limites-free-service) devuelve null → la ficha abre (fail-open).
+ *   · El puente Fitness omite push-ups y la proyección Tier B con aviso.
+ *   · La estimación inicial ya no pasa `sex: sexo ?? 'male'` al modulador.
+ *   · La imagen el/ella cae a una neutra (yo-image-picker).
+ *   · El coach (ClientDetailScreen, lab-rating) ve "Sin dato" y un aviso; el
+ *     score del cliente no se calcula sin sexo, y `ensureClientProfile` ya no
+ *     GUARDA 'male' en el perfil de quien no lo dijo.
+ *  Con esto el flag queda sin efecto práctico: sin perfil ya no hay sexo y
+ *  el motor no corre (la rama `!perfil_legible` de computeEdadAtpV2 no se
+ *  alcanza). Se conserva como cinturón por si alguien vuelve a meter un
+ *  default; apagarlo no reabre nada.
+ *
  * CÓMO APAGARLO EN CALIENTE
  *  `false` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
  *  Sin migración, sin build nativo, sin tocar datos.

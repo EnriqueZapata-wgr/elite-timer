@@ -10,6 +10,8 @@ import {
   NUDGE_CAP_TOTAL,
   NUDGE_MAX_POR_BENCHMARK,
   PUSHUPS_NORMA_FEMENINA_DISPONIBLE,
+  AVISO_PUSHUPS_SIN_SEXO,
+  AVISO_PROYECCION_SIN_SEXO,
   type SessionSetLike,
 } from '../edad-bridge-core';
 import { resolveParamValues } from '@/src/services/edad-atp/load-all-params';
@@ -45,6 +47,26 @@ describe('tierAFunctionalEntries', () => {
     const m = tierAFunctionalEntries([set('hand-plank', 95)], 'female');
     expect(h.entries).toEqual([{ test_key: 'plank', value_primary: 95 }]);
     expect(m.entries).toEqual(h.entries);
+  });
+
+  it('2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo, push-ups se omite con aviso propio y plank sí entra; nada lanza', () => {
+    // Antes el servicio hacía `sexo ?? 'female'`: el aviso hablaba de la norma
+    // femenina a quien nunca dijo su sexo.
+    const r = tierAFunctionalEntries([set('push-up', 30), set('hand-plank', 60)], null);
+    expect(r.entries).toEqual([{ test_key: 'plank', value_primary: 60 }]);
+    expect(r.avisos.length).toBe(1);
+    expect(r.avisos[0]).toBe(AVISO_PUSHUPS_SIN_SEXO);
+    expect(r.avisos[0]).toContain('perfil');
+  });
+
+  it('2026-09-21: sin sexo NO hay proyección Tier B (antes se proyectaba con targets de hombre)', () => {
+    const conSexo = computeTierBProjection([set('barbell-deadlift', 1, 160), set('pull-ups', 8)], 80, 'male');
+    expect(conSexo.detalle.length).toBeGreaterThan(0);
+    const sinSexo = computeTierBProjection([set('barbell-deadlift', 1, 160), set('pull-ups', 8)], 80, null);
+    expect(sinSexo.detalle).toEqual([]);
+    expect(sinSexo.years).toBe(0);
+    expect(sinSexo.texto).toBeNull();
+    expect(AVISO_PROYECCION_SIN_SEXO).toContain('perfil');
   });
 
   it('variantes Tier A NO estrictas (diamond/incline/side plank) no alimentan la norma', () => {
@@ -169,7 +191,7 @@ describe('broad jump activado (distancia ×estatura)', () => {
     expect(d.progreso).toBeCloseTo(0.8, 5);
   });
 
-  it('sin estatura declarada se OMITE (relativo o nada — mejor omitir que mentir)', () => {
+  it('sin estatura declarada se OMITE (relativo o nada: mejor omitir que mentir)', () => {
     const p = computeTierBProjection([jump(180)], 80, 'male', null);
     expect(p.detalle.find((x) => x.key === 'broad_jump')).toBeUndefined();
   });

@@ -68,9 +68,14 @@ export function agendaCategoryToFolder(category: string, name?: string): string 
 }
 
 export type SexKey = 'male' | 'female';
-/** Normaliza el sexo biológico a la clave de imagen el/ella (default male). */
-export function sexKey(sex: string | undefined | null): SexKey {
-  return sex === 'female' ? 'female' : 'male';
+/**
+ * Normaliza el sexo biológico a la clave de imagen el/ella.
+ * 2026-09-21 (SEXO NUNCA ASUMIDO): antes "default male". Ya no: sin sexo (o
+ * intersex, o basura) es null y el picker usa una imagen neutra. Ni siquiera
+ * una ilustración le pone sexo a quien no lo dijo.
+ */
+export function sexKey(sex: string | undefined | null): SexKey | null {
+  return sex === 'male' || sex === 'female' ? sex : null;
 }
 
 export type CronotipoKey = 'leon' | 'lobo' | 'oso' | 'delfin';

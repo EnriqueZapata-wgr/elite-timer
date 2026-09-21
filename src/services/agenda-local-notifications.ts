@@ -13,7 +13,7 @@
  */
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAgendaForDate } from '@/src/services/agenda-service';
+import { leerAgendaDelDia } from '@/src/services/agenda-service';
 import { getNotificationPrefs } from '@/src/services/notification-prefs-service';
 import { shouldNotify } from '@/src/services/notification-prefs-core';
 import { warn as logWarn } from '@/src/lib/logger';
@@ -40,6 +40,20 @@ export async function syncAgendaLocalNotifications(userId: string, date?: string
     const perms = await Notifications.getPermissionsAsync();
     if (!perms.granted) return;
 
+    // 21-sep-2026 (regla 7): se LEE ANTES de cancelar. Si la agenda no se pudo
+    // leer, lo programado se queda como está: antes una lectura fallida ([])
+    // cancelaba todos los recordatorios del día, incluidos los del plan de
+    // Enrique, y no programaba nada.
+    const [lectura, prefs] = await Promise.all([
+      leerAgendaDelDia(userId, date),
+      getNotificationPrefs(userId),
+    ]);
+    if (!lectura.ok) {
+      logWarn('[agenda-local-notifications] agenda ilegible: se conservan los recordatorios previos');
+      return;
+    }
+    const events = lectura.eventos;
+
     // 1) Cancelar SOLO lo nuestro (identifiers namespaced, nada de cancelAll).
     const prev = await readScheduledIds();
     for (const identifier of Object.values(prev)) {
@@ -48,11 +62,9 @@ export async function syncAgendaLocalNotifications(userId: string, date?: string
 
     // 2) Re-agendar lo vigente: pendientes con recordatorio > 0 y hora futura.
     // Respeta prefs del canal agenda (quiet hours / silent / toggle) evaluadas a
-    // la hora de DISPARO — misma decisión pura que usa el push server.
-    const [events, prefs] = await Promise.all([
-      getAgendaForDate(userId, date),
-      getNotificationPrefs(userId),
-    ]);
+    // la hora de DISPARO — misma decisión pura que usa el push server. Las tomas
+    // del plan de Enrique entran por el mismo camino (notify 10 min, source
+    // 'supplement'): no hay un canal aparte que pudiera dejarlas fuera.
     // Prefs ilegibles = no se agenda nada (los previos ya se cancelaron arriba).
     if (!prefs) {
       logWarn('[agenda-local-notifications] prefs ilegibles: no se agenda nada');
@@ -71,7 +83,8 @@ export async function syncAgendaLocalNotifications(userId: string, date?: string
       const identifier = await Notifications.scheduleNotificationAsync({
         content: {
           // 31-ago-2026: sin em dash en copy de usuario (regla 2); mismo separador que los avisos por app.
-          title: `ATP · ${ev.name}`,
+          // 21-sep-2026: una toma del plan de Enrique lo dice en el título.
+          title: ev.asignadoPor ? `ATP · ${ev.name} · ${ev.asignadoPor}` : `ATP · ${ev.name}`,
           // 4EP B3: un pospuesto dice la hora a la que cayó, no la plantilla.
           body: `En ${ev.notifyMinutesBefore} min: ${ev.name} (${ev.effectiveTime ?? ev.time}).`,
           sound: true,

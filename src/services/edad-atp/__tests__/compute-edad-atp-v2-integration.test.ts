@@ -18,10 +18,10 @@ import { buildInputsFromUnified, computeEdadAtpV2, type UnifiedUserData } from '
 
 beforeEach(() => { state.tables = {}; });
 
-describe('buildInputsFromUnified — mapea UnifiedUserData → EdadAtpV2Inputs', () => {
+describe('buildInputsFromUnified: mapea UnifiedUserData → EdadAtpV2Inputs', () => {
   it('rellena PhenoAge faltantes con defaults y conserva los presentes', () => {
     const data: UnifiedUserData = {
-      chronological_age: 45, sex: 'female', perfil_legible: true,
+      chronological_age: 45, sex: 'female', faltaSexo: false, lectura_fallo: false, perfil_legible: true,
       glucose_mg_dl: 92, albumin_g_dl: 4.7,
       sf_scores_by_domain: { metabolismo: 50 },
       data_sources_used: ['lab_results', 'edad_atp_biomarkers'],
@@ -41,7 +41,7 @@ describe('buildInputsFromUnified — mapea UnifiedUserData → EdadAtpV2Inputs',
   });
 
   it('deriva has_diabetes desde HbA1c ≥ 6.5 o glucosa ≥ 126', () => {
-    const base: UnifiedUserData = { chronological_age: 50, sex: 'male', perfil_legible: true, data_sources_used: [] };
+    const base: UnifiedUserData = { chronological_age: 50, sex: 'male', faltaSexo: false, lectura_fallo: false, perfil_legible: true, data_sources_used: [] };
     expect(buildInputsFromUnified(base).cardiovascular.has_diabetes).toBe(false);
     expect(buildInputsFromUnified({ ...base, hba1c_pct: 6.7 }).cardiovascular.has_diabetes).toBe(true);
     expect(buildInputsFromUnified({ ...base, glucose_mg_dl: 130 }).cardiovascular.has_diabetes).toBe(true);
@@ -49,14 +49,19 @@ describe('buildInputsFromUnified — mapea UnifiedUserData → EdadAtpV2Inputs',
   });
 
   it('arma reaction_time solo si ambos RT están presentes', () => {
-    const base: UnifiedUserData = { chronological_age: 40, sex: 'male', perfil_legible: true, data_sources_used: [] };
+    const base: UnifiedUserData = { chronological_age: 40, sex: 'male', faltaSexo: false, lectura_fallo: false, perfil_legible: true, data_sources_used: [] };
     expect(buildInputsFromUnified({ ...base, reaction_time_simple_ms: 280 }).reaction_time).toBeUndefined();
     const both = buildInputsFromUnified({ ...base, reaction_time_simple_ms: 280, reaction_time_choice_ms: 420 });
     expect(both.reaction_time).toEqual({ rt_simple_ms: 280, rt_choice_ms: 420 });
   });
+
+  it('2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo no arma input del motor, lo dice y no asume hombre', () => {
+    const sinSexo: UnifiedUserData = { chronological_age: 40, sex: null, faltaSexo: true, lectura_fallo: false, perfil_legible: true, data_sources_used: [] };
+    expect(() => buildInputsFromUnified(sinSexo)).toThrow('[buildInputsFromUnified]');
+  });
 });
 
-describe('computeEdadAtpV2 — E2E desde fuentes existentes (sin tablas nuevas)', () => {
+describe('computeEdadAtpV2: E2E desde fuentes existentes (sin tablas nuevas)', () => {
   it('usuario con solo lab_values + health_measurements → calcula Edad Integral', async () => {
     state.tables.client_profiles = [{ date_of_birth: '1981-01-01', biological_sex: 'male' }];
     const lv = (parameter_key: string, value: number) =>
@@ -71,7 +76,10 @@ describe('computeEdadAtpV2 — E2E desde fuentes existentes (sin tablas nuevas)'
       weight_kg: 80, height_cm: 178, body_fat_pct: 18, muscle_mass_kg: 36,
       systolic_bp: 118, resting_hr: 58, vo2max_estimate: 42, date: '2026-02-01',
     }];
-    const r = await computeEdadAtpV2('u1');
+    const salida = await computeEdadAtpV2('u1');
+    expect(salida.faltaSexo).toBe(false);
+    if (salida.faltaSexo) throw new Error('con sexo en el perfil el motor corre');
+    const r = salida.resultado;
     expect(Number.isFinite(r.edad_integral)).toBe(true);
     expect(r.edad_integral).toBeGreaterThan(0);
     expect(r.chronological_age).toBeGreaterThan(0);
@@ -81,5 +89,21 @@ describe('computeEdadAtpV2 — E2E desde fuentes existentes (sin tablas nuevas)'
     expect(r.sub_edades.labs.age_years).toBeGreaterThan(0);
     // v2 no usa modificador cognitivo separado (cognición se promedia en las áreas).
     expect(r.modificador_cognitivo).toBe(0);
+  });
+
+  it('2026-09-21 (SEXO NUNCA ASUMIDO): perfil sin sexo → faltaSexo, sin número y sin excepción', async () => {
+    // Antes: `=== 'female' ? 'female' : 'male'` calculaba a esta persona como hombre.
+    state.tables.client_profiles = [{ date_of_birth: '1981-01-01', biological_sex: null }];
+    state.tables.health_measurements = [{ weight_kg: 80, height_cm: 178, body_fat_pct: 18, date: '2026-02-01' }];
+    const salida = await computeEdadAtpV2('u1');
+    expect(salida.faltaSexo).toBe(true);
+    expect(salida.resultado).toBeNull();
+    if (salida.faltaSexo) expect(salida.aviso).toContain('sexo');
+  });
+
+  it('intersex tampoco se mapea a hombre: es faltaSexo', async () => {
+    state.tables.client_profiles = [{ date_of_birth: '1981-01-01', biological_sex: 'intersex' }];
+    const salida = await computeEdadAtpV2('u1');
+    expect(salida.faltaSexo).toBe(true);
   });
 });

@@ -83,10 +83,12 @@ export function marcadoresConSexo(
   });
 }
 
-/** `biological_sex` como lo entiende la matriz; null si falta o no es binario (intersex, vacio, otro). */
-export function sexoDePerfil(valor: unknown): Sex | null {
-  return valor === 'male' || valor === 'female' ? valor : null;
-}
+/**
+ * `biological_sex` como lo entiende la matriz; null si falta o no es binario.
+ * 2026-09-21: el traductor vive en sexo-core (compartido por los diez sitios
+ * que antes asumían hombre); aquí se reexporta para no mover imports.
+ */
+export { sexoDePerfil } from '@/src/services/salud/sexo-core';
 
 /** Copy del hero viejo cuando falta el sexo: honesto, sin asumir, con destino al perfil. */
 export const AVISO_FALTA_SEXO = 'Para leer tus rangos falta tu sexo en tu perfil';

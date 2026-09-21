@@ -161,3 +161,115 @@ export function snoozeNotifyAtISO(
   const fireMs = Math.max(sched - minutesBefore * 60000, nowMs + SNOOZE_MIN_LEAD_MS);
   return new Date(fireMs).toISOString();
 }
+
+// ═══ Suplementos en la agenda (21-sep-2026, AGENDA DEL DÍA UNO ELITE) ═══════
+//
+// Antes estas dos tablas vivían dentro de generateAgendaEvents sin test, y
+// una toma sin hora conocida (timing NULL: el plan de Enrique no siempre fija
+// momento, y ese dato no se inventa) caía a 'mañana' 08:00. Una hora que el
+// clínico jamás puso no va a la agenda: la toma se omite aquí y la pantalla
+// dice cuántas quedaron sin hora, con salida a Suplementos.
+
+/** Hora de cada etiqueta de toma que la agenda entiende. */
+export const HORA_POR_TOMA: Readonly<Record<string, string>> = {
+  'mañana': '08:00', 'comida': '14:00', 'tarde': '17:00', 'noche': '21:00',
+};
+
+/** `timing` de user_supplements → etiqueta de toma. */
+export const TOMA_POR_TIMING: Readonly<Record<string, string>> = {
+  morning: 'mañana', with_food: 'comida', afternoon: 'tarde', evening: 'noche', bedtime: 'noche',
+};
+
+export interface TomaConHora {
+  /** Nombre del evento de agenda: "Omega 3 · noche" o "Omega 3 · toma" (hora libre). */
+  name: string;
+  time: string;
+  label: string;
+}
+
+/**
+ * Las tomas de una ficha que SÍ tienen hora. `dose_times[]` manda (etiquetas
+ * o 'HH:MM' libres); sin array, una toma en su `timing`. Lo que no resuelve a
+ * una hora conocida se omite: nunca 08:00 por defecto.
+ */
+export function tomasConHora(row: { name?: string | null; timing?: string | null; dose_times?: unknown }): TomaConHora[] {
+  const nombre = (row.name ?? '').trim();
+  if (!nombre) return [];
+  const labels: string[] = Array.isArray(row.dose_times) && row.dose_times.length >= 1
+    ? row.dose_times.filter((l): l is string => typeof l === 'string')
+    : (row.timing && TOMA_POR_TIMING[row.timing] ? [TOMA_POR_TIMING[row.timing]] : []);
+  const out: TomaConHora[] = [];
+  for (const label of labels) {
+    const fija = HORA_POR_TOMA[label];
+    const time = fija ?? (parseHHMM(label) !== null ? hhmm(label) : null);
+    if (!time) continue;
+    out.push({ name: `${nombre} · ${fija ? label : 'toma'}`, time, label });
+  }
+  return out;
+}
+
+/**
+ * La clave con la que la agenda identifica una toma: la MISMA que usa el
+ * generador de eventos (hora normalizada | nombre en minúsculas). Vive aquí
+ * para que el origen de una toma se resuelva con la misma regla que la creó.
+ */
+export function claveDeToma(name: string | null | undefined, time: string | null | undefined): string {
+  return `${hhmm(time)}|${(name ?? '').trim().toLowerCase()}`;
+}
+
+/** De qué fichas nace una toma: del coach (`source='coach'`), propia, o de las dos. */
+export interface OrigenToma { deCoach: boolean; propia: boolean }
+
+export interface FichaTomaLike {
+  /** La fila de user_supplements que origina la toma (informativo en el índice). */
+  id?: string | null;
+  name?: string | null;
+  timing?: string | null;
+  dose_times?: unknown;
+  source?: string | null;
+  is_plan?: boolean | null;
+}
+
+/**
+ * Índice clave-de-toma → origen, construido desde las fichas ACTIVAS del plan
+ * (todas, no solo las del coach) con la misma `tomasConHora` que genera los
+ * eventos. Así la toma se reconoce por la FILA que la originó, no por el
+ * nombre: una ficha propia "Omega 3 · noche" y una del coach con el mismo
+ * nombre y hora quedan marcadas como ambiguas y no se etiquetan.
+ */
+export function indiceOrigenTomas(fichas: ReadonlyArray<FichaTomaLike>): Map<string, OrigenToma> {
+  const out = new Map<string, OrigenToma>();
+  for (const f of fichas) {
+    if (!f || f.is_plan === false) continue;
+    const deCoach = f.source === 'coach';
+    for (const toma of tomasConHora(f)) {
+      const k = claveDeToma(toma.name, toma.time);
+      const prev = out.get(k) ?? { deCoach: false, propia: false };
+      out.set(k, { deCoach: prev.deCoach || deCoach, propia: prev.propia || !deCoach });
+    }
+  }
+  return out;
+}
+
+/**
+ * Etiqueta "Plan de Enrique" para un evento de suplemento cuya toma nació de
+ * una ficha `source='coach'` y de NINGUNA propia. null si es propia, si es
+ * ambigua (las dos) o si la agenda no la reconoce. La agenda no guarda de
+ * quién es la toma: se resuelve al leer, contra las fichas, y por eso vive
+ * aquí con test. Ronda de arreglos: antes se etiquetaba por NOMBRE base y
+ * una ficha propia con el mismo nombre que una del coach salía como suya.
+ */
+export function etiquetaPlanCoach(
+  evento: { name: string | null | undefined; time: string | null | undefined },
+  origen: ReadonlyMap<string, OrigenToma>,
+  coach: string,
+): string | null {
+  const o = origen.get(claveDeToma(evento.name, evento.time));
+  return o && o.deCoach && !o.propia ? `Plan de ${coach}` : null;
+}
+
+/** "Omega 3 · noche" → "omega 3" (minúsculas, sin la etiqueta de toma). */
+export function nombreBaseDeToma(nombreEvento: string): string {
+  const idx = nombreEvento.indexOf(' · ');
+  return (idx >= 0 ? nombreEvento.slice(0, idx) : nombreEvento).trim().toLowerCase();
+}

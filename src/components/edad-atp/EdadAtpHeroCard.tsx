@@ -12,6 +12,7 @@ import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
+import { ACCION_COMPLETAR_PERFIL, RUTA_PERFIL } from '@/src/services/salud/sexo-core';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
 import type { EdadAtpV2Result, SubEdadKey } from '@/src/types/edad-atp-v2';
 import { EDAD_DIMS, statusColor, SUB_EDAD_CE_PENDING_THRESHOLD, EDAD_PENDING_COLOR } from './tokens';
@@ -24,6 +25,9 @@ export function EdadAtpHeroCard({ userId }: { userId: string }) {
   const t = useSurfaceTokens();
   const styles = useMemo(() => makeStyles(t), [t]);
   const [result, setResult] = useState<EdadAtpV2Result | null>(null);
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo en el perfil no hay número y el
+  // héroe lo dice con salida al perfil, en vez de calcular como hombre.
+  const [avisoSexo, setAvisoSexo] = useState<string | null>(null);
   const [ce, setCe] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -34,9 +38,10 @@ export function EdadAtpHeroCard({ userId }: { userId: string }) {
     let alive = true;
     (async () => {
       try {
-        const [r, c] = await Promise.all([computeEdadAtpV2(userId), computeCE(userId)]);
+        const [salida, c] = await Promise.all([computeEdadAtpV2(userId), computeCE(userId)]);
         if (!alive) return;
-        setResult(r);
+        setResult(salida.faltaSexo ? null : salida.resultado);
+        setAvisoSexo(salida.faltaSexo ? salida.aviso : null);
         setCe(c.ce_integral);
       } catch { /* sin datos suficientes */ }
       if (alive) setLoading(false);
@@ -46,6 +51,14 @@ export function EdadAtpHeroCard({ userId }: { userId: string }) {
 
   if (loading) {
     return <View style={styles.card}><EliteText variant="caption" style={styles.muted}>Calculando tu Edad ATP…</EliteText></View>;
+  }
+  if (!result && avisoSexo) {
+    return (
+      <Pressable style={styles.card} onPress={() => router.push(RUTA_PERFIL)} accessibilityRole="button" accessibilityLabel={ACCION_COMPLETAR_PERFIL}>
+        <EliteText style={styles.title}>Edad ATP</EliteText>
+        <EliteText variant="caption" style={styles.muted}>{avisoSexo}. {ACCION_COMPLETAR_PERFIL}.</EliteText>
+      </Pressable>
+    );
   }
   if (!result) {
     return (

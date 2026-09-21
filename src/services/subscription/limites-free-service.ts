@@ -22,10 +22,14 @@ import {
 } from '@/src/services/edad-atp/lab-values-service';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import type { Sex } from '@/src/types/edad-atp-v2';
-import { marcadoresAbiertosFree, type MarcadorParaImpacto } from './limites-free-core';
+import { sexoDePerfil } from '@/src/services/salud/sexo-core';
+import { marcadoresAbiertosFreeSegunSexo, type MarcadorParaImpacto } from './limites-free-core';
 
-/** Sexo biológico del perfil; sin dato se usa la matriz de hombres (mismo default que Edad ATP). */
-async function sexoDe(userId: string): Promise<Sex> {
+/**
+ * Sexo biológico del perfil. 2026-09-21 (SEXO NUNCA ASUMIDO): antes "sin dato
+ * se usa la matriz de hombres". Ya no: sin dato es null y no se calcula.
+ */
+async function sexoDe(userId: string): Promise<Sex | null> {
   const { data, error } = await supabase
     .from('client_profiles')
     .select('biological_sex')
@@ -33,7 +37,7 @@ async function sexoDe(userId: string): Promise<Sex> {
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data?.biological_sex === 'female' ? 'female' : 'male';
+  return sexoDePerfil((data as { biological_sex?: unknown } | null)?.biological_sex);
 }
 
 /**
@@ -56,11 +60,17 @@ async function valoresCanonicosEstricto(userId: string): Promise<CanonicalMap> {
 
 /**
  * Las llaves de los marcadores que este Free ve con ficha, o null si no se
- * pudo calcular (red, RLS). Quien llama decide con `puedeVerFicha`.
+ * pudo calcular (red, RLS, o falta el sexo en el perfil). Quien llama decide
+ * con `puedeVerFicha`: null abre la ficha.
  */
 export async function cargarMarcadoresAbiertosFree(userId: string): Promise<string[] | null> {
   try {
     const [sexo, canonRaw] = await Promise.all([sexoDe(userId), valoresCanonicosEstricto(userId)]);
+    if (sexo === null) {
+      // 2026-09-21: sin sexo no hay impacto que ordenar; la ficha abre.
+      logWarn('[limites-free] sin sexo en el perfil: no se calcula el impacto (ficha abierta)');
+      return null;
+    }
     const canon = collapseLanguageDuplicates(canonRaw);
     const marcadores: MarcadorParaImpacto[] = [];
     for (const [key, cv] of Object.entries(canon)) {
@@ -71,7 +81,7 @@ export async function cargarMarcadoresAbiertosFree(userId: string): Promise<stri
         estado: estadoDeParametro(sexo, key, cv.value),
       });
     }
-    return marcadoresAbiertosFree(marcadores);
+    return marcadoresAbiertosFreeSegunSexo(sexo, marcadores);
   } catch (e) {
     logWarn('[limites-free] no se pudo calcular los marcadores abiertos', e);
     return null;

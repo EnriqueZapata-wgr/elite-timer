@@ -226,7 +226,9 @@ function buildRating(level: RatingLevel | 'no_data', direction: Direction): Valu
 
 const NO_DATA = buildRating('no_data', null);
 
-function rateWithEngineKeys(keys: string[], value: number, sex: Sex): ValueRating {
+function rateWithEngineKeys(keys: string[], value: number, sex: Sex | null): ValueRating {
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo no hay rango legacy que aplicar.
+  if (sex === null) return NO_DATA;
   for (const ek of keys) {
     const param = findParam(ek);
     if (param) {
@@ -266,9 +268,19 @@ function aValueRating(l: LecturaFuncional): ValueRating {
   );
 }
 
+/**
+ * 2026-09-21 (SEXO NUNCA ASUMIDO): las tres funciones de abajo tenían
+ * `sex: Sex = 'male'` como parámetro por defecto, y la pantalla del coach
+ * además hacía `?? 'male'`. Ahora el sexo es obligatorio y admite null: con
+ * null la respuesta es NO_DATA ("Sin dato"), nunca el rango de hombres.
+ */
+function sinSexo(sex: Sex | null): sex is null {
+  return sex !== 'male' && sex !== 'female';
+}
+
 /** Evaluar un valor de lab_results. */
-export function rateLabValue(labColumn: string, value: number | null | undefined, sex: Sex = 'male'): ValueRating {
-  if (value == null) return NO_DATA;
+export function rateLabValue(labColumn: string, value: number | null | undefined, sex: Sex | null): ValueRating {
+  if (value == null || sinSexo(sex)) return NO_DATA;
   if (RANGOS_UNA_SOLA_FUENTE) {
     return aValueRating(evaluarCampo(COLUMNA_A_MATRIZ, labColumn, value, sex));
   }
@@ -278,8 +290,8 @@ export function rateLabValue(labColumn: string, value: number | null | undefined
 }
 
 /** Evaluar composición corporal. */
-export function rateBodyValue(field: string, value: number | null | undefined, sex: Sex = 'male'): ValueRating {
-  if (value == null) return NO_DATA;
+export function rateBodyValue(field: string, value: number | null | undefined, sex: Sex | null): ValueRating {
+  if (value == null || sinSexo(sex)) return NO_DATA;
   if (RANGOS_UNA_SOLA_FUENTE) {
     return aValueRating(evaluarCampo(CUERPO_A_MATRIZ, field, value, sex));
   }
@@ -289,8 +301,8 @@ export function rateBodyValue(field: string, value: number | null | undefined, s
 }
 
 /** Evaluar biomarcador físico. */
-export function rateBioValue(field: string, value: number | null | undefined, sex: Sex = 'male'): ValueRating {
-  if (value == null) return NO_DATA;
+export function rateBioValue(field: string, value: number | null | undefined, sex: Sex | null): ValueRating {
+  if (value == null || sinSexo(sex)) return NO_DATA;
   if (RANGOS_UNA_SOLA_FUENTE) {
     return aValueRating(evaluarCampo(BIO_A_MATRIZ, field, value, sex));
   }

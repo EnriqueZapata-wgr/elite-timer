@@ -12,6 +12,7 @@ import { saveFunctionalTests } from '@/src/services/edad-atp/capture-service';
 import {
   tierAFunctionalEntries,
   computeTierBProjection,
+  avisosDeSexoDelPuente,
   type SessionSetLike,
   type Sexo,
   type TierBProjection,
@@ -25,18 +26,27 @@ export interface EdadSignal {
   avisos: string[];
 }
 
-/** Sexo del perfil ('male' | 'female'); null si no está declarado. */
-async function getSexo(userId: string): Promise<Sexo | null> {
+/**
+ * Sexo del perfil ('male' | 'female'); null si no está declarado.
+ * Regla 7: `ilegible` distingue "no se pudo leer" (RLS, red, 400) de "no lo
+ * tiene": con ilegible nadie le dice al usuario que "su perfil no lo tiene".
+ */
+async function getSexo(userId: string): Promise<{ sexo: Sexo | null; ilegible: boolean }> {
   // biological_sex vive en client_profiles, no en profiles (fantasma MB-6:
   // el 400 silencioso dejaba el sexo siempre null → benchmarks sin sexo).
-  const { data, error } = await supabase
-    .from('client_profiles')
-    .select('biological_sex')
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (error) { logWarn('[edad-bridge] getSexo failed:', error.message); return null; }
-  const s = (data as { biological_sex?: string } | null)?.biological_sex;
-  return s === 'male' || s === 'female' ? s : null;
+  try {
+    const { data, error } = await supabase
+      .from('client_profiles')
+      .select('biological_sex')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) { logWarn('[edad-bridge] getSexo failed:', error.message); return { sexo: null, ilegible: true }; }
+    const s = (data as { biological_sex?: string } | null)?.biological_sex;
+    return { sexo: s === 'male' || s === 'female' ? s : null, ilegible: false };
+  } catch (err) {
+    logWarn('[edad-bridge] getSexo threw:', err);
+    return { sexo: null, ilegible: true };
+  }
 }
 
 /** Peso corporal más reciente (health_measurements, coalesce simple). */
@@ -89,27 +99,34 @@ async function getEstaturaCm(userId: string): Promise<number | null> {
  */
 export async function processEdadSignal(userId: string, sets: SessionSetLike[]): Promise<EdadSignal> {
   try {
-    const [sexo, bw, estatura] = await Promise.all([
+    const [lecturaSexo, bw, estatura] = await Promise.all([
       getSexo(userId),
       getBodyweightKg(userId),
       getEstaturaCm(userId),
     ]);
-    // Sin sexo declarado tratamos push-ups como no-aplicable (norma por sexo):
-    // 'female' toma el camino conservador de omitir. plank es unisex y sí entra.
-    const tierA = tierAFunctionalEntries(sets, sexo ?? 'female');
+    const sexo = lecturaSexo.sexo;
+    // 2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo declarado el core omite
+    // push-ups con su aviso (antes null se hacía pasar por 'female'); plank
+    // es unisex y sí entra.
+    const tierA = tierAFunctionalEntries(sets, sexo);
     if (tierA.entries.length > 0) {
       const res = await saveFunctionalTests(userId, tierA.entries);
       if (!res.ok) {
         logWarn('[edad-bridge] saveFunctionalTests failed:', res.error);
         tierA.alimentado.length = 0;
-        tierA.avisos.push('No se pudo registrar el benchmark en tu Edad ATP — se reintenta en tu próxima sesión.');
+        tierA.avisos.push('No se pudo registrar el benchmark en tu Edad ATP. Se reintenta en tu próxima sesión.');
       }
     }
-    const proyeccion = computeTierBProjection(sets, bw, sexo ?? 'male', estatura);
+    // 2026-09-21: antes `sexo ?? 'male'` proyectaba con targets de hombre a
+    // quien no dijo su sexo. Sin sexo no hay proyección y se dice, pero solo
+    // si la sesión traía benchmarks Tier B (una sesión de curls no tenía nada
+    // que proyectar). Perfil ilegible: un solo aviso que pide reintentar.
+    const proyeccion = computeTierBProjection(sets, bw, sexo, estatura);
+    const avisos = avisosDeSexoDelPuente(tierA.avisos, sets, sexo, lecturaSexo.ilegible);
     return {
       alimentado: tierA.alimentado,
       proyeccion: proyeccion.detalle.length > 0 ? proyeccion : null,
-      avisos: tierA.avisos,
+      avisos,
     };
   } catch (err) {
     logWarn('[edad-bridge] processEdadSignal failed:', err);

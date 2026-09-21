@@ -8,18 +8,28 @@ import {
 } from '@/src/data/functional-health-engine';
 import { getLatestMeasurement } from '@/src/services/health-measurement-service';
 import { composicionCoherente } from '@/src/services/cuerpo/medidas-core';
+import { sexoDePerfil } from '@/src/services/salud/sexo-core';
+
+/** 2026-09-21 (SEXO NUNCA ASUMIDO): copy del score cuando el perfil del cliente no tiene sexo. */
+export const AVISO_SCORE_SIN_SEXO = 'Para calcular el score falta el sexo en el perfil del cliente. No se calcula con un sexo asumido.';
+/** Regla 7: el perfil no se pudo leer (RLS, red). Distinto de no tener sexo. */
+export const AVISO_SCORE_PERFIL_ILEGIBLE = 'No se pudo leer el perfil del cliente. Vuelve a intentar en un momento.';
 
 /** Crea client_profile mínimo si no existe. Retorna true si ya tenía date_of_birth. */
 export async function ensureClientProfile(userId: string, dob?: string, sex?: string): Promise<boolean> {
   const { data } = await supabase.from('client_profiles').select('date_of_birth').eq('user_id', userId).single();
   if (data?.date_of_birth) return true;
 
-  // Upsert con los datos proporcionados
+  // Upsert con los datos proporcionados. 2026-09-21 (SEXO NUNCA ASUMIDO):
+  // antes escribía `biological_sex: sex || 'male'`, o sea GUARDABA hombre en
+  // el perfil de quien no lo dijo. Ahora solo escribe el sexo si es válido; si
+  // no, la columna no se toca.
   if (dob) {
+    const sexoValido = sexoDePerfil(sex);
     await supabase.from('client_profiles').upsert({
       user_id: userId,
       date_of_birth: dob,
-      biological_sex: sex || 'male',
+      ...(sexoValido ? { biological_sex: sexoValido } : {}),
     }, { onConflict: 'user_id' });
     return true;
   }
@@ -111,7 +121,10 @@ export async function calculateAndSaveScore(userId: string, consultationId?: str
     supabase.from('body_measurements').select('*').eq('user_id', userId)
       .not('weight_kg', 'is', null)
       .order('measured_at', { ascending: false }).limit(1),
-    supabase.from('client_profiles').select('*').eq('user_id', userId).single(),
+    // maybeSingle: sin fila es { data: null, error: null } (ausencia); con
+    // .single() la ausencia llegaba como error PGRST116 y no se distinguía de
+    // una RLS que niega. Regla 7: "no se pudo leer" no es "no hay".
+    supabase.from('client_profiles').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('health_measurements')
       .select('weight_kg, body_fat_pct, muscle_mass_kg, visceral_fat, date')
       .eq('user_id', userId)
@@ -141,7 +154,18 @@ export async function calculateAndSaveScore(userId: string, consultationId?: str
 
   if (!labs) throw new Error('No se encontraron resultados de laboratorio. Sube un estudio primero.');
 
-  const sex: Sex = (profile?.biological_sex === 'female') ? 'female' : 'male';
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): antes `=== 'female' ? 'female' : 'male'`
+  // calculaba (y GUARDABA en health_scores) el score de un cliente sin sexo
+  // como hombre. Sin sexo no se calcula: se dice y el coach lo completa.
+  // Regla 7: supabase-js no lanza en 4xx/RLS; un perfil ILEGIBLE se decía
+  // como "falta el sexo" y mandaba al coach a capturar un dato que quizá ya está.
+  if (profileRes.error) {
+    logWarn('[health-score] client_profiles query failed:', profileRes.error.message);
+    throw new Error(AVISO_SCORE_PERFIL_ILEGIBLE);
+  }
+  const sexoPerfil = sexoDePerfil(profile?.biological_sex);
+  if (sexoPerfil === null) throw new Error(AVISO_SCORE_SIN_SEXO);
+  const sex: Sex = sexoPerfil;
   const dob = profile?.date_of_birth;
   const chronAge = dob ? Math.floor((Date.now() - new Date(dob).getTime()) / 31557600000) : 0;
 

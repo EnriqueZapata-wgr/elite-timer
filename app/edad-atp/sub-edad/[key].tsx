@@ -23,6 +23,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
+import { ACCION_COMPLETAR_PERFIL, RUTA_PERFIL } from '@/src/services/salud/sexo-core';
 import { saveHealthMeasurement, saveQuestionnaireResponses } from '@/src/services/edad-atp/capture-service';
 import type { EdadAtpV2Result, SubEdadComponent, SubEdadKey, SubEdadResult } from '@/src/types/edad-atp-v2';
 import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
@@ -80,6 +81,8 @@ export default function SubEdadDrillDown() {
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [result, setResult] = useState<EdadAtpV2Result | null>(null);
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo no hay sub-edad; se dice.
+  const [avisoSexo, setAvisoSexo] = useState<string | null>(null);
   const [editor, setEditor] = useState<EditorState>(null);
   const [editorVal, setEditorVal] = useState('');
   const [subjVals, setSubjVals] = useState<{ claridad: string; energia: string; memoria: string }>({ claridad: '', energia: '', memoria: '' });
@@ -91,7 +94,9 @@ export default function SubEdadDrillDown() {
 
   const refresh = useCallback(() => {
     if (!user?.id) return;
-    computeEdadAtpV2(user.id).then(setResult).catch(() => {});
+    computeEdadAtpV2(user.id)
+      .then((s) => { setResult(s.faltaSexo ? null : s.resultado); setAvisoSexo(s.faltaSexo ? s.aviso : null); })
+      .catch(() => {});
   }, [user?.id]);
 
   useFocusEffect(useCallback(() => {
@@ -169,7 +174,15 @@ export default function SubEdadDrillDown() {
       <StatusBar style={kind === 'light' ? 'dark' : 'light'} />
       <PillarHeader pillar="metrics" title={meta.label} />
       <ScrollView contentContainerStyle={styles.content}>
-        {!sub ? (
+        {avisoSexo ? (
+          <View style={styles.actionCard}>
+            <EliteText variant="body" style={styles.actionTitle}>Falta un dato de tu perfil</EliteText>
+            <EliteText variant="caption" style={styles.actionText}>{avisoSexo}. Sin ese dato no se calcula: no se asume.</EliteText>
+            <Pressable onPress={() => { haptic.medium(); router.push(RUTA_PERFIL); }} style={styles.actionBtn} accessibilityRole="button">
+              <EliteText variant="body" style={styles.actionBtnText}>{ACCION_COMPLETAR_PERFIL}</EliteText>
+            </Pressable>
+          </View>
+        ) : !sub ? (
           <EliteText variant="caption" style={styles.calc}>Calculando…</EliteText>
         ) : (
           <>

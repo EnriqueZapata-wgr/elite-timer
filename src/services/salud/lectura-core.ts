@@ -31,6 +31,7 @@ import { score9Bands } from '@/src/services/edad-atp/sf-9band-service';
 import { aUnidadDeMatriz } from '@/src/constants/lab-unidades-core';
 import { getLabParamMeta } from '@/src/components/edad-atp/component-meta';
 import type { Sex } from '@/src/types/edad-atp-v2';
+import { AVISO_FALTA_SEXO_RANGOS, AVISO_PERFIL_ILEGIBLE, RUTA_PERFIL, ACCION_COMPLETAR_PERFIL } from '@/src/services/salud/sexo-core';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrada
@@ -78,7 +79,14 @@ export interface EdadInput {
 }
 
 export interface LecturaSnapshot {
-  sexo: Sex;
+  /**
+   * 2026-09-21 (SEXO NUNCA ASUMIDO): null cuando el perfil no tiene sexo. Con
+   * null ninguna señal se lee contra la matriz (todo queda fuera) y la lectura
+   * lo declara como faltante con salida al perfil. Antes null caía a hombre.
+   */
+  sexo: Sex | null;
+  /** true cuando el perfil no se pudo leer (regla 7: no es lo mismo que no tener sexo). */
+  sexoIlegible: boolean;
   /** Último valor por parámetro, clave canónica de la matriz. */
   labs: Record<string, { value: number; measured_at: string; is_stale?: boolean }>;
   composicion: ComposicionInput | null;
@@ -97,7 +105,9 @@ export interface LecturaSnapshot {
 }
 
 export const SNAPSHOT_VACIO: LecturaSnapshot = {
-  sexo: 'male',
+  // 2026-09-21: el vacío no asume hombre. El servicio siempre pisa este campo.
+  sexo: null,
+  sexoIlegible: false,
   labs: {},
   composicion: null,
   quimica: null,
@@ -143,7 +153,7 @@ export function estadoDeScore(score: number): Estado {
  * un rango.
  */
 export function leerParametro(
-  sexo: Sex,
+  sexo: Sex | null,
   key: string,
   value: number,
   fuente: FuenteTag,
@@ -186,7 +196,7 @@ export function leerParametro(
  * de la matriz es PORCENTAJE y la báscula guarda kilos: se deriva con el peso
  * del mismo registro, y si falta el peso no se deriva nada.
  */
-export function señalesDeComposicion(sexo: Sex, comp: ComposicionInput | null): Señal[] {
+export function señalesDeComposicion(sexo: Sex | null, comp: ComposicionInput | null): Señal[] {
   if (!comp) return [];
   const pares: Array<[string, number | null]> = [
     ['grasa_corporal', comp.grasaPct],
@@ -596,6 +606,19 @@ export function faltantesDe(snap: LecturaSnapshot): Faltante[] {
   const out: Faltante[] = [];
   const nLabs = Object.keys(snap.labs ?? {}).length;
 
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): va primero porque sin él nada de lo demás
+  // se lee contra una ventana. Regla 7: si el perfil no se pudo leer, se dice
+  // eso y no "te falta el sexo".
+  if (snap.sexo === null) {
+    out.push({
+      key: 'sexo',
+      titulo: snap.sexoIlegible ? AVISO_PERFIL_ILEGIBLE : AVISO_FALTA_SEXO_RANGOS,
+      porque: 'La ventana funcional de cada parámetro es distinta por sexo. Sin ese dato ningún valor se califica: no se asume.',
+      accionLabel: ACCION_COMPLETAR_PERFIL,
+      route: RUTA_PERFIL,
+    });
+  }
+
   if (nLabs === 0) {
     out.push({
       key: 'labs',
@@ -697,6 +720,16 @@ export function construirSintesis(snap: LecturaSnapshot, cruces: Cruce[]): strin
   const frases: string[] = [];
   const e = snap.edad;
 
+  // 2026-09-21: sin sexo ninguna señal se leyó. Se dice antes de cualquier
+  // otra frase, para que "no aparece ningún cruce" no suene a buena noticia.
+  if (snap.sexo === null) {
+    frases.push(
+      snap.sexoIlegible
+        ? 'No se pudo leer tu perfil, así que ningún valor se comparó contra su ventana funcional. Vuelve a intentar en un momento.'
+        : 'Tu perfil no tiene sexo registrado, así que ningún valor se comparó contra su ventana funcional. Con ese dato la lectura se enciende.',
+    );
+  }
+
   if (e?.porSangre != null && e?.porFisico != null) {
     const dif = e.porFisico - e.porSangre;
     if (Math.abs(dif) >= 2) {
@@ -758,6 +791,8 @@ export interface Lectura {
   completitudLabel: string;
   /** Sin ninguna fuente no hay nada que leer: la pantalla arranca en onboarding. */
   vacia: boolean;
+  /** 2026-09-21: el perfil no tiene sexo; las señales no se calcularon. Ver `faltantes[0]`. */
+  faltaSexo: boolean;
 }
 
 const FUENTES_TOTALES = 6;
@@ -797,5 +832,6 @@ export function construirLectura(snap: LecturaSnapshot): Lectura {
     completitud,
     completitudLabel: etiquetaCompletitud(completitud),
     vacia: completitud === 0,
+    faltaSexo: snap.sexo === null,
   };
 }

@@ -16,6 +16,7 @@ import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getCycleInfo } from '@/src/services/cycle-service';
 import type { Sex } from '@/src/types/edad-atp-v2';
+import { sexoDePerfil } from '@/src/services/salud/sexo-core';
 import type { ResolvedRange } from './report-domain-core';
 import type { MedicionLab } from './labs-report-core';
 
@@ -24,7 +25,14 @@ export const MEDICION_CAP = 4000;
 
 export interface LabsReportData {
   mediciones: MedicionLab[];
-  sexo: Sex;
+  /**
+   * 2026-09-21 (SEXO NUNCA ASUMIDO): null cuando el perfil no tiene sexo. Con
+   * null ninguna medición se califica (todo `sin_banda`) y el reporte lo dice
+   * con salida al perfil. Antes caía a la matriz de hombres.
+   */
+  sexo: Sex | null;
+  /** true cuando el perfil no se pudo leer (regla 7: distinto de no tener sexo). */
+  sexoIlegible: boolean;
   /** Fase del ciclo de HOY, no la del día del estudio. null si no aplica o no se sabe. */
   faseCiclo: string | null;
 }
@@ -57,11 +65,12 @@ export async function loadLabsReport(
   const { data, error } = await q;
   if (error) throw error;
 
-  const [sexo, faseCiclo] = await Promise.all([leerSexo(userId), leerFase(userId)]);
+  const [lecturaSexo, faseCiclo] = await Promise.all([leerSexo(userId), leerFase(userId)]);
 
   return {
     mediciones: (data ?? []) as MedicionLab[],
-    sexo,
+    sexo: lecturaSexo.sexo,
+    sexoIlegible: lecturaSexo.ilegible,
     faseCiclo,
   };
 }
@@ -104,11 +113,13 @@ export async function loadLabsHubSummary(
 }
 
 /**
- * El sexo biológico decide qué matriz de rangos funcionales aplica. Sin dato
- * se cae a 'male', que es lo que ya hace el resto de la app: es un default
- * declarado, no una suposición nueva de este archivo.
+ * El sexo biológico decide qué matriz de rangos funcionales aplica.
+ *
+ * 2026-09-21 (SEXO NUNCA ASUMIDO): antes "sin dato se cae a 'male'". Ya no:
+ * sin dato es null y nada se califica. Sigue siendo fail-soft (el reporte se
+ * queda de pie), pero distingue "no tiene" de "no se pudo leer" (regla 7).
  */
-async function leerSexo(userId: string): Promise<Sex> {
+async function leerSexo(userId: string): Promise<{ sexo: Sex | null; ilegible: boolean }> {
   try {
     const { data, error } = await supabase
       .from('client_profiles')
@@ -116,10 +127,10 @@ async function leerSexo(userId: string): Promise<Sex> {
       .eq('user_id', userId)
       .maybeSingle();
     if (error) throw error;
-    return data?.biological_sex === 'female' ? 'female' : 'male';
+    return { sexo: sexoDePerfil((data as { biological_sex?: unknown } | null)?.biological_sex), ilegible: false };
   } catch (e) {
     logWarn('[reports] sexo biológico no disponible para labs', e);
-    return 'male';
+    return { sexo: null, ilegible: true };
   }
 }
 

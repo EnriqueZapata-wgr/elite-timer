@@ -1,33 +1,42 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Estado mutable de tablas (hoisted para que el factory de vi.mock lo vea).
-const state = vi.hoisted(() => ({ tables: {} as Record<string, any[]> }));
+const state = vi.hoisted(() => ({
+  tables: {} as Record<string, any[]>,
+  // Regla 7: una tabla listada aquí responde { data: null, error } SIN lanzar,
+  // como hace supabase-js con un 400 o una RLS que niega.
+  errores: {} as Record<string, { message: string }>,
+}));
 
 // Mock de supabase: from(table) → query chainable thenable que resuelve { data, error }.
 // Los filtros .eq() se ignoran (devuelve todas las filas de la tabla); is_voided lo maneja
 // el dedupe de lab-values-service, así que basta con poblar las tablas.
 vi.mock('@/src/lib/supabase', () => {
-  const makeQuery = (rows: any[]) => {
+  const makeQuery = (table: string) => {
     const q: any = {
       select: () => q, eq: () => q, order: () => q, limit: () => q, like: () => q, not: () => q,
       insert: () => q, update: () => q, upsert: () => q,
-      then: (resolve: any) => resolve({ data: rows, error: null }),
+      then: (resolve: any) => resolve(
+        state.errores[table]
+          ? { data: null, error: state.errores[table] }
+          : { data: state.tables[table] ?? [], error: null },
+      ),
     };
     return q;
   };
-  return { supabase: { from: (t: string) => makeQuery(state.tables[t] ?? []) } };
+  return { supabase: { from: (t: string) => makeQuery(t) } };
 });
 vi.mock('@/src/lib/logger', () => ({ warn: vi.fn(), error: vi.fn(), log: vi.fn() }));
 
 import { loadUserData } from '../edad-atp-v2-service';
 
-beforeEach(() => { state.tables = {}; });
+beforeEach(() => { state.tables = {}; state.errores = {}; });
 
 // Helper: fila de lab_values canónica.
 const lv = (parameter_key: string, value: number, measured_at = '2026-03-01', source = 'lab_pdf') =>
   ({ parameter_key, value, measured_at, source, is_voided: false });
 
-describe('loadUserData — lectura desde la fuente única lab_values', () => {
+describe('loadUserData: lectura desde la fuente única lab_values', () => {
   it('solo lab_values → mapea sus campos vía bridge PhenoAge, el resto undefined', async () => {
     state.tables.lab_values = [
       lv('glucosa_en_ayuno', 92), lv('hba1c', 0.054), lv('colesterol_hdl', 55),
@@ -108,10 +117,47 @@ describe('loadUserData — lectura desde la fuente única lab_values', () => {
     expect(d.data_sources_used).not.toContain('lab_results');
   });
 
-  it('sin datos → defaults (edad 40, sexo male) y data_sources vacío', async () => {
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): antes este test fijaba el default a
+  // hombre (`expect(d.sex).toBe('male')`). Se cambia porque el sexo de una
+  // persona no se asume: sin perfil es null y `faltaSexo` lo dice.
+  it('sin datos → edad default 40, sexo NULL (nunca hombre) y data_sources vacío', async () => {
     const d = await loadUserData('u1');
     expect(d.chronological_age).toBe(40);
-    expect(d.sex).toBe('male');
+    expect(d.sex).toBeNull();
+    expect(d.faltaSexo).toBe(true);
+    expect(d.perfil_legible).toBe(false);
     expect(d.data_sources_used).toEqual([]);
+  });
+
+  // Regla 7 ("no se pudo leer" no es "no hay"): supabase-js devuelve
+  // { data: null, error } sin lanzar; antes eso se presentaba como "falta tu
+  // sexo" con salida a /profile en vez de "no se pudo leer, reintenta".
+  it('2026-09-21: client_profiles responde con error (RLS/400) → lectura_fallo true, sex null, perfil_legible false', async () => {
+    state.errores.client_profiles = { message: 'permission denied for table client_profiles' };
+    const d = await loadUserData('u1');
+    expect(d.lectura_fallo).toBe(true);
+    expect(d.perfil_legible).toBe(false);
+    expect(d.sex).toBeNull();
+    expect(d.faltaSexo).toBe(true);
+  });
+
+  it('2026-09-21: sin error en ninguna lectura → lectura_fallo false (la ausencia sigue siendo ausencia)', async () => {
+    state.tables.client_profiles = [{ date_of_birth: '1990-01-01', biological_sex: null }];
+    const d = await loadUserData('u1');
+    expect(d.lectura_fallo).toBe(false);
+    expect(d.perfil_legible).toBe(true);
+    expect(d.faltaSexo).toBe(true);
+  });
+
+  it('2026-09-21: perfil con sexo vacío o intersex → sex null y faltaSexo true, sin excepción', async () => {
+    state.tables.client_profiles = [{ date_of_birth: '1990-01-01', biological_sex: null }];
+    const a = await loadUserData('u1');
+    expect(a.sex).toBeNull();
+    expect(a.faltaSexo).toBe(true);
+    expect(a.perfil_legible).toBe(true);
+    state.tables.client_profiles = [{ date_of_birth: '1990-01-01', biological_sex: 'intersex' }];
+    const b = await loadUserData('u1');
+    expect(b.sex).toBeNull();
+    expect(b.faltaSexo).toBe(true);
   });
 });

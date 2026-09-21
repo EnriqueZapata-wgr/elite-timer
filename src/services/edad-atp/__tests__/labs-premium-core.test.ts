@@ -18,6 +18,7 @@ import {
   resumirPanel,
   type EstadoLab,
 } from '../labs-premium-core';
+import { findMatrizParam, findMatrizDomain } from '@/src/constants/edad-atp-matriz-lookup';
 
 const p = (value: number | null, measured_at: string) => ({ value, measured_at });
 
@@ -54,6 +55,17 @@ describe('el conteo no se infla', () => {
   it('un parámetro que la matriz no conoce nunca se califica', () => {
     const e: EstadoLab = estadoDeParametro('male', 'no_existe_en_la_matriz', 10);
     expect(e).toBe('sin_banda');
+  });
+
+  it('2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo no se califica nada, ni con hombre por defecto', () => {
+    // Con sexo la glucosa sí tiene banda; sin sexo el mismo valor es sin_banda
+    // y no lanza. Antes null caía a la matriz de hombres en silencio.
+    expect(estadoDeParametro('male', 'glucosa_en_ayuno', 85)).not.toBe('sin_banda');
+    expect(estadoDeParametro(null, 'glucosa_en_ayuno', 85)).toBe('sin_banda');
+    expect(estadoDeParametro(null, 'glucosa_en_ayuno', 400)).toBe('sin_banda');
+    expect(findMatrizParam(null, 'glucosa_en_ayuno')).toBeUndefined();
+    expect(findMatrizDomain(null, 'glucosa_en_ayuno')).toBeUndefined();
+    expect(findMatrizParam('female', 'glucosa_en_ayuno')).toBeDefined();
   });
 });
 

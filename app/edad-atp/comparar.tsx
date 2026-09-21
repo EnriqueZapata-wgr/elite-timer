@@ -46,6 +46,9 @@ import {
   type SeriesPorMarcador, type FilaComparacion, type Flecha,
 } from '@/src/services/edad-atp/comparar-core';
 import type { Sex } from '@/src/types/edad-atp-v2';
+import {
+  AVISO_FALTA_SEXO_RANGOS, AVISO_PERFIL_ILEGIBLE, RUTA_PERFIL, accionDeAviso,
+} from '@/src/services/salud/sexo-core';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
 
@@ -55,7 +58,8 @@ const CANDADO_KEY = 'comparar';
 type Carga =
   | { estado: 'cargando' }
   | { estado: 'error' }
-  | { estado: 'listo'; sex: Sex; series: SeriesPorMarcador; fechas: string[] };
+  /** 2026-09-21: `sex` null = el perfil no lo tiene; se compara sin juicio y se dice. */
+  | { estado: 'listo'; sex: Sex | null; avisoSexo: string | null; series: SeriesPorMarcador; fechas: string[] };
 
 /** DD/MM/AAAA desde YYYY-MM-DD, para los chips. */
 function fechaCorta(iso: string): string {
@@ -125,7 +129,13 @@ function CompararScreen() {
         const [data, series] = await Promise.all([loadUserData(user.id), loadAllSeriesEstricto(user.id)]);
         if (!alive) return;
         const fechas = fechasDeEstudio(series);
-        setCarga({ estado: 'listo', sex: data.sex, series, fechas });
+        setCarga({
+          estado: 'listo',
+          sex: data.sex,
+          avisoSexo: data.faltaSexo ? (data.lectura_fallo ? AVISO_PERFIL_ILEGIBLE : AVISO_FALTA_SEXO_RANGOS) : null,
+          series,
+          fechas,
+        });
         const def = fechasPorDefecto(fechas);
         setFechaA((prev) => (prev && fechas.includes(prev) ? prev : def?.a ?? null));
         setFechaB((prev) => (prev && fechas.includes(prev) ? prev : def?.b ?? null));
@@ -246,6 +256,31 @@ function CompararScreen() {
           </View>
         ) : (
           <>
+            {carga.avisoSexo ? (() => {
+              // Regla 7: perfil ilegible → Reintentar (relanza la lectura);
+              // falta el sexo de verdad → Completar mi perfil.
+              const accion = accionDeAviso(carga.avisoSexo);
+              return (
+                <View style={styles.avisoBox}>
+                  <EliteText variant="body" style={styles.avisoTitulo}>{carga.avisoSexo}</EliteText>
+                  <EliteText variant="caption" style={styles.avisoTexto}>
+                    Sin ese dato se muestran los cambios, pero no si se acercaron o alejaron de tu ventana: no se asume.
+                  </EliteText>
+                  <Pressable
+                    style={styles.cta}
+                    onPress={() => {
+                      haptic.medium();
+                      if (accion.reintentar) setIntento((n) => n + 1);
+                      else router.push(RUTA_PERFIL);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={accion.label}
+                  >
+                    <EliteText style={styles.ctaText}>{accion.label}</EliteText>
+                  </Pressable>
+                </View>
+              );
+            })() : null}
             <View style={styles.selectorBox}>
               <EliteText variant="caption" style={styles.selectorLabel}>ESTUDIO A (antes)</EliteText>
               {renderChips(fechaA, (f) => elegir('a', f), carga.fechas)}

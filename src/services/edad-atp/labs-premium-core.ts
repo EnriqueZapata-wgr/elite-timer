@@ -54,7 +54,9 @@ export const ESTADO_LABEL: Record<EstadoLab, string> = {
  * ventana ANTES de puntuarlo. La conversión mira la magnitud, así que un valor
  * que ya venía en unidad de matriz pasa de largo.
  */
-export function estadoDeParametro(sex: Sex, key: string, value: number): EstadoLab {
+export function estadoDeParametro(sex: Sex | null, key: string, value: number): EstadoLab {
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): con sexo null findMatrizParam no elige
+  // matriz y todo queda `sin_banda`. Nadie cae en atención por un rango ajeno.
   const p = findMatrizParam(sex, key);
   if (!p) return 'sin_banda';
   const s = score9Bands(aUnidadDeMatriz(key, value), p.bandLimits);

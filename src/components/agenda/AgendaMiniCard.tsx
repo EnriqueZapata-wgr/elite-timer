@@ -138,6 +138,15 @@ export function AgendaMiniCard({ event, onTap, compact, seedKey }: Props) {
             >
               {event.name}
             </EliteText>
+            {/* 21-sep-2026 (AGENDA DEL DÍA UNO ELITE): la toma del plan del coach
+                se distingue de las propias. Etiqueta, no color: el semáforo
+                sigue siendo del estado. */}
+            {event.asignadoPor ? (
+              <View style={styles.statusRow}>
+                <AppIcon name="suplementos" size={11} color={ATP_BRAND.lime} />
+                <EliteText style={[styles.statusText, styles.statusCoach]} numberOfLines={1}>{event.asignadoPor}</EliteText>
+              </View>
+            ) : null}
             {snoozed ? (
               <View style={styles.statusRow}>
                 <Ionicons name="time-outline" size={12} color="#fbbf24" />
@@ -195,6 +204,8 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statusText: { color: 'rgba(255,255,255,0.55)', fontFamily: Fonts.regular, fontSize: FontSizes.xs },
   statusSnoozed: { color: '#fbbf24' },
+  // Lima como letra: la card es editorial oscura en ambos temas (ver MB-31B arriba).
+  statusCoach: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold },
   time: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.display, letterSpacing: 1 },
   timeCompact: { fontSize: FontSizes.lg, letterSpacing: 0.5 },
 });

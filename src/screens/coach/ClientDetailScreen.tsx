@@ -3,7 +3,7 @@
  *
  * Header + stats + 4 tabs: Calendario, Rutinas, Progreso, Historial.
  */
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, Modal, Alert, useWindowDimensions } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
@@ -24,7 +24,7 @@ import {
 } from '@/src/services/coach-panel-service';
 import {
   getConditionFlags, toggleConditionFlag, type ConditionFlag,
-  getClientProfile, upsertClientProfile,
+  getClientProfile, leerPerfilCliente, upsertClientProfile,
   getLatestMeasurements, getMeasurementHistory, addMeasurement,
   getMedications, addMedication, toggleMedication,
   getSupplements, addSupplement, toggleSupplement,
@@ -38,6 +38,7 @@ import { getLabHistory, approveLabResult, deleteLabResult, deleteLabUpload, getF
 import { type HealthScore as FHScore } from '@/src/data/functional-health-engine';
 import { rateLabValue, rateBodyValue, rateBioValue, type ValueRating } from '@/src/utils/lab-rating';
 import type { Sex } from '@/src/data/functional-health-engine';
+import { sexoDePerfil } from '@/src/services/salud/sexo-core';
 import { DayCalendar } from '@/src/components/DayCalendar';
 import {
   startConsultation, getConsultations, getConsultation, updateConsultation,
@@ -59,6 +60,15 @@ import {
 import { SectionSaveHeader } from '@/src/components/coach/SectionSaveHeader';
 import { SaveableSection } from '@/src/components/coach/SaveableSection';
 import { userErrorMessage } from '@/src/utils/user-error';
+
+/**
+ * 2026-09-21 (SEXO NUNCA ASUMIDO): copy del coach cuando el perfil del
+ * cliente no tiene sexo. Los rangos no se evalúan (salen "Sin dato") y no se
+ * asume hombre como antes (`?? 'male'` en cuatro sitios de esta pantalla).
+ */
+const AVISO_COACH_SIN_SEXO = 'Sin sexo en el perfil del cliente: los rangos no se evalúan. Captúralo en la ficha del cliente.';
+/** Regla 7: el perfil no se pudo leer. No es lo mismo que no tener sexo. */
+const AVISO_COACH_PERFIL_ILEGIBLE = 'No se pudo leer el perfil del cliente. Vuelve a intentar.';
 
 const TEAL = CATEGORY_COLORS.metrics;
 // MB-31B: textoTenue del oscuro no alcanza contraste en claro para letra
@@ -455,21 +465,34 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
   // Perfil del cliente (objetivos, biomarcadores)
   const [profile, setProfile] = useState<Record<string, any> | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  // Regla 7: true cuando la lectura del perfil FALLÓ (no cuando no hay fila).
+  const [profileIlegible, setProfileIlegible] = useState(false);
   const [healthScore, setHealthScore] = useState<FHScore | null>(null);
   const [scoreLoading, setScoreLoading] = useState(false);
   const [scoreExpanded, setScoreExpanded] = useState(false);
 
-  useEffect(() => {
-    getClientProfile(clientId).then(p => { setProfile(p); setProfileLoaded(true); }).catch(() => setProfileLoaded(true));
-    getLatestScore(clientId).then(setHealthScore).catch(() => {});
+  const loadProfile = useCallback(async () => {
+    const lectura = await leerPerfilCliente(clientId);
+    if (lectura.ok) { setProfile(lectura.profile); setProfileIlegible(false); }
+    else setProfileIlegible(true);
+    setProfileLoaded(true);
   }, [clientId]);
+
+  useEffect(() => {
+    loadProfile();
+    getLatestScore(clientId).then(setHealthScore).catch(() => {});
+  }, [clientId, loadProfile]);
 
   const handleRecalculate = async () => {
     setScoreLoading(true);
     try {
       const s = await calculateAndSaveScore(clientId);
       setHealthScore(s);
-    } catch (err: any) { if (__DEV__) console.error('[calcScore]', err); }
+    } catch (err: any) {
+      if (__DEV__) console.error('[calcScore]', err);
+      // 2026-09-21: el motivo se dice (falta sexo, faltan labs), no se traga.
+      Alert.alert('No se pudo calcular el score', String(err?.message ?? 'Vuelve a intentar en un momento.'));
+    }
     setScoreLoading(false);
   };
 
@@ -569,7 +592,7 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
           />
         </View>
         <View style={isWide ? { flex: 1 } : undefined}>
-          <CollapsibleSection title="Composición y biomarcadores" clientId={clientId} type="measurements" alwaysExpanded sex={(profile?.biological_sex as Sex) ?? 'male'} />
+          <CollapsibleSection title="Composición y biomarcadores" clientId={clientId} type="measurements" alwaysExpanded sex={sexoDePerfil(profile?.biological_sex)} />
           {/* Barra visual de contexto de peso */}
           {profileLoaded && profile?.weight_highest_kg && profile?.weight_lowest_kg && (
             <WeightContextBar
@@ -587,8 +610,15 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
         <View style={isWide ? { flex: 1 } : undefined}>
           <View style={s.profileCard}>
             <EliteText variant="caption" style={s.profileCardLabel}>BIOMARCADORES FÍSICOS</EliteText>
+            {profileLoaded && profileIlegible ? (
+              <Pressable onPress={loadProfile} accessibilityRole="button" accessibilityLabel="Reintentar">
+                <EliteText variant="caption" style={{ color: tenue(t), fontSize: 11, marginBottom: 4 }}>{AVISO_COACH_PERFIL_ILEGIBLE}</EliteText>
+              </Pressable>
+            ) : profileLoaded && sexoDePerfil(profile?.biological_sex) === null ? (
+              <EliteText variant="caption" style={{ color: tenue(t), fontSize: 11, marginBottom: 4 }}>{AVISO_COACH_SIN_SEXO}</EliteText>
+            ) : null}
             {profileLoaded && (() => {
-              const sx = (profile?.biological_sex as Sex) ?? 'male';
+              const sx: Sex | null = sexoDePerfil(profile?.biological_sex);
               const sysR = rateBioValue('blood_pressure_sys', profile?.blood_pressure_sys ? Number(profile.blood_pressure_sys) : null, sx);
               const diaR = rateBioValue('blood_pressure_dia', profile?.blood_pressure_dia ? Number(profile.blood_pressure_dia) : null, sx);
               const bpColor = sysR.level !== 'no_data' ? sysR.color : diaR.level !== 'no_data' ? diaR.color : t.texto;
@@ -791,9 +821,10 @@ const relationColors = (t: AppThemeTokens): Record<string, string> => ({
   'Abuel@': t.textoSecundario, 'Otro': tenue(t),
 });
 
-function CollapsibleSection({ title, clientId, type, alwaysExpanded, sex }: {
+function CollapsibleSection({ title, clientId, type, alwaysExpanded, sex = null }: {
   title: string; clientId: string; type: 'measurements' | 'medications' | 'supplements' | 'family';
-  alwaysExpanded?: boolean; sex?: Sex;
+  /** null = el perfil no tiene sexo: los rangos no se evalúan (nunca hombre por defecto). */
+  alwaysExpanded?: boolean; sex?: Sex | null;
 }) {
   const t = useSurfaceTokens();
   const s = useMemo(() => makeStyles(t), [t]);
@@ -860,6 +891,9 @@ function CollapsibleSection({ title, clientId, type, alwaysExpanded, sex }: {
           {loading ? <ActivityIndicator color={TEAL} size="small" /> : (
             <>
               {/* MEASUREMENTS */}
+              {type === 'measurements' && latest && sex === null ? (
+                <EliteText variant="caption" style={{ color: tenue(t), fontSize: 11, marginBottom: 4 }}>{AVISO_COACH_SIN_SEXO}</EliteText>
+              ) : null}
               {type === 'measurements' && (
                 latest ? (
                   <View style={s.measGrid}>
@@ -881,7 +915,7 @@ function CollapsibleSection({ title, clientId, type, alwaysExpanded, sex }: {
                       { l: 'Edad metab.', v: latest.metabolic_age_impedance, k: '' },
                     ].filter(m => m.v != null).map(m => {
                       const bioKeys = ['grip_strength_kg', 'blood_pressure_sys', 'blood_pressure_dia', 'vo2_max'];
-                      const rating = m.k ? (bioKeys.includes(m.k) ? rateBioValue(m.k, Number(m.v), sex ?? 'male') : rateBodyValue(m.k, Number(m.v), sex ?? 'male')) : null;
+                      const rating = m.k ? (bioKeys.includes(m.k) ? rateBioValue(m.k, Number(m.v), sex) : rateBodyValue(m.k, Number(m.v), sex)) : null;
                       const hasRating = rating && rating.level !== 'no_data';
                       return (
                         <View key={m.l} style={[s.measItem, hasRating ? { backgroundColor: rating.bgColor, borderRadius: 6, paddingHorizontal: 4 } : undefined]}>
@@ -1884,7 +1918,7 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
             </View>
 
             {/* Composición corporal (siempre expandida) */}
-            <CollapsibleSection title="Composición y biomarcadores" clientId={clientId} type="measurements" alwaysExpanded sex={(consultProfile?.biological_sex as Sex) ?? 'male'} />
+            <CollapsibleSection title="Composición y biomarcadores" clientId={clientId} type="measurements" alwaysExpanded sex={sexoDePerfil(consultProfile?.biological_sex)} />
 
             {/* Contexto de peso — con guardado explícito */}
             {isDraft && consultProfile && (
@@ -2000,14 +2034,27 @@ function LabsTab({ clientId }: { clientId: string }) {
   const [expandedLab, setExpandedLab] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState<{ text: string; color: string } | null>(null);
-  const [clientSex, setClientSex] = useState<Sex>('male');
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): antes arrancaba en 'male' y así se
+  // pintaban los labs mientras cargaba (y para siempre si el perfil no lo
+  // tenía). null = sin rango hasta saber el sexo.
+  const [clientSex, setClientSex] = useState<Sex | null>(null);
+  const [sexoCargado, setSexoCargado] = useState(false);
+  // Regla 7: el perfil no se pudo leer (RLS, red). Distinto de no tener sexo:
+  // el aviso pide reintentar, no capturar un dato que quizá ya está.
+  const [sexoIlegible, setSexoIlegible] = useState(false);
 
   useEffect(() => { loadLabs(); loadSex(); }, [clientId]);
   const loadSex = async () => {
-    try {
-      const p = await getClientProfile(clientId);
-      if (p?.biological_sex) setClientSex(p.biological_sex as Sex);
-    } catch { /* */ }
+    const lectura = await leerPerfilCliente(clientId);
+    if (lectura.ok) {
+      setClientSex(sexoDePerfil(lectura.profile?.biological_sex));
+      setSexoIlegible(false);
+    } else {
+      // Sin sexo legible los rangos quedan sin evaluar, y se dice por qué.
+      setClientSex(null);
+      setSexoIlegible(true);
+    }
+    setSexoCargado(true);
   };
   const loadLabs = async () => {
     setLoading(true);
@@ -2133,6 +2180,15 @@ function LabsTab({ clientId }: { clientId: string }) {
         </View>
       )}
 
+      {!loading && labs.length > 0 && sexoCargado && clientSex === null ? (
+        sexoIlegible ? (
+          <Pressable onPress={() => { loadSex(); }} accessibilityRole="button" accessibilityLabel="Reintentar">
+            <EliteText variant="caption" style={{ color: tenue(t), fontSize: 11, marginBottom: Spacing.xs }}>{AVISO_COACH_PERFIL_ILEGIBLE}</EliteText>
+          </Pressable>
+        ) : (
+          <EliteText variant="caption" style={{ color: tenue(t), fontSize: 11, marginBottom: Spacing.xs }}>{AVISO_COACH_SIN_SEXO}</EliteText>
+        )
+      ) : null}
       {loading ? <ActivityIndicator color={TEAL} /> : labs.length === 0 ? (
         <EliteText variant="caption" style={{ color: tenue(t), textAlign: 'center', padding: Spacing.xl }}>
           Sin resultados de laboratorio

@@ -32,6 +32,8 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 // MB-23 P3: el recordatorio es un aviso por app (app-avisos-service). El
 // maestro y las horas de silencio de Ajustes general mandan sobre él.
 import { getAppAviso, updateAppAviso } from '@/src/services/app-avisos-service';
+import { sexoDePerfil, conGenero } from '@/src/services/salud/sexo-core';
+import type { Sex } from '@/src/types/edad-atp-v2';
 
 // ═══ CONSTANTES ═══
 
@@ -87,7 +89,10 @@ export default function JournalScreen() {
   );
   const [entries, setEntries] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
-  const [userSex, setUserSex] = useState<string>('male');
+  // Ronda de arreglos (SEXO NUNCA ASUMIDO): antes arrancaba en 'male' y el
+  // placeholder salía en masculino a quien no tiene sexo en el perfil. null =
+  // forma neutra ("agradecido/a"); nunca hombre por defecto.
+  const [userSex, setUserSex] = useState<Sex | null>(null);
 
   // Estado de Gratitud
   const [gratPersonal, setGratPersonal] = useState(['', '', '']);
@@ -153,8 +158,8 @@ export default function JournalScreen() {
   useFocusEffect(useCallback(() => {
     if (user?.id) {
       loadEntries();
-      supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).single()
-        .then(({ data }) => { if (data?.biological_sex) setUserSex(data.biological_sex); }, () => {});
+      supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle()
+        .then(({ data }) => { setUserSex(sexoDePerfil(data?.biological_sex)); }, () => { setUserSex(null); });
     }
   }, [user?.id]));
 
@@ -544,16 +549,16 @@ function GratitudeForm({ personal, setPersonal, professional, setProfessional, s
   personal: string[]; setPersonal: (v: string[]) => void;
   professional: string[]; setProfessional: (v: string[]) => void;
   self: string[]; setSelf: (v: string[]) => void;
-  sex?: string;
+  sex?: Sex | null;
 }) {
   const updateArr = (arr: string[], setter: (v: string[]) => void, idx: number, val: string) => {
     const copy = [...arr]; copy[idx] = val; setter(copy);
   };
-  const isFemale = sex === 'female';
+  // Género gramatical del copy por el sexo del perfil; sin sexo, neutro.
   const sections = [
-    { title: 'Personal', data: personal, setter: setPersonal, placeholder: isFemale ? 'Algo por lo que estás agradecida...' : 'Algo por lo que estás agradecido...' },
+    { title: 'Personal', data: personal, setter: setPersonal, placeholder: `Algo por lo que estás ${conGenero(sex, 'agradecido', 'agradecida', 'agradecido/a')}...` },
     { title: 'Profesional', data: professional, setter: setProfessional, placeholder: 'En tu trabajo o proyectos...' },
-    { title: isFemale ? 'A ti misma' : 'A ti mismo', data: self, setter: setSelf, placeholder: 'Algo que te reconoces...' },
+    { title: conGenero(sex, 'A ti mismo', 'A ti misma', 'A ti mismo/a'), data: self, setter: setSelf, placeholder: 'Algo que te reconoces...' },
   ];
   return (
     <View>

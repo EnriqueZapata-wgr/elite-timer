@@ -20,6 +20,9 @@ import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { computeCEFromData, unifiedToCEData, type CEResult } from '@/src/services/edad-atp/ce-service';
 import { loadUserData, countFields, computeEdadAtpV2, type UnifiedUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
+import {
+  AVISO_FALTA_SEXO_EDAD, AVISO_PERFIL_ILEGIBLE, RUTA_PERFIL, accionDeAviso,
+} from '@/src/services/salud/sexo-core';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { CeStars } from '@/src/components/edad-atp/CeStars';
 import { DatosNuevosBadge } from '@/src/components/edad-atp/DatosNuevosBadge';
@@ -69,6 +72,12 @@ export default function EdadAtpHub() {
   const [ce, setCe] = useState<CEResult | null>(null);
   const [data, setData] = useState<UnifiedUserData | null>(null);
   const [edadResult, setEdadResult] = useState<EdadAtpV2Result | null>(null);
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): el copy honesto cuando el perfil no tiene
+  // sexo. Antes el motor corría igual con hombre por defecto.
+  const [avisoSexo, setAvisoSexo] = useState<string | null>(null);
+  // Regla 7: con el perfil ILEGIBLE el botón reintenta la lectura (sube este
+  // contador) en vez de mandar a /profile.
+  const [intento, setIntento] = useState(0);
   const [hasNewData, setHasNewData] = useState(false);
   const prevCeRef = useRef<number | null>(null);
 
@@ -79,6 +88,7 @@ export default function EdadAtpHub() {
       // Una sola lectura unificada alimenta CE + indicadores por card.
       const d = await loadUserData(user.id);
       setData(d);
+      setAvisoSexo(d.faltaSexo ? (d.lectura_fallo ? AVISO_PERFIL_ILEGIBLE : AVISO_FALTA_SEXO_EDAD) : null);
       if (d.data_sources_used.length > 0) {
         analytics.track(ATP_EVENTS.EDAD_ATP_DATA_PREPOPULATED, {
           sources_used: d.data_sources_used,
@@ -93,15 +103,18 @@ export default function EdadAtpHub() {
       }
       prevCeRef.current = r.ce_integral;
       // Estado "result": si hay evaluación suficiente, precalcula la Integral para el hero.
-      if (r.ce_integral >= CALC_THRESHOLD) setEdadResult(await computeEdadAtpV2(user.id));
-      else setEdadResult(null);
+      if (r.ce_integral >= CALC_THRESHOLD && !d.faltaSexo) {
+        const salida = await computeEdadAtpV2(user.id);
+        setEdadResult(salida.faltaSexo ? null : salida.resultado);
+        if (salida.faltaSexo) setAvisoSexo(salida.aviso);
+      } else setEdadResult(null);
       // Badge de datos nuevos (#16): el snapshot actual vs el hash del último cálculo.
       try {
         const [entries, last] = await Promise.all([loadDatasetEntries(user.id), getLastCalc(user.id)]);
         setHasNewData(recalcStatus(computeDatasetHash(entries), last).hasNewData && last != null);
       } catch { /* badge es best-effort */ }
     })();
-  }, [user?.id]));
+  }, [user?.id, intento]));
 
   const ceValue = ce?.ce_integral ?? 0;
 
@@ -172,6 +185,10 @@ export default function EdadAtpHub() {
                     cronológica {edadResult.chronological_age} · toca para ver el detalle
                   </EliteText>
                 </>
+              ) : avisoSexo ? (
+                <EliteText variant="caption" style={styles.heroSub}>
+                  {avisoSexo}. Sin ese dato no se calcula: no se asume.
+                </EliteText>
               ) : (
                 <EliteText variant="caption" style={styles.heroSub}>
                   Aún sin calcular: completa tu evaluación abajo y el número aparece aquí.
@@ -233,7 +250,28 @@ export default function EdadAtpHub() {
           );
         })}
 
-        {ceValue >= CALC_THRESHOLD ? (
+        {avisoSexo ? (() => {
+          const accion = accionDeAviso(avisoSexo);
+          return (
+            <>
+              <EliteText variant="caption" style={styles.needMore}>{avisoSexo}.</EliteText>
+              <AnimatedPressable
+                onPress={() => {
+                  haptic.medium();
+                  if (accion.reintentar) setIntento((n) => n + 1);
+                  else router.push(RUTA_PERFIL);
+                }}
+                style={styles.guideBtn}
+                accessibilityRole="button"
+                accessibilityLabel={accion.label}
+              >
+                <Ionicons name={accion.reintentar ? 'refresh-outline' : 'person-outline'} size={16} color={t.textoSecundario} />
+                <EliteText variant="caption" style={styles.guideBtnText}>{accion.label}</EliteText>
+                <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} />
+              </AnimatedPressable>
+            </>
+          );
+        })() : ceValue >= CALC_THRESHOLD ? (
           <GradientCTA
             label={edadResult ? 'RECALCULAR MI EDAD' : 'CALCULAR MI EDAD'}
             onPress={() => { haptic.success(); router.push('/edad-atp/result-preview'); }}

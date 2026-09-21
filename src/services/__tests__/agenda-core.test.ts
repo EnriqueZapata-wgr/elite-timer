@@ -116,3 +116,76 @@ describe('snoozeNotifyAtISO (4EP G2): posponer siempre re-arma el aviso', () => 
     expect(snoozeNotifyAtISO('nada', 15, now)).toBeNull();
   });
 });
+
+// 21-sep-2026 · AGENDA DEL DÍA UNO ELITE: tomas del plan de Enrique.
+
+import {
+  tomasConHora, etiquetaPlanCoach, nombreBaseDeToma, indiceOrigenTomas, claveDeToma, HORA_POR_TOMA,
+} from '@/src/services/agenda-core';
+
+describe('tomas de suplemento con hora (21-sep-2026)', () => {
+  it('sin dose_times, una toma en su timing con la hora de la tabla', () => {
+    expect(tomasConHora({ name: 'Magnesio', timing: 'evening' })).toEqual([
+      { name: 'Magnesio · noche', time: '21:00', label: 'noche' },
+    ]);
+    expect(tomasConHora({ name: 'Omega 3', timing: 'with_food' })[0].time).toBe(HORA_POR_TOMA['comida']);
+  });
+  it('dose_times manda: etiquetas y horas libres, una por toma', () => {
+    const t = tomasConHora({ name: 'Creatina', timing: 'morning', dose_times: ['mañana', '16:30'] });
+    expect(t.map((x) => x.time)).toEqual(['08:00', '16:30']);
+    expect(t[1].name).toBe('Creatina · toma');
+  });
+  it('timing NULL (plan del coach sin momento) NO cae a 08:00: se omite', () => {
+    expect(tomasConHora({ name: 'Vitamina D', timing: null })).toEqual([]);
+    expect(tomasConHora({ name: 'Vitamina D', timing: 'cuando_sea' })).toEqual([]);
+    expect(tomasConHora({ name: 'Zinc', timing: null, dose_times: ['a la hora que sea'] })).toEqual([]);
+  });
+  it('sin nombre no hay toma', () => {
+    expect(tomasConHora({ name: '', timing: 'morning' })).toEqual([]);
+  });
+});
+
+describe('etiqueta "Plan de Enrique" (por la fila que originó la toma, no por nombre)', () => {
+  const fichas = [
+    { id: 'c1', name: 'Magnesio (glicinato)', timing: 'evening', source: 'coach', is_plan: true },
+    { id: 'c2', name: 'Omega 3', timing: 'morning', dose_times: ['16:30'], source: 'coach', is_plan: true },
+    { id: 'p1', name: 'Creatina', timing: 'morning', source: 'manual', is_plan: true },
+  ];
+  const origen = indiceOrigenTomas(fichas);
+  it('la toma de una ficha del coach lleva la etiqueta; las demás no', () => {
+    expect(etiquetaPlanCoach({ name: 'Magnesio (glicinato) · noche', time: '21:00' }, origen, 'Enrique')).toBe('Plan de Enrique');
+    expect(etiquetaPlanCoach({ name: 'Omega 3 · toma', time: '16:30' }, origen, 'Enrique')).toBe('Plan de Enrique');
+    expect(etiquetaPlanCoach({ name: 'Creatina · mañana', time: '08:00' }, origen, 'Enrique')).toBeNull();
+    expect(etiquetaPlanCoach({ name: 'Despertar', time: '06:30' }, origen, 'Enrique')).toBeNull();
+  });
+  it('una ficha PROPIA con el mismo nombre que una del coach no sale como "Plan de Enrique"', () => {
+    // Antes se etiquetaba por nombre base: la creatina propia salía como del
+    // coach solo por llamarse igual que una ficha del coach.
+    const o = indiceOrigenTomas([
+      { id: 'c9', name: 'Creatina', timing: 'evening', source: 'coach', is_plan: true },
+      { id: 'p9', name: 'Creatina', timing: 'morning', source: 'manual', is_plan: true },
+    ]);
+    expect(etiquetaPlanCoach({ name: 'Creatina · noche', time: '21:00' }, o, 'Enrique')).toBe('Plan de Enrique');
+    expect(etiquetaPlanCoach({ name: 'Creatina · mañana', time: '08:00' }, o, 'Enrique')).toBeNull();
+  });
+  it('misma toma desde las dos fichas (coach y propia) es ambigua: no se inventa', () => {
+    const o = indiceOrigenTomas([
+      { id: 'c9', name: 'Zinc', timing: 'evening', source: 'coach', is_plan: true },
+      { id: 'p9', name: 'Zinc', timing: 'evening', source: 'manual', is_plan: true },
+    ]);
+    expect(o.get(claveDeToma('Zinc · noche', '21:00'))).toEqual({ deCoach: true, propia: true });
+    expect(etiquetaPlanCoach({ name: 'Zinc · noche', time: '21:00' }, o, 'Enrique')).toBeNull();
+  });
+  it('las eventuales (is_plan false) y las fichas sin hora no entran al índice; la clave normaliza hora y nombre', () => {
+    const o = indiceOrigenTomas([
+      { id: 'e1', name: 'Vitamina C', timing: 'morning', source: 'coach', is_plan: false },
+      { id: 'c2', name: 'Vitamina D', timing: null, source: 'coach', is_plan: true },
+    ]);
+    expect(o.size).toBe(0);
+    expect(claveDeToma('  Omega 3 · Noche ', '21:00:00')).toBe(claveDeToma('omega 3 · noche', '21:00'));
+  });
+  it('nombre base: sin etiqueta de toma, en minúsculas', () => {
+    expect(nombreBaseDeToma('Omega 3 · noche')).toBe('omega 3');
+    expect(nombreBaseDeToma('  Zinc ')).toBe('zinc');
+  });
+});

@@ -17,6 +17,7 @@
  */
 import type { MotorV2Input } from '@/src/types/motor-edad-atp-v2';
 import type { UnifiedUserData } from './edad-atp-v2-service';
+import { exigirSexo } from '@/src/services/salud/sexo-core';
 
 type PV = Record<string, number>;
 
@@ -35,7 +36,9 @@ function asPct(v: number | undefined): number | undefined {
 export function buildMotorV2Input(data: UnifiedUserData, pv: PV): MotorV2Input {
   return {
     chronological_age: data.chronological_age,
-    sex: data.sex,
+    // 2026-09-21: el motor exige sexo y nunca se asume; el orquestador
+    // intercepta el null antes (computeEdadAtpV2 → faltaSexo).
+    sex: exigirSexo(data.sex, 'buildMotorV2Input'),
     // Labs PhenoAge (de UnifiedUserData, ya unificado de lab_results/uploads/biomarkers).
     albumin_g_dl: data.albumin_g_dl,
     creatinine_mg_dl: data.creatinine_mg_dl,

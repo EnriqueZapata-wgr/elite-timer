@@ -42,7 +42,18 @@ export type HabitosResult = {
   components: Record<string, AreaComponent>;
 };
 
-export function computeHabitosModulador(input: MotorV2Input): HabitosResult {
+/**
+ * Solo los siete hábitos: este modulador NO usa sexo ni edad. Se declara así
+ * (2026-09-21, SEXO NUNCA ASUMIDO) para que quien solo tiene hábitos, como la
+ * estimación inicial, no tenga que inventar un sexo para llamarlo.
+ * `MotorV2Input` sigue siendo asignable: es un superconjunto.
+ */
+export type HabitosInput = Pick<
+  MotorV2Input,
+  'ayuno_if_h' | 'ejercicio_h_sem' | 'pasos' | 'tabaquismo_cig' | 'alcohol_mes' | 'sueno_h' | 'consistencia_sueno_min'
+>;
+
+export function computeHabitosModulador(input: HabitosInput): HabitosResult {
   const parts: Array<{ key: string; value: number | undefined; weight: number; score: number | null }> = [
     { key: 'ayuno', value: input.ayuno_if_h, weight: WEIGHTS.ayuno, score: input.ayuno_if_h != null ? scoreAyuno(input.ayuno_if_h) : null },
     { key: 'ejercicio', value: input.ejercicio_h_sem, weight: WEIGHTS.ejercicio, score: input.ejercicio_h_sem != null ? scoreEjercicio(input.ejercicio_h_sem) : null },

@@ -34,6 +34,7 @@ import { loadCanonicalLabValues, bridgeToPhenoAge } from './lab-values-service';
 import { SF_DOMAIN_WEIGHTS } from '@/src/constants/edad-atp-v2-model';
 import { MOTOR_V2_VERSION } from '@/src/constants/edad-atp-motor-v2-config';
 import { SEXO_NO_SE_ADIVINA } from '@/src/constants/flags';
+import { sexoDePerfil, exigirSexo, AVISO_FALTA_SEXO_EDAD, AVISO_PERFIL_ILEGIBLE } from '@/src/services/salud/sexo-core';
 
 export type EdadAtpV2Inputs = {
   chronological_age: number;
@@ -150,7 +151,9 @@ export function buildInputsFromUnified(data: UnifiedUserData): EdadAtpV2Inputs {
   const n = (v: number | undefined, fallback: number) => (v != null ? v : fallback);
   return {
     chronological_age: age,
-    sex: data.sex,
+    // 2026-09-21: el motor exige sexo; sin él no hay input (el orquestador
+    // intercepta antes con `faltaSexo`). Nunca hombre por defecto.
+    sex: exigirSexo(data.sex, 'buildInputsFromUnified'),
     phenoage_biomarkers: {
       albumin_g_dl: n(data.albumin_g_dl, PHENOAGE_DEFAULTS.albumin),
       creatinine_mg_dl: n(data.creatinine_mg_dl, PHENOAGE_DEFAULTS.creatinine),
@@ -211,9 +214,33 @@ export function buildInputsFromUnified(data: UnifiedUserData): EdadAtpV2Inputs {
  * health_measurements, lab_uploads, edad_atp_*), arma los inputs y guarda el
  * resultado en edad_atp_calculations. (Integración — la matemática se prueba
  * vía computeEdadAtpV2FromInputs.)
+ *
+ * 2026-09-21 (SEXO NUNCA ASUMIDO): devuelve `EdadAtpV2Salida`. Sin sexo en el
+ * perfil NO corre el motor ni persiste: `{ faltaSexo: true, aviso }`, y la
+ * pantalla lo dice con salida a `/profile`.
  */
-export async function computeEdadAtpV2(userId: string): Promise<EdadAtpV2Result> {
+export type EdadAtpV2Salida =
+  | { faltaSexo: false; resultado: EdadAtpV2Result }
+  /**
+   * 2026-09-21 (SEXO NUNCA ASUMIDO): el perfil no tiene sexo (sin fila, NULL
+   * o un valor que la matriz no conoce). NO se calculó nada: antes se asumía
+   * hombre y a una mujer de 28 le sumaba 3.20 años. `aviso` es el copy honesto
+   * y la pantalla manda a `/profile`.
+   */
+  | { faltaSexo: true; resultado: null; aviso: string };
+
+export async function computeEdadAtpV2(userId: string): Promise<EdadAtpV2Salida> {
   const data = await loadUserData(userId);
+  if (data.sex === null) {
+    // Regla 7: "no se pudo leer" no es "no hay". Si la consulta falló, el
+    // aviso pide reintentar; si el perfil existe sin sexo, manda al perfil.
+    logWarn('[edad-atp-v2] sin sexo en el perfil: no se calcula ni se persiste');
+    return {
+      faltaSexo: true,
+      resultado: null,
+      aviso: data.lectura_fallo ? AVISO_PERFIL_ILEGIBLE : AVISO_FALTA_SEXO_EDAD,
+    };
+  }
   const paramValues = await loadAllParamValues(userId, data.sex);
   const motorInput = buildMotorV2Input(data, paramValues);
   const motor = computeMotorV2(motorInput);
@@ -224,7 +251,7 @@ export async function computeEdadAtpV2(userId: string): Promise<EdadAtpV2Result>
     // guarda: una fila mal calculada en el histórico contamina tendencias y
     // señales para siempre, y el dato del usuario no se reescribe.
     logWarn('[edad-atp-v2] perfil ilegible: se calcula pero no se persiste');
-    return result;
+    return { faltaSexo: false, resultado: result };
   }
   try {
     // algoritmo_excel NO se manda: es del motor v1 (matriz V7/V6) y el v2 no lo
@@ -250,7 +277,7 @@ export async function computeEdadAtpV2(userId: string): Promise<EdadAtpV2Result>
   } catch (err) {
     logWarn('[edad-atp-v2] persist calculation failed:', err);
   }
-  return result;
+  return { faltaSexo: false, resultado: result };
 }
 
 // motorResultToView vive en motor-v2-view.ts (módulo puro, testeable sin mock de
@@ -284,13 +311,27 @@ export type DataSource =
 
 export interface UnifiedUserData {
   chronological_age: number;
-  sex: Sex;
+  /**
+   * 2026-09-21 (SEXO NUNCA ASUMIDO): null cuando el perfil no tiene sexo o
+   * no se pudo leer. Con null NINGÚN consumidor calcula por sexo: el motor
+   * no corre (`computeEdadAtpV2` devuelve `faltaSexo`), la matriz no elige
+   * mitad (`findMatrizParam` devuelve undefined) y todo queda "sin rango".
+   */
+  sex: Sex | null;
+  /** `sex === null`, para que la pantalla lo pinte sin repetir la regla. */
+  faltaSexo: boolean;
+  /**
+   * true cuando la consulta unificada falló (red, RLS), ya sea que LANZÓ o
+   * que alguna lectura volvió con `error` (supabase-js no lanza en 4xx): lo
+   * de arriba está vacío por no poderse leer, no por ausencia. Regla 7: el
+   * aviso entonces pide reintentar en vez de mandar a completar el perfil.
+   */
+  lectura_fallo: boolean;
   /**
    * `false` cuando `client_profiles` no se pudo leer, ya sea porque la consulta
-   * falló o porque no hay fila. En ese caso `sex` y `chronological_age` de arriba
-   * NO son del usuario: son el default del orquestador, hombre de 40 años. El
-   * cálculo se hace igual para no dejar la pantalla en blanco, pero un resultado
-   * así no se persiste. Ver la bandera SEXO_NO_SE_ADIVINA.
+   * falló o porque no hay fila. En ese caso `chronological_age` de arriba NO es
+   * del usuario: es el default del orquestador, 40 años (el sexo ya no se
+   * asume: queda null). Un resultado así no se persiste. Ver SEXO_NO_SE_ADIVINA.
    */
   perfil_legible: boolean;
   // PhenoAge biomarkers
@@ -342,7 +383,7 @@ function firstNum(...vals: Array<number | null | undefined>): number | undefined
 
 /** Cuenta los campos de datos efectivamente presentes en UnifiedUserData. */
 export function countFields(data: UnifiedUserData): number {
-  const meta = new Set(['chronological_age', 'sex', 'data_sources_used', 'sf_scores_by_domain']);
+  const meta = new Set(['chronological_age', 'sex', 'faltaSexo', 'lectura_fallo', 'perfil_legible', 'data_sources_used', 'sf_scores_by_domain']);
   const numeric = Object.entries(data).filter(([k, v]) => !meta.has(k) && v != null).length;
   return numeric + Object.keys(data.sf_scores_by_domain ?? {}).length;
 }
@@ -371,6 +412,7 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
   let bioRows: any[] = [], compRow: any = null, qRows: any[] = [], ftRows: any[] = [];
   let canonBridge: Record<string, number> = {};
   let hasCanonLabs = false;
+  let lecturaFallo = false;
   try {
     const [canonMap, pRes, hmRes, bioRes, compRes, qRes, ftRes] = await Promise.all([
       loadCanonicalLabValues(userId),
@@ -386,7 +428,15 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
     // lab_uploads.extracted_data, que se leían con limit(1) y descartaban paneles previos.
     canonBridge = bridgeToPhenoAge(canonMap);
     hasCanonLabs = Object.keys(canonMap).length > 0;
-    profile = (pRes.data ?? [])[0] ?? null;
+    // Regla 7: supabase-js NO lanza en 4xx/RLS, devuelve { data: null, error }.
+    // Sin este check un perfil ilegible se presentaba como "falta tu sexo" con
+    // salida a /profile, cuando lo honesto es "no se pudo leer, reintenta".
+    const errores = [pRes, hmRes, bioRes, compRes, qRes, ftRes].map((r) => r.error).filter(Boolean);
+    if (errores.length > 0) {
+      lecturaFallo = true;
+      logWarn('[edad-atp-v2] loadUserData query returned error:', errores.map((e) => e?.message).join(' | '));
+    }
+    profile = pRes.error ? null : ((pRes.data ?? [])[0] ?? null);
     // Coalesce por columna: el upsert diario por (user_id, date) fragmenta las métricas
     // entre filas — leer solo la última "perdía" VO2/peso de días previos (bug B1/B6).
     hm = coalesceHealthRows((hmRes.data ?? []) as Record<string, any>[]);
@@ -395,6 +445,7 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
     qRows = qRes.data ?? [];
     ftRows = ftRes.data ?? [];
   } catch (err) {
+    lecturaFallo = true;
     logWarn('[edad-atp-v2] loadUserData query failed:', err);
   }
 
@@ -428,18 +479,18 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
   if (qRows.length) data_sources_used.push('edad_atp_questionnaire_responses');
   if (ftRows.length) data_sources_used.push('edad_atp_functional_tests');
 
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): antes esta línea decía
+  // `=== 'female' ? 'female' : 'male'` y cualquier cosa que no fuera
+  // exactamente 'female' (NULL, intersex, o la consulta de arriba fallando y
+  // `profile` en null) caía a hombre en silencio: 3.20 años de más a la
+  // paciente de 28 del Excel. Ahora solo 'male' y 'female' son sexo; el resto
+  // es null y el orquestador NO calcula (devuelve `faltaSexo`).
+  const sex = sexoDePerfil(profile?.biological_sex);
   return {
     chronological_age: ageFromDob(profile?.date_of_birth) ?? DEFAULT_AGE,
-    // Sex type no soporta 'intersex' → mapea a 'male' (default del orquestador).
-    //
-    // OJO CON ESTA LÍNEA: cualquier cosa que no sea exactamente 'female' cae a
-    // hombre en silencio, y eso incluye el caso en que la consulta de arriba
-    // falló y `profile` se quedó en null, porque el catch solo advierte y sigue.
-    // Cuánto cuesta, medido sobre las dos pacientes del Excel: correr el motor
-    // con 'male' en vez de 'female' le suma 3.20 años de Edad ATP a la de 28 y
-    // 1.64 a la de 65. Por eso se marca `perfil_legible` y el orquestador no
-    // guarda un resultado que salió de un perfil que no se pudo leer.
-    sex: profile?.biological_sex === 'female' ? 'female' : 'male',
+    sex,
+    faltaSexo: sex === null,
+    lectura_fallo: lecturaFallo,
     perfil_legible: profile != null,
     // Labs PhenoAge/metabólicos: fuente ÚNICA `lab_values` (canonBridge). Fallback a bio
     // (edad_atp_biomarkers) solo por compat de capturas no-lab previas a la migración.

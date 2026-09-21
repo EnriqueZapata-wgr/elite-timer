@@ -110,9 +110,12 @@ export function rumboDe(
  */
 export function construirHistorias(
   mediciones: readonly MedicionLab[],
-  sexo: Sex,
+  sexo: Sex | null,
   faseCiclo: string | null,
 ): HistoriaLab[] {
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): con sexo null findMatrizParam no elige
+  // matriz: sin ventana, todo `sin_banda`, rumbo sin comparación. Se muestra
+  // la historia (los números son reales) sin calificarla con un sexo ajeno.
   const porKey = new Map<string, MedicionLab[]>();
   for (const m of mediciones) {
     if (!m.parameter_key) continue;

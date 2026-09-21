@@ -88,6 +88,23 @@ describe('historias', () => {
     expect(hM[0].ventana).not.toEqual(hF[0].ventana);
   });
 
+  it('2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo la historia se muestra pero no se califica, y no lanza', () => {
+    const h = construirHistorias(
+      [m('ferritina', 100, '2026-01-01'), m('ferritina', 400, '2026-05-01')],
+      null, null,
+    );
+    expect(h).toHaveLength(1);
+    expect(h[0].ventana).toBeNull();
+    expect(h[0].ultimo.estado).toBe('sin_banda');
+    expect(h[0].anterior?.estado).toBe('sin_banda');
+    expect(h[0].rumbo).toBe('sin_comparacion');
+    // El número sí es real: el delta se conserva, lo que no hay es juicio.
+    expect(h[0].delta).toBe(300);
+    // Y no se coló la ventana de hombres.
+    const hM = construirHistorias([m('ferritina', 400, '2026-05-01')], 'male', null);
+    expect(hM[0].ventana).not.toBeNull();
+  });
+
   it('un valor no numérico no genera fila fantasma', () => {
     const h = construirHistorias(
       [{ parameter_key: 'vitamina_d', value: NaN, measured_at: '2026-05-01', source: 'manual' }],

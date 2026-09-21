@@ -10,6 +10,7 @@ import {
   esProductoAnual,
   estudiosQueCuentan,
   marcadoresAbiertosFree,
+  marcadoresAbiertosFreeSegunSexo,
   puedeSubirEstudio,
   puedeVerFicha,
   tieneMapaFuncional,
@@ -68,6 +69,12 @@ describe('marcadoresAbiertosFree', () => {
   it('es estable: mismo panel en otro orden, mismas llaves', () => {
     const alReves = [...panel].reverse();
     expect(marcadoresAbiertosFree(alReves)).toEqual(marcadoresAbiertosFree(panel));
+  });
+  it('2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo no se ordena por impacto; null abre la ficha', () => {
+    expect(marcadoresAbiertosFreeSegunSexo(null, panel)).toBeNull();
+    expect(marcadoresAbiertosFreeSegunSexo('female', panel)).toEqual(marcadoresAbiertosFree(panel));
+    expect(marcadoresAbiertosFreeSegunSexo('male', panel)).toEqual(marcadoresAbiertosFree(panel));
+    expect(puedeVerFicha('free', 'vldl', marcadoresAbiertosFreeSegunSexo(null, panel), true)).toBe(true);
   });
   it('empate total se resuelve por llave, sin repetir', () => {
     const iguales = [

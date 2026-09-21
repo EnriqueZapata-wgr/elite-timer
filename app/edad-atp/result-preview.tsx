@@ -21,6 +21,7 @@ import { EliteText } from '@/components/elite-text';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useAuth } from '@/src/contexts/auth-context';
 import { computeEdadAtpV2, loadUserData, countFields, type UnifiedUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
+import { ACCION_COMPLETAR_PERFIL, RUTA_PERFIL } from '@/src/services/salud/sexo-core';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { SubEdadConstellation } from '@/src/components/edad-atp/SubEdadConstellation';
@@ -58,7 +59,9 @@ function ddmm(iso: string): string { const [, m, d] = iso.split('-'); return d &
  * El valor se ensena como en ATP Labs (las claves pct en %, dos decimales) y
  * con la unidad de component-meta. Pura, para poder razonarla sin pantalla.
  */
-function marcadoresParaTarjeta(sex: Sex, labs: CanonicalMap): MarcadorTarjeta[] {
+function marcadoresParaTarjeta(sex: Sex | null, labs: CanonicalMap): MarcadorTarjeta[] {
+  // 2026-09-21: sin sexo, estadoDeParametro devuelve sin_banda para todo y la
+  // tarjeta sale sin franja. Nunca se eligen tres con la matriz de hombres.
   // Solo entran los que tienen semaforo: un marcador sin banda en la matriz
   // no se puede pintar en tres estados (regla 4: sin fuente, nada).
   const candidatos: (MarcadorParaImpacto & { valor: number; estado: EstadoSemaforo })[] = [];
@@ -118,6 +121,9 @@ function ResultScreen() {
   const [prevIntegral, setPrevIntegral] = useState<number | null>(null);
   const [confetti, setConfetti] = useState(0);
   const [error, setError] = useState(false);
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo en el perfil no hay número; se
+  // dice y se manda al perfil. Antes se calculaba como hombre.
+  const [avisoSexo, setAvisoSexo] = useState<string | null>(null);
   const [calcState, setCalcState] = useState<'idle' | 'calculating'>('idle');
   const [unchanged, setUnchanged] = useState<{ at: string } | null>(null);
   const [marcadoresTarjeta, setMarcadoresTarjeta] = useState<MarcadorTarjeta[]>([]);
@@ -136,7 +142,14 @@ function ResultScreen() {
       const status = recalcStatus(currentHash, last);
       setUnchanged(status.unchanged && status.lastAt ? { at: status.lastAt } : null);
 
-      const r = await computeEdadAtpV2(user.id);
+      const salida = await computeEdadAtpV2(user.id);
+      if (salida.faltaSexo) {
+        setAvisoSexo(salida.aviso);
+        setResult(null);
+        return;
+      }
+      setAvisoSexo(null);
+      const r = salida.resultado;
       const data = await loadUserData(user.id);
       // Ruta 2.4: la franja de marcadores de la tarjeta. Fail-soft a proposito:
       // loadCanonicalLabValues devuelve {} si no pudo leer, y entonces la
@@ -199,6 +212,18 @@ function ResultScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {error ? (
           <EliteText variant="caption" style={styles.calc}>No se pudo calcular tu Edad ATP. Revisa tu conexión y vuelve a intentar.</EliteText>
+        ) : avisoSexo ? (
+          <>
+            <EliteText variant="caption" style={styles.calc}>{avisoSexo}. Sin ese dato no se calcula: no se asume.</EliteText>
+            <AnimatedPressable
+              onPress={() => router.push(RUTA_PERFIL)}
+              style={styles.backBtn}
+              accessibilityRole="button"
+              accessibilityLabel={ACCION_COMPLETAR_PERFIL}
+            >
+              <EliteText variant="body" style={styles.backText}>{ACCION_COMPLETAR_PERFIL}</EliteText>
+            </AnimatedPressable>
+          </>
         ) : !result ? (
           <EliteText variant="caption" style={styles.calc}>Calculando…</EliteText>
         ) : (

@@ -97,7 +97,7 @@ export async function cargarFicha(userId: string, key: string): Promise<FichaCar
  * no tenga que conocer el registro de unidades.
  */
 function bandLimitsParaGrafica(
-  sexo: Sex,
+  sexo: Sex | null,
   key: string,
   valorMostrado: number,
 ): (number | null)[] | null {

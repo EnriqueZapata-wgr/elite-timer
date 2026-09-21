@@ -30,8 +30,12 @@ import { INTERVENTION_BY_KEY } from '@/src/constants/interventions-catalog';
 import { getMyProtocol, getChronotypeSchedule } from '@/src/services/interventions/intervention-service';
 // 31-ago-2026 (12.1 / 12.3): hora, orden y notify_at salen del núcleo puro
 // con test; aquí solo queda el I/O.
-import { hhmm, notifyAtISO, snoozeNotifyAtISO, sortAgendaInstances, effectiveTimeHHMM } from '@/src/services/agenda-core';
-import { esPlan } from '@/src/services/supplements/adherencia-core';
+import {
+  hhmm, notifyAtISO, snoozeNotifyAtISO, sortAgendaInstances, effectiveTimeHHMM,
+  tomasConHora, etiquetaPlanCoach, claveDeToma, indiceOrigenTomas, type OrigenToma,
+} from '@/src/services/agenda-core';
+import { esPlan, esDelCoach } from '@/src/services/supplements/adherencia-core';
+import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
 
 // 'intervention' (DX F4): eventos volcados desde intervenciones activas (columna
 // source es TEXT sin CHECK — migración 098 — así que no requiere ALTER).
@@ -58,7 +62,29 @@ export interface AgendaEventInstance {
    * plantilla (es lo que edita el formulario).
    */
   effectiveTime: string | null;
+  /**
+   * 21-sep-2026 (AGENDA DEL DÍA UNO ELITE): "Plan de Enrique" cuando la toma
+   * sale de una ficha `source='coach'`. null para todo lo demás. Se resuelve
+   * al leer (la agenda no guarda de quién es la toma).
+   */
+  asignadoPor: string | null;
 }
+
+/**
+ * 21-sep-2026: lo que la pantalla lee del día. Regla 7 de la casa: "no se
+ * pudo leer" (ok:false, reintentar) no es "no hay eventos" (ok:true, []).
+ * Antes getAgendaForDate devolvía [] en los dos casos y la pantalla decía
+ * "Sin eventos hoy" con la red caída, y el sync de notificaciones locales
+ * cancelaba todo lo programado por una lectura fallida.
+ */
+export type LecturaAgendaDia =
+  | {
+      ok: true;
+      eventos: AgendaEventInstance[];
+      /** Tomas del plan del coach que no tienen hora (timing NULL) y por eso no están en la lista. */
+      tomasCoachSinHora: number;
+    }
+  | { ok: false; error: string };
 
 export interface CreateEventInput {
   name: string;
@@ -75,8 +101,10 @@ function scheduledAtISO(date: string, time: string): string {
 }
 
 /** key de dedupe/disabled de un evento de auto-gen: `HH:MM|nombre-min`. */
+// La misma clave vive en agenda-core (claveDeToma) para que el origen de una
+// toma se resuelva con la regla que la creó.
 function eventKey(name: string, time: string): string {
-  return `${hhmm(time)}|${(name ?? '').trim().toLowerCase()}`;
+  return claveDeToma(name, time);
 }
 
 async function getDisabledKeys(userId: string): Promise<Set<string>> {
@@ -195,12 +223,6 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
     // desactivan — un evento editado por el user muta a manual_override y es
     // sagrado. Recordatorios locales: syncAgendaLocalNotifications los recoge.
     try {
-      const DOSE_LABEL_TIME: Record<string, string> = {
-        'mañana': '08:00', 'comida': '14:00', 'tarde': '17:00', 'noche': '21:00',
-      };
-      const TIMING_LABEL: Record<string, string> = {
-        morning: 'mañana', with_food: 'comida', afternoon: 'tarde', evening: 'noche', bedtime: 'noche',
-      };
       const { data: supps, error: suppsErr } = await supabase
         // 312 (M4, 31-ago): select('*') trae is_plan sin romper antes del db push.
         .from('user_supplements').select('*')
@@ -217,14 +239,12 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
         // MB-2 §4: umbral >=1 (antes >=2) — una sola toma con hora custom
         // también manda su HH:MM a la agenda. Legacy intacto: la UI nunca
         // persistió arrays de 1 (1 toma = dose_times NULL → cae al timing).
-        const labels: string[] = Array.isArray(s.dose_times) && s.dose_times.length >= 1
-          ? s.dose_times
-          : [TIMING_LABEL[s.timing] ?? 'mañana'];
-        for (const label of labels) {
-          const time = DOSE_LABEL_TIME[label] ?? (/^\d{1,2}:\d{2}$/.test(label) ? label : '08:00');
-          const name = `${s.name} · ${DOSE_LABEL_TIME[label] ? label : 'toma'}`;
-          desiredSuppKeys.add(eventKey(name, time));
-          pushEvent(name, time, 'suplementos', 'supplement', null, 10);
+        // 21-sep-2026 (AGENDA DEL DÍA UNO ELITE): las tablas y la regla viven
+        // en agenda-core con test. Una toma sin hora conocida (timing NULL del
+        // plan de Enrique) ya NO cae a 08:00: se omite y la pantalla lo dice.
+        for (const toma of tomasConHora(s)) {
+          desiredSuppKeys.add(eventKey(toma.name, toma.time));
+          pushEvent(toma.name, toma.time, 'suplementos', 'supplement', null, 10);
         }
       }
       const staleSupp = ((existing ?? []) as any[]).filter((r) =>
@@ -426,8 +446,39 @@ async function ensureLogsForDate(userId: string, date: string): Promise<void> {
 
 // ═══ LECTURA ═══
 
-/** Instancias de la agenda del día (join logs ↔ events activos), ordenadas por hora. */
-export async function getAgendaForDate(userId: string, date?: string): Promise<AgendaEventInstance[]> {
+/**
+ * 21-sep-2026: las fichas del plan, para etiquetar las tomas del coach y
+ * contar las suyas que no tienen hora. Ronda de arreglos: se leen TODAS las
+ * fichas activas del plan (propias y del coach) y la etiqueta se resuelve por
+ * la fila que originó la toma (indiceOrigenTomas), no por el nombre. Fail-soft:
+ * si no se pudo leer, la lista sale sin etiqueta (no se inventa) y se avisa al log.
+ */
+async function leerPlanCoach(userId: string): Promise<{ origen: Map<string, OrigenToma>; sinHora: number }> {
+  const vacio = { origen: new Map<string, OrigenToma>(), sinHora: 0 };
+  try {
+    const { data, error } = await supabase
+      .from('user_supplements').select('name, timing, dose_times, source, is_plan')
+      .eq('user_id', userId).eq('is_active', true);
+    if (error) { logWarn('[agenda] plan del coach no se pudo leer', error); return vacio; }
+    const fichas = ((data ?? []) as any[]).filter(esPlan);
+    let sinHora = 0;
+    for (const s of fichas.filter(esDelCoach)) {
+      if (!s?.name) continue;
+      if (tomasConHora(s).length === 0) sinHora += 1;
+    }
+    return { origen: indiceOrigenTomas(fichas), sinHora };
+  } catch (e) {
+    logWarn('[agenda] plan del coach no se pudo leer', e);
+    return vacio;
+  }
+}
+
+/**
+ * Instancias de la agenda del día (join logs ↔ events activos), ordenadas por
+ * hora. 21-sep-2026: devuelve `LecturaAgendaDia` (regla 7); `getAgendaForDate`
+ * queda como envoltura para quien solo quiera la lista.
+ */
+export async function leerAgendaDelDia(userId: string, date?: string): Promise<LecturaAgendaDia> {
   const targetDate = date || getLocalToday();
   try {
     // DX F4: intervention_key solo con flag ON (la columna llega en migración
@@ -435,10 +486,15 @@ export async function getAgendaForDate(userId: string, date?: string): Promise<A
     const evCols = INTERVENTIONS_DRIVE_HOY
       ? 'name, time, category, source, notify_minutes_before, is_active, intervention_key'
       : 'name, time, category, source, notify_minutes_before, is_active';
-    const { data: logs } = await supabase
-      .from('agenda_event_logs')
-      .select(`id, event_id, status, scheduled_at, agenda_events(${evCols})`)
-      .eq('user_id', userId).eq('date', targetDate);
+    const [{ data: logs, error }, planCoach] = await Promise.all([
+      supabase
+        .from('agenda_event_logs')
+        .select(`id, event_id, status, scheduled_at, agenda_events(${evCols})`)
+        .eq('user_id', userId).eq('date', targetDate),
+      leerPlanCoach(userId),
+    ]);
+    // Regla 7: supabase no lanza en 4xx; sin este check el error se leía como lista vacía.
+    if (error) throw new Error(error.message);
     const instances: AgendaEventInstance[] = [];
     for (const l of (logs ?? []) as any[]) {
       const ev = l.agenda_events;
@@ -452,14 +508,23 @@ export async function getAgendaForDate(userId: string, date?: string): Promise<A
         notifyMinutesBefore: ev.notify_minutes_before ?? 0, source: ev.source,
         interventionKey: ev.intervention_key ?? null,
         effectiveTime: effectiveTimeHHMM(base),
+        asignadoPor: ev.source === 'supplement'
+          ? etiquetaPlanCoach({ name: ev.name, time: ev.time }, planCoach.origen, NOMBRE_COACH_ELITE)
+          : null,
       });
     }
     // 12.1: hora efectiva ascendente (pospuestos donde cayeron), sin hora al final.
-    return sortAgendaInstances(instances);
+    return { ok: true, eventos: sortAgendaInstances(instances), tomasCoachSinHora: planCoach.sinHora };
   } catch (e) {
-    logWarn('[agenda] getAgendaForDate failed', e);
-    return [];
+    logWarn('[agenda] leerAgendaDelDia failed', e);
+    return { ok: false, error: 'No se pudieron leer tus eventos de hoy.' };
   }
+}
+
+/** La lista sola; [] también cuando no se pudo leer (usar leerAgendaDelDia para distinguirlo). */
+export async function getAgendaForDate(userId: string, date?: string): Promise<AgendaEventInstance[]> {
+  const lectura = await leerAgendaDelDia(userId, date);
+  return lectura.ok ? lectura.eventos : [];
 }
 
 // ═══ PROHIBICIONES (banner) ═══

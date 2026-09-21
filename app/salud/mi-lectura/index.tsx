@@ -52,6 +52,7 @@ const LECTURA_VACIA: Lectura = {
   completitud: 0,
   completitudLabel: 'Sin material todavía',
   vacia: true,
+  faltaSexo: false,
 };
 
 function MiLecturaScreen() {

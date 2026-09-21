@@ -20,13 +20,22 @@ function flatten(matriz: MatrizSexo): Record<string, MatrizParam> {
 const FLAT_HOMBRES = flatten(MATRIZ_HOMBRES);
 const FLAT_MUJERES = flatten(MATRIZ_MUJERES);
 
-/** MatrizParam de un parameter_key para el sexo dado (o undefined si no existe). */
-export function findMatrizParam(sex: Sex, key: string): MatrizParam | undefined {
+/**
+ * MatrizParam de un parameter_key para el sexo dado (o undefined si no existe).
+ *
+ * 2026-09-21 (SEXO NUNCA ASUMIDO): acepta null y con null NO elige matriz:
+ * devuelve undefined, que aguas abajo es "sin banda" / "sin rango". Antes
+ * cualquier cosa distinta de 'female' caía a la matriz de hombres.
+ */
+export function findMatrizParam(sex: Sex | null, key: string): MatrizParam | undefined {
+  if (sex !== 'male' && sex !== 'female') return undefined;
   return (sex === 'female' ? FLAT_MUJERES : FLAT_HOMBRES)[key];
 }
 
 /** Dominio (categoría) al que pertenece un parameter_key — para agrupar en ATP Labs (#13). */
-export function findMatrizDomain(sex: Sex, key: string): { domain_key: string; domain_name_es: string } | undefined {
+export function findMatrizDomain(sex: Sex | null, key: string): { domain_key: string; domain_name_es: string } | undefined {
+  // 2026-09-21: sin sexo no hay matriz que recorrer (nunca hombre por defecto).
+  if (sex !== 'male' && sex !== 'female') return undefined;
   const matriz = sex === 'female' ? MATRIZ_MUJERES : MATRIZ_HOMBRES;
   for (const dom of Object.values(matriz)) {
     if (dom.params.some((p) => p.key === key)) {

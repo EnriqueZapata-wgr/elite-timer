@@ -45,6 +45,9 @@ import { LabInfoPopup } from '@/src/components/edad-atp/LabInfoPopup';
 import { ParameterChart } from '@/src/components/edad-atp/ParameterChart';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import type { Sex } from '@/src/types/edad-atp-v2';
+import {
+  AVISO_FALTA_SEXO_RANGOS, AVISO_PERFIL_ILEGIBLE, RUTA_PERFIL, accionDeAviso,
+} from '@/src/services/salud/sexo-core';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { PuertaDatosSaludGate } from '@/src/components/legal/PuertaDatosSalud';
 import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
@@ -101,7 +104,8 @@ function toDisplay(key: string, value: number): number {
  * total se guarda en ng/dL y la matriz la puntúa en ng/mL, así que sin esto una
  * testosterona sana se pintaba roja.
  */
-function statusColor(sex: Sex, key: string, value: number): string {
+function statusColor(sex: Sex | null, key: string, value: number): string {
+  // 2026-09-21: con sexo null no hay matriz y todo queda pendiente (nunca hombre por defecto).
   const p = findMatrizParam(sex, key);
   if (!p) return EDAD_PENDING_COLOR;
   const s = score9Bands(aUnidadDeMatriz(key, value), p.bandLimits);
@@ -124,7 +128,13 @@ function AtpLabsScreen() {
   const nuevoCount = Number(nuevo) > 0 ? Number(nuevo) : 0;
   const [nuevasKeys, setNuevasKeys] = useState<Set<string>>(new Set());
   const [rows, setRows] = useState<Row[]>([]);
-  const [sex, setSex] = useState<Sex>('male');
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): antes arrancaba en 'male'. Sin sexo los
+  // rangos no se leen y la pantalla lo dice con salida al perfil.
+  const [sex, setSex] = useState<Sex | null>(null);
+  const [avisoSexo, setAvisoSexo] = useState<string | null>(null);
+  // Regla 7: con el perfil ILEGIBLE el botón reintenta la lectura (sube este
+  // contador) en vez de mandar a /profile a capturar un dato que quizá ya está.
+  const [intento, setIntento] = useState(0);
   const [sort, setSort] = useState<SortMode>('panel');
   const [loading, setLoading] = useState(true);
   const [popupKey, setPopupKey] = useState<string | null>(null);
@@ -148,7 +158,7 @@ function AtpLabsScreen() {
     (async () => {
       setLoading(true);
       const data = await loadUserData(user.id);
-      const sx: Sex = data.sex;
+      const sx: Sex | null = data.sex;
       // #labs-desmadre: colapsar duplicados por idioma SOLO para display (no afecta al motor v2,
       // que lee por su propio bridge). Funde `testosterone` en `testosterona_total`, etc.
       // F4: series completas en UNA query — tendencias en cards + gráficas sin round-trip.
@@ -188,12 +198,13 @@ function AtpLabsScreen() {
       });
       setFase((ciclo as { currentPhase?: string } | null)?.currentPhase ?? null);
       setSex(sx);
+      setAvisoSexo(data.faltaSexo ? (data.lectura_fallo ? AVISO_PERFIL_ILEGIBLE : AVISO_FALTA_SEXO_RANGOS) : null);
       setSeries(seriesMap);
       setRows(built);
       setLoading(false);
     })();
     return () => { alive = false; };
-  }, [user?.id]));
+  }, [user?.id, intento]));
 
   // El resaltado es del aterrizaje: se consume una vez y no persigue al usuario.
   useEffect(() => {
@@ -245,6 +256,30 @@ function AtpLabsScreen() {
             es la lista de 40 renglones, es cuántos están fuera. Tocar el bloque
             rojo filtra a eso mismo. Los que no tienen banda funcional se
             reportan aparte: no inflan el conteo ni para bien ni para mal. */}
+        {/* 2026-09-21: sin sexo en el perfil ningún valor se califica. Se dice
+            antes del conteo, que sale todo en "sin rango". */}
+        {!loading && avisoSexo ? (() => {
+          const accion = accionDeAviso(avisoSexo);
+          return (
+            <Pressable
+              onPress={() => {
+                haptic.medium();
+                if (accion.reintentar) setIntento((n) => n + 1);
+                else router.push(RUTA_PERFIL);
+              }}
+              style={styles.nuevoBanner}
+              accessibilityRole="button"
+              accessibilityLabel={accion.label}
+            >
+              <Ionicons name={accion.reintentar ? 'refresh-outline' : 'person-outline'} size={16} color={t.textoSecundario} />
+              <EliteText variant="caption" style={styles.nuevoBannerText}>
+                {avisoSexo}. {accion.label}.
+              </EliteText>
+              <Ionicons name="chevron-forward" size={14} color={t.textoTenue} />
+            </Pressable>
+          );
+        })() : null}
+
         {!loading && rows.length > 0 ? (
           <View style={styles.resumenBox}>
             <EliteText variant="caption" style={styles.resumenFrase}>{fraseResumen(resumen)}</EliteText>
@@ -436,7 +471,7 @@ function AtpLabsScreen() {
  * testosterona en 7 a 12 mientras los puntos de la serie valían 993, y la banda
  * quedaba aplastada contra el piso del eje.
  */
-function pctAdjustedBandLimits(sex: Sex, key: string, valorMostrado: number): (number | null)[] | null {
+function pctAdjustedBandLimits(sex: Sex | null, key: string, valorMostrado: number): (number | null)[] | null {
   const p = findMatrizParam(sex, key);
   if (!p) return null;
   const enUnidadDelValor = bandLimitsEnEspacioDe(key, p.bandLimits, valorMostrado);
@@ -450,7 +485,7 @@ function pctAdjustedBandLimits(sex: Sex, key: string, valorMostrado: number): (n
  * MB-31B remate: recibe los estilos ya tematizados del componente.
  */
 function renderRangeSummary(
-  sex: Sex,
+  sex: Sex | null,
   r: Row,
   styles: ReturnType<typeof makeStyles>,
   serie: SeriePoint[],

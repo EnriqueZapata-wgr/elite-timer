@@ -118,6 +118,50 @@ async function leerNombreCoach(userId: string, coachId: string): Promise<string 
   }
 }
 
+/**
+ * Ronda de arreglos (agenda): lo que la agenda necesita de "hoy" SIN generar
+ * la rutina. `getTodayFitnessState` en estado 'lista' regenera la sesión del
+ * día (catálogo + recientes + ayer pesado + generador: hasta 9 lecturas) y la
+ * agenda la descartaba. Aquí solo se leen asignaciones, sesión y cardio de
+ * hoy y el nombre del coach; la decisión es la MISMA (decidirHoy) y los
+ * estados del generador ('lista', 'sin_prefs', 'primer_uso') colapsan en
+ * 'nada' porque la agenda no los pinta.
+ */
+export type AsignacionHoyLigera =
+  | { kind: 'asignada'; asignacion: AsignacionRow; porCoach: boolean; coachNombre: string | null }
+  | { kind: 'entrenado'; sesion: TodayWorkoutRow | null; cardioHoy: CardioSession[]; asignadaPendiente: AsignacionRow | null }
+  | { kind: 'nada' };
+
+export async function leerAsignacionDeHoyLigera(userId: string): Promise<AsignacionHoyLigera> {
+  const [sesion, cardioRes, asignaciones] = await Promise.all([
+    getWorkoutSessionToday(userId),
+    getCardioSessionsTodayResultado(userId),
+    getAsignaciones(userId),
+  ]);
+  // Mismas reglas 7 que el hub: lo esencial que no se pudo leer LANZA.
+  if (!cardioRes.ok) throw new Error('No se pudo leer tu sesión de hoy.');
+  if (asignaciones === null) throw new Error('No se pudo leer tu plan de hoy.');
+  const cardioHoy = cardioRes.sesiones;
+  const hoy = getLocalToday();
+  const asignacion = asignacionDeHoy(asignaciones, hoy);
+  const desplazada = desplazadaDeHoy(asignaciones, hoy);
+  // nivel/prefs no se leen: solo deciden entre los estados del generador, que
+  // aquí son todos 'nada'.
+  const decision = decidirHoy({
+    userId, sesion, cardioHoy, nivel: null, tienePrefs: false, asignacion, desplazada,
+  });
+  if (decision.kind === 'entrenado') {
+    return { kind: 'entrenado', sesion, cardioHoy, asignadaPendiente: decision.asignadaPendiente };
+  }
+  if (decision.kind === 'asignada') {
+    const coachNombre = decision.porCoach && decision.asignacion.assigned_by
+      ? await leerNombreCoach(userId, decision.asignacion.assigned_by)
+      : null;
+    return { kind: 'asignada', asignacion: decision.asignacion, porCoach: decision.porCoach, coachNombre };
+  }
+  return { kind: 'nada' };
+}
+
 export async function getTodayFitnessState(userId: string): Promise<TodayFitnessState> {
   const [sesion, cardioRes, nivelPerfil, prefs, asignaciones] = await Promise.all([
     getWorkoutSessionToday(userId),

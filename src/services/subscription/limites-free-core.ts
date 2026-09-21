@@ -110,6 +110,21 @@ export function marcadoresAbiertosFree(marcadores: ReadonlyArray<MarcadorParaImp
 }
 
 /**
+ * 2026-09-21 (SEXO NUNCA ASUMIDO): el impacto se ordena por la matriz del
+ * sexo. Sin sexo no hay impacto que ordenar y NO se elige con la matriz de
+ * hombres: se devuelve null, que aguas abajo es "no se pudo calcular" y la
+ * ficha abre (fail-open). Elegir tres por orden alfabético con todo en
+ * `sin_banda` sería un candado arbitrario, no una regla.
+ */
+export function marcadoresAbiertosFreeSegunSexo(
+  sexo: 'male' | 'female' | null,
+  marcadores: ReadonlyArray<MarcadorParaImpacto>,
+): string[] | null {
+  if (sexo !== 'male' && sexo !== 'female') return null;
+  return marcadoresAbiertosFree(marcadores);
+}
+
+/**
  * ¿Puede abrir la ficha de este marcador? `abiertos` es la lista de
  * `marcadoresAbiertosFree`; null significa "no se pudo calcular" y entonces
  * se abre (fail-open, misma doctrina que el proxy: ante la duda, no se cierra).

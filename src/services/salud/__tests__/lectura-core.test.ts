@@ -31,8 +31,11 @@ const lab = (value: number, dias = 10) => ({
   is_stale: false,
 });
 
+// 2026-09-21 (SEXO NUNCA ASUMIDO): SNAPSHOT_VACIO ya no trae sexo 'male'. El
+// fixture lo declara explícito porque estas personas de prueba SÍ lo tienen;
+// el caso sin sexo se prueba aparte abajo.
 function snap(over: Partial<LecturaSnapshot> = {}): LecturaSnapshot {
-  return { ...SNAPSHOT_VACIO, ...over };
+  return { ...SNAPSHOT_VACIO, sexo: 'male', ...over };
 }
 
 // ── 1. Convergencia ─────────────────────────────────────────────────────────
@@ -149,6 +152,26 @@ describe('estados honestos', () => {
 
   it('a un hombre no se le pide la fase del ciclo', () => {
     expect(faltantesDe(snap({ sexo: 'male' })).some((x) => x.key === 'ciclo')).toBe(false);
+  });
+
+  it('2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo no se lee nada contra la matriz y se dice primero', () => {
+    // Las mismas dos señales que encienden el cruce inflamatorio en un hombre.
+    const labs = { ferritina: lab(400), proteina_c_reactiva_cuantitativa_pcr: lab(3) };
+    expect(construirLectura(snap({ labs })).cruces.map((c) => c.key)).toContain('terreno_inflamatorio');
+    const l = construirLectura(snap({ sexo: null, labs }));
+    expect(l.cruces).toHaveLength(0);
+    expect(l.faltaSexo).toBe(true);
+    expect(l.faltantes[0].key).toBe('sexo');
+    expect(l.faltantes[0].route).toBe('/profile');
+    expect(l.sintesis[0]).toContain('sexo');
+    expect(SNAPSHOT_VACIO.sexo).toBeNull();
+  });
+
+  it('regla 7: perfil ilegible no es "te falta el sexo"', () => {
+    const l = construirLectura(snap({ sexo: null, sexoIlegible: true }));
+    expect(l.faltantes[0].key).toBe('sexo');
+    expect(l.faltantes[0].titulo).toContain('No se pudo leer');
+    expect(l.sintesis[0]).toContain('No se pudo leer');
   });
 
   it('la completitud mide material, no salud', () => {

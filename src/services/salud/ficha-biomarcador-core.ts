@@ -58,13 +58,15 @@ import { REGLAS_CRUCE, leerParametro, cumple, type Direccion, type Señal } from
 import { deriveLabCycleContext, isCycleSensitiveMarker, type LabCycleContext } from '@/src/services/salud/lab-cycle-context-core';
 import { contenidoDe, type ContenidoBiomarcador } from '@/src/constants/biomarcador-contenido';
 import type { Sex } from '@/src/types/edad-atp-v2';
+import { AVISO_FALTA_SEXO_RANGOS } from '@/src/services/salud/sexo-core';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entrada
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface EntradaFicha {
-  sexo: Sex;
+  /** 2026-09-21: null = el perfil no tiene sexo. La ficha no califica y lo dice. */
+  sexo: Sex | null;
   /** Clave canónica del parámetro que se está abriendo. */
   key: string;
   /** Último valor, en la unidad en que `lab_values` lo guardó. */
@@ -141,6 +143,12 @@ export interface FichaBiomarcador {
   ciclo: LabCycleContext;
   /** Qué le falta a esta ficha para estar completa. Nunca pantalla muda. */
   huecos: string[];
+  /**
+   * 2026-09-21 (SEXO NUNCA ASUMIDO): true cuando el perfil no tiene sexo.
+   * `estado` es sin_banda, `ventana` null y `lectura` null: no se calificó
+   * con la matriz de hombres. La pantalla manda al perfil.
+   */
+  faltaSexo: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -159,7 +167,7 @@ export function valorParaMostrar(key: string, value: number): number {
  * después a porcentaje si la clave es porcentual. Comparar crudo es justo el
  * bug que ya se cerró en el ciclo anterior.
  */
-export function ventanaParaMostrar(sexo: Sex, key: string, valorMostrado: number): { lo: number; hi: number } | null {
+export function ventanaParaMostrar(sexo: Sex | null, key: string, valorMostrado: number): { lo: number; hi: number } | null {
   const p = findMatrizParam(sexo, key);
   if (!p) return null;
   const enUnidad = bandLimitsEnEspacioDe(key, p.bandLimits, valorMostrado);
@@ -187,7 +195,7 @@ export function lecturaDe(contenido: ContenidoBiomarcador | null, direccion: Dir
 }
 
 /** Índice de señales del panel completo, con el mismo lector que "Mi lectura". */
-function señalesDelPanel(sexo: Sex, panel: Record<string, number>): Record<string, Señal> {
+function señalesDelPanel(sexo: Sex | null, panel: Record<string, number>): Record<string, Señal> {
   const out: Record<string, Señal> = {};
   for (const [k, v] of Object.entries(panel ?? {})) {
     if (v == null || !Number.isFinite(v)) continue;
@@ -221,7 +229,7 @@ function reglasDe(key: string): typeof REGLAS_CRUCE {
 }
 
 /** Etiqueta legible de un parámetro, con el mismo fallback que "Mi lectura". */
-function etiquetaDe(sexo: Sex, key: string): string {
+function etiquetaDe(sexo: Sex | null, key: string): string {
   const meta = getLabParamMeta(key);
   if (meta.description) return meta.display_name;
   return findMatrizParam(sexo, key)?.name ?? meta.display_name;
@@ -236,7 +244,7 @@ function etiquetaDe(sexo: Sex, key: string): string {
  * contradigan.
  */
 export function convergenciaDe(
-  sexo: Sex,
+  sexo: Sex | null,
   key: string,
   estado: EstadoLab,
   contenido: ContenidoBiomarcador | null,
@@ -311,7 +319,7 @@ export function convergenciaDe(
  * eso es exactamente lo que le falta para cerrar la foto.
  */
 export function relacionadosDe(
-  sexo: Sex,
+  sexo: Sex | null,
   key: string,
   panel: Record<string, number>,
   limite = 6,
@@ -323,8 +331,11 @@ export function relacionadosDe(
     for (const c of todas) {
       if (vistos.has(c.key)) continue;
       // Solo se ofrecen marcadores que la matriz conoce: sin banda no hay ficha
-      // que valga la pena abrir.
-      if (!findMatrizParam(sexo, c.key)) continue;
+      // que valga la pena abrir. Ronda de arreglos: con sexo null la matriz
+      // se consulta SOLO para saber si la clave existe (en cualquiera de las
+      // dos mitades), nunca para calificar: la lista de relacionados no se
+      // pierde, su estado queda `sin_banda` (estadoDeParametro con null).
+      if (!matrizConoce(sexo, c.key)) continue;
       vistos.add(c.key);
       const valor = panel[c.key];
       out.push({
@@ -339,6 +350,17 @@ export function relacionadosDe(
   return out;
 }
 
+/**
+ * ¿La matriz define esta clave? Con sexo declarado, en su mitad. Sin sexo, en
+ * cualquiera de las dos: es una pregunta de EXISTENCIA de la clave, no de
+ * rango, así que aquí (y solo aquí) se mira 'male' y 'female' sin elegir
+ * ninguno para calificar.
+ */
+function matrizConoce(sexo: Sex | null, key: string): boolean {
+  if (sexo !== null) return findMatrizParam(sexo, key) != null;
+  return findMatrizParam('male', key) != null || findMatrizParam('female', key) != null;
+}
+
 /** Lo que le falta a esta ficha para estar completa. Se dice, no se esconde. */
 export function huecosDe(
   contenido: ContenidoBiomarcador | null,
@@ -346,12 +368,18 @@ export function huecosDe(
   delta: DeltaLab | null,
   vencido: boolean,
   relacionados: RelacionadoFicha[],
+  faltaSexo = false,
 ): string[] {
   const out: string[] = [];
+  // 2026-09-21: sin sexo no hay matriz. Va primero y sustituye al hueco de
+  // "la matriz no define", que sería falso: la matriz sí define, falta saber cuál.
+  if (faltaSexo) {
+    out.push(`${AVISO_FALTA_SEXO_RANGOS}. Sin ese dato ningún parámetro se califica: no se asume.`);
+  }
   if (!contenido) {
     out.push('Todavía no escribimos la ficha de este parámetro. Tu número, tu ventana y tu historia sí son reales: lo que falta es el texto que explica qué es y qué lo mueve.');
   }
-  if (estado === 'sin_banda') {
+  if (estado === 'sin_banda' && !faltaSexo) {
     out.push('La matriz funcional todavía no define una ventana para este parámetro. Cuando la tenga, esta ficha lo va a calificar.');
   }
   if (!delta) {
@@ -373,6 +401,7 @@ export function huecosDe(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function construirFicha(e: EntradaFicha): FichaBiomarcador {
+  const faltaSexo = e.sexo === null;
   const meta = getLabParamMeta(e.key);
   const contenido = contenidoDe(e.key);
   const mostrado = valorParaMostrar(e.key, e.valor);
@@ -402,7 +431,9 @@ export function construirFicha(e: EntradaFicha): FichaBiomarcador {
     ventana,
     resumen: meta.description || 'Parámetro de laboratorio.',
     contenido,
-    lectura: lecturaDe(contenido, direccion),
+    // Sin sexo no hay dirección real (sin ventana todo cae en 'dentro'), así
+    // que no se pinta el párrafo de "tu número está dentro": sería inventado.
+    lectura: faltaSexo ? null : lecturaDe(contenido, direccion),
     convergencia: convergenciaDe(e.sexo, e.key, estado, contenido, señales),
     relacionados,
     delta,
@@ -410,6 +441,7 @@ export function construirFicha(e: EntradaFicha): FichaBiomarcador {
     ciclo: isCycleSensitiveMarker(e.key)
       ? deriveLabCycleContext(e.key, e.sexo === 'female', e.faseCiclo)
       : { show: false, phaseKnown: false, note: '' },
-    huecos: huecosDe(contenido, estado, delta, e.vencido, relacionados),
+    huecos: huecosDe(contenido, estado, delta, e.vencido, relacionados, faltaSexo),
+    faltaSexo,
   };
 }

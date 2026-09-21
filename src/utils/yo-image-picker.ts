@@ -1,5 +1,7 @@
 /**
  * yo-image-picker — imágenes del tab YO: sex-aware (edad-atp, composición el/ella) + cronotipo.
+ * 2026-09-21 (SEXO NUNCA ASUMIDO): sin sexo en el perfil (`sexKey` → null) cada
+ * picker cae a una imagen NEUTRA existente. Nunca "el" por defecto.
  * `require()` ESTÁTICO con lookup por clave (image-pick-core resuelve la clave). Solo carga assets
  * → NO se importa en tests. PROACTIVO: el redesign de YO está diferido; estos helpers quedan listos
  * para cuando se cablee (y así Metro ya empaqueta las imágenes).
@@ -11,6 +13,10 @@ const EDAD_ATP_IMAGES: Record<'male' | 'female', ImageSourcePropType> = {
   male: require('@/assets/images/yo/edad-atp-el.webp'),
   female: require('@/assets/images/yo/edad-atp-ella.webp'),
 };
+/** Neutras (sin persona con sexo) para cuando el perfil no lo dice. */
+const EDAD_ATP_NEUTRA: ImageSourcePropType = require('@/assets/images/yo/tendencias.webp');
+const COMPOSICION_NEUTRA: ImageSourcePropType = require('@/assets/images/health-hub/mi-salud.webp');
+const FITNESS_NEUTRA: ImageSourcePropType = require('@/assets/images/agenda/entrenar/entrenar-01.webp');
 
 const COMPOSICION_IMAGES: Record<'male' | 'female', ImageSourcePropType> = {
   male: require('@/assets/images/yo/composicion-el.webp'),
@@ -45,20 +51,23 @@ export const YO_STATIC_IMAGES = {
 } as const;
 
 export function pickEdadAtpImage(sex?: string | null): ImageSourcePropType {
-  return EDAD_ATP_IMAGES[sexKey(sex)];
+  const k = sexKey(sex);
+  return k ? EDAD_ATP_IMAGES[k] : EDAD_ATP_NEUTRA;
 }
 
 export function pickComposicionImage(sex?: string | null): ImageSourcePropType {
-  return COMPOSICION_IMAGES[sexKey(sex)];
+  const k = sexKey(sex);
+  return k ? COMPOSICION_IMAGES[k] : COMPOSICION_NEUTRA;
 }
 
 export function pickCronotipoImage(chronotype?: string | null): ImageSourcePropType {
   return CRONOTIPO_IMAGES[cronotipoKey(chronotype)];
 }
 
-/** Fitness sex-aware (default male). */
+/** Fitness sex-aware; sin sexo, imagen neutra de entrenamiento. */
 export function pickFitnessImage(sex?: string | null): ImageSourcePropType {
-  return FITNESS_IMAGES[sexKey(sex)];
+  const k = sexKey(sex);
+  return k ? FITNESS_IMAGES[k] : FITNESS_NEUTRA;
 }
 
 /** Embarazo sex-aware. Default FEMALE (la persona embarazada es biológicamente femenina; la

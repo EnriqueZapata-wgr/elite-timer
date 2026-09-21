@@ -149,6 +149,26 @@ describe('marcadores relacionados', () => {
     const b12 = rel.find((r) => r.key === 'vitamina_b12');
     expect(b12?.estado).not.toBeNull();
   });
+
+  // Ronda de arreglos: con sexo null se perdían TODOS los relacionados
+  // (findMatrizParam(null) devuelve undefined). La lista se conserva; lo que
+  // no se hace es calificar: el medido queda sin_banda, el no medido null.
+  it('sin sexo conserva la lista de relacionados y deja su estado en sin_banda (nunca califica)', () => {
+    const conSexo = relacionadosDe('male', 'homocisteina', { homocisteina: 15, vitamina_b12: 250 });
+    const sinSexo = relacionadosDe(null, 'homocisteina', { homocisteina: 15, vitamina_b12: 250 });
+    expect(sinSexo.length).toBeGreaterThan(0);
+    expect(sinSexo.map((r) => r.key)).toEqual(conSexo.map((r) => r.key));
+    const b12 = sinSexo.find((r) => r.key === 'vitamina_b12');
+    expect(b12?.estado).toBe('sin_banda');
+    expect(sinSexo.filter((r) => r.key !== 'vitamina_b12').every((r) => r.estado === null)).toBe(true);
+    expect(sinSexo.some((r) => r.estado === 'atencion' || r.estado === 'optimo' || r.estado === 'aceptable')).toBe(false);
+  });
+
+  it('sin sexo, la ficha completa sigue diciendo qué falta medir (huecos con relacionados)', () => {
+    const f = ficha({ sexo: null, key: 'homocisteina', valor: 15 });
+    expect(f.relacionados.length).toBeGreaterThan(0);
+    expect(f.huecos.some((h) => h.startsWith('No tienes medido'))).toBe(true);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -35,6 +35,7 @@ import { ROOT_LABELS, type InterventionRoot } from '@/src/constants/intervention
 // Mega-Sprint B B2.3: Edad ATP como MÉTRICA aquí (no árbol paralelo). El motor
 // V7/V6 (edad-atp-v2-service) queda INTOCADO — solo se LEE el resultado.
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
+import { ACCION_COMPLETAR_PERFIL, RUTA_PERFIL } from '@/src/services/salud/sexo-core';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
 import { formatEdadDeltaValue } from '@/src/services/edad-atp/edad-delta-core';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
@@ -100,6 +101,9 @@ export default function DiagnosticoScreen() {
   const [history, setHistory] = useState<FunctionalDxRow[]>([]);
   // Edad ATP como métrica (B2.3): edad biológica + delta + CE. null = sin datos suficientes.
   const [edadAtp, setEdadAtp] = useState<{ edad: number; delta: number; ce: number } | null>(null);
+  // 2026-09-21 (SEXO NUNCA ASUMIDO): con evaluación suficiente pero sin sexo
+  // en el perfil, la métrica no se calcula y la tarjeta lo dice.
+  const [avisoSexo, setAvisoSexo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -134,13 +138,18 @@ export default function DiagnosticoScreen() {
     setLoading(false);
     // Edad ATP como métrica (fail-soft · gate CE≥30 = evaluación suficiente).
     try {
-      const [edad, ce] = await Promise.all([computeEdadAtpV2(user.id), computeCE(user.id)]);
-      if (ce.ce_integral >= 30 && Number.isFinite(edad.edad_integral)) {
-        setEdadAtp({ edad: edad.edad_integral, delta: edad.delta_anos, ce: ce.ce_integral });
+      const [salida, ce] = await Promise.all([computeEdadAtpV2(user.id), computeCE(user.id)]);
+      if (salida.faltaSexo) {
+        setEdadAtp(null);
+        setAvisoSexo(ce.ce_integral >= 30 ? salida.aviso : null);
+      } else if (ce.ce_integral >= 30 && Number.isFinite(salida.resultado.edad_integral)) {
+        setAvisoSexo(null);
+        setEdadAtp({ edad: salida.resultado.edad_integral, delta: salida.resultado.delta_anos, ce: ce.ce_integral });
       } else {
+        setAvisoSexo(null);
         setEdadAtp(null);
       }
-    } catch { setEdadAtp(null); }
+    } catch { setEdadAtp(null); setAvisoSexo(null); }
   }, [user?.id]);
 
   useEffect(() => {
@@ -368,6 +377,25 @@ export default function DiagnosticoScreen() {
                       {formatEdadDeltaValue(edadAtp.delta)}
                       {'  ·  '}CE {Math.round(edadAtp.ce)}%
                     </EliteText>
+                  </View>
+                  <EliteText style={styles.edadArrow}>→</EliteText>
+                </AnimatedPressable>
+              </Animated.View>
+            )}
+
+            {/* 2026-09-21: sin sexo en el perfil la métrica no existe; se dice y se manda al perfil. */}
+            {!edadAtp && avisoSexo && (
+              <Animated.View entering={FadeInUp.delay(130).springify()}>
+                <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>EDAD ATP</SectionTitle>
+                <AnimatedPressable
+                  onPress={() => { haptic.light(); router.push(RUTA_PERFIL); }}
+                  style={styles.edadCard}
+                  accessibilityRole="button"
+                  accessibilityLabel={ACCION_COMPLETAR_PERFIL}
+                >
+                  <View style={{ flex: 1 }}>
+                    <EliteText style={styles.edadMeta}>{avisoSexo}.</EliteText>
+                    <EliteText style={styles.edadMeta}>{ACCION_COMPLETAR_PERFIL}</EliteText>
                   </View>
                   <EliteText style={styles.edadArrow}>→</EliteText>
                 </AnimatedPressable>

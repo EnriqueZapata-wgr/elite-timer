@@ -40,6 +40,7 @@ import { CandadoBloque } from '@/src/components/ui/CandadoBloque';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import { candadoDeVentaCierra, puedeVerFicha } from '@/src/services/subscription/limites-free-core';
 import { cargarMarcadoresAbiertosFree } from '@/src/services/subscription/limites-free-service';
+import { ACCION_COMPLETAR_PERFIL, RUTA_PERFIL } from '@/src/services/salud/sexo-core';
 
 const COLOR_CICLO = '#D4537E';
 
@@ -281,6 +282,12 @@ function FichaBiomarcadorScreen() {
                 {f.huecos.map((x, i) => (
                   <Vinieta key={i} texto={x} styles={styles} />
                 ))}
+                {f.faltaSexo ? (
+                  <Pressable style={styles.ctaSuave} onPress={() => { haptic.medium(); router.push(RUTA_PERFIL); }} accessibilityRole="button">
+                    <Ionicons name="person-outline" size={14} color={t.tealTexto} />
+                    <EliteText variant="caption" style={styles.ctaSuaveText}>{ACCION_COMPLETAR_PERFIL}</EliteText>
+                  </Pressable>
+                ) : null}
                 {!f.contenido ? (
                   <Pressable style={styles.ctaSuave} onPress={() => preguntarAArgos(f.label)}>
                     <Ionicons name="chatbubble-ellipses-outline" size={14} color={t.tealTexto} />
