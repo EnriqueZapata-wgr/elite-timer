@@ -51,7 +51,9 @@ const PRICING: Record<string, { input: number; output: number; cache_read: numbe
   "gemini-2.5-flash": { input: 0.30, output: 2.50, cache_read: 0, cache_write: 0 },
   // 21-sep-2026 (ruteo por clase). Precios verificados ese dia.
   "claude-haiku-4-5-20251001": { input: 1, output: 5, cache_read: 0.10, cache_write: 2 },
-  "gemini-2.5-pro": { input: 1.25, output: 10, cache_read: 0, cache_write: 0 },
+  "gemini-2.5-pro": { input: 1.25, output: 10, cache_read: 0, cache_write: 0 }, // 404 para esta llave (ver ruteo-modelos.ts); queda por los logs
+  // 24-sep-2026: $0.75/$3.75 hasta el 31-dic-2026; $1.50/$7.50 desde el 1-ene-2027.
+  "gemini-3.8-flash": { input: 0.75, output: 3.75, cache_read: 0, cache_write: 0 },
   "gemini-3.5-flash-lite": { input: 0.30, output: 2.50, cache_read: 0, cache_write: 0 },
 };
 

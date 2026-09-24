@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   resolverRuta, claseDe, hayRespaldo, timeoutPara, mensajesParaOpenAI, extrasGemini,
-  MODELO_SONNET, MODELO_HAIKU, MODELO_GEMINI_PRO, MODELO_GEMINI_LITE, MODELO_GEMINI_FLASH,
+  MODELO_SONNET, MODELO_HAIKU, MODELO_GEMINI_FLASH_38, MODELO_GEMINI_LITE, MODELO_GEMINI_FLASH,
   LIMITE_TOTAL_MS, RESERVA_RESPALDO_MS, TOPE_GEMINI_MS, TOPE_ANTHROPIC_MS, MARGEN_PENSAMIENTO_TOKENS,
 } from '../../../supabase/functions/_shared/ruteo-modelos';
 
@@ -16,7 +16,7 @@ describe('ruteo: la tabla del dueno', () => {
     for (const t of ['food_estimate_photo', 'food_estimate_text', 'label_scan', 'supplement_scan', 'etiqueta_super']) {
       const r = resolverRuta({ requestType: t });
       expect(r.clase).toBe('extraccion');
-      expect(r.principal).toEqual({ provider: 'google', model: MODELO_GEMINI_PRO });
+      expect(r.principal).toEqual({ provider: 'google', model: MODELO_GEMINI_FLASH_38 });
       expect(r.respaldo).toEqual({ provider: 'anthropic', model: MODELO_SONNET });
     }
   });
@@ -28,7 +28,7 @@ describe('ruteo: la tabla del dueno', () => {
       const r = resolverRuta({ requestType: t });
       expect(r.clase).toBe('clinico');
       expect(r.principal).toEqual({ provider: 'anthropic', model: MODELO_SONNET });
-      expect(r.respaldo).toEqual({ provider: 'google', model: MODELO_GEMINI_PRO });
+      expect(r.respaldo).toEqual({ provider: 'google', model: MODELO_GEMINI_FLASH_38 });
     }
   });
 
@@ -148,7 +148,7 @@ describe('ruteo: mensajes para Gemini', () => {
   });
 
   it('los modelos que piensan llevan esfuerzo bajo y margen; 2.5 Flash queda como antes', () => {
-    expect(extrasGemini(MODELO_GEMINI_PRO, 1000)).toEqual({ max_tokens: 1000 + MARGEN_PENSAMIENTO_TOKENS, reasoning_effort: 'low' });
+    expect(extrasGemini(MODELO_GEMINI_FLASH_38, 1000)).toEqual({ max_tokens: 1000 + MARGEN_PENSAMIENTO_TOKENS, reasoning_effort: 'low' });
     expect(extrasGemini(MODELO_GEMINI_LITE, 200)).toEqual({ max_tokens: 200 + MARGEN_PENSAMIENTO_TOKENS, reasoning_effort: 'low' });
     expect(extrasGemini(MODELO_GEMINI_FLASH, 1000)).toEqual({ max_tokens: 1000 });
   });

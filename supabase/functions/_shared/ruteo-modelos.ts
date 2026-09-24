@@ -6,18 +6,27 @@
 //
 //   Clase        Principal                Respaldo          Para que
 //   ----------   ----------------------   ---------------   ---------------------------------
-//   extraccion   Gemini 2.5 Pro           Sonnet 5          fotos de comida, etiquetas, suplementos
-//   clinico      Sonnet 5                 Gemini 2.5 Pro    chat, voz, labs, evaluacion, insights,
+//   extraccion   Gemini 3.8 Flash         Sonnet 5          fotos de comida, etiquetas, suplementos
+//   clinico      Sonnet 5                 Gemini 3.8 Flash  chat, voz, labs, evaluacion, insights,
 //                                                           TODAS las recomendaciones (default)
 //   navegacion   Gemini 3.5 Flash-Lite    Haiku 4.5         navegar la app y titular conversaciones
+//
+// POR QUE NO GEMINI 2.5 PRO (24-sep-2026, probado en produccion): devuelve 404
+// "This model models/gemini-2.5-pro is no longer available to new users".
+// Google cerro los modelos 2.5 a los proyectos que no los venian usando y
+// manda a 3.5 Flash-Lite o 3.8 Flash para lo nuevo. Este proyecto si tiene
+// historial con gemini-2.5-flash (los fallbacks viejos), pero nunca con 2.5
+// Pro, asi que para esta llave ese modelo no existe. Se cambio por 3.8 Flash,
+// que es el Flash nuevo y ademas mas barato que 3.5 Flash.
 //
 // Cada clase tiene un principal y un respaldo de OTRO proveedor: si Anthropic
 // o Google se cae completo, la otra mitad responde. Lo que no esta en la tabla
 // es clinico: ante la duda, el modelo fuerte.
 //
 // Precios por millon de tokens (entrada / salida), verificados el 21-sep-2026:
-//   Sonnet 5 $2/$10 · Haiku 4.5 $1/$5 · Gemini 2.5 Pro $1.25/$10 ·
-//   Gemini 3.5 Flash-Lite $0.30/$2.50 · Gemini 2.5 Flash $0.30/$2.50.
+//   Sonnet 5 $2/$10 · Haiku 4.5 $1/$5 · Gemini 3.5 Flash-Lite $0.30/$2.50 ·
+//   Gemini 2.5 Flash $0.30/$2.50 · Gemini 3.8 Flash $0.75/$3.75 hasta el
+//   31-dic-2026, $1.50/$7.50 desde el 1-ene-2027 (revisar antes de esa fecha).
 
 export type LlmProvider = "anthropic" | "google";
 export interface ModelRoute { provider: LlmProvider; model: string }
@@ -26,6 +35,9 @@ export interface RutaCompleta { clase: ClaseDeRuta; principal: ModelRoute; respa
 
 export const MODELO_SONNET = "claude-sonnet-5";
 export const MODELO_HAIKU = "claude-haiku-4-5-20251001";
+/** El Flash nuevo: principal de extraccion y respaldo de lo clinico. */
+export const MODELO_GEMINI_FLASH_38 = "gemini-3.8-flash";
+/** Legacy: 404 para esta llave desde el 24-sep (ver cabecera). Se deja nombrado para los logs historicos. */
 export const MODELO_GEMINI_PRO = "gemini-2.5-pro";
 export const MODELO_GEMINI_LITE = "gemini-3.5-flash-lite";
 /** El respaldo de siempre (antes del 21-sep) y el modelo de las automaticas de free. */
@@ -33,13 +45,13 @@ export const MODELO_GEMINI_FLASH = "gemini-2.5-flash";
 
 export const R_SONNET: ModelRoute = { provider: "anthropic", model: MODELO_SONNET };
 export const R_HAIKU: ModelRoute = { provider: "anthropic", model: MODELO_HAIKU };
-export const R_GEMINI_PRO: ModelRoute = { provider: "google", model: MODELO_GEMINI_PRO };
+export const R_GEMINI_FLASH_38: ModelRoute = { provider: "google", model: MODELO_GEMINI_FLASH_38 };
 export const R_GEMINI_LITE: ModelRoute = { provider: "google", model: MODELO_GEMINI_LITE };
 export const R_GEMINI_FLASH: ModelRoute = { provider: "google", model: MODELO_GEMINI_FLASH };
 
 export const RUTAS: Record<ClaseDeRuta, RutaCompleta> = {
-  extraccion: { clase: "extraccion", principal: R_GEMINI_PRO, respaldo: R_SONNET },
-  clinico: { clase: "clinico", principal: R_SONNET, respaldo: R_GEMINI_PRO },
+  extraccion: { clase: "extraccion", principal: R_GEMINI_FLASH_38, respaldo: R_SONNET },
+  clinico: { clase: "clinico", principal: R_SONNET, respaldo: R_GEMINI_FLASH_38 },
   navegacion: { clase: "navegacion", principal: R_GEMINI_LITE, respaldo: R_HAIKU },
 };
 

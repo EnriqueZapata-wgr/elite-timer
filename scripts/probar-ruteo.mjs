@@ -10,8 +10,8 @@
  *
  * Esperado:
  *   nav_intent           gemini-3.5-flash-lite   (principal)
- *   food_estimate_text   gemini-2.5-pro          (principal)
- *   food_estimate_photo  gemini-2.5-pro          (principal; la foto SI llega)
+ *   food_estimate_text   gemini-3.8-flash        (principal)
+ *   food_estimate_photo  gemini-3.8-flash        (principal; la foto SI llega)
  *   chat                 claude-sonnet-5         (principal)
  * "respaldo" en vez de "principal" = el principal fallo y contesto el otro
  * proveedor: funciona, pero mira argos_logs.error_message.
@@ -40,9 +40,9 @@ const PNG_ROJO = 'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGO4o6
 const CASOS = [
   { tipo: 'nav_intent', esperado: 'gemini-3.5-flash-lite', max_tokens: 60,
     messages: [{ role: 'user', content: 'Responde solo con la palabra: ajustes' }] },
-  { tipo: 'food_estimate_text', esperado: 'gemini-2.5-pro', max_tokens: 200,
+  { tipo: 'food_estimate_text', esperado: 'gemini-3.8-flash', max_tokens: 200,
     messages: [{ role: 'user', content: 'Una manzana mediana. Responde solo con un JSON {"kcal": numero}.' }] },
-  { tipo: 'food_estimate_photo', esperado: 'gemini-2.5-pro', max_tokens: 60,
+  { tipo: 'food_estimate_photo', esperado: 'gemini-3.8-flash', max_tokens: 60,
     messages: [{ role: 'user', content: [
       { type: 'text', text: 'Responde con una sola palabra: de que color es esta imagen?' },
       { type: 'image', source: { type: 'base64', media_type: 'image/png', data: PNG_ROJO } },

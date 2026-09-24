@@ -110,8 +110,8 @@ limpio (`brain.generated.ts` de `066c736`).
 
 | Clase | Principal | Respaldo |
 |---|---|---|
-| Extracción (fotos de comida, etiquetas, suplementos) | Gemini 2.5 Pro | Sonnet 5 |
-| Clínico (chat, voz, labs, evaluación, insights, recomendaciones) | Sonnet 5 | Gemini 2.5 Pro |
+| Extracción (fotos de comida, etiquetas, suplementos) | Gemini 3.8 Flash | Sonnet 5 |
+| Clínico (chat, voz, labs, evaluación, insights, recomendaciones) | Sonnet 5 | Gemini 3.8 Flash |
 | Navegación (a qué pantalla ir, título de conversación) | Gemini 3.5 Flash-Lite | Haiku 4.5 |
 
 Antes de desplegar, mira los secretos y quita la variable vieja (ya no se lee; así no
@@ -130,8 +130,11 @@ $env:ATP_JWT = "<tu JWT>"
 node scripts\probar-ruteo.mjs
 ```
 Debe decir `principal` en las cuatro líneas: nav_intent con gemini-3.5-flash-lite,
-food_estimate_text y food_estimate_photo con gemini-2.5-pro (la foto de un cuadro rojo
-debe contestar "rojo"), chat con claude-sonnet-5. Si alguna dice `respaldo`, funciona
+food_estimate_text y food_estimate_photo con gemini-3.8-flash (la foto de un cuadro rojo
+debe contestar "rojo"), chat con claude-sonnet-5.
+
+Gemini 2.5 Pro NO sirve para este proyecto: el 24-sep devolvió 404 "no longer available
+to new users". Google cerró los modelos 2.5 a los proyectos sin historial con ellos. Si alguna dice `respaldo`, funciona
 pero algo falló: pégame la salida.
 
 Apagado de emergencia, sin redeploy: `npx supabase secrets set MODEL_ROUTING=off`
