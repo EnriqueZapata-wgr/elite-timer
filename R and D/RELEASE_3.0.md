@@ -57,9 +57,10 @@ npx supabase db push
 npx supabase migration list
 ```
 
-Entran **324** (`elite_cargar_completa`) y **325** (`elite_sembrar_y_convertir`: perfil,
-rutinas, comidas). La 325 lee lo que deja la 324; `db push` las aplica en orden. Ambas
-probadas en Postgres 16 local (`supabase/pruebas/325_escenarios_local.sql`). Si la lista
+Entran **324** (`elite_cargar_completa`), **325** (`elite_sembrar_y_convertir`: perfil,
+rutinas, comidas) y **326** (el tooling del cerebro vuelve a poder publicar: ver fase 4). La 325 lee lo que deja la 324; `db push` las aplica en orden. La 324 y la
+325 están probadas en Postgres 16 local (`supabase/pruebas/325_escenarios_local.sql`); la
+326 solo mueve permisos y se verifica con la consulta que trae al pie. Si la lista
 muestra la **300** como pendiente, la decisión sigue siendo tuya (ver noche 1, sección 2.2).
 
 ## Fase 3 · Push de los tres repos
@@ -81,13 +82,25 @@ viven en otra ruta, ajusta el `cd`.)
 ARGOS en producción lee la tabla `argos_brain`, no el archivo. Hasta promover v1.24.1, el
 prompt en vivo sigue con las frases viejas.
 
+**Publicar exige ahora tu sesión, además de la admin_key** (migración 326, 24-sep: la 227
+había dejado a `publish_argos_brain` sin permiso para `anon` suponiendo que el tooling
+entraba como service_role, y no era así). Necesitas las cuatro variables en la misma
+ventana. El JWT dura una hora: `scripts\elite\obtener-jwt.md`.
+
 ```powershell
 cd "D:\Proyectos_ClaudeCode\ARGOS-BRAIN"
+$env:SUPABASE_URL = "https://itqkfozqvpwikogggqng.supabase.co"
+$env:SUPABASE_ANON_KEY = (Select-String -Path build\STORE_RUNBOOK.md -Pattern 'sb_publishable_[A-Za-z0-9_-]+' | Select-Object -First 1).Matches[0].Value
+$env:ARGOS_BRAIN_ADMIN_KEY = "<de public.argos_config>"
+$env:ARGOS_BRAIN_JWT = "<tu JWT, dura 1 hora>"
 node build\publish-brain.mjs
 node build\promote-brain.mjs all 1.24.1
 cd "D:\Proyectos_ClaudeCode\ELITE_Timer\EliteTimer"
 npx supabase functions deploy argos-proxy
 ```
+
+Si sale `42501 permission denied for function`, falta el `db push` de la 326 (fase 2).
+Si sale `401` con el JWT puesto, el JWT venció.
 
 `publish` sube a staging; `promote` es el acto explícito a producción (regresión antes si
 quieres: `build/STORE_RUNBOOK.md`). El deploy de `argos-proxy` lleva el fallback embebido
