@@ -42,6 +42,10 @@ export const RUTAS_DE_TAB: ReadonlySet<string> = new Set([
   '/argos',       // ORBE
   '/salud',
   '/tribu',
+  // App Elite DX (25-sep-2026, flags.APP_ELITE_DX): las salas nuevas. Sin
+  // ellas salian dos ARGOS y la casita tapaba el encabezado (revision en frio).
+  '/programa',
+  '/tu',
   // Retiradas del tab bar pero vivas como ruta (href: null)
   // OJO: `/yo` vivió aquí hasta NOCHE-ARGOS. Ya no existe como ruta (no hay
   // app/yo.tsx ni app/(tabs)/yo.tsx) y en CIERRE-6 murió también el último

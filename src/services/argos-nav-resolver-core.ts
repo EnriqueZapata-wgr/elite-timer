@@ -29,7 +29,7 @@ import {
   APP_ROUTE_DESCRIPTIONS,
   APP_ROUTE_ALIASES,
 } from '@/src/constants/app-routes.generated';
-import { ARGOS_RESUELVE_RUTAS_DINAMICAS } from '@/src/constants/flags';
+import { ARGOS_RESUELVE_RUTAS_DINAMICAS, APP_ELITE_DX } from '@/src/constants/flags';
 import {
   esPlantilla,
   expandirPlantilla,
@@ -109,9 +109,63 @@ const PREFIJOS_VETADOS: ReadonlyArray<readonly [string, string]> = [
   ['/consola', 'herramienta interna del coach'],
 ];
 
+/**
+ * 25-sep-2026 (flags.APP_ELITE_DX): las salas que salieron del tab bar. Siguen
+ * siendo rutas, pero ARGOS no lleva ahi a un cliente de Elite DX por una frase
+ * suelta: la sala ATP (35 apps), el hub de SALUD y la comunidad son la
+ * plataforma vieja que la app dejo de ensenar. Lo suyo vive en MI PROGRAMA,
+ * PROGRESO y TU, que tienen sus propios alias abajo. Con la bandera apagada
+ * no se veta nada de esto.
+ */
+const VETADAS_ELITE_DX: ReadonlyMap<string, string> = new Map([
+  ['/kit', 'sala retirada de la app Elite DX'],
+  ['/salud', 'sala retirada de la app Elite DX'],
+  ['/tribu', 'sala retirada de la app Elite DX'],
+]);
+const PREFIJOS_VETADOS_ELITE_DX: ReadonlyArray<readonly [string, string]> = [
+  ['/comunidad', 'comunidad fuera de la app Elite DX'],
+];
+
+/**
+ * Con la bandera APAGADA las salas nuevas no existen (sus rutas mandan a HOY):
+ * ARGOS no las ofrece, igual que antes del 25-sep (verificacion en frio).
+ */
+const VETADAS_SIN_ELITE_DX: ReadonlyMap<string, string> = new Map([
+  ['/programa', 'sala de la app Elite DX, apagada'],
+  ['/progreso', 'redirect viejo a fuerza'],
+  ['/tu', 'sala de la app Elite DX, apagada'],
+]);
+
+function vetadaElite(ruta: string): string | null {
+  const dx = VETADAS_ELITE_DX.get(ruta);
+  if (dx) return dx;
+  for (const [p, razon] of PREFIJOS_VETADOS_ELITE_DX) {
+    if (ruta === p || ruta.startsWith(p + '/')) return razon;
+  }
+  return null;
+}
+
 export function rutaVetada(ruta: string): string | null {
   const directa = RUTAS_VETADAS.get(ruta);
   if (directa) return directa;
+  if (!APP_ELITE_DX) {
+    const apagada = VETADAS_SIN_ELITE_DX.get(ruta);
+    if (apagada) return apagada;
+  }
+  if (APP_ELITE_DX) {
+    const dx = vetadaElite(ruta);
+    if (dx) return dx;
+    // Verificacion en frio (25-sep): un alias que desemboca en una sala
+    // retirada (/salud/evolucion -> /salud, /health-hub -> /salud,
+    // /settings/comunidad -> /comunidad/ajustes) tambien se veta, o ARGOS
+    // volveria a dejar al cliente en la plataforma vieja por la puerta de atras.
+    const destino = (APP_ROUTE_ALIASES as Readonly<Record<string, string | null>>)[ruta];
+    if (typeof destino === 'string') {
+      const base = destino.split('?')[0];
+      const porAlias = vetadaElite(base);
+      if (porAlias) return `alias de una ${porAlias}`;
+    }
+  }
   for (const [p, razon] of PREFIJOS_VETADOS) {
     if (ruta === p || ruta.startsWith(p + '/')) return razon;
   }
@@ -193,6 +247,10 @@ export const TITULOS_RUTA: Readonly<Record<string, string>> = {
   '/redeem-code': 'Canjear código',
   '/reports': 'Reportes',
   '/salud': 'Salud',
+  // App Elite DX (25-sep-2026): las salas nuevas.
+  '/programa': 'Mi programa',
+  '/progreso': 'Progreso',
+  '/tu': 'Tu cuenta',
   '/salud/diagnostico': 'Mi mapa funcional',
   '/salud/evolucion': 'Mi evolución',
   '/salud/mi-expediente': 'Mi expediente',
@@ -249,7 +307,17 @@ export function tituloDe(ruta: string): string {
  * que se escribe en el código. Sin acentos (se normalizan igual, pero deja el
  * archivo legible).
  */
-export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = {
+const ALIAS_RUTA_BASE: Readonly<Record<string, readonly string[]>> = {
+  // App Elite DX (25-sep-2026, flags.APP_ELITE_DX): las tres salas nuevas.
+  // Solo con la bandera: apagada, esas rutas mandan a HOY y ofrecerlas seria
+  // prometer un destino que no existe.
+  ...(APP_ELITE_DX
+    ? {
+      '/programa': ['mi programa', 'programa', 'mi evaluacion', 'mi evaluacion elite', 'mi plan', 'mi expediente'],
+      '/progreso': ['progreso', 'mi progreso', 'mi avance', 'avance', 'constancia', 'mi constancia'],
+      '/tu': ['mi cuenta', 'cuenta', 'herramientas', 'mis herramientas', 'mi servicio', 'escribirle a enrique', 'contacto'],
+    }
+    : {}),
   '/': ['hoy', 'inicio', 'checklist', 'pendientes', 'tareas', 'home'],
   '/agenda': ['agenda', 'calendario', 'horario', 'itinerario'],
   '/fasting': ['ayuno', 'ayunar', 'ayunas', 'fasting', 'ventana'],
@@ -354,6 +422,17 @@ export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = {
   // '/afiliados/mi-codigo': ['mi codigo de afiliado', 'referidos'],
   // '/afiliados/dashboard': ['afiliados', 'comisiones'],
 };
+
+/**
+ * 25-sep-2026 (flags.APP_ELITE_DX): con la bandera, un alias que apunta a una
+ * sala vetada (ATP, SALUD, TRIBU, comunidad) se cae del catalogo en vez de
+ * quedar inalcanzable ("ningun alias apunta a una ruta vetada" es un candado
+ * del test). "mis apps" o "comunidad" dejan de llevar a la plataforma vieja;
+ * "mi constancia" y "mi evaluacion" ahora llevan a PROGRESO y MI PROGRAMA.
+ */
+export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = APP_ELITE_DX
+  ? Object.fromEntries(Object.entries(ALIAS_RUTA_BASE).filter(([ruta]) => rutaVetada(ruta) === null))
+  : ALIAS_RUTA_BASE;
 
 // ---------------------------------------------------------------------------
 // Normalización

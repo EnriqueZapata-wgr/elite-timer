@@ -26,6 +26,7 @@ import {
   ALIAS_RUTA,
   esAliasPuro,
 } from '../argos-nav-resolver-core';
+import { APP_ELITE_DX } from '@/src/constants/flags';
 import { APP_ROUTES,
   APP_ROUTE_ALIASES, APP_ROUTES_DYNAMIC } from '@/src/constants/app-routes.generated';
 import {
@@ -152,7 +153,10 @@ describe('intentos reales en es-MX', () => {
     ['mi historial de electrones', '/economy/history'],
     ['quiero instalar más funciones', '/centro'],
     ['ver mis hábitos', '/hoy-habitos'],
-    ['el ranking de la comunidad', '/comunidad/ranking'],
+    // 25-sep-2026 (APP_ELITE_DX): con la bandera, la comunidad sale de la app
+    // Elite DX y ARGOS no lleva ahi (criterio cambiado a proposito; el caso
+    // con la bandera vive en el describe de abajo).
+    ...(APP_ELITE_DX ? [] : [['el ranking de la comunidad', '/comunidad/ranking'] as [string, string]]),
     ['mi ficha de emergencia', '/ficha-emergencia'],
     ['conectar con health connect', '/settings/salud-conexion'],
     ['el filtro nocturno', '/night-filter'],
@@ -171,6 +175,26 @@ describe('intentos reales en es-MX', () => {
   for (const [frase, ruta] of casos) {
     it(`"${frase}" -> ${ruta}`, () => esperarRuta(frase, ruta));
   }
+});
+
+describe('app Elite DX (25-sep-2026, APP_ELITE_DX)', () => {
+  it('las salas nuevas se alcanzan por su nombre', () => {
+    if (!APP_ELITE_DX) return;
+    esperarRuta('mi programa', '/programa');
+    esperarRuta('mi progreso', '/progreso');
+    esperarRuta('mi constancia', '/progreso');
+    esperarRuta('mis herramientas', '/tu');
+  });
+  it('las salas retiradas no se ofrecen', () => {
+    if (!APP_ELITE_DX) return;
+    expect(rutaVetada('/kit')).not.toBeNull();
+    expect(rutaVetada('/salud')).not.toBeNull();
+    expect(rutaVetada('/tribu')).not.toBeNull();
+    expect(rutaVetada('/comunidad/ranking')).not.toBeNull();
+    // Lo que si es del cliente, aunque viva bajo /salud, sigue abierto.
+    expect(rutaVetada('/salud/evaluacion-elite')).toBeNull();
+    expect(resolverDestino('el ranking de la comunidad').tipo).not.toBe('resuelta');
+  });
 });
 
 describe('el contrato: preguntar en vez de adivinar', () => {

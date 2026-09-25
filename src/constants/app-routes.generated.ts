@@ -161,6 +161,7 @@ export const APP_ROUTES: readonly string[] = [
   "/primera-sesion/preguntas",
   "/primera-sesion/punto-de-partida",
   "/profile",
+  "/programa",
   "/progreso",
   "/progress",
   "/protocol-explorer",
@@ -213,6 +214,7 @@ export const APP_ROUTES: readonly string[] = [
   "/tests",
   "/tests/resultado/cronotipo",
   "/tribu",
+  "/tu",
   "/tutorial",
 ];
 
@@ -280,7 +282,6 @@ export const APP_ROUTE_ALIASES: Readonly<Record<string, string | null>> = {
   "/my-chronotype": "/tests/resultado/cronotipo",
   "/my-recipes": "/cocina?tab=recetas",
   "/perfil": "/settings",
-  "/progreso": "/fitness-strength",
   "/protocol-explorer": "/agenda",
   "/quiz-take": null,
   "/quiz/chronotype": "/tests/q/cronotipo",
@@ -462,7 +463,8 @@ export const APP_ROUTE_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "/primera-sesion/preguntas": "Primera sesión · pantalla 2 de 6 — TRES PREGUNTAS. Pivote limpio, 7 de septiembre de 2026 (sección 6 del plan).",
   "/primera-sesion/punto-de-partida": "Primera sesión · pantalla 5 de 6 — TU PUNTO DE PARTIDA. Pivote limpio, 7 de septiembre de 2026 (sección 6 del plan).",
   "/profile": "Perfil — identidad del usuario: nombre, fecha de nacimiento (calcula edad cronológica), sexo biológico. Accesible desde el header de YO (beta-01 #1:",
-  "/progreso": "Tab vieja Progreso — redirect para deep links externos (OLA0 QW-6). G09 (20-ago-2026): era un <Redirect> declarativo y dejaba la pantalla EN",
+  "/programa": "MI PROGRAMA: tu programa con Enrique. Tu evaluación, tu plan de alimentación, suplementos y entrenamiento, lo que va con tu médico, tus estudios y tu expediente. Sala del tab bar de la app Elite DX (25-sep-2026, flags.APP_ELITE_DX). La",
+  "/progreso": "PROGRESO: tu avance en el programa. Tu constancia de los últimos 14 días, tu cuerpo (peso, cintura, grasa), fuerza, sueño, laboratorios y reportes.",
   "/progress": "Mi Progreso — Resumen mensual, gráficas de frecuencia/volumen semanal, y lista de PRs recientes.",
   "/protocol-explorer": "protocol-explorer: RETIRADA A ALIAS (A-1, 20-ago-2026, autorizado dueño). Era el catálogo del modelo anterior al pivote del 16-ago: protocolos que",
   "/quiz-take": "Redirect legacy (Ola 4, Anexo C, pieza 5). El quiz de base de datos lo corre el motor único de /tests/q/[id], que",
@@ -514,5 +516,6 @@ export const APP_ROUTE_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "/tests": "TESTS — hub único de evaluaciones (Ola 4, Anexo C, pieza 2). Absorbe seis hubs que hoy muestran lo mismo desde ángulos distintos:",
   "/tests/resultado/cronotipo": "Mi Cronotipo — la vista de TU cronotipo, no el test crudo. Ola 4, pieza 5: se mudó de /my-chronotype a /tests/resultado/cronotipo, que",
   "/tribu": "Tab TRIBU (MB-19 PIEZA 4) — la casa de la comunidad. Antes se llegaba por una card dentro de Mi ATP, que este run convirtió en la",
+  "/tu": "TÚ: tu cuenta. Tu servicio contratado y su vigencia, escribirle a Enrique, tus herramientas (respiración, ayuno, comida, entrenar...) y ajustes. Sala del tab bar de la app Elite DX (25-sep-2026, flags.APP_ELITE_DX). La",
   "/tutorial": "CENTRO DE AYUDA — el tutorial completo, siempre disponible. El tutorial llega solo, pieza por pieza, la primera vez que pisas cada",
 };

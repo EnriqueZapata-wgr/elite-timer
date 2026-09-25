@@ -1,8 +1,8 @@
 {
   "scheme": "atp",
-  "generado": "2026-09-08T18:45:35.980Z",
+  "generado": "2026-09-25T05:09:44.765Z",
   "resumen": {
-    "estaticas": 203,
+    "estaticas": 205,
     "dinamicas": 99,
     "variantes": 12
   },
@@ -1454,6 +1454,12 @@
       "slug": "profile"
     },
     {
+      "ruta": "/programa",
+      "archivo": "app/(tabs)/programa.tsx",
+      "tipo": "estatica",
+      "slug": "programa"
+    },
+    {
       "ruta": "/progreso",
       "archivo": "app/(tabs)/progreso.tsx",
       "tipo": "estatica",
@@ -2002,6 +2008,12 @@
       "archivo": "app/(tabs)/tribu.tsx",
       "tipo": "estatica",
       "slug": "tribu"
+    },
+    {
+      "ruta": "/tu",
+      "archivo": "app/(tabs)/tu.tsx",
+      "tipo": "estatica",
+      "slug": "tu"
     },
     {
       "ruta": "/tutorial",
