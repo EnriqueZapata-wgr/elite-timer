@@ -94,3 +94,42 @@ export async function fetchHtmlEvaluacionElite(dxId: string): Promise<LecturaHtm
     return { estado: 'error' };
   }
 }
+
+/**
+ * 25-sep-2026 (app Elite DX): lo minimo para "Semana 3 de 12". Trae, sin las
+ * secciones, la fecha de cada version y las semanas del programa. El inicio
+ * es la PRIMERA carga (la version mas vieja); la duracion, la de la version
+ * vigente (Enrique puede corregirla en una revision). `inicio: null` = el
+ * cliente todavia no tiene evaluacion, que no es lo mismo que un error.
+ */
+export type LecturaInicioPrograma =
+  | { estado: 'ok'; inicio: string | null; programaSemanas: number | null }
+  | { estado: 'error' };
+
+export async function fetchInicioProgramaElite(userId: string): Promise<LecturaInicioPrograma> {
+  // Revision en frio (25-sep): dos lecturas de una fila cada una, no una lista
+  // con tope. Con un tope de 20 versiones, la 21 corria el inicio en silencio.
+  const base = () => supabase
+    .from('functional_dx')
+    .select('version, created_at, ps:sources_snapshot->elite_v3->inicio->programa_semanas')
+    .eq('user_id', userId)
+    .not('sources_snapshot->elite_v3', 'is', null);
+  try {
+    const [primera, vigente] = await Promise.all([
+      base().order('created_at', { ascending: true }).limit(1),
+      base().order('version', { ascending: false }).limit(1),
+    ]);
+    if (primera.error || vigente.error) return { estado: 'error' };
+    const f0 = ((primera.data ?? []) as unknown as { created_at: unknown }[])[0];
+    const fv = ((vigente.data ?? []) as unknown as { ps: unknown }[])[0];
+    if (!f0 || !fv) return { estado: 'ok', inicio: null, programaSemanas: null };
+    const ps = fv.ps;
+    return {
+      estado: 'ok',
+      inicio: typeof f0.created_at === 'string' ? f0.created_at : null,
+      programaSemanas: typeof ps === 'number' && Number.isFinite(ps) ? ps : null,
+    };
+  } catch {
+    return { estado: 'error' };
+  }
+}

@@ -17,9 +17,13 @@ export interface TabBarIconPair {
   activo: AppIconName;
 }
 
-export const TAB_BAR_ICONS: Record<'hoy' | 'atp' | 'salud' | 'tribu', TabBarIconPair> = {
+export const TAB_BAR_ICONS: Record<'hoy' | 'atp' | 'salud' | 'tribu' | 'programa' | 'progreso' | 'tu', TabBarIconPair> = {
   hoy: { reposo: 'tab-hoy', activo: 'tab-hoy-fill' },
   atp: { reposo: 'tab-atp', activo: 'tab-atp-fill' },
   salud: { reposo: 'tab-salud', activo: 'tab-salud-fill' },
   tribu: { reposo: 'tab-tribu', activo: 'tab-tribu-fill' },
+  // App Elite DX (25-sep-2026, flags.APP_ELITE_DX).
+  programa: { reposo: 'tab-programa', activo: 'tab-programa-fill' },
+  progreso: { reposo: 'tab-progreso', activo: 'tab-progreso-fill' },
+  tu: { reposo: 'tab-tu', activo: 'tab-tu-fill' },
 };

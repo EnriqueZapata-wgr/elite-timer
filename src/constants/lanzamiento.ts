@@ -36,6 +36,13 @@ export const NOMBRE_COACH_ELITE = 'Enrique';
 export const CONTACTO_ELITE_EMAIL = 'hola@somosatp.com';
 
 /**
+ * 25-sep-2026 (app Elite DX): el WhatsApp de Enrique para "Escribele a
+ * Enrique", con lada de pais y sin signos (ejemplo de forma: '5215512345678').
+ * null = todavia no esta: el boton abre el correo de arriba. No se inventa.
+ */
+export const WHATSAPP_COACH_ELITE: string | null = null;
+
+/**
  * El copy del paywall cuando la ventana está activa. Puro, para probarlo.
  *
  * 7-sep-2026 (VENTA_AL_PUBLICO): la ventana de lanzamiento es una promesa de

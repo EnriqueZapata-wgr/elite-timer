@@ -271,10 +271,11 @@ describe('el set SVG está montado y no diverge de assets/icons', () => {
     emociones: 'src/components/ui/icons/IconEmociones.tsx',
   };
 
-  it('el set completo está en el repo (57 SVG)', () => {
+  it('el set completo está en el repo (63 SVG)', () => {
     // 33 del montaje original + los 22 de MB-28A + el fallback ('question')
     // + genetica (6-sep-2026, ATP 3.0 ruta 3.4: Phosphor dna, relleno).
-    expect(assets.length).toBe(57);
+    // + las 3 salas de la app Elite DX en linea y relleno (25-sep-2026).
+    expect(assets.length).toBe(63);
   });
 
   it.each(assets)('%s montado sin divergencia', (file) => {

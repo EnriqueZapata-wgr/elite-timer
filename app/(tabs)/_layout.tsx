@@ -41,7 +41,7 @@ import { OrbTour } from '@/src/components/tour/OrbTour';
 import { TUTORIAL_POR_PANTALLA } from '@/src/constants/flags';
 import { ORB_TOUR_DONE_KEY, ORB_TOUR_RESTART_EVENT } from '@/src/components/tour/orb-tour-core';
 import { countUnreadInbox } from '@/src/services/user-notifications-service';
-import { TABS_EXIGEN_CONSENTIMIENTO } from '@/src/constants/flags';
+import { TABS_EXIGEN_CONSENTIMIENTO, APP_ELITE_DX } from '@/src/constants/flags';
 import { hayVistoBuenoEnMemoria, leerVistoBueno } from '@/src/services/acceso-consentido';
 
 const COACH_PANEL_MIN_WIDTH = 1024;
@@ -244,7 +244,14 @@ export default function TabLayout() {
         }}>
         {/* ── Los cinco ──
             Iconos del set SVG vía AppIcon: línea en reposo, '-fill' al estar
-            parado en la sala. Los nombres viven en TAB_BAR_ICONS (registro). */}
+            parado en la sala. Los nombres viven en TAB_BAR_ICONS (registro).
+
+            25-sep-2026 (flags.APP_ELITE_DX): con la bandera encendida los
+            cinco son HOY · MI PROGRAMA · ARGOS · PROGRESO · TÚ, y ATP, SALUD
+            y TRIBU salen del tab bar con href: null (siguen siendo rutas
+            válidas). Con la bandera apagada, exactamente como antes. El orden
+            de declaración es el orden en la barra, por eso las ocultas se
+            intercalan: lo visible queda igual en los dos modos. */}
         <Tabs.Screen
           name="index"
           options={{
@@ -253,11 +260,16 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
+          name="programa"
+          options={APP_ELITE_DX
+            ? { title: 'Mi programa', tabBarIcon: tabIcon('programa') }
+            : { href: null }}
+        />
+        <Tabs.Screen
           name="kit"
-          options={{
-            title: 'ATP',
-            tabBarIcon: tabIcon('atp'),
-          }}
+          options={APP_ELITE_DX
+            ? { href: null }
+            : { title: 'ATP', tabBarIcon: tabIcon('atp') }}
         />
         {/* La ORBE. Sin etiqueta a propósito: no se nombra lo que se reconoce.
             El icono lo dibuja ArgosOrb, que respira solo. */}
@@ -271,18 +283,28 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
+          name="progreso"
+          options={APP_ELITE_DX
+            ? { title: 'Progreso', tabBarIcon: tabIcon('progreso') }
+            : { href: null }}
+        />
+        <Tabs.Screen
           name="salud"
-          options={{
-            title: 'Salud',
-            tabBarIcon: tabIcon('salud'),
-          }}
+          options={APP_ELITE_DX
+            ? { href: null }
+            : { title: 'Salud', tabBarIcon: tabIcon('salud') }}
         />
         <Tabs.Screen
           name="tribu"
-          options={{
-            title: 'Tribu',
-            tabBarIcon: tabIcon('tribu'),
-          }}
+          options={APP_ELITE_DX
+            ? { href: null }
+            : { title: 'Tribu', tabBarIcon: tabIcon('tribu') }}
+        />
+        <Tabs.Screen
+          name="tu"
+          options={APP_ELITE_DX
+            ? { title: 'Tú', tabBarIcon: tabIcon('tu') }
+            : { href: null }}
         />
 
         {/* ── Retiradas del tab bar, vivas como rutas ──
@@ -290,10 +312,6 @@ export default function TabLayout() {
             deep links. Ver el encabezado de este archivo. */}
         <Tabs.Screen
           name="biblioteca"
-          options={{ href: null }}
-        />
-        <Tabs.Screen
-          name="progreso"
           options={{ href: null }}
         />
         <Tabs.Screen

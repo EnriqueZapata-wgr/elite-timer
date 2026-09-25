@@ -1,25 +1,19 @@
 /**
- * Tab vieja Progreso — redirect para deep links externos (OLA0 QW-6).
+ * PROGRESO: tu avance en el programa. Tu constancia de los últimos 14 días,
+ * tu cuerpo (peso, cintura, grasa), fuerza, sueño, laboratorios y reportes.
  *
- * G09 (20-ago-2026): era un <Redirect> declarativo y dejaba la pantalla EN
- * BLANCO al entrar por deep link: el barrido del 19-ago capturó blanco puro
- * (1 color, sin tab bar) en /biblioteca y /perfil, y el audit-visual tuvo que
- * reiniciar la app en los dos. Un <Redirect> que se monta DENTRO del grupo
- * (tabs) mientras el guard de consentimiento del layout está en 'consultando'
- * compite con el montaje del propio grupo. Con useEffect + replace, la
- * navegación sale DESPUÉS del primer render y el fondo mientras tanto es el
- * del tema, no el vacío.
+ * Sala del tab bar de la app Elite DX (25-sep-2026, flags.APP_ELITE_DX). La
+ * pantalla vive en src/screens/elite-dx/ProgresoScreen.tsx. Con la bandera
+ * apagada esta ruta vuelve a ser la tab vieja: un redirect a /fitness-strength
+ * para deep links externos (OLA0 QW-6), hecho con RedirectLegacy (useEffect +
+ * replace, G09 20-ago-2026: el componente Redirect dentro del grupo dejaba la pantalla
+ * en blanco). El redirect vive fuera de este archivo para que el mapa de
+ * ARGOS no confunda la sala con un alias.
  */
-import { useEffect } from 'react';
-import { View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { APP_ELITE_DX } from '@/src/constants/flags';
+import { ProgresoScreen } from '@/src/screens/elite-dx/ProgresoScreen';
+import { RedirectLegacy } from '@/src/screens/elite-dx/RedirectLegacy';
 
-export default function ProgresoRedirect() {
-  const router = useRouter();
-  const t = useSurfaceTokens();
-  useEffect(() => {
-    router.replace('/fitness-strength');
-  }, [router]);
-  return <View style={{ flex: 1, backgroundColor: t.fondo }} />;
+export default function ProgresoTab() {
+  return APP_ELITE_DX ? <ProgresoScreen /> : <RedirectLegacy a="/fitness-strength" />;
 }

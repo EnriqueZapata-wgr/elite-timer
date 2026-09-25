@@ -947,3 +947,27 @@ export const ACERO_OSCURO = true;
  *  cambiar el valor de verdad es cambiar UNA palabra.
  */
 export const VENTA_AL_PUBLICO: boolean = false;
+
+/**
+ * APP_ELITE_DX (25-sep-2026). La app deja de ser la plataforma ATP con una
+ * capa Elite encima y pasa a ser la app del programa Elite DX:
+ *
+ *   HOY · MI PROGRAMA · ARGOS · PROGRESO · TU
+ *
+ *  - HOY: la semana del programa, lo que toca hoy de su plan y "Escribele a
+ *    Enrique". Salen de la vista la presencia de Tribu, la pildora de
+ *    electrones, la graduacion y los botones de armar el dia.
+ *  - MI PROGRAMA: su evaluacion como casa (tu plan, tu evaluacion, con tu
+ *    medico) y sus estudios.
+ *  - PROGRESO: constancia, cuerpo, fuerza, sueno y laboratorios.
+ *  - TU: su servicio, el contacto, las herramientas (timers, ayuno, comida,
+ *    respiracion...) y ajustes.
+ *
+ * ATP (lanzador), SALUD y TRIBU salen del tab bar con `href: null`: siguen
+ * siendo rutas validas para notificaciones y enlaces viejos, pero ARGOS ya
+ * no lleva ahi (argos-nav-resolver-core las veta con la bandera). No se borra
+ * ninguna pantalla (regla de la casa: se retira de la vista, no del
+ * archivo). Con `false` la app vuelve exactamente a como estaba el 24-sep.
+ * Lleva `: boolean` por la misma razon que VENTA_AL_PUBLICO.
+ */
+export const APP_ELITE_DX: boolean = true;

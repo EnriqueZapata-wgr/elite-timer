@@ -96,6 +96,12 @@ export const ICON_MAP: Record<AppIconName, AppIconGlyph> = {
   'tab-salud-fill': svg('tab-salud-fill'),
   'tab-tribu': svg('tab-tribu'),
   'tab-tribu-fill': svg('tab-tribu-fill'),
+  'tab-programa': svg('tab-programa'),
+  'tab-programa-fill': svg('tab-programa-fill'),
+  'tab-progreso': svg('tab-progreso'),
+  'tab-progreso-fill': svg('tab-progreso-fill'),
+  'tab-tu': svg('tab-tu'),
+  'tab-tu-fill': svg('tab-tu-fill'),
 
   // ── Puertas de SALUD ──
   'salud-hoy': svg('salud-hoy'),

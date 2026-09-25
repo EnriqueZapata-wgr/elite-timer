@@ -24,6 +24,8 @@ export const APP_ICON_NAMES = [
   // el estado activo. La orbe (ARGOS) no está aquí: es componente, no glifo.
   'tab-hoy', 'tab-hoy-fill', 'tab-atp', 'tab-atp-fill',
   'tab-salud', 'tab-salud-fill', 'tab-tribu', 'tab-tribu-fill',
+  // App Elite DX (25-sep-2026): Mi programa, Progreso y Tú.
+  'tab-programa', 'tab-programa-fill', 'tab-progreso', 'tab-progreso-fill', 'tab-tu', 'tab-tu-fill',
   // ── Puertas de SALUD ──
   // No son apps de la sala, pero comparten el mismo enchufe: el día del cambio
   // de set no se quedan fuera.
