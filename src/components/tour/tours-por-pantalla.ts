@@ -20,6 +20,7 @@
  *
  * Datos puros: sin React, sin storage, testeable en el harness de node.
  */
+import { APP_ELITE_DX } from '@/src/constants/flags';
 
 /** Un paso: un concepto, una frase. */
 export interface PasoTour {
@@ -190,12 +191,33 @@ export function llaveTour(id: string): string {
 /** Evento para abrir un tour a mano (centro de ayuda, ARGOS). */
 export const TOUR_PANTALLA_ABRIR_EVENT = 'tour_pantalla_abrir';
 
+/**
+ * 25-sep-2026 (APP_ELITE_DX, revisión en frío): pasos que la app Elite DX no
+ * enseña. El de electrones habla del marcador y del ranking de la app
+ * pública, que en Elite DX no se ven (la píldora y la Tribu salieron). Se
+ * filtra aquí, no en el guion: TOURS_POR_PANTALLA queda intacto (el test del
+ * copy lo sigue blindando entero y con la bandera en false nada cambia).
+ * Llave: `${tour.id}/${paso.id}`.
+ */
+export const PASOS_FUERA_DE_ELITE_DX: ReadonlySet<string> = new Set(['hoy/electrones']);
+
+/**
+ * La pieza tal como se muestra en este modo de la app. Pura: `eliteDx` entra
+ * como parámetro para poder probar los dos lados de la bandera.
+ */
+export function tourSegunModo(t: TourDePantalla, eliteDx: boolean): TourDePantalla {
+  if (!eliteDx) return t;
+  const pasos = t.pasos.filter((p) => !PASOS_FUERA_DE_ELITE_DX.has(`${t.id}/${p.id}`));
+  return pasos.length === t.pasos.length ? t : { ...t, pasos };
+}
+
+// Lo que se lanza (sola o a mano) sale de estos mapas: ahí se aplica el modo.
 const POR_RUTA: ReadonlyMap<string, TourDePantalla> = new Map(
-  TOURS_POR_PANTALLA.map((t) => [t.ruta, t])
+  TOURS_POR_PANTALLA.map((t) => [t.ruta, tourSegunModo(t, APP_ELITE_DX)])
 );
 
 const POR_ID: ReadonlyMap<string, TourDePantalla> = new Map(
-  TOURS_POR_PANTALLA.map((t) => [t.id, t])
+  TOURS_POR_PANTALLA.map((t) => [t.id, tourSegunModo(t, APP_ELITE_DX)])
 );
 
 export function tourDeRuta(ruta: string): TourDePantalla | null {

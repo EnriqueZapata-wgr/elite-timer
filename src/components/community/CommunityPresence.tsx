@@ -15,6 +15,7 @@ import {
 } from '@/src/services/community/community-presence-service';
 import { presenceDisplay, type PresenceDisplay } from '@/src/services/community/community-presence-core';
 import { CATEGORY_COLORS, ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { APP_ELITE_DX } from '@/src/constants/flags';
 
 const PILLAR_TINT: Record<PresencePillar, string> = {
   hoy: ATP_BRAND.lime,
@@ -31,6 +32,9 @@ export function CommunityPresence({ pillar }: Props) {
   const [display, setDisplay] = useState<PresenceDisplay>(() => presenceDisplay(0));
 
   useEffect(() => {
+    // 25-sep-2026 (APP_ELITE_DX, revisión en frío): sin badge no hay para
+    // que leer el conteo de la comunidad.
+    if (APP_ELITE_DX) return;
     let alive = true;
     getPresence(pillar)
       .then((count) => { if (alive) setDisplay(presenceDisplay(count)); })
@@ -42,6 +46,10 @@ export function CommunityPresence({ pillar }: Props) {
   // "En comunidad · verifica pronto" leía como copy roto en device. La regla
   // honesta se mantiene: el badge aparece solo con conteo real (≥ umbral).
   if (display.mode === 'placeholder') return null;
+  // 25-sep-2026 (APP_ELITE_DX, revisión en frío): la presencia de Tribu es de
+  // la plataforma publica. Se apaga aqui (despues de los hooks) y no en cada
+  // pantalla que la monta (HOY, fitness-hub, nutrition, mente).
+  if (APP_ELITE_DX) return null;
 
   const tint = PILLAR_TINT[pillar];
 

@@ -16,6 +16,15 @@
  * compileDay y la agenda completa vive en /agenda (puerta en la lente).
  * CIERRE-6: los componentes que quedaron sin montar tras ese corte
  * (AgendaPreviewCard, HoyDayCardEditorial) ya no existen en el árbol.
+ *
+ * 25-sep-2026 (APP_ELITE_DX): con la bandera, HOY es "tu programa hoy" para
+ * un cliente de Enrique: marca ATP ELITE, la semana del programa arriba
+ * (ProgramaHeader), Qué hacer hoy, el checklist, la lectura de la semana y
+ * "Escríbele a Enrique" al pie. Salen de la vista (no del archivo) la
+ * presencia de Tribu, la píldora de electrones, los heros de laboratorios y
+ * de puertas (viven en MI PROGRAMA), la graduación, los dos CTAs de armar el
+ * día y el toast de electrones. Con la bandera en false, HOY queda igual que
+ * el 24-sep: cada cambio es una rama sobre APP_ELITE_DX.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -43,7 +52,17 @@ import { QueHacerHoy } from '@/src/components/hoy/QueHacerHoy';
 // 20-sep-2026 (cliente Elite): el indice de su producto bajo el hero, y el
 // nivel leido UNA vez aqui para el hero y la pildora (antes lo leia el hero).
 import { PuertasElite } from '@/src/components/hoy/PuertasElite';
-import { useSubscription } from '@/src/hooks/useSubscription';
+// 25-sep-2026 (APP_ELITE_DX): piezas compartidas de la app Elite DX (la
+// semana del programa y el contacto con Enrique) y el aviso de evaluacion
+// que HOY conserva al retirar HeroLaboratorios (ver AvisoEvaluacionDx).
+import { ProgramaHeader } from '@/src/components/elite-dx/ProgramaHeader';
+import { EscribirleCoach } from '@/src/components/elite-dx/EscribirleCoach';
+import { HeroEliteNoSePudoLeer } from '@/src/components/hoy/HeroEvaluacionElite';
+import { EVALUACION_ELITE_CHANGED_EVENT, leerEvaluacionEliteVigente } from '@/src/services/hoy/elite-hoy-service';
+import {
+  avisoEvaluacionHoyDx, nombreParaMensaje, siguienteLecturaAviso, type LecturaParaAviso,
+} from '@/src/services/hoy/hoy-elite-dx-core';
+import { useSubscription, SUBSCRIPTION_CHANGED_EVENT } from '@/src/hooks/useSubscription';
 import { ocultarPildoraEconomia, TOPE_HERO_ELITE_MS, type NivelHoy } from '@/src/services/hoy/elite-hoy-core';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
@@ -54,7 +73,7 @@ import { haptic } from '@/src/utils/haptics';
 import { generateDailyInsight, invalidateDailyInsight, ARGOS_INSIGHT_CHANGED_EVENT } from '@/src/services/argos-service';
 import { leerInsightDeHoy } from '@/src/services/argos-insight-cache';
 import { decidirRegeneracionInsight } from '@/src/services/argos-insight-window-core';
-import { INSIGHT_EN_VENTANA } from '@/src/constants/flags';
+import { INSIGHT_EN_VENTANA, APP_ELITE_DX } from '@/src/constants/flags';
 import { getWeeklyInsight, isWeeklyInsightTime, type WeeklyInsightData } from '@/src/services/weekly-insight-service';
 import { syncAppAvisos } from '@/src/services/app-avisos-service';
 import { reconciliarAvisosDeObjetivos } from '@/src/services/pack-avisos-service';
@@ -75,6 +94,55 @@ import { ThemeReady, useAppTheme } from '@/src/contexts/theme-context';
 if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
 
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
+
+/**
+ * 25-sep-2026 (APP_ELITE_DX): lo unico de HeroLaboratorios que HOY no puede
+ * perder. Ese hero era el unico que decia "No pudimos leer tu evaluación" +
+ * Reintentar cuando la evaluacion esta guardada y esta version de la app no
+ * la entiende (o el nivel la ve y la lectura no): sin el, "Qué hacer hoy"
+ * cae en silencio a la terna de siempre y el cliente la leeria como su plan.
+ * Solo se monta con la bandera. Usa la MISMA lectura compartida que "Qué
+ * hacer hoy" (elite-hoy-service: promesa en vuelo y cache compartidas), asi
+ * que no agrega viajes a la base. El fallo de red no se pinta aqui: la terna
+ * ya lo dice con su propio Reintentar. La regla vive en hoy-elite-dx-core.
+ */
+function AvisoEvaluacionDx({ userId, nivel }: { userId?: string; nivel: NivelHoy }) {
+  const [lectura, setLectura] = useState<LecturaParaAviso | null>(null);
+  const vivoRef = useRef(true);
+  // Se re-enciende al montar (StrictMode/Fast Refresh corren el efecto dos veces).
+  useEffect(() => { vivoRef.current = true; return () => { vivoRef.current = false; }; }, []);
+  const leer = useCallback(async (forzar = false) => {
+    if (!userId) return;
+    try {
+      const r = await leerEvaluacionEliteVigente(userId, { forzar });
+      if (vivoRef.current) setLectura((prev) => siguienteLecturaAviso(prev, r));
+    } catch (e) {
+      // La lectura es fail-soft y no deberia lanzar; si lo hace, se queda lo que habia.
+      logWarn('[HOY] aviso de evaluacion: la lectura lanzó', e);
+    }
+  }, [userId]);
+  useFocusEffect(useCallback(() => { leer(); }, [leer]));
+  useEffect(() => {
+    // Reintentar/Actualizar en otra pieza o una version nueva: se relee.
+    const sub = DeviceEventEmitter.addListener(EVALUACION_ELITE_CHANGED_EVENT, (p?: { userId?: string }) => {
+      if (p?.userId && userId && p.userId !== userId) return;
+      leer();
+    });
+    return () => sub.remove();
+  }, [leer, userId]);
+  const aviso = avisoEvaluacionHoyDx(lectura, nivel);
+  if (aviso === 'ninguno') return null;
+  return (
+    <HeroEliteNoSePudoLeer
+      formato={aviso === 'formato'}
+      onReintentar={() => {
+        // Igual que el hero: si lo colgado es el nivel, se le pide releer.
+        if (nivel.cargando) DeviceEventEmitter.emit(SUBSCRIPTION_CHANGED_EVENT);
+        leer(true);
+      }}
+    />
+  );
+}
 
 // ═══ COMPONENTE PRINCIPAL ═══
 
@@ -547,7 +615,9 @@ export default function TodayScreen() {
                   style={s.brandMark}
                   resizeMode="contain"
                 />
-                <Text style={[s.brandLabel, !dark && { color: tokens.textoSecundario }]}>ATP DAILY</Text>
+                {/* 25-sep-2026 (APP_ELITE_DX): es la app de su programa con
+                    Enrique, no el diario ATP para el publico. */}
+                <Text style={[s.brandLabel, !dark && { color: tokens.textoSecundario }]}>{APP_ELITE_DX ? 'ATP ELITE' : 'ATP DAILY'}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 {/* F3 (AGENDA-COMPLETE): campana con badge real (user_notifications) → /notifications. */}
@@ -555,8 +625,10 @@ export default function TodayScreen() {
               </View>
             </View>
             {/* P6: pill E-/Rank (self-gated por LAB_ECONOMY_ENABLED; null si OFF).
-                20-sep-2026: retirada para un cliente Elite (ruido de app publica). */}
-            <EconomyHeaderPill oculta={pildoraOculta} />
+                20-sep-2026: retirada para un cliente Elite (ruido de app publica).
+                25-sep-2026 (APP_ELITE_DX): fuera para todos: la app Elite DX no
+                habla de electrones ni de rango. */}
+            {!APP_ELITE_DX && <EconomyHeaderPill oculta={pildoraOculta} />}
           </Animated.View>
 
           {/* Saludo */}
@@ -565,9 +637,13 @@ export default function TodayScreen() {
             <Text style={[s.heroGreeting, !dark && { color: tokens.texto, textShadowColor: 'transparent' }]}>{saludo}</Text>
             <Text style={[s.heroName, !dark && { color: tokens.texto, textShadowColor: 'transparent' }]}>{day.userName}</Text>
             <Text style={[s.heroDate, !dark && { color: tokens.textoSecundario }]}>{day.date}</Text>
-            <View style={{ marginTop: 10 }}>
-              <CommunityPresence pillar="hoy" />
-            </View>
+            {/* 25-sep-2026 (APP_ELITE_DX): la presencia de Tribu es de la
+                plataforma publica; TRIBU salio del tab bar. */}
+            {!APP_ELITE_DX && (
+              <View style={{ marginTop: 10 }}>
+                <CommunityPresence pillar="hoy" />
+              </View>
+            )}
           </Animated.View>
         </View>
 
@@ -575,11 +651,30 @@ export default function TodayScreen() {
             su Edad ATP y sus tres marcadores; sin estudio, "Sube tu primer
             estudio". Debajo, las tres acciones que ARGOS eligió por sus
             marcadores. Lo demás de HOY no se toca. */}
-        <HeroLaboratorios userId={user?.id} nivel={nivel} />
-        {/* 20-sep-2026: con evaluacion cargada, el indice de lo suyo a un toque:
-            Mi evaluacion, Mis suplementos, Mi alimentacion, Mi entrenamiento.
-            Sin evaluacion no pinta nada. */}
-        <PuertasElite userId={user?.id} />
+        {/* 25-sep-2026 (APP_ELITE_DX): arriba, la semana de su programa. Los dos
+            heros apilados (evaluacion y puertas) se van a MI PROGRAMA; de
+            HeroLaboratorios solo se queda su aviso de "no pudimos leer tu
+            evaluación" cuando nadie mas lo diria (AvisoEvaluacionDx). */}
+        {APP_ELITE_DX ? (
+          <>
+            {/* 25-sep-2026 (APP_ELITE_DX, revisión en frío): si el nivel YA
+                confirmo la evaluacion y la lectura del programa vuelve vacia,
+                el encabezado no dice "en preparación" encima del aviso de
+                "no pudimos leer tu evaluación" (AvisoEvaluacionDx). */}
+            <ProgramaHeader userId={user?.id} tieneEvaluacion={nivel.tieneEvaluacionElite && !nivel.cargando}
+              prometerPreparacion={!nivel.cargando && (nivel.tier === 'elite' || nivel.tieneEvaluacionElite)}
+            />
+            <AvisoEvaluacionDx userId={user?.id} nivel={nivel} />
+          </>
+        ) : (
+          <>
+            <HeroLaboratorios userId={user?.id} nivel={nivel} />
+            {/* 20-sep-2026: con evaluacion cargada, el indice de lo suyo a un toque:
+                Mi evaluacion, Mis suplementos, Mi alimentacion, Mi entrenamiento.
+                Sin evaluacion no pinta nada. */}
+            <PuertasElite userId={user?.id} />
+          </>
+        )}
         <QueHacerHoy userId={user?.id} nivel={nivel} />
 
         {/* ═══════════════════════════════════════
@@ -590,8 +685,10 @@ export default function TodayScreen() {
         </View>
 
         {/* MB-26 P2: la propuesta de graduación (30/35). La app propone,
-            el usuario acepta; "Ahora no" la duerme 7 días. */}
-        <GraduacionCard userId={user?.id} propuestas={day.graduacionPropuestas} />
+            el usuario acepta; "Ahora no" la duerme 7 días.
+            25-sep-2026 (APP_ELITE_DX): fuera de HOY. Sus habitos los arma su
+            plan con Enrique, no la app proponiendo graduarlos. */}
+        {!APP_ELITE_DX && <GraduacionCard userId={user?.id} propuestas={day.graduacionPropuestas} />}
 
         {/* ═══════════════════════════════════════
             WEEKLY INSIGHT — Domingo ≥19h (cacheado por semana)
@@ -698,7 +795,12 @@ export default function TodayScreen() {
             su heredero informativo — el conteo de renglones activos SIEMPRE
             visible, sin umbral y sin juicio: el marcador de tu propio día
             con la salida al lado. Sin conteo aún (compile en curso) se
-            muestra la acción sola: jamás un número inventado. */}
+            muestra la acción sola: jamás un número inventado.
+            25-sep-2026 (APP_ELITE_DX): "Elegir mis hábitos" sale de HOY (su día
+            lo arma su plan). "Ordenar mi día" SE QUEDA: es la salida al
+            desmadre de la doctrina MB-27 V3 (el conteo siempre visible con la
+            salida al lado) y quitarla dejaba al cliente sin forma de reposar o
+            reordenar (revisión en frío, 25-sep). La ruta /hoy-habitos sigue viva. */}
         <GradientCTA
           label={(() => {
             if (!day) return 'Ordenar mi día';
@@ -713,6 +815,7 @@ export default function TodayScreen() {
 
         {/* E-3 (MB-12): la puerta de los electrones — sin ella todo usuario
             quedaba clavado en los 6 booleanos del default (mig 043). */}
+        {!APP_ELITE_DX && (
         <GradientCTA
           label="Elegir mis hábitos"
           variant="quiet"
@@ -720,6 +823,7 @@ export default function TodayScreen() {
           onPress={() => { haptic.light(); router.push('/hoy-habitos'); }}
           style={s.editDayBtn}
         />
+        )}
 
         {/* #hoy-funcionalidad 4.9: SECCIÓN 6 "AGENDA" triple (MAÑANA/TARDE/NOCHE) eliminada
             — el próximo evento vive en HeroAgendaCard; la agenda completa irá a AGENDA V2. */}
@@ -727,6 +831,24 @@ export default function TodayScreen() {
         {/* hotfix-ux FIX 2: el bridge "Únete a la Tribu ATP" (C5) se retiró del footer del HOY.
             Los demás bridge points de Skool (Settings, Meet ARGOS, RateLimitCard, check-in) siguen.
             El acceso a Comunidad Hub vive en tab Mi ATP como 3ra card. */}
+
+        {/* 25-sep-2026 (APP_ELITE_DX): la salida humana de un cliente Elite es
+            Enrique, y HOY no tenia un solo boton para llegarle.
+            25-sep-2026 (APP_ELITE_DX, revisión en frío): el nombre del mensaje
+            sale de su nombre completo (user_metadata, sin consulta nueva) y
+            day.userName solo cuando no es el usuario del correo; si no hay
+            ninguno, va sin nombre (regla en nombreParaMensaje, con test). */}
+        {APP_ELITE_DX && (
+          <View style={s.contactoCoach}>
+            <EscribirleCoach
+              nombre={nombreParaMensaje({
+                nombreCompleto: user?.user_metadata?.full_name,
+                primerNombre: day.userName,
+                email: user?.email,
+              })}
+            />
+          </View>
+        )}
 
         {/* Espaciado inferior para tab bar */}
         <View style={{ height: 120 }} />
@@ -739,8 +861,10 @@ export default function TodayScreen() {
           código muerto desde N1 (ARGOS vive en el menú inferior) — retirados. */}
 
       {/* hotfix-ux FIX 4: reacción ARGOS (pool encouragement) + atribución "+X ⚡ Fuente"
-          tras cada award de electrón. Escucha 'electron_awarded' (electron-service). */}
-      <ArgosReactionToast />
+          tras cada award de electrón. Escucha 'electron_awarded' (electron-service).
+          25-sep-2026 (APP_ELITE_DX): fuera. "+2.5 ⚡ Cardio" es la economia de
+          la app publica; palomear sigue registrando igual. */}
+      {!APP_ELITE_DX && <ArgosReactionToast />}
     </View>
     </ThemeReady>
   );
@@ -895,6 +1019,10 @@ const s = StyleSheet.create({
     fontFamily: Fonts.regular,
     lineHeight: 17,
     fontStyle: 'italic',
+  },
+  // ── Contacto con Enrique (25-sep-2026, APP_ELITE_DX) ──
+  contactoCoach: {
+    marginTop: Spacing.xl, // mismo aire que la lectura de la semana
   },
   // ── Edit day button ──
   editDayBtn: {

@@ -26,6 +26,10 @@ import { tareaImage } from '@/src/components/hoy/tarea-images';
 import { NUDGE_COPY } from '@/src/components/hoy/tarea-gesto-core';
 import { MomentoBanda } from '@/src/components/hoy/MomentoBanda';
 import { OrbCard } from '@/src/components/hoy/OrbCard';
+// 25-sep-2026 (APP_ELITE_DX, revisión en frío): en la app Elite DX el dia lo
+// arma su plan con Enrique; las salidas al lanzador de apps y a armar packs
+// salen de la vista (las rutas siguen vivas).
+import { APP_ELITE_DX } from '@/src/constants/flags';
 import {
   buildTareas, agendaLens, repartoTareas, ofrecerArmarDia,
   type Tarea,
@@ -376,8 +380,13 @@ export function TareasView({ day, userId, uvMini }: Props) {
           día corto sin salida se lee como una app que no trae nada.
           Es UNA acción, no un menú, y no es un muro: las tareas siguen
           debajo. Guiado, no prisionero. Se apaga sola en cuanto el día
-          crece por encima del techo de 8. */}
-      {ofrecerArmarDia(result.global.total) ? (
+          crece por encima del techo de 8.
+          25-sep-2026 (APP_ELITE_DX, revisión en frío): con la bandera no se
+          ofrece nada aqui. /packs/armar es el armador de la plataforma
+          publica; el dia de un cliente lo arma su plan (Qué hacer hoy, arriba)
+          y su salida humana es "Escríbele a Enrique", al pie de HOY. No se
+          escribe copy nuevo en la voz de Enrique para este hueco. */}
+      {!APP_ELITE_DX && ofrecerArmarDia(result.global.total) ? (
         <Pressable
           onPress={() => { haptic.light(); router.push('/packs/armar'); }}
           style={({ pressed }) => [
@@ -455,14 +464,19 @@ export function TareasView({ day, userId, uvMini }: Props) {
             </EliteText>
           </Pressable>
         ) : <View />}
-        <Pressable
-          onPress={() => { haptic.light(); router.push({ pathname: '/kit', params: { agregar: '1' } }); }}
-          style={({ pressed }) => [s.addBtn, pressed && { opacity: 0.6 }]}
-          accessibilityLabel="Agregar hábito"
-        >
-          <Ionicons name="add" size={14} color={acento} />
-          <EliteText style={[s.addText, { color: acento }]}>agregar</EliteText>
-        </Pressable>
+        {/* 25-sep-2026 (APP_ELITE_DX, revisión en frío): "+ agregar" abria
+            /kit?agregar=1, el lanzador de 35 apps que salio del tab bar. Con
+            la bandera no se pinta; el chip UV se queda a la izquierda. */}
+        {!APP_ELITE_DX && (
+          <Pressable
+            onPress={() => { haptic.light(); router.push({ pathname: '/kit', params: { agregar: '1' } }); }}
+            style={({ pressed }) => [s.addBtn, pressed && { opacity: 0.6 }]}
+            accessibilityLabel="Agregar hábito"
+          >
+            <Ionicons name="add" size={14} color={acento} />
+            <EliteText style={[s.addText, { color: acento }]}>agregar</EliteText>
+          </Pressable>
+        )}
       </View>
     </View>
   );

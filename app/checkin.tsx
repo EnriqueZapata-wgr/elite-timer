@@ -69,6 +69,12 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { CrisisSupportBanner } from '@/src/components/global/CrisisSupportBanner';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, withOpacity, SKOOL_URL, ATP_BRAND } from '@/src/constants/brand';
+// 25-sep-2026 (APP_ELITE_DX, revisión en frío): en la app Elite DX la salida
+// humana del puente de animo bajo es Enrique, no la Tribu (Skool).
+import { APP_ELITE_DX } from '@/src/constants/flags';
+import { EscribirleCoach } from '@/src/components/elite-dx/EscribirleCoach';
+import { nombreParaMensaje } from '@/src/services/hoy/hoy-elite-dx-core';
+import { useAuth } from '@/src/contexts/auth-context';
 import { Screen } from '@/src/components/ui/Screen';
 import { ORB_SAFE_BOTTOM } from '@/src/components/argos/ArgosFloatingButton';
 import { useAppTheme } from '@/src/contexts/theme-context';
@@ -78,6 +84,9 @@ export default function CheckinScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ protocolItemId?: string; emotionId?: string; gate?: string; mode?: string; step?: string }>();
   const analytics = useAnalytics();
+  // 25-sep-2026 (APP_ELITE_DX, revisión en frío): solo para el nombre del
+  // mensaje a Enrique en el puente (sin consulta nueva: user_metadata).
+  const { user: usuarioAuth } = useAuth();
   // MB-31B3: la pantalla migró a tokens (Screen themed) y sigue el tema global.
   const { kind, tokens: t } = useAppTheme();
   const secTxt = { color: t.textoSecundario };
@@ -637,15 +646,35 @@ export default function CheckinScreen() {
           {/* C5 COMUNIDAD: mood bajo sostenido → puente cálido a la Tribu (Skool) */}
           {showTribeBridge && (
             <Animated.View entering={FadeIn.delay(600).duration(500)} style={[styles.tribeCard, { backgroundColor: t.card, borderColor: t.borde }]}>
-              <EliteText variant="body" style={[styles.tribeCopy, priTxt]}>{TRIBE_BRIDGE_COPY}</EliteText>
-              {/* Hallazgo MB-31B3: el CTA iba en lima como TEXTO — acento calibrado
-                  (el tinte lima del fondo es de marca y se queda). */}
-              <Pressable
-                onPress={() => { haptic.light(); Linking.openURL(SKOOL_URL).catch(() => {}); }}
-                style={styles.tribeBtn}
-              >
-                <EliteText variant="body" style={[styles.tribeBtnText, { color: acento }]}>Únete a la Tribu ATP</EliteText>
-              </Pressable>
+              {/* 25-sep-2026 (APP_ELITE_DX, revisión en frío): es la UNICA salida
+                  humana de quien lleva dias con el animo bajo, asi que no
+                  desaparece: la Tribu (Skool) cambia por "Escríbele a Enrique".
+                  Del copy aprobado (TRIBE_BRIDGE_COPY, no se edita sin
+                  aprobacion) se queda solo su primera frase; no se escribe
+                  copy nuevo en la voz de Enrique para este momento. El
+                  disparador del puente no cambia. */}
+              {APP_ELITE_DX ? (
+                <>
+                  <EliteText variant="body" style={[styles.tribeCopy, priTxt]}>Escucharte importa.</EliteText>
+                  <View style={styles.coachPuente}>
+                    <EscribirleCoach
+                      nombre={nombreParaMensaje({ nombreCompleto: usuarioAuth?.user_metadata?.full_name, email: usuarioAuth?.email })}
+                    />
+                  </View>
+                </>
+              ) : (
+                <>
+                  <EliteText variant="body" style={[styles.tribeCopy, priTxt]}>{TRIBE_BRIDGE_COPY}</EliteText>
+                  {/* Hallazgo MB-31B3: el CTA iba en lima como TEXTO — acento calibrado
+                      (el tinte lima del fondo es de marca y se queda). */}
+                  <Pressable
+                    onPress={() => { haptic.light(); Linking.openURL(SKOOL_URL).catch(() => {}); }}
+                    style={styles.tribeBtn}
+                  >
+                    <EliteText variant="body" style={[styles.tribeBtnText, { color: acento }]}>Únete a la Tribu ATP</EliteText>
+                  </Pressable>
+                </>
+              )}
             </Animated.View>
           )}
           <Pressable onPress={() => { haptic.medium(); router.back(); }} style={[styles.doneBtn, { borderColor: qColor + '40' }]}>
@@ -1194,4 +1223,7 @@ const styles = StyleSheet.create({
   },
   // Hallazgo MB-31B3: era lima como TEXTO — el color va inline (acento).
   tribeBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  // 25-sep-2026 (APP_ELITE_DX, revisión en frío): la tarjeta del puente centra
+  // (alignItems) y EscribirleCoach trae su margen lateral: aqui ocupa el ancho.
+  coachPuente: { alignSelf: 'stretch', marginHorizontal: -Spacing.md },
 });

@@ -9,6 +9,7 @@ import { useMemo } from 'react';
 import { View, StyleSheet, Pressable, Linking } from 'react-native';
 import { EliteText } from '@/components/elite-text';
 import { SKOOL_URL, type AppThemeTokens } from '@/src/constants/brand';
+import { APP_ELITE_DX } from '@/src/constants/flags';
 import { Spacing, FontSizes } from '@/constants/theme';
 import { haptic } from '@/src/utils/haptics';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
@@ -39,10 +40,16 @@ export function AuthLinksFooter() {
         <Pressable onPress={() => open(URLS.web)} hitSlop={8}>
           <EliteText style={styles.brandLink}>🌐 ATP</EliteText>
         </Pressable>
-        <EliteText style={styles.brandSep}> · </EliteText>
-        <Pressable onPress={() => open(URLS.comunidad)} hitSlop={8}>
-          <EliteText style={styles.brandLink}>👥 Comunidad</EliteText>
-        </Pressable>
+        {/* 25-sep-2026 (APP_ELITE_DX, revisión en frío): "Comunidad" abre
+            Skool, de la plataforma publica. Se va con su separador. */}
+        {!APP_ELITE_DX && (
+          <>
+            <EliteText style={styles.brandSep}> · </EliteText>
+            <Pressable onPress={() => open(URLS.comunidad)} hitSlop={8}>
+              <EliteText style={styles.brandLink}>👥 Comunidad</EliteText>
+            </Pressable>
+          </>
+        )}
       </View>
       <View style={styles.row}>
         <Pressable onPress={() => open(URLS.terminos)} hitSlop={8}>

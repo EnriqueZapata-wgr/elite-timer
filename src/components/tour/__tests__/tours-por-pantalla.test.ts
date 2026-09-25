@@ -14,7 +14,10 @@ import {
   avanceTutorial,
   llaveTour,
   TOUR_VISTO_PREFIJO,
+  tourSegunModo,
+  PASOS_FUERA_DE_ELITE_DX,
 } from '@/src/components/tour/tours-por-pantalla';
+import { APP_ELITE_DX } from '@/src/constants/flags';
 import { APP_ROUTES } from '@/src/constants/app-routes.generated';
 
 const RUTAS_REALES = new Set<string>(APP_ROUTES as readonly string[]);
@@ -125,5 +128,46 @@ describe('guion del tutorial por pantalla', () => {
       total: TOURS_POR_PANTALLA.length,
     });
     expect(avanceTutorial(new Set(['hoy', 'kit'])).vistos).toBe(2);
+  });
+});
+
+// 25-sep-2026 (APP_ELITE_DX, revisión en frío): el paso de electrones y
+// ranking no se enseña en la app Elite DX; con la bandera en false, igual.
+describe('tutorial en la app Elite DX', () => {
+  const hoy = TOURS_POR_PANTALLA.find((t) => t.id === 'hoy')!;
+
+  it('con la bandera, HOY no enseña electrones y conserva el resto en orden', () => {
+    const pasos = tourSegunModo(hoy, true).pasos.map((p) => p.id);
+    expect(pasos).toEqual(['lista', 'gestos', 'inline']);
+  });
+
+  it('sin la bandera, la pieza es la misma de siempre (mismo objeto)', () => {
+    expect(tourSegunModo(hoy, false)).toBe(hoy);
+  });
+
+  it('una pieza sin pasos fuera no se copia', () => {
+    const kit = TOURS_POR_PANTALLA.find((t) => t.id === 'kit')!;
+    expect(tourSegunModo(kit, true)).toBe(kit);
+  });
+
+  it('ninguna pieza se queda sin pasos en Elite DX', () => {
+    for (const t of TOURS_POR_PANTALLA) {
+      expect(tourSegunModo(t, true).pasos.length, t.id).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('cada paso fuera existe de verdad (una llave vieja no filtra nada en silencio)', () => {
+    for (const llave of PASOS_FUERA_DE_ELITE_DX) {
+      const [tourId, pasoId] = llave.split('/');
+      const t = TOURS_POR_PANTALLA.find((x) => x.id === tourId);
+      expect(t?.pasos.some((p) => p.id === pasoId), llave).toBe(true);
+    }
+  });
+
+  it('lo que se lanza (tourPorId / tourPendiente) sigue a la bandera', () => {
+    const lanzado = tourPorId('hoy')!.pasos.map((p) => p.id);
+    const pendiente = tourPendiente('/', new Set<string>())!.pasos.map((p) => p.id);
+    expect(lanzado.includes('electrones')).toBe(!APP_ELITE_DX);
+    expect(pendiente.includes('electrones')).toBe(!APP_ELITE_DX);
   });
 });

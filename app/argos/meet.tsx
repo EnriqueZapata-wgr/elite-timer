@@ -36,6 +36,7 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, SKOOL_URL } from '@/src/constants/brand';
+import { APP_ELITE_DX } from '@/src/constants/flags';
 import {
   MEET_SCREENS,
   MEET_TYPING_MS_PER_CHAR,
@@ -190,14 +191,18 @@ export default function MeetArgosScreen() {
                 <EliteText style={s.ctaText}>{loading ? 'Un momento…' : MEET_CTA_LABEL}</EliteText>
               </AnimatedPressable>
               {/* C5 COMUNIDAD: bridge secundario a la Tribu (Skool) — solo pantalla 5,
-                  no toca el guion (argos-meet-copy, revisión clínica de ATP). */}
-              <AnimatedPressable
-                style={s.tribeLink}
-                onPress={() => { haptic.light(); Linking.openURL(SKOOL_URL).catch(() => {}); }}
-                disabled={loading}
-              >
-                <EliteText style={s.tribeLinkText}>Únete a la Tribu ATP →</EliteText>
-              </AnimatedPressable>
+                  no toca el guion (argos-meet-copy, revisión clínica de ATP).
+                  25-sep-2026 (APP_ELITE_DX, revisión en frío): fuera. La Tribu
+                  es de la plataforma publica; el guion no se toca. */}
+              {!APP_ELITE_DX && (
+                <AnimatedPressable
+                  style={s.tribeLink}
+                  onPress={() => { haptic.light(); Linking.openURL(SKOOL_URL).catch(() => {}); }}
+                  disabled={loading}
+                >
+                  <EliteText style={s.tribeLinkText}>Únete a la Tribu ATP →</EliteText>
+                </AnimatedPressable>
+              )}
             </Animated.View>
           ) : index === 0 && revealed ? (
             <Animated.View entering={FadeIn.duration(600)}>
