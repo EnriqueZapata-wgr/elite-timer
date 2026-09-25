@@ -139,6 +139,16 @@ export async function cargarClientes(coachId: string): Promise<Lectura<ClienteCo
     if (ids.length === 0) return { estado: 'ok', datos: [] };
 
     // 2. Todo lo demas, en paralelo.
+    //
+    // 25-sep-2026 (revisión en frío): las nueve fuentes de señal (cuestionario
+    // a suplementos tomados) se leen para TODOS los clientes sin límite de
+    // fecha, y PostgREST corta cada respuesta en 1000 filas. Sin orden, el
+    // corte podía tirar la fila MÁS NUEVA de un cliente: la consola decía "sin
+    // dato" mientras el cliente veía 0% en PROGRESO. Con orden descendente por
+    // su fecha, lo que se pierde en el corte es lo más viejo, que no decide ni
+    // la ventana de adherencia ni el "hace N días" de un cliente activo.
+    // El arreglo de fondo es un RPC que devuelva la última fecha por cliente y
+    // por fuente (pendiente: necesita una migración que corre Enrique).
     const [
       perfiles, dx, intervenciones, completados, suplementos,
       quiz, labs, sintomas, comida, agua, electrones, argos, mente, tomas,
@@ -151,15 +161,17 @@ export async function cargarClientes(coachId: string): Promise<Lectura<ClienteCo
       supabase.from('intervention_completions')
         .select('user_id, user_intervention_id, date').in('user_id', ids).eq('completed', true).gte('date', desde),
       supabase.from('user_supplements').select('user_id').in('user_id', ids).eq('is_active', true),
-      supabase.from('user_master_quiz').select('user_id, question_code, answer, answered_at').in('user_id', ids),
-      supabase.from('lab_uploads').select('user_id, uploaded_at').in('user_id', ids),
-      supabase.from('user_symptoms').select('user_id, created_at').in('user_id', ids),
-      supabase.from('food_logs').select('user_id, date').in('user_id', ids),
-      supabase.from('hydration_logs').select('user_id, created_at').in('user_id', ids),
-      supabase.from('electron_logs').select('user_id, date').in('user_id', ids),
-      supabase.from('argos_daily_usage').select('user_id, usage_date').in('user_id', ids),
-      supabase.from('mind_sessions').select('user_id, date').in('user_id', ids),
-      supabase.from('supplement_logs').select('user_id, date').in('user_id', ids).eq('taken', true),
+      supabase.from('user_master_quiz').select('user_id, question_code, answer, answered_at').in('user_id', ids)
+        .order('answered_at', { ascending: false }),
+      supabase.from('lab_uploads').select('user_id, uploaded_at').in('user_id', ids).order('uploaded_at', { ascending: false }),
+      supabase.from('user_symptoms').select('user_id, created_at').in('user_id', ids).order('created_at', { ascending: false }),
+      supabase.from('food_logs').select('user_id, date').in('user_id', ids).order('date', { ascending: false }),
+      supabase.from('hydration_logs').select('user_id, created_at').in('user_id', ids).order('created_at', { ascending: false }),
+      supabase.from('electron_logs').select('user_id, date').in('user_id', ids).order('date', { ascending: false }),
+      supabase.from('argos_daily_usage').select('user_id, usage_date').in('user_id', ids).order('usage_date', { ascending: false }),
+      supabase.from('mind_sessions').select('user_id, date').in('user_id', ids).order('date', { ascending: false }),
+      supabase.from('supplement_logs').select('user_id, date').in('user_id', ids).eq('taken', true)
+        .order('date', { ascending: false }),
     ]);
 
     const fallo = [perfiles, dx, intervenciones, completados, suplementos, quiz,
