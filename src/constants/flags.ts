@@ -965,9 +965,21 @@ export const VENTA_AL_PUBLICO: boolean = false;
  *
  * ATP (lanzador), SALUD y TRIBU salen del tab bar con `href: null`: siguen
  * siendo rutas validas para notificaciones y enlaces viejos, pero ARGOS ya
- * no lleva ahi (argos-nav-resolver-core las veta con la bandera). No se borra
+ * no lleva ahi (argos-nav-resolver-core las veta en ese modo). No se borra
  * ninguna pantalla (regla de la casa: se retira de la vista, no del
- * archivo). Con `false` la app vuelve exactamente a como estaba el 24-sep.
+ * archivo).
+ *
+ * 26-sep-2026 (una app, dos modos): Enrique decidio no perder la ATP
+ * completa. Desde hoy esta bandera es el INTERRUPTOR MAESTRO, ya no el modo:
+ *  - `true`: cada cuenta ve su version. Clientes Elite (nivel elite o con
+ *    evaluacion Elite) ven Elite DX; las cuentas generales, la ATP completa
+ *    del tag v3.0-pre-elite-dx; el admin puede fijar el modo en Ajustes.
+ *  - `false`: freno de emergencia. Todo el mundo ve la ATP completa,
+ *    exactamente como estaba el 24-sep.
+ * El modo por cuenta vive en src/services/modo-app (modo-app-core tiene las
+ * reglas; modo-app-estado lo guarda en memoria y lo lee la logica pura) y las
+ * pantallas lo leen con useEsEliteDx() (src/hooks/useModoApp). Nadie fuera de
+ * modo-app-estado deberia leer esta constante para decidir que pintar.
  * Lleva `: boolean` por la misma razon que VENTA_AL_PUBLICO.
  */
 export const APP_ELITE_DX: boolean = true;

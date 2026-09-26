@@ -5,7 +5,7 @@
  * SI ESTE TEST SE PONE ROJO por una ruta: la pieza apunta a una pantalla que
  * ya no existe. NO borres la comprobacion, reapunta la pieza.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   TOURS_POR_PANTALLA,
   tourDeRuta,
@@ -17,7 +17,9 @@ import {
   tourSegunModo,
   PASOS_FUERA_DE_ELITE_DX,
 } from '@/src/components/tour/tours-por-pantalla';
-import { APP_ELITE_DX } from '@/src/constants/flags';
+// 26-sep-2026 (una app, dos modos): el modo es de la cuenta, no de una
+// constante; lo que se lanza se prueba en los dos.
+import { fijarModoPorCuenta, reiniciarModoParaPruebas } from '@/src/services/modo-app/modo-app-estado';
 import { APP_ROUTES } from '@/src/constants/app-routes.generated';
 
 const RUTAS_REALES = new Set<string>(APP_ROUTES as readonly string[]);
@@ -131,10 +133,12 @@ describe('guion del tutorial por pantalla', () => {
   });
 });
 
-// 25-sep-2026 (APP_ELITE_DX, revisión en frío): el paso de electrones y
-// ranking no se enseña en la app Elite DX; con la bandera en false, igual.
+// 25-sep-2026 (revisión en frío): el paso de electrones y ranking no se
+// enseña en la app Elite DX; en la ATP completa, igual que siempre.
 describe('tutorial en la app Elite DX', () => {
   const hoy = TOURS_POR_PANTALLA.find((t) => t.id === 'hoy')!;
+  beforeEach(() => reiniciarModoParaPruebas());
+  afterEach(() => reiniciarModoParaPruebas());
 
   it('con la bandera, HOY no enseña electrones y conserva el resto en orden', () => {
     const pasos = tourSegunModo(hoy, true).pasos.map((p) => p.id);
@@ -164,10 +168,19 @@ describe('tutorial en la app Elite DX', () => {
     }
   });
 
-  it('lo que se lanza (tourPorId / tourPendiente) sigue a la bandera', () => {
-    const lanzado = tourPorId('hoy')!.pasos.map((p) => p.id);
-    const pendiente = tourPendiente('/', new Set<string>())!.pasos.map((p) => p.id);
-    expect(lanzado.includes('electrones')).toBe(!APP_ELITE_DX);
-    expect(pendiente.includes('electrones')).toBe(!APP_ELITE_DX);
+  it('lo que se lanza (tourPorId / tourPendiente) sigue al modo de la cuenta', () => {
+    fijarModoPorCuenta('elite_dx');
+    expect(tourPorId('hoy')!.pasos.map((p) => p.id).includes('electrones')).toBe(false);
+    expect(tourPendiente('/', new Set<string>())!.pasos.map((p) => p.id).includes('electrones')).toBe(false);
+    expect(tourDeRuta('/')!.pasos.map((p) => p.id)).toEqual(['lista', 'gestos', 'inline']);
+
+    fijarModoPorCuenta('atp');
+    expect(tourPorId('hoy')).toBe(hoy);
+    expect(tourPendiente('/', new Set<string>())).toBe(hoy);
+    expect(tourDeRuta('/')!.pasos.map((p) => p.id).includes('electrones')).toBe(true);
+
+    // Y de vuelta: el memo es por modo, no uno por proceso.
+    fijarModoPorCuenta('elite_dx');
+    expect(tourPorId('hoy')!.pasos.map((p) => p.id).includes('electrones')).toBe(false);
   });
 });

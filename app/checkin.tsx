@@ -71,7 +71,9 @@ import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, withOpacity, SKOOL_URL, ATP_BRAND } from '@/src/constants/brand';
 // 25-sep-2026 (APP_ELITE_DX, revisión en frío): en la app Elite DX la salida
 // humana del puente de animo bajo es Enrique, no la Tribu (Skool).
-import { APP_ELITE_DX } from '@/src/constants/flags';
+// 26-sep-2026 (una app, dos modos): Elite DX o ATP completa segun la cuenta,
+// no segun una constante. Ver src/services/modo-app.
+import { useEsEliteDx } from '@/src/hooks/useModoApp';
 import { EscribirleCoach } from '@/src/components/elite-dx/EscribirleCoach';
 import { nombreParaMensaje } from '@/src/services/hoy/hoy-elite-dx-core';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -81,6 +83,7 @@ import { useAppTheme } from '@/src/contexts/theme-context';
 import { StatusBar } from 'expo-status-bar';
 
 export default function CheckinScreen() {
+  const eliteDx = useEsEliteDx();
   const router = useRouter();
   const params = useLocalSearchParams<{ protocolItemId?: string; emotionId?: string; gate?: string; mode?: string; step?: string }>();
   const analytics = useAnalytics();
@@ -653,7 +656,7 @@ export default function CheckinScreen() {
                   aprobacion) se queda solo su primera frase; no se escribe
                   copy nuevo en la voz de Enrique para este momento. El
                   disparador del puente no cambia. */}
-              {APP_ELITE_DX ? (
+              {eliteDx ? (
                 <>
                   <EliteText variant="body" style={[styles.tribeCopy, priTxt]}>Escucharte importa.</EliteText>
                   <View style={styles.coachPuente}>

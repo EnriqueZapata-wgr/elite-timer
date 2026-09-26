@@ -25,6 +25,9 @@
  * de puertas (viven en MI PROGRAMA), la graduación, los dos CTAs de armar el
  * día y el toast de electrones. Con la bandera en false, HOY queda igual que
  * el 24-sep: cada cambio es una rama sobre APP_ELITE_DX.
+ * 26-sep-2026 (una app, dos modos): esas ramas leen ahora el modo de la
+ * cuenta (useEsEliteDx): clientes Elite ven lo de arriba, las cuentas
+ * generales el HOY del 24-sep.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -73,7 +76,10 @@ import { haptic } from '@/src/utils/haptics';
 import { generateDailyInsight, invalidateDailyInsight, ARGOS_INSIGHT_CHANGED_EVENT } from '@/src/services/argos-service';
 import { leerInsightDeHoy } from '@/src/services/argos-insight-cache';
 import { decidirRegeneracionInsight } from '@/src/services/argos-insight-window-core';
-import { INSIGHT_EN_VENTANA, APP_ELITE_DX } from '@/src/constants/flags';
+import { INSIGHT_EN_VENTANA } from '@/src/constants/flags';
+// 26-sep-2026 (una app, dos modos): HOY pinta Elite DX o la ATP completa segun
+// la cuenta, no segun una constante. Ver src/services/modo-app.
+import { useEsEliteDx } from '@/src/hooks/useModoApp';
 import { getWeeklyInsight, isWeeklyInsightTime, type WeeklyInsightData } from '@/src/services/weekly-insight-service';
 import { syncAppAvisos } from '@/src/services/app-avisos-service';
 import { reconciliarAvisosDeObjetivos } from '@/src/services/pack-avisos-service';
@@ -147,6 +153,8 @@ function AvisoEvaluacionDx({ userId, nivel }: { userId?: string; nivel: NivelHoy
 // ═══ COMPONENTE PRINCIPAL ═══
 
 export default function TodayScreen() {
+  // 26-sep-2026 (una app, dos modos): arriba de todo (reglas de hooks).
+  const eliteDx = useEsEliteDx();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -617,7 +625,7 @@ export default function TodayScreen() {
                 />
                 {/* 25-sep-2026 (APP_ELITE_DX): es la app de su programa con
                     Enrique, no el diario ATP para el publico. */}
-                <Text style={[s.brandLabel, !dark && { color: tokens.textoSecundario }]}>{APP_ELITE_DX ? 'ATP ELITE' : 'ATP DAILY'}</Text>
+                <Text style={[s.brandLabel, !dark && { color: tokens.textoSecundario }]}>{eliteDx ? 'ATP ELITE' : 'ATP DAILY'}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 {/* F3 (AGENDA-COMPLETE): campana con badge real (user_notifications) → /notifications. */}
@@ -628,7 +636,7 @@ export default function TodayScreen() {
                 20-sep-2026: retirada para un cliente Elite (ruido de app publica).
                 25-sep-2026 (APP_ELITE_DX): fuera para todos: la app Elite DX no
                 habla de electrones ni de rango. */}
-            {!APP_ELITE_DX && <EconomyHeaderPill oculta={pildoraOculta} />}
+            {!eliteDx && <EconomyHeaderPill oculta={pildoraOculta} />}
           </Animated.View>
 
           {/* Saludo */}
@@ -639,7 +647,7 @@ export default function TodayScreen() {
             <Text style={[s.heroDate, !dark && { color: tokens.textoSecundario }]}>{day.date}</Text>
             {/* 25-sep-2026 (APP_ELITE_DX): la presencia de Tribu es de la
                 plataforma publica; TRIBU salio del tab bar. */}
-            {!APP_ELITE_DX && (
+            {!eliteDx && (
               <View style={{ marginTop: 10 }}>
                 <CommunityPresence pillar="hoy" />
               </View>
@@ -655,7 +663,7 @@ export default function TodayScreen() {
             heros apilados (evaluacion y puertas) se van a MI PROGRAMA; de
             HeroLaboratorios solo se queda su aviso de "no pudimos leer tu
             evaluación" cuando nadie mas lo diria (AvisoEvaluacionDx). */}
-        {APP_ELITE_DX ? (
+        {eliteDx ? (
           <>
             {/* 25-sep-2026 (APP_ELITE_DX, revisión en frío): si el nivel YA
                 confirmo la evaluacion y la lectura del programa vuelve vacia,
@@ -688,7 +696,7 @@ export default function TodayScreen() {
             el usuario acepta; "Ahora no" la duerme 7 días.
             25-sep-2026 (APP_ELITE_DX): fuera de HOY. Sus habitos los arma su
             plan con Enrique, no la app proponiendo graduarlos. */}
-        {!APP_ELITE_DX && <GraduacionCard userId={user?.id} propuestas={day.graduacionPropuestas} />}
+        {!eliteDx && <GraduacionCard userId={user?.id} propuestas={day.graduacionPropuestas} />}
 
         {/* ═══════════════════════════════════════
             WEEKLY INSIGHT — Domingo ≥19h (cacheado por semana)
@@ -815,7 +823,7 @@ export default function TodayScreen() {
 
         {/* E-3 (MB-12): la puerta de los electrones — sin ella todo usuario
             quedaba clavado en los 6 booleanos del default (mig 043). */}
-        {!APP_ELITE_DX && (
+        {!eliteDx && (
         <GradientCTA
           label="Elegir mis hábitos"
           variant="quiet"
@@ -838,7 +846,7 @@ export default function TodayScreen() {
             sale de su nombre completo (user_metadata, sin consulta nueva) y
             day.userName solo cuando no es el usuario del correo; si no hay
             ninguno, va sin nombre (regla en nombreParaMensaje, con test). */}
-        {APP_ELITE_DX && (
+        {eliteDx && (
           <View style={s.contactoCoach}>
             <EscribirleCoach
               nombre={nombreParaMensaje({
@@ -864,7 +872,7 @@ export default function TodayScreen() {
           tras cada award de electrón. Escucha 'electron_awarded' (electron-service).
           25-sep-2026 (APP_ELITE_DX): fuera. "+2.5 ⚡ Cardio" es la economia de
           la app publica; palomear sigue registrando igual. */}
-      {!APP_ELITE_DX && <ArgosReactionToast />}
+      {!eliteDx && <ArgosReactionToast />}
     </View>
     </ThemeReady>
   );

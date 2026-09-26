@@ -27,6 +27,8 @@
 
 import { APP_ROUTES } from '@/src/constants/app-routes.generated';
 import { tituloDe, rutaVetada } from './argos-nav-resolver-core';
+import { modoActual } from '@/src/services/modo-app/modo-app-estado';
+import type { ModoApp } from '@/src/services/modo-app/modo-app-core';
 
 /** Lo que el modelo debe contestar cuando ninguna pantalla corresponde. */
 export const SIN_RUTA = 'NINGUNA';
@@ -36,7 +38,10 @@ export interface RutaCatalogada {
   titulo: string;
 }
 
-let catalogo: RutaCatalogada[] | null = null;
+// 26-sep-2026 (una app, dos modos): memo POR MODO. rutaVetada depende del
+// modo de la cuenta (Elite DX o ATP completa) y el modo cambia con la app
+// abierta; un catalogo congelado le mandaria al modelo las salas del otro modo.
+const catalogoPorModo = new Map<ModoApp, RutaCatalogada[]>();
 
 /**
  * El catálogo que ve el modelo. Las rutas vetadas NO viajan: si no aparecen en
@@ -45,16 +50,19 @@ let catalogo: RutaCatalogada[] | null = null;
  * uno bueno.
  */
 export function catalogoNavegable(): RutaCatalogada[] {
-  if (catalogo) return catalogo;
-  catalogo = APP_ROUTES
+  const modo = modoActual();
+  const hecho = catalogoPorModo.get(modo);
+  if (hecho) return hecho;
+  const catalogo = APP_ROUTES
     .filter((r) => !rutaVetada(r))
     .map((r) => ({ ruta: r, titulo: tituloDe(r) }));
+  catalogoPorModo.set(modo, catalogo);
   return catalogo;
 }
 
 /** Solo para tests. */
 export function _resetCatalogo(): void {
-  catalogo = null;
+  catalogoPorModo.clear();
 }
 
 /**

@@ -35,7 +35,17 @@ import { UserAvatar } from '@/src/components/ui/UserAvatar';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { isAdmin } from '@/src/constants/admin-config';
-import { ui } from '@/src/components/settings/settings-ui';
+import { ui, SectionLabel } from '@/src/components/settings/settings-ui';
+// 26-sep-2026 (una app, dos modos): el admin elige que version ve en este
+// telefono (Elite DX, ATP completa o la de su cuenta) para revisar las dos.
+import { ETIQUETA_PREFERENCIA, type PreferenciaModo } from '@/src/services/modo-app/modo-app-core';
+import { fijarPreferencia } from '@/src/services/modo-app/modo-app-estado';
+import { guardarPreferenciaModo } from '@/src/services/modo-app/modo-app-persistencia';
+import { useModoApp, usePreferenciaModo } from '@/src/hooks/useModoApp';
+// Revision en frio M3 (26-sep-2026): con el interruptor maestro apagado todos
+// ven la ATP completa y el selector no haria nada; se esconde. Unico lugar,
+// junto con modo-app-estado, que lee la constante.
+import { APP_ELITE_DX } from '@/src/constants/flags';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS } from '@/src/constants/brand';
@@ -105,10 +115,26 @@ const GROUPS: SettingsGroup[] = [
   },
 ];
 
+/** Orden de las opciones del modo: el de la etiqueta (auto, Elite DX, ATP). */
+const PREFERENCIAS_MODO = Object.keys(ETIQUETA_PREFERENCIA) as PreferenciaModo[];
+
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const showDev = __DEV__ || isAdmin(user?.id);
+  const preferenciaModo = usePreferenciaModo();
+  const modoApp = useModoApp();
+
+  // 26-sep-2026 (una app, dos modos): la preferencia es del telefono, no de la
+  // cuenta (modo-app-persistencia). Se vuelve a HOY porque el tab bar cambia
+  // entero: quedarse en Ajustes sobre una pila de la otra version confunde.
+  function elegirModo(p: PreferenciaModo) {
+    if (p === preferenciaModo) return;
+    haptic.medium();
+    fijarPreferencia(p);
+    guardarPreferenciaModo(p);
+    router.replace('/');
+  }
 
   // Venía de /settings/cuenta sin un solo cambio: mismo copy, misma confirmación.
   function handleLogout() {
@@ -197,6 +223,47 @@ export default function SettingsScreen() {
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={tokens.textoSecundario} />
               </AnimatedPressable>
+            </Animated.View>
+          )}
+
+          {/* MODO DE LA APP (26-sep-2026, una app, dos modos). Solo el admin:
+              es la herramienta de Enrique para ver las dos versiones desde su
+              telefono. A un cliente nunca se le pregunta que app quiere; la
+              decide su cuenta (modo-app-core). Con APP_ELITE_DX en false no
+              hay modo que elegir: la seccion no se pinta. */}
+          {APP_ELITE_DX && isAdmin(user?.id) && (
+            <Animated.View entering={FadeInUp.delay(145 + GROUPS.length * 40).springify()} style={styles.modoBloque}>
+              <SectionLabel>MODO DE LA APP</SectionLabel>
+              <EliteText variant="caption" style={[styles.modoNota, { color: tokens.textoSecundario }]}>
+                Automático: tus clientes Elite ven la app Elite DX y las demás cuentas la ATP completa.
+              </EliteText>
+              {PREFERENCIAS_MODO.map((p) => {
+                const activa = p === preferenciaModo;
+                const acento = kind === 'dark' ? Colors.neonGreen : tokens.tealTexto;
+                return (
+                  <AnimatedPressable
+                    key={p}
+                    onPress={() => elegirModo(p)}
+                    style={[styles.groupCard, thCard, activa && { borderColor: acento, borderWidth: 1 }]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: activa }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <EliteText variant="body" style={styles.groupTitle}>{ETIQUETA_PREFERENCIA[p]}</EliteText>
+                      {p === 'auto' && activa && (
+                        <EliteText variant="caption" style={styles.groupSubtitle}>
+                          Ahora ves: {ETIQUETA_PREFERENCIA[modoApp]}
+                        </EliteText>
+                      )}
+                    </View>
+                    <Ionicons
+                      name={activa ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={20}
+                      color={activa ? acento : tokens.textoSecundario}
+                    />
+                  </AnimatedPressable>
+                );
+              })}
             </Animated.View>
           )}
 
@@ -299,6 +366,13 @@ const styles = StyleSheet.create({
   groupSubtitle: {
     fontSize: FontSizes.sm,
     marginTop: 1,
+  },
+  // 26-sep-2026: el bloque del modo, con el mismo aire entre filas que la lista.
+  modoBloque: {
+    gap: Spacing.sm,
+  },
+  modoNota: {
+    fontSize: FontSizes.sm,
   },
   versionContainer: {
     alignItems: 'center',

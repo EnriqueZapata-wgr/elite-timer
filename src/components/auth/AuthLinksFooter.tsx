@@ -9,7 +9,9 @@ import { useMemo } from 'react';
 import { View, StyleSheet, Pressable, Linking } from 'react-native';
 import { EliteText } from '@/components/elite-text';
 import { SKOOL_URL, type AppThemeTokens } from '@/src/constants/brand';
-import { APP_ELITE_DX } from '@/src/constants/flags';
+// 26-sep-2026 (una app, dos modos): Elite DX o ATP completa segun la cuenta,
+// no segun una constante. Ver src/services/modo-app.
+import { useEsEliteDx } from '@/src/hooks/useModoApp';
 import { Spacing, FontSizes } from '@/constants/theme';
 import { haptic } from '@/src/utils/haptics';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
@@ -27,6 +29,9 @@ function open(url: string) {
 }
 
 export function AuthLinksFooter() {
+  // 26-sep-2026 (una app, dos modos): en /login todavia no hay cuenta; manda
+  // el ultimo modo conocido del telefono (o el de arranque).
+  const eliteDx = useEsEliteDx();
   // BLOQ-3: `TEXT.tertiary` era el gris fijo del set oscuro y el teal de marca
   // tiene 2.06 de contraste en claro. La fila legal es copy legal: es la que
   // MENOS puede quedar tenue. Fuera de <ThemeReady> esto entrega THEME_DARK,
@@ -42,7 +47,7 @@ export function AuthLinksFooter() {
         </Pressable>
         {/* 25-sep-2026 (APP_ELITE_DX, revisión en frío): "Comunidad" abre
             Skool, de la plataforma publica. Se va con su separador. */}
-        {!APP_ELITE_DX && (
+        {!eliteDx && (
           <>
             <EliteText style={styles.brandSep}> · </EliteText>
             <Pressable onPress={() => open(URLS.comunidad)} hitSlop={8}>

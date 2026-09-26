@@ -18,10 +18,10 @@
  * Si el usuario es coach Y la pantalla es ancha (>1024px), muestra el
  * CoachPanelLayout en vez de las tabs normales.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useWindowDimensions, View, Pressable, StyleSheet, DeviceEventEmitter } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Tabs, Redirect } from 'expo-router';
+import { Tabs, Redirect, router, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EliteText } from '@/components/elite-text';
@@ -41,7 +41,10 @@ import { OrbTour } from '@/src/components/tour/OrbTour';
 import { TUTORIAL_POR_PANTALLA } from '@/src/constants/flags';
 import { ORB_TOUR_DONE_KEY, ORB_TOUR_RESTART_EVENT } from '@/src/components/tour/orb-tour-core';
 import { countUnreadInbox } from '@/src/services/user-notifications-service';
-import { TABS_EXIGEN_CONSENTIMIENTO, APP_ELITE_DX } from '@/src/constants/flags';
+import { TABS_EXIGEN_CONSENTIMIENTO } from '@/src/constants/flags';
+// 26-sep-2026 (una app, dos modos): el tab bar sigue el modo de la cuenta
+// (Elite DX o ATP completa), no una constante. Ver src/services/modo-app.
+import { useEsEliteDx } from '@/src/hooks/useModoApp';
 import { hayVistoBuenoEnMemoria, leerVistoBueno } from '@/src/services/acceso-consentido';
 
 const COACH_PANEL_MIN_WIDTH = 1024;
@@ -134,7 +137,43 @@ function OrbTabIcon() {
 // útil de la barra es 48 px: 42 × 1.12 (alerta en su punto más ancho) = 47.
 const ORB_TAB_SIZE = 42;
 
+/**
+ * 26-sep-2026 (una app, dos modos): las salas que cada modo saca del tab bar.
+ * Si el modo cambia con la persona parada en una de ellas (la cuenta se
+ * resolvio distinto a lo recordado, o el admin cambio el modo), se la manda a
+ * HOY: quedarse en una sala sin boton en la barra es quedarse sin salida.
+ */
+const TABS_OCULTAS_EN_ELITE_DX: ReadonlySet<string> = new Set(['/kit', '/salud', '/tribu']);
+const TABS_OCULTAS_EN_ATP: ReadonlySet<string> = new Set(['/programa', '/progreso', '/tu']);
+
+/**
+ * 26-sep-2026 (una app, dos modos; revision en frio M2): sin UI. Vive aparte
+ * porque usePathname re-pinta a quien lo llama en CADA navegacion; en
+ * TabLayout eso re-pintaba el navegador de tabs entero. Aqui solo se re-pinta
+ * este componente vacio.
+ *
+ * Actua solo en un cambio REAL de modo, nunca al montar (abrir la app en /kit
+ * por deep link no es un cambio). La ruta se lee por ref para que navegar no
+ * vuelva a disparar el efecto.
+ */
+function RedirectPorModo() {
+  const eliteDx = useEsEliteDx();
+  const pathname = usePathname();
+  const modoPrevio = useRef(eliteDx);
+  const rutaActual = useRef(pathname);
+  rutaActual.current = pathname;
+  useEffect(() => {
+    if (modoPrevio.current === eliteDx) return;
+    modoPrevio.current = eliteDx;
+    const ocultas = eliteDx ? TABS_OCULTAS_EN_ELITE_DX : TABS_OCULTAS_EN_ATP;
+    if (ocultas.has(rutaActual.current)) router.replace('/');
+  }, [eliteDx]);
+  return null;
+}
+
 export default function TabLayout() {
+  // 26-sep-2026 (una app, dos modos): arriba de todo, antes de cualquier return.
+  const eliteDx = useEsEliteDx();
   const { width } = useWindowDimensions();
   const { isCoach } = useCoachStatus();
   const { user, loading: cargandoSesion } = useAuth();
@@ -246,10 +285,11 @@ export default function TabLayout() {
             Iconos del set SVG vía AppIcon: línea en reposo, '-fill' al estar
             parado en la sala. Los nombres viven en TAB_BAR_ICONS (registro).
 
-            25-sep-2026 (flags.APP_ELITE_DX): con la bandera encendida los
-            cinco son HOY · MI PROGRAMA · ARGOS · PROGRESO · TÚ, y ATP, SALUD
-            y TRIBU salen del tab bar con href: null (siguen siendo rutas
-            válidas). Con la bandera apagada, exactamente como antes. El orden
+            25-sep-2026 (flags.APP_ELITE_DX): en Elite DX los cinco son
+            HOY · MI PROGRAMA · ARGOS · PROGRESO · TÚ, y ATP, SALUD y TRIBU
+            salen del tab bar con href: null (siguen siendo rutas válidas).
+            En la ATP completa, exactamente como antes. 26-sep-2026 (una app,
+            dos modos): el modo es de la cuenta (useEsEliteDx). El orden
             de declaración es el orden en la barra, por eso las ocultas se
             intercalan: lo visible queda igual en los dos modos. */}
         <Tabs.Screen
@@ -261,13 +301,13 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="programa"
-          options={APP_ELITE_DX
+          options={eliteDx
             ? { title: 'Mi programa', tabBarIcon: tabIcon('programa') }
             : { href: null }}
         />
         <Tabs.Screen
           name="kit"
-          options={APP_ELITE_DX
+          options={eliteDx
             ? { href: null }
             : { title: 'ATP', tabBarIcon: tabIcon('atp') }}
         />
@@ -284,25 +324,25 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="progreso"
-          options={APP_ELITE_DX
+          options={eliteDx
             ? { title: 'Progreso', tabBarIcon: tabIcon('progreso') }
             : { href: null }}
         />
         <Tabs.Screen
           name="salud"
-          options={APP_ELITE_DX
+          options={eliteDx
             ? { href: null }
             : { title: 'Salud', tabBarIcon: tabIcon('salud') }}
         />
         <Tabs.Screen
           name="tribu"
-          options={APP_ELITE_DX
+          options={eliteDx
             ? { href: null }
             : { title: 'Tribu', tabBarIcon: tabIcon('tribu') }}
         />
         <Tabs.Screen
           name="tu"
-          options={APP_ELITE_DX
+          options={eliteDx
             ? { title: 'Tú', tabBarIcon: tabIcon('tu') }
             : { href: null }}
         />
@@ -319,6 +359,10 @@ export default function TabLayout() {
           options={{ href: null }}
         />
       </Tabs>
+
+      {/* 26-sep-2026 (una app, dos modos): saca a HOY a quien queda parado en
+          una sala que el cambio de modo acaba de esconder. Sin UI. */}
+      <RedirectPorModo />
 
       {showFeedback && <FeedbackButton />}
 

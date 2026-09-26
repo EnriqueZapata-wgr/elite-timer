@@ -15,7 +15,9 @@ import {
 } from '@/src/services/community/community-presence-service';
 import { presenceDisplay, type PresenceDisplay } from '@/src/services/community/community-presence-core';
 import { CATEGORY_COLORS, ATP_BRAND, withOpacity } from '@/src/constants/brand';
-import { APP_ELITE_DX } from '@/src/constants/flags';
+// 26-sep-2026 (una app, dos modos): Elite DX o ATP completa segun la cuenta,
+// no segun una constante. Ver src/services/modo-app.
+import { useEsEliteDx } from '@/src/hooks/useModoApp';
 
 const PILLAR_TINT: Record<PresencePillar, string> = {
   hoy: ATP_BRAND.lime,
@@ -29,18 +31,21 @@ interface Props {
 }
 
 export function CommunityPresence({ pillar }: Props) {
+  const eliteDx = useEsEliteDx();
   const [display, setDisplay] = useState<PresenceDisplay>(() => presenceDisplay(0));
 
   useEffect(() => {
     // 25-sep-2026 (APP_ELITE_DX, revisión en frío): sin badge no hay para
     // que leer el conteo de la comunidad.
-    if (APP_ELITE_DX) return;
+    // 26-sep-2026 (una app, dos modos): el modo entra en las deps; si la cuenta
+    // resulta ATP (o el admin cambia a ATP), el conteo se lee en ese momento.
+    if (eliteDx) return;
     let alive = true;
     getPresence(pillar)
       .then((count) => { if (alive) setDisplay(presenceDisplay(count)); })
       .catch(() => { /* fail-soft: queda el placeholder */ });
     return () => { alive = false; };
-  }, [pillar]);
+  }, [pillar, eliteDx]);
 
   // Sprint 2 D: bajo el umbral honesto NO se muestra nada — el placeholder
   // "En comunidad · verifica pronto" leía como copy roto en device. La regla
@@ -49,7 +54,7 @@ export function CommunityPresence({ pillar }: Props) {
   // 25-sep-2026 (APP_ELITE_DX, revisión en frío): la presencia de Tribu es de
   // la plataforma publica. Se apaga aqui (despues de los hooks) y no en cada
   // pantalla que la monta (HOY, fitness-hub, nutrition, mente).
-  if (APP_ELITE_DX) return null;
+  if (eliteDx) return null;
 
   const tint = PILLAR_TINT[pillar];
 

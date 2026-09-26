@@ -20,7 +20,11 @@
  *
  * Datos puros: sin React, sin storage, testeable en el harness de node.
  */
-import { APP_ELITE_DX } from '@/src/constants/flags';
+// 26-sep-2026 (una app, dos modos): el modo se lee AL LANZAR, no al cargar el
+// modulo. Un cliente Elite y una cuenta ATP comparten la app, y el modo puede
+// cambiar con la app abierta (la cuenta se resuelve, el admin lo cambia).
+import { modoActual } from '@/src/services/modo-app/modo-app-estado';
+import type { ModoApp } from '@/src/services/modo-app/modo-app-core';
 
 /** Un paso: un concepto, una frase. */
 export interface PasoTour {
@@ -192,11 +196,12 @@ export function llaveTour(id: string): string {
 export const TOUR_PANTALLA_ABRIR_EVENT = 'tour_pantalla_abrir';
 
 /**
- * 25-sep-2026 (APP_ELITE_DX, revisión en frío): pasos que la app Elite DX no
+ * 25-sep-2026 (APP_ELITE_DX, revisión en frío; 26-sep-2026: por modo de la
+ * cuenta, ver src/services/modo-app): pasos que la app Elite DX no
  * enseña. El de electrones habla del marcador y del ranking de la app
  * pública, que en Elite DX no se ven (la píldora y la Tribu salieron). Se
  * filtra aquí, no en el guion: TOURS_POR_PANTALLA queda intacto (el test del
- * copy lo sigue blindando entero y con la bandera en false nada cambia).
+ * copy lo sigue blindando entero y en modo 'atp' nada cambia).
  * Llave: `${tour.id}/${paso.id}`.
  */
 export const PASOS_FUERA_DE_ELITE_DX: ReadonlySet<string> = new Set(['hoy/electrones']);
@@ -212,20 +217,33 @@ export function tourSegunModo(t: TourDePantalla, eliteDx: boolean): TourDePantal
 }
 
 // Lo que se lanza (sola o a mano) sale de estos mapas: ahí se aplica el modo.
-const POR_RUTA: ReadonlyMap<string, TourDePantalla> = new Map(
-  TOURS_POR_PANTALLA.map((t) => [t.ruta, tourSegunModo(t, APP_ELITE_DX)])
-);
+// 26-sep-2026 (una app, dos modos): antes eran dos mapas armados al cargar con
+// la bandera; ahora un par por modo, armado la primera vez que se pide.
+interface MapasTour {
+  porRuta: ReadonlyMap<string, TourDePantalla>;
+  porId: ReadonlyMap<string, TourDePantalla>;
+}
+const MAPAS_POR_MODO = new Map<ModoApp, MapasTour>();
 
-const POR_ID: ReadonlyMap<string, TourDePantalla> = new Map(
-  TOURS_POR_PANTALLA.map((t) => [t.id, tourSegunModo(t, APP_ELITE_DX)])
-);
+function mapasDelModo(): MapasTour {
+  const modo = modoActual();
+  const hechos = MAPAS_POR_MODO.get(modo);
+  if (hechos) return hechos;
+  const eliteDx = modo === 'elite_dx';
+  const mapas: MapasTour = {
+    porRuta: new Map(TOURS_POR_PANTALLA.map((t) => [t.ruta, tourSegunModo(t, eliteDx)])),
+    porId: new Map(TOURS_POR_PANTALLA.map((t) => [t.id, tourSegunModo(t, eliteDx)])),
+  };
+  MAPAS_POR_MODO.set(modo, mapas);
+  return mapas;
+}
 
 export function tourDeRuta(ruta: string): TourDePantalla | null {
-  return POR_RUTA.get(ruta) ?? null;
+  return mapasDelModo().porRuta.get(ruta) ?? null;
 }
 
 export function tourPorId(id: string): TourDePantalla | null {
-  return POR_ID.get(id) ?? null;
+  return mapasDelModo().porId.get(id) ?? null;
 }
 
 /**

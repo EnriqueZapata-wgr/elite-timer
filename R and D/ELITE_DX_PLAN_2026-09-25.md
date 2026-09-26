@@ -85,3 +85,22 @@ ATP (`kit`), SALUD y TRIBU salen del tab bar con `href: null` y siguen vivas com
 - Suite dirigida final: 340 pasan, 0 fallan (núcleos nuevos, iconos, em dashes, registro de apps, resolvedor de ARGOS).
 - Censo de rutas: sin huérfanas nuevas.
 - Paridad de constancia cliente contra consola probada con los datos falsos que aplican el tope de filas.
+
+---
+
+# Una app, dos modos · 26 de septiembre de 2026
+
+**Pedido de Enrique:** no perder la ATP completa. **Decisión:** una sola app que decide por cuenta qué versión pinta.
+
+- **Elite DX** (HOY · MI PROGRAMA · ARGOS · PROGRESO · TÚ): cuentas con nivel Elite o con evaluación Elite cargada. La evaluación manda aunque el nivel venza.
+- **ATP completa** (HOY · ATP · ARGOS · SALUD · TRIBU): cualquier otra cuenta, igual que en el tag `v3.0-pre-elite-dx`.
+- **Enrique** puede fijar el modo a mano en Ajustes › MODO DE LA APP (Automático, App Elite DX, ATP completa). Es del teléfono, solo para el admin.
+- **Mientras el nivel se lee, o si no se puede leer, no se cambia de modo:** se queda el último conocido (guardado en el teléfono). Primer arranque sin nada guardado: Elite DX, porque con la venta apagada solo entran clientes Elite.
+- **`APP_ELITE_DX` en `false`** es el freno de emergencia: todos ven la ATP completa.
+- **Respaldo congelado:** tag `v3.0-pre-elite-dx` (en GitHub) y rama `atp-general` (local hasta `git push origin atp-general`).
+
+Dónde vive: `src/services/modo-app/` (reglas con prueba, estado y lo guardado), `src/hooks/useModoApp.ts`, `src/components/ModoAppBridge.tsx` (layout raíz). ARGOS, los tutoriales y el catálogo del modelo calculan sus rutas por modo.
+
+**4EP:** construcción, revisión en frío (un bloqueante: al iniciar sesión un cliente Elite caía un instante a la ATP completa, y sin red se quedaba ahí; se arregló leyendo el nivel directo y tirando lecturas de otra cuenta), arreglos y verificación en frío: "se entrega tal cual". `tsc` completo sin errores; 509 pruebas dirigidas pasan.
+
+**Fila:** en el primer arranque después del OTA, una cuenta que no es Elite ve Elite DX hasta que se lee su nivel (segundos; sin red, hasta que haya red). Aceptado: con la venta apagada casi todas las cuentas son de clientes Elite o de prueba.

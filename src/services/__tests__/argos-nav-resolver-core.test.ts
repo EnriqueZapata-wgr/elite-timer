@@ -9,7 +9,7 @@
  * muletillas incluidas. Si alguna deja de resolver, la tabla de alias es lo
  * primero que hay que mirar.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   resolverDestino,
   validarRutaPropuesta,
@@ -23,10 +23,16 @@ import {
   obtenerIndice,
   RUTAS_VETADAS,
   TITULOS_RUTA,
-  ALIAS_RUTA,
+  aliasRuta,
+  ALIAS_RUTA_BASE,
+  ALIAS_SALAS_ELITE_DX,
   esAliasPuro,
 } from '../argos-nav-resolver-core';
-import { APP_ELITE_DX } from '@/src/constants/flags';
+// 26-sep-2026 (una app, dos modos): el resolvedor ya no lee una constante al
+// cargar; lee el modo de la cuenta al llamar. Las pruebas recorren LOS DOS
+// modos en vez de ramificar sobre la bandera, que solo probaba uno.
+import { fijarModoPorCuenta, reiniciarModoParaPruebas } from '@/src/services/modo-app/modo-app-estado';
+import type { ModoApp } from '@/src/services/modo-app/modo-app-core';
 import { APP_ROUTES,
   APP_ROUTE_ALIASES, APP_ROUTES_DYNAMIC } from '@/src/constants/app-routes.generated';
 import {
@@ -37,6 +43,17 @@ import {
   PLANTILLAS_SIN_EXPANSION,
 } from '../argos-nav-dinamicas-core';
 import { ASSESSMENTS } from '@/src/constants/assessments';
+
+const MODOS: readonly ModoApp[] = ['elite_dx', 'atp'];
+
+/** Fija el modo antes de cada prueba del describe y lo deja limpio despues. */
+function enModo(modo: ModoApp): void {
+  beforeEach(() => {
+    reiniciarModoParaPruebas();
+    fijarModoPorCuenta(modo);
+  });
+  afterEach(() => reiniciarModoParaPruebas());
+}
 
 /** Atajo: exige que una frase resuelva a una ruta exacta, sin preguntar. */
 function esperarRuta(frase: string, ruta: string) {
@@ -116,7 +133,8 @@ describe('los intentos del brief resuelven sin preguntar', () => {
   });
 });
 
-describe('intentos reales en es-MX', () => {
+for (const modo of MODOS) describe(`intentos reales en es-MX (modo ${modo})`, () => {
+  enModo(modo);
   const casos: [string, string][] = [
     ['quiero registrar lo que comí', '/food-log'],
     ['dónde apunto el agua que tomé', '/hydration'],
@@ -153,10 +171,10 @@ describe('intentos reales en es-MX', () => {
     ['mi historial de electrones', '/economy/history'],
     ['quiero instalar más funciones', '/centro'],
     ['ver mis hábitos', '/hoy-habitos'],
-    // 25-sep-2026 (APP_ELITE_DX): con la bandera, la comunidad sale de la app
-    // Elite DX y ARGOS no lleva ahi (criterio cambiado a proposito; el caso
-    // con la bandera vive en el describe de abajo).
-    ...(APP_ELITE_DX ? [] : [['el ranking de la comunidad', '/comunidad/ranking'] as [string, string]]),
+    // 25-sep-2026: en Elite DX la comunidad sale de la app y ARGOS no lleva
+    // ahi (criterio cambiado a proposito; ese caso vive en el describe de
+    // abajo). 26-sep-2026: en la ATP completa sigue llevando, como antes.
+    ...(modo === 'elite_dx' ? [] : [['el ranking de la comunidad', '/comunidad/ranking'] as [string, string]]),
     ['mi ficha de emergencia', '/ficha-emergencia'],
     ['conectar con health connect', '/settings/salud-conexion'],
     ['el filtro nocturno', '/night-filter'],
@@ -177,16 +195,15 @@ describe('intentos reales en es-MX', () => {
   }
 });
 
-describe('app Elite DX (25-sep-2026, APP_ELITE_DX)', () => {
+describe('modo elite_dx (25-sep-2026; por cuenta desde el 26-sep)', () => {
+  enModo('elite_dx');
   it('las salas nuevas se alcanzan por su nombre', () => {
-    if (!APP_ELITE_DX) return;
     esperarRuta('mi programa', '/programa');
     esperarRuta('mi progreso', '/progreso');
     esperarRuta('mi constancia', '/progreso');
     esperarRuta('mis herramientas', '/tu');
   });
   it('las salas retiradas no se ofrecen', () => {
-    if (!APP_ELITE_DX) return;
     expect(rutaVetada('/kit')).not.toBeNull();
     expect(rutaVetada('/salud')).not.toBeNull();
     expect(rutaVetada('/tribu')).not.toBeNull();
@@ -194,6 +211,70 @@ describe('app Elite DX (25-sep-2026, APP_ELITE_DX)', () => {
     // Lo que si es del cliente, aunque viva bajo /salud, sigue abierto.
     expect(rutaVetada('/salud/evaluacion-elite')).toBeNull();
     expect(resolverDestino('el ranking de la comunidad').tipo).not.toBe('resuelta');
+  });
+  it('el catalogo a mano trae las salas nuevas y no las retiradas', () => {
+    const tabla = aliasRuta();
+    for (const r of Object.keys(ALIAS_SALAS_ELITE_DX)) expect(r in tabla, r).toBe(true);
+    for (const r of Object.keys(tabla)) expect(rutaVetada(r), r).toBeNull();
+  });
+});
+
+describe('modo atp: la ATP completa, como en el tag v3.0-pre-elite-dx (26-sep-2026)', () => {
+  enModo('atp');
+  it('las salas de Elite DX no se ofrecen (sus rutas mandan a HOY o a fuerza)', () => {
+    expect(rutaVetada('/programa')).not.toBeNull();
+    expect(rutaVetada('/tu')).not.toBeNull();
+    expect(rutaVetada('/progreso')).not.toBeNull();
+    const rutas = new Set(obtenerIndice().map((e) => e.ruta));
+    expect(rutas.has('/programa')).toBe(false);
+    expect(rutas.has('/tu')).toBe(false);
+    expect(rutas.has('/progreso')).toBe(false);
+    expect(validarRutaPropuesta('/programa').tipo).toBe('bloqueada');
+  });
+  it('las salas de siempre siguen abiertas', () => {
+    expect(rutaVetada('/kit')).toBeNull();
+    expect(rutaVetada('/salud')).toBeNull();
+    expect(rutaVetada('/tribu')).toBeNull();
+    expect(rutaVetada('/comunidad/ranking')).toBeNull();
+    const rutas = new Set(obtenerIndice().map((e) => e.ruta));
+    expect(rutas.has('/salud')).toBe(true);
+    expect(rutas.has('/tribu')).toBe(true);
+  });
+  it('el catalogo a mano es el de antes, sin las salas nuevas', () => {
+    expect(aliasRuta()).toBe(ALIAS_RUTA_BASE);
+    for (const r of Object.keys(ALIAS_SALAS_ELITE_DX)) expect(r in aliasRuta(), r).toBe(false);
+  });
+  it('"mi programa" no lleva a una sala que en este modo no existe', () => {
+    const r = resolverDestino('mi programa');
+    expect(r.tipo === 'resuelta' && r.ruta === '/programa').toBe(false);
+  });
+  it('"progreso" sigue donandose a fuerza, como cuando /progreso era la tab vieja', () => {
+    const fuerza = obtenerIndice().find((e) => e.ruta === '/fitness-strength');
+    expect(fuerza).toBeTruthy();
+    expect((fuerza!.pesos.get('progreso') ?? 0) > 0).toBe(true);
+  });
+});
+
+describe('cambio de modo con la app abierta (26-sep-2026)', () => {
+  beforeEach(() => reiniciarModoParaPruebas());
+  afterEach(() => reiniciarModoParaPruebas());
+  it('el indice y el catalogo se rehacen al cambiar de modo, sin tirar la memo a mano', () => {
+    fijarModoPorCuenta('elite_dx');
+    const elite = new Set(obtenerIndice().map((e) => e.ruta));
+    expect(elite.has('/programa')).toBe(true);
+    expect(elite.has('/salud')).toBe(false);
+    expect(rutaVetada('/salud')).not.toBeNull();
+
+    fijarModoPorCuenta('atp');
+    const atp = new Set(obtenerIndice().map((e) => e.ruta));
+    expect(atp.has('/programa')).toBe(false);
+    expect(atp.has('/salud')).toBe(true);
+    expect(rutaVetada('/salud')).toBeNull();
+    expect('/programa' in aliasRuta()).toBe(false);
+
+    fijarModoPorCuenta('elite_dx');
+    expect(new Set(obtenerIndice().map((e) => e.ruta)).has('/programa')).toBe(true);
+    expect('/programa' in aliasRuta()).toBe(true);
   });
 });
 
@@ -257,7 +338,8 @@ describe('el contrato: preguntar en vez de adivinar', () => {
   });
 });
 
-describe('rutas vetadas', () => {
+for (const modo of MODOS) describe(`rutas vetadas (modo ${modo})`, () => {
+  enModo(modo);
   it('el onboarding completo esta vetado por prefijo', () => {
     expect(rutaVetada('/onboarding/v2/welcome')).toBeTruthy();
     expect(rutaVetada('/onboarding/voice-config')).toBeTruthy();
@@ -336,7 +418,8 @@ describe('titulos de usuario', () => {
   });
 });
 
-describe('integridad del catalogo (candado)', () => {
+for (const modo of MODOS) describe(`integridad del catalogo (candado, modo ${modo})`, () => {
+  enModo(modo);
   it('toda ruta con titulo curado existe de verdad', () => {
     const todas = new Set<string>([...APP_ROUTES, ...APP_ROUTES_DYNAMIC]);
     const fantasmas = Object.keys(TITULOS_RUTA).filter((r) => !todas.has(r));
@@ -345,12 +428,12 @@ describe('integridad del catalogo (candado)', () => {
 
   it('todo alias apunta a una ruta que existe de verdad', () => {
     const todas = new Set<string>([...APP_ROUTES, ...APP_ROUTES_DYNAMIC]);
-    const fantasmas = Object.keys(ALIAS_RUTA).filter((r) => !todas.has(r));
+    const fantasmas = Object.keys(aliasRuta()).filter((r) => !todas.has(r));
     expect(fantasmas, 'alias apuntando a rutas que ya no existen').toEqual([]);
   });
 
   it('ningun alias apunta a una ruta vetada (seria inalcanzable)', () => {
-    const muertos = Object.keys(ALIAS_RUTA).filter((r) => rutaVetada(r));
+    const muertos = Object.keys(aliasRuta()).filter((r) => rutaVetada(r));
     expect(muertos, 'alias hacia rutas que ARGOS nunca abrira').toEqual([]);
   });
 
@@ -358,7 +441,7 @@ describe('integridad del catalogo (candado)', () => {
     // CUATRO-OJOS (20-ago): si una clave de ALIAS_RUTA es un alias 1:1 puro,
     // su vocabulario se dona al destino. Eso exige que el destino sea una
     // ruta real y no vetada; si no, las palabras mueren en silencio.
-    const huerfanos = Object.keys(ALIAS_RUTA)
+    const huerfanos = Object.keys(aliasRuta())
       .filter((r) => esAliasPuro(r))
       .filter((r) => {
         const base = (APP_ROUTE_ALIASES[r] as string).split('?')[0];

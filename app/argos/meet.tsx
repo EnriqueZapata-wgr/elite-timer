@@ -36,7 +36,9 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, SKOOL_URL } from '@/src/constants/brand';
-import { APP_ELITE_DX } from '@/src/constants/flags';
+// 26-sep-2026 (una app, dos modos): Elite DX o ATP completa segun la cuenta,
+// no segun una constante. Ver src/services/modo-app.
+import { useEsEliteDx } from '@/src/hooks/useModoApp';
 import {
   MEET_SCREENS,
   MEET_TYPING_MS_PER_CHAR,
@@ -52,6 +54,7 @@ import {
 const AVATAR_BASE = 150;
 
 export default function MeetArgosScreen() {
+  const eliteDx = useEsEliteDx();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -194,7 +197,7 @@ export default function MeetArgosScreen() {
                   no toca el guion (argos-meet-copy, revisión clínica de ATP).
                   25-sep-2026 (APP_ELITE_DX, revisión en frío): fuera. La Tribu
                   es de la plataforma publica; el guion no se toca. */}
-              {!APP_ELITE_DX && (
+              {!eliteDx && (
                 <AnimatedPressable
                   style={s.tribeLink}
                   onPress={() => { haptic.light(); Linking.openURL(SKOOL_URL).catch(() => {}); }}

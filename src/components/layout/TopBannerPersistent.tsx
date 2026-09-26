@@ -12,13 +12,16 @@ import { usePathname, useRouter } from 'expo-router';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import { ocultarPildoraEconomia } from '@/src/services/hoy/elite-hoy-core';
-import { APP_ELITE_DX } from '@/src/constants/flags';
+// 26-sep-2026 (una app, dos modos): Elite DX o ATP completa segun la cuenta,
+// no segun una constante. Ver src/services/modo-app.
+import { useEsEliteDx } from '@/src/hooks/useModoApp';
 import { HomeIcon } from '@/src/components/ui/HomeIcon';
 import { isHomePath } from '@/src/components/ui/global-topbar-utils';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing } from '@/constants/theme';
 
 export function TopBannerPersistent() {
+  const eliteDx = useEsEliteDx();
   const pathname = usePathname();
   const router = useRouter();
   const home = isHomePath(pathname);
@@ -41,7 +44,7 @@ export function TopBannerPersistent() {
       {/* 25-sep-2026 (APP_ELITE_DX, revisión en frío): las salas nuevas (Mi
           programa, Progreso, Tú) usan esta barra; la app Elite DX no habla de
           electrones ni de rango, para nadie. El boton Home se queda. */}
-      <EconomyHeaderPill oculta={APP_ELITE_DX || pildoraOculta} />
+      <EconomyHeaderPill oculta={eliteDx || pildoraOculta} />
     </View>
   );
 }

@@ -37,6 +37,7 @@ import { LabProcessingSheet } from '@/src/components/labs/LabProcessingSheet';
 import { ProcessingMiniBanner } from '@/src/components/labs/ProcessingMiniBanner';
 import { parseResetPasswordUrl, isResetPasswordLink } from '@/src/utils/reset-password-link';
 import { RevenueCatSync } from '@/src/components/RevenueCatSync';
+import { ModoAppBridge } from '@/src/components/ModoAppBridge';
 import { NightFilterBridge } from '@/src/components/NightFilterBridge';
 import { AtpThemeProvider, useAppTheme } from '@/src/contexts/theme-context';
 import { THEME_DARK, THEME_LIGHT } from '@/src/constants/brand';
@@ -208,6 +209,9 @@ function RootLayout() {
         <AuthProvider>
           {/* Sync invisible: configura RevenueCat y vincula user.id como app_user_id */}
           <RevenueCatSync />
+          {/* 26-sep-2026: una app, dos modos. Decide si esta cuenta ve la app
+              Elite DX o la ATP completa (src/services/modo-app). */}
+          <ModoAppBridge />
           {/* MB-30B: re-arma el filtro nocturno si quedó encendido (Android) */}
           <NightFilterBridge />
           {/* MB-30B: categorías con botones + despacho de respuestas de aviso */}

@@ -29,7 +29,14 @@ import {
   APP_ROUTE_DESCRIPTIONS,
   APP_ROUTE_ALIASES,
 } from '@/src/constants/app-routes.generated';
-import { ARGOS_RESUELVE_RUTAS_DINAMICAS, APP_ELITE_DX } from '@/src/constants/flags';
+import { ARGOS_RESUELVE_RUTAS_DINAMICAS } from '@/src/constants/flags';
+// 26-sep-2026 (una app, dos modos): el modo se lee AL LLAMAR, no al cargar el
+// modulo. La misma app pinta Elite DX o la ATP completa segun la cuenta, y el
+// modo puede cambiar con la app abierta (la cuenta se resuelve, el admin lo
+// cambia en Ajustes). Una constante congelada al importar dejaria a ARGOS
+// ofreciendo las salas del otro modo.
+import { esEliteDx, modoActual } from '@/src/services/modo-app/modo-app-estado';
+import type { ModoApp } from '@/src/services/modo-app/modo-app-core';
 import {
   esPlantilla,
   expandirPlantilla,
@@ -110,12 +117,13 @@ const PREFIJOS_VETADOS: ReadonlyArray<readonly [string, string]> = [
 ];
 
 /**
- * 25-sep-2026 (flags.APP_ELITE_DX): las salas que salieron del tab bar. Siguen
+ * 25-sep-2026 (flags.APP_ELITE_DX; 26-sep-2026: ahora por modo de la cuenta,
+ * ver src/services/modo-app): las salas que salieron del tab bar. Siguen
  * siendo rutas, pero ARGOS no lleva ahi a un cliente de Elite DX por una frase
  * suelta: la sala ATP (35 apps), el hub de SALUD y la comunidad son la
  * plataforma vieja que la app dejo de ensenar. Lo suyo vive en MI PROGRAMA,
- * PROGRESO y TU, que tienen sus propios alias abajo. Con la bandera apagada
- * no se veta nada de esto.
+ * PROGRESO y TU, que tienen sus propios alias abajo. En modo 'atp' no se
+ * veta nada de esto.
  */
 const VETADAS_ELITE_DX: ReadonlyMap<string, string> = new Map([
   ['/kit', 'sala retirada de la app Elite DX'],
@@ -127,8 +135,9 @@ const PREFIJOS_VETADOS_ELITE_DX: ReadonlyArray<readonly [string, string]> = [
 ];
 
 /**
- * Con la bandera APAGADA las salas nuevas no existen (sus rutas mandan a HOY):
- * ARGOS no las ofrece, igual que antes del 25-sep (verificacion en frio).
+ * En modo 'atp' las salas nuevas no existen (sus rutas mandan a HOY o a
+ * fuerza): ARGOS no las ofrece, igual que antes del 25-sep (verificacion en
+ * frio; comportamiento del tag v3.0-pre-elite-dx).
  */
 const VETADAS_SIN_ELITE_DX: ReadonlyMap<string, string> = new Map([
   ['/programa', 'sala de la app Elite DX, apagada'],
@@ -148,11 +157,13 @@ function vetadaElite(ruta: string): string | null {
 export function rutaVetada(ruta: string): string | null {
   const directa = RUTAS_VETADAS.get(ruta);
   if (directa) return directa;
-  if (!APP_ELITE_DX) {
+  // 26-sep-2026 (una app, dos modos): el modo se lee en cada llamada.
+  const eliteDx = esEliteDx();
+  if (!eliteDx) {
     const apagada = VETADAS_SIN_ELITE_DX.get(ruta);
     if (apagada) return apagada;
   }
-  if (APP_ELITE_DX) {
+  if (eliteDx) {
     const dx = vetadaElite(ruta);
     if (dx) return dx;
     // Verificacion en frio (25-sep): un alias que desemboca en una sala
@@ -307,17 +318,23 @@ export function tituloDe(ruta: string): string {
  * que se escribe en el código. Sin acentos (se normalizan igual, pero deja el
  * archivo legible).
  */
-const ALIAS_RUTA_BASE: Readonly<Record<string, readonly string[]>> = {
-  // App Elite DX (25-sep-2026, flags.APP_ELITE_DX): las tres salas nuevas.
-  // Solo con la bandera: apagada, esas rutas mandan a HOY y ofrecerlas seria
-  // prometer un destino que no existe.
-  ...(APP_ELITE_DX
-    ? {
-      '/programa': ['mi programa', 'programa', 'mi evaluacion', 'mi evaluacion elite', 'mi plan', 'mi expediente'],
-      '/progreso': ['progreso', 'mi progreso', 'mi avance', 'avance', 'constancia', 'mi constancia'],
-      '/tu': ['mi cuenta', 'cuenta', 'herramientas', 'mis herramientas', 'mi servicio', 'escribirle a enrique', 'contacto'],
-    }
-    : {}),
+/**
+ * App Elite DX (25-sep-2026): las tres salas nuevas. 26-sep-2026 (una app, dos
+ * modos): solo entran en modo 'elite_dx' (ver aliasRuta). En modo 'atp' esas
+ * rutas mandan a HOY o a fuerza y ofrecerlas seria prometer un destino que no
+ * existe. Van primero para conservar el orden de llaves de antes.
+ */
+export const ALIAS_SALAS_ELITE_DX: Readonly<Record<string, readonly string[]>> = {
+  '/programa': ['mi programa', 'programa', 'mi evaluacion', 'mi evaluacion elite', 'mi plan', 'mi expediente'],
+  '/progreso': ['progreso', 'mi progreso', 'mi avance', 'avance', 'constancia', 'mi constancia'],
+  '/tu': ['mi cuenta', 'cuenta', 'herramientas', 'mis herramientas', 'mi servicio', 'escribirle a enrique', 'contacto'],
+};
+
+/**
+ * El catalogo a mano de la ATP completa, sin las salas de Elite DX. En modo
+ * 'atp' es exactamente el ALIAS_RUTA del tag v3.0-pre-elite-dx.
+ */
+export const ALIAS_RUTA_BASE: Readonly<Record<string, readonly string[]>> = {
   '/': ['hoy', 'inicio', 'checklist', 'pendientes', 'tareas', 'home'],
   '/agenda': ['agenda', 'calendario', 'horario', 'itinerario'],
   '/fasting': ['ayuno', 'ayunar', 'ayunas', 'fasting', 'ventana'],
@@ -424,15 +441,31 @@ const ALIAS_RUTA_BASE: Readonly<Record<string, readonly string[]>> = {
 };
 
 /**
- * 25-sep-2026 (flags.APP_ELITE_DX): con la bandera, un alias que apunta a una
+ * 25-sep-2026 (flags.APP_ELITE_DX): en Elite DX, un alias que apunta a una
  * sala vetada (ATP, SALUD, TRIBU, comunidad) se cae del catalogo en vez de
  * quedar inalcanzable ("ningun alias apunta a una ruta vetada" es un candado
  * del test). "mis apps" o "comunidad" dejan de llevar a la plataforma vieja;
  * "mi constancia" y "mi evaluacion" ahora llevan a PROGRESO y MI PROGRAMA.
+ *
+ * 26-sep-2026 (una app, dos modos): era una constante calculada al cargar el
+ * modulo; ahora es una funcion del modo actual, memoizada por modo (el filtro
+ * depende de rutaVetada, que tambien depende del modo). En 'atp' devuelve
+ * ALIAS_RUTA_BASE tal cual.
  */
-export const ALIAS_RUTA: Readonly<Record<string, readonly string[]>> = APP_ELITE_DX
-  ? Object.fromEntries(Object.entries(ALIAS_RUTA_BASE).filter(([ruta]) => rutaVetada(ruta) === null))
-  : ALIAS_RUTA_BASE;
+const _aliasPorModo = new Map<ModoApp, Readonly<Record<string, readonly string[]>>>();
+
+export function aliasRuta(): Readonly<Record<string, readonly string[]>> {
+  const modo = modoActual();
+  const hecho = _aliasPorModo.get(modo);
+  if (hecho) return hecho;
+  const tabla: Readonly<Record<string, readonly string[]>> = modo === 'elite_dx'
+    ? Object.fromEntries(
+      Object.entries({ ...ALIAS_SALAS_ELITE_DX, ...ALIAS_RUTA_BASE }).filter(([ruta]) => rutaVetada(ruta) === null),
+    )
+    : ALIAS_RUTA_BASE;
+  _aliasPorModo.set(modo, tabla);
+  return tabla;
+}
 
 // ---------------------------------------------------------------------------
 // Normalización
@@ -558,7 +591,7 @@ function construirEntrada(
   sumar(pesos, tokenizar(ruta.replace(/\//g, ' ').replace(/[-_]/g, ' ')), PESO_SLUG);
   sumar(pesos, tokenizar(titulo), PESO_TITULO);
 
-  for (const alias of ALIAS_RUTA[ruta] ?? []) {
+  for (const alias of aliasRuta()[ruta] ?? []) {
     sumar(pesos, tokenizar(alias), PESO_ALIAS);
   }
 
@@ -587,12 +620,17 @@ function construirEntradaExpandida(e: RutaExpandida): EntradaIndice {
   sumar(pesos, tokenizar(e.ruta.replace(/\//g, ' ').replace(/[-_]/g, ' ')), PESO_DESC);
   sumar(pesos, tokenizar(e.titulo), PESO_DESC);
   if (e.descripcion) sumar(pesos, tokenizar(limpiarDescripcion(e.descripcion)), PESO_DESC);
-  for (const alias of ALIAS_RUTA[e.ruta] ?? []) sumar(pesos, tokenizar(alias), PESO_ALIAS);
+  for (const alias of aliasRuta()[e.ruta] ?? []) sumar(pesos, tokenizar(alias), PESO_ALIAS);
   return { ruta: e.ruta, titulo: e.titulo, dinamica: false, pesos };
 }
 
-let _indice: EntradaIndice[] | null = null;
-let _df: Map<string, number> | null = null;
+// 26-sep-2026 (una app, dos modos): memo POR MODO. Antes era uno por proceso;
+// con el modo cambiando en caliente, un indice armado en 'elite_dx' seguiria
+// ofreciendo MI PROGRAMA a una cuenta ATP (o SALUD a un cliente Elite).
+const _indicePorModo = new Map<ModoApp, EntradaIndice[]>();
+/** Adonde mandaba la tab vieja /progreso antes del 25-sep (y en modo 'atp'). */
+export const DESTINO_PROGRESO_ATP = '/fitness-strength';
+const _dfPorModo = new Map<ModoApp, Map<string, number>>();
 
 /**
  * Índice memoizado. Se construye una vez por proceso.
@@ -619,7 +657,9 @@ export function esAliasPuro(ruta: string): boolean {
 }
 
 export function obtenerIndice(): EntradaIndice[] {
-  if (_indice) return _indice;
+  const modo = modoActual();
+  const hecho = _indicePorModo.get(modo);
+  if (hecho) return hecho;
   const entradas: EntradaIndice[] = [];
   for (const r of APP_ROUTES) {
     if (rutaVetada(r)) continue;
@@ -657,28 +697,41 @@ export function obtenerIndice(): EntradaIndice[] {
     // CUATRO-OJOS (20-ago): el vocabulario A MANO del alias también se dona.
     // Sin esto, "entrenar ahora", "correr" o "cuestionarios" (ALIAS_RUTA de
     // rutas ahora excluidas) morían en silencio y la suite no lo veía.
-    for (const palabra of ALIAS_RUTA[alias] ?? []) {
+    for (const palabra of aliasRuta()[alias] ?? []) {
       sumar(dueno.pesos as Map<string, number>, tokenizar(palabra), PESO_ALIAS);
     }
   }
-  _indice = entradas;
+  // 26-sep-2026 (una app, dos modos): en 'atp' la palabra "progreso" vuelve a
+  // llevar a donde llevaba en el tag v3.0-pre-elite-dx. Entonces /progreso era
+  // la tab vieja que mandaba a fuerza, el generador la leia como alias puro y
+  // su nombre se donaba a /fitness-strength (arriba). Hoy /progreso es la sala
+  // de Elite DX, ya no es alias en el mapa y en 'atp' esta vetada: sin esta
+  // donacion a mano "mi progreso" perderia su destino en la ATP completa.
+  if (modo === 'atp') {
+    const fuerza = porRuta.get(DESTINO_PROGRESO_ATP);
+    if (fuerza) sumar(fuerza.pesos as Map<string, number>, tokenizar('progreso'), PESO_ALIAS);
+  }
+  _indicePorModo.set(modo, entradas);
   return entradas;
 }
 
 function obtenerDf(): Map<string, number> {
-  if (_df) return _df;
+  const modo = modoActual();
+  const hecho = _dfPorModo.get(modo);
+  if (hecho) return hecho;
   const df = new Map<string, number>();
   for (const e of obtenerIndice()) {
     for (const t of e.pesos.keys()) df.set(t, (df.get(t) ?? 0) + 1);
   }
-  _df = df;
+  _dfPorModo.set(modo, df);
   return df;
 }
 
 /** Solo para tests: tira la memoización. */
 export function _resetIndice(): void {
-  _indice = null;
-  _df = null;
+  _indicePorModo.clear();
+  _dfPorModo.clear();
+  _aliasPorModo.clear();
 }
 
 /**

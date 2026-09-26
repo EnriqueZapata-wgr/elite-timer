@@ -29,7 +29,9 @@ import { OrbCard } from '@/src/components/hoy/OrbCard';
 // 25-sep-2026 (APP_ELITE_DX, revisión en frío): en la app Elite DX el dia lo
 // arma su plan con Enrique; las salidas al lanzador de apps y a armar packs
 // salen de la vista (las rutas siguen vivas).
-import { APP_ELITE_DX } from '@/src/constants/flags';
+// 26-sep-2026 (una app, dos modos): Elite DX o ATP completa segun la cuenta,
+// no segun una constante. Ver src/services/modo-app.
+import { useEsEliteDx } from '@/src/hooks/useModoApp';
 import {
   buildTareas, agendaLens, repartoTareas, ofrecerArmarDia,
   type Tarea,
@@ -67,6 +69,7 @@ interface Props {
 }
 
 export function TareasView({ day, userId, uvMini }: Props) {
+  const eliteDx = useEsEliteDx();
   const router = useRouter();
   const reducedMotion = useSystemReducedMotion();
   // MB-31B: superficies y texto del scope. El lima como texto (lente activa,
@@ -386,7 +389,7 @@ export function TareasView({ day, userId, uvMini }: Props) {
           publica; el dia de un cliente lo arma su plan (Qué hacer hoy, arriba)
           y su salida humana es "Escríbele a Enrique", al pie de HOY. No se
           escribe copy nuevo en la voz de Enrique para este hueco. */}
-      {!APP_ELITE_DX && ofrecerArmarDia(result.global.total) ? (
+      {!eliteDx && ofrecerArmarDia(result.global.total) ? (
         <Pressable
           onPress={() => { haptic.light(); router.push('/packs/armar'); }}
           style={({ pressed }) => [
@@ -467,7 +470,7 @@ export function TareasView({ day, userId, uvMini }: Props) {
         {/* 25-sep-2026 (APP_ELITE_DX, revisión en frío): "+ agregar" abria
             /kit?agregar=1, el lanzador de 35 apps que salio del tab bar. Con
             la bandera no se pinta; el chip UV se queda a la izquierda. */}
-        {!APP_ELITE_DX && (
+        {!eliteDx && (
           <Pressable
             onPress={() => { haptic.light(); router.push({ pathname: '/kit', params: { agregar: '1' } }); }}
             style={({ pressed }) => [s.addBtn, pressed && { opacity: 0.6 }]}

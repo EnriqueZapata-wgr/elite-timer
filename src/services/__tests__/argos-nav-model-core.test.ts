@@ -6,7 +6,7 @@
  * filtro de salida se acuerde de correr. Si truena, se reapunta el catálogo, no
  * se quita el test.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   construirPromptNav,
   extraerRutaDeRespuesta,
@@ -15,8 +15,24 @@ import {
   SIN_RUTA,
 } from '../argos-nav-model-core';
 import { rutaVetada, validarRutaPropuesta } from '../argos-nav-resolver-core';
+// 26-sep-2026 (una app, dos modos): el catalogo depende del modo de la cuenta.
+// Cada describe fija su modo y lo deja limpio (el estado es de modulo y el
+// runner comparte proceso entre archivos).
+import { fijarModoPorCuenta, reiniciarModoParaPruebas } from '@/src/services/modo-app/modo-app-estado';
+import type { ModoApp } from '@/src/services/modo-app/modo-app-core';
 
-describe('extraerRutaDeRespuesta — el modelo adorna aunque se le pida que no', () => {
+const MODOS: readonly ModoApp[] = ['elite_dx', 'atp'];
+
+function enModo(modo: ModoApp): void {
+  beforeEach(() => {
+    reiniciarModoParaPruebas();
+    fijarModoPorCuenta(modo);
+  });
+  afterEach(() => reiniciarModoParaPruebas());
+}
+
+for (const modo of MODOS) describe(`extraerRutaDeRespuesta — el modelo adorna aunque se le pida que no (modo ${modo})`, () => {
+  enModo(modo);
   it('la respuesta limpia', () => {
     expect(extraerRutaDeRespuesta('/fasting')).toBe('/fasting');
   });
@@ -54,7 +70,18 @@ describe('extraerRutaDeRespuesta — el modelo adorna aunque se le pida que no',
   });
 });
 
-describe('el catálogo que ve el modelo', () => {
+for (const modo of MODOS) describe(`el catálogo que ve el modelo (modo ${modo})`, () => {
+  enModo(modo);
+
+  it('trae las salas de su modo y no las del otro', () => {
+    _resetCatalogo();
+    const rutas = new Set(catalogoNavegable().map((c) => c.ruta));
+    const propias = modo === 'elite_dx' ? ['/programa', '/tu'] : ['/salud', '/tribu', '/kit'];
+    const ajenas = modo === 'elite_dx' ? ['/salud', '/tribu', '/kit'] : ['/programa', '/tu', '/progreso'];
+    for (const r of propias) expect(rutas.has(r), r).toBe(true);
+    for (const r of ajenas) expect(rutas.has(r), r).toBe(false);
+  });
+
   it('ninguna ruta vetada viaja en el prompt', () => {
     _resetCatalogo();
     const cat = catalogoNavegable();
@@ -84,6 +111,20 @@ describe('el catálogo que ve el modelo', () => {
       // como si fueran nombre de pantalla.
       expect(/\bMB-\d+|\bOLA\d/.test(entrada.titulo)).toBe(false);
     }
+  });
+});
+
+describe('el catálogo sigue al modo con la app abierta (26-sep-2026)', () => {
+  beforeEach(() => reiniciarModoParaPruebas());
+  afterEach(() => reiniciarModoParaPruebas());
+  it('se rehace al cambiar de modo, sin tirar la memo a mano', () => {
+    fijarModoPorCuenta('elite_dx');
+    expect(catalogoNavegable().some((c) => c.ruta === '/programa')).toBe(true);
+    fijarModoPorCuenta('atp');
+    expect(catalogoNavegable().some((c) => c.ruta === '/programa')).toBe(false);
+    expect(catalogoNavegable().some((c) => c.ruta === '/salud')).toBe(true);
+    fijarModoPorCuenta('elite_dx');
+    expect(catalogoNavegable().some((c) => c.ruta === '/salud')).toBe(false);
   });
 });
 
