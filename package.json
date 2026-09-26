@@ -17,6 +17,7 @@
     "mapa:rutas": "node scripts/gen-mapa-rutas.js --maestro",
     "audit-colores": "node scripts/audit-colores.js",
     "audit-visual": "powershell -ExecutionPolicy Bypass -File scripts/audit-visual.ps1",
+    "audit-elite-dx": "powershell -ExecutionPolicy Bypass -File scripts/audit-elite-dx.ps1",
     "mapa": "node scripts/mapa-app.js && python scripts/mapa-xlsx.py && node scripts/mapa-html.js"
   },
   "dependencies": {
