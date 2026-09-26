@@ -141,7 +141,9 @@ const ORB_TAB_SIZE = 42;
  * 26-sep-2026 (una app, dos modos): las salas que cada modo saca del tab bar.
  * Si el modo cambia con la persona parada en una de ellas (la cuenta se
  * resolvio distinto a lo recordado, o el admin cambio el modo), se la manda a
- * HOY: quedarse en una sala sin boton en la barra es quedarse sin salida.
+ * HOY. Desde el 26-sep (Elite DX no pierde funciones) ATP, SALUD y TRIBU son
+ * destinos validos de Elite DX (se abren desde TU), y ademas el <Tabs> se
+ * vuelve a montar al cambiar de modo (key), asi que esta red es de respaldo.
  */
 const TABS_OCULTAS_EN_ELITE_DX: ReadonlySet<string> = new Set(['/kit', '/salud', '/tribu']);
 const TABS_OCULTAS_EN_ATP: ReadonlySet<string> = new Set(['/programa', '/progreso', '/tu']);
@@ -259,6 +261,15 @@ export default function TabLayout() {
       )}
 
       <Tabs
+        // 26-sep-2026 (Elite DX no pierde funciones): en Elite DX, TU abre la
+        // sala de apps, SALUD y TRIBU, que no tienen boton en la barra. Con
+        // 'history' el boton atras de Android regresa a donde estaba (TU) en
+        // vez de saltar a HOY. En ATP completa se queda el de siempre.
+        backBehavior={eliteDx ? 'history' : 'firstRoute'}
+        // Revision en frio (26-sep): el router de tabs lee backBehavior UNA vez
+        // al montar. La key lo vuelve a montar cuando cambia el modo, para que
+        // cada modo tenga el suyo (y sus tabs visibles) desde cero.
+        key={eliteDx ? 'tabs-elite-dx' : 'tabs-atp'}
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: kind === 'dark' ? ATP_BRAND.lime : tokens.tealTexto,

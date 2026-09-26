@@ -73,13 +73,16 @@ for (const modo of MODOS) describe(`extraerRutaDeRespuesta — el modelo adorna 
 for (const modo of MODOS) describe(`el catálogo que ve el modelo (modo ${modo})`, () => {
   enModo(modo);
 
-  it('trae las salas de su modo y no las del otro', () => {
+  // 26-sep-2026 (Elite DX no pierde funciones): Elite DX ve TODO lo de la ATP
+  // completa mas sus tres salas; la ATP completa no ve esas tres salas (ahi
+  // no existen). Antes Elite DX perdia /kit, /salud, /tribu y la comunidad.
+  it('trae las salas de su modo (Elite DX = ATP completa + sus salas)', () => {
     _resetCatalogo();
     const rutas = new Set(catalogoNavegable().map((c) => c.ruta));
-    const propias = modo === 'elite_dx' ? ['/programa', '/tu'] : ['/salud', '/tribu', '/kit'];
-    const ajenas = modo === 'elite_dx' ? ['/salud', '/tribu', '/kit'] : ['/programa', '/tu', '/progreso'];
-    for (const r of propias) expect(rutas.has(r), r).toBe(true);
-    for (const r of ajenas) expect(rutas.has(r), r).toBe(false);
+    const deSiempre = ['/kit', '/salud', '/tribu', '/comunidad/ranking', '/comunidad/amigos'];
+    const salasElite = ['/programa', '/tu', '/progreso'];
+    for (const r of deSiempre) expect(rutas.has(r), r).toBe(true);
+    for (const r of salasElite) expect(rutas.has(r), r).toBe(modo === 'elite_dx');
   });
 
   it('ninguna ruta vetada viaja en el prompt', () => {
@@ -124,7 +127,19 @@ describe('el catálogo sigue al modo con la app abierta (26-sep-2026)', () => {
     expect(catalogoNavegable().some((c) => c.ruta === '/programa')).toBe(false);
     expect(catalogoNavegable().some((c) => c.ruta === '/salud')).toBe(true);
     fijarModoPorCuenta('elite_dx');
-    expect(catalogoNavegable().some((c) => c.ruta === '/salud')).toBe(false);
+    expect(catalogoNavegable().some((c) => c.ruta === '/salud')).toBe(true);
+    expect(catalogoNavegable().some((c) => c.ruta === '/programa')).toBe(true);
+  });
+
+  it('el catalogo de Elite DX es el de la ATP mas exactamente sus tres salas', () => {
+    fijarModoPorCuenta('atp');
+    const atp = catalogoNavegable().map((c) => c.ruta);
+    fijarModoPorCuenta('elite_dx');
+    const elite = catalogoNavegable().map((c) => c.ruta);
+    const setElite = new Set(elite);
+    for (const r of atp) expect(setElite.has(r), r).toBe(true);
+    const extra = elite.filter((r) => !atp.includes(r)).sort();
+    expect(extra).toEqual(['/programa', '/progreso', '/tu']);
   });
 });
 

@@ -117,22 +117,18 @@ const PREFIJOS_VETADOS: ReadonlyArray<readonly [string, string]> = [
 ];
 
 /**
- * 25-sep-2026 (flags.APP_ELITE_DX; 26-sep-2026: ahora por modo de la cuenta,
- * ver src/services/modo-app): las salas que salieron del tab bar. Siguen
- * siendo rutas, pero ARGOS no lleva ahi a un cliente de Elite DX por una frase
- * suelta: la sala ATP (35 apps), el hub de SALUD y la comunidad son la
- * plataforma vieja que la app dejo de ensenar. Lo suyo vive en MI PROGRAMA,
- * PROGRESO y TU, que tienen sus propios alias abajo. En modo 'atp' no se
- * veta nada de esto.
+ * 26-sep-2026 (Elite DX no pierde funciones): aqui vivian VETADAS_ELITE_DX y
+ * PREFIJOS_VETADOS_ELITE_DX, que en modo 'elite_dx' le cerraban a ARGOS la
+ * sala ATP (/kit), el hub de SALUD (/salud), la TRIBU (/tribu), toda la
+ * comunidad (/comunidad/*) y cualquier alias que desembocara ahi. Salieron
+ * enteras. Decision del dueno (26-sep): Elite DX es "todo lo de la ATP mas el
+ * programa", no una ATP recortada; que una sala no este en el tab bar no
+ * quiere decir que el cliente la haya perdido, y ARGOS es justamente el atajo
+ * a lo que no esta a la vista. En Elite DX ya no se veta NADA extra: rige solo
+ * el veto global de arriba (sesion, compra, dev, consola, bienvenida).
+ *
+ * El veto por modo que queda es el inverso, abajo: en 'atp' las salas nuevas.
  */
-const VETADAS_ELITE_DX: ReadonlyMap<string, string> = new Map([
-  ['/kit', 'sala retirada de la app Elite DX'],
-  ['/salud', 'sala retirada de la app Elite DX'],
-  ['/tribu', 'sala retirada de la app Elite DX'],
-]);
-const PREFIJOS_VETADOS_ELITE_DX: ReadonlyArray<readonly [string, string]> = [
-  ['/comunidad', 'comunidad fuera de la app Elite DX'],
-];
 
 /**
  * En modo 'atp' las salas nuevas no existen (sus rutas mandan a HOY o a
@@ -145,37 +141,18 @@ const VETADAS_SIN_ELITE_DX: ReadonlyMap<string, string> = new Map([
   ['/tu', 'sala de la app Elite DX, apagada'],
 ]);
 
-function vetadaElite(ruta: string): string | null {
-  const dx = VETADAS_ELITE_DX.get(ruta);
-  if (dx) return dx;
-  for (const [p, razon] of PREFIJOS_VETADOS_ELITE_DX) {
-    if (ruta === p || ruta.startsWith(p + '/')) return razon;
-  }
-  return null;
-}
-
 export function rutaVetada(ruta: string): string | null {
   const directa = RUTAS_VETADAS.get(ruta);
   if (directa) return directa;
   // 26-sep-2026 (una app, dos modos): el modo se lee en cada llamada.
-  const eliteDx = esEliteDx();
-  if (!eliteDx) {
+  // 26-sep-2026 (Elite DX no pierde funciones): la unica diferencia por modo
+  // es esta, y va en un solo sentido. En 'atp' se cierran las salas que ahi no
+  // existen; en 'elite_dx' no se cierra nada que la ATP completa tenga abierto
+  // (antes se vetaban /kit, /salud, /tribu, /comunidad/* y los alias que
+  // desembocaban ahi, como /salud/evolucion o /settings/comunidad).
+  if (!esEliteDx()) {
     const apagada = VETADAS_SIN_ELITE_DX.get(ruta);
     if (apagada) return apagada;
-  }
-  if (eliteDx) {
-    const dx = vetadaElite(ruta);
-    if (dx) return dx;
-    // Verificacion en frio (25-sep): un alias que desemboca en una sala
-    // retirada (/salud/evolucion -> /salud, /health-hub -> /salud,
-    // /settings/comunidad -> /comunidad/ajustes) tambien se veta, o ARGOS
-    // volveria a dejar al cliente en la plataforma vieja por la puerta de atras.
-    const destino = (APP_ROUTE_ALIASES as Readonly<Record<string, string | null>>)[ruta];
-    if (typeof destino === 'string') {
-      const base = destino.split('?')[0];
-      const porAlias = vetadaElite(base);
-      if (porAlias) return `alias de una ${porAlias}`;
-    }
   }
   for (const [p, razon] of PREFIJOS_VETADOS) {
     if (ruta === p || ruta.startsWith(p + '/')) return razon;
@@ -323,6 +300,16 @@ export function tituloDe(ruta: string): string {
  * modos): solo entran en modo 'elite_dx' (ver aliasRuta). En modo 'atp' esas
  * rutas mandan a HOY o a fuerza y ofrecerlas seria prometer un destino que no
  * existe. Van primero para conservar el orden de llaves de antes.
+ *
+ * 26-sep-2026 (Elite DX no pierde funciones): en Elite DX se SUMAN al catalogo
+ * completo de la ATP (ALIAS_RUTA_BASE), no lo reemplazan. Ninguna frase de
+ * aqui le quita a una ruta vieja algo que en la ATP completa resolvia: las
+ * palabras que se comparten con rutas viejas ('mi expediente', 'mi plan',
+ * 'cuenta', 'mi cuenta') ya competian igual desde el 25-sep y su desenlace
+ * queda clavado en el test. Lo unico que cambia de destino a proposito en
+ * Elite DX es "progreso" (y "mi progreso", "mi constancia"): va a la sala
+ * PROGRESO en vez de donarse a /fitness-strength, porque en Elite DX la tab
+ * PROGRESO existe y es lo que el cliente esta nombrando.
  */
 export const ALIAS_SALAS_ELITE_DX: Readonly<Record<string, readonly string[]>> = {
   '/programa': ['mi programa', 'programa', 'mi evaluacion', 'mi evaluacion elite', 'mi plan', 'mi expediente'],
@@ -441,16 +428,21 @@ export const ALIAS_RUTA_BASE: Readonly<Record<string, readonly string[]>> = {
 };
 
 /**
- * 25-sep-2026 (flags.APP_ELITE_DX): en Elite DX, un alias que apunta a una
- * sala vetada (ATP, SALUD, TRIBU, comunidad) se cae del catalogo en vez de
- * quedar inalcanzable ("ningun alias apunta a una ruta vetada" es un candado
- * del test). "mis apps" o "comunidad" dejan de llevar a la plataforma vieja;
- * "mi constancia" y "mi evaluacion" ahora llevan a PROGRESO y MI PROGRAMA.
+ * 25-sep-2026: en Elite DX, un alias que apuntaba a una sala vetada (ATP,
+ * SALUD, TRIBU, comunidad) se caia del catalogo en vez de quedar inalcanzable.
  *
  * 26-sep-2026 (una app, dos modos): era una constante calculada al cargar el
- * modulo; ahora es una funcion del modo actual, memoizada por modo (el filtro
- * depende de rutaVetada, que tambien depende del modo). En 'atp' devuelve
- * ALIAS_RUTA_BASE tal cual.
+ * modulo; ahora es una funcion del modo actual, memoizada por modo. En 'atp'
+ * devuelve ALIAS_RUTA_BASE tal cual.
+ *
+ * 26-sep-2026 (Elite DX no pierde funciones): en 'elite_dx' es el catalogo
+ * COMPLETO de la ATP mas las tres salas (ALIAS_SALAS_ELITE_DX). "mis apps",
+ * "sala atp", "tribu", "comunidad" y "ranking" vuelven a llevar a donde llevan
+ * en la ATP completa; "mi programa", "mi constancia" y "mis herramientas"
+ * llevan a las salas. El filtro por rutaVetada se queda como red: hoy no quita
+ * nada en ningun modo (el candado "ningun alias apunta a una ruta vetada" lo
+ * clava), pero si manana alguien veta una ruta con alias, el alias se cae del
+ * catalogo en vez de quedar como palabra que ARGOS entiende y no puede cumplir.
  */
 const _aliasPorModo = new Map<ModoApp, Readonly<Record<string, readonly string[]>>>();
 
@@ -458,6 +450,8 @@ export function aliasRuta(): Readonly<Record<string, readonly string[]>> {
   const modo = modoActual();
   const hecho = _aliasPorModo.get(modo);
   if (hecho) return hecho;
+  // Las llaves de las dos tablas no se pisan (rutas distintas); el spread solo
+  // decide el orden de llaves, que no cambia ningun puntaje.
   const tabla: Readonly<Record<string, readonly string[]>> = modo === 'elite_dx'
     ? Object.fromEntries(
       Object.entries({ ...ALIAS_SALAS_ELITE_DX, ...ALIAS_RUTA_BASE }).filter(([ruta]) => rutaVetada(ruta) === null),
@@ -626,7 +620,8 @@ function construirEntradaExpandida(e: RutaExpandida): EntradaIndice {
 
 // 26-sep-2026 (una app, dos modos): memo POR MODO. Antes era uno por proceso;
 // con el modo cambiando en caliente, un indice armado en 'elite_dx' seguiria
-// ofreciendo MI PROGRAMA a una cuenta ATP (o SALUD a un cliente Elite).
+// ofreciendo MI PROGRAMA a una cuenta ATP. (26-sep, Elite DX no pierde
+// funciones: el indice de Elite DX ya es el de la ATP mas las salas.)
 const _indicePorModo = new Map<ModoApp, EntradaIndice[]>();
 /** Adonde mandaba la tab vieja /progreso antes del 25-sep (y en modo 'atp'). */
 export const DESTINO_PROGRESO_ATP = '/fitness-strength';

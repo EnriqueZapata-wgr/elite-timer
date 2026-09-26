@@ -171,10 +171,10 @@ for (const modo of MODOS) describe(`intentos reales en es-MX (modo ${modo})`, ()
     ['mi historial de electrones', '/economy/history'],
     ['quiero instalar más funciones', '/centro'],
     ['ver mis hábitos', '/hoy-habitos'],
-    // 25-sep-2026: en Elite DX la comunidad sale de la app y ARGOS no lleva
-    // ahi (criterio cambiado a proposito; ese caso vive en el describe de
-    // abajo). 26-sep-2026: en la ATP completa sigue llevando, como antes.
-    ...(modo === 'elite_dx' ? [] : [['el ranking de la comunidad', '/comunidad/ranking'] as [string, string]]),
+    // 25-sep-2026: en Elite DX la comunidad habia salido de la app y este caso
+    // solo corria en 'atp'. 26-sep-2026 (Elite DX no pierde funciones): vuelve
+    // a correr en LOS DOS modos, sin ramificar.
+    ['el ranking de la comunidad', '/comunidad/ranking'],
     ['mi ficha de emergencia', '/ficha-emergencia'],
     ['conectar con health connect', '/settings/salud-conexion'],
     ['el filtro nocturno', '/night-filter'],
@@ -202,20 +202,101 @@ describe('modo elite_dx (25-sep-2026; por cuenta desde el 26-sep)', () => {
     esperarRuta('mi progreso', '/progreso');
     esperarRuta('mi constancia', '/progreso');
     esperarRuta('mis herramientas', '/tu');
+    esperarRuta('mi servicio', '/tu');
   });
-  it('las salas retiradas no se ofrecen', () => {
-    expect(rutaVetada('/kit')).not.toBeNull();
-    expect(rutaVetada('/salud')).not.toBeNull();
-    expect(rutaVetada('/tribu')).not.toBeNull();
-    expect(rutaVetada('/comunidad/ranking')).not.toBeNull();
-    // Lo que si es del cliente, aunque viva bajo /salud, sigue abierto.
+  // 26-sep-2026 (Elite DX no pierde funciones): este bloque decia "las salas
+  // retiradas no se ofrecen". El criterio se invirtio a proposito por decision
+  // del dueno: Elite DX es todo lo de la ATP mas el programa.
+  it('las salas de la ATP completa siguen abiertas para ARGOS', () => {
+    for (const r of ['/kit', '/salud', '/tribu', '/comunidad/ranking', '/comunidad/amigos', '/comunidad/ajustes']) {
+      expect(rutaVetada(r), r).toBeNull();
+      expect(validarRutaPropuesta(r).tipo, r).toBe('resuelta');
+    }
+    const rutas = new Set(obtenerIndice().map((e) => e.ruta));
+    for (const r of ['/kit', '/salud', '/tribu', '/comunidad/ranking']) expect(rutas.has(r), r).toBe(true);
     expect(rutaVetada('/salud/evaluacion-elite')).toBeNull();
-    expect(resolverDestino('el ranking de la comunidad').tipo).not.toBe('resuelta');
   });
-  it('el catalogo a mano trae las salas nuevas y no las retiradas', () => {
+  it('los alias que desembocan en esas salas ya no se vetan', () => {
+    // Antes se vetaban por su destino (/health-hub -> /salud).
+    expect(APP_ROUTE_ALIASES['/health-hub']).toBe('/salud');
+    expect(rutaVetada('/health-hub')).toBeNull();
+    for (const [alias, destino] of Object.entries(APP_ROUTE_ALIASES)) {
+      if (typeof destino !== 'string') continue;
+      const base = destino.split('?')[0];
+      if (!['/kit', '/salud', '/tribu'].includes(base) && !base.startsWith('/comunidad')) continue;
+      expect(rutaVetada(alias), `${alias} -> ${destino}`).toBeNull();
+    }
+  });
+  it('las frases de las salas de siempre llegan a donde llegan en la ATP completa', () => {
+    esperarRuta('el ranking de la comunidad', '/comunidad/ranking');
+    esperarRuta('ranking', '/comunidad/ranking');
+    esperarRuta('tribu', '/tribu');
+    esperarRuta('mis amigos', '/comunidad/amigos');
+    esperarRuta('perfil publico', '/comunidad/ajustes');
+    esperarRuta('ecosistema', '/kit');
+    esperarRuta('salud funcional', '/salud/diagnostico');
+    esperarRuta('como voy', '/salud/evolucion');
+    // "mis apps" y "sala atp" nunca resolvieron solas, tampoco en la ATP
+    // completa (el tag ya preguntaba entre la sala y "ordenar apps"). Lo que se
+    // exige es que la sala ATP vuelva a estar entre las opciones.
+    for (const f of ['mis apps', 'sala atp']) {
+      const r = resolverDestino(f);
+      expect(r.tipo, f).toBe('ambigua');
+      if (r.tipo === 'ambigua') expect(r.candidatos.map((c) => c.ruta), f).toContain('/kit');
+    }
+    // El hub de SALUD tampoco resolvia solo en la ATP; vuelve a ofrecerse.
+    const hub = resolverDestino('hub de salud');
+    expect(hub.tipo === 'ambigua' ? hub.candidatos.map((c) => c.ruta) : [], 'hub de salud').toContain('/salud');
+  });
+  it('el catalogo a mano es el completo mas las salas nuevas', () => {
     const tabla = aliasRuta();
     for (const r of Object.keys(ALIAS_SALAS_ELITE_DX)) expect(r in tabla, r).toBe(true);
+    for (const r of Object.keys(ALIAS_RUTA_BASE)) {
+      expect(r in tabla, r).toBe(true);
+      expect(tabla[r], r).toEqual(ALIAS_RUTA_BASE[r]);
+    }
+    expect(Object.keys(tabla).length).toBe(Object.keys(ALIAS_SALAS_ELITE_DX).length + Object.keys(ALIAS_RUTA_BASE).length);
     for (const r of Object.keys(tabla)) expect(rutaVetada(r), r).toBeNull();
+  });
+});
+
+/**
+ * 26-sep-2026 (Elite DX no pierde funciones): el candado de paridad. Toda
+ * frase del catalogo a mano (y todo titulo curado) que en la ATP completa
+ * resuelve a X, en Elite DX tiene que resolver a X o, como minimo, ofrecer X
+ * PRIMERO al preguntar. Las unicas frases que cambian de desenlace estan
+ * nombradas abajo; si la lista crece, alguien le quito algo a Elite DX sin
+ * decidirlo.
+ */
+describe('paridad: Elite DX no pierde ningun destino de la ATP completa (26-sep-2026)', () => {
+  beforeEach(() => reiniciarModoParaPruebas());
+  afterEach(() => reiniciarModoParaPruebas());
+  // Choques con el NOMBRE de una sala de Elite DX. ARGOS pregunta (contrato:
+  // no adivina) y el destino de la ATP va primero en las opciones.
+  //  - "cuenta": TU se titula "Tu cuenta" y su docblock dice "tu cuenta ... y
+  //    ajustes"; las dos lecturas son legitimas.
+  //  - "Progreso de Mente": la sala PROGRESO se lleva la palabra "progreso".
+  const PREGUNTA_CON_EL_DESTINO_ATP_PRIMERO = new Set(['cuenta', 'mi cuenta', 'Tu cuenta', 'Progreso de Mente']);
+  it('lo que resuelve en la ATP resuelve igual en Elite DX (o se ofrece primero)', () => {
+    const frases = new Set<string>();
+    for (const lista of Object.values(ALIAS_RUTA_BASE)) for (const f of lista) frases.add(f);
+    for (const t of Object.values(TITULOS_RUTA)) frases.add(t);
+    fijarModoPorCuenta('atp');
+    const enAtp = new Map([...frases].map((f) => [f, resolverDestino(f)] as const));
+    fijarModoPorCuenta('elite_dx');
+    const cambiadas: string[] = [];
+    const perdidas: string[] = [];
+    for (const f of frases) {
+      const a = enAtp.get(f)!;
+      if (a.tipo !== 'resuelta') continue;
+      const e = resolverDestino(f);
+      if (e.tipo === 'resuelta' && e.ruta === a.ruta) continue;
+      cambiadas.push(f);
+      const primera = e.tipo === 'ambigua' ? e.candidatos[0]?.ruta : null;
+      if (primera !== a.ruta) perdidas.push(`${f}: ATP ${a.ruta}, Elite ${JSON.stringify(e)}`);
+    }
+    expect(perdidas, 'destinos de la ATP que Elite DX ya no ofrece').toEqual([]);
+    expect(cambiadas.sort()).toEqual([...PREGUNTA_CON_EL_DESTINO_ATP_PRIMERO].sort());
   });
 });
 
@@ -262,12 +343,16 @@ describe('cambio de modo con la app abierta (26-sep-2026)', () => {
     fijarModoPorCuenta('elite_dx');
     const elite = new Set(obtenerIndice().map((e) => e.ruta));
     expect(elite.has('/programa')).toBe(true);
-    expect(elite.has('/salud')).toBe(false);
-    expect(rutaVetada('/salud')).not.toBeNull();
+    expect(rutaVetada('/programa')).toBeNull();
+    // 26-sep-2026 (Elite DX no pierde funciones): /salud ya no distingue los
+    // modos; esta abierta en los dos.
+    expect(elite.has('/salud')).toBe(true);
+    expect(rutaVetada('/salud')).toBeNull();
 
     fijarModoPorCuenta('atp');
     const atp = new Set(obtenerIndice().map((e) => e.ruta));
     expect(atp.has('/programa')).toBe(false);
+    expect(rutaVetada('/programa')).not.toBeNull();
     expect(atp.has('/salud')).toBe(true);
     expect(rutaVetada('/salud')).toBeNull();
     expect('/programa' in aliasRuta()).toBe(false);

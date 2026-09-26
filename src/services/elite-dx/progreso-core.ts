@@ -207,36 +207,90 @@ export function lineaServicio(e: EntradaLineaServicio): string | null {
 // TÚ · HERRAMIENTAS
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Secciones del registro que entran completas a HERRAMIENTAS. */
-export const SECCIONES_HERRAMIENTAS: readonly string[] = ['mente', 'cuerpo', 'diario'];
-
 /**
- * 25-sep-2026 (APP_ELITE_DX): de la sección 'salud' del registro solo entran
- * las que son HERRAMIENTAS de medir o registrar algo del día: Ciclo, Glucosa,
- * Cetonas y Sol. Lo demás de 'salud' es expediente y no se repite aquí: hacerlo
- * devolvería la sensación de lanzador de 35 apps que se quiso quitar.
- * 'sistema' (Ajustes) no entra: tiene su fila en CUENTA.
+ * Secciones del registro que entran a HERRAMIENTAS, completas y en el orden
+ * de la sala ATP (kit): mente, cuerpo, hábitos diarios y salud. 'sistema'
+ * (Ajustes) no entra: tiene su fila en CUENTA.
  *
- * 25-sep-2026 (revisión en frío): dónde vive HOY cada una de las que quedan
- * fuera, sin prometer lo que todavía no existe:
- *  - Labs: PROGRESO › Laboratorios (/edad-atp/labs).
- *  - Reportes: PROGRESO › Reportes semanales (/reports).
- *  - Historia clínica, Síntomas, Tus datos y Ficha de emergencia: MI PROGRAMA
- *    › TU EXPEDIENTE.
- *  - Genética: MI PROGRAMA › TUS ESTUDIOS, cuando la evaluación trae hallazgos.
- *  - Edad ATP: el resumen de MI PROGRAMA (su evaluación con Enrique).
- *  - Mi mapa, Cronotipo, Condiciones, Cuestionario y Evaluaciones: sin puerta
- *    en las cinco salas nuevas. Siguen vivas como rutas y se llega por el
- *    Centro (/centro). Pendiente de decidir con Enrique, no resuelto aquí.
+ * 26-sep-2026 (decisión de Enrique: Elite DX es "todo lo de ATP más su
+ * programa", no pierde ninguna función): se REVIERTE el recorte del 25-sep.
+ * Aquel día de 'salud' solo entraban Ciclo, Glucosa, Cetonas y Sol, con el
+ * argumento de que lo demás era expediente y repetirlo devolvía la sensación
+ * de lanzador de 35 apps. Ese argumento cae: dejaba sin puerta Mi mapa,
+ * Cronotipo, Condiciones, Cuestionario y Evaluaciones. Ahora HERRAMIENTAS
+ * enseña TODO lo que `visibleApps` le da a la persona, igual que la sala ATP
+ * (paridad completa). Que una función tenga además fila en MI PROGRAMA o en
+ * PROGRESO ya no es razón para quitarla de aquí.
  */
-export const HERRAMIENTAS_DE_SALUD: readonly string[] = ['ciclo', 'glucosa', 'cetonas', 'sol'];
+export const SECCIONES_HERRAMIENTAS: readonly string[] = ['mente', 'cuerpo', 'diario', 'salud'];
 
 /**
  * Qué apps del registro se enseñan en HERRAMIENTAS. Recibe la lista YA pasada
  * por `visibleApps` (el candado del ciclo y el de nivel ya se aplicaron allí);
- * aquí solo se escoge por sección, conservando el orden del registro.
+ * aquí solo se deja fuera 'sistema', conservando el orden del registro.
  */
 export function herramientasDeTu<T extends { key: string; section: string }>(apps: readonly T[]): T[] {
-  return apps.filter((a) => SECCIONES_HERRAMIENTAS.includes(a.section)
-    || (a.section === 'salud' && HERRAMIENTAS_DE_SALUD.includes(a.key)));
+  return apps.filter((a) => SECCIONES_HERRAMIENTAS.includes(a.section));
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TÚ · TODAS TUS FUNCIONES
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 26-sep-2026 (misma decisión: "todo lo de ATP más su programa"): las puertas
+ * que en Elite DX se habían quedado sin entrada visible. Tres son salas de la
+ * ATP completa que aquí salen del tab bar (ATP = /kit, SALUD = /salud,
+ * TRIBU = /tribu, con href: null) y tres son pantallas de configuración a las
+ * que solo se llegaba desde esas salas o desde HOY.
+ *
+ * Cada ruta es una pantalla real de app/ y ninguna es un <Redirect> (lo
+ * verifica el test). Las tres salas se abren con el tab bar visible y sin
+ * pestaña resaltada: la salida es tocar cualquier pestaña, TÚ incluida.
+ */
+export const RUTAS_TODAS_TUS_FUNCIONES = {
+  sala: '/kit',
+  centro: '/centro',
+  armar: '/packs/armar',
+  habitos: '/hoy-habitos',
+  salud: '/salud',
+  comunidad: '/tribu',
+  // Revision en frio (26-sep): Mi Progreso de la economia (rango, electrones,
+  // racha, logros) solo tenia entrada por la pildora, oculta para Elite desde
+  // el 20-sep. La pildora sigue oculta; la funcion no se pierde.
+  electrones: '/economy/admin',
+} as const;
+
+export type FuncionTuKey = keyof typeof RUTAS_TODAS_TUS_FUNCIONES;
+
+export interface FilaFuncionTu {
+  key: FuncionTuKey;
+  titulo: string;
+  /** Una línea: lo que la pantalla HACE (verificado en su código), sin promesas. */
+  linea: string;
+  ruta: (typeof RUTAS_TODAS_TUS_FUNCIONES)[FuncionTuKey];
+}
+
+/**
+ * Las filas, en orden de uso. Las líneas describen lo que hay del otro lado:
+ *  - Sala de apps (/kit): la cuadrícula lista lo INSTALADO, con buscador y
+ *    tres órdenes; agregar más es su entrada al Centro, visible sin scroll.
+ *  - Centro (/centro): cada función con su ficha para instalar, quitar y
+ *    configurar.
+ *  - Armar mi app (/packs/armar): "¿Qué quieres cambiar primero?" (el pack)
+ *    y tu horario de despertar y dormir; al aplicar enciende los hábitos del
+ *    pack por etapas.
+ *  - Elegir mis hábitos (/hoy-habitos): qué hábitos cuentas en tu Hoy.
+ *  - Salud funcional completa (/salud): el hub SaludHub (mapa funcional,
+ *    evolución, expediente, datos).
+ *  - Comunidad (/tribu): Ranking y Amigos.
+ */
+export const FILAS_TODAS_TUS_FUNCIONES: readonly FilaFuncionTu[] = [
+  { key: 'sala', titulo: 'Sala de apps', linea: 'Tus apps: buscar, ordenar y agregar más', ruta: RUTAS_TODAS_TUS_FUNCIONES.sala },
+  { key: 'centro', titulo: 'Centro de funciones', linea: 'Instala, quita y configura funciones', ruta: RUTAS_TODAS_TUS_FUNCIONES.centro },
+  { key: 'armar', titulo: 'Armar mi app', linea: 'Elige un objetivo y tu horario, y aplica su pack', ruta: RUTAS_TODAS_TUS_FUNCIONES.armar },
+  { key: 'habitos', titulo: 'Elegir mis hábitos', linea: 'Qué hábitos cuentas cada día en Hoy', ruta: RUTAS_TODAS_TUS_FUNCIONES.habitos },
+  { key: 'salud', titulo: 'Salud funcional completa', linea: 'Tu mapa, tu evolución y tu expediente', ruta: RUTAS_TODAS_TUS_FUNCIONES.salud },
+  { key: 'comunidad', titulo: 'Comunidad', linea: 'Tribu, ranking y amigos', ruta: RUTAS_TODAS_TUS_FUNCIONES.comunidad },
+  { key: 'electrones', titulo: 'Tus electrones y logros', linea: 'Tu rango, tu racha y tus logros', ruta: RUTAS_TODAS_TUS_FUNCIONES.electrones },
+];

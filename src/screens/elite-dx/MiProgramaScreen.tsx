@@ -33,6 +33,8 @@
  *  - Evolucion salio (su ruta caia en el hub viejo de SALUD) y entra
  *    "Tu expediente" con pantallas reales. Ninguna ruta de aqui es un
  *    <Redirect> a /salud (RUTAS_MI_PROGRAMA, con test).
+ *  - 26-sep-2026 ("todo lo de ATP mas su programa"): Tu expediente suma Mi
+ *    mapa funcional, Padecimientos y Linea de tiempo (FILAS_EXPEDIENTE).
  *
  * Tinta: tokens del scope. El <TabScreen themed> abre el <ThemeReady>, por
  * eso el contenido vive en un componente hijo (useSurfaceTokens arriba de el
@@ -114,11 +116,20 @@ const ESTUDIOS: Record<EstudioKey, Estudio> = {
   genetica: { key: 'genetica', titulo: 'Genética', icon: 'genetica', href: RUTAS_MI_PROGRAMA.genetica },
 };
 
-/** Glifos del expediente, los mismos que usa el hub de SALUD (padecimientos = curita, para la ficha). */
+/**
+ * Glifos del expediente, los mismos que usa el hub de SALUD (padecimientos =
+ * curita, para la ficha). 26-sep-2026: mapa, padecimientos y linea de tiempo
+ * llevan el glifo de su puerta en SALUD (salud-puertas: 'diagnostico',
+ * 'padecimientos', 'salud-expediente'). La curita queda en dos filas, la
+ * ficha y Padecimientos: es el glifo del registro para las dos.
+ */
 const ICONO_EXPEDIENTE: Record<ExpedienteKey, AppIconName> = {
+  mapa: 'diagnostico',
   historia: 'historia-clinica',
   sintomas: 'sintomas',
+  padecimientos: 'padecimientos',
   datos: 'salud-datos',
+  linea: 'salud-expediente',
   ficha: 'padecimientos',
 };
 

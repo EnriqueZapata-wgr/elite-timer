@@ -104,3 +104,25 @@ Dónde vive: `src/services/modo-app/` (reglas con prueba, estado y lo guardado),
 **4EP:** construcción, revisión en frío (un bloqueante: al iniciar sesión un cliente Elite caía un instante a la ATP completa, y sin red se quedaba ahí; se arregló leyendo el nivel directo y tirando lecturas de otra cuenta), arreglos y verificación en frío: "se entrega tal cual". `tsc` completo sin errores; 509 pruebas dirigidas pasan.
 
 **Fila:** en el primer arranque después del OTA, una cuenta que no es Elite ve Elite DX hasta que se lee su nivel (segundos; sin red, hasta que haya red). Aceptado: con la venta apagada casi todas las cuentas son de clientes Elite o de prueba.
+
+---
+
+# Elite DX no pierde funciones · 26 de septiembre de 2026
+
+**Decisión de Enrique:** Elite DX es la versión más completa: todo lo de ATP más su programa. Ningún permiso ni función se quita.
+
+**Auditoría previa:** ningún candado, nivel, RLS, migración ni función edge cambió desde el tag. Los derechos sobre sus datos (descargar, eliminar cuenta, consentimientos, PDFs, subir estudios, Health Connect, notificaciones) estaban todos a la mano. Lo que faltaba eran puertas.
+
+**Qué se devolvió:**
+- ARGOS ya no veta la sala de apps, SALUD, TRIBU ni comunidad en Elite DX (paridad fijada por prueba: toda frase que en ATP lleva a un destino lleva al mismo en Elite, o pregunta con ese destino primero).
+- TÚ › HERRAMIENTAS muestra todas las apps del registro (mente, cuerpo, diario, salud), con los mismos candados que la sala.
+- TÚ › TODAS TUS FUNCIONES: Sala de apps, Centro de funciones, Armar mi app, Elegir mis hábitos, Salud funcional completa, Comunidad, Tus electrones y logros.
+- MI PROGRAMA › TU EXPEDIENTE: Mi mapa funcional, Padecimientos, Línea de tiempo (además de Historia clínica, Síntomas, Tus datos, Ficha de emergencia).
+- HOY: vuelven las propuestas de graduación, "Elegir mis hábitos", "+ agregar" y la tarjeta de armar el día.
+- Navegación: atrás en Android regresa a donde estabas (history) en Elite DX; el tab bar se vuelve a montar al cambiar de modo.
+
+**Se quedan ocultos (solo presentación, decisiones previas):** la píldora y el aviso "+⚡" de electrones (los electrones se siguen sumando y tienen su fila en TÚ), la presencia de Tribu en pantalla, los enlaces a Skool y el paso de electrones del tutorial de HOY.
+
+**4EP:** tres constructores, revisión en frío ("se entrega con estos arreglos": backBehavior fijo al montar, economía sin puerta), arreglos hechos. `tsc` completo sin errores; 294 pruebas dirigidas pasan.
+
+**Fila:** "Salud funcional" en ARGOS lleva a Mi mapa y no al hub; "mis apps" pregunta entre la sala y ordenar apps (igual que en ATP). Probar en el S24 que la sala, SALUD y TRIBU abiertas desde TÚ se ven bien sin pestaña resaltada.

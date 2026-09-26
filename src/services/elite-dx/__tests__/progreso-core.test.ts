@@ -5,9 +5,13 @@
  *  - el cuerpo nunca inventa un cambio de 0 con un solo registro;
  *  - la línea de servicio no adivina mientras carga o si no se pudo leer;
  *  - cero em dashes y cero palabras rojas en el copy.
+ * 26-sep-2026 (decisión de Enrique: Elite DX es "todo lo de ATP más su
+ * programa"): HERRAMIENTAS enseña todo lo de `visibleApps` menos 'sistema'
+ * (paridad con la sala ATP) y TODAS TUS FUNCIONES abre pantallas reales. Se
+ * revierte el candado del 25-sep que prohibía a TÚ abrir /salud.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   TEXTO_CONSTANCIA_CLIENTE,
@@ -17,6 +21,8 @@ import {
   fechaCorta,
   lineaServicio,
   herramientasDeTu,
+  FILAS_TODAS_TUS_FUNCIONES,
+  RUTAS_TODAS_TUS_FUNCIONES,
   type FilaMedida,
 } from '@/src/services/elite-dx/progreso-core';
 import { TEXTO_SIN_ADHERENCIA, adherenciaIntervenciones } from '@/src/services/consola/consola-core';
@@ -168,8 +174,8 @@ describe('lineaServicio', () => {
   });
 });
 
-describe('herramientasDeTu', () => {
-  it('mente, cuerpo y diario completas; de salud solo ciclo, glucosa, cetonas y sol; sistema fuera', () => {
+describe('herramientasDeTu (26-sep-2026: paridad con la sala ATP)', () => {
+  it('mente, cuerpo, diario y salud completas, en el orden de llegada; sistema fuera', () => {
     const apps = [
       { key: 'meditar', section: 'mente' },
       { key: 'labs', section: 'salud' },
@@ -177,13 +183,11 @@ describe('herramientasDeTu', () => {
       { key: 'glucosa', section: 'salud' },
       { key: 'comida', section: 'diario' },
       { key: 'reportes', section: 'salud' },
-      { key: 'ciclo', section: 'salud' },
-      { key: 'sol', section: 'salud' },
-      { key: 'cetonas', section: 'salud' },
+      { key: 'mapa-funcional', section: 'salud' },
       { key: 'ajustes', section: 'sistema' },
     ];
     expect(herramientasDeTu(apps).map((a) => a.key))
-      .toEqual(['meditar', 'entrenar', 'glucosa', 'comida', 'ciclo', 'sol', 'cetonas']);
+      .toEqual(['meditar', 'labs', 'entrenar', 'glucosa', 'comida', 'reportes', 'mapa-funcional']);
   });
 
   it('no abre el ciclo por su cuenta: si visibleApps lo quitó, no aparece', () => {
@@ -197,34 +201,102 @@ describe('herramientasDeTu', () => {
 });
 
 describe('herramientasDeTu contra el registro real', () => {
-  it('las cuatro de salud existen en el registro y son de salud', () => {
-    for (const k of ['ciclo', 'glucosa', 'cetonas', 'sol']) {
-      expect(APP_BY_KEY[k]?.section).toBe('salud');
+  it('es exactamente visibleApps menos sistema, para cualquier nivel y gate', () => {
+    for (const [ciclo, tier, evaluacion] of [[true, 'elite', true], [false, 'elite', false], [true, 'free', false], [false, 'premium', false]] as const) {
+      const todas = visibleApps(ciclo, tier, evaluacion);
+      expect(herramientasDeTu(todas).map((a) => a.key)).toEqual(todas.filter((a) => a.section !== 'sistema').map((a) => a.key));
     }
   });
 
-  it('con la venta al público apagada, a un free no se le vende nada en HERRAMIENTAS', () => {
+  it('las que el recorte del 25-sep dejaba sin puerta ya están', () => {
+    const keys = herramientasDeTu(visibleApps(false, 'elite', true)).map((a) => a.key);
+    for (const k of ['mapa-funcional', 'cronotipo', 'padecimientos', 'cuestionario', 'evaluaciones', 'labs', 'reportes', 'historia-clinica', 'sintomas', 'edad-atp', 'genetica']) {
+      expect(`${k}: ${keys.includes(k) ? 'sí' : 'no'}`).toBe(`${k}: sí`);
+    }
+    expect(keys.includes('ajustes')).toBe(false);
+  });
+
+  it('con la venta al público apagada, a un free no se le vende nada premium en HERRAMIENTAS', () => {
     const r = herramientasDeTu(visibleApps(true, 'free', false, false));
     expect(r.length > 0).toBe(true);
-    expect(r.filter((a) => a.bloqueada).map((a) => a.key)).toEqual([]);
+    // Lo único cerrado es lo que exige la evaluación Elite (Genética): se abre por existencia, no por venta.
+    expect(r.filter((a) => a.bloqueada).map((a) => a.minTier)).toEqual(r.filter((a) => a.bloqueada).map(() => 'elite'));
+    expect(r.filter((a) => a.bloqueada && a.minTier === 'premium')).toEqual([]);
+  });
+
+  it('Genética: cerrada sin evaluación Elite, abierta con ella (igual que kit)', () => {
+    expect(herramientasDeTu(visibleApps(false, 'free', false, false)).find((a) => a.key === 'genetica')?.bloqueada).toBe(true);
+    expect(herramientasDeTu(visibleApps(false, 'free', true, false)).find((a) => a.key === 'genetica')?.bloqueada).toBe(false);
   });
 
   it('sin el gate del ciclo abierto, Ciclo no aparece (no se asume sexo)', () => {
     expect(herramientasDeTu(visibleApps(false, 'elite', true)).some((a) => a.key === 'ciclo')).toBe(false);
     expect(herramientasDeTu(visibleApps(true, 'elite', true)).some((a) => a.key === 'ciclo')).toBe(true);
   });
+
+  it('cada herramienta abre un archivo real de app/ (estático o segmento dinámico)', () => {
+    for (const a of herramientasDeTu(visibleApps(true, 'elite', true))) {
+      const r = String(a.route);
+      expect(`${r}: ${archivoDeRuta(r) ? 'ok' : 'falta'}`).toBe(`${r}: ok`);
+    }
+  });
 });
 
-describe('25-sep-2026 (revisión en frío): nada de PROGRESO ni de TÚ pasa por /salud/*', () => {
-  it('ninguna herramienta de TÚ abre una ruta /salud', () => {
-    const rutas = herramientasDeTu(visibleApps(true, 'elite', true)).map((a) => String(a.route));
-    expect(rutas.filter((r) => r.startsWith('/salud'))).toEqual([]);
+/** El archivo de app/ que atiende una ruta: estática, index, tab (grupo (tabs)) o segmento dinámico. */
+function archivoDeRuta(ruta: string): string | null {
+  const limpia = ruta.split('?')[0];
+  for (const c of [`app${limpia}.tsx`, `app${limpia}/index.tsx`, `app/(tabs)${limpia}.tsx`, `app/(tabs)${limpia}/index.tsx`]) {
+    if (existsSync(join(process.cwd(), c))) return c;
+  }
+  const dir = join(process.cwd(), `app${limpia.slice(0, limpia.lastIndexOf('/'))}`);
+  if (existsSync(dir) && statSync(dir).isDirectory()) {
+    const dinamico = readdirSync(dir).find((n) => /^\[[^\]]+\]\.tsx$/.test(n));
+    if (dinamico) return join(dir, dinamico);
+  }
+  return null;
+}
+
+describe('TODAS TUS FUNCIONES (26-sep-2026)', () => {
+  it('las seis filas, en orden, cada una con su ruta', () => {
+    expect(FILAS_TODAS_TUS_FUNCIONES.map((f) => f.key)).toEqual(['sala', 'centro', 'armar', 'habitos', 'salud', 'comunidad', 'electrones']);
+    for (const f of FILAS_TODAS_TUS_FUNCIONES) expect(f.ruta).toBe(RUTAS_TODAS_TUS_FUNCIONES[f.key]);
+    expect(Object.values(RUTAS_TODAS_TUS_FUNCIONES)).toEqual(['/kit', '/centro', '/packs/armar', '/hoy-habitos', '/salud', '/tribu', '/economy/admin']);
   });
 
-  it('las pantallas no escriben una ruta /salud', () => {
-    for (const f of ['src/screens/elite-dx/ProgresoScreen.tsx', 'src/screens/elite-dx/TuScreen.tsx']) {
-      const src = readFileSync(join(process.cwd(), f), 'utf8');
-      expect(/['"`]\/salud/.test(src)).toBe(false);
+  it('cada ruta es una pantalla real de app/, sin <Redirect>', () => {
+    for (const r of Object.values(RUTAS_TODAS_TUS_FUNCIONES)) {
+      const f = archivoDeRuta(r);
+      expect(f === null ? `falta ${r}` : 'ok').toBe('ok');
+      expect(`${r}: ${/<Redirect\b/.test(readFileSync(join(process.cwd(), f!), 'utf8')) ? 'redirige' : 'pantalla'}`).toBe(`${r}: pantalla`);
     }
+  });
+
+  it('las tres salas son tabs escondidos en Elite DX (se abren con el tab bar visible)', () => {
+    for (const r of ['/kit', '/salud', '/tribu']) expect(archivoDeRuta(r)).toBe(`app/(tabs)${r}.tsx`);
+  });
+
+  it('copy sin em dash ni palabras rojas', () => {
+    for (const f of FILAS_TODAS_TUS_FUNCIONES) {
+      for (const txt of [f.titulo, f.linea]) {
+        expect(txt.includes('—')).toBe(false);
+        expect(ROJAS.test(txt)).toBe(false);
+      }
+    }
+  });
+
+  it('TuScreen pinta la sección entre HERRAMIENTAS y CUENTA', () => {
+    const src = readFileSync(join(process.cwd(), 'src/screens/elite-dx/TuScreen.tsx'), 'utf8');
+    const h = src.indexOf('>HERRAMIENTAS<');
+    const t = src.indexOf('>TODAS TUS FUNCIONES<');
+    const c = src.indexOf('>CUENTA<');
+    expect(h > 0 && t > h && c > t).toBe(true);
+    expect(src.includes('FILAS_TODAS_TUS_FUNCIONES.map')).toBe(true);
+  });
+});
+
+describe('PROGRESO no pasa por /salud/* (25-sep-2026; TÚ quedó fuera de este candado el 26-sep)', () => {
+  it('ProgresoScreen no escribe una ruta /salud', () => {
+    const src = readFileSync(join(process.cwd(), 'src/screens/elite-dx/ProgresoScreen.tsx'), 'utf8');
+    expect(/['"`]\/salud/.test(src)).toBe(false);
   });
 });

@@ -26,12 +26,11 @@ import { tareaImage } from '@/src/components/hoy/tarea-images';
 import { NUDGE_COPY } from '@/src/components/hoy/tarea-gesto-core';
 import { MomentoBanda } from '@/src/components/hoy/MomentoBanda';
 import { OrbCard } from '@/src/components/hoy/OrbCard';
-// 25-sep-2026 (APP_ELITE_DX, revisión en frío): en la app Elite DX el dia lo
-// arma su plan con Enrique; las salidas al lanzador de apps y a armar packs
-// salen de la vista (las rutas siguen vivas).
-// 26-sep-2026 (una app, dos modos): Elite DX o ATP completa segun la cuenta,
-// no segun una constante. Ver src/services/modo-app.
-import { useEsEliteDx } from '@/src/hooks/useModoApp';
+// 26-sep-2026 (Elite DX no pierde funciones): el 25-sep "+ agregar" y la card
+// de armar el dia se ocultaban en Elite DX (useEsEliteDx). Decision de
+// Enrique: Elite DX es "todo lo de ATP más su programa", asi que las dos
+// vuelven para todos, iguales que en la ATP completa, y TareasView ya no lee
+// el modo de la cuenta (sin hook ni import: la vista es la misma en los dos).
 import {
   buildTareas, agendaLens, repartoTareas, ofrecerArmarDia,
   type Tarea,
@@ -69,7 +68,6 @@ interface Props {
 }
 
 export function TareasView({ day, userId, uvMini }: Props) {
-  const eliteDx = useEsEliteDx();
   const router = useRouter();
   const reducedMotion = useSystemReducedMotion();
   // MB-31B: superficies y texto del scope. El lima como texto (lente activa,
@@ -384,12 +382,13 @@ export function TareasView({ day, userId, uvMini }: Props) {
           Es UNA acción, no un menú, y no es un muro: las tareas siguen
           debajo. Guiado, no prisionero. Se apaga sola en cuanto el día
           crece por encima del techo de 8.
-          25-sep-2026 (APP_ELITE_DX, revisión en frío): con la bandera no se
-          ofrece nada aqui. /packs/armar es el armador de la plataforma
-          publica; el dia de un cliente lo arma su plan (Qué hacer hoy, arriba)
-          y su salida humana es "Escríbele a Enrique", al pie de HOY. No se
-          escribe copy nuevo en la voz de Enrique para este hueco. */}
-      {!eliteDx && ofrecerArmarDia(result.global.total) ? (
+          25-sep-2026 (APP_ELITE_DX, revisión en frío): se habia ocultado en
+          Elite DX (el dia lo armaba solo su plan).
+          26-sep-2026 (Elite DX no pierde funciones): vuelve para todos, igual
+          que en la ATP completa (decision de Enrique: "todo lo de ATP más su
+          programa"). Un dia corto de un cliente Elite tambien merece la
+          salida a /packs/armar; su plan sigue arriba en Qué hacer hoy. */}
+      {ofrecerArmarDia(result.global.total) ? (
         <Pressable
           onPress={() => { haptic.light(); router.push('/packs/armar'); }}
           style={({ pressed }) => [
@@ -467,19 +466,19 @@ export function TareasView({ day, userId, uvMini }: Props) {
             </EliteText>
           </Pressable>
         ) : <View />}
-        {/* 25-sep-2026 (APP_ELITE_DX, revisión en frío): "+ agregar" abria
-            /kit?agregar=1, el lanzador de 35 apps que salio del tab bar. Con
-            la bandera no se pinta; el chip UV se queda a la izquierda. */}
-        {!eliteDx && (
-          <Pressable
-            onPress={() => { haptic.light(); router.push({ pathname: '/kit', params: { agregar: '1' } }); }}
-            style={({ pressed }) => [s.addBtn, pressed && { opacity: 0.6 }]}
-            accessibilityLabel="Agregar hábito"
-          >
-            <Ionicons name="add" size={14} color={acento} />
-            <EliteText style={[s.addText, { color: acento }]}>agregar</EliteText>
-          </Pressable>
-        )}
+        {/* 25-sep-2026 (APP_ELITE_DX, revisión en frío): "+ agregar" se habia
+            ocultado en Elite DX (abre /kit?agregar=1).
+            26-sep-2026 (Elite DX no pierde funciones): vuelve para todos, con
+            el mismo destino que en la ATP completa (decision de Enrique:
+            "todo lo de ATP más su programa"). */}
+        <Pressable
+          onPress={() => { haptic.light(); router.push({ pathname: '/kit', params: { agregar: '1' } }); }}
+          style={({ pressed }) => [s.addBtn, pressed && { opacity: 0.6 }]}
+          accessibilityLabel="Agregar hábito"
+        >
+          <Ionicons name="add" size={14} color={acento} />
+          <EliteText style={[s.addText, { color: acento }]}>agregar</EliteText>
+        </Pressable>
       </View>
     </View>
   );

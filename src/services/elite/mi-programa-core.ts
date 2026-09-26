@@ -316,6 +316,11 @@ export function resumenEvaluacion(e: EliteV3): ResumenEvaluacion {
  * el test leyendo cada archivo de app/. evaluacion-elite y genetica son
  * pantallas reales; /historia-clinica redirige a /tests (el hub de
  * cuestionarios, fuera de /salud), que es a donde la manda el registro.
+ *
+ * 26-sep-2026 (decision de Enrique: Elite DX es "todo lo de ATP mas su
+ * programa"): entran mapa, padecimientos y linea de tiempo, las tres
+ * pantallas reales (sin <Redirect>) que solo tenian puerta en el hub de
+ * SALUD. /salud/diagnostico es carpeta: la atiende su index.tsx.
  */
 export const RUTAS_MI_PROGRAMA = {
   evaluacion: '/salud/evaluacion-elite',
@@ -326,6 +331,9 @@ export const RUTAS_MI_PROGRAMA = {
   sintomas: '/salud/mis-sintomas',
   datos: '/salud/mis-datos',
   ficha: '/salud/ficha-emergencia',
+  mapa: '/salud/diagnostico',
+  padecimientos: '/salud/padecimientos',
+  linea: '/salud/mi-expediente',
 } as const;
 
 export type EstudioKey = 'labs' | 'genetica';
@@ -343,7 +351,7 @@ export function estudiosVisibles(e: EliteV3 | null): EstudioKey[] {
   return e && e.genetica.hallazgos.length > 0 ? [...base, 'genetica'] : base;
 }
 
-export type ExpedienteKey = 'historia' | 'sintomas' | 'datos' | 'ficha';
+export type ExpedienteKey = 'mapa' | 'historia' | 'sintomas' | 'padecimientos' | 'datos' | 'linea' | 'ficha';
 
 export interface FilaExpediente {
   key: ExpedienteKey;
@@ -358,11 +366,21 @@ export interface FilaExpediente {
  * sueltas, abiertas para Elite (minTier premium; con VENTA_AL_PUBLICO en
  * false no cierra nada). La ficha va al editor (/salud/ficha-emergencia),
  * no al modo pantalla para un extrano (/ficha-emergencia).
+ *
+ * 26-sep-2026 ("todo lo de ATP mas su programa"): entran Mi mapa funcional
+ * (la sintesis, por eso va primero), Padecimientos y Linea de tiempo. Abiertas
+ * para Elite: en el registro son minTier premium, que Elite alcanza, y el
+ * mapa deja generar a Elite (esElite). Las segundas lineas dicen lo que cada
+ * pantalla pinta. El titulo es "Mi mapa funcional": la palabra de la ruta
+ * (diagnostico) no llega al cliente.
  */
 export const FILAS_EXPEDIENTE: readonly FilaExpediente[] = [
+  { key: 'mapa', titulo: 'Mi mapa funcional', detalle: 'Tus raíces detectadas y su nivel', ruta: RUTAS_MI_PROGRAMA.mapa },
   { key: 'historia', titulo: 'Historia clínica', detalle: 'Tus antecedentes y cuestionarios', ruta: RUTAS_MI_PROGRAMA.historia },
   { key: 'sintomas', titulo: 'Síntomas', detalle: 'Qué sientes, desde cuándo y cuánto', ruta: RUTAS_MI_PROGRAMA.sintomas },
+  { key: 'padecimientos', titulo: 'Padecimientos', detalle: 'Tus condiciones y sus episodios', ruta: RUTAS_MI_PROGRAMA.padecimientos },
   { key: 'datos', titulo: 'Tus datos', detalle: 'Labs, composición y signos vitales', ruta: RUTAS_MI_PROGRAMA.datos },
+  { key: 'linea', titulo: 'Línea de tiempo', detalle: 'Síntomas, labs y mediciones, mes por mes', ruta: RUTAS_MI_PROGRAMA.linea },
   { key: 'ficha', titulo: 'Ficha de emergencia', detalle: 'Sangre, alergias y a quién llamar', ruta: RUTAS_MI_PROGRAMA.ficha },
 ];
 

@@ -28,6 +28,15 @@
  * 26-sep-2026 (una app, dos modos): esas ramas leen ahora el modo de la
  * cuenta (useEsEliteDx): clientes Elite ven lo de arriba, las cuentas
  * generales el HOY del 24-sep.
+ * 26-sep-2026 (Elite DX no pierde funciones): decision de Enrique, "todo lo
+ * de ATP más su programa". Vuelven para Elite DX, iguales que en la ATP
+ * completa, la graduación (GraduacionCard), "Elegir mis hábitos"
+ * (/hoy-habitos) y, en TareasView, "+ agregar" y la card de armar el día
+ * (/packs/armar). Solo siguen distintas las piezas de presentación: marca
+ * ATP ELITE, ProgramaHeader + aviso de evaluación en lugar del hero de
+ * laboratorios, sin píldora de electrones ni toast "+⚡" (los electrones se
+ * siguen sumando; ocultos para Elite desde el 20-sep), sin presencia de
+ * Tribu, y "Escríbele a Enrique" al pie.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -694,9 +703,12 @@ export default function TodayScreen() {
 
         {/* MB-26 P2: la propuesta de graduación (30/35). La app propone,
             el usuario acepta; "Ahora no" la duerme 7 días.
-            25-sep-2026 (APP_ELITE_DX): fuera de HOY. Sus habitos los arma su
-            plan con Enrique, no la app proponiendo graduarlos. */}
-        {!eliteDx && <GraduacionCard userId={user?.id} propuestas={day.graduacionPropuestas} />}
+            25-sep-2026 (APP_ELITE_DX): habia salido de HOY en Elite DX.
+            26-sep-2026 (Elite DX no pierde funciones): vuelve para todos,
+            igual que en la ATP completa. Elite DX es "todo lo de ATP más su
+            programa" (decision de Enrique): graduar un habito es una funcion
+            de la app, no ruido de la plataforma publica. */}
+        <GraduacionCard userId={user?.id} propuestas={day.graduacionPropuestas} />
 
         {/* ═══════════════════════════════════════
             WEEKLY INSIGHT — Domingo ≥19h (cacheado por semana)
@@ -804,11 +816,10 @@ export default function TodayScreen() {
             visible, sin umbral y sin juicio: el marcador de tu propio día
             con la salida al lado. Sin conteo aún (compile en curso) se
             muestra la acción sola: jamás un número inventado.
-            25-sep-2026 (APP_ELITE_DX): "Elegir mis hábitos" sale de HOY (su día
-            lo arma su plan). "Ordenar mi día" SE QUEDA: es la salida al
-            desmadre de la doctrina MB-27 V3 (el conteo siempre visible con la
-            salida al lado) y quitarla dejaba al cliente sin forma de reposar o
-            reordenar (revisión en frío, 25-sep). La ruta /hoy-habitos sigue viva. */}
+            25-sep-2026 (APP_ELITE_DX): "Ordenar mi día" SE QUEDA en Elite DX:
+            es la salida al desmadre de la doctrina MB-27 V3 (el conteo
+            siempre visible con la salida al lado) y quitarla dejaba al
+            cliente sin forma de reposar o reordenar (revisión en frío, 25-sep). */}
         <GradientCTA
           label={(() => {
             if (!day) return 'Ordenar mi día';
@@ -822,8 +833,11 @@ export default function TodayScreen() {
         />
 
         {/* E-3 (MB-12): la puerta de los electrones — sin ella todo usuario
-            quedaba clavado en los 6 booleanos del default (mig 043). */}
-        {!eliteDx && (
+            quedaba clavado en los 6 booleanos del default (mig 043).
+            25-sep-2026 (APP_ELITE_DX): habia salido de HOY en Elite DX.
+            26-sep-2026 (Elite DX no pierde funciones): vuelve para todos,
+            igual que en la ATP completa (decision de Enrique: "todo lo de ATP
+            más su programa"). Elegir sus hábitos no compite con su plan. */}
         <GradientCTA
           label="Elegir mis hábitos"
           variant="quiet"
@@ -831,7 +845,6 @@ export default function TodayScreen() {
           onPress={() => { haptic.light(); router.push('/hoy-habitos'); }}
           style={s.editDayBtn}
         />
-        )}
 
         {/* #hoy-funcionalidad 4.9: SECCIÓN 6 "AGENDA" triple (MAÑANA/TARDE/NOCHE) eliminada
             — el próximo evento vive en HeroAgendaCard; la agenda completa irá a AGENDA V2. */}

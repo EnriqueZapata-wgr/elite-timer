@@ -10,6 +10,7 @@ import { resolve } from 'node:path';
 import { validarEliteV3, type EliteV3 } from '@/src/services/elite/elite-v3-core';
 import { SECCIONES_UI } from '@/src/services/elite/evaluacion-elite-core';
 import { BLOQUES_PROGRAMA } from '@/src/services/elite/programa-elite-core';
+import { APP_REGISTRY, visibleApps } from '@/src/constants/app-registry';
 import {
   bloquesMiPrograma, caraSinEvaluacion, CUBIERTAS_POR_RESUMEN, destinoEdad, destinoPiden, detalleSeccion,
   estadoAlVencer, estudiosVisibles, FILAS_EXPEDIENTE, lineaVersion, pidenAccionDelDocumento, resumenEvaluacion,
@@ -308,9 +309,10 @@ describe('rutas de MI PROGRAMA: ninguna cae en el hub de SALUD', () => {
       for (const d of destinos) expect(`${ruta} -> ${d}: ${HACIA_SALUD.test(d) ? 'SALUD' : 'ok'}`).toBe(`${ruta} -> ${d}: ok`);
     }
   });
-  it('la evaluacion, genetica, sintomas, datos y la ficha son pantallas reales (sin Redirect)', () => {
+  it('la evaluacion, genetica, sintomas, datos, la ficha, el mapa, padecimientos y la linea de tiempo son pantallas reales (sin Redirect)', () => {
     for (const r of [RUTAS_MI_PROGRAMA.evaluacion, RUTAS_MI_PROGRAMA.genetica, RUTAS_MI_PROGRAMA.sintomas,
-      RUTAS_MI_PROGRAMA.datos, RUTAS_MI_PROGRAMA.ficha, RUTAS_MI_PROGRAMA.labs, RUTAS_MI_PROGRAMA.suplementos]) {
+      RUTAS_MI_PROGRAMA.datos, RUTAS_MI_PROGRAMA.ficha, RUTAS_MI_PROGRAMA.labs, RUTAS_MI_PROGRAMA.suplementos,
+      RUTAS_MI_PROGRAMA.mapa, RUTAS_MI_PROGRAMA.padecimientos, RUTAS_MI_PROGRAMA.linea]) {
       expect(destinosRedirect(readFileSync(archivoDeRuta(r)!, 'utf8'))).toEqual([]);
     }
   });
@@ -320,8 +322,23 @@ describe('rutas de MI PROGRAMA: ninguna cae en el hub de SALUD', () => {
   });
   it('las filas del expediente usan solo rutas de RUTAS_MI_PROGRAMA', () => {
     const rutas: string[] = Object.values(RUTAS_MI_PROGRAMA);
-    expect(FILAS_EXPEDIENTE.map((f) => f.key)).toEqual(['historia', 'sintomas', 'datos', 'ficha']);
+    expect(FILAS_EXPEDIENTE.map((f) => f.key))
+      .toEqual(['mapa', 'historia', 'sintomas', 'padecimientos', 'datos', 'linea', 'ficha']);
     for (const f of FILAS_EXPEDIENTE) expect(rutas.includes(f.ruta)).toBe(true);
+  });
+  it('26-sep-2026: el mapa es carpeta y la atiende su index.tsx; padecimientos y linea de tiempo existen', () => {
+    expect((archivoDeRuta(RUTAS_MI_PROGRAMA.mapa) ?? '').replace(/\\/g, '/').endsWith('app/salud/diagnostico/index.tsx')).toBe(true);
+    expect(archivoDeRuta(RUTAS_MI_PROGRAMA.padecimientos)).not.toBeNull();
+    expect((archivoDeRuta(RUTAS_MI_PROGRAMA.linea) ?? '').replace(/\\/g, '/').endsWith('app/salud/mi-expediente/index.tsx')).toBe(true);
+  });
+  it('26-sep-2026: lo que el registro cierra por nivel queda abierto para Elite, aun con la venta al publico encendida', () => {
+    const porRuta = new Map(visibleApps(true, 'elite', false, true).map((a) => [String(a.route), a]));
+    for (const r of [RUTAS_MI_PROGRAMA.mapa, RUTAS_MI_PROGRAMA.padecimientos]) {
+      const app = porRuta.get(r);
+      expect(app ? `${r}: ${app.bloqueada ? 'cerrada' : 'abierta'}` : `${r}: fuera del registro`).toBe(`${r}: abierta`);
+    }
+    // La linea de tiempo no es app del registro: no la cierra ningun nivel.
+    expect(APP_REGISTRY.some((a) => String(a.route) === RUTAS_MI_PROGRAMA.linea)).toBe(false);
   });
 });
 

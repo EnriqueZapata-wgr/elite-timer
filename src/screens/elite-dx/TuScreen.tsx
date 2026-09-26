@@ -7,6 +7,15 @@
  * Con esto la sala ATP (kit, el lanzador de 35 apps) puede salir del tab bar
  * sin dejar ninguna herramienta sin puerta.
  *
+ * 26-sep-2026 (decisión de Enrique: Elite DX es "todo lo de ATP más su
+ * programa"): HERRAMIENTAS enseña TODAS las apps que `visibleApps` le da a la
+ * persona, por sección como la sala ATP (antes de 'salud' solo iban cuatro).
+ * Y entra TODAS TUS FUNCIONES: las salas que en Elite DX salen del tab bar
+ * (ATP, SALUD, TRIBU) y las pantallas de configuración que solo se alcanzaban
+ * desde ellas (Centro, Armar mi app, Elegir mis hábitos). Filas y rutas en
+ * progreso-core (FILAS_TODAS_TUS_FUNCIONES, con test de que cada ruta es una
+ * pantalla real).
+ *
  * Reglas que se respetan aquí sin reescribirlas:
  *  - Candados: `visibleApps` + la misma lectura de nivel que kit.tsx. Con
  *    VENTA_AL_PUBLICO en false, nada de lo que se enseña aquí se vende.
@@ -48,7 +57,9 @@ import {
   fetchOrigenMembresia, type OrigenMembresiaLectura,
 } from '@/src/services/subscription/subscription-service';
 import { etiquetaMembresia } from '@/src/services/subscription/tier-logic';
-import { herramientasDeTu, lineaServicio } from '@/src/services/elite-dx/progreso-core';
+import {
+  FILAS_TODAS_TUS_FUNCIONES, herramientasDeTu, lineaServicio, type FuncionTuKey,
+} from '@/src/services/elite-dx/progreso-core';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
@@ -58,6 +69,21 @@ import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 function fechaServicio(iso: string): string {
   return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
 }
+
+/**
+ * 26-sep-2026: glifo de cada fila de TODAS TUS FUNCIONES. Las tres salas usan
+ * el glifo de su pestaña en la ATP completa (el mismo dibujo que la persona
+ * ve ahí); las de configuración, Ionicons de interfaz, como Ajustes y Consola.
+ */
+const ICONO_FUNCION: Record<FuncionTuKey, { appIcon?: AppIconName; icono?: ComponentProps<typeof Ionicons>['name'] }> = {
+  sala: { appIcon: 'tab-atp' },
+  centro: { icono: 'options-outline' },
+  armar: { icono: 'construct-outline' },
+  habitos: { icono: 'checkmark-done-outline' },
+  salud: { appIcon: 'tab-salud' },
+  comunidad: { appIcon: 'tab-tribu' },
+  electrones: { icono: 'flash-outline' },
+};
 
 export function TuScreen() {
   const t = useAppTheme().tokens;
@@ -209,7 +235,9 @@ export function TuScreen() {
           <EscribirleCoach nombre={nombreCompleto || null} />
         </View>
 
-        {/* ── 3. HERRAMIENTAS ── */}
+        {/* ── 3. HERRAMIENTAS ──
+            26-sep-2026: todas las de visibleApps menos 'sistema', por sección
+            como la sala ATP; candados y gate del ciclo, los mismos que kit. */}
         <EliteText style={s.seccion}>HERRAMIENTAS</EliteText>
         {grupos.map((g) => (
           <View key={g.section}>
@@ -252,7 +280,24 @@ export function TuScreen() {
           </View>
         )}
 
-        {/* ── 4. CUENTA ── */}
+        {/* ── 4. TODAS TUS FUNCIONES ──
+            26-sep-2026 ("todo lo de ATP más su programa"): las salas que en
+            Elite DX salen del tab bar y lo que solo se alcanzaba desde ellas.
+            Las salas abren con el tab bar visible: se vuelve tocando TÚ. */}
+        <EliteText style={s.seccion}>TODAS TUS FUNCIONES</EliteText>
+        {FILAS_TODAS_TUS_FUNCIONES.map((f) => (
+          <Fila
+            key={f.key}
+            appIcon={ICONO_FUNCION[f.key].appIcon}
+            icono={ICONO_FUNCION[f.key].icono}
+            titulo={f.titulo}
+            linea={f.linea}
+            onPress={() => ir(f.ruta)}
+            t={t} s={s} acento={acento}
+          />
+        ))}
+
+        {/* ── 5. CUENTA ── */}
         <EliteText style={s.seccion}>CUENTA</EliteText>
         <Fila
           appIcon="ajustes"
