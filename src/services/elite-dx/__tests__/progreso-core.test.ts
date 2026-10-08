@@ -58,7 +58,7 @@ describe('vistaConstancia', () => {
     expect(vistaConstancia({ estado: 'sinDato', motivo: 'recien-cargado' }))
       .toEqual({ tipo: 'motivo', texto: 'Tu plan empieza hoy. Mañana ya verás tu constancia.' });
     expect(vistaConstancia({ estado: 'sinDato', motivo: 'sin-senal' }))
-      .toEqual({ tipo: 'motivo', texto: 'Todavía no registras tus prácticas. Palomea en Hoy y aquí verás tu constancia.' });
+      .toEqual({ tipo: 'motivo', texto: 'Todavía no registras tus prácticas. Palomea en Mi plan o en tu agenda y aquí verás tu constancia.' });
     for (const k of Object.keys(TEXTO_CONSTANCIA_CLIENTE) as (keyof typeof TEXTO_CONSTANCIA_CLIENTE)[]) {
       expect(TEXTO_CONSTANCIA_CLIENTE[k]).not.toBe(TEXTO_SIN_ADHERENCIA[k]);
     }

@@ -1,6 +1,6 @@
 // ATP 3.0 (6-sep-2026, ruta 3.5): reglas puras del plan Elite en Suplementos.
 import { describe, it, expect } from 'vitest';
-import { esDelCoach, inicioPlanCoach, planEliteSoloLectura } from '@/src/services/supplements/adherencia-core';
+import { esDelCoach, inicioPlanCoach, planEliteSoloLectura, puedeEditarFicha } from '@/src/services/supplements/adherencia-core';
 
 describe('esDelCoach', () => {
   it('solo las filas source=coach son del plan Elite', () => {
@@ -10,6 +10,26 @@ describe('esDelCoach', () => {
     expect(esDelCoach({})).toBe(false);
     expect(esDelCoach(null)).toBe(false);
     expect(esDelCoach(undefined)).toBe(false);
+  });
+});
+
+// 8-oct-2026 (Mi plan, regla del dueño "lo suyo sí, lo tuyo no").
+describe('puedeEditarFicha', () => {
+  it('lo propio siempre se edita, sea quien sea', () => {
+    expect(puedeEditarFicha({ source: 'manual' }, false)).toBe(true);
+    expect(puedeEditarFicha({ source: null }, false)).toBe(true);
+    expect(puedeEditarFicha({}, false)).toBe(true);
+    expect(puedeEditarFicha({ source: 'manual' }, true)).toBe(true);
+  });
+  it('lo que fijó el coach no lo edita el cliente', () => {
+    expect(puedeEditarFicha({ source: 'coach' }, false)).toBe(false);
+  });
+  it('el coach sí edita lo que él fijó', () => {
+    expect(puedeEditarFicha({ source: 'coach' }, true)).toBe(true);
+  });
+  it('sin fila no hay nada del coach que proteger', () => {
+    expect(puedeEditarFicha(null, false)).toBe(true);
+    expect(puedeEditarFicha(undefined, false)).toBe(true);
   });
 });
 

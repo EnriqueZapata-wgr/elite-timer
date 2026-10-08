@@ -34,7 +34,7 @@ export type LecturaConstancia =
 export const TEXTO_CONSTANCIA_CLIENTE: Readonly<Record<MotivoSinAdherencia, string>> = {
   'sin-intervenciones': 'Tu plan todavía no tiene prácticas activas.',
   'recien-cargado': 'Tu plan empieza hoy. Mañana ya verás tu constancia.',
-  'sin-senal': 'Todavía no registras tus prácticas. Palomea en Hoy y aquí verás tu constancia.',
+  'sin-senal': 'Todavía no registras tus prácticas. Palomea en Mi plan o en tu agenda y aquí verás tu constancia.',
 };
 
 export type VistaConstancia =

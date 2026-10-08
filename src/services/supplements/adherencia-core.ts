@@ -75,6 +75,25 @@ export function esDelCoach(row: { source?: string | null } | null | undefined): 
 }
 
 /**
+ * 8-oct-2026 (Mi plan, regla del dueño "lo suyo sí, lo tuyo no"): ¿esta
+ * persona puede abrir el editor de esta ficha? Lo propio, siempre. Lo que fijó
+ * el coach lo edita solo el coach: el cliente lo consulta, registra sus tomas
+ * y lo pausa, y el cambio de dosis u horario se lo pide a él. Es la misma
+ * regla que Mi plan le dice al cliente ("Lo fijó Enrique · Ver y pausar").
+ *
+ * No es un candado de venta: no mira el nivel ni VENTA_AL_PUBLICO, y por eso
+ * no lleva al paywall. Para devolverle el editor al cliente basta regresar
+ * `true` aquí (un solo lugar, con test).
+ */
+export function puedeEditarFicha(
+  row: { source?: string | null } | null | undefined,
+  esCoach: boolean,
+): boolean {
+  if (!esDelCoach(row)) return true;
+  return esCoach === true;
+}
+
+/**
  * ¿El plan Elite queda en solo lectura? Solo cuando se SABE que el usuario ya
  * no es miembro. Regla 1 de la casa: si el nivel no se pudo leer o todavía
  * carga, se trata como miembro y no se le cierra nada. El registro de tomas

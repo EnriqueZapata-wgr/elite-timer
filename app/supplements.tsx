@@ -15,7 +15,7 @@
  * siendo el registro propio de siempre.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, Alert, DeviceEventEmitter, KeyboardAvoidingView, Platform, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, TextInput, Alert, DeviceEventEmitter, KeyboardAvoidingView, Platform, Modal, ActivityIndicator, Linking } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,12 +32,16 @@ import { normalizeSupplementName } from '@/src/services/supplements-plan-core';
 // 312 (backlog 3.6): plan vs eventual, dosis por unidad, registro variable.
 import {
   AMOUNT_UNITS, SIN_DATO, activosTexto, dosisPorUnidadTexto, esDelCoach, esPlan, formatNumero,
-  inicioPlanCoach, numeroONull, planEliteSoloLectura, tomaTexto, unidadLabel,
+  inicioPlanCoach, numeroONull, planEliteSoloLectura, puedeEditarFicha, tomaTexto, unidadLabel,
 } from '@/src/services/supplements/adherencia-core';
 import { isPregnancyActive } from '@/src/services/supplements-service';
 // ATP 3.0 (6-sep-2026, ruta 3.5): etiqueta, confirmación y solo lectura del plan Elite.
 import { useSubscription } from '@/src/hooks/useSubscription';
-import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
+import { CONTACTO_ELITE_EMAIL, NOMBRE_COACH_ELITE, WHATSAPP_COACH_ELITE } from '@/src/constants/lanzamiento';
+// 8-oct-2026 (Mi plan): la ficha que fijo el coach se consulta y se pausa; el
+// editor es solo del coach. La salida del cliente es escribirle.
+import { isAdmin } from '@/src/constants/admin-config';
+import { destinoContacto, mensajeParaCoach } from '@/src/services/elite/programa-elite-core';
 // 20-sep-2026: leyenda LGS 216 al pie (la misma de ARGOS y de la evaluacion) y
 // la fecha "desde" de la cabecera del plan.
 import { LEYENDA_SUPLEMENTOS } from '@/src/services/argos-suplementos-ayuno-core';
@@ -476,8 +480,53 @@ export default function SupplementsScreen() {
     setNewUnitsPerDose(upd !== null ? formatNumero(upd) : '');
   }
 
+  /**
+   * 8-oct-2026 (Mi plan, "lo suyo sí, lo tuyo no"): tocar una ficha que fijo
+   * el coach no abre el editor. Dice de quien es, que puede hacer el cliente
+   * con ella (registrar y pausar) y le da la salida: escribirle. Sin candado y
+   * sin pagina de venta, porque no es un limite de nivel.
+   */
+  async function escribirleAlCoach() {
+    const mensaje = mensajeParaCoach(null, NOMBRE_COACH_ELITE);
+    const destino = destinoContacto(WHATSAPP_COACH_ELITE, CONTACTO_ELITE_EMAIL, mensaje);
+    try {
+      await Linking.openURL(destino.url);
+      return;
+    } catch {
+      // WhatsApp no abrio: se intenta el correo antes de rendirse.
+    }
+    if (destino.tipo === 'whatsapp') {
+      try {
+        await Linking.openURL(destinoContacto(null, CONTACTO_ELITE_EMAIL, mensaje).url);
+        return;
+      } catch {
+        // cae abajo
+      }
+    }
+    Alert.alert('No se pudo abrir desde este teléfono', `Escríbele a ${CONTACTO_ELITE_EMAIL}.`);
+  }
+
+  function consultarFichaCoach(supp: any) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert(
+      `Lo fijó ${NOMBRE_COACH_ELITE}`,
+      `${supp.name ? `"${supp.name}"` : 'Este suplemento'} es parte del plan que te asignó ${NOMBRE_COACH_ELITE}. Tú registras tus tomas y lo puedes pausar. La dosis y el horario los ajusta él: si algo no te va, escríbele.`,
+      [
+        { text: 'Cerrar', style: 'cancel' },
+        { text: 'Pausar', onPress: () => pausarSupplement(supp.id, supp.name) },
+        { text: `Escribirle a ${NOMBRE_COACH_ELITE}`, onPress: () => { void escribirleAlCoach(); } },
+      ],
+    );
+  }
+
   /** SUP-3: abre el mismo sheet en modo edición, prellenado desde la ficha. */
   function openEdit(supp: any) {
+    // 8-oct-2026: unica puerta al editor. Una ficha del coach no entra aunque
+    // alguien llame openEdit desde otro lado.
+    if (!puedeEditarFicha(supp, isAdmin(userId))) {
+      consultarFichaCoach(supp);
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEditingId(supp.id);
     setNewName(supp.name ?? '');
@@ -880,7 +929,7 @@ export default function SupplementsScreen() {
       {sections.length > 0 && (
         <Text style={{ color: t.textoSecundario, fontSize: 11, paddingHorizontal: 20, marginBottom: 8 }}>
           {hayPlanCoach
-            ? 'Toca ✏️ para editar · desliza ← para eliminar una ficha tuya · mantén presionada una del plan para pausarla'
+            ? 'Toca ✏️ para editar una ficha tuya · desliza ← para eliminarla · mantén presionada una del plan para pausarla · toca (i) para ver quién la fijó'
             : 'Toca ✏️ para editar tomas y cantidades · desliza ← para eliminar'}
         </Text>
       )}
@@ -893,7 +942,7 @@ export default function SupplementsScreen() {
         {/* ATP 3.0 (ruta 3.5): sin membresía, el plan Elite se ve pero no se edita. */}
         {planSoloLectura && sec.groups.some(g => g.items.some(esDelCoach)) && (
           <Text style={{ color: t.textoSecundario, fontSize: 11, paddingHorizontal: 20, marginBottom: 10 }}>
-            Tu plan Elite se conserva. Con Pro puedes editarlo.
+            Tu plan Elite se conserva: lo sigues viendo y registrando tus tomas.
           </Text>
         )}
       {sec.groups.map(group => (
@@ -913,6 +962,9 @@ export default function SupplementsScreen() {
             // ATP 3.0 (ruta 3.5): ficha del plan Elite y si hoy está en solo lectura.
             const delCoach = esDelCoach(supp);
             const bloqueada = delCoach && planSoloLectura;
+            // 8-oct-2026 (Mi plan): la ficha del coach se consulta y se pausa;
+            // el lapiz es para lo propio (y para el coach en su cuenta).
+            const editable = puedeEditarFicha(supp, isAdmin(userId));
             return (
               <SwipeToDeleteRow
                 key={supp.id}
@@ -1076,9 +1128,22 @@ export default function SupplementsScreen() {
                       {doseCount === 1 && todayUnits[supp.id]?.[0] !== undefined ? `×${formatNumero(todayUnits[supp.id][0])}` : '×N'}
                     </Text>
                   </Pressable>
-                  {/* ATP 3.0 (ruta 3.5): sin membresía, el plan Elite no se edita. El
-                      candado se ve y lleva al paywall con contexto (regla 15). */}
-                  {bloqueada ? (
+                  {/* 8-oct-2026 (Mi plan): la ficha que fijó el coach no lleva lápiz
+                      para el cliente; el ⓘ dice de quién es y qué puede hacer con
+                      ella. El candado de abajo (ruta 3.5, sin membresía) ya solo lo
+                      alcanzaría el coach en su propia cuenta: se deja por si la
+                      venta se enciende, no se borra. */}
+                  {!editable ? (
+                    <Pressable
+                      onPress={() => consultarFichaCoach(supp)}
+                      hitSlop={4}
+                      style={{ padding: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Ver de quién es esta ficha: la fijó ${NOMBRE_COACH_ELITE}`}
+                    >
+                      <Ionicons name="information-circle-outline" size={18} color={t.textoSecundario} />
+                    </Pressable>
+                  ) : bloqueada ? (
                     <Pressable
                       onPress={() => router.push({ pathname: '/paywall', params: { contexto: contextoCandado('suplementos') } })}
                       hitSlop={4}
