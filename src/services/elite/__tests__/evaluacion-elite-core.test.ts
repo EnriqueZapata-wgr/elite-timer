@@ -11,9 +11,11 @@
  * contenido y trae las secciones.
  */
 import { describe, it, expect } from 'vitest';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { validarEliteV3, type EliteSistema, type EliteV3 } from '../elite-v3-core';
+import { VOZ_ELITE, vozDe } from '../voz-programa-core';
 import {
   SECCIONES_UI,
   etiquetaEstado,
@@ -44,7 +46,7 @@ describe('SECCIONES_UI', () => {
       'inicio', 'conteo', 'edades', 'sistemas', 'contexto', 'marcadores', 'composicion',
       'braverman', 'genetica', 'cruces', 'medico', 'cierre', 'alimentacion', 'suplementos', 'entrenamiento',
     ]);
-    for (const s of SECCIONES_UI) expect(s.label.includes('—'), s.key).toBe(false);
+    for (const s of SECCIONES_UI) expect(s.label.includes('\u2014'), s.key).toBe(false);
   });
 });
 
@@ -183,5 +185,104 @@ describe('htmlDeEvaluacion', () => {
     expect(html).not.toContain('<h2>Genética</h2>');
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8-oct-2026 (nivel 2): el PDF de respaldo segun la voz del documento
+// ---------------------------------------------------------------------------
+
+const programaEjemplo: unknown = JSON.parse(
+  readFileSync(resolve(process.cwd(), 'R and D/diagnostico/programa_ejemplo.json'), 'utf8'),
+);
+
+function programa(cambios?: (o: Record<string, any>) => void): EliteV3 {
+  const o = JSON.parse(JSON.stringify(programaEjemplo));
+  if (cambios) cambios(o);
+  const r = validarEliteV3(o);
+  if (!r.ok) throw new Error(r.errores.join('\n'));
+  return r.valor;
+}
+
+describe('htmlDeEvaluacion y el nivel 2', () => {
+  it('el HTML de un documento Elite es letra por letra el de antes', () => {
+    const html = htmlDeEvaluacion(omar());
+    expect(html).toHaveLength(39177);
+    // Huella del HTML que producia el codigo ANTES del 8-oct-2026 con el
+    // ejemplo real. Si el ejemplo cambia a proposito, se recalcula.
+    expect(createHash('sha256').update(html, 'utf8').digest('hex')).toBe('a2e9176d53e0bfae7eb851269d7fa635b4dbd2ceff3a99d6b79636472838124c');
+    expect(htmlDeEvaluacion(omar(), VOZ_ELITE)).toBe(html);
+    expect(html).toContain('<p class="meta">O. · versión 1 · toma mayo 2026 · interpretada por Enrique Zapata · Genética: Proveedor de interpretacion genetica</p>');
+  });
+
+  it('el de un programa no dice Elite, no menciona toma y lleva el nombre del programa', () => {
+    const html = htmlDeEvaluacion(programa());
+    expect(html).not.toMatch(/elite/i);
+    // La linea de cabecera no habla de una toma que no hubo (la palabra si
+    // puede salir en el plan: "se toma con la comida").
+    expect(html).not.toContain('· toma ');
+    expect(html).not.toMatch(/null|undefined/);
+    expect(html).toContain('<title>Fuerza y sueño</title>');
+    expect(html).toContain('<h1>Fuerza y sueño</h1>');
+    expect(html).toContain('<p class="meta">Ana Ejemplo · versión 1 · preparado por Enrique Zapata</p>');
+    expect(html.includes('\u2014')).toBe(false);
+  });
+
+  it('en un programa las secciones vacias no se imprimen; el plan si', () => {
+    const html = htmlDeEvaluacion(programa());
+    for (const h of ['Inicio', 'Cierre', 'Alimentación', 'Suplementos', 'Entrenamiento']) {
+      expect(html, h).toContain(`<h2>${h}</h2>`);
+    }
+    for (const h of ['Sistemas', 'Contexto', 'Marcadores', 'Composición', 'Química cerebral', 'Genética', 'Cruces', 'Pendientes']) {
+      expect(html, h).not.toContain(`<h2>${h}</h2>`);
+    }
+  });
+
+  it('sin nombre de programa el titulo es "Mi programa"', () => {
+    const html = htmlDeEvaluacion(programa((o) => { o.inicio.programa_nombre = null; }));
+    expect(html).toContain('<h1>Mi programa</h1>');
+    expect(html).not.toMatch(/elite/i);
+  });
+
+  it('un programa con toma y evaluacion ligera imprime lo que trae', () => {
+    const e = programa((o) => {
+      o.cliente.fecha_toma = '2026-09-20';
+      o.sistemas = JSON.parse(JSON.stringify((ejemplo as Record<string, any>).sistemas));
+    });
+    const html = htmlDeEvaluacion(e);
+    expect(html).toContain('<h2>Sistemas</h2>');
+    expect(html).toContain('· toma 20 de septiembre de 2026 · interpretada por Enrique Zapata</p>');
+    expect(html).not.toContain('<h2>Marcadores</h2>');
+    expect(html).not.toMatch(/elite/i);
+  });
+
+  it('la voz se puede pasar a mano y manda sobre la del documento', () => {
+    const html = htmlDeEvaluacion(programa(), vozDe({ tipo: 'programa', nombre: null, conDiagnostico: false }));
+    expect(html).toContain('<h1>Mi programa</h1>');
+  });
+
+  it('formatearFecha con toma null devuelve la raya de sin dato, no "null"', () => {
+    expect(formatearFecha(null)).not.toMatch(/null/);
+  });
+});
+
+describe('versionesDesdeFilas con un programa', () => {
+  it('la fila de un programa se lee y conserva su tipo y sus practicas', () => {
+    const v = versionesDesdeFilas([
+      { id: 'p1', version: 1, created_at: '2026-10-08T15:00:00Z', sources_snapshot: { elite_v3: programaEjemplo } },
+    ]);
+    expect(v).toHaveLength(1);
+    expect(v[0].errores).toEqual([]);
+    expect(v[0].evaluacion?.tipo).toBe('programa');
+    expect(v[0].evaluacion?.practicas).toHaveLength(5);
+    expect(v[0].evaluacion?.cliente.fecha_toma).toBeNull();
+  });
+
+  it('si la proyeccion no trae tipo (fila anterior al nivel 2) el documento es Elite', () => {
+    const v = versionesDesdeFilas([
+      { id: 'e1', version: 1, created_at: '2026-09-06T15:00:00Z', sources_snapshot: { elite_v3: ejemplo } },
+    ]);
+    expect(v[0].evaluacion?.tipo).toBeUndefined();
+    expect(v[0].evaluacion?.practicas).toEqual([]);
   });
 });

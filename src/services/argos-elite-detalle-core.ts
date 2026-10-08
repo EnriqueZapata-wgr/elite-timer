@@ -17,8 +17,14 @@
  * ("Sistemas", "Por qué") y no afirman nada de salud. Cuando una lista no
  * cabe, se dice "(+N más)" en vez de cortar a media frase, y el pie manda a
  * la pantalla de la evaluacion por lo que no cupo.
+ *
+ * 8-oct-2026 (nivel 2): un documento `tipo: 'programa'` lleva encabezado y
+ * pie de programa (nunca "Elite") y su sello dice el nombre del programa y
+ * no imprime una toma de muestra que no existe ("toma de muestra null"). Un
+ * documento Elite produce el mismo bloque, letra por letra.
  */
 import {
+  esPrograma,
   marcadoresDe,
   type EliteEstado,
   type EliteMarcador,
@@ -33,6 +39,13 @@ export const ENCABEZADO_DETALLE_ELITE =
 
 export const PIE_DETALLE_ELITE =
   'Lo que no cupo aquí está completo en la pantalla de su evaluación Elite en la app: si preguntan por algo que no ves, dilo y mándalos ahí.';
+
+/** 8-oct-2026 (nivel 2): encabezado del detalle de un programa (evaluacion ligera). */
+export const ENCABEZADO_DETALLE_PROGRAMA =
+  'Detalle del programa (mismo equipo; de aquí sale el porqué de cada indicación; trae una evaluación ligera: lo que aquí no aparece no se midió; orientación de salud funcional, no una conclusión médica):';
+
+export const PIE_DETALLE_PROGRAMA =
+  'Lo que no cupo aquí está completo en la pantalla de su programa en la app: si preguntan por algo que no ves, dilo y mándalos ahí.';
 
 /**
  * Presupuesto por seccion, en orden de valor para el dia uno. Con el ejemplo
@@ -105,6 +118,16 @@ export function listaConTope(prefijo: string, items: string[], separador: string
 export function seccionSello(e: EliteV3, max: number): string {
   const c = e.cliente;
   const firma = `${e.interpretado_por.evaluacion}${e.interpretado_por.genetica ? `; genética: ${e.interpretado_por.genetica}` : ''}`;
+  if (esPrograma(e)) {
+    // 8-oct-2026 (nivel 2): el nombre del programa, y la toma solo si existe.
+    const nombre = limpio(e.inicio.programa_nombre);
+    const semanas = e.inicio.programa_semanas !== null ? ` de ${e.inicio.programa_semanas} semanas` : '';
+    const toma = c.fecha_toma ? `toma de muestra ${c.fecha_toma}` : 'sin toma de muestra';
+    let p = `Vigencia: versión ${e.version}, ${toma}, generada ${e.generado_en}. Firma: ${firma}. Programa${nombre ? ` "${nombre}"` : ''}${semanas}.`;
+    const vigP = limpio(e.cierre.vigencia);
+    if (vigP && (p.length + vigP.length + 1) <= max) p += ` ${vigP}`;
+    return p.length <= max ? p : '';
+  }
   const programa = e.inicio.programa_semanas !== null ? ` Programa de ${e.inicio.programa_semanas} semanas.` : '';
   let s = `Vigencia: versión ${e.version}, toma de muestra ${c.fecha_toma}, generada ${e.generado_en}. Firma: ${firma}.${programa}`;
   const vig = limpio(e.cierre.vigencia);
@@ -227,7 +250,11 @@ export function seccionCruces(e: EliteV3, max: number): string {
  */
 export function construirBloqueEliteDetalle(e: EliteV3): string {
   const secciones: string[] = [];
-  const fijo = ENCABEZADO_DETALLE_ELITE.length + 1 + PIE_DETALLE_ELITE.length + 1;
+  // 8-oct-2026 (nivel 2): encabezado y pie segun el tipo del documento.
+  const programa = esPrograma(e);
+  const encabezado = programa ? ENCABEZADO_DETALLE_PROGRAMA : ENCABEZADO_DETALLE_ELITE;
+  const pie = programa ? PIE_DETALLE_PROGRAMA : PIE_DETALLE_ELITE;
+  const fijo = encabezado.length + 1 + pie.length + 1;
   let restante = DETALLE_ELITE_MAX - fijo;
   const meter = (armar: (max: number) => string, tope: number) => {
     const max = Math.min(tope, restante);
@@ -243,10 +270,16 @@ export function construirBloqueEliteDetalle(e: EliteV3): string {
   meter((m) => seccionCruces(e, m), DETALLE_TOPES.cruces);
   meter((m) => seccionMarcadores(e, m), DETALLE_TOPES.marcadores);
   if (secciones.length === 0) return '';
-  return `${ENCABEZADO_DETALLE_ELITE}\n${secciones.join('\n')}\n${PIE_DETALLE_ELITE}`;
+  return `${encabezado}\n${secciones.join('\n')}\n${pie}`;
 }
 
-/** ¿Este texto ya trae el bloque de detalle? Para no duplicarlo. */
+/** ¿Este texto ya trae el bloque de detalle? Para no duplicarlo. 8-oct-2026 (nivel 2): los dos encabezados. */
 export function traeDetalleElite(texto: string | null | undefined): boolean {
-  return typeof texto === 'string' && texto.includes(ENCABEZADO_DETALLE_ELITE);
+  return typeof texto === 'string'
+    && (texto.includes(ENCABEZADO_DETALLE_ELITE) || texto.includes(ENCABEZADO_DETALLE_PROGRAMA));
+}
+
+/** 8-oct-2026 (nivel 2): ¿el detalle es el de un programa? Lo usa argos-context-core para sus reglas. */
+export function esDetallePrograma(texto: string | null | undefined): boolean {
+  return typeof texto === 'string' && texto.includes(ENCABEZADO_DETALLE_PROGRAMA);
 }

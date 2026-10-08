@@ -38,6 +38,11 @@
  *  - "Cómo se ajusta tu plan" solo explica la etiqueta del coach a quien
  *    tiene algo fijado por un coach en la semana.
  *
+ * 8-oct-2026 (nivel 2): las practicas que el coach asigno desde el programa
+ * salen como "Lo fijó Enrique" (mi-plan-core). Las palabras que nombran el
+ * documento salen de su voz; si la evaluacion no se pudo leer, la voz sale
+ * del tipo que ya conoce useProgramaElite, y si tampoco, se habla neutro.
+ *
  * Tinta: tokens del tema (claro y oscuro); acento lima en oscuro y teal en
  * claro. Glifos por <AppIcon>; Ionicons solo cromo (chevron, refresh). Cero
  * em dashes en copy.
@@ -59,6 +64,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import { useProgramaElite } from '@/src/hooks/useProgramaElite';
 import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
+import { vozDe } from '@/src/services/elite/voz-programa-core';
 import { INTERVENTIONS_CHANGED_EVENT } from '@/src/services/interventions/intervention-service';
 import { EVALUACION_ELITE_CHANGED_EVENT } from '@/src/services/hoy/elite-hoy-service';
 import { falloEvaluacionEsFatal, TOPE_HERO_ELITE_MS, type NivelHoy } from '@/src/services/hoy/elite-hoy-core';
@@ -125,6 +131,14 @@ export function MiPlanScreen() {
   // sin ella (o si no se pudo leer) la cabecera no dice ninguna semana.
   const { programa } = useProgramaElite(userId);
   const semanaPrograma = programa.estado === 'ok' ? lineaSemanaPrograma(programa.avance) : null;
+  // 8-oct-2026 (nivel 2): el tipo del documento segun la lectura ligera del
+  // inicio. Solo se usa si el documento completo no se pudo leer; null = no se sabe.
+  const programaTipo = programa.estado === 'ok' ? programa.tipo : null;
+  const programaNombre = programa.estado === 'ok' ? programa.nombre : null;
+  const vozConocida = useMemo(
+    () => (programaTipo ? vozDe({ tipo: programaTipo, nombre: programaNombre }) : null),
+    [programaTipo, programaNombre],
+  );
 
   // 8-oct-2026 (revisión en frío): "hoy" es estado y se vuelve a leer al
   // enfocar y al volver al frente (alDia). El dia elegido arranca en null =
@@ -242,14 +256,16 @@ export function MiPlanScreen() {
   const fecha = diaVisible(elegida, hoy);
   const evaluacionEsperada = falloEvaluacionEsFatal(nivel);
   const dia = useMemo(
-    () => (insumos ? componerDia(insumos, fecha, hoy, { coachElite: NOMBRE_COACH_ELITE, evaluacionEsperada }) : null),
-    [insumos, fecha, hoy, evaluacionEsperada],
+    () => (insumos
+      ? componerDia(insumos, fecha, hoy, { coachElite: NOMBRE_COACH_ELITE, evaluacionEsperada, voz: vozConocida })
+      : null),
+    [insumos, fecha, hoy, evaluacionEsperada, vozConocida],
   );
   const esHoy = fecha === hoy;
   const diaElegido = tira.find((d) => d.fecha === fecha);
   const resumen = dia ? resumenDelDia(dia, esHoy ? 'Hoy' : diaElegido?.nombre ?? 'Ese día') : null;
   const contacto = dia ? contactoCoach(dia, NOMBRE_COACH_ELITE) : null;
-  const avisoEval = dia?.avisoEvaluacion ? avisoDeEvaluacion(dia.avisoEvaluacion) : null;
+  const avisoEval = dia?.avisoEvaluacion ? avisoDeEvaluacion(dia.avisoEvaluacion, dia.voz) : null;
   // La leyenda explica las etiquetas de la SEMANA: una rutina del coach del
   // lunes tambien cuenta cuando se mira el martes. Vacio = nada fijado por un
   // coach (o todavia sin leer) y su linea no se pinta.

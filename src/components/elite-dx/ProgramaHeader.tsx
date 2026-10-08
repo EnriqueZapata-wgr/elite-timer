@@ -32,6 +32,12 @@
  *    viste de tarjeta bonita.
  * Qué vista toca y qué dice la tarjeta lo decide hoy-resumen-core
  * (decidirVistaPrograma, con test); las reglas son las mismas del 25-sep.
+ *
+ * 8-oct-2026 (nivel 2): el programa puede traer nombre y un día de inicio
+ * declarado. Un inicio que todavía no llega NO es "no se pudo leer la fecha":
+ * en HOY sale su tarjeta ("Empieza el..."), y aquí, compacto, el nombre (o
+ * "Tu programa") con esa fecha. Nada de esto dice "Elite": la ceja es la de
+ * siempre, "TU PROGRAMA CON ENRIQUE".
  */
 import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -41,6 +47,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { HoyResumenCard } from '@/src/components/hoy/HoyResumenCard';
 import { useProgramaElite } from '@/src/hooks/useProgramaElite';
 import { decidirVistaPrograma } from '@/src/services/hoy/hoy-resumen-core';
+import { lineaPorEmpezar } from '@/src/services/elite/programa-elite-core';
 import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { haptic } from '@/src/utils/haptics';
@@ -127,6 +134,18 @@ export function ProgramaHeader({ userId, tieneEvaluacion, soloAvance, recarga, p
         <EliteText style={[s.texto, { color: t.textoSecundario }]}>
           {`Cuando ${NOMBRE_COACH_ELITE} la cargue, aquí verás en qué semana de tu programa vas.`}
         </EliteText>
+      </Animated.View>
+    );
+  }
+
+  // 8-oct-2026 (nivel 2): por empezar, dentro de Mi programa. Se mira antes
+  // que el avance: aquí `avance` es null porque no ha empezado.
+  if (vista.vista === 'compacta' && vista.porEmpezar) {
+    return (
+      <Animated.View entering={FadeInUp.delay(60).springify()} style={tarjeta}>
+        <EliteText style={[s.eyebrow, { color: acento }]}>{eyebrow}</EliteText>
+        <EliteText style={[s.titulo, { color: t.texto }]}>{vista.nombre ?? 'Tu programa'}</EliteText>
+        <EliteText style={[s.texto, { color: t.textoSecundario }]}>{lineaPorEmpezar(vista.porEmpezar)}</EliteText>
       </Animated.View>
     );
   }

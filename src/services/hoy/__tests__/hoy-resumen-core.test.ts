@@ -28,7 +28,7 @@ import {
 import {
   decidirVistaHoyAtp, decidirVistaPrograma, deltaConReferente, escribirLectura, imagenEdadAtp, imagenProgramaKey,
   lecturasDe, lecturasIniciales, tarjetaEdadAtp, tarjetaEvaluacion, tarjetaPrograma,
-  tarjetaSinEstudio, unaLinea, IMAGENES_PROGRAMA_SIN_PERSONA, LARGO_LINEA_RESUMEN, LETRA_CHICA_EDAD_ATP,
+  tarjetaSinEstudio, tarjetaPorEmpezar, unaLinea, IMAGENES_PROGRAMA_SIN_PERSONA, LARGO_LINEA_RESUMEN, LETRA_CHICA_EDAD_ATP,
   LINEA_EVALUACION_LISTA, TEXTO_VER_LABORATORIOS, TEXTO_VER_VALORES,
   type ProgramaParaResumen, type TarjetaResumen, type VistaHoyAtp,
 } from '@/src/services/hoy/hoy-resumen-core';
@@ -691,8 +691,9 @@ describe('decidirVistaPrograma', () => {
       expect(JSON.stringify(v)).not.toMatch(/\/programa/);
     }
     const a = avance();
-    expect(decidirVistaPrograma({ estado: 'ok', avance: a }, { soloAvance: true })).toEqual({ vista: 'compacta', avance: a });
-    expect(decidirVistaPrograma({ estado: 'ok', avance: null }, { soloAvance: true })).toEqual({ vista: 'compacta', avance: null });
+    // 8-oct-2026 (nivel 2): la compacta trae ademas porEmpezar y nombre (null sin ellos).
+    expect(decidirVistaPrograma({ estado: 'ok', avance: a }, { soloAvance: true })).toEqual({ vista: 'compacta', avance: a, porEmpezar: null, nombre: null });
+    expect(decidirVistaPrograma({ estado: 'ok', avance: null }, { soloAvance: true })).toEqual({ vista: 'compacta', avance: null, porEmpezar: null, nombre: null });
   });
 });
 
@@ -875,7 +876,10 @@ describe('contrato de fuente (7-oct-2026, Hoy editorial)', () => {
     expect(heroLabs).toMatch(/Revisa tu conexión\. Tus datos siguen aquí\./);
     expect(heroLabs).toMatch(/Reintentar/);
     expect(heroElite).toMatch(/está preparando tu evaluación/);
-    expect(heroElite).toMatch(/No pudimos leer tu evaluación/);
+    // 8-oct-2026 (nivel 2): la frase vive en mi-programa-core (textosNoSePudoLeer,
+    // con la voz Elite por defecto: "No pudimos leer tu evaluación", con test alla).
+    expect(heroElite).toMatch(/textosNoSePudoLeer\(voz\)/);
+    expect(heroElite).toMatch(/voz = VOZ_ELITE/);
     expect(heroElite).toMatch(/Reintentar/);
     expect(programa).toMatch(/No pudimos leer tu programa\. Revisa tu conexión\./);
     expect(programa).toMatch(/Tu evaluación está en preparación/);
@@ -906,5 +910,92 @@ describe('contrato de fuente (7-oct-2026, Hoy editorial)', () => {
     // Y arriba siguen las dos piezas que ahora son editoriales.
     expect(hoy).toMatch(/<HeroLaboratorios userId=\{user\?\.id\} nivel=\{nivel\} \/>/);
     expect(hoy).toMatch(/<ProgramaHeader userId=\{user\?\.id\}/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8-oct-2026 (nivel 2): programa con nombre, con inicio por llegar, y el
+// mismo documento con `tipo: 'programa'`
+// ---------------------------------------------------------------------------
+
+const programaCrudo: unknown = JSON.parse(leer('R and D/diagnostico/programa_ejemplo.json'));
+function programaDoc(): EliteV3 {
+  const r = validarEliteV3(JSON.parse(JSON.stringify(programaCrudo)));
+  if (!r.ok) throw new Error(r.errores.join('\n'));
+  return r.valor;
+}
+
+describe('nivel 2: la semana del programa con nombre y por empezar', () => {
+  const por = { inicio: '2026-10-12', faltanDias: 4 };
+
+  it('sin nombre la tarjeta es la de siempre; con nombre, la línea lo dice', () => {
+    const a = avance();
+    expect(tarjetaPrograma(a, null)).toEqual(tarjetaPrograma(a));
+    expect(tarjetaPrograma(a, '  ')).toEqual(tarjetaPrograma(a));
+    const t = tarjetaPrograma(a, 'Fuerza y sueño');
+    expect(t.titulo).toBe('SEMANA 3 DE 12');
+    expect(t.linea).toBe('Fuerza y sueño · Día 17');
+    expect(t.accesibilidad.startsWith('Fuerza y sueño. Semana 3 de 12, día 17.')).toBe(true);
+    expect(decidirVistaPrograma({ estado: 'ok', avance: a, nombre: 'Fuerza y sueño' })).toEqual({ vista: 'tarjeta', tarjeta: t });
+  });
+
+  it('un inicio por llegar es su tarjeta, nunca "fecha ilegible" ni un día inventado', () => {
+    const v = decidirVistaPrograma({ estado: 'ok', avance: null, porEmpezar: por, nombre: 'Fuerza y sueño' });
+    expect(v.vista).toBe('tarjeta');
+    if (v.vista !== 'tarjeta') return;
+    expect(v.tarjeta.titulo).toBe('FUERZA Y SUEÑO');
+    expect(v.tarjeta.linea).toBe('Empieza el 12 de octubre de 2026 · faltan 4 días');
+    expect(v.tarjeta.progreso).toBeNull();
+    expect(v.tarjeta.cta.ruta).toBe('/programa');
+    expect(v.tarjeta.linea).not.toMatch(/D[ií]a \d|Semana \d/);
+    // Sin nombre, "Tu programa"; a un día, "mañana".
+    expect(tarjetaPorEmpezar({ inicio: '2026-10-09', faltanDias: 1 }).titulo).toBe('TU PROGRAMA');
+    expect(tarjetaPorEmpezar({ inicio: '2026-10-09', faltanDias: 1 }).linea).toBe('Empieza mañana');
+    // Por empezar manda aunque llegara un avance (nunca debería): no se pinta una semana.
+    const conAmbos = decidirVistaPrograma({ estado: 'ok', avance: avance(), porEmpezar: por });
+    expect(conAmbos.vista === 'tarjeta' && conAmbos.tarjeta.titulo).toBe('TU PROGRAMA');
+  });
+
+  it('dentro de Mi programa, compacta con la fecha y sin avance', () => {
+    expect(decidirVistaPrograma({ estado: 'ok', avance: avance(), porEmpezar: por, nombre: 'Fuerza y sueño' }, { soloAvance: true }))
+      .toEqual({ vista: 'compacta', avance: null, porEmpezar: por, nombre: 'Fuerza y sueño' });
+  });
+
+  it('las reglas de antes no se mueven con nombre o por empezar en los otros estados', () => {
+    expect(decidirVistaPrograma({ estado: 'ok', avance: null, nombre: 'X' })).toEqual({ vista: 'fecha_ilegible' });
+    expect(decidirVistaPrograma({ estado: 'ok', avance: null, porEmpezar: null })).toEqual({ vista: 'fecha_ilegible' });
+  });
+
+  it('el encabezado mira por empezar antes que la fecha', () => {
+    const src = sinComentarios(leer('src/components/elite-dx/ProgramaHeader.tsx'));
+    expect(src).toMatch(/vista\.vista === 'compacta' && vista\.porEmpezar/);
+    expect(src.indexOf("vista.porEmpezar")).toBeLessThan(src.indexOf('No se pudo leer la fecha de inicio'));
+    expect(src).toMatch(/lineaPorEmpezar\(vista\.porEmpezar\)/);
+  });
+});
+
+describe('nivel 2: la tarjeta del documento en modo ATP', () => {
+  it('un programa sin evaluación: su nombre de documento, su CTA, y nunca Elite', () => {
+    const e = programaDoc();
+    const t = tarjetaEvaluacion(e, null);
+    expect(t.titulo).toBe(`TU PROGRAMA CON ${NOMBRE_COACH_ELITE.toUpperCase()}`);
+    expect(t.cta.label).toBe('VER MI PROGRAMA');
+    expect(t.cta.ruta).toBe('/salud/evaluacion-elite');
+    expect(t.linea).toBe(unaLinea(e.inicio.lead));
+    e.inicio.lead = null;
+    expect(tarjetaEvaluacion(e, null).linea).toBe('Tu programa está listo');
+    for (const x of textos(tarjetaEvaluacion(e, null))) {
+      expect(/elite|evaluaci[oó]n/i.test(x)).toBe(false);
+      expect(x.includes(EM_DASH)).toBe(false);
+      expect(ROJAS.test(x)).toBe(false);
+    }
+  });
+  it('Elite: la tarjeta de siempre', () => {
+    const e = omar();
+    e.inicio.lead = null; e.inicio.edad_atp = null; e.edades.atp = null;
+    const t = tarjetaEvaluacion(e, null);
+    expect(t.titulo).toBe(`TU EVALUACIÓN CON ${NOMBRE_COACH_ELITE.toUpperCase()}`);
+    expect(t.linea).toBe(LINEA_EVALUACION_LISTA);
+    expect(t.cta.label).toBe('VER MI EVALUACIÓN');
   });
 });

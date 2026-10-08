@@ -3,6 +3,14 @@
  * científica (con nota de "consultar con tu nutriólogo" si aplica — filosofía
  * de medicina funcional), acciones Activar/Pausar/Descartar y ajustes del user
  * (hora custom, notas). assignRule NO se muestra: es criterio clínico interno.
+ *
+ * 8-oct-2026 (nivel 2): una práctica que el coach asignó desde el programa
+ * (assigned_by, migración 329) dice "Lo fijó Enrique": se consulta y se
+ * pausa (y se reanuda), pero su hora y su indicación no se editan aquí y no
+ * se descarta (ajustesDePractica, con test en mi-plan-core). Si la base aún
+ * no tiene la columna, ninguna llega como asignada y todo queda como hoy.
+ * Una lectura que falla ya no se lee como "no encontramos esta práctica":
+ * se dice que no se pudo leer y se ofrece Reintentar.
  */
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
@@ -49,6 +57,8 @@ import {
 } from '@/src/services/safety/protocol-gate-core';
 import { getSafetyState } from '@/src/services/safety/protocol-gate-service';
 import { getSafetyParams } from '@/src/services/safety/safety-params-service';
+import { ajustesDePractica } from '@/src/services/plan/mi-plan-core';
+import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
 
 const STATUS_LABELS: Record<string, string> = {
   suggested: 'Sugerida',
@@ -69,14 +79,25 @@ export default function IntervencionDetailScreen() {
   const [notesInput, setNotesInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [skinType, setSkinType] = useState<number | null>(null);
+  // 8-oct-2026 (nivel 2): la última lectura falló. Con algo ya visto se sigue
+  // mostrando eso; sin nada visto se dice "no se pudo leer", nunca "no existe".
+  const [noSeLeyo, setNoSeLeyo] = useState(false);
   const startedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!user?.id || !key) return;
-    const [found, skin] = await Promise.all([
-      getUserIntervention(user.id, key),
-      fetchSkinType(user.id).catch(() => null),
-    ]);
+    const skinP = fetchSkinType(user.id).catch(() => null);
+    let found: ResolvedUserIntervention | null;
+    try {
+      // getUserIntervention lanza cuando la lectura falla (antes devolvía null).
+      found = await getUserIntervention(user.id, key);
+    } catch {
+      setNoSeLeyo(true);
+      setLoading(false);
+      return;
+    }
+    const skin = await skinP;
+    setNoSeLeyo(false);
     setItem(found);
     setSkinType(skin);
     if (found) {
@@ -97,6 +118,14 @@ export default function IntervencionDetailScreen() {
   }, [user?.id, key, load]);
 
   const status = item?.row.status;
+  // 8-oct-2026 (nivel 2): lo que el coach fijó se consulta y se pausa.
+  const ajustes = ajustesDePractica(item?.row, NOMBRE_COACH_ELITE);
+
+  const reintentar = useCallback(() => {
+    haptic.light();
+    setLoading(true);
+    load().catch(() => setLoading(false));
+  }, [load]);
 
   // Sprint Compliance 3: gate de la ruta PULL — hasta hoy solo la ruta PUSH
   // (motor) filtraba requiresClinicalValidation; el usuario podía auto-activar
@@ -154,7 +183,8 @@ export default function IntervencionDetailScreen() {
   }, [user?.id, key]);
 
   const onSaveAdjustments = useCallback(async () => {
-    if (!user?.id || !key || saving) return;
+    // La hora y la nota de una práctica asignada las ajusta el coach.
+    if (!user?.id || !key || saving || !ajustes.editaAjustes) return;
     const trimmedTime = timeInput.trim();
     if (trimmedTime && !isValidHHMM(trimmedTime)) {
       Alert.alert('Hora inválida', 'Usa formato de 24h, por ejemplo 21:30.');
@@ -169,7 +199,7 @@ export default function IntervencionDetailScreen() {
     setSaving(false);
     if (ok) haptic.success();
     else Alert.alert('Algo no salió', 'No se pudieron guardar los ajustes. Intenta de nuevo.');
-  }, [user?.id, key, timeInput, notesInput, saving]);
+  }, [user?.id, key, timeInput, notesInput, saving, ajustes.editaAjustes]);
 
   // Info científica del catálogo (solo curadas; assignRule NUNCA se muestra).
   const catalogDef = key ? INTERVENTION_BY_KEY[key] : undefined;
@@ -186,6 +216,15 @@ export default function IntervencionDetailScreen() {
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator size="large" color={ATP_BRAND.lime} />
+          </View>
+        ) : !item && noSeLeyo ? (
+          <View style={styles.center}>
+            <EliteText style={styles.notFound}>
+              No se pudo leer esta práctica. Revisa tu conexión y vuelve a intentar.
+            </EliteText>
+            <AnimatedPressable onPress={reintentar} style={[styles.secondaryBtn, styles.retryBtn]}>
+              <EliteText style={styles.secondaryBtnText}>Reintentar</EliteText>
+            </AnimatedPressable>
           </View>
         ) : !item ? (
           <View style={styles.center}>
@@ -211,6 +250,11 @@ export default function IntervencionDetailScreen() {
                   </View>
                 </View>
                 <EliteText style={styles.name}>{item.def.name}</EliteText>
+                {ajustes.etiqueta ? (
+                  <View style={styles.coachBadge}>
+                    <EliteText style={styles.coachBadgeText}>{ajustes.etiqueta}</EliteText>
+                  </View>
+                ) : null}
                 {(item.row.is_universal || time) && (
                   <View style={styles.metaRow}>
                     {item.row.is_universal && (
@@ -282,6 +326,22 @@ export default function IntervencionDetailScreen() {
             {/* ── Ajustes ── */}
             <Animated.View entering={FadeInUp.delay(210).springify()}>
               <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>AJUSTES</SectionTitle>
+              {!ajustes.editaAjustes ? (
+                // 8-oct-2026 (nivel 2): asignada por el coach. Se lee, no se edita.
+                <Card variant="elevated">
+                  <EliteText style={styles.fieldLabel}>HORA</EliteText>
+                  <EliteText style={styles.body}>{time ?? 'Sin hora fija'}</EliteText>
+                  {item.row.custom_notes ? (
+                    <>
+                      <EliteText style={[styles.fieldLabel, { marginTop: Spacing.md }]}>NOTAS</EliteText>
+                      <EliteText style={styles.body}>{item.row.custom_notes}</EliteText>
+                    </>
+                  ) : null}
+                  {ajustes.avisoAjustes ? (
+                    <EliteText style={[styles.body, { marginTop: Spacing.md }]}>{ajustes.avisoAjustes}</EliteText>
+                  ) : null}
+                </Card>
+              ) : (
               <Card variant="elevated">
                 <EliteText style={styles.fieldLabel}>HORA CUSTOM (opcional)</EliteText>
                 <TextInput
@@ -308,6 +368,7 @@ export default function IntervencionDetailScreen() {
                   </EliteText>
                 </AnimatedPressable>
               </Card>
+              )}
             </Animated.View>
 
             {/* ── Acciones ── */}
@@ -322,7 +383,7 @@ export default function IntervencionDetailScreen() {
                   <EliteText style={styles.secondaryBtnText}>Pausar</EliteText>
                 </AnimatedPressable>
               )}
-              {status !== 'dismissed' && (
+              {status !== 'dismissed' && ajustes.puedeDescartar && (
                 <AnimatedPressable onPress={onDismiss} style={styles.dangerBtn}>
                   <EliteText style={styles.dangerBtnText}>Descartar</EliteText>
                 </AnimatedPressable>
@@ -383,6 +444,13 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
     paddingHorizontal: 6, paddingVertical: 2,
   },
   baseBadgeText: { fontFamily: Fonts.bold, fontSize: 9, color: t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto, letterSpacing: 1 },
+  // 8-oct-2026 (nivel 2): "Lo fijó Enrique", mismo trato que el chip del coach en Mi plan.
+  coachBadge: {
+    alignSelf: 'flex-start', backgroundColor: t.hundido, borderWidth: 0.5, borderColor: t.bordeMarcado,
+    borderRadius: Radius.pill, paddingHorizontal: 9, paddingVertical: 3, marginTop: Spacing.sm,
+  },
+  coachBadgeText: { fontFamily: Fonts.semiBold, fontSize: 11, color: t.texto },
+  retryBtn: { marginTop: Spacing.md, paddingHorizontal: Spacing.lg },
   timeText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: t.textoSecundario },
   body: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: t.textoSecundario, lineHeight: 20 },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: Spacing.md },

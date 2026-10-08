@@ -17,7 +17,16 @@ import {
   resumenEvaluacion,
   RUTAS_MI_PROGRAMA, seccionTieneContenido, siguienteEstado,
   type EstadoMiPrograma, type NivelParaPrograma,
+  asuntoCorreoCoach, caraGeneticaSinHallazgos, CEJA_NEUTRA, cejaMiPrograma, copyPlanSuplementos, documentoListo,
+  enlaceDocumentoCompleto, etiquetaDocumentoConCoach, filaDocumentoCompleto, lineaFirmaEvaluacion,
+  ofrecerCompararLaboratorios, puertaDocumento, resumenVigenteDocumento, seccionesVisiblesEvaluacion,
+  TITULO_DOCUMENTO_NEUTRO, tituloPantallaEvaluacion, tituloSinLead, vozDeSnapshot,
+  AVISO_FICHA_DEL_COACH, columnasMarcador, esFichaDelCoachSoloLectura, mostrarEstado, textosNoSePudoLeer,
 } from '@/src/services/elite/mi-programa-core';
+import { htmlDeEvaluacion } from '@/src/services/elite/evaluacion-elite-core';
+import { vozMientras, vozParaTextos, VOZ_PROGRAMA_NEUTRA } from '@/src/services/elite/voz-programa-core';
+import { tituloDeBloque } from '@/src/services/elite/programa-elite-core';
+import { VOZ_ELITE, vozDe, vozDeDocumento } from '@/src/services/elite/voz-programa-core';
 
 const ejemplo: unknown = JSON.parse(
   readFileSync(resolve(process.cwd(), 'R and D/diagnostico/elite_v3_ejemplo_omar_anonimizado.json'), 'utf8'),
@@ -388,3 +397,374 @@ describe('copy', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// 8-oct-2026 (nivel 2): el mismo documento con `tipo: 'programa'`
+// ---------------------------------------------------------------------------
+
+const programaCrudo: unknown = JSON.parse(
+  readFileSync(resolve(process.cwd(), 'R and D/diagnostico/programa_ejemplo.json'), 'utf8'),
+);
+
+/** El ejemplo de programa de A: sin evaluacion, con nombre, con plan y con las tres palancas. */
+function programa(): EliteV3 {
+  const r = validarEliteV3(JSON.parse(JSON.stringify(programaCrudo)));
+  if (!r.ok) throw new Error(r.errores.join('\n'));
+  return r.valor;
+}
+
+/** Programa sin nombre (la ceja y los titulos caen en las palabras genericas). */
+function programaSinNombre(): EliteV3 {
+  const e = programa();
+  e.inicio.programa_nombre = null;
+  return e;
+}
+
+/** Programa con una evaluacion ligera: dos marcadores y la edad que el coach calculo. */
+function programaConEvaluacion(): EliteV3 {
+  const e = programa();
+  const o = omar();
+  e.marcadores = { intro: null, grupos: [o.marcadores.grupos[0]], notas: [] };
+  e.inicio.edad_cronologica = 41;
+  return e;
+}
+
+/** La regla de bloquesMiPrograma hasta el 7-oct-2026, copiada tal cual. */
+function bloquesAntes(e: EliteV3) {
+  return BLOQUES_PROGRAMA
+    .map((b) => ({
+      key: b.key,
+      titulo: b.titulo,
+      filas: b.secciones
+        .filter((sec) => b.key !== 'evaluacion'
+          || (!CUBIERTAS_POR_RESUMEN.includes(sec) && seccionTieneContenido(e, sec)))
+        .map((sec) => ({ seccion: sec, titulo: etiquetaSeccion(sec), detalle: detalleSeccion(e, sec) })),
+    }))
+    .filter((b) => b.filas.length > 0);
+}
+
+function etiquetaSeccion(k: string): string {
+  return SECCIONES_UI.find((x) => x.key === k)?.label ?? k;
+}
+
+const ELITE = /elite/i;
+
+describe('nivel 2: Elite se queda letra por letra', () => {
+  it('bloquesMiPrograma de un documento Elite es el de antes (completo y primera entrega)', () => {
+    for (const e of [omar(), primeraEntrega()]) expect(bloquesMiPrograma(e)).toEqual(bloquesAntes(e));
+  });
+  it('las palabras de siempre', () => {
+    const e = omar();
+    expect(lineaVersion(e)).toMatch(/^Versión \d+ · toma de .+ · interpretada por /);
+    expect(lineaFirmaEvaluacion(e)).toBe(`Interpretada por ${e.interpretado_por.evaluacion} · toma: ${lineaVersion(e).split('toma de ')[1].split(' · ')[0]}`);
+    expect(etiquetaDocumentoConCoach(VOZ_ELITE)).toBe('TU EVALUACIÓN CON ENRIQUE');
+    expect(documentoListo(VOZ_ELITE)).toBe('Tu evaluación está lista');
+    expect(filaDocumentoCompleto(VOZ_ELITE)).toEqual({ titulo: 'Ver tu evaluación completa', detalle: 'Todas las secciones y tu PDF' });
+    expect(tituloSinLead(vozDeDocumento(e))).toBe('Tu evaluación Elite');
+    expect(tituloPantallaEvaluacion(e, false)).toBe('Mi evaluación Elite');
+    expect(cejaMiPrograma({ estado: 'ok', evaluacion: e })).toBe('ATP ELITE');
+    expect(seccionesVisiblesEvaluacion(e)).toEqual(SECCIONES_UI.map((x) => x.key));
+    expect(seccionesVisiblesEvaluacion(primeraEntrega())).toEqual(SECCIONES_UI.map((x) => x.key));
+    expect(ofrecerCompararLaboratorios(e)).toBe(true);
+    expect(caraGeneticaSinHallazgos(vozDeDocumento(e), 2)).toEqual({
+      titulo: 'Tu genética se integra en la segunda entrega (semana 8)',
+      texto: 'Tu evaluación versión 2 ya está en la app. Cuando llegue la interpretación genética, aquí la ves por tema, con qué hacer en cada caso.',
+      cta: 'Ver mi evaluación Elite',
+    });
+    expect(enlaceDocumentoCompleto(vozDeDocumento(e))).toBe('Ver mi evaluación Elite completa');
+    expect(resumenVigenteDocumento(vozDeDocumento(e))).toBe('Tu versión vigente es tu evaluación Elite, interpretada por Enrique. Ábrela abajo para verla completa.');
+    expect(puertaDocumento(vozDeDocumento(e))).toEqual({
+      titulo: 'Mi evaluación Elite',
+      detalle: 'Tu evaluación interpretada por Enrique: secciones, marcadores, cruces y tus tres palancas',
+      accesibilidad: 'Abrir Mi evaluación Elite',
+    });
+    expect(copyPlanSuplementos({ ok: true, evaluacion: e })).toEqual({
+      origen: 'Lo armó Enrique a partir de tu evaluación. Aquí registras tus tomas; si algo no te va, díselo y él lo ajusta.',
+      enlace: 'Ver el porqué en mi evaluación',
+      pie: 'Este plan lo asignó Enrique a partir de tu evaluación y lo ajusta él. Lo que registras aquí es tuyo.',
+      soloLectura: 'Tu plan Elite se conserva: lo sigues viendo y registrando tus tomas.',
+    });
+    expect(asuntoCorreoCoach({ ok: true, evaluacion: e })).toBe('Mi programa ATP Elite');
+  });
+  it('inicio de un Elite sigue contando la duracion del programa', () => {
+    const e = omar();
+    e.inicio.edad_cronologica = null; e.inicio.edad_atp = null; e.inicio.diferencia_anios = null;
+    expect(seccionTieneContenido(e, 'inicio')).toBe(true);
+  });
+});
+
+describe('nivel 2: lo que lee el cliente de un programa', () => {
+  it('Inicio solo cuenta con alguna edad: la duracion sola es del plan', () => {
+    const e = programa();
+    expect(e.inicio.programa_semanas).toBe(12);
+    expect(seccionTieneContenido(e, 'inicio')).toBe(false);
+    e.inicio.edad_cronologica = 41;
+    expect(seccionTieneContenido(e, 'inicio')).toBe(true);
+  });
+
+  it('MI PROGRAMA: sin bloque de medico vacio, la evaluacion se llama TU PROGRAMA y Tu plan siempre esta', () => {
+    const e = programa();
+    const b = bloquesMiPrograma(e);
+    expect(b.map((x) => x.key)).toEqual(['plan', 'evaluacion']);
+    expect(b.find((x) => x.key === 'evaluacion')?.titulo).toBe('TU PROGRAMA');
+    expect(b.find((x) => x.key === 'evaluacion')?.filas.map((f) => f.seccion)).toEqual(['cierre']);
+    expect(b.find((x) => x.key === 'plan')?.titulo).toBe(tituloDeBloque(BLOQUES_PROGRAMA[0], vozDeDocumento(e)));
+    // Sin plan escrito: el bloque sigue (la pantalla le pone "Ver mi plan de la semana") y sin filas huecas.
+    e.suplementos = [];
+    e.alimentacion = { ...e.alimentacion, prioriza: [], evita: [], horarios: [], ventana: null, notas: [], metas: null, comidas: [] } as never;
+    e.entrenamiento = { ...e.entrenamiento, base: null, sesiones: [], descanso: [], notas: [], rutinas: [] } as never;
+    const sinPlan = bloquesMiPrograma(e);
+    expect(sinPlan.find((x) => x.key === 'plan')?.filas).toEqual([]);
+    // Con medico, el bloque vuelve y no dice "evaluación".
+    const conMedico = programa();
+    conMedico.medico = { intro: 'Pide tu glucosa en ayunas a tu médico.', fuera_del_tuyo: [], pendientes: [], advertencias: [] };
+    const fila = bloquesMiPrograma(conMedico).find((x) => x.key === 'medico')?.filas[0];
+    expect(fila?.detalle).toBe('En tu programa');
+  });
+
+  it('con evaluacion ligera: TU EVALUACIÓN con lo que trae, nada mas', () => {
+    const e = programaConEvaluacion();
+    const ev = bloquesMiPrograma(e).find((x) => x.key === 'evaluacion');
+    expect(ev?.titulo).toBe('TU EVALUACIÓN');
+    expect(ev?.filas.map((f) => f.seccion)).toEqual(['marcadores', 'cierre']);
+    expect(seccionesVisiblesEvaluacion(e)).toContain('inicio');
+    expect(ofrecerCompararLaboratorios(e)).toBe(true);
+  });
+
+  it('la pantalla del documento solo pinta secciones con algo', () => {
+    const v = seccionesVisiblesEvaluacion(programa());
+    expect(v).toEqual(['cierre', 'alimentacion', 'suplementos', 'entrenamiento']);
+    for (const k of ['inicio', 'conteo', 'genetica', 'braverman', 'medico', 'marcadores'] as const) expect(v.includes(k)).toBe(false);
+    expect(ofrecerCompararLaboratorios(programa())).toBe(false);
+  });
+
+  it('firma, version y titulos: sin toma inventada y sin marca', () => {
+    const e = programa();
+    expect(e.cliente.fecha_toma).toBeNull();
+    expect(lineaVersion(e)).toBe('Versión 1 · preparado por Enrique Zapata');
+    expect(lineaFirmaEvaluacion(e)).toBe('Preparado por Enrique Zapata');
+    const conToma = programaConEvaluacion();
+    conToma.cliente.fecha_toma = '2026-09-30';
+    expect(lineaFirmaEvaluacion(conToma)).toBe('Interpretada por Enrique Zapata · toma: 30 de septiembre de 2026');
+    expect(tituloPantallaEvaluacion(e, false)).toBe('Fuerza y sueño');
+    expect(tituloPantallaEvaluacion(programaSinNombre(), false)).toBe('Mi programa completo');
+    expect(tituloSinLead(vozDeDocumento(e))).toBe('Fuerza y sueño');
+    expect(tituloSinLead(vozDeDocumento(programaSinNombre()))).toBe('Tu programa');
+  });
+
+  it('sin documento leido: titulo neutro; con candado (cuenta sin nada), el de Elite', () => {
+    expect(tituloPantallaEvaluacion(null, false)).toBe(TITULO_DOCUMENTO_NEUTRO);
+    expect(tituloPantallaEvaluacion(null, true)).toBe('Mi evaluación Elite');
+  });
+
+  it('la ceja: nombre, o neutra; nunca Elite mientras no hay documento', () => {
+    expect(cejaMiPrograma({ estado: 'ok', evaluacion: programa() })).toBe('FUERZA Y SUEÑO');
+    expect(cejaMiPrograma({ estado: 'ok', evaluacion: programaSinNombre() })).toBe(CEJA_NEUTRA);
+    for (const st of [{ estado: 'cargando' }, { estado: 'sin_evaluacion' }, { estado: 'error', motivo: 'lectura' }] as EstadoMiPrograma[]) {
+      expect(cejaMiPrograma(st)).toBe(CEJA_NEUTRA);
+    }
+  });
+
+  it('resumen, fila completa, genetica, mapa y suplementos: con el genero y sin promesas', () => {
+    const voz = vozDeDocumento(programa());
+    expect(etiquetaDocumentoConCoach(voz)).toBe('TU PROGRAMA CON ENRIQUE');
+    expect(documentoListo(voz)).toBe('Tu programa está listo');
+    expect(filaDocumentoCompleto(voz)).toEqual({ titulo: 'Ver tu programa completo', detalle: 'Todas las secciones y tu PDF' });
+    expect(caraGeneticaSinHallazgos(voz, 1)).toEqual({
+      titulo: 'Tu programa no incluye estudio genético',
+      texto: 'Lo que Enrique preparó para ti está en tu programa.',
+      cta: 'Ver mi programa',
+    });
+    expect(enlaceDocumentoCompleto(voz)).toBe('Ver mi programa completo');
+    expect(resumenVigenteDocumento(voz)).toBe('Tu versión vigente es tu programa, preparado por Enrique. Ábrelo abajo para verlo completo.');
+    expect(puertaDocumento(voz).titulo).toBe('Fuerza y sueño');
+    expect(copyPlanSuplementos({ ok: true, evaluacion: programa() })).toEqual({
+      origen: 'Lo armó Enrique para tu programa. Aquí registras tus tomas; si algo no te va, díselo y él lo ajusta.',
+      enlace: 'Ver el porqué en mi programa',
+      pie: 'Este plan lo asignó Enrique para tu programa y lo ajusta él. Lo que registras aquí es tuyo.',
+      soloLectura: 'Tu plan se conserva: lo sigues viendo y registrando tus tomas.',
+    });
+    expect(asuntoCorreoCoach({ ok: true, evaluacion: programa() })).toBe('Mi programa ATP');
+    // Con evaluacion ligera, "tu evaluación" es verdad y se dice.
+    const conEv = vozDeDocumento(programaConEvaluacion());
+    expect(copyPlanSuplementos({ ok: true, evaluacion: programaConEvaluacion() }).enlace).toBe('Ver el porqué en mi evaluación');
+    expect(resumenVigenteDocumento(conEv)).toBe('Tu versión vigente es tu evaluación, interpretada por Enrique. Ábrela abajo para verla completa.');
+    expect(enlaceDocumentoCompleto(conEv)).toBe('Ver mi evaluación completa');
+  });
+
+  it('sin documento, leyendo o sin poder leer: Suplementos sin enlace (caeria en un candado) y sin "evaluación"', () => {
+    for (const l of [null, { ok: true as const, evaluacion: null }, { ok: false as const, motivo: 'lectura' as const }]) {
+      const c = copyPlanSuplementos(l);
+      expect(c.enlace).toBeNull();
+      for (const txt of Object.values(c)) if (txt) expect(/evaluaci[oó]n|elite/i.test(txt)).toBe(false);
+      expect(asuntoCorreoCoach(l)).toBe('Mi programa ATP');
+    }
+    expect(puertaDocumento(null).titulo).toBe(TITULO_DOCUMENTO_NEUTRO);
+  });
+
+  it('vozDeSnapshot: la fila del mapa funcional dice su tipo aunque no valide', () => {
+    expect(vozDeSnapshot({ elite_v3: JSON.parse(JSON.stringify(programaCrudo)) })?.tipo).toBe('programa');
+    expect(vozDeSnapshot({ elite_v3: JSON.parse(JSON.stringify(ejemplo)) })?.tipo).toBe('elite');
+    const roto = JSON.parse(JSON.stringify(programaCrudo));
+    delete roto.cierre;
+    const v = vozDeSnapshot({ elite_v3: roto });
+    expect(v?.tipo).toBe('programa');
+    expect(v?.nombre).toBe('Fuerza y sueño');
+    expect(vozDeSnapshot({ algo: 1 })).toBeNull();
+    expect(vozDeSnapshot(null)).toBeNull();
+  });
+
+  it('barrido: nada de lo que lee un programa dice Elite, ni lleva em dash ni palabras rojas', () => {
+    const docs = [programa(), programaSinNombre(), programaConEvaluacion()];
+    const textos: string[] = [];
+    for (const e of docs) {
+      const voz = vozDeDocumento(e);
+      textos.push(...todoElCopy(e), lineaFirmaEvaluacion(e), tituloSinLead(voz), tituloPantallaEvaluacion(e, false),
+        cejaMiPrograma({ estado: 'ok', evaluacion: e }), etiquetaDocumentoConCoach(voz), documentoListo(voz),
+        ...Object.values(filaDocumentoCompleto(voz)), ...Object.values(caraGeneticaSinHallazgos(voz, e.version)),
+        enlaceDocumentoCompleto(voz), resumenVigenteDocumento(voz), ...Object.values(puertaDocumento(voz)),
+        ...Object.values(copyPlanSuplementos({ ok: true, evaluacion: e })).filter((x): x is string => !!x),
+        asuntoCorreoCoach({ ok: true, evaluacion: e }));
+    }
+    textos.push(tituloPantallaEvaluacion(null, false), CEJA_NEUTRA, ...Object.values(puertaDocumento(null)),
+      vozDe({ tipo: 'programa' }).asuntoCorreo);
+    for (const t of textos) {
+      expect(ELITE.test(t), t).toBe(false);
+      expect(t.includes(EM_DASH), t).toBe(false);
+      expect(ROJAS.test(t), t).toBe(false);
+    }
+  });
+});
+
+describe('nivel 2: contrato de fuente de las pantallas', () => {
+  const leerApp = (rel: string) => readFileSync(resolve(process.cwd(), rel), 'utf8');
+  it('la evaluacion ya no fija el nombre del PDF ni el titulo Elite', () => {
+    const src = leerApp('app/salud/evaluacion-elite.tsx');
+    expect(src.includes('Evaluacion-Elite-v')).toBe(false);
+    expect(src.includes('title="Mi evaluación Elite"')).toBe(false);
+    expect(src).toMatch(/archivoPdf\(voz, evaluacion\.version\)/);
+    expect(src).toMatch(/seccionesVisiblesEvaluacion\(e\)/);
+  });
+  it('Suplementos, Genetica, el mapa y MI PROGRAMA toman sus palabras del core', () => {
+    expect(leerApp('app/supplements.tsx')).toMatch(/copyPlanSuplementos\(lecturaDoc, tier\)/);
+    expect(leerApp('app/supplements.tsx').includes('>Ver el porqué en mi evaluación<')).toBe(false);
+    expect(leerApp('app/salud/genetica.tsx')).toMatch(/caraGeneticaSinHallazgos\(voz, e\.version\)/);
+    expect(leerApp('app/salud/diagnostico/index.tsx')).toMatch(/puertaDocumento\(/);
+    const mp = leerApp('src/screens/elite-dx/MiProgramaScreen.tsx');
+    expect(mp.includes('>ATP ELITE<')).toBe(false);
+    expect(mp).toMatch(/cejaMiPrograma\(estado, tier\)/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8-oct-2026 (nivel 2, revision en frio): sin documento leido decide el nivel
+// ---------------------------------------------------------------------------
+
+describe('nivel 2: la voz de la cuenta (vozMientras)', () => {
+  const elite = { ok: true as const, evaluacion: null as EliteV3 | null };
+  it('un documento leido siempre manda, sea cual sea el nivel', () => {
+    expect(vozMientras({ documento: { ok: true, evaluacion: omar() }, tier: 'premium' })?.tipo).toBe('elite');
+    expect(vozMientras({ documento: { ok: true, evaluacion: omar() }, tier: 'free' })).toEqual(VOZ_ELITE);
+    expect(vozMientras({ documento: { ok: true, evaluacion: programa() }, tier: 'elite' })?.tipo).toBe('programa');
+  });
+  it('sin documento leido: nivel Elite es la voz Elite; otro nivel (o sin leer), ninguna', () => {
+    for (const d of [null, undefined, elite, { ok: false as const }]) {
+      expect(vozMientras({ documento: d, tier: 'elite' })).toBe(VOZ_ELITE);
+      for (const tier of ['premium', 'free', null, undefined]) {
+        expect(vozMientras({ documento: d, tier })).toBeNull();
+        expect(vozParaTextos({ documento: d, tier })).toBe(VOZ_PROGRAMA_NEUTRA);
+      }
+    }
+  });
+  it('un cliente Elite ve lo de siempre desde el primer cuadro (nivel leido, documento aun no)', () => {
+    expect(cejaMiPrograma({ estado: 'cargando' }, 'elite')).toBe('ATP ELITE');
+    expect(cejaMiPrograma({ estado: 'error', motivo: 'lectura' }, 'elite')).toBe('ATP ELITE');
+    expect(cejaMiPrograma({ estado: 'sin_evaluacion' }, 'elite')).toBe('ATP ELITE');
+    expect(tituloPantallaEvaluacion(null, false, 'elite')).toBe('Mi evaluación Elite');
+    expect(asuntoCorreoCoach(null, 'elite')).toBe('Mi programa ATP Elite');
+    expect(copyPlanSuplementos(null, 'elite')).toEqual(copyPlanSuplementos({ ok: true, evaluacion: omar() }));
+    expect(copyPlanSuplementos({ ok: false, motivo: 'lectura' }, 'elite').enlace).toBe('Ver el porqué en mi evaluación');
+  });
+  it('programa (codigo premium) sin documento leido: neutro, nunca Elite', () => {
+    expect(cejaMiPrograma({ estado: 'cargando' }, 'premium')).toBe(CEJA_NEUTRA);
+    expect(tituloPantallaEvaluacion(null, false, 'premium')).toBe('Mi programa completo');
+    expect(asuntoCorreoCoach(null, 'premium')).toBe('Mi programa ATP');
+    expect(copyPlanSuplementos(null, 'premium').enlace).toBeNull();
+    // Con su documento leido, aunque alguien le diera nivel Elite, habla su documento.
+    expect(cejaMiPrograma({ estado: 'ok', evaluacion: programa() }, 'elite')).toBe('FUERZA Y SUEÑO');
+    expect(asuntoCorreoCoach({ ok: true, evaluacion: programa() }, 'elite')).toBe('Mi programa ATP');
+  });
+});
+
+describe('nivel 2: "no se pudo leer" y "cargando" con el genero del documento', () => {
+  it('Elite: las frases de siempre', () => {
+    expect(textosNoSePudoLeer(VOZ_ELITE)).toEqual({
+      etiqueta: 'TU EVALUACIÓN CON ENRIQUE',
+      titulo: 'No pudimos leer tu evaluación',
+      tituloImpersonal: 'No se pudo leer tu evaluación',
+      sigueGuardado: 'Tu evaluación sigue guardada.',
+      formato: 'Tu evaluación está guardada, pero esta versión de la app no la entiende. Actualiza la app y vuelve a intentar.',
+      cargando: 'Cargando tu evaluación…',
+    });
+  });
+  it('programa: "tu programa", en masculino y sin Elite', () => {
+    const x = textosNoSePudoLeer(VOZ_PROGRAMA_NEUTRA);
+    expect(x.etiqueta).toBe('TU PROGRAMA CON ENRIQUE');
+    expect(x.titulo).toBe('No pudimos leer tu programa');
+    expect(x.sigueGuardado).toBe('Tu programa sigue guardado.');
+    expect(x.formato).toBe('Tu programa está guardado, pero esta versión de la app no lo entiende. Actualiza la app y vuelve a intentar.');
+    expect(x.cargando).toBe('Cargando tu programa…');
+    for (const t of Object.values(x)) { expect(ELITE.test(t)).toBe(false); expect(t.includes(EM_DASH)).toBe(false); }
+  });
+});
+
+describe('nivel 2: sin filas de raya en un programa', () => {
+  const sinNada = { valor: 72.4, rango_lab: null, objetivo: null, estado: null } as const;
+  it('Elite: todas las columnas, como siempre', () => {
+    expect(columnasMarcador(sinNada, false)).toEqual({ valor: true, rango: true, objetivo: true, estado: true });
+    expect(mostrarEstado(null, false)).toBe(true);
+  });
+  it('programa: solo las columnas con dato', () => {
+    expect(columnasMarcador(sinNada, true)).toEqual({ valor: true, rango: false, objetivo: false, estado: false });
+    expect(columnasMarcador({ valor: null, rango_lab: { min: null, max: null }, objetivo: { min: 20, max: null }, estado: 'opt' } as never, true))
+      .toEqual({ valor: false, rango: false, objetivo: true, estado: true });
+    expect(mostrarEstado(null, true)).toBe(false);
+    expect(mostrarEstado('att', true)).toBe(true);
+  });
+  it('el PDF de un programa no imprime rayas ni "Sin valor" en marcadores, sistemas ni suplementos', () => {
+    const e = programaConEvaluacion();
+    const m0 = e.marcadores.grupos[0].marcadores[0];
+    e.marcadores.grupos[0].marcadores = [{ ...m0, rango_lab: null, objetivo: null, estado: null, evidencia: null }];
+    e.composicion.filas = [{ ...m0, key: 'peso', nombre: 'Peso', valor: 80, unidad: 'kg', rango_lab: null, objetivo: null, estado: null, evidencia: null }];
+    e.sistemas = [{ key: 'metabolismo', nombre: 'Metabolismo', score: null, estado: null, por_que: 'Se ve bien.' }];
+    e.suplementos = e.suplementos.map((x) => ({ ...x, dosis_cantidad: null, momento: null }));
+    const html = htmlDeEvaluacion(e);
+    const i = html.indexOf(EM_DASH);
+    expect(i < 0 ? '' : html.slice(Math.max(0, i - 120), i + 20)).toBe('');
+    expect(html.includes('Sin valor')).toBe(false);
+    expect(ELITE.test(html)).toBe(false);
+  });
+});
+
+describe('nivel 2: el candado de la ficha del coach (329)', () => {
+  it('se reconoce por su mensaje, nada mas', () => {
+    expect(esFichaDelCoachSoloLectura({ message: 'ficha_del_coach_solo_lectura' })).toBe(true);
+    expect(esFichaDelCoachSoloLectura({ message: 'ERROR: ficha_del_coach_solo_lectura (42501)' })).toBe(true);
+    expect(esFichaDelCoachSoloLectura({ message: 'permission denied for table user_supplements' })).toBe(false);
+    expect(esFichaDelCoachSoloLectura(null)).toBe(false);
+    expect(esFichaDelCoachSoloLectura({ message: 42 })).toBe(false);
+  });
+  it('el aviso dice de quien es y que se puede hacer, sin raya ni marca', () => {
+    for (const t of Object.values(AVISO_FICHA_DEL_COACH)) {
+      expect(ELITE.test(t)).toBe(false);
+      expect(t.includes(EM_DASH)).toBe(false);
+      expect(ROJAS.test(t)).toBe(false);
+    }
+    expect(AVISO_FICHA_DEL_COACH.texto).toMatch(/pausarla/);
+    expect(leerFuente('app/supplements.tsx')).toMatch(/esFichaDelCoachSoloLectura\(error\)/);
+  });
+});
+
+function leerFuente(rel: string): string {
+  return readFileSync(resolve(process.cwd(), rel), 'utf8');
+}

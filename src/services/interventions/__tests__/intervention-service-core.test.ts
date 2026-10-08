@@ -11,6 +11,12 @@ import {
   effectiveTime,
   isValidHHMM,
   SUGGESTED_TOP_COUNT,
+  esPracticaAsignada,
+  esErrorDeColumnaFaltante,
+  leerConCaidaDeAsignacion,
+  COLUMNAS_FILA,
+  COLUMNAS_FILA_SIN_ASIGNACION,
+  type RespuestaDeLectura,
   type UserInterventionRow,
   type ResolvedUserIntervention,
 } from '../intervention-service-core';
@@ -330,5 +336,249 @@ describe('protocolLoadHint (guards doc: 5/8/10)', () => {
   it('bordes exactos: 6 → soft, 9 → strong', () => {
     expect(protocolLoadHint(actives(6)).hint).toBe('soft');
     expect(protocolLoadHint(actives(9)).hint).toBe('strong');
+  });
+});
+
+// ── 8-oct-2026 (nivel 2): prácticas asignadas por el coach (migración 329) ───
+
+const COACH = '90a55e74-0e3d-477a-9ac5-2b339f7c40af';
+
+describe('esPracticaAsignada', () => {
+  it('con assigned_by de un coach → asignada', () => {
+    expect(esPracticaAsignada(row({ intervention_key: 'grounding_earthing', assigned_by: COACH }))).toBe(true);
+  });
+
+  it('assigned_by null → es de la persona o del motor', () => {
+    expect(esPracticaAsignada(row({ intervention_key: 'grounding_earthing', assigned_by: null }))).toBe(false);
+  });
+
+  it('sin el campo (base anterior a la 329 o lectura con el select viejo) → no asignada', () => {
+    const fila = row({ intervention_key: 'grounding_earthing' });
+    expect('assigned_by' in fila).toBe(false);
+    expect(esPracticaAsignada(fila)).toBe(false);
+  });
+
+  it('vacío, espacios o un valor que no es texto → no asignada (nunca se asume)', () => {
+    expect(esPracticaAsignada({ assigned_by: '' })).toBe(false);
+    expect(esPracticaAsignada({ assigned_by: '   ' })).toBe(false);
+    expect(esPracticaAsignada({ assigned_by: 1 as unknown as string })).toBe(false);
+    expect(esPracticaAsignada({ assigned_by: true as unknown as string })).toBe(false);
+    expect(esPracticaAsignada({})).toBe(false);
+    expect(esPracticaAsignada(null)).toBe(false);
+    expect(esPracticaAsignada(undefined)).toBe(false);
+  });
+
+  it('no mira el status: una asignada en pausa sigue siendo asignada', () => {
+    expect(esPracticaAsignada(row({ intervention_key: 'grounding_earthing', status: 'paused', assigned_by: COACH }))).toBe(true);
+    expect(esPracticaAsignada(row({ intervention_key: 'grounding_earthing', status: 'active' }))).toBe(false);
+  });
+});
+
+describe('columnas de la lectura', () => {
+  it('el select nuevo es el de siempre más assigned_by, y el de caída no la nombra', () => {
+    expect(COLUMNAS_FILA).toBe(`${COLUMNAS_FILA_SIN_ASIGNACION}, assigned_by`);
+    expect(COLUMNAS_FILA_SIN_ASIGNACION.includes('assigned_by')).toBe(false);
+  });
+
+  it('el select de caída conserva las 16 columnas de la 171', () => {
+    expect(COLUMNAS_FILA_SIN_ASIGNACION.split(',').map((c) => c.trim())).toEqual([
+      'id', 'user_id', 'intervention_key', 'status', 'priority', 'source_dx_id', 'is_custom', 'is_universal',
+      'custom_definition', 'custom_time', 'computed_time', 'custom_notes', 'custom_dose', 'activated_at',
+      'created_at', 'updated_at',
+    ]);
+  });
+});
+
+describe('esErrorDeColumnaFaltante', () => {
+  it('42703 de PostgREST en un select que nombra la columna', () => {
+    expect(esErrorDeColumnaFaltante({ code: '42703', message: 'column user_interventions.assigned_by does not exist' })).toBe(true);
+  });
+
+  it('PGRST204 (columna desconocida en el caché de esquema)', () => {
+    expect(esErrorDeColumnaFaltante({
+      code: 'PGRST204',
+      message: "Could not find the 'assigned_by' column of 'user_interventions' in the schema cache",
+    })).toBe(true);
+  });
+
+  it('sin code pero con el texto del error (como el precedente sinCampos312)', () => {
+    expect(esErrorDeColumnaFaltante({ message: "Could not find the 'assigned_by' column of 'user_interventions' in the schema cache" })).toBe(true);
+    expect(esErrorDeColumnaFaltante({ message: 'column "assigned_by" does not exist' })).toBe(true);
+  });
+
+  it('solo el código, sin mensaje → se acepta', () => {
+    expect(esErrorDeColumnaFaltante({ code: '42703' })).toBe(true);
+    expect(esErrorDeColumnaFaltante({ code: 'PGRST204', message: '' })).toBe(true);
+  });
+
+  it('42703 de OTRA columna es un error de verdad', () => {
+    expect(esErrorDeColumnaFaltante({ code: '42703', message: 'column user_interventions.custom_time does not exist' })).toBe(false);
+  });
+
+  it('cualquier otro error no se disfraza de columna faltante', () => {
+    expect(esErrorDeColumnaFaltante({ code: '42501', message: 'permission denied for table user_interventions' })).toBe(false);
+    expect(esErrorDeColumnaFaltante({ code: 'PGRST301', message: 'JWT expired' })).toBe(false);
+    expect(esErrorDeColumnaFaltante({ message: 'TypeError: Network request failed' })).toBe(false);
+    // Nombra la columna pero no es un error de columna.
+    expect(esErrorDeColumnaFaltante({ code: '57014', message: 'canceling statement due to statement timeout (assigned_by)' })).toBe(false);
+    expect(esErrorDeColumnaFaltante({})).toBe(false);
+    expect(esErrorDeColumnaFaltante(null)).toBe(false);
+    expect(esErrorDeColumnaFaltante(undefined)).toBe(false);
+  });
+
+  it('sirve para otra columna si se le pide', () => {
+    expect(esErrorDeColumnaFaltante({ code: '42703', message: 'column x.otra does not exist' }, 'otra')).toBe(true);
+  });
+});
+
+describe('leerConCaidaDeAsignacion', () => {
+  const ERR_COLUMNA = { code: '42703', message: 'column user_interventions.assigned_by does not exist' };
+  const ERR_RED = { message: 'TypeError: Network request failed' };
+
+  /** Lector falso: contesta en orden y anota con qué columnas lo llamaron. */
+  function lector<T>(respuestas: RespuestaDeLectura<T>[]) {
+    const pedidos: string[] = [];
+    const leer = async (columnas: string): Promise<RespuestaDeLectura<T>> => {
+      pedidos.push(columnas);
+      const r = respuestas[pedidos.length - 1];
+      if (!r) throw new Error('lectura de más');
+      return r;
+    };
+    return { leer, pedidos };
+  }
+
+  it('base con la 329: una sola lectura, assigned_by tal cual llega', async () => {
+    const filas = [
+      row({ intervention_key: 'grounding_earthing', status: 'active', assigned_by: COACH }),
+      row({ intervention_key: 'hidratacion_matutina', status: 'active', assigned_by: null }),
+    ];
+    const { leer, pedidos } = lector<UserInterventionRow[]>([{ data: filas, error: null }]);
+    const r = await leerConCaidaDeAsignacion(leer);
+    expect(pedidos).toEqual([COLUMNAS_FILA]);
+    expect(r.error).toBeNull();
+    expect(r.sinColumnaAsignacion).toBe(false);
+    expect((r.data ?? []).map(esPracticaAsignada)).toEqual([true, false]);
+  });
+
+  it('base SIN la 329: reintenta una vez sin la columna y nadie queda asignado', async () => {
+    const viejas = [
+      row({ intervention_key: 'grounding_earthing', status: 'active' }),
+      row({ intervention_key: 'hidratacion_matutina', status: 'active' }),
+    ];
+    const { leer, pedidos } = lector<UserInterventionRow[]>([
+      { data: null, error: ERR_COLUMNA },
+      { data: viejas, error: null },
+    ]);
+    const r = await leerConCaidaDeAsignacion(leer);
+    expect(pedidos).toEqual([COLUMNAS_FILA, COLUMNAS_FILA_SIN_ASIGNACION]);
+    expect(r.error).toBeNull();
+    expect(r.sinColumnaAsignacion).toBe(true);
+    expect(r.data).toHaveLength(2);
+    expect((r.data ?? []).every((f) => f.assigned_by === null)).toBe(true);
+    expect((r.data ?? []).some(esPracticaAsignada)).toBe(false);
+    // El resto de la fila llega intacto y resuelve contra el catálogo.
+    expect(resolveRows(r.data ?? []).map((x) => x.row.intervention_key)).toEqual(['grounding_earthing', 'hidratacion_matutina']);
+    // No muta lo que devolvió la base.
+    expect('assigned_by' in viejas[0]).toBe(false);
+  });
+
+  it('PGRST204 también dispara la caída', async () => {
+    const { leer, pedidos } = lector<UserInterventionRow[]>([
+      { data: null, error: { code: 'PGRST204', message: "Could not find the 'assigned_by' column of 'user_interventions' in the schema cache" } },
+      { data: [], error: null },
+    ]);
+    const r = await leerConCaidaDeAsignacion(leer);
+    expect(pedidos).toHaveLength(2);
+    expect(r.error).toBeNull();
+    expect(r.data).toEqual([]);
+  });
+
+  it('lista vacía de verdad sigue siendo lista vacía, sin error', async () => {
+    const { leer, pedidos } = lector<UserInterventionRow[]>([{ data: [], error: null }]);
+    const r = await leerConCaidaDeAsignacion(leer);
+    expect(pedidos).toHaveLength(1);
+    expect(r.data).toEqual([]);
+    expect(r.error).toBeNull();
+  });
+
+  it('otro error NO se reintenta y NO se vuelve lista vacía', async () => {
+    const { leer, pedidos } = lector<UserInterventionRow[]>([{ data: null, error: ERR_RED }]);
+    const r = await leerConCaidaDeAsignacion(leer);
+    expect(pedidos).toHaveLength(1);
+    expect(r.error).toEqual(ERR_RED);
+    expect(r.data).toBeNull();
+    expect(r.sinColumnaAsignacion).toBe(false);
+  });
+
+  it('un error con data parcial tampoco deja pasar la data', async () => {
+    const { leer } = lector<UserInterventionRow[]>([{ data: [], error: ERR_RED }]);
+    const r = await leerConCaidaDeAsignacion(leer);
+    expect(r.data).toBeNull();
+    expect(r.error).toEqual(ERR_RED);
+  });
+
+  it('si el reintento también falla, se devuelve ESE error y data null', async () => {
+    const { leer, pedidos } = lector<UserInterventionRow[]>([
+      { data: null, error: ERR_COLUMNA },
+      { data: null, error: ERR_RED },
+    ]);
+    const r = await leerConCaidaDeAsignacion(leer);
+    expect(pedidos).toHaveLength(2);
+    expect(r.error).toEqual(ERR_RED);
+    expect(r.data).toBeNull();
+    expect(r.sinColumnaAsignacion).toBe(true);
+  });
+
+  it('nunca hay un tercer intento', async () => {
+    const { leer, pedidos } = lector<UserInterventionRow[]>([
+      { data: null, error: ERR_COLUMNA },
+      { data: null, error: ERR_COLUMNA },
+      { data: [], error: null },
+    ]);
+    const r = await leerConCaidaDeAsignacion(leer);
+    expect(pedidos).toHaveLength(2);
+    expect(r.error).toEqual(ERR_COLUMNA);
+    expect(r.data).toBeNull();
+  });
+
+  it('una sola fila (maybeSingle): con caída se marca no asignada', async () => {
+    const vieja = row({ intervention_key: 'grounding_earthing', status: 'active' });
+    const { leer } = lector<UserInterventionRow>([
+      { data: null, error: ERR_COLUMNA },
+      { data: vieja, error: null },
+    ]);
+    const r = await leerConCaidaDeAsignacion(leer);
+    expect(r.error).toBeNull();
+    expect(r.data?.intervention_key).toBe('grounding_earthing');
+    expect(r.data?.assigned_by).toBeNull();
+    expect(esPracticaAsignada(r.data)).toBe(false);
+  });
+
+  it('maybeSingle sin fila: null sin error, con y sin caída', async () => {
+    const a = await leerConCaidaDeAsignacion(lector<UserInterventionRow>([{ data: null, error: null }]).leer);
+    expect(a.data).toBeNull();
+    expect(a.error).toBeNull();
+    const b = await leerConCaidaDeAsignacion(lector<UserInterventionRow>([
+      { data: null, error: ERR_COLUMNA },
+      { data: null, error: null },
+    ]).leer);
+    expect(b.data).toBeNull();
+    expect(b.error).toBeNull();
+    expect(b.sinColumnaAsignacion).toBe(true);
+  });
+
+  it('acepta un thenable como el builder de supabase-js (no solo Promise)', async () => {
+    const pedidos: string[] = [];
+    const leer = (columnas: string): PromiseLike<RespuestaDeLectura<UserInterventionRow[]>> => {
+      pedidos.push(columnas);
+      const respuesta: RespuestaDeLectura<UserInterventionRow[]> = pedidos.length === 1
+        ? { data: null, error: ERR_COLUMNA }
+        : { data: [row({ intervention_key: 'grounding_earthing' })], error: null };
+      return { then: (ok: any, mal?: any) => Promise.resolve(respuesta).then(ok, mal) } as PromiseLike<RespuestaDeLectura<UserInterventionRow[]>>;
+    };
+    const r = await leerConCaidaDeAsignacion(leer);
+    expect(pedidos).toHaveLength(2);
+    expect(r.data).toHaveLength(1);
+    expect(r.data?.[0].assigned_by).toBeNull();
   });
 });

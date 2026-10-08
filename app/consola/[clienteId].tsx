@@ -36,6 +36,8 @@ import { ATP_BRAND, type AppThemeTokens } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import {
   SIN_DATO,
+  SIN_DOCUMENTO,
+  datoDocumento,
   TEXTO_SIN_ADHERENCIA,
   VENTANA_ADHERENCIA_DIAS,
   etiquetaDias,
@@ -113,6 +115,9 @@ export default function ConsolaClienteScreen() {
     }
 
     const pend = pendientesDeCliente(cliente, hoy);
+    const documento = datoDocumento(cliente, cliente.evaluacion
+      ? formatLocalDate(cliente.evaluacion.fecha, { day: 'numeric', month: 'long', year: 'numeric' })
+      : '');
     const temp = cliente.senal.estado === 'ok' ? temperatura(cliente.senal.dias) : 'frio';
     const colorTemp = temp === 'hoy' || temp === 'reciente' ? t.exito
       : temp === 'enfriando' ? t.advertencia : t.critico;
@@ -125,9 +130,9 @@ export default function ConsolaClienteScreen() {
             <EliteText variant="body" style={s.nombre}>{cliente.nombre}</EliteText>
             <EliteText variant="caption" style={s.correo}>{cliente.email}</EliteText>
             <View style={s.separador} />
-            <Dato t={t} etiqueta="Evaluación Elite" valor={cliente.evaluacion
-              ? `Versión ${cliente.evaluacion.version} · ${formatLocalDate(cliente.evaluacion.fecha, { day: 'numeric', month: 'long', year: 'numeric' })}`
-              : null} vacio="Sin evaluación cargada" />
+            {/* 8-oct-2026 (nivel 2): Elite o programa (con su nombre); sin
+                documento, una frase que es verdad para los dos. */}
+            <Dato t={t} etiqueta={documento.etiqueta} valor={documento.valor} vacio={SIN_DOCUMENTO} />
             <Dato t={t} etiqueta="Objetivos" valor={cliente.objetivos.length > 0 ? cliente.objetivos.join(', ') : null}
               vacio="No ha contestado el cuestionario" />
             <Dato t={t} etiqueta="Acceso" valor={cliente.accesoVence

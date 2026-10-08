@@ -46,6 +46,16 @@ export type EliteEvidencia = 1 | 2 | 3 | 4;
 export type EliteSexo = 'male' | 'female';
 
 /**
+ * 8-oct-2026 (nivel 2): un solo documento, dos tipos. 'elite' es la
+ * evaluacion especializada de siempre; 'programa' es el mismo documento con
+ * una evaluacion ligera (las secciones de la evaluacion pueden ir vacias) y
+ * el mismo plan. La llave `tipo` AUSENTE es 'elite': ningun documento cargado
+ * antes de esta fecha la trae y todos siguen leyendose igual.
+ */
+export type EliteTipo = 'elite' | 'programa';
+export const ELITE_TIPOS: readonly EliteTipo[] = ['elite', 'programa'];
+
+/**
  * 21-sep-2026 (migracion 325): nivel de entrenamiento que la carga siembra en
  * `profiles.fitness_level` cuando el cliente no lo declaro. Son tres de los
  * cuatro valores del enum real de la app (224); 'atleta' no se asigna desde
@@ -101,7 +111,23 @@ export interface EliteInicio {
   diferencia_anios: number | null;
   lead: string | null;
   programa_semanas: number | null;
+  /**
+   * 8-oct-2026 (nivel 2): como se llama el programa de este cliente ("Fuerza
+   * y sueno, 12 semanas"). Opcional en los dos tipos; ausente = null. Es lo
+   * que el cliente lee de titulo, por eso tiene tope de largo.
+   */
+  programa_nombre?: string | null;
+  /**
+   * 8-oct-2026 (nivel 2): el dia en que empieza el programa, declarado por
+   * el coach (YYYY-MM-DD). Si viene, manda sobre la fecha de la primera
+   * carga; si no viene, la semana se cuenta desde la primera carga, como
+   * siempre. Opcional en los dos tipos; ausente = null.
+   */
+  programa_inicio?: string | null;
 }
+
+/** Tope del nombre del programa: cabe en una linea del encabezado. */
+export const ELITE_PROGRAMA_NOMBRE_MAX = 60;
 
 export interface EliteConteo {
   total_medido: number | null;
@@ -370,6 +396,9 @@ export interface EliteBloqueRutina {
 /** Slug de exercise_matrix: minusculas, digitos y guiones (barbell-bench-press). */
 const SLUG_MATRIZ = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
+/** Clave del catalogo de practicas: minusculas, digitos y guion bajo (respiracion_478). */
+const SLUG_PRACTICA = /^[a-z0-9]+(_[a-z0-9]+)*$/;
+
 /**
  * Una rutina del plan de entrenamiento (21-sep-2026, migracion 325). La carga
  * la convierte en una rutina real del cliente (`routines` + `blocks`) y la
@@ -409,8 +438,29 @@ export interface EliteRaizDeclarada {
   por_que?: string;
 }
 
+/**
+ * 8-oct-2026 (nivel 2): una practica que el coach asigna desde el documento.
+ * `key` es la clave del catalogo de practicas (interventions-catalog). Aqui
+ * solo se revisa la FORMA: que exista en el catalogo lo comprueba el script
+ * de carga (preparar-payload.js), porque este core corre en el telefono y el
+ * catalogo pesa mas de diez mil lineas. `hora` es HH:MM de 24 horas o null
+ * (sin hora fija). `nota` es la indicacion corta del coach para ese cliente.
+ */
+export interface ElitePractica {
+  key: string;
+  hora?: string | null;
+  nota?: string | null;
+}
+
+/** Tope de practicas asignadas en un documento: mas que eso no es un plan, es una lista. */
+export const ELITE_PRACTICAS_MAX = 12;
+/** Tope de la nota de una practica: una indicacion, no un parrafo. */
+export const ELITE_PRACTICA_NOTA_MAX = 200;
+
 export interface EliteV3 {
   schema: typeof ELITE_V3_SCHEMA;
+  /** 8-oct-2026 (nivel 2): ausente = 'elite'. Ver EliteTipo. */
+  tipo?: EliteTipo;
   version: number;
   /** ISO 8601. */
   generado_en: string;
@@ -420,8 +470,12 @@ export interface EliteV3 {
     nombre_preferido: string;
     sexo: EliteSexo;
     edad: number;
-    /** Fecha de la toma de sangre (YYYY-MM-DD, o YYYY-MM si el documento solo trae el mes). */
-    fecha_toma: string;
+    /**
+     * Fecha de la toma de sangre (YYYY-MM-DD, o YYYY-MM si el documento solo trae el mes).
+     * 8-oct-2026 (nivel 2): null SOLO en un documento `tipo: 'programa'` sin
+     * toma de sangre. En 'elite' sigue siendo obligatoria.
+     */
+    fecha_toma: string | null;
     /**
      * 21-sep-2026 (325): lo que cardio y fitness necesitan para calcular
      * (edad exacta, zonas de FC, nivel del generador). Opcionales; la carga
@@ -450,6 +504,8 @@ export interface EliteV3 {
   entrenamiento: EliteEntrenamiento;
   /** Raices que el clinico declara para el Mapa funcional. Opcional (8-sep-2026). */
   raices?: EliteRaizDeclarada[];
+  /** 8-oct-2026 (nivel 2): practicas asignadas por el coach. Opcional en los dos tipos; ausente = []. */
+  practicas?: ElitePractica[];
   /** HTML completo del entregable (cabe en JSONB). Exento del validador de texto: lo produce el generador de Enrique. */
   html?: string;
 }
@@ -595,8 +651,12 @@ function numEnRango(v: unknown, ruta: string, min: number, max: number, e: Error
   if (!esNum(v) || v < min || v > max) e.push(`${ruta}: numero entre ${min} y ${max} o null`);
 }
 
-/** YYYY-MM-DD que existe en el calendario (el 31 de septiembre no). */
-function esFechaReal(s: string): boolean {
+/**
+ * YYYY-MM-DD que existe en el calendario (el 31 de septiembre no).
+ * 8-oct-2026 (nivel 2): se exporta porque el inicio declarado del programa
+ * se vuelve a revisar al leerlo de la base (programa-elite-core).
+ */
+export function esFechaReal(s: string): boolean {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
   if (!m) return false;
   const anio = Number(m[1]);
@@ -622,6 +682,11 @@ export function validarEliteV3(obj: unknown): { ok: true; valor: EliteV3 } | { o
   if (!esObj(obj)) return { ok: false, errores: ['la evaluacion debe ser un objeto'] };
 
   if (obj.schema !== ELITE_V3_SCHEMA) e.push(`schema: debe ser '${ELITE_V3_SCHEMA}'`);
+  // 8-oct-2026 (nivel 2): sin la llave es 'elite'. Cualquier otro valor (null,
+  // 'Programa', 'nivel2') se rechaza: un tipo mal escrito caeria en silencio
+  // como Elite y el cliente leeria una marca que no le toca.
+  if (obj.tipo !== undefined && !ELITE_TIPOS.includes(obj.tipo as EliteTipo)) e.push("tipo: 'elite' o 'programa' (sin la llave es elite)");
+  const esDocPrograma = obj.tipo === 'programa';
   if (!(esNum(obj.version) && Number.isInteger(obj.version) && obj.version >= 1)) e.push('version: entero >= 1');
   if (!esTexto(obj.generado_en) || !ISO_FECHA.test(obj.generado_en)) e.push('generado_en: fecha ISO obligatoria');
 
@@ -637,7 +702,12 @@ export function validarEliteV3(obj: unknown): { ok: true; valor: EliteV3 } | { o
     if (!esTexto(c.nombre_preferido)) e.push('cliente.nombre_preferido: texto obligatorio');
     if (c.sexo !== 'male' && c.sexo !== 'female') e.push('cliente.sexo: male|female');
     if (!(esNum(c.edad) && Number.isInteger(c.edad) && c.edad >= 0 && c.edad <= 120)) e.push('cliente.edad: entero 0..120');
-    if (!esTexto(c.fecha_toma) || !FECHA_TOMA.test(c.fecha_toma)) e.push('cliente.fecha_toma: YYYY-MM o YYYY-MM-DD');
+    // 8-oct-2026 (nivel 2): un programa puede no tener toma de sangre (null o
+    // sin la llave). En Elite la regla y su mensaje no cambian.
+    const sinToma = c.fecha_toma === null || c.fecha_toma === undefined;
+    if (esDocPrograma) {
+      if (!sinToma && (!esTexto(c.fecha_toma) || !FECHA_TOMA.test(c.fecha_toma))) e.push('cliente.fecha_toma: YYYY-MM o YYYY-MM-DD, o null si el programa no tiene toma de sangre');
+    } else if (!esTexto(c.fecha_toma) || !FECHA_TOMA.test(c.fecha_toma)) e.push('cliente.fecha_toma: YYYY-MM o YYYY-MM-DD');
     // 21-sep-2026 (325): datos que cardio y fitness necesitan. Opcionales;
     // si vienen, con rango sano. Nada se rellena aqui: eso lo hace la carga,
     // y solo donde el cliente no tiene ya el suyo.
@@ -667,6 +737,25 @@ export function validarEliteV3(obj: unknown): { ok: true; valor: EliteV3 } | { o
   const inicio = obj.inicio as Record<string, unknown>;
   ['edad_cronologica', 'edad_atp', 'diferencia_anios', 'programa_semanas'].forEach((k) => numOrNull(inicio[k], `inicio.${k}`, e));
   textoOrNull(inicio.lead, 'inicio.lead', e);
+  // 8-oct-2026 (nivel 2): nombre e inicio declarado del programa. Opcionales
+  // en los dos tipos. El nombre es titulo de pantalla: una linea, con tope.
+  if (inicio.programa_nombre !== undefined && inicio.programa_nombre !== null) {
+    const n = inicio.programa_nombre;
+    if (!esTexto(n) || n.trim().length > ELITE_PROGRAMA_NOMBRE_MAX || /[\r\n\t]/.test(n)) {
+      e.push(`inicio.programa_nombre: texto de una linea, maximo ${ELITE_PROGRAMA_NOMBRE_MAX} caracteres, o null`);
+    } else if (esDocPrograma && /elite/i.test(n)) {
+      // El cliente de un programa nunca lee esa palabra: es el nombre del otro nivel.
+      e.push("inicio.programa_nombre: en un programa el nombre no puede decir 'Elite'");
+    }
+  }
+  if (inicio.programa_inicio !== undefined && inicio.programa_inicio !== null) {
+    const f = inicio.programa_inicio;
+    // El rango de anios atrapa el dedazo (0206, 2206) sin atar la regla al dia
+    // de hoy: un documento guardado tiene que validar igual dentro de un anio.
+    if (!esTexto(f) || !esFechaReal(f) || f < '2020-01-01' || f > '2099-12-31') {
+      e.push('inicio.programa_inicio: YYYY-MM-DD real (del 2020 al 2099) o null');
+    }
+  }
 
   const conteo = obj.conteo as Record<string, unknown>;
   ['total_medido', 'piden_accion', 'valores_medidos', 'hallazgos_adn', 'ejes_quimica', 'ritmo_envejecimiento_meses', 'calidad_estudio']
@@ -894,6 +983,36 @@ export function validarEliteV3(obj: unknown): { ok: true; valor: EliteV3 } | { o
     });
   }
 
+  // 8-oct-2026 (nivel 2): practicas asignadas por el coach. Opcionales en los
+  // dos tipos. Aqui solo la forma; que la clave exista en el catalogo lo
+  // revisa preparar-payload.js antes de cargar.
+  if (obj.practicas !== undefined && obj.practicas !== null) {
+    if (!Array.isArray(obj.practicas)) e.push('practicas: arreglo si viene');
+    else {
+      if (obj.practicas.length > ELITE_PRACTICAS_MAX) e.push(`practicas: maximo ${ELITE_PRACTICAS_MAX}`);
+      const vistas = new Set<string>();
+      obj.practicas.forEach((p, i) => {
+        const ruta = `practicas[${i}]`;
+        if (!esObj(p)) { e.push(`${ruta}: objeto {key, hora, nota}`); return; }
+        if (!esTexto(p.key) || !SLUG_PRACTICA.test(p.key) || p.key.length > 80) {
+          e.push(`${ruta}.key: clave del catalogo de practicas, en minusculas y guion bajo (respiracion_478)`);
+        } else if (p.key.startsWith('custom_')) {
+          // 'custom_<id>' es el espacio de las practicas que crea el cliente:
+          // un documento no puede apuntar a una de esas.
+          e.push(`${ruta}.key: las claves que empiezan con custom_ son de las practicas que crea el cliente`);
+        } else if (vistas.has(p.key)) {
+          e.push(`${ruta}.key: practica repetida (${p.key})`);
+        } else {
+          vistas.add(p.key);
+        }
+        if (p.hora !== undefined && p.hora !== null && !(esTexto(p.hora) && HHMM_RELOJ.test(p.hora))) e.push(`${ruta}.hora: HH:MM de 24 horas o null`);
+        if (p.nota !== undefined && p.nota !== null && !(esTexto(p.nota) && p.nota.trim().length <= ELITE_PRACTICA_NOTA_MAX)) {
+          e.push(`${ruta}.nota: texto de maximo ${ELITE_PRACTICA_NOTA_MAX} caracteres o null`);
+        }
+      });
+    }
+  }
+
   if (obj.html !== undefined && typeof obj.html !== 'string') e.push('html: texto si viene');
 
   // Candado de texto: palabras rojas y em dashes en todo lo que ve el usuario.
@@ -921,12 +1040,17 @@ const METAS_ALIMENTACION = ['proteina_g_dia', 'agua_ml_dia', 'kcal_dia', 'grasa_
  * pintaba "undefined g de proteina". 21-sep-2026 (325): la misma regla para
  * los campos nuevos del cliente (ausente = null), para `comidas` y
  * `rutinas` (ausente = []) y para `slug` de cada bloque (ausente = null).
+ * 8-oct-2026 (nivel 2): lo mismo para `cliente.fecha_toma` (ausente = null,
+ * solo pasa en un programa), `inicio.programa_nombre` e
+ * `inicio.programa_inicio` (ausente = null) y `practicas` (ausente = []).
+ * `tipo` NO se rellena: ausente sigue ausente y se lee con tipoDeDocumento.
  * No se muta la entrada: se devuelve una copia.
  */
 function normalizarEliteV3(obj: Record<string, unknown>): EliteV3 {
   const c = obj.cliente as Record<string, unknown>;
   const cliente = {
     ...c,
+    fecha_toma: esTexto(c.fecha_toma) ? c.fecha_toma : null,
     fecha_nacimiento: esTexto(c.fecha_nacimiento) ? c.fecha_nacimiento : null,
     estatura_cm: esNum(c.estatura_cm) ? c.estatura_cm : null,
     peso_kg: esNum(c.peso_kg) ? c.peso_kg : null,
@@ -969,19 +1093,108 @@ function normalizarEliteV3(obj: Record<string, unknown>): EliteV3 {
       }))
     : [];
 
+  const inicioCrudo = obj.inicio as Record<string, unknown>;
+  const inicio = {
+    ...inicioCrudo,
+    programa_nombre: esTexto(inicioCrudo.programa_nombre) ? inicioCrudo.programa_nombre.trim() : null,
+    programa_inicio: esTexto(inicioCrudo.programa_inicio) ? inicioCrudo.programa_inicio : null,
+  };
+  const practicas: ElitePractica[] = Array.isArray(obj.practicas)
+    ? (obj.practicas as Record<string, unknown>[]).map((p) => ({
+        key: p.key as string,
+        hora: esTexto(p.hora) ? p.hora : null,
+        nota: esTexto(p.nota) ? p.nota.trim() : null,
+      }))
+    : [];
+
   return {
     ...obj,
     cliente,
+    inicio,
     alimentacion: { ...alimentacion, metas, comidas },
     entrenamiento: { ...entrenamiento, rutinas },
+    practicas,
   } as unknown as EliteV3;
+}
+
+// ---------------------------------------------------------------------------
+// Tipo de documento (8-oct-2026, nivel 2)
+// ---------------------------------------------------------------------------
+
+/**
+ * 'programa' solo si el documento lo dice con todas sus letras; todo lo demas
+ * (sin la llave, null, un objeto que no es documento) es 'elite'. Acepta
+ * cualquier cosa porque lo llaman pantallas que todavia estan cargando.
+ */
+export function tipoDeDocumento(doc: { tipo?: unknown } | null | undefined): EliteTipo {
+  return esObj(doc) && doc.tipo === 'programa' ? 'programa' : 'elite';
+}
+
+export function esPrograma(doc: { tipo?: unknown } | null | undefined): boolean {
+  return tipoDeDocumento(doc) === 'programa';
+}
+
+function hayNum(v: unknown): boolean {
+  return typeof v === 'number' && Number.isFinite(v);
+}
+function hayAlgunTexto(xs: unknown): boolean {
+  return Array.isArray(xs) && xs.some(esTexto);
+}
+
+/**
+ * true cuando el documento trae algo de EVALUACION que leer: edades
+ * calculadas, conteo, sistemas, contexto, marcadores, composicion, quimica
+ * cerebral, genetica o cruces. Es lo que decide si al cliente de un programa
+ * se le habla de "tu evaluacion" o solo de "tu programa".
+ *
+ * Sigue las mismas decisiones que `seccionTieneContenido` (mi-programa-core)
+ * para esas secciones, con dos diferencias a proposito:
+ *  - La edad cronologica sola (`inicio.edad_cronologica`, `edades.real`) no
+ *    cuenta: es la edad de la persona, no un resultado.
+ *  - `inicio.programa_semanas` no cuenta: es del plan.
+ * `medico`, `cierre` y los tres manuales del plan tampoco cuentan.
+ *
+ * No se importa `seccionTieneContenido` porque aquel modulo importa este
+ * (seria un ciclo). La equivalencia la amarran las pruebas de este archivo.
+ */
+export function tieneDiagnostico(e: EliteV3): boolean {
+  if (hayNum(e.inicio.edad_atp) || hayNum(e.inicio.diferencia_anios)) return true;
+
+  const c = e.conteo;
+  if ([c.total_medido, c.piden_accion, c.valores_medidos, c.hallazgos_adn, c.ejes_quimica,
+    c.ritmo_envejecimiento_meses, c.calidad_estudio].some(hayNum) || c.mueven_tu_caso !== null) return true;
+
+  const x = e.edades;
+  if ([x.sangre, x.vida, x.atp, x.sf_pct].some(hayNum) || x.detalle.length > 0) return true;
+
+  if (e.sistemas.length > 0) return true;
+
+  if (hayAlgunTexto(e.contexto.parrafos) || esTexto(e.contexto.cita) || hayAlgunTexto(e.contexto.antecedentes)) return true;
+
+  if (e.marcadores.grupos.some((g) => g.marcadores.length > 0) || hayAlgunTexto(e.marcadores.notas)) return true;
+
+  const r = e.composicion.reparto;
+  if (r !== null && [r.peso_kg, r.grasa_pct, r.grasa_kg, r.musculo_pct, r.musculo_kg, r.resto_pct, r.resto_kg].some(hayNum)) return true;
+  if (e.composicion.filas.length > 0) return true;
+
+  const b = e.braverman;
+  if (b.naturaleza !== null || b.desgaste !== null || b.ejes.length > 0 || b.lecturas.length > 0) return true;
+
+  if (e.genetica.hallazgos.length > 0) return true;
+
+  return e.cruces.hilo !== null || e.cruces.lista.length > 0;
 }
 
 // ---------------------------------------------------------------------------
 // Derivados
 // ---------------------------------------------------------------------------
 
-/** Nivel de calidad para functional_dx (170): 5 con genetica, 4 sin ella. */
+/**
+ * Nivel de calidad para functional_dx (170): 5 con genetica, 4 sin ella.
+ * 8-oct-2026 (nivel 2): un programa sin genetica cae en 4, igual que una
+ * Elite sin genetica. No se baja de 4 aqui: la base (321) calcula el suyo con
+ * la misma regla y los dos numeros tienen que coincidir.
+ */
 export function nivelCalidadEliteV3(e: EliteV3): 4 | 5 {
   return e.genetica.hallazgos.length > 0 ? 5 : 4;
 }
@@ -1014,7 +1227,7 @@ function valorTexto(m: EliteMarcador): string {
 export const RESUMEN_ARGOS_MAX = 1800;
 
 /** Tope por bloque para que ningun bloque se coma el presupuesto de los demas. */
-const RESUMEN_TOPES = { att: 720, cruces: 420, suplementos: 320 } as const;
+const RESUMEN_TOPES = { att: 720, cruces: 420, suplementos: 320, practicas: 320 } as const;
 
 /**
  * Arma "prefijo item; item; item." metiendo elementos mientras quepan en
@@ -1035,6 +1248,13 @@ function bloqueLista(prefijo: string, items: string[], max: number): string {
  * 1,800 caracteres: quien es, marcadores en `att`, cruces, palancas y plan
  * de suplementos con dosis. Solo reordena texto ya validado: no agrega
  * palabras rojas ni em dashes. Las listas largas se acortan con "(+N mas)".
+ *
+ * 8-oct-2026 (nivel 2): en un documento `tipo: 'programa'` la primera frase
+ * dice que es el programa del cliente con una evaluacion ligera, nunca
+ * "Elite", y la toma se omite si no hay. Si el documento trae practicas
+ * asignadas se listan despues de los suplementos (en los dos tipos). Un
+ * documento Elite sin practicas produce EXACTAMENTE el mismo texto que antes
+ * (lo amarra un test).
  */
 export function resumenParaArgos(e: EliteV3): string {
   const c = e.cliente;
@@ -1045,7 +1265,22 @@ export function resumenParaArgos(e: EliteV3): string {
 
   const edadAtp = e.inicio.edad_atp !== null ? `, Edad ATP ${e.inicio.edad_atp}` : '';
   const firma = `${e.interpretado_por.evaluacion}${e.interpretado_por.genetica ? `; genetica: ${e.interpretado_por.genetica}` : ''}`;
-  agregar(`Evaluacion Elite v${e.version} de ${c.nombre_preferido}, ${sexo} de ${c.edad} anios${edadAtp} (toma ${c.fecha_toma}). Firma: ${firma}.`);
+  if (esPrograma(e)) {
+    const nombre = e.inicio.programa_nombre ? ` "${e.inicio.programa_nombre}"` : '';
+    const toma = c.fecha_toma ? ` (toma ${c.fecha_toma})` : '';
+    // Duracion e inicio solo si el documento los trae: no se inventa ninguno.
+    const tramos = [
+      e.inicio.programa_semanas !== null ? `dura ${e.inicio.programa_semanas} semanas` : null,
+      e.inicio.programa_inicio ? `empieza el ${e.inicio.programa_inicio}` : null,
+    ].filter((t): t is string => t !== null);
+    const plan = tramos.length ? ` El plan ${tramos.join(' y ')}.` : '';
+    const evaluacion = tieneDiagnostico(e)
+      ? 'Es su programa con una evaluacion ligera: solo se midio lo que aparece aqui.'
+      : 'Es su programa con una evaluacion ligera: no trae laboratorios, composicion corporal ni genetica.';
+    agregar(`Programa${nombre} v${e.version} de ${c.nombre_preferido}, ${sexo} de ${c.edad} anios${edadAtp}${toma}.${plan} ${evaluacion} Firma: ${firma}.`);
+  } else {
+    agregar(`Evaluacion Elite v${e.version} de ${c.nombre_preferido}, ${sexo} de ${c.edad} anios${edadAtp} (toma ${c.fecha_toma}). Firma: ${firma}.`);
+  }
 
   const att = marcadoresDe(e).filter((m) => m.estado === 'att');
   if (att.length) {
@@ -1067,6 +1302,17 @@ export function resumenParaArgos(e: EliteV3): string {
       return `${s.nombre} ${dosis}${tomas} (${s.momento ?? 'hora sin fijar'})`;
     });
     agregar(bloqueLista('Plan de suplementos: ', items, Math.min(RESUMEN_TOPES.suplementos, restante())));
+  }
+
+  // 8-oct-2026 (nivel 2): las practicas que asigno el coach, por clave del
+  // catalogo y con su hora si la tiene. Van junto a los suplementos porque
+  // son parte del plan (lo que ARGOS mas necesita para contestar el dia a
+  // dia); los cruces y los pendientes, que vienen despues, ceden el espacio.
+  // Sin practicas no se agrega nada y el texto es el de siempre.
+  const practicas = e.practicas ?? [];
+  if (practicas.length) {
+    const items = practicas.map((p) => `${p.key}${p.hora ? ` (${p.hora})` : ''}`);
+    agregar(bloqueLista(`Practicas asignadas por su coach (${practicas.length}): `, items, Math.min(RESUMEN_TOPES.practicas, restante())));
   }
 
   if (e.cruces.lista.length) {
@@ -1243,7 +1489,9 @@ export function raicesDetectadas(e: EliteV3): EliteRaizDetectada[] {
 
   for (const r of e.raices ?? []) {
     if (!isValidRoot(r.root_key)) continue;
-    sumar(r.root_key, r.por_que ?? 'Anotada en la evaluacion Elite', r.severity, r.confidence);
+    // 8-oct-2026 (nivel 2): esta frase viaja como fuente de la raiz y el
+    // cliente la puede leer en su Mapa funcional; en un programa no dice Elite.
+    sumar(r.root_key, r.por_que ?? (esPrograma(e) ? 'Anotada en tu programa' : 'Anotada en la evaluacion Elite'), r.severity, r.confidence);
   }
 
   for (const sis of e.sistemas) {

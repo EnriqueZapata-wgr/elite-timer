@@ -10,21 +10,33 @@
  * reales de user_supplements (055 + 167 + 312).
  */
 import { describe, it, expect } from 'vitest';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
+  ELITE_PRACTICAS_MAX,
+  ELITE_PRACTICA_NOTA_MAX,
+  ELITE_PROGRAMA_NOMBRE_MAX,
   ELITE_SECCIONES,
   RESUMEN_ARGOS_MAX,
   esEliteV3,
+  esFechaReal,
+  esPrograma,
   marcadoresDe,
   nivelCalidadEliteV3,
   palabrasRojasEn,
   resumenParaArgos,
   raicesDetectadas,
   suplementosAFilas,
+  tieneDiagnostico,
+  tipoDeDocumento,
   validarEliteV3,
   type EliteV3,
 } from '../elite-v3-core';
+// 8-oct-2026 (nivel 2): solo en la prueba. El core NO importa ninguno de los
+// dos (uno seria un ciclo, el otro son diez mil lineas en el telefono).
+import { seccionTieneContenido } from '../mi-programa-core';
+import { INTERVENTIONS_CATALOG, INTERVENTION_BY_KEY } from '@/src/constants/interventions-catalog';
 
 // Se lee del disco (precedente: tarea-images-contrato.test.ts): el cwd es la
 // raiz del repo tanto en vitest como en el runner sin vitest.
@@ -487,5 +499,530 @@ describe('esEliteV3', () => {
     expect(esEliteV3({ labs: {} })).toBe(false);
     expect(esEliteV3(null)).toBe(false);
     expect(esEliteV3(ejemplo)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8-oct-2026 (nivel 2): un solo documento, dos tipos
+// ---------------------------------------------------------------------------
+//
+// Candados nuevos (no aflojar): un documento SIN `tipo` es Elite y se comporta
+// letra por letra como antes; `tipo: 'programa'` puede no traer toma de sangre
+// ni secciones de evaluacion; las practicas se revisan por forma; la plantilla
+// `programa_ejemplo.json` valida; y ningun texto que este core genera para un
+// programa dice "Elite".
+
+const programaEjemplo: unknown = JSON.parse(
+  readFileSync(resolve(process.cwd(), 'R and D/diagnostico/programa_ejemplo.json'), 'utf8'),
+);
+
+function clonPrograma(): Record<string, any> {
+  return JSON.parse(JSON.stringify(programaEjemplo));
+}
+
+function valido(obj: unknown): EliteV3 {
+  const r = validarEliteV3(obj);
+  if (!r.ok) throw new Error(r.errores.join('\n'));
+  return r.valor;
+}
+
+function sha256(texto: string): string {
+  return createHash('sha256').update(texto, 'utf8').digest('hex');
+}
+
+/** Todos los textos de un objeto, con su ruta. */
+function textosDe(v: unknown, ruta = ''): { ruta: string; texto: string }[] {
+  if (typeof v === 'string') return [{ ruta, texto: v }];
+  if (Array.isArray(v)) return v.flatMap((x, i) => textosDe(x, `${ruta}[${i}]`));
+  if (v && typeof v === 'object') return Object.entries(v).flatMap(([k, x]) => textosDe(x, ruta ? `${ruta}.${k}` : k));
+  return [];
+}
+
+describe('nivel 2: un documento sin tipo sigue siendo Elite, igual que antes', () => {
+  it('el ejemplo real valida sin tocarlo y es de tipo elite', () => {
+    const e = valido(ejemplo);
+    expect(tipoDeDocumento(e)).toBe('elite');
+    expect(esPrograma(e)).toBe(false);
+    // `tipo` no se rellena: ausente sigue ausente.
+    expect('tipo' in (e as unknown as Record<string, unknown>)).toBe(false);
+    expect(tieneDiagnostico(e)).toBe(true);
+  });
+
+  it('lo unico que la normalizacion le agrega son las tres llaves nuevas, vacias', () => {
+    const e = valido(ejemplo) as unknown as Record<string, any>;
+    expect(e.practicas).toEqual([]);
+    expect(e.inicio.programa_nombre).toBeNull();
+    expect(e.inicio.programa_inicio).toBeNull();
+    expect(e.cliente.fecha_toma).toBe('2026-05');
+    const sinNuevas = JSON.parse(JSON.stringify(e));
+    delete sinNuevas.practicas;
+    delete sinNuevas.inicio.programa_nombre;
+    delete sinNuevas.inicio.programa_inicio;
+    const antes = clon();
+    // Lo que ya normalizaba la 325 (cliente, metas, comidas, rutinas).
+    Object.assign(antes.cliente, { fecha_nacimiento: null, estatura_cm: null, peso_kg: null, nivel_fitness: null, fc_reposo: null });
+    antes.alimentacion.metas = null;
+    antes.alimentacion.comidas = [];
+    antes.entrenamiento.rutinas = [];
+    expect(sinNuevas).toEqual(antes);
+  });
+
+  it('el resumen para ARGOS del ejemplo es letra por letra el de antes del nivel 2', () => {
+    const texto = resumenParaArgos(valido(ejemplo));
+    expect(texto.startsWith('Evaluacion Elite v1 de O., hombre de 38 anios, Edad ATP 44.5 (toma 2026-05). Firma: Enrique Zapata; genetica: Proveedor de interpretacion genetica.')).toBe(true);
+    expect(texto).toHaveLength(1796);
+    // Huella del texto que producia el codigo ANTES del 8-oct-2026. Si el
+    // ejemplo cambia a proposito, se recalcula; si cambia sola, algo movio
+    // el texto que ARGOS lee de los clientes Elite.
+    expect(sha256(texto)).toBe('bfea522623ffa428eb3d30bb1ec1c8bc211515d7e0b2f4e33f93fec7546e4aa9');
+  });
+
+  it('en Elite la toma sigue siendo obligatoria y el mensaje no cambio', () => {
+    const sinToma = clon();
+    sinToma.cliente.fecha_toma = null;
+    expect(erroresDe(sinToma)).toContain('cliente.fecha_toma: YYYY-MM o YYYY-MM-DD');
+    const sinLlave = clon();
+    delete sinLlave.cliente.fecha_toma;
+    expect(erroresDe(sinLlave)).toContain('cliente.fecha_toma: YYYY-MM o YYYY-MM-DD');
+    const explicito = clon();
+    explicito.tipo = 'elite';
+    explicito.cliente.fecha_toma = null;
+    expect(erroresDe(explicito)).toContain('cliente.fecha_toma: YYYY-MM o YYYY-MM-DD');
+  });
+
+  it('tipo explicito elite valida y se comporta igual', () => {
+    const o = clon();
+    o.tipo = 'elite';
+    const e = valido(o);
+    expect(tipoDeDocumento(e)).toBe('elite');
+    expect(resumenParaArgos(e)).toBe(resumenParaArgos(valido(ejemplo)));
+  });
+
+  it('un tipo que no es elite ni programa se rechaza (no cae en silencio como Elite)', () => {
+    for (const malo of ['Programa', 'nivel2', '', null, 2, true]) {
+      const o = clon();
+      o.tipo = malo;
+      expect(erroresDe(o).join(' ')).toContain("tipo: 'elite' o 'programa'");
+    }
+  });
+
+  it('tipoDeDocumento aguanta lo que le llegue de una pantalla que esta cargando', () => {
+    expect(tipoDeDocumento(null)).toBe('elite');
+    expect(tipoDeDocumento(undefined)).toBe('elite');
+    expect(tipoDeDocumento({})).toBe('elite');
+    expect(tipoDeDocumento({ tipo: 'PROGRAMA' })).toBe('elite');
+    expect(tipoDeDocumento({ tipo: 'programa' })).toBe('programa');
+    expect(esPrograma({ tipo: 'programa' })).toBe(true);
+  });
+});
+
+describe('nivel 2: la plantilla programa_ejemplo.json', () => {
+  it('valida completa y es de tipo programa', () => {
+    const e = valido(programaEjemplo);
+    expect(tipoDeDocumento(e)).toBe('programa');
+    expect(esPrograma(e)).toBe(true);
+    for (const s of ELITE_SECCIONES) expect((e as unknown as Record<string, unknown>)[s]).toBeDefined();
+    expect(e.cierre.palancas).toHaveLength(3);
+    expect(e.cliente.fecha_toma).toBeNull();
+    expect(e.inicio.programa_nombre).toBe('Fuerza y sueño');
+    expect(e.inicio.programa_inicio).toBe('2026-10-12');
+    expect(e.inicio.programa_semanas).toBe(12);
+    expect(e.suplementos.length).toBeGreaterThan(0);
+    expect(e.entrenamiento.rutinas?.length ?? 0).toBeGreaterThan(0);
+    expect(e.alimentacion.comidas?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it('trae de 3 a 5 practicas y todas existen en el catalogo', () => {
+    const e = valido(programaEjemplo);
+    const practicas = e.practicas ?? [];
+    expect(practicas.length).toBeGreaterThanOrEqual(3);
+    expect(practicas.length).toBeLessThanOrEqual(5);
+    for (const p of practicas) expect(INTERVENTION_BY_KEY[p.key]).toBeDefined();
+  });
+
+  it('no trae evaluacion: tieneDiagnostico es false', () => {
+    expect(tieneDiagnostico(valido(programaEjemplo))).toBe(false);
+  });
+
+  it('ningun texto de la plantilla dice Elite (el esquema se llama elite_v3, eso no lo lee el cliente)', () => {
+    const { schema: _schema, ...resto } = clonPrograma();
+    const conMarca = textosDe(resto).filter((t) => /elite/i.test(t.texto)).map((t) => t.ruta);
+    expect(conMarca).toEqual([]);
+  });
+
+  it('validar lo ya validado da lo mismo (lo guardado en la base se vuelve a leer con este validador)', () => {
+    const una = valido(programaEjemplo);
+    const dos = valido(JSON.parse(JSON.stringify(una)));
+    expect(dos).toEqual(una);
+  });
+
+  it('el plan de suplementos sale a filas igual que en Elite', () => {
+    const filas = suplementosAFilas(valido(programaEjemplo), 'u1');
+    expect(filas).toHaveLength(3);
+    expect(filas[0]).toMatchObject({ source: 'coach', is_plan: true, timing: 'bedtime', amount_per_unit: 200, amount_unit: 'mg' });
+  });
+});
+
+describe('nivel 2: lo que un programa puede omitir y lo que no', () => {
+  it('la toma puede faltar (null o sin la llave) y queda en null', () => {
+    const sinLlave = clonPrograma();
+    delete sinLlave.cliente.fecha_toma;
+    expect(valido(sinLlave).cliente.fecha_toma).toBeNull();
+  });
+
+  it('si trae toma, tiene que tener forma de fecha', () => {
+    const o = clonPrograma();
+    o.cliente.fecha_toma = '2026-09-20';
+    expect(valido(o).cliente.fecha_toma).toBe('2026-09-20');
+    o.cliente.fecha_toma = 'septiembre';
+    expect(erroresDe(o).join(' ')).toContain('cliente.fecha_toma');
+    o.cliente.fecha_toma = '';
+    expect(erroresDe(o).join(' ')).toContain('cliente.fecha_toma');
+  });
+
+  it('las 15 secciones siguen siendo obligatorias (las builds ya instaladas las exigen)', () => {
+    for (const s of ELITE_SECCIONES) {
+      const o = clonPrograma();
+      delete o[s];
+      expect(erroresDe(o)).toContain(`${s}: seccion faltante`);
+    }
+  });
+
+  it('siguen siendo exactamente tres palancas', () => {
+    const o = clonPrograma();
+    o.cierre.palancas.pop();
+    expect(erroresDe(o)).toContain('cierre.palancas: exactamente tres');
+  });
+
+  it('el candado de texto aplica igual: palabra roja y em dash se rechazan', () => {
+    const roja = clonPrograma();
+    roja.cierre.palancas[0].como = 'Este es tu tratamiento de doce semanas.';
+    expect(erroresDe(roja).join(' ')).toContain('palabra roja (tratamiento)');
+    const raya = clonPrograma();
+    raya.inicio.lead = 'Doce semanas \u2014 fuerza y descanso.';
+    expect(erroresDe(raya).join(' ')).toContain('em dash');
+  });
+
+  it('el sexo se declara: sin el, no valida (no se supone)', () => {
+    const o = clonPrograma();
+    delete o.cliente.sexo;
+    expect(erroresDe(o)).toContain('cliente.sexo: male|female');
+  });
+});
+
+describe('nivel 2: nombre e inicio declarado del programa', () => {
+  it('el nombre se guarda sin espacios a los lados', () => {
+    const o = clonPrograma();
+    o.inicio.programa_nombre = '  Fuerza y sueño  ';
+    expect(valido(o).inicio.programa_nombre).toBe('Fuerza y sueño');
+  });
+
+  it('sin la llave o en null, queda en null', () => {
+    const o = clonPrograma();
+    delete o.inicio.programa_nombre;
+    delete o.inicio.programa_inicio;
+    const e = valido(o);
+    expect(e.inicio.programa_nombre).toBeNull();
+    expect(e.inicio.programa_inicio).toBeNull();
+  });
+
+  it('rechaza nombre vacio, de mas de una linea, demasiado largo o que no es texto', () => {
+    for (const malo of ['', '   ', 'Fuerza\ny sueño', 'x'.repeat(ELITE_PROGRAMA_NOMBRE_MAX + 1), 12]) {
+      const o = clonPrograma();
+      o.inicio.programa_nombre = malo;
+      expect(erroresDe(o).join(' ')).toContain('inicio.programa_nombre');
+    }
+    const justo = clonPrograma();
+    justo.inicio.programa_nombre = 'x'.repeat(ELITE_PROGRAMA_NOMBRE_MAX);
+    expect(validarEliteV3(justo).ok).toBe(true);
+  });
+
+  it('el nombre pasa por el candado de texto como cualquier otro', () => {
+    const roja = clonPrograma();
+    roja.inicio.programa_nombre = 'Tratamiento de 12 semanas';
+    expect(erroresDe(roja).join(' ')).toContain('inicio.programa_nombre: palabra roja (tratamiento)');
+    const raya = clonPrograma();
+    raya.inicio.programa_nombre = 'Fuerza \u2014 sueño';
+    expect(erroresDe(raya).join(' ')).toContain('inicio.programa_nombre: em dash');
+  });
+
+  it('en un programa el nombre no puede decir Elite; en Elite si', () => {
+    const o = clonPrograma();
+    o.inicio.programa_nombre = 'Plan ELITE 12 semanas';
+    expect(erroresDe(o).join(' ')).toContain("no puede decir 'Elite'");
+    const elite = clon();
+    elite.inicio.programa_nombre = 'Plan Elite 12 semanas';
+    expect(valido(elite).inicio.programa_nombre).toBe('Plan Elite 12 semanas');
+  });
+
+  it('el inicio declarado es una fecha real YYYY-MM-DD', () => {
+    for (const malo of ['2026-09-31', '2026-9-1', '12/10/2026', '2026-10', '2026-10-12T00:00:00Z', '1999-01-01', '2206-10-12', '', 20261012]) {
+      const o = clonPrograma();
+      o.inicio.programa_inicio = malo;
+      expect(erroresDe(o).join(' ')).toContain('inicio.programa_inicio');
+    }
+    const bisiesto = clonPrograma();
+    bisiesto.inicio.programa_inicio = '2028-02-29';
+    expect(valido(bisiesto).inicio.programa_inicio).toBe('2028-02-29');
+  });
+
+  it('nombre e inicio tambien se aceptan en un documento Elite', () => {
+    const o = clon();
+    o.inicio.programa_nombre = 'Regreso a la base';
+    o.inicio.programa_inicio = '2026-10-12';
+    const e = valido(o);
+    expect(e.inicio.programa_nombre).toBe('Regreso a la base');
+    expect(e.inicio.programa_inicio).toBe('2026-10-12');
+    expect(tipoDeDocumento(e)).toBe('elite');
+  });
+
+  it('esFechaReal no acepta dias que no existen', () => {
+    expect(esFechaReal('2026-10-12')).toBe(true);
+    expect(esFechaReal('2026-02-29')).toBe(false);
+    expect(esFechaReal('2026-13-01')).toBe(false);
+    expect(esFechaReal('2026-10-12 ')).toBe(false);
+  });
+});
+
+describe('nivel 2: practicas asignadas', () => {
+  it('ausente o null queda en []', () => {
+    const sin = clonPrograma();
+    delete sin.practicas;
+    expect(valido(sin).practicas).toEqual([]);
+    const nula = clonPrograma();
+    nula.practicas = null;
+    expect(valido(nula).practicas).toEqual([]);
+  });
+
+  it('normaliza hora y nota: ausente = null, nota sin espacios a los lados', () => {
+    const o = clonPrograma();
+    o.practicas = [{ key: 'respiracion_478' }, { key: 'box_breathing_4444', hora: '06:05', nota: '  Antes del café.  ' }];
+    expect(valido(o).practicas).toEqual([
+      { key: 'respiracion_478', hora: null, nota: null },
+      { key: 'box_breathing_4444', hora: '06:05', nota: 'Antes del café.' },
+    ]);
+  });
+
+  it('tambien se aceptan en un documento Elite', () => {
+    const o = clon();
+    o.practicas = [{ key: 'respiracion_478', hora: '22:00', nota: null }];
+    expect(valido(o).practicas).toEqual([{ key: 'respiracion_478', hora: '22:00', nota: null }]);
+  });
+
+  it('rechaza lo que no es arreglo o no es objeto', () => {
+    const o = clonPrograma();
+    o.practicas = { key: 'respiracion_478' };
+    expect(erroresDe(o)).toContain('practicas: arreglo si viene');
+    o.practicas = ['respiracion_478'];
+    expect(erroresDe(o).join(' ')).toContain('practicas[0]: objeto');
+  });
+
+  it('la clave tiene forma de clave del catalogo', () => {
+    for (const mala of ['', 'Respiracion 478', 'respiracion-478', 'respiración_478', '_respiracion', 'respiracion__478', 'x'.repeat(81), 478]) {
+      const o = clonPrograma();
+      o.practicas = [{ key: mala }];
+      expect(erroresDe(o).join(' ')).toContain('practicas[0].key');
+    }
+  });
+
+  it('no apunta a una practica creada por el cliente (custom_)', () => {
+    const o = clonPrograma();
+    o.practicas = [{ key: 'custom_1234abcd' }];
+    expect(erroresDe(o).join(' ')).toContain('custom_');
+  });
+
+  it('no admite la misma practica dos veces', () => {
+    const o = clonPrograma();
+    o.practicas = [{ key: 'respiracion_478', hora: '07:00' }, { key: 'respiracion_478', hora: '22:00' }];
+    expect(erroresDe(o)).toContain('practicas[1].key: practica repetida (respiracion_478)');
+  });
+
+  it('tope de practicas', () => {
+    const claves = INTERVENTIONS_CATALOG.map((i) => i.key);
+    const o = clonPrograma();
+    o.practicas = claves.slice(0, ELITE_PRACTICAS_MAX).map((key) => ({ key }));
+    expect(validarEliteV3(o).ok).toBe(true);
+    o.practicas = claves.slice(0, ELITE_PRACTICAS_MAX + 1).map((key) => ({ key }));
+    expect(erroresDe(o)).toContain(`practicas: maximo ${ELITE_PRACTICAS_MAX}`);
+  });
+
+  it('la hora es de reloj de 24 horas o null', () => {
+    for (const mala of ['7:30', '25:00', '07:60', '0730', '', 730]) {
+      const o = clonPrograma();
+      o.practicas = [{ key: 'respiracion_478', hora: mala }];
+      expect(erroresDe(o)).toContain('practicas[0].hora: HH:MM de 24 horas o null');
+    }
+    const o = clonPrograma();
+    o.practicas = [{ key: 'respiracion_478', hora: '00:00' }, { key: 'box_breathing_4444', hora: '23:59' }];
+    expect(validarEliteV3(o).ok).toBe(true);
+  });
+
+  it('la nota es corta y pasa por el candado de texto', () => {
+    const larga = clonPrograma();
+    larga.practicas = [{ key: 'respiracion_478', nota: 'x'.repeat(ELITE_PRACTICA_NOTA_MAX + 1) }];
+    expect(erroresDe(larga).join(' ')).toContain('practicas[0].nota');
+    const vacia = clonPrograma();
+    vacia.practicas = [{ key: 'respiracion_478', nota: '   ' }];
+    expect(erroresDe(vacia).join(' ')).toContain('practicas[0].nota');
+    const roja = clonPrograma();
+    roja.practicas = [{ key: 'respiracion_478', nota: 'Esto cura el insomnio.' }];
+    expect(erroresDe(roja).join(' ')).toContain('practicas[0].nota: palabra roja (cura)');
+  });
+
+  it('todas las claves del catalogo real pasan la forma y el candado de texto', () => {
+    expect(INTERVENTIONS_CATALOG.length).toBeGreaterThan(50);
+    const malas: string[] = [];
+    for (const i of INTERVENTIONS_CATALOG) {
+      const o = clonPrograma();
+      o.practicas = [{ key: i.key }];
+      if (!validarEliteV3(o).ok) malas.push(i.key);
+    }
+    expect(malas).toEqual([]);
+  });
+});
+
+describe('nivel 2: tieneDiagnostico', () => {
+  const DIAGNOSTICAS = ['conteo', 'edades', 'sistemas', 'contexto', 'marcadores', 'composicion', 'braverman', 'genetica', 'cruces'] as const;
+  const omar = () => valido(ejemplo);
+
+  /** Un programa vacio al que se le copia UNA seccion del ejemplo real. */
+  function conSeccionDeOmar(seccion: string): EliteV3 {
+    const o = clonPrograma();
+    o[seccion] = JSON.parse(JSON.stringify((ejemplo as Record<string, unknown>)[seccion]));
+    // Genetica exige quien la firma.
+    if (seccion === 'genetica') o.interpretado_por.genetica = 'Proveedor de interpretacion genetica';
+    return valido(o);
+  }
+
+  it('cada seccion de la evaluacion, sola, la enciende', () => {
+    for (const s of DIAGNOSTICAS) expect(tieneDiagnostico(conSeccionDeOmar(s))).toBe(true);
+  });
+
+  it('coincide con seccionTieneContenido en esas nueve secciones', () => {
+    const casos: EliteV3[] = [omar(), valido(programaEjemplo), ...DIAGNOSTICAS.map((s) => conSeccionDeOmar(s))];
+    for (const e of casos) {
+      const porSecciones = DIAGNOSTICAS.some((s) => seccionTieneContenido(e, s));
+      // Las edades calculadas de Inicio se suman aparte (ver el siguiente test).
+      const porInicio = e.inicio.edad_atp !== null || e.inicio.diferencia_anios !== null;
+      expect(tieneDiagnostico(e)).toBe(porSecciones || porInicio);
+    }
+  });
+
+  it('la Edad ATP de Inicio cuenta; la edad cronologica sola y las semanas del plan, no', () => {
+    const conAtp = clonPrograma();
+    conAtp.inicio.edad_atp = 36.5;
+    expect(tieneDiagnostico(valido(conAtp))).toBe(true);
+    const conDif = clonPrograma();
+    conDif.inicio.diferencia_anios = -1.2;
+    expect(tieneDiagnostico(valido(conDif))).toBe(true);
+
+    const soloEdad = clonPrograma();
+    soloEdad.inicio.edad_cronologica = 34;
+    soloEdad.edades.real = 34;
+    const e = valido(soloEdad);
+    expect(e.inicio.programa_semanas).toBe(12);
+    expect(tieneDiagnostico(e)).toBe(false);
+  });
+
+  it('lo que es del plan o del medico no la enciende', () => {
+    const o = clonPrograma();
+    o.medico.intro = 'Estos estudios los pedimos con tu médico de cabecera.';
+    o.medico.pendientes = [{ que: 'Biometría completa', por_que: 'Para tener una base.', con_quien: 'Tu médico de cabecera' }];
+    o.marcadores.intro = 'Cuando tengamos tus análisis, aquí van.';
+    o.braverman.intro = 'El test de química cerebral se aplica en la semana 2.';
+    o.genetica.intro = 'Sin estudio genético por ahora.';
+    expect(tieneDiagnostico(valido(o))).toBe(false);
+  });
+
+  it('una sola fila de composicion o un reparto con un numero la enciende', () => {
+    const fila = clonPrograma();
+    fila.composicion.filas = [{ key: 'peso', nombre: 'Peso', valor: 62, unidad: 'kg', rango_lab: null, objetivo: null, estado: 'opt', fuente: ['lab'], evidencia: null, estimado: false }];
+    expect(tieneDiagnostico(valido(fila))).toBe(true);
+    const reparto = clonPrograma();
+    reparto.composicion.reparto = { peso_kg: 62, grasa_pct: null, grasa_kg: null, musculo_pct: null, musculo_kg: null, resto_pct: null, resto_kg: null };
+    expect(tieneDiagnostico(valido(reparto))).toBe(true);
+    const repartoVacio = clonPrograma();
+    repartoVacio.composicion.reparto = { peso_kg: null, grasa_pct: null, grasa_kg: null, musculo_pct: null, musculo_kg: null, resto_pct: null, resto_kg: null };
+    expect(tieneDiagnostico(valido(repartoVacio))).toBe(false);
+  });
+});
+
+describe('nivel 2: lo que este core le escribe a un programa', () => {
+  it('el resumen para ARGOS dice programa, nunca Elite, y no menciona una toma que no hubo', () => {
+    const texto = resumenParaArgos(valido(programaEjemplo));
+    expect(texto.startsWith('Programa "Fuerza y sueño" v1 de Ana Ejemplo, mujer de 34 anios. El plan dura 12 semanas y empieza el 2026-10-12. Es su programa con una evaluacion ligera: no trae laboratorios, composicion corporal ni genetica. Firma: Enrique Zapata.')).toBe(true);
+    expect(texto).not.toMatch(/elite/i);
+    expect(texto).not.toMatch(/toma/i);
+    expect(texto).not.toMatch(/null|undefined/);
+    expect(texto.length).toBeLessThanOrEqual(RESUMEN_ARGOS_MAX);
+    expect(palabrasRojasEn(texto)).toEqual([]);
+    expect(texto.includes('\u2014')).toBe(false);
+    expect(texto).toContain('Palancas: 1) Fuerza tres días por semana');
+    expect(texto).toContain('Plan de suplementos: Magnesio (glicinato) 200 mg x1 (bedtime)');
+    expect(texto).toContain('Practicas asignadas por su coach (5): hidratacion_matutina (07:00); exposicion_solar_matutina (07:30); caminata_postprandial;');
+  });
+
+  it('sin nombre, sin semanas y sin inicio no inventa ninguno de los tres', () => {
+    const o = clonPrograma();
+    o.inicio.programa_nombre = null;
+    o.inicio.programa_inicio = null;
+    o.inicio.programa_semanas = null;
+    o.practicas = [];
+    const texto = resumenParaArgos(valido(o));
+    expect(texto.startsWith('Programa v1 de Ana Ejemplo, mujer de 34 anios. Es su programa con una evaluacion ligera:')).toBe(true);
+    expect(texto).not.toMatch(/semanas|empieza|Practicas/);
+  });
+
+  it('con toma y con evaluacion ligera lo dice asi', () => {
+    const o = clonPrograma();
+    o.cliente.fecha_toma = '2026-09-20';
+    o.sistemas = JSON.parse(JSON.stringify((ejemplo as Record<string, any>).sistemas));
+    const texto = resumenParaArgos(valido(o));
+    expect(texto).toContain('(toma 2026-09-20)');
+    expect(texto).toContain('solo se midio lo que aparece aqui');
+    expect(texto).not.toMatch(/elite/i);
+  });
+
+  it('un programa cargado de marcadores sigue cabiendo en el tope', () => {
+    const o = clon();
+    o.tipo = 'programa';
+    o.inicio.programa_nombre = 'Programa de doce semanas con evaluación completa';
+    o.practicas = INTERVENTIONS_CATALOG.slice(0, ELITE_PRACTICAS_MAX).map((i) => ({ key: i.key, hora: '07:00' }));
+    const texto = resumenParaArgos(valido(o));
+    expect(texto.length).toBeLessThanOrEqual(RESUMEN_ARGOS_MAX);
+    expect(texto).not.toMatch(/elite/i);
+  });
+
+  it('en Elite, las practicas entran despues de los suplementos y el resto del texto no cambia', () => {
+    const o = clon();
+    // Se acorta el documento para que haya espacio y nada se recorte (el
+    // ejemplo completo ya llena el tope: ahi las practicas le quitan lugar
+    // a los cruces, que es la prioridad que se eligio).
+    o.cruces.lista = o.cruces.lista.slice(0, 2);
+    o.cruces.hilo = { variable: 'Alcohol', en: 2, de: 2 };
+    o.medico.pendientes = o.medico.pendientes.slice(0, 1);
+    const sin = resumenParaArgos(valido(o));
+    o.practicas = [{ key: 'respiracion_478', hora: '22:00' }];
+    const con = resumenParaArgos(valido(o));
+    const bloque = ' Practicas asignadas por su coach (1): respiracion_478 (22:00).';
+    expect(con).toContain(bloque);
+    expect(con.replace(bloque, '')).toBe(sin);
+    expect(con.indexOf('Plan de suplementos:')).toBeLessThan(con.indexOf(bloque));
+    expect(con.indexOf(bloque)).toBeLessThan(con.indexOf('Cruces:'));
+    expect(con.length).toBeLessThanOrEqual(RESUMEN_ARGOS_MAX);
+  });
+
+  it('la raiz declarada sin porque no lleva la marca Elite en un programa; en Elite, la de siempre', () => {
+    const o = clonPrograma();
+    o.raices = [{ root_key: 'deficit_sueno_profundo' }];
+    expect(raicesDetectadas(valido(o))[0].sources).toEqual(['Anotada en tu programa']);
+    const elite = clon();
+    elite.raices = [{ root_key: 'sobrecarga_hepatica' }];
+    const hepatica = raicesDetectadas(valido(elite)).find((x) => x.root_key === 'sobrecarga_hepatica');
+    expect(hepatica?.sources).toEqual(['Anotada en la evaluacion Elite']);
+  });
+
+  it('nivel de calidad: 4 sin genetica, igual que una Elite sin genetica', () => {
+    expect(nivelCalidadEliteV3(valido(programaEjemplo))).toBe(4);
   });
 });

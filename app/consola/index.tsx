@@ -10,6 +10,11 @@
  * (quien ya no es Elite hoy pero tiene mapa funcional o suplementos de antes:
  * el otro producto). Debajo, lo que le TOCA a Enrique dar de alta.
  *
+ * 8-oct-2026 (nivel 2): el primer segmento es el de coaching, "Elite y
+ * programa": quien tiene un programa cargado (el mismo documento con
+ * `tipo: 'programa'`) va ahi con su chip "Programa". El rojo de quien no
+ * tiene documento dice "Sin evaluación ni programa cargados".
+ *
  * El candado es de servidor: RLS solo deja leer datos de salud de quien tiene
  * fila activa en `coach_clients` con `coach_id = auth.uid()`. Esta pantalla
  * ademas se cierra si `admin_users` no reconoce la sesion, pero ese es el
@@ -36,6 +41,7 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { ATP_BRAND, withOpacity, type AppThemeTokens } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import {
+  chipDeNivel,
   esElite,
   esSeguimiento,
   etiquetaDias,
@@ -127,6 +133,7 @@ export default function ConsolaScreen() {
   const renglon = (c: ClienteConsola, i: number) => {
     const pend = pendientesDeCliente(c, hoy);
     const temp = c.senal.estado === 'ok' ? temperatura(c.senal.dias) : 'frio';
+    const nivel = chipDeNivel(c);
     return (
       <Animated.View key={c.id} entering={FadeInUp.delay(40 + i * 30).springify()}>
         <AnimatedPressable
@@ -135,7 +142,14 @@ export default function ConsolaScreen() {
         >
           <View style={s.filaTop}>
             <View style={{ flex: 1 }}>
-              <EliteText variant="body" style={s.nombre}>{c.nombre}</EliteText>
+              <View style={s.nombreFila}>
+                <EliteText variant="body" style={[s.nombre, s.nombreFlex]}>{c.nombre}</EliteText>
+                {nivel ? (
+                  <View style={[s.chip, { borderColor: t.bordeMarcado }]}>
+                    <EliteText variant="caption" style={[s.chipTexto, { color: t.textoSecundario }]}>{nivel}</EliteText>
+                  </View>
+                ) : null}
+              </View>
               <View style={s.senalFila}>
                 <View style={[s.punto, { backgroundColor: colorSenal(temp, t) }]} />
                 <EliteText variant="caption" style={[s.senalTexto, { color: colorSenal(temp, t) }]}>
@@ -219,7 +233,7 @@ export default function ConsolaScreen() {
     return (
       <ScrollView contentContainerStyle={s.contenido} showsVerticalScrollIndicator={false}>
         <View style={s.segmentos}>
-          {([['elite', `Elite (${elite.length + sinClasificar.length})`],
+          {([['elite', `Elite y programa (${elite.length + sinClasificar.length})`],
              ['seguimiento', `Seguimientos (${seguimientos.length})`]] as const).map(([id, label]) => (
             <AnimatedPressable
               key={id}
@@ -314,6 +328,8 @@ const makeStyles = (t: AppThemeTokens) => StyleSheet.create({
   },
   filaTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   nombre: { color: t.texto, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  nombreFila: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  nombreFlex: { flexShrink: 1 },
   senalFila: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
   punto: { width: 8, height: 8, borderRadius: 4 },
   senalTexto: { fontSize: FontSizes.sm },

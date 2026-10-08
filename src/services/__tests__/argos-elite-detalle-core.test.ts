@@ -17,6 +17,10 @@ import {
   seccionGenetica,
   seccionSistemas,
   traeDetalleElite,
+  ENCABEZADO_DETALLE_PROGRAMA,
+  PIE_DETALLE_PROGRAMA,
+  esDetallePrograma,
+  seccionSello,
 } from '@/src/services/argos-elite-detalle-core';
 import { ENCABEZADO_EVALUACION_ELITE, traeBloqueElite } from '@/src/services/argos-elite-contexto-core';
 import { palabrasRojasEn, validarEliteV3, type EliteV3 } from '@/src/services/elite/elite-v3-core';
@@ -116,5 +120,43 @@ describe('traeDetalleElite', () => {
     expect(traeDetalleElite(`x\n${ENCABEZADO_DETALLE_ELITE}\ny`)).toBe(true);
     expect(traeDetalleElite('Contexto de pantalla.')).toBe(false);
     expect(traeDetalleElite(null)).toBe(false);
+  });
+});
+
+describe('8-oct-2026 (nivel 2): el detalle de un programa', () => {
+  const rp = validarEliteV3(JSON.parse(
+    readFileSync(resolve(process.cwd(), 'R and D/diagnostico/programa_ejemplo.json'), 'utf8'),
+  ));
+  if (!rp.ok) throw new Error(`el ejemplo de programa no valida: ${rp.errores.join('; ')}`);
+  const programa: EliteV3 = rp.valor;
+
+  it('encabezado y pie de programa; ni "Elite" ni una toma inexistente', () => {
+    const bloque = construirBloqueEliteDetalle(programa);
+    expect(bloque.startsWith(`${ENCABEZADO_DETALLE_PROGRAMA}\n`)).toBe(true);
+    expect(bloque.endsWith(PIE_DETALLE_PROGRAMA)).toBe(true);
+    expect(bloque).not.toMatch(/elite/i);
+    expect(bloque).not.toContain('null');
+    expect(bloque.length).toBeLessThanOrEqual(DETALLE_ELITE_MAX);
+    expect(palabrasRojasEn(bloque)).toEqual([]);
+    expect(bloque.includes('—')).toBe(false);
+    expect(traeDetalleElite(bloque)).toBe(true);
+    expect(esDetallePrograma(bloque)).toBe(true);
+    expect(traeBloqueElite(bloque)).toBe(false);
+  });
+
+  it('el sello dice el nombre del programa y que no hay toma de muestra', () => {
+    const s = seccionSello(programa, 400);
+    expect(s).toContain('sin toma de muestra');
+    expect(s).toContain('Programa "Fuerza y sueño" de 12 semanas.');
+    const conToma = { ...programa, cliente: { ...programa.cliente, fecha_toma: '2026-09-30' } };
+    expect(seccionSello(conToma, 400)).toContain('toma de muestra 2026-09-30');
+  });
+
+  it('Elite: mismo encabezado, pie y sello de antes', () => {
+    const bloque = construirBloqueEliteDetalle(omar);
+    expect(bloque.startsWith(`${ENCABEZADO_DETALLE_ELITE}\n`)).toBe(true);
+    expect(bloque.endsWith(PIE_DETALLE_ELITE)).toBe(true);
+    expect(esDetallePrograma(bloque)).toBe(false);
+    expect(seccionSello(omar, 400)).toMatch(`toma de muestra ${omar.cliente.fecha_toma}`);
   });
 });

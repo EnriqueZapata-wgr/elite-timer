@@ -37,6 +37,11 @@
  *    mapa funcional, Padecimientos y Linea de tiempo (FILAS_EXPEDIENTE).
  *  - 7-oct-2026 (Mi plan): TU PLAN abre con "Ver mi plan de la semana"
  *    (/mi-plan): el mismo plan, por dia y con lo que el cliente puede mover.
+ *  - 8-oct-2026 (nivel 2): el documento puede ser un programa. Ceja, titulos
+ *    de bloque, "lista", la etiqueta del resumen y la fila del documento
+ *    completo salen de su voz (mi-programa-core); nunca dice "Elite" y los
+ *    bloques sin contenido no salen. La ceja va neutra ("ATP") mientras no
+ *    hay documento leido. Con un documento Elite, todo como antes.
  *
  * Tinta: tokens del scope. El <TabScreen themed> abre el <ThemeReady>, por
  * eso el contenido vive en un componente hijo (useSurfaceTokens arriba de el
@@ -60,7 +65,9 @@ import { useSubscription } from '@/src/hooks/useSubscription';
 import type { EliteV3 } from '@/src/services/elite/elite-v3-core';
 import type { SeccionUiKey } from '@/src/services/elite/evaluacion-elite-core';
 import {
-  bloquesMiPrograma, caraSinEvaluacion, estadoAlVencer, estudiosVisibles, FILA_PLAN_SEMANA, FILAS_EXPEDIENTE,
+  bloquesMiPrograma, caraSinEvaluacion, cejaMiPrograma, documentoListo, estadoAlVencer, textosNoSePudoLeer,
+  type TextosNoSePudoLeer,
+  estudiosVisibles, etiquetaDocumentoConCoach, FILA_PLAN_SEMANA, FILAS_EXPEDIENTE, filaDocumentoCompleto,
   resumenEvaluacion, RUTAS_MI_PROGRAMA, siguienteEstado,
   type CaraSinEvaluacion, type EstadoMiPrograma, type EstudioKey, type ExpedienteKey, type LecturaParaPrograma,
   type MotivoFallo,
@@ -68,6 +75,7 @@ import {
 import { lineaPidenAccion, TOPE_HERO_ELITE_MS } from '@/src/services/hoy/elite-hoy-core';
 import { edadIntegralTexto, textoDeltaEdad, tonoDeltaEdad } from '@/src/services/hoy/hero-laboratorios-core';
 import { EVALUACION_ELITE_CHANGED_EVENT, leerEvaluacionEliteVigente } from '@/src/services/hoy/elite-hoy-service';
+import { vozDeDocumento, vozParaTextos, VOZ_ELITE, type VozPrograma } from '@/src/services/elite/voz-programa-core';
 import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
@@ -149,16 +157,28 @@ export function MiProgramaScreen() {
   // La barra de estado lee el tema GLOBAL (como el tab Salud): aqui arriba
   // todavia no hay <ThemeReady>.
   const tg = useAppTheme().tokens;
-  const acento = tg.kind === 'dark' ? ATP_BRAND.lime : tg.tealTexto;
   return (
     <TabScreen themed>
       <StatusBar style={tg.kind === 'light' ? 'dark' : 'light'} />
-      <View style={s.header}>
-        <EliteText style={[s.eyebrow, { color: acento }]}>ATP ELITE</EliteText>
-        <EliteText style={[s.title, { color: tg.texto }]}>MI PROGRAMA</EliteText>
-      </View>
       <Contenido />
     </TabScreen>
+  );
+}
+
+/**
+ * 8-oct-2026 (nivel 2, revision en frio): el encabezado vive aqui, junto al
+ * documento y al nivel que deciden su ceja (cejaMiPrograma). Antes la ceja
+ * subia por un efecto y el primer cuadro salia sin ella. Mismos tokens
+ * globales que antes (useAppTheme), misma posicion.
+ */
+function Encabezado({ ceja }: { ceja: string }) {
+  const tg = useAppTheme().tokens;
+  const acento = tg.kind === 'dark' ? ATP_BRAND.lime : tg.tealTexto;
+  return (
+    <View style={s.header}>
+      <EliteText style={[s.eyebrow, { color: acento }]} numberOfLines={1}>{ceja}</EliteText>
+      <EliteText style={[s.title, { color: tg.texto }]}>MI PROGRAMA</EliteText>
+    </View>
   );
 }
 
@@ -168,7 +188,7 @@ function Contenido() {
   const { user } = useAuth();
   const userId = user?.id;
   const {
-    esElite, tieneEvaluacionElite, nivelNoSePudoLeer, isLoading: nivelCargando, refresh: refrescarNivel,
+    esElite, tieneEvaluacionElite, nivelNoSePudoLeer, isLoading: nivelCargando, refresh: refrescarNivel, tier,
   } = useSubscription();
   const dark = t.kind === 'dark';
   const acento = dark ? ATP_BRAND.lime : t.tealTexto;
@@ -242,8 +262,15 @@ function Contenido() {
 
   const ir = useCallback((href: Href) => { haptic.light(); router.push(href); }, [router]);
   const evaluacion = estado.estado === 'ok' ? estado.evaluacion : null;
+  const voz = vozDeDocumento(evaluacion);
+  const filaCompleta = filaDocumentoCompleto(voz);
+  const ceja = cejaMiPrograma(estado, tier);
+  // Sin documento leido (error, en preparacion): las palabras las da el nivel.
+  const textosFallo = textosNoSePudoLeer(vozParaTextos({ documento: null, tier }));
 
   return (
+    <>
+    <Encabezado ceja={ceja} />
     <ScrollView
       showsVerticalScrollIndicator={false}
       contentContainerStyle={s.scroll}
@@ -252,7 +279,7 @@ function Contenido() {
       <ProgramaHeader userId={userId} soloAvance recarga={recarga} />
 
       {estado.estado === 'cargando' && <View style={s.hueco} />}
-      {estado.estado === 'error' && <NoSePudoLeer motivo={estado.motivo} onReintentar={reintentar} />}
+      {estado.estado === 'error' && <NoSePudoLeer motivo={estado.motivo} textos={textosFallo} onReintentar={reintentar} />}
       {estado.estado === 'sin_evaluacion' && (
         <SinEvaluacion
           cara={caraSinEvaluacion({ esElite, tieneEvaluacionElite, nivelNoSePudoLeer, nivelCargando })}
@@ -262,7 +289,7 @@ function Contenido() {
       )}
       {evaluacion && (
         <>
-          <Resumen e={evaluacion} ir={ir} />
+          <Resumen e={evaluacion} voz={voz} ir={ir} />
           {bloquesMiPrograma(evaluacion).map((b, i) => (
             <Grupo key={b.key} titulo={b.titulo} delay={140 + i * 40}>
               {/* 7-oct-2026 (Mi plan): TU PLAN abre con la semana por dia
@@ -295,8 +322,8 @@ function Contenido() {
           <Grupo delay={260}>
             <Fila
               icon="evaluaciones"
-              titulo="Ver tu evaluación completa"
-              detalle="Todas las secciones y tu PDF"
+              titulo={filaCompleta.titulo}
+              detalle={filaCompleta.detalle}
               ultima
               onPress={() => ir(RUTA_EVALUACION)}
             />
@@ -334,6 +361,7 @@ function Contenido() {
         ))}
       </Grupo>
     </ScrollView>
+    </>
   );
 }
 
@@ -359,10 +387,15 @@ function Cabecera({ texto }: { texto: string }) {
   );
 }
 
-const ETIQUETA_EVALUACION = `TU EVALUACIÓN CON ${NOMBRE_COACH_ELITE.toUpperCase()}`;
+/**
+ * "TU EVALUACIÓN CON ENRIQUE". 8-oct-2026 (nivel 2): es la de la voz Elite;
+ * la tarjeta del documento leido usa la de SU voz (etiquetaDocumentoConCoach),
+ * que en Elite es esta misma.
+ */
+const ETIQUETA_EVALUACION = etiquetaDocumentoConCoach(VOZ_ELITE);
 
 /** Edad ATP contra la real, cuantos piden accion y la version. Solo lo que trae el documento. */
-function Resumen({ e, ir }: { e: EliteV3; ir: (h: Href) => void }) {
+function Resumen({ e, voz, ir }: { e: EliteV3; voz: VozPrograma; ir: (h: Href) => void }) {
   const { t, acento, borde } = useTinta();
   const r = resumenEvaluacion(e);
   const destinoPiden = r.destinoPiden;
@@ -371,7 +404,7 @@ function Resumen({ e, ir }: { e: EliteV3; ir: (h: Href) => void }) {
 
   return (
     <Animated.View entering={FadeInUp.delay(100).springify()} style={[s.card, { backgroundColor: t.card, borderColor: borde }]}>
-      <Cabecera texto={ETIQUETA_EVALUACION} />
+      <Cabecera texto={etiquetaDocumentoConCoach(voz)} />
 
       {r.edad ? (
         <AnimatedPressable
@@ -392,7 +425,7 @@ function Resumen({ e, ir }: { e: EliteV3; ir: (h: Href) => void }) {
           <Ionicons name="chevron-forward" size={16} color={t.textoSecundario} />
         </AnimatedPressable>
       ) : (
-        <EliteText style={[s.tituloCard, { color: t.texto }]}>Tu evaluación está lista</EliteText>
+        <EliteText style={[s.tituloCard, { color: t.texto }]}>{documentoListo(voz)}</EliteText>
       )}
 
       {r.piden !== null && destinoPiden !== null && (
@@ -457,17 +490,18 @@ function Fila({ icon, titulo, detalle, ultima, onPress }: {
  * todavia, tardo demasiado. No se afirma que "sigue guardada": en esta sala
  * tambien entra quien aun no la tiene y la lectura no llego a saberlo.
  */
-function NoSePudoLeer({ motivo, onReintentar }: { motivo: MotivoFallo; onReintentar: () => void }) {
+function NoSePudoLeer({ motivo, textos, onReintentar }: { motivo: MotivoFallo; textos: TextosNoSePudoLeer; onReintentar: () => void }) {
   const { t, borde } = useTinta();
+  // 8-oct-2026 (nivel 2): "tu evaluación" o "tu programa" segun el nivel (textosNoSePudoLeer).
   const cuerpo = motivo === 'formato'
-    ? 'Tu evaluación está guardada, pero esta versión de la app no la entiende. Actualiza la app y vuelve a intentar.'
+    ? textos.formato
     : motivo === 'tope'
       ? 'La lectura tardó más de lo normal. Revisa tu conexión y vuelve a intentar.'
       : 'Revisa tu conexión y vuelve a intentar.';
   return (
     <View style={[s.card, { backgroundColor: t.card, borderColor: borde }]}>
-      <Cabecera texto={ETIQUETA_EVALUACION} />
-      <EliteText style={[s.tituloCard, { color: t.texto }]}>No pudimos leer tu evaluación</EliteText>
+      <Cabecera texto={textos.etiqueta} />
+      <EliteText style={[s.tituloCard, { color: t.texto }]}>{textos.titulo}</EliteText>
       <EliteText style={[s.cuerpo, { color: t.textoSecundario }]}>{cuerpo}</EliteText>
       <BotonQuieto texto="Reintentar" onPress={onReintentar} />
     </View>

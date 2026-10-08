@@ -33,6 +33,7 @@ import {
   detalleDesdeFila,
   firmaDesdeFila,
   resumenDesdeFila,
+  tipoDesdeFila,
   type FilaEliteParaArgos,
   type VersionElite,
 } from './argos-elite-contexto-core';
@@ -108,7 +109,8 @@ async function leerContextoCompleto(userId: string): Promise<EntradaCache> {
     logWarn('[argos-elite] la evaluación tiene resumen pero el snapshot no produjo detalle; va solo el resumen');
   }
   return {
-    bloque: construirBloqueElite(resumen),
+    // 8-oct-2026 (nivel 2): el encabezado sigue al tipo del documento (programa o Elite).
+    bloque: construirBloqueElite(resumen, tipoDesdeFila(fila)),
     detalle,
     firma: firmaDesdeFila(fila),
     version: versionDeFila(fila),

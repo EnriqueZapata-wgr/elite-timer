@@ -45,6 +45,24 @@
  * exacto de exercise_matrix, un catalogo en INGLES (MoveKit): sin slug el
  * nombre en espanol casi nunca empareja y el bloque corre como tiempo. Aqui
  * se cuenta cuantos bloques traen slug y se avisa cuantos no.
+ *
+ * 8-oct-2026 (nivel 2): el mismo script prepara un PROGRAMA, que es el mismo
+ * documento con `tipo: "programa"` (evaluacion ligera, mismo plan). Lo que
+ * cambia aqui:
+ *  - `practicas[].key` se comprueba contra el catalogo de practicas
+ *    (src/constants/interventions-catalog.ts). El validador de la app solo
+ *    revisa la forma, porque el catalogo pesa mas de diez mil lineas y no se
+ *    mete al telefono para esto; aqui si se carga. Una clave que no existe
+ *    DETIENE la preparacion y se sugieren las mas parecidas.
+ *  - Un programa sin evaluacion no recibe los avisos que solo aplican a una
+ *    evaluacion (raices vacias, laboratorios), y recibe los suyos (sin
+ *    nombre, sin inicio declarado, sin practicas).
+ *  - Sin toma de sangre y sin marcadores con valor, `lab_values_filas` NO
+ *    viaja: con el arreglo vacio la base avisaria "fecha de toma invalida"
+ *    por unos laboratorios que no existen.
+ * Con un documento Elite, el payload solo gana tres llaves normalizadas
+ * (`practicas: []`, `inicio.programa_nombre: null`, `inicio.programa_inicio:
+ * null`) y la salida en pantalla es la misma de antes.
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -120,6 +138,7 @@ const core = require(path.join(RAIZ, 'src', 'services', 'elite', 'elite-v3-core.
 const {
   validarEliteV3, resumenParaArgos, suplementosAFilas, nivelCalidadEliteV3,
   marcadoresDe, palabrasRojasEn, raicesDetectadas, ELITE_SECCIONES, RESUMEN_ARGOS_MAX,
+  tipoDeDocumento, tieneDiagnostico,
 } = core;
 // 20-sep-2026 (324): marcadores -> lab_values, con los mapas canonicos del cliente.
 const { labValuesDeEvaluacion, fechaMedicionDeToma, MOTIVO_OMISION_TEXTO } =
@@ -144,12 +163,77 @@ if (!validacion.ok) {
 }
 const eliteV3 = validacion.valor;
 
+// ---------------------------------------------------------------------------
+// 8-oct-2026 (nivel 2): tipo del documento y practicas contra el catalogo.
+// ---------------------------------------------------------------------------
+const esProg = tipoDeDocumento(eliteV3) === 'programa';
+const conEvaluacion = tieneDiagnostico(eliteV3);
+const practicas = eliteV3.practicas || [];
+/** Clave -> ficha del catalogo, solo para las practicas del documento. */
+const fichaDePractica = new Map();
+
+/** Distancia de edicion entre dos claves (para sugerir la mas parecida). */
+function distancia(a, b) {
+  const fila = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i += 1) {
+    let diagonal = fila[0];
+    fila[0] = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const arriba = fila[j];
+      fila[j] = Math.min(fila[j] + 1, fila[j - 1] + 1, diagonal + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diagonal = arriba;
+    }
+  }
+  return fila[b.length];
+}
+
+if (practicas.length) {
+  let catalogo;
+  try {
+    catalogo = require(path.join(RAIZ, 'src', 'constants', 'interventions-catalog.ts')).INTERVENTIONS_CATALOG;
+  } catch (err) {
+    console.error(`No se pudo leer el catalogo de practicas (src/constants/interventions-catalog.ts): ${err.message}`);
+    console.error('Sin el catalogo no se puede comprobar que las practicas existan. No se escribio ningun payload.');
+    process.exit(1);
+  }
+  if (!Array.isArray(catalogo) || catalogo.length === 0) {
+    console.error('El catalogo de practicas llego vacio. No se escribio ningun payload.');
+    process.exit(1);
+  }
+  const porClave = new Map(catalogo.map((i) => [i.key, i]));
+  const desconocidas = [];
+  practicas.forEach((p, i) => {
+    const ficha = porClave.get(p.key);
+    if (ficha) { fichaDePractica.set(p.key, ficha); return; }
+    // Las mas parecidas: pesan las palabras en comun y, despues, la distancia de edicion.
+    const palabras = new Set(p.key.split('_'));
+    const parecidas = catalogo
+      .map((c) => ({ c, puntos: distancia(p.key, c.key) - 3 * c.key.split('_').filter((t) => palabras.has(t)).length }))
+      .sort((x, y) => x.puntos - y.puntos)
+      .slice(0, 3)
+      .map(({ c }) => `${c.key} (${c.name})`);
+    desconocidas.push(`practicas[${i}].key "${p.key}" no existe en el catalogo. Las mas parecidas: ${parecidas.join('; ')}`);
+  });
+  if (desconocidas.length) {
+    console.error(`El documento asigna ${desconocidas.length} practica(s) que no existen en el catalogo. No se escribio ningun payload.`);
+    for (const d of desconocidas) console.error(`  - ${d}`);
+    console.error('Las claves validas son el campo "key" de src/constants/interventions-catalog.ts. Copia la clave tal cual y vuelve a correr este comando.');
+    process.exit(1);
+  }
+}
+
 const resumenArgos = resumenParaArgos(eliteV3);
 const suplementosFilas = suplementosAFilas(eliteV3, userId);
 const raices = raicesDetectadas(eliteV3);
 const qualityLevel = nivelCalidadEliteV3(eliteV3);
 const labValues = labValuesDeEvaluacion(eliteV3);
-const fechaMedicion = fechaMedicionDeToma(eliteV3.cliente.fecha_toma);
+// 8-oct-2026 (nivel 2): un programa puede no tener toma de sangre (null).
+const fechaMedicion = eliteV3.cliente.fecha_toma ? fechaMedicionDeToma(eliteV3.cliente.fecha_toma) : null;
+const marcadoresConValorEnGrupos = eliteV3.marcadores.grupos.reduce((n, g) => n + g.marcadores.filter((m) => typeof m.valor === 'number').length, 0);
+// Sin toma, sin filas y sin marcadores con valor no hay laboratorios de que
+// hablar: la llave no viaja (ver la cabecera). En cualquier otro caso viaja
+// como siempre, tambien vacia.
+const sinLaboratorios = eliteV3.cliente.fecha_toma === null && labValues.filas.length === 0 && marcadoresConValorEnGrupos === 0;
 
 // Candado extra sobre lo derivado: el resumen va al system prompt de ARGOS y
 // no puede llevar palabras rojas ni em dashes (el core solo reordena texto ya
@@ -166,14 +250,28 @@ if (problemasDerivados.length) {
   process.exit(1);
 }
 
+// 8-oct-2026 (nivel 2, cold review): cada practica viaja con dos llaves
+// DERIVADAS del catalogo, `prioridad` (1..3) y `universal` (bool), para que
+// la fila que crea elite_cargar_practicas (329) nazca igual que la que crea la
+// app (que-hacer-hoy-service: priority e isUniversal del catalogo). El coach
+// no las escribe y el documento no cambia: el validador las ignora y la app,
+// al normalizar, se queda con {key, hora, nota}. Sin practicas no se agrega
+// nada (un documento Elite viaja igual que antes, con `practicas: []`).
+const practicasConCatalogo = practicas.map((p) => {
+  const ficha = fichaDePractica.get(p.key);
+  const prioridad = ficha && [1, 2, 3].includes(ficha.priority) ? ficha.priority : 2;
+  return { ...p, prioridad, universal: !!(ficha && ficha.isUniversal) };
+});
+
 const payload = {
   p_user: userId,
   p_payload: {
     ...eliteV3,
+    ...(practicas.length ? { practicas: practicasConCatalogo } : {}),
     resumen_argos: resumenArgos,
     suplementos_filas: suplementosFilas,
     roots_detected: raices,
-    lab_values_filas: labValues.filas,
+    ...(sinLaboratorios ? {} : { lab_values_filas: labValues.filas }),
     lab_values_omitidos: labValues.omitidos,
   },
 };
@@ -205,17 +303,45 @@ const seccionesPresentes = ELITE_SECCIONES.filter((s) => eliteV3[s] !== undefine
 const tamano = fs.statSync(rutaSalida).size;
 
 console.log('Payload listo para elite_cargar_evaluacion');
-console.log(`  cliente:              ${eliteV3.cliente.nombre_preferido} (${eliteV3.cliente.sexo}, ${eliteV3.cliente.edad} anios, toma ${eliteV3.cliente.fecha_toma})`);
-console.log(`  user_id destino:      ${userId}`);
-console.log(`  version elite_v3:     ${eliteV3.version}  (debe ser: evaluaciones Elite previas del usuario + 1; la primera es 1)`);
-console.log(`  secciones:            ${seccionesPresentes} de ${ELITE_SECCIONES.length}`);
-console.log(`  marcadores:           ${marcadores.length} (${att} piden accion)`);
-console.log(`  hallazgos geneticos:  ${eliteV3.genetica.hallazgos.length}`);
-console.log(`  suplementos (filas):  ${suplementosFilas.length}`);
-console.log(`  raices detectadas:    ${raices.length}${raices.length ? ` (${raices.map((r) => r.root_key).join(', ')})` : ''}`);
-console.log(`  labs a lab_values:    ${labValues.filas.length} filas (${labValues.omitidos.length} marcadores fuera; fecha ${fechaMedicion ? fechaMedicion.measured_at + (fechaMedicion.diaAsumido ? ', dia 1 asumido' : '') : 'sin fecha'})`);
-console.log(`  resumen_argos:        ${resumenArgos.length} caracteres (tope ${RESUMEN_ARGOS_MAX})`);
-console.log(`  quality_level:        ${qualityLevel} (${qualityLevel === 5 ? 'con genetica' : 'sin genetica'})`);
+if (esProg) {
+  // 8-oct-2026 (nivel 2): la cabecera de un programa. La funcion de la base
+  // es la misma (elite_cargar_evaluacion); lo que cambia es lo que se cuenta.
+  const ini = eliteV3.inicio;
+  console.log(`  tipo:                 programa (nivel 2)${ini.programa_nombre ? `: "${ini.programa_nombre}"` : ', sin nombre'}`);
+  console.log(`  cliente:              ${eliteV3.cliente.nombre_preferido} (${eliteV3.cliente.sexo}, ${eliteV3.cliente.edad} anios, ${eliteV3.cliente.fecha_toma ? `toma ${eliteV3.cliente.fecha_toma}` : 'sin toma de sangre'})`);
+  console.log(`  user_id destino:      ${userId}`);
+  console.log(`  version elite_v3:     ${eliteV3.version}  (debe ser: documentos previos de este cliente, programa o Elite, + 1; el primero es 1)`);
+  console.log(`  duracion e inicio:    ${ini.programa_semanas !== null ? `${ini.programa_semanas} semanas` : 'sin duracion (la app usa 52 semanas)'}, ${ini.programa_inicio ? `empieza el ${ini.programa_inicio}` : 'sin inicio declarado (cuenta desde la primera carga)'}`);
+  console.log(`  secciones:            ${seccionesPresentes} de ${ELITE_SECCIONES.length}`);
+  if (conEvaluacion) {
+    console.log(`  evaluacion:           ligera, con contenido (el cliente la lee como "tu evaluacion")`);
+    console.log(`  marcadores:           ${marcadores.length} (${att} piden accion)`);
+    console.log(`  hallazgos geneticos:  ${eliteV3.genetica.hallazgos.length}`);
+    console.log(`  raices detectadas:    ${raices.length}${raices.length ? ` (${raices.map((r) => r.root_key).join(', ')})` : ''}`);
+    console.log(`  labs a lab_values:    ${labValues.filas.length} filas (${labValues.omitidos.length} marcadores fuera; fecha ${fechaMedicion ? fechaMedicion.measured_at + (fechaMedicion.diaAsumido ? ', dia 1 asumido' : '') : 'sin fecha'})`);
+  } else {
+    console.log('  evaluacion:           sin contenido (lo esperado en un programa: el cliente no ve secciones vacias)');
+  }
+  console.log(`  suplementos (filas):  ${suplementosFilas.length}`);
+  console.log(`  practicas asignadas:  ${practicas.length}${practicas.length ? ` (${practicas.map((p) => `${p.key}${p.hora ? ` ${p.hora}` : ''}`).join(', ')})` : ''}`);
+  console.log(`  resumen_argos:        ${resumenArgos.length} caracteres (tope ${RESUMEN_ARGOS_MAX})`);
+  console.log(`  quality_level:        ${qualityLevel} (${qualityLevel === 5 ? 'con genetica' : 'sin genetica'})`);
+} else {
+  console.log(`  cliente:              ${eliteV3.cliente.nombre_preferido} (${eliteV3.cliente.sexo}, ${eliteV3.cliente.edad} anios, toma ${eliteV3.cliente.fecha_toma})`);
+  console.log(`  user_id destino:      ${userId}`);
+  console.log(`  version elite_v3:     ${eliteV3.version}  (debe ser: evaluaciones Elite previas del usuario + 1; la primera es 1)`);
+  console.log(`  secciones:            ${seccionesPresentes} de ${ELITE_SECCIONES.length}`);
+  console.log(`  marcadores:           ${marcadores.length} (${att} piden accion)`);
+  console.log(`  hallazgos geneticos:  ${eliteV3.genetica.hallazgos.length}`);
+  console.log(`  suplementos (filas):  ${suplementosFilas.length}`);
+  console.log(`  raices detectadas:    ${raices.length}${raices.length ? ` (${raices.map((r) => r.root_key).join(', ')})` : ''}`);
+  console.log(`  labs a lab_values:    ${labValues.filas.length} filas (${labValues.omitidos.length} marcadores fuera; fecha ${fechaMedicion ? fechaMedicion.measured_at + (fechaMedicion.diaAsumido ? ', dia 1 asumido' : '') : 'sin fecha'})`);
+  console.log(`  resumen_argos:        ${resumenArgos.length} caracteres (tope ${RESUMEN_ARGOS_MAX})`);
+  console.log(`  quality_level:        ${qualityLevel} (${qualityLevel === 5 ? 'con genetica' : 'sin genetica'})`);
+  // En Elite la linea de practicas solo sale si el documento trae alguna: sin
+  // practicas, la salida es la misma de antes del nivel 2.
+  if (practicas.length) console.log(`  practicas asignadas:  ${practicas.length} (${practicas.map((p) => `${p.key}${p.hora ? ` ${p.hora}` : ''}`).join(', ')})`);
+}
 // 21-sep-2026 (325): lo que siembra el perfil y lo que se convierte.
 const cli = eliteV3.cliente;
 const perfilFaltan = ['fecha_nacimiento', 'estatura_cm', 'peso_kg', 'fc_reposo', 'nivel_fitness'].filter((k) => cli[k] === null || cli[k] === undefined);
@@ -244,7 +370,10 @@ const sinEvidencia = marcadores.filter((m) => m.evidencia === null).length
   + eliteV3.genetica.hallazgos.filter((h) => h.evidencia === null).length
   + eliteV3.cruces.lista.filter((c) => c.evidencia === null).length;
 const avisos = [];
-if (raices.length === 0) avisos.push('roots_detected sale vacio: el Mapa funcional no va a mostrar raices y la agenda no recibe nada. Declaralas en el campo "raices" del elite_v3.');
+// 8-oct-2026 (nivel 2): en un programa sin evaluacion no hay de donde sacar
+// raices; avisarlo seria pedirle al coach algo que ese nivel no lleva. La
+// base si lo va a decir (aviso `sin_raices` de la carga): es lo esperado.
+if (raices.length === 0 && !(esProg && !conEvaluacion)) avisos.push('roots_detected sale vacio: el Mapa funcional no va a mostrar raices y la agenda no recibe nada. Declaralas en el campo "raices" del elite_v3.');
 if (sinDosis) avisos.push(`${sinDosis} suplementos sin dosis: entran como "Sin dosis fijada".`);
 if (sinMomento) avisos.push(`${sinMomento} suplementos sin momento: entran sin hora y el cliente los ve en "Sin hora fijada".`);
 if (sinUnidad) avisos.push(`${sinUnidad} marcadores con valor y sin unidad: el cliente lee el numero pelon.`);
@@ -272,6 +401,39 @@ if (!rutinas.length) avisos.push('entrenamiento.rutinas vacio: no se crea ningun
 if (ejercicios && ejercicios - conSlug > 0) avisos.push(`${ejercicios - conSlug} de ${ejercicios} ejercicios sin slug del catalogo: corren como bloque de tiempo, sin clip ni registro de series (exercise_matrix esta en ingles, MoveKit: el nombre en espanol no empareja). Pon "slug" en el bloque con el slug exacto del catalogo (barbell-bench-press, machine-leg-press) donde quieras clip.`);
 if (sinSlugConProsa) avisos.push(`${sinSlugConProsa} ejercicios sin slug y con reps en prosa ("10 por lado", "6 reps"): quedan con 40 s fijos por serie. Para que el tiempo salga de las reps escribe reps limpio ("8", "8-10", "30 s", "45 min").`);
 if (!comidas.length) avisos.push('alimentacion.comidas vacio: Comida muestra el plan sin comidas por momento.');
+// 8-oct-2026 (nivel 2): lo que el cliente de un programa va a notar.
+if (esProg) {
+  const ini = eliteV3.inicio;
+  if (!ini.programa_nombre) avisos.push('inicio.programa_nombre vacio: el cliente lee "Mi programa completo" y "TU PROGRAMA" en vez del nombre de su programa.');
+  if (!ini.programa_inicio) avisos.push('inicio.programa_inicio vacio: la semana 1 empieza el dia de la PRIMERA carga de este cliente. Si el programa arranca otro dia (por ejemplo el lunes), ponlo como YYYY-MM-DD.');
+  if (ini.programa_semanas === null) avisos.push('inicio.programa_semanas vacio: la app cuenta 52 semanas.');
+  if (ini.programa_inicio) {
+    // Un anio mal tecleado pasa el validador (es una fecha real) y el cliente
+    // amaneceria en la semana 40 o "por empezar" dentro de un anio.
+    const dias = Math.round((Date.parse(`${ini.programa_inicio}T00:00:00Z`) - Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`)) / 86400000);
+    if (dias > 90) avisos.push(`inicio.programa_inicio (${ini.programa_inicio}) cae dentro de ${dias} dias: el cliente va a leer que su programa esta por empezar hasta entonces. Revisa el anio y el mes.`);
+    if (dias < -60) avisos.push(`inicio.programa_inicio (${ini.programa_inicio}) fue hace ${-dias} dias: el cliente abre la app ya avanzado en su programa. Revisa el anio y el mes.`);
+  }
+  if (!practicas.length) avisos.push('practicas vacio: no se asigna ninguna practica; el cliente solo ve las que el mismo elija.');
+  if (eliteV3.cliente.fecha_toma === null && marcadoresConValorEnGrupos > 0) avisos.push(`${marcadoresConValorEnGrupos} marcadores con valor y sin cliente.fecha_toma: se leen en el documento, pero NO entran al expediente de laboratorios (la fecha de la muestra no se inventa). Si hubo toma, pon su fecha.`);
+  // "Elite" en cualquier texto del documento: el cliente de un programa no
+  // debe leer el nombre del otro nivel. El nombre del programa ya lo rechaza
+  // el validador; lo demas se avisa con su ruta para corregirlo a mano.
+  const conMarca = [];
+  const buscar = (v, ruta) => {
+    if (typeof v === 'string') { if (/elite/i.test(v)) conMarca.push(ruta); return; }
+    if (Array.isArray(v)) { v.forEach((x, i) => buscar(x, `${ruta}[${i}]`)); return; }
+    if (v && typeof v === 'object') for (const k of Object.keys(v)) buscar(v[k], ruta ? `${ruta}.${k}` : k);
+  };
+  const { schema: _sc, html: _ht, ...textosDelDocumento } = eliteV3;
+  buscar(textosDelDocumento, '');
+  if (conMarca.length) avisos.push(`La palabra "Elite" aparece en ${conMarca.length} texto(s) de este programa: ${conMarca.slice(0, 8).join(', ')}${conMarca.length > 8 ? ' ...' : ''}. El cliente de un programa no debe leerla: cambiala en el documento.`);
+  if (typeof eliteV3.html === 'string' && /elite/i.test(eliteV3.html)) avisos.push('El campo html (el PDF) dice "Elite": el cliente lo lee al descargar su PDF. Quita el html o corrigelo.');
+}
+// Las practicas que el propio catalogo marca como pendientes de validacion:
+// el coach puede asignarlas, pero que lo sepa antes de cargar.
+const porValidar = practicas.filter((p) => fichaDePractica.get(p.key) && fichaDePractica.get(p.key).requiresClinicalValidation);
+if (porValidar.length) avisos.push(`${porValidar.length} practica(s) que el catalogo marca como pendientes de validacion del equipo de ATP: ${porValidar.map((p) => p.key).join(', ')}. Se cargan igual; confirma que si las quieres asignar.`);
 if (avisos.length) {
   console.log('');
   console.log('Avisos (el payload se escribio igual; esto se arregla en el documento):');

@@ -16,7 +16,10 @@ import {
   REGLA_FUENTES_NO_LEIDAS,
   type UserContext,
 } from '@/src/services/argos-context-core';
-import { ENCABEZADO_PLAN_EQUIPO, REGLA_PLAN_SUPLEMENTOS } from '@/src/services/argos-suplementos-plan-core';
+import {
+  ENCABEZADO_PLAN_EQUIPO, REGLA_PLAN_SUPLEMENTOS, REGLA_PLAN_SUPLEMENTOS_PROGRAMA,
+} from '@/src/services/argos-suplementos-plan-core';
+import { construirBloqueElite } from '@/src/services/argos-elite-contexto-core';
 
 describe('canLoadRichContext: la política del gate', () => {
   it('consentimiento ENCENDIDO → contexto rico', async () => {
@@ -80,7 +83,8 @@ describe('20-sep-2026 · honestidad ante fallos de lectura', () => {
   it('la línea y los nombres legibles', () => {
     expect(lineaFuentesNoLeidas(['el sueño'])).toBe('En este turno no pude leer: el sueño. Si el usuario pregunta por eso, dilo tal cual y no inventes.');
     expect(lineaFuentesNoLeidas(['el sueño'])).not.toContain('Si te preguntan');
-    expect(nombreDeBloque('evaluacion-elite')).toBe('la evaluación Elite');
+    // 8-oct-2026 (nivel 2): si no se pudo leer no se sabe el nivel; nunca "Elite".
+    expect(nombreDeBloque('evaluacion-elite')).toBe('la evaluación o el programa con su coach');
     expect(nombreDeBloque('plan-suplementos')).toBe('el plan de suplementos');
     expect(nombreDeBloque('bloque-nuevo-sin-nombre')).toBe('bloque-nuevo-sin-nombre');
     expect(REGLA_FUENTES_NO_LEIDAS).toContain('no es falta de datos');
@@ -253,5 +257,37 @@ describe('buildContextPrompt: los 25 bloques', () => {
     const prompt = buildContextPrompt(soloEmocion);
     expect(prompt).toContain('REGLAS DEL DATO EMOCIONAL');
     expect(prompt).toContain('NO diagnosticas');
+  });
+});
+
+describe('8-oct-2026 (nivel 2): la regla del plan de suplementos sigue al tipo de documento', () => {
+  function conPlan(): UserContext {
+    const ctx = fullContext();
+    ctx.planSuplementos = {
+      asignadoPor: 'Enrique Zapata',
+      filas: [
+        { id: '1', name: 'Magnesio', dosage: '400 mg', timing: 'evening', reason: null, notes: null, source: 'coach', is_plan: true, is_active: true, amount_per_unit: null, amount_unit: null, units_per_dose: null, dose_times: null },
+      ],
+    };
+    return ctx;
+  }
+  it('Elite: la regla de siempre, una vez', () => {
+    const ctx = conPlan();
+    ctx.evaluacionElite = { bloque: construirBloqueElite('Evaluacion Elite v2 de Omar.') };
+    const prompt = buildContextPrompt(ctx);
+    expect(prompt.split(REGLA_PLAN_SUPLEMENTOS).length - 1).toBe(1);
+    expect(prompt).not.toContain(REGLA_PLAN_SUPLEMENTOS_PROGRAMA);
+  });
+  it('programa: la regla nombra su programa, sin "Elite"', () => {
+    const ctx = conPlan();
+    ctx.evaluacionElite = { bloque: construirBloqueElite('Programa "Fuerza y sueño" v1 de Ana.', 'programa') };
+    const prompt = buildContextPrompt(ctx);
+    expect(prompt.split(REGLA_PLAN_SUPLEMENTOS_PROGRAMA).length - 1).toBe(1);
+    expect(prompt).not.toContain(REGLA_PLAN_SUPLEMENTOS);
+    expect(REGLA_PLAN_SUPLEMENTOS_PROGRAMA).not.toMatch(/elite/i);
+  });
+  it('sin bloque del documento: la de siempre', () => {
+    const prompt = buildContextPrompt(conPlan());
+    expect(prompt.split(REGLA_PLAN_SUPLEMENTOS).length - 1).toBe(1);
   });
 });

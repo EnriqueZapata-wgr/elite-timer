@@ -25,6 +25,17 @@
  * migración 155) se conserva como en las demás pantallas de salud. Quien ya
  * es Elite y todavía no tiene evaluación ve "Enrique está preparando tu
  * evaluación", nunca la página de venta.
+ *
+ * 8-oct-2026 (nivel 2): el mismo documento puede ser un programa (`tipo:
+ * 'programa'`, una evaluación ligera). Título, cabecera, firma, PDF y avisos
+ * salen de su voz (voz-programa-core, mi-programa-core): nunca dice "Elite".
+ * En un programa solo se pintan (chips y bloques) las secciones que traen
+ * algo, los datos sin número no salen como rayas, y no se dicen avisos de lo
+ * que no se hizo ("segunda entrega", "sin test de química cerebral", "nada
+ * pendiente de medir"). Mientras no hay documento leído el título es neutro.
+ * Con un documento Elite todo sale como antes. El candado ("Disponible en ATP
+ * Elite") solo lo ve una cuenta sin documento y sin nivel Elite: un programa
+ * tiene documento (tieneEvaluacionElite abre por existencia).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
@@ -64,7 +75,11 @@ import {
   type SeccionUiKey,
   type VersionElite,
 } from '@/src/services/elite/evaluacion-elite-core';
-import { ELITE_EJES, type EliteEstado, type EliteEvidencia, type EliteMarcador, type EliteV3 } from '@/src/services/elite/elite-v3-core';
+import { ELITE_EJES, esPrograma, type EliteEstado, type EliteEvidencia, type EliteMarcador, type EliteV3 } from '@/src/services/elite/elite-v3-core';
+import { archivoPdf, conMayuscula, vozDeDocumento, vozParaTextos } from '@/src/services/elite/voz-programa-core';
+import {
+  columnasMarcador, lineaFirmaEvaluacion, mostrarEstado, textosNoSePudoLeer, ofrecerCompararLaboratorios, seccionesVisiblesEvaluacion, tituloPantallaEvaluacion, tituloSinLead,
+} from '@/src/services/elite/mi-programa-core';
 import { LEYENDA_SUPLEMENTOS } from '@/src/services/argos-suplementos-ayuno-core';
 
 type Carga =
@@ -91,7 +106,7 @@ export default function EvaluacionEliteScreen() {
   const { tokens: t } = useAppTheme();
   const s = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
-  const { tieneEvaluacionElite, evaluacionEliteNoSePudoLeer, esElite, nivelNoSePudoLeer, isLoading: nivelCargando, refresh: refrescarNivel } = useSubscription();
+  const { tieneEvaluacionElite, evaluacionEliteNoSePudoLeer, esElite, nivelNoSePudoLeer, isLoading: nivelCargando, refresh: refrescarNivel, tier } = useSubscription();
 
   const [carga, setCarga] = useState<Carga>({ estado: 'cargando' });
   const [intento, setIntento] = useState(0);
@@ -164,11 +179,14 @@ export default function EvaluacionEliteScreen() {
     // Si no lo trae o no se pudo leer, el PDF sale del HTML de respaldo.
     const lectura = actual ? await fetchHtmlEvaluacionElite(actual.id) : null;
     const html = lectura && lectura.estado === 'ok' && lectura.html ? lectura.html : htmlDeEvaluacion(evaluacion);
-    const r = await shareHtmlAsPdf(html, `Evaluacion-Elite-v${evaluacion.version}.pdf`, 'Compartir Mi evaluación Elite');
+    // 8-oct-2026 (nivel 2): nombre del archivo y titulo de compartir, de la
+    // voz. En Elite salen el nombre y el titulo de siempre (voz-programa-core).
+    const voz = vozDeDocumento(evaluacion);
+    const r = await shareHtmlAsPdf(html, archivoPdf(voz, evaluacion.version), `Compartir ${voz.tituloPdf}`);
     setCompartiendo(false);
     if (r === 'shared') haptic.success();
     else if (r === 'unavailable') Alert.alert('Compartir no disponible', 'Tu dispositivo no permite compartir archivos desde la app.');
-    else Alert.alert('No se pudo generar el PDF', 'Tu evaluación sigue disponible aquí en pantalla. Intenta de nuevo más tarde.');
+    else Alert.alert('No se pudo generar el PDF', `${conMayuscula(voz.documento)} sigue disponible aquí en pantalla. Intenta de nuevo más tarde.`);
   }, [evaluacion, actual, compartiendo]);
 
   // Gate por existencia. Ante la duda (no se pudo leer si existe) se abre y
@@ -178,6 +196,15 @@ export default function EvaluacionEliteScreen() {
   // preparando. Si el nivel no se pudo leer, tampoco se cierra (fail-open).
   const gateCerrado = !nivelCargando && !tieneEvaluacionElite && !evaluacionEliteNoSePudoLeer
     && !esElite && !nivelNoSePudoLeer;
+  // 8-oct-2026 (nivel 2): las dos ramas que pintan el candado (abajo, en
+  // cuerpo). Solo con candado el titulo dice "Elite" sin documento leido.
+  const muestraCandado = gateCerrado || (!nivelCargando && carga.estado === 'ok' && !actual
+    && !esElite && !tieneEvaluacionElite && !nivelNoSePudoLeer);
+  const tituloPantalla = tituloPantallaEvaluacion(evaluacion, muestraCandado, tier);
+  // 8-oct-2026 (nivel 2, revision en frio): cargando y "no se pudo leer" no
+  // tienen documento que los nombre: decide el nivel ("tu evaluación" en
+  // Elite, como siempre; "tu programa" si no).
+  const textosFallo = textosNoSePudoLeer(vozParaTextos({ documento: null, tier }));
 
   const candado = (
     <View style={s.bloque}>
@@ -196,15 +223,15 @@ export default function EvaluacionEliteScreen() {
       return (
         <View style={s.center}>
           <ActivityIndicator size="large" color={ATP_BRAND.lime} />
-          <EliteText style={s.centerText}>Cargando tu evaluación…</EliteText>
+          <EliteText style={s.centerText}>{textosFallo.cargando}</EliteText>
         </View>
       );
     }
     if (carga.estado === 'error') {
       return (
         <View style={s.aviso}>
-          <EliteText style={s.avisoTitulo}>No se pudo leer tu evaluación</EliteText>
-          <EliteText style={s.avisoTexto}>Puede ser tu conexión. Tu evaluación sigue guardada.</EliteText>
+          <EliteText style={s.avisoTitulo}>{textosFallo.tituloImpersonal}</EliteText>
+          <EliteText style={s.avisoTexto}>{`Puede ser tu conexión. ${textosFallo.sigueGuardado}`}</EliteText>
           <Pressable style={s.cta} onPress={() => { haptic.light(); setIntento((n) => n + 1); }} accessibilityRole="button">
             <EliteText style={s.ctaText}>Reintentar</EliteText>
           </Pressable>
@@ -249,7 +276,7 @@ export default function EvaluacionEliteScreen() {
     if (!evaluacion) {
       return (
         <View style={s.aviso}>
-          <EliteText style={s.avisoTitulo}>No se pudo leer tu evaluación</EliteText>
+          <EliteText style={s.avisoTitulo}>{textosFallo.tituloImpersonal}</EliteText>
           <EliteText style={s.avisoTexto}>
             La versión {actual.version_elite} está guardada pero trae un formato que esta versión de la app no entiende. Actualiza la app o reintenta.
           </EliteText>
@@ -280,7 +307,7 @@ export default function EvaluacionEliteScreen() {
     <MedicalDisclaimerGate>
       <Screen edges={[]} themed>
         <StatusBar style={t.kind === 'light' ? 'dark' : 'light'} />
-        <ScreenHeader title="Mi evaluación Elite" onBack={() => router.back()} />
+        <ScreenHeader title={tituloPantalla} onBack={() => router.back()} />
         <ScrollView ref={scrollRef} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
           {cuerpo()}
           <MedicalDisclaimer feature="interpretation" />
@@ -309,6 +336,14 @@ interface DocumentoProps {
 
 function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, compartiendo, registrar, irA, s, t }: DocumentoProps) {
   const sistemas = ordenarSistemas(e.sistemas);
+  // 8-oct-2026 (nivel 2): que secciones se pintan y con que palabras. En
+  // Elite, todas y como siempre; en un programa, solo las que traen algo.
+  const voz = vozDeDocumento(e);
+  const prog = esPrograma(e);
+  const visibles = new Set(seccionesVisiblesEvaluacion(e));
+  const ve = (k: SeccionUiKey) => visibles.has(k);
+  /** En un programa un dato sin numero no se pinta como raya: no se midio. */
+  const sinDato = (v: number | null | undefined) => prog && (v === null || v === undefined);
   // 20-sep-2026 (revision en frio, A1): cada meta se pinta solo si trae numero
   // (`!= null` cubre null y una llave ausente). Con una sola, va esa sola; sin
   // ninguna, el bloque "Metas del dia" no se pinta.
@@ -332,17 +367,17 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
         {e.inicio.lead ? (
           <EliteText style={s.cabeceraLead}>{e.inicio.lead}</EliteText>
         ) : (
-          <EliteText style={s.cabeceraNombre}>Tu evaluación Elite</EliteText>
+          <EliteText style={s.cabeceraNombre}>{tituloSinLead(voz)}</EliteText>
         )}
-        <EliteText style={s.cabeceraFirma}>
-          Interpretada por {e.interpretado_por.evaluacion} · toma: {formatearFecha(e.cliente.fecha_toma)}
-        </EliteText>
+        <EliteText style={s.cabeceraFirma}>{lineaFirmaEvaluacion(e)}</EliteText>
         {esAnterior && (
           <View style={s.anteriorRow}>
             <View style={s.anteriorPill}><EliteText style={s.anteriorPillText}>Versión anterior</EliteText></View>
-            <Pressable onPress={() => { haptic.light(); router.push('/edad-atp/comparar'); }} accessibilityRole="link" hitSlop={8}>
-              <EliteText style={s.enlace}>Comparar mis laboratorios</EliteText>
-            </Pressable>
+            {ofrecerCompararLaboratorios(e) ? (
+              <Pressable onPress={() => { haptic.light(); router.push('/edad-atp/comparar'); }} accessibilityRole="link" hitSlop={8}>
+                <EliteText style={s.enlace}>Comparar mis laboratorios</EliteText>
+              </Pressable>
+            ) : null}
           </View>
         )}
         <AnimatedPressable onPress={onPdf} style={s.pdfBoton} accessibilityRole="button" accessibilityLabel="Descargar PDF">
@@ -372,7 +407,7 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
 
       {/* Chips de sección */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsRow} style={s.chipsScroll}>
-        {SECCIONES_UI.map((sec) => (
+        {SECCIONES_UI.filter((sec) => ve(sec.key)).map((sec) => (
           <Pressable key={sec.key} onPress={() => irA(sec.key)} style={s.chip} accessibilityRole="button">
             <EliteText style={s.chipText}>{sec.label}</EliteText>
           </Pressable>
@@ -380,27 +415,27 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
       </ScrollView>
 
       {/* Inicio */}
-      <SeccionBloque registrar={registrar} s={s} k="inicio" titulo="Inicio">
+      {ve('inicio') && (<SeccionBloque registrar={registrar} s={s} k="inicio" titulo="Inicio">
         <View style={s.card}>
           <View style={s.edadesRow}>
-            <Dato etiqueta="Edad cronológica" valor={formatearValor(e.inicio.edad_cronologica, 'años')} s={s} />
-            <Dato etiqueta="Edad ATP" valor={formatearValor(e.inicio.edad_atp, 'años')} s={s} />
-            <Dato etiqueta="Diferencia" valor={formatearDiferenciaAnios(e.inicio.diferencia_anios)} s={s} />
+            <Dato etiqueta="Edad cronológica" valor={formatearValor(e.inicio.edad_cronologica, 'años')} ocultar={sinDato(e.inicio.edad_cronologica)} s={s} />
+            <Dato etiqueta="Edad ATP" valor={formatearValor(e.inicio.edad_atp, 'años')} ocultar={sinDato(e.inicio.edad_atp)} s={s} />
+            <Dato etiqueta="Diferencia" valor={formatearDiferenciaAnios(e.inicio.diferencia_anios)} ocultar={sinDato(e.inicio.diferencia_anios)} s={s} />
           </View>
           {/* 20-sep-2026: el lead subio a la cabecera; aqui no se repite. */}
           {e.inicio.programa_semanas !== null ? (
             <EliteText style={s.meta}>Programa de {e.inicio.programa_semanas} semanas</EliteText>
           ) : null}
         </View>
-      </SeccionBloque>
+      </SeccionBloque>)}
 
       {/* Conteo */}
-      <SeccionBloque registrar={registrar} s={s} k="conteo" titulo="En números">
+      {ve('conteo') && (<SeccionBloque registrar={registrar} s={s} k="conteo" titulo="En números">
         <View style={s.card}>
           <View style={s.edadesRow}>
-            <Dato etiqueta="Medidos" valor={formatearValor(e.conteo.total_medido, null)} s={s} />
-            <Dato etiqueta="Piden acción" valor={formatearValor(e.conteo.piden_accion, null)} s={s} />
-            <Dato etiqueta="Hallazgos de ADN" valor={formatearValor(e.conteo.hallazgos_adn, null)} s={s} />
+            <Dato etiqueta="Medidos" valor={formatearValor(e.conteo.total_medido, null)} ocultar={sinDato(e.conteo.total_medido)} s={s} />
+            <Dato etiqueta="Piden acción" valor={formatearValor(e.conteo.piden_accion, null)} ocultar={sinDato(e.conteo.piden_accion)} s={s} />
+            <Dato etiqueta="Hallazgos de ADN" valor={formatearValor(e.conteo.hallazgos_adn, null)} ocultar={sinDato(e.conteo.hallazgos_adn)} s={s} />
           </View>
           {e.conteo.mueven_tu_caso ? (
             <EliteText style={s.meta}>
@@ -421,16 +456,16 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
             <EliteText style={s.meta}>Calidad del estudio: {e.conteo.calidad_estudio} de 100</EliteText>
           ) : null}
         </View>
-      </SeccionBloque>
+      </SeccionBloque>)}
 
       {/* Edades */}
-      <SeccionBloque registrar={registrar} s={s} k="edades" titulo="Edades">
+      {ve('edades') && (<SeccionBloque registrar={registrar} s={s} k="edades" titulo="Edades">
         <View style={s.card}>
           <View style={s.edadesRow}>
-            <Dato etiqueta="Real" valor={formatearValor(e.edades.real, null)} s={s} />
-            <Dato etiqueta="Sangre" valor={formatearValor(e.edades.sangre, null)} s={s} />
-            <Dato etiqueta="Vida" valor={formatearValor(e.edades.vida, null)} s={s} />
-            <Dato etiqueta="ATP" valor={formatearValor(e.edades.atp, null)} s={s} />
+            <Dato etiqueta="Real" valor={formatearValor(e.edades.real, null)} ocultar={sinDato(e.edades.real)} s={s} />
+            <Dato etiqueta="Sangre" valor={formatearValor(e.edades.sangre, null)} ocultar={sinDato(e.edades.sangre)} s={s} />
+            <Dato etiqueta="Vida" valor={formatearValor(e.edades.vida, null)} ocultar={sinDato(e.edades.vida)} s={s} />
+            <Dato etiqueta="ATP" valor={formatearValor(e.edades.atp, null)} ocultar={sinDato(e.edades.atp)} s={s} />
           </View>
           {e.edades.sf_pct !== null ? <EliteText style={s.meta}>SF global: {e.edades.sf_pct}%</EliteText> : null}
           {e.edades.detalle.map((b) => (
@@ -440,29 +475,31 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
             </View>
           ))}
         </View>
-      </SeccionBloque>
+      </SeccionBloque>)}
 
       {/* Sistemas */}
-      <SeccionBloque registrar={registrar} s={s} k="sistemas" titulo="Sistemas, de peor a mejor">
+      {ve('sistemas') && (<SeccionBloque registrar={registrar} s={s} k="sistemas" titulo="Sistemas, de peor a mejor">
         {sistemas.map((sis) => {
           const est = etiquetaEstado(sis.estado);
           const color = est.token ? t[est.token] : t.textoSecundario;
+          // 8-oct-2026 (nivel 2): en un programa, sin estado no hay simbolo ni "Sin valor".
+          const conEstado = mostrarEstado(sis.estado, prog);
           return (
             <View key={sis.key} style={s.card}>
               <View style={s.filaTop}>
-                <EliteText style={[s.simbolo, { color }]}>{est.simbolo}</EliteText>
+                {conEstado ? <EliteText style={[s.simbolo, { color }]}>{est.simbolo}</EliteText> : null}
                 <EliteText style={s.nombre}>{sis.nombre}</EliteText>
                 <EliteText style={[s.score, { color }]}>{sis.score === null ? '' : `${sis.score}`}</EliteText>
               </View>
-              <EliteText style={[s.estadoTexto, { color }]}>{est.texto}</EliteText>
+              {conEstado ? <EliteText style={[s.estadoTexto, { color }]}>{est.texto}</EliteText> : null}
               <EliteText style={s.parrafo}>{sis.por_que}</EliteText>
             </View>
           );
         })}
-      </SeccionBloque>
+      </SeccionBloque>)}
 
       {/* Contexto */}
-      <SeccionBloque registrar={registrar} s={s} k="contexto" titulo="Contexto">
+      {ve('contexto') && (<SeccionBloque registrar={registrar} s={s} k="contexto" titulo="Contexto">
         <View style={s.card}>
           {e.contexto.parrafos.map((p, i) => <EliteText key={i} style={s.parrafo}>{p}</EliteText>)}
           {e.contexto.cita ? <EliteText style={s.cita}>“{e.contexto.cita}”</EliteText> : null}
@@ -473,16 +510,16 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
             </View>
           )}
         </View>
-      </SeccionBloque>
+      </SeccionBloque>)}
 
       {/* Marcadores */}
-      <SeccionBloque registrar={registrar} s={s} k="marcadores" titulo="Marcadores">
+      {ve('marcadores') && (<SeccionBloque registrar={registrar} s={s} k="marcadores" titulo="Marcadores">
         {e.marcadores.intro ? <EliteText style={s.intro}>{e.marcadores.intro}</EliteText> : null}
         <Leyenda s={s} t={t} />
         {e.marcadores.grupos.map((g) => (
           <View key={g.nombre} style={s.grupo}>
             <EliteText style={s.grupoTitulo}>{g.nombre}</EliteText>
-            {g.marcadores.map((m) => <FilaMarcador key={m.key} m={m} s={s} t={t} />)}
+            {g.marcadores.map((m) => <FilaMarcador key={m.key} m={m} prog={prog} s={s} t={t} />)}
           </View>
         ))}
         {e.marcadores.notas.length > 0 && (
@@ -491,36 +528,47 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
             {e.marcadores.notas.map((n, i) => <EliteText key={i} style={s.parrafo}>· {n}</EliteText>)}
           </View>
         )}
-      </SeccionBloque>
+      </SeccionBloque>)}
 
       {/* Composición */}
-      <SeccionBloque registrar={registrar} s={s} k="composicion" titulo="Composición corporal">
+      {ve('composicion') && (<SeccionBloque registrar={registrar} s={s} k="composicion" titulo="Composición corporal">
         {e.composicion.reparto ? (
           <View style={s.card}>
             <View style={s.edadesRow}>
-              <Dato etiqueta="Peso" valor={formatearValor(e.composicion.reparto.peso_kg, 'kg')} s={s} />
-              <Dato etiqueta="Grasa" valor={formatearValor(e.composicion.reparto.grasa_pct, '%')} s={s} />
-              <Dato etiqueta="Músculo" valor={formatearValor(e.composicion.reparto.musculo_pct, '%')} s={s} />
+              <Dato etiqueta="Peso" valor={formatearValor(e.composicion.reparto.peso_kg, 'kg')} ocultar={sinDato(e.composicion.reparto.peso_kg)} s={s} />
+              <Dato etiqueta="Grasa" valor={formatearValor(e.composicion.reparto.grasa_pct, '%')} ocultar={sinDato(e.composicion.reparto.grasa_pct)} s={s} />
+              <Dato etiqueta="Músculo" valor={formatearValor(e.composicion.reparto.musculo_pct, '%')} ocultar={sinDato(e.composicion.reparto.musculo_pct)} s={s} />
             </View>
             {/* 8-sep-2026: los kilos y el resto del reparto ya venian en el
                 documento y no se pintaban. Sin dato va la raya, no un cero. */}
+            {/* 8-oct-2026 (nivel 2): en un programa, solo los tramos con numero. */}
             {e.composicion.reparto.grasa_kg !== null || e.composicion.reparto.musculo_kg !== null ? (
               <EliteText style={s.meta}>
-                En kilos: grasa {formatearValor(e.composicion.reparto.grasa_kg, 'kg')} · músculo {formatearValor(e.composicion.reparto.musculo_kg, 'kg')}
+                {prog
+                  ? `En kilos: ${[
+                    e.composicion.reparto.grasa_kg !== null ? `grasa ${formatearValor(e.composicion.reparto.grasa_kg, 'kg')}` : null,
+                    e.composicion.reparto.musculo_kg !== null ? `músculo ${formatearValor(e.composicion.reparto.musculo_kg, 'kg')}` : null,
+                  ].filter(Boolean).join(' · ')}`
+                  : `En kilos: grasa ${formatearValor(e.composicion.reparto.grasa_kg, 'kg')} · músculo ${formatearValor(e.composicion.reparto.musculo_kg, 'kg')}`}
               </EliteText>
             ) : null}
             {e.composicion.reparto.resto_pct !== null || e.composicion.reparto.resto_kg !== null ? (
               <EliteText style={s.meta}>
-                Resto: {formatearValor(e.composicion.reparto.resto_pct, '%')} · {formatearValor(e.composicion.reparto.resto_kg, 'kg')}
+                {prog
+                  ? `Resto: ${[
+                    e.composicion.reparto.resto_pct !== null ? formatearValor(e.composicion.reparto.resto_pct, '%') : null,
+                    e.composicion.reparto.resto_kg !== null ? formatearValor(e.composicion.reparto.resto_kg, 'kg') : null,
+                  ].filter(Boolean).join(' · ')}`
+                  : `Resto: ${formatearValor(e.composicion.reparto.resto_pct, '%')} · ${formatearValor(e.composicion.reparto.resto_kg, 'kg')}`}
               </EliteText>
             ) : null}
           </View>
         ) : null}
-        {e.composicion.filas.map((m) => <FilaMarcador key={m.key} m={m} s={s} t={t} />)}
-      </SeccionBloque>
+        {e.composicion.filas.map((m) => <FilaMarcador key={m.key} m={m} prog={prog} s={s} t={t} />)}
+      </SeccionBloque>)}
 
       {/* Braverman */}
-      <SeccionBloque registrar={registrar} s={s} k="braverman" titulo="Química cerebral">
+      {ve('braverman') && (<SeccionBloque registrar={registrar} s={s} k="braverman" titulo="Química cerebral">
         <View style={s.card}>
           {e.braverman.intro ? <EliteText style={s.parrafo}>{e.braverman.intro}</EliteText> : null}
           {e.braverman.naturaleza || e.braverman.desgaste ? (
@@ -538,7 +586,7 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
                 </View>
               ))}
             </View>
-          ) : (
+          ) : prog ? null : (
             <EliteText style={s.meta}>Sin test de química cerebral en esta versión.</EliteText>
           )}
           {e.braverman.lecturas.map((b) => (
@@ -555,10 +603,10 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
           ))}
           {e.braverman.cierre.map((p, i) => <EliteText key={i} style={s.parrafo}>{p}</EliteText>)}
         </View>
-      </SeccionBloque>
+      </SeccionBloque>)}
 
       {/* Genética */}
-      <SeccionBloque registrar={registrar} s={s} k="genetica" titulo="Genética">
+      {ve('genetica') && (<SeccionBloque registrar={registrar} s={s} k="genetica" titulo="Genética">
         {e.genetica.hallazgos.length === 0 ? (
           <View style={s.card}>
             <EliteText style={s.parrafo}>Tu genética se integra en la segunda entrega (semana 8).</EliteText>
@@ -592,10 +640,10 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
             </Pressable>
           </>
         )}
-      </SeccionBloque>
+      </SeccionBloque>)}
 
       {/* Cruces */}
-      <SeccionBloque registrar={registrar} s={s} k="cruces" titulo="Cruces">
+      {ve('cruces') && (<SeccionBloque registrar={registrar} s={s} k="cruces" titulo="Cruces">
         {e.cruces.hilo ? (
           <View style={s.card}>
             <EliteText style={s.subtitulo}>El hilo</EliteText>
@@ -618,10 +666,10 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
             <Evidencia n={x.evidencia} s={s} t={t} />
           </View>
         ))}
-      </SeccionBloque>
+      </SeccionBloque>)}
 
       {/* Médico: pendientes */}
-      <SeccionBloque registrar={registrar} s={s} k="medico" titulo="Pendientes de medir">
+      {ve('medico') && (<SeccionBloque registrar={registrar} s={s} k="medico" titulo="Pendientes de medir">
         {e.medico.intro ? <EliteText style={s.intro}>{e.medico.intro}</EliteText> : null}
         {e.medico.fuera_del_tuyo.length > 0 && (
           <View style={s.card}>
@@ -636,7 +684,7 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
           </View>
         )}
         {e.medico.pendientes.length === 0 ? (
-          <View style={s.card}><EliteText style={s.parrafo}>Nada pendiente de medir en esta versión.</EliteText></View>
+          prog ? null : <View style={s.card}><EliteText style={s.parrafo}>Nada pendiente de medir en esta versión.</EliteText></View>
         ) : e.medico.pendientes.map((p, i) => (
           <View key={`${p.que}-${i}`} style={s.card}>
             <EliteText style={s.nombre}>{p.que}</EliteText>
@@ -650,10 +698,10 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
             {b.parrafos.map((p, i) => <EliteText key={i} style={s.parrafo}>{p}</EliteText>)}
           </View>
         ))}
-      </SeccionBloque>
+      </SeccionBloque>)}
 
       {/* Cierre */}
-      <SeccionBloque registrar={registrar} s={s} k="cierre" titulo="Cierre: tus tres palancas">
+      {ve('cierre') && (<SeccionBloque registrar={registrar} s={s} k="cierre" titulo="Cierre: tus tres palancas">
         {e.cierre.palancas.map((p, i) => (
           <View key={p.titulo} style={s.card}>
             <EliteText style={s.nombre}>{i + 1}. {p.titulo}</EliteText>
@@ -668,10 +716,10 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
             {e.cierre.disclaimer ? <EliteText style={s.meta}>{e.cierre.disclaimer}</EliteText> : null}
           </View>
         ) : null}
-      </SeccionBloque>
+      </SeccionBloque>)}
 
       {/* Alimentación */}
-      <SeccionBloque registrar={registrar} s={s} k="alimentacion" titulo="Alimentación">
+      {ve('alimentacion') && (<SeccionBloque registrar={registrar} s={s} k="alimentacion" titulo="Alimentación">
         <View style={s.card}>
           {e.alimentacion.ventana ? (
             <EliteText style={s.parrafo}><EliteText style={s.negrita}>Ventana de alimentación: </EliteText>{e.alimentacion.ventana.inicio} a {e.alimentacion.ventana.fin}</EliteText>
@@ -717,10 +765,10 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
           <EliteText style={s.enlace}>Abrir Comida</EliteText>
           <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} />
         </Pressable>
-      </SeccionBloque>
+      </SeccionBloque>)}
 
       {/* Suplementos */}
-      <SeccionBloque registrar={registrar} s={s} k="suplementos" titulo="Suplementos">
+      {ve('suplementos') && (<SeccionBloque registrar={registrar} s={s} k="suplementos" titulo="Suplementos">
         {e.suplementos.length === 0 ? (
           <View style={s.card}><EliteText style={s.parrafo}>Sin plan de suplementos en esta versión.</EliteText></View>
         ) : (
@@ -758,10 +806,10 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
             </Pressable>
           </>
         )}
-      </SeccionBloque>
+      </SeccionBloque>)}
 
       {/* Entrenamiento */}
-      <SeccionBloque registrar={registrar} s={s} k="entrenamiento" titulo="Entrenamiento y descanso">
+      {ve('entrenamiento') && (<SeccionBloque registrar={registrar} s={s} k="entrenamiento" titulo="Entrenamiento y descanso">
         <View style={s.card}>
           {e.entrenamiento.base ? <EliteText style={s.parrafo}>{e.entrenamiento.base}</EliteText> : null}
           {e.entrenamiento.sesiones.map((ses, i) => (
@@ -790,7 +838,7 @@ function Documento({ e, versiones, actual, esAnterior, onElegir, onPdf, comparti
           <EliteText style={s.enlace}>Abrir Entrenar</EliteText>
           <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} />
         </Pressable>
-      </SeccionBloque>
+      </SeccionBloque>)}
     </>
   );
 }
@@ -812,7 +860,9 @@ function SeccionBloque({ k, titulo, registrar, s, children }: {
   );
 }
 
-function Dato({ etiqueta, valor, s }: { etiqueta: string; valor: string; s: ReturnType<typeof makeStyles> }) {
+/** 8-oct-2026 (nivel 2): `ocultar` = no se pinta (un dato que en un programa no se midio). */
+function Dato({ etiqueta, valor, s, ocultar = false }: { etiqueta: string; valor: string; s: ReturnType<typeof makeStyles>; ocultar?: boolean }) {
+  if (ocultar) return null;
   return (
     <View style={s.dato}>
       <EliteText style={s.datoValor}>{valor}</EliteText>
@@ -870,31 +920,48 @@ function Leyenda({ s, t }: { s: ReturnType<typeof makeStyles>; t: AppThemeTokens
   );
 }
 
-function FilaMarcador({ m, s, t }: { m: EliteMarcador; s: ReturnType<typeof makeStyles>; t: AppThemeTokens }) {
+/**
+ * 8-oct-2026 (nivel 2, revision en frio): `prog` = el documento es un
+ * programa; ahi una columna sin dato no se pinta (columnasMarcador). En Elite,
+ * la fila de siempre.
+ */
+function FilaMarcador({ m, prog = false, s, t }: { m: EliteMarcador; prog?: boolean; s: ReturnType<typeof makeStyles>; t: AppThemeTokens }) {
   const est = etiquetaEstado(m.estado);
   const color = est.token ? t[est.token] : t.textoSecundario;
+  const col = columnasMarcador(m, prog);
+  const etiquetaLector = prog
+    ? [m.nombre, col.valor ? formatearValor(m.valor, m.unidad) : null, col.estado ? est.texto : null].filter(Boolean).join('. ')
+    : `${m.nombre}. ${formatearValor(m.valor, m.unidad)}. ${est.texto}`;
   return (
-    <View style={s.card} accessibilityLabel={`${m.nombre}. ${formatearValor(m.valor, m.unidad)}. ${est.texto}`}>
+    <View style={s.card} accessibilityLabel={etiquetaLector}>
       <View style={s.filaTop}>
-        <EliteText style={[s.simbolo, { color }]}>{est.simbolo}</EliteText>
+        {col.estado ? <EliteText style={[s.simbolo, { color }]}>{est.simbolo}</EliteText> : null}
         <EliteText style={s.nombre}>{m.nombre}</EliteText>
         {m.estimado ? <View style={s.flag}><EliteText style={s.flagText}>estimado</EliteText></View> : null}
       </View>
-      <View style={s.valoresRow}>
-        <View style={s.valorCol}>
-          <EliteText style={s.datoEtiqueta}>Valor</EliteText>
-          <EliteText style={[s.valorNum, { color }]}>{formatearValor(m.valor, m.unidad)}</EliteText>
+      {col.valor || col.rango || col.objetivo ? (
+        <View style={s.valoresRow}>
+          {col.valor ? (
+            <View style={s.valorCol}>
+              <EliteText style={s.datoEtiqueta}>Valor</EliteText>
+              <EliteText style={[s.valorNum, { color }]}>{formatearValor(m.valor, m.unidad)}</EliteText>
+            </View>
+          ) : null}
+          {col.rango ? (
+            <View style={s.valorCol}>
+              <EliteText style={s.datoEtiqueta}>Rango del laboratorio</EliteText>
+              <EliteText style={s.valorTexto}>{formatearRango(m.rango_lab)}</EliteText>
+            </View>
+          ) : null}
+          {col.objetivo ? (
+            <View style={s.valorCol}>
+              <EliteText style={s.datoEtiqueta}>Te queremos en</EliteText>
+              <EliteText style={s.valorTexto}>{formatearRango(m.objetivo)}</EliteText>
+            </View>
+          ) : null}
         </View>
-        <View style={s.valorCol}>
-          <EliteText style={s.datoEtiqueta}>Rango del laboratorio</EliteText>
-          <EliteText style={s.valorTexto}>{formatearRango(m.rango_lab)}</EliteText>
-        </View>
-        <View style={s.valorCol}>
-          <EliteText style={s.datoEtiqueta}>Te queremos en</EliteText>
-          <EliteText style={s.valorTexto}>{formatearRango(m.objetivo)}</EliteText>
-        </View>
-      </View>
-      <EliteText style={[s.estadoTexto, { color }]}>{est.texto}</EliteText>
+      ) : null}
+      {col.estado ? <EliteText style={[s.estadoTexto, { color }]}>{est.texto}</EliteText> : null}
       <View style={s.chipsInline}>
         {m.fuente.map((f) => <ChipFuente key={f} f={f} s={s} />)}
       </View>

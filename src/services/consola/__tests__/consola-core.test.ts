@@ -21,6 +21,15 @@ import {
   resumenDeLista,
   VENTANA_ADHERENCIA_DIAS,
   type ClienteConsola,
+  PROGRAMA_NOMBRE_MAX,
+  SIN_DOCUMENTO,
+  chipDeNivel,
+  datoDocumento,
+  esPrograma,
+  nivelDeDocumento,
+  nombreDePrograma,
+  textoNovedadDocumento,
+  urgenciaMaxima,
 } from '../consola-core';
 
 const HOY = '2026-09-08';
@@ -259,5 +268,63 @@ describe('resumenDeLista', () => {
 
   it('con adherencia muestra el porcentaje', () => {
     expect(resumenDeLista(cliente())).toContain('80% de lo asignado');
+  });
+});
+
+describe('8-oct-2026 (nivel 2): evaluacion Elite, programa o nada', () => {
+  const programa = { version: 1, fecha: '2026-10-01', tipo: 'programa' as const, nombre: 'Fuerza y sueño' };
+  it('el tipo de la base: solo "programa" tal cual es programa; lo viejo (null) es Elite', () => {
+    expect(nivelDeDocumento('programa')).toBe('programa');
+    expect(nivelDeDocumento(null)).toBe('elite');
+    expect(nivelDeDocumento(undefined)).toBe('elite');
+    expect(nivelDeDocumento('Programa')).toBe('elite');
+    expect(nivelDeDocumento('elite')).toBe('elite');
+  });
+  it('el nombre del programa: una linea, con tope, null si no hay', () => {
+    expect(nombreDePrograma('  Fuerza   y\nsueño ')).toBe('Fuerza y sueño');
+    expect(nombreDePrograma('')).toBeNull();
+    expect(nombreDePrograma(null)).toBeNull();
+    expect(nombreDePrograma(7)).toBeNull();
+    expect((nombreDePrograma('x'.repeat(200)) ?? '').length).toBe(PROGRAMA_NOMBRE_MAX);
+  });
+  it('un programa cargado no se marca "sin evaluación" y va con el grupo de coaching', () => {
+    const c = cliente({ evaluacion: programa, tier: 'free' });
+    expect(pendientesDeCliente(c, HOY).map((p) => p.tipo)).not.toContain('sin-evaluacion');
+    expect(esElite(c)).toBe(true);
+    expect(esSeguimiento({ ...c, dxFecha: '2026-07-30', suplementosActivos: 3 })).toBe(false);
+    expect(esPrograma(c)).toBe(true);
+    expect(chipDeNivel(c)).toBe('Programa');
+  });
+  it('Elite (con o sin tipo en la fila) no lleva chip y su renglon del detalle no cambia', () => {
+    const viejo = cliente({ evaluacion: { version: 2, fecha: '2026-09-01' } });
+    const nuevo = cliente({ evaluacion: { version: 2, fecha: '2026-09-01', tipo: 'elite', nombre: null } });
+    for (const c of [viejo, nuevo]) {
+      expect(esPrograma(c)).toBe(false);
+      expect(chipDeNivel(c)).toBeNull();
+      expect(datoDocumento(c, '1 de septiembre de 2026')).toEqual({ etiqueta: 'Evaluación Elite', valor: 'Versión 2 · 1 de septiembre de 2026' });
+    }
+  });
+  it('el detalle de un programa dice programa y su nombre; sin nombre, solo la version', () => {
+    expect(datoDocumento(cliente({ evaluacion: programa }), '1 de octubre de 2026'))
+      .toEqual({ etiqueta: 'Programa', valor: 'Fuerza y sueño · Versión 1 · 1 de octubre de 2026' });
+    expect(datoDocumento(cliente({ evaluacion: { ...programa, nombre: null } }), '1 de octubre de 2026'))
+      .toEqual({ etiqueta: 'Programa', valor: 'Versión 1 · 1 de octubre de 2026' });
+  });
+  it('sin documento: el rojo es verdad para los dos niveles y la urgencia no cambia', () => {
+    const p = pendientesDeCliente(cliente({ evaluacion: null }), HOY);
+    expect(p[0]).toEqual({ tipo: 'sin-evaluacion', texto: SIN_DOCUMENTO, urgencia: 2 });
+    expect(SIN_DOCUMENTO).toBe('Sin evaluación ni programa cargados');
+    expect(datoDocumento(cliente({ evaluacion: null }), '')).toEqual({ etiqueta: 'Evaluación o programa', valor: null });
+    expect(chipDeNivel(cliente({ evaluacion: null }))).toBeNull();
+  });
+  it('la novedad de carga dice que se cargo', () => {
+    expect(textoNovedadDocumento('programa')).toBe('Programa cargado');
+    expect(textoNovedadDocumento('elite')).toBe('Evaluación cargada');
+    expect(textoNovedadDocumento(undefined)).toBe('Evaluación cargada');
+  });
+  it('la urgencia y el orden no cambian por el tipo de documento', () => {
+    const a = cliente({ id: 'a', nombre: 'Ana', evaluacion: programa });
+    const b = cliente({ id: 'b', nombre: 'Beto', evaluacion: { version: 1, fecha: '2026-09-01' } });
+    expect(urgenciaMaxima(a, HOY)).toBe(urgenciaMaxima(b, HOY));
   });
 });

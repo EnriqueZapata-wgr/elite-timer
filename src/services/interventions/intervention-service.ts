@@ -21,18 +21,41 @@ import {
   type MatchResult,
 } from './intervention-engine-core';
 import {
+  leerConCaidaDeAsignacion,
   planComputedTimeUpdates,
   planSuggestedInserts,
   resolveRows,
   sortProtocol,
   sortSuggested,
+  type RespuestaDeLectura,
   type ResolvedUserIntervention,
   type UserInterventionRow,
 } from './intervention-service-core';
 
-const ROW_COLUMNS =
-  'id, user_id, intervention_key, status, priority, source_dx_id, is_custom, is_universal, ' +
-  'custom_definition, custom_time, computed_time, custom_notes, custom_dose, activated_at, created_at, updated_at';
+/**
+ * 8-oct-2026 (nivel 2): lectura de filas con `assigned_by` (migración 329) y
+ * caída al select de siempre si la columna todavía no existe en la base. Las
+ * columnas viven en intervention-service-core (COLUMNAS_FILA).
+ *
+ * Una lectura que falla LANZA. Antes estas tres lecturas devolvían [] (o null)
+ * ante cualquier error, y "no se pudo leer" se volvía "no tienes prácticas":
+ * la agenda apagaba todos sus eventos de práctica y HOY las dejaba de pintar.
+ * Quienes llaman atrapan el rechazo (agenda-service, day-compiler,
+ * visibility-service, lectura-service, expediente, la ficha de la práctica,
+ * la agenda y la narrativa del porqué). Ojo: atrapar no siempre es decirlo.
+ * 8-oct-2026: mi-expediente todavía lo convierte en lista vacía (su pantalla
+ * no tiene estado de "no se pudo leer"); pendiente.
+ */
+async function leerFilas<T>(
+  etiqueta: string,
+  consulta: (columnas: string) => PromiseLike<RespuestaDeLectura<unknown>>,
+): Promise<T | null> {
+  const { data, error } = await leerConCaidaDeAsignacion<unknown>(consulta);
+  if (error) {
+    throw new Error(`[interventions] ${etiqueta}: no se pudo leer (${error.message ?? error.code ?? 'sin detalle'})`);
+  }
+  return (data ?? null) as T | null;
+}
 
 /** Evento de UI: cualquier cambio en user_interventions / compleciones. */
 export const INTERVENTIONS_CHANGED_EVENT = 'interventions_changed';
@@ -134,12 +157,12 @@ export async function syncSuggestedInterventions(
 
 /** "Mi Protocolo" = activas resueltas, ordenadas por semáforo (priority asc). */
 export async function getMyProtocol(userId: string): Promise<ResolvedUserIntervention[]> {
-  const { data } = await supabase
+  const filas = await leerFilas<UserInterventionRow[]>('Mi Protocolo', (columnas) => supabase
     .from('user_interventions')
-    .select(ROW_COLUMNS)
+    .select(columnas)
     .eq('user_id', userId)
-    .eq('status', 'active');
-  return sortProtocol(resolveRows((data ?? []) as unknown as UserInterventionRow[]));
+    .eq('status', 'active'));
+  return sortProtocol(resolveRows(filas ?? []));
 }
 
 /**
@@ -158,11 +181,12 @@ export async function getMyProtocol(userId: string): Promise<ResolvedUserInterve
  * se retiran con su test y no pasa nada.
  */
 export async function getSuggestedInterventions(userId: string): Promise<ResolvedUserIntervention[]> {
-  const [{ match }, { data }] = await Promise.all([
+  const [{ match }, filas] = await Promise.all([
     getMatchForUser(userId),
-    supabase.from('user_interventions').select(ROW_COLUMNS).eq('user_id', userId).eq('status', 'suggested'),
+    leerFilas<UserInterventionRow[]>('sugeridas', (columnas) => supabase
+      .from('user_interventions').select(columnas).eq('user_id', userId).eq('status', 'suggested')),
   ]);
-  return sortSuggested(resolveRows((data ?? []) as unknown as UserInterventionRow[], match));
+  return sortSuggested(resolveRows(filas ?? [], match));
 }
 
 /** Una intervención del user por key (para el detalle). null si no la tiene. */
@@ -170,14 +194,14 @@ export async function getUserIntervention(
   userId: string,
   key: string,
 ): Promise<ResolvedUserIntervention | null> {
-  const { data } = await supabase
+  const fila = await leerFilas<UserInterventionRow>('detalle', (columnas) => supabase
     .from('user_interventions')
-    .select(ROW_COLUMNS)
+    .select(columnas)
     .eq('user_id', userId)
     .eq('intervention_key', key)
-    .maybeSingle();
-  if (!data) return null;
-  const resolved = resolveRows([data as unknown as UserInterventionRow]);
+    .maybeSingle());
+  if (!fila) return null;
+  const resolved = resolveRows([fila]);
   return resolved[0] ?? null;
 }
 

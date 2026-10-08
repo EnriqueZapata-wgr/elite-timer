@@ -166,3 +166,19 @@ El detalle de avisos y de qué NO hacen está en `CARGAR_ELITE.md` (sección "32
 - Las palancas viven solo en `cierre.palancas` (el HTML las pinta dos veces; el JSON las guarda una).
 - `unidad` va en `null` cuando el HTML no la trae (la app las tiene en la matriz por `key` y puede pintarlas; el esquema no las inventa).
 - En el ejemplo, la prosa de Omar se conservó salvo tres tipos de retoque obligados por la casa: em dashes a dos puntos o coma; "No es un diagnóstico" a "No es una conclusión médica"; "chequeo" a "medición"; "diagnóstico previo / gastritis diagnosticada" a "historial médico / registrada por tu médico"; y el disclaimer del cierre sin la palabra roja. Frases como "se revierte" o "se nota en 4-8 semanas" son del clínico que firma y se dejaron tal cual: el SPEC las marca como prohibidas para copy generado por la app, no para texto firmado por una persona.
+
+## Nivel 2: el mismo documento como programa (8 de octubre de 2026)
+
+Decisión del dueño: el nivel intermedio no es un esquema aparte. Es este mismo `elite_v3` con `"tipo": "programa"`: evaluación ligera (las secciones de la evaluación pueden ir vacías) y el mismo plan. La guía para cargarlo es `CARGAR_PROGRAMA.md`; la plantilla, `programa_ejemplo.json`.
+
+Campos nuevos (todos opcionales; un documento sin ellos valida y se comporta exactamente como antes):
+
+- `tipo`: `'elite'` o `'programa'`. Sin la llave es `'elite'`; cualquier otro valor no valida. El valor validado no la rellena: se lee con `tipoDeDocumento(doc)`.
+- `cliente.fecha_toma`: sigue obligatoria en Elite. En un programa puede ir en `null` o faltar (queda `null`).
+- `inicio.programa_nombre`: texto de una línea, hasta 60 caracteres, con el mismo candado de texto; en un programa no puede decir "Elite". Ausente = `null`.
+- `inicio.programa_inicio`: `YYYY-MM-DD` real (del 2020 al 2099). Si viene, la semana del programa se cuenta desde ahí y no desde la primera carga; antes de esa fecha el programa está "por empezar". Ausente = `null`.
+- `practicas[]`: `{ key, hora, nota }`, hasta 12 y sin repetir. `key` con forma de clave del catálogo de prácticas (minúsculas, dígitos y guion bajo; nunca `custom_...`); que exista en el catálogo lo revisa `preparar-payload.js`, no el validador. `hora` `HH:MM` de 24 horas o `null`; `nota` hasta 200 caracteres o `null`. Ausente = `[]`. Vale en los dos tipos. Las asigna `elite_cargar_practicas` (migración 329).
+
+Lo que no cambia: las 15 secciones siguen siendo obligatorias (vacías en un programa; así las leen también las versiones anteriores de la app), `cierre.palancas` siguen siendo tres, y la versión cuenta programas y evaluaciones Elite juntos.
+
+Derivados nuevos en `elite-v3-core.ts`: `tipoDeDocumento`, `esPrograma` y `tieneDiagnostico` (verdadero si alguna sección de la evaluación trae contenido; la edad cronológica sola y la duración del plan no cuentan). `resumenParaArgos` de un programa dice que es el programa del cliente con evaluación ligera, nunca "Elite", y omite la toma si no hay; el de un documento Elite sin prácticas es idéntico al de antes. Las palabras de pantalla (título, ceja, asunto del correo, PDF) salen de `voz-programa-core.ts`.

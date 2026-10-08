@@ -47,7 +47,10 @@ export interface RationaleQuote {
 export async function getRationaleQuote(userId: string): Promise<RationaleQuote> {
   const [dx, protocol] = await Promise.all([
     getCurrentDX(userId).catch(() => null),
-    getMyProtocol(userId).catch(() => []),
+    // 8-oct-2026 (nivel 2): sin catch. getMyProtocol lanza si no pudo leer, y
+    // la pantalla convierte el rechazo en su estado 'error'. Con `.catch(() => [])`
+    // un fallo se leia como "no tienes prácticas" (no_protocol).
+    getMyProtocol(userId),
   ]);
   const keys = protocol.map((p) => p.row.intervention_key);
   const cached = dx && keys.length > 0
@@ -66,7 +69,18 @@ export async function getRationaleQuote(userId: string): Promise<RationaleQuote>
  * (set_hash nuevo). LLM ~15-40s — el caller muestra loading.
  */
 export async function generateInterventionRationale(userId: string): Promise<RationaleResult> {
-  const [dx, protocol] = await Promise.all([getCurrentDX(userId), getMyProtocol(userId)]);
+  // 8-oct-2026 (nivel 2): getMyProtocol ahora LANZA si no pudo leer. Aquí se
+  // traduce a 'error' (la pantalla ya lo pinta); antes una lectura fallida
+  // salía como 'no_protocol' y a la persona se le decía que no tenía prácticas.
+  // Si el DX falla se propaga como antes.
+  const [dxRes, protocolRes] = await Promise.allSettled([getCurrentDX(userId), getMyProtocol(userId)]);
+  if (protocolRes.status === 'rejected') {
+    const err: any = protocolRes.reason;
+    return { status: 'error', message: String(err?.message ?? err) };
+  }
+  if (dxRes.status === 'rejected') throw dxRes.reason;
+  const dx = dxRes.value;
+  const protocol = protocolRes.value;
   if (!dx) return { status: 'no_dx' };
   if (protocol.length === 0) return { status: 'no_protocol' };
 

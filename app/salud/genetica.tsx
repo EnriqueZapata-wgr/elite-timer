@@ -18,6 +18,14 @@
  * preparando. La leyenda legal va al pie, visible, y la puerta de
  * consentimiento (MedicalDisclaimerGate, migración 155) se conserva como en
  * las demás pantallas de salud.
+ *
+ * 8-oct-2026 (nivel 2): el cliente de un programa (mismo documento, `tipo:
+ * 'programa'`) también llega aquí: el registro abre Genética por EXISTENCIA
+ * del documento y la puerta de TÚ no distingue el tipo. Sin hallazgos no se le
+ * promete la "segunda entrega": se le dice, sin vender, que su programa no
+ * incluye estudio genético y se le lleva a su programa. Las palabras salen de
+ * mi-programa-core (caraGeneticaSinHallazgos, con test); en Elite, las de
+ * siempre.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -42,6 +50,8 @@ import { RUTA_ELITE } from '@/src/constants/rutas-3-0';
 import { fetchEvaluacionesElite } from '@/src/services/elite/evaluacion-elite-service';
 import { etiquetaEvidencia, formatearFecha, type VersionElite } from '@/src/services/elite/evaluacion-elite-core';
 import type { EliteHallazgoGenetico } from '@/src/services/elite/elite-v3-core';
+import { vozDeDocumento, vozParaTextos } from '@/src/services/elite/voz-programa-core';
+import { caraGeneticaSinHallazgos, enlaceDocumentoCompleto, textosNoSePudoLeer } from '@/src/services/elite/mi-programa-core';
 
 type Carga =
   | { estado: 'cargando' }
@@ -63,7 +73,10 @@ export default function GeneticaScreen() {
   const { tokens: t } = useAppTheme();
   const s = useMemo(() => makeStyles(t), [t]);
   const { user } = useAuth();
-  const { tieneEvaluacionElite, evaluacionEliteNoSePudoLeer, esElite, nivelNoSePudoLeer, isLoading: nivelCargando, refresh: refrescarNivel } = useSubscription();
+  const { tieneEvaluacionElite, evaluacionEliteNoSePudoLeer, esElite, nivelNoSePudoLeer, isLoading: nivelCargando, refresh: refrescarNivel, tier } = useSubscription();
+  // 8-oct-2026 (nivel 2, revision en frio): los avisos de fallo no tienen
+  // documento que los nombre; decide el nivel ("tu evaluación" en Elite).
+  const textosFallo = textosNoSePudoLeer(vozParaTextos({ documento: null, tier }));
   const [carga, setCarga] = useState<Carga>({ estado: 'cargando' });
   const [intento, setIntento] = useState(0);
 
@@ -114,7 +127,7 @@ export default function GeneticaScreen() {
       return (
         <View style={s.aviso}>
           <EliteText style={s.avisoTitulo}>No se pudo leer tu genética</EliteText>
-          <EliteText style={s.avisoTexto}>Puede ser tu conexión. Tu evaluación sigue guardada.</EliteText>
+          <EliteText style={s.avisoTexto}>{`Puede ser tu conexión. ${textosFallo.sigueGuardado}`}</EliteText>
           {reintentar}
         </View>
       );
@@ -152,22 +165,22 @@ export default function GeneticaScreen() {
     if (!vigente.evaluacion) {
       return (
         <View style={s.aviso}>
-          <EliteText style={s.avisoTitulo}>No se pudo leer tu evaluación</EliteText>
+          <EliteText style={s.avisoTitulo}>{textosFallo.tituloImpersonal}</EliteText>
           <EliteText style={s.avisoTexto}>Está guardada, pero trae un formato que esta versión de la app no entiende. Actualiza la app o reintenta.</EliteText>
           {reintentar}
         </View>
       );
     }
     const e = vigente.evaluacion;
+    const voz = vozDeDocumento(e);
     if (e.genetica.hallazgos.length === 0) {
+      const cara = caraGeneticaSinHallazgos(voz, e.version);
       return (
         <View style={s.aviso}>
-          <EliteText style={s.avisoTitulo}>Tu genética se integra en la segunda entrega (semana 8)</EliteText>
-          <EliteText style={s.avisoTexto}>
-            Tu evaluación versión {e.version} ya está en la app. Cuando llegue la interpretación genética, aquí la ves por tema, con qué hacer en cada caso.
-          </EliteText>
+          <EliteText style={s.avisoTitulo}>{cara.titulo}</EliteText>
+          <EliteText style={s.avisoTexto}>{cara.texto}</EliteText>
           <Pressable style={s.cta} onPress={() => { haptic.light(); router.push('/salud/evaluacion-elite'); }} accessibilityRole="button">
-            <EliteText style={s.ctaText}>Ver mi evaluación Elite</EliteText>
+            <EliteText style={s.ctaText}>{cara.cta}</EliteText>
           </Pressable>
         </View>
       );
@@ -232,7 +245,7 @@ export default function GeneticaScreen() {
         ))}
 
         <Pressable onPress={() => { haptic.light(); router.push('/salud/evaluacion-elite'); }} accessibilityRole="link" style={s.enlaceRow}>
-          <EliteText style={s.enlace}>Ver mi evaluación Elite completa</EliteText>
+          <EliteText style={s.enlace}>{enlaceDocumentoCompleto(voz)}</EliteText>
           <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} />
         </Pressable>
       </>

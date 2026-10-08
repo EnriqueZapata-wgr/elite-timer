@@ -11,8 +11,18 @@
  * palabra nueva de salud: el resumen sale del `elite_v3` ya validado (el
  * validador rechaza palabras rojas) o de `summary_text`, que lo guardó el RPC
  * de carga a partir del mismo resumen.
+ *
+ * 8-oct-2026 (nivel 2): un documento `tipo: 'programa'` (el mismo elite_v3
+ * con evaluacion ligera) lleva el encabezado de programa de la voz
+ * (voz-programa-core): dice que es un programa con su coach, que trae una
+ * evaluacion ligera y que lo que no aparece no se midio. Nunca "Elite". El
+ * nombre del programa ya viaja en el resumen (resumenParaArgos). Con un
+ * documento Elite el bloque es letra por letra el de antes.
  */
-import { RESUMEN_ARGOS_MAX, resumenParaArgos, validarEliteV3, type EliteV3 } from './elite/elite-v3-core';
+import {
+  RESUMEN_ARGOS_MAX, resumenParaArgos, tipoDeDocumento, validarEliteV3, type EliteTipo, type EliteV3,
+} from './elite/elite-v3-core';
+import { vozDe } from './elite/voz-programa-core';
 // 20-sep-2026: segundo bloque (detalle) aparte del resumen; ver argos-elite-detalle-core.
 import { construirBloqueEliteDetalle } from './argos-elite-detalle-core';
 
@@ -21,6 +31,17 @@ export const ENCABEZADO_EVALUACION_ELITE =
 
 /** Tope del bloque completo: encabezado + salto + resumen (1,800 de elite-v3-core). */
 export const BLOQUE_ELITE_MAX = ENCABEZADO_EVALUACION_ELITE.length + 1 + RESUMEN_ARGOS_MAX;
+
+/** 8-oct-2026 (nivel 2): el encabezado de un programa (el de su voz). */
+export const ENCABEZADO_PROGRAMA = vozDe({ tipo: 'programa' }).encabezadoArgos;
+
+/** El mismo tope, con el encabezado de programa. */
+export const BLOQUE_PROGRAMA_MAX = ENCABEZADO_PROGRAMA.length + 1 + RESUMEN_ARGOS_MAX;
+
+/** El encabezado del bloque segun el tipo de documento. */
+export function encabezadoDeBloque(tipo: EliteTipo | null | undefined): string {
+  return tipo === 'programa' ? ENCABEZADO_PROGRAMA : ENCABEZADO_EVALUACION_ELITE;
+}
 
 /** Lo que se lee de `functional_dx` para armar el bloque. */
 export interface FilaEliteParaArgos {
@@ -58,6 +79,18 @@ export function eliteDesdeFila(fila: FilaEliteParaArgos | null | undefined): Eli
 export function detalleDesdeFila(fila: FilaEliteParaArgos | null | undefined): string {
   const ev = eliteDesdeFila(fila);
   return ev ? construirBloqueEliteDetalle(ev) : '';
+}
+
+/**
+ * 8-oct-2026 (nivel 2): el tipo del documento de la fila. Se lee la llave
+ * `tipo` del snapshot SIN validar el documento entero: el resumen puede venir
+ * de `summary_text` y su encabezado tiene que coincidir con el documento.
+ * Sin fila o sin la llave, 'elite' (todo lo cargado antes del nivel 2).
+ */
+export function tipoDesdeFila(fila: FilaEliteParaArgos | null | undefined): EliteTipo {
+  const snapshot = fila?.sources_snapshot;
+  if (typeof snapshot !== 'object' || snapshot === null || Array.isArray(snapshot)) return 'elite';
+  return tipoDeDocumento((snapshot as Record<string, unknown>).elite_v3 as { tipo?: unknown } | null);
 }
 
 /** Quien firma la evaluacion (interpretado_por.evaluacion), para "asignado por" en el plan de suplementos. */
@@ -108,8 +141,9 @@ export function resumenDesdeFila(fila: FilaEliteParaArgos | null | undefined): s
  * Bloque para la capa dinámica del system prompt. Con resumen vacío no hay
  * bloque (''): el encabezado solo prometería algo que no viene. Si el resumen
  * excede el tope se corta en el último espacio para no partir una palabra.
+ * 8-oct-2026 (nivel 2): `tipo` elige el encabezado; sin tipo, el de Elite.
  */
-export function construirBloqueElite(resumen: string | null | undefined): string {
+export function construirBloqueElite(resumen: string | null | undefined, tipo: EliteTipo = 'elite'): string {
   const texto = (resumen ?? '').trim();
   if (!texto) return '';
   let cuerpo = texto;
@@ -117,10 +151,18 @@ export function construirBloqueElite(resumen: string | null | undefined): string
     const corte = cuerpo.lastIndexOf(' ', RESUMEN_ARGOS_MAX);
     cuerpo = cuerpo.slice(0, corte > 0 ? corte : RESUMEN_ARGOS_MAX).trimEnd();
   }
-  return `${ENCABEZADO_EVALUACION_ELITE}\n${cuerpo}`;
+  return `${encabezadoDeBloque(tipo)}\n${cuerpo}`;
 }
 
-/** ¿Este texto (por ejemplo `extraContext`) ya trae el bloque Elite? Para no duplicarlo. */
+/**
+ * ¿Este texto (por ejemplo `extraContext`) ya trae el bloque? Para no
+ * duplicarlo. 8-oct-2026 (nivel 2): reconoce los dos encabezados.
+ */
 export function traeBloqueElite(texto: string | null | undefined): boolean {
-  return typeof texto === 'string' && texto.includes(ENCABEZADO_EVALUACION_ELITE);
+  return typeof texto === 'string' && (texto.includes(ENCABEZADO_EVALUACION_ELITE) || texto.includes(ENCABEZADO_PROGRAMA));
+}
+
+/** 8-oct-2026 (nivel 2): ¿el bloque es el de un programa? Lo usa argos-context-core para sus reglas. */
+export function esBloquePrograma(texto: string | null | undefined): boolean {
+  return typeof texto === 'string' && texto.includes(ENCABEZADO_PROGRAMA);
 }

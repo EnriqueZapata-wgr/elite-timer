@@ -14,6 +14,8 @@ import {
   momentoTexto,
   PLAN_SUPLEMENTOS_MAX,
   REGLA_PLAN_SUPLEMENTOS,
+  REGLA_PLAN_SUPLEMENTOS_PROGRAMA,
+  reglaPlanSuplementos,
   renglonSuplemento,
   type FilaSuplementoArgos,
 } from '@/src/services/argos-suplementos-plan-core';
@@ -161,5 +163,17 @@ describe('tope', () => {
     expect(b.length).toBeLessThanOrEqual(PLAN_SUPLEMENTOS_MAX);
     expect(b).toContain('(+');
     expect(b).toContain('más)');
+  });
+});
+
+describe('8-oct-2026 (nivel 2): la regla de un programa', () => {
+  it('Elite (o sin tipo) recibe la regla de siempre; programa la suya, sin Elite ni em dash', () => {
+    expect(reglaPlanSuplementos('elite')).toBe(REGLA_PLAN_SUPLEMENTOS);
+    expect(reglaPlanSuplementos(null)).toBe(REGLA_PLAN_SUPLEMENTOS);
+    expect(reglaPlanSuplementos('programa')).toBe(REGLA_PLAN_SUPLEMENTOS_PROGRAMA);
+    expect(REGLA_PLAN_SUPLEMENTOS_PROGRAMA).toContain(`Si el resumen de su programa y el renglón "${ENCABEZADO_PLAN_EQUIPO}" difieren`);
+    expect(REGLA_PLAN_SUPLEMENTOS_PROGRAMA).not.toMatch(/elite/i);
+    expect(REGLA_PLAN_SUPLEMENTOS_PROGRAMA.includes('—')).toBe(false);
+    expect(palabrasRojasEn(REGLA_PLAN_SUPLEMENTOS_PROGRAMA)).toEqual([]);
   });
 });

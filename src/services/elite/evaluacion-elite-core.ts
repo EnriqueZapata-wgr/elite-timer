@@ -27,6 +27,8 @@ import {
   type EliteSistema,
   type EliteV3,
 } from './elite-v3-core';
+// 8-oct-2026 (nivel 2): titulo y marca del PDF salen de la voz del documento.
+import { vozDeDocumento, type VozPrograma } from './voz-programa-core';
 
 // ---------------------------------------------------------------------------
 // Secciones navegables
@@ -240,46 +242,82 @@ function parrafos(items: string[]): string {
   return items.map((p) => `<p>${esc(p)}</p>`).join('');
 }
 
-function filaMarcador(m: EliteMarcador): string {
+/**
+ * 8-oct-2026 (nivel 2): `vacio` es lo que va en una celda sin dato. En Elite
+ * la raya de siempre (SIN_DATO); en un programa, la celda vacia: una medida
+ * sin rango (lo normal en una bascula) no se lee como "Rango del laboratorio
+ * —" ni como "— Sin valor".
+ */
+function filaMarcador(m: EliteMarcador, vacio: string = SIN_DATO): string {
   const est = etiquetaEstado(m.estado);
+  const o = (txt: string) => (txt === SIN_DATO ? vacio : txt);
+  const estado = m.estado === null && vacio !== SIN_DATO ? '' : `${est.simbolo} ${esc(est.texto)}`;
   return `<tr>
   <td>${esc(m.nombre)}${m.estimado ? ' <em>(estimado)</em>' : ''}</td>
-  <td>${esc(formatearValor(m.valor, m.unidad))}</td>
-  <td>${esc(formatearRango(m.rango_lab))}</td>
-  <td>${esc(formatearRango(m.objetivo))}</td>
-  <td class="e-${m.estado ?? 'na'}">${est.simbolo} ${esc(est.texto)}</td>
+  <td>${esc(o(formatearValor(m.valor, m.unidad)))}</td>
+  <td>${esc(o(formatearRango(m.rango_lab)))}</td>
+  <td>${esc(o(formatearRango(m.objetivo)))}</td>
+  <td class="e-${m.estado ?? 'na'}">${estado}</td>
   <td>${m.fuente.map((f) => ETIQUETA_FUENTE[f]).join(', ')}</td>
-  <td>${m.evidencia ?? SIN_DATO}</td>
+  <td>${m.evidencia ?? vacio}</td>
 </tr>`;
 }
 
 /**
  * Documento sobrio para papel: cabecera, secciones en el orden de la app y
  * tablas de marcadores. Se usa solo si `elite_v3.html` viene vacio.
+ *
+ * 8-oct-2026 (nivel 2): el titulo sale de la voz (por defecto, la del propio
+ * documento). En un documento Elite el HTML es letra por letra el de antes
+ * (lo amarra un test). En un programa: el titulo no dice Elite, la toma se
+ * omite si no hay, y una seccion de la evaluacion que viene vacia NO se
+ * imprime (un encabezado sin nada debajo se lee como algo que falta).
  */
-export function htmlDeEvaluacion(e: EliteV3): string {
+export function htmlDeEvaluacion(e: EliteV3, voz: VozPrograma = vozDeDocumento(e)): string {
   const c = e.cliente;
   const sistemas = ordenarSistemas(e.sistemas);
+  const esProg = voz.tipo === 'programa';
   const secciones: string[] = [];
+  /** En Elite entra siempre; en un programa, solo si la seccion trae algo. */
+  const pon = (trae: boolean, html: string) => { if (!esProg || trae) secciones.push(html); };
+  const hayTexto = (x: string | null | undefined) => typeof x === 'string' && x.trim().length > 0;
+  // 8-oct-2026 (nivel 2): celda sin dato. Elite: la raya; programa: vacia.
+  const vacio = esProg ? '' : SIN_DATO;
+  const fila = (m: EliteMarcador) => filaMarcador(m, vacio);
+  const estadoSistema = (x: EliteSistema['estado']) => (esProg && x === null
+    ? ''
+    : `${etiquetaEstado(x).simbolo} ${esc(etiquetaEstado(x).texto)}`);
 
-  secciones.push(`<section><h2>Inicio</h2>
-<p><strong>Edad cronológica:</strong> ${esc(formatearValor(e.inicio.edad_cronologica, 'años'))} · <strong>Edad ATP:</strong> ${esc(formatearValor(e.inicio.edad_atp, 'años'))} (${esc(formatearDiferenciaAnios(e.inicio.diferencia_anios))})</p>
+  // En un programa la linea de edades sale solo si trae alguna; si no, Inicio
+  // es el lead (sin una fila de rayas por numeros que nadie midio).
+  const hayEdades = [e.inicio.edad_cronologica, e.inicio.edad_atp, e.inicio.diferencia_anios].some((n) => n !== null);
+  const lineaEdades = `<p><strong>Edad cronológica:</strong> ${esc(formatearValor(e.inicio.edad_cronologica, 'años'))} · <strong>Edad ATP:</strong> ${esc(formatearValor(e.inicio.edad_atp, 'años'))} (${esc(formatearDiferenciaAnios(e.inicio.diferencia_anios))})</p>`;
+  // 8-oct-2026 (nivel 2, revision en frio): en un programa la linea lleva
+  // solo las edades que trae, sin rayas.
+  const lineaEdadesPrograma = [
+    e.inicio.edad_cronologica !== null ? `<strong>Edad cronológica:</strong> ${esc(formatearValor(e.inicio.edad_cronologica, 'años'))}` : null,
+    e.inicio.edad_atp !== null
+      ? `<strong>Edad ATP:</strong> ${esc(formatearValor(e.inicio.edad_atp, 'años'))}${e.inicio.diferencia_anios !== null ? ` (${esc(formatearDiferenciaAnios(e.inicio.diferencia_anios))})` : ''}`
+      : null,
+  ].filter((x): x is string => x !== null).join(' · ');
+  pon(hayEdades || hayTexto(e.inicio.lead), `<section><h2>Inicio</h2>
+${!esProg ? lineaEdades : lineaEdadesPrograma ? `<p>${lineaEdadesPrograma}</p>` : ''}
 ${e.inicio.lead ? `<p>${esc(e.inicio.lead)}</p>` : ''}</section>`);
 
-  secciones.push(`<section><h2>Sistemas</h2><table><thead><tr><th>Sistema</th><th>Puntaje</th><th>Estado</th><th>Por qué</th></tr></thead><tbody>
-${sistemas.map((s) => `<tr><td>${esc(s.nombre)}</td><td>${s.score ?? SIN_DATO}</td><td class="e-${s.estado ?? 'na'}">${etiquetaEstado(s.estado).simbolo} ${esc(etiquetaEstado(s.estado).texto)}</td><td>${esc(s.por_que)}</td></tr>`).join('')}
+  pon(sistemas.length > 0, `<section><h2>Sistemas</h2><table><thead><tr><th>Sistema</th><th>Puntaje</th><th>Estado</th><th>Por qué</th></tr></thead><tbody>
+${sistemas.map((s) => `<tr><td>${esc(s.nombre)}</td><td>${s.score ?? vacio}</td><td class="e-${s.estado ?? 'na'}">${estadoSistema(s.estado)}</td><td>${esc(s.por_que)}</td></tr>`).join('')}
 </tbody></table></section>`);
 
-  secciones.push(`<section><h2>Contexto</h2>${parrafos(e.contexto.parrafos)}${e.contexto.cita ? `<blockquote>${esc(e.contexto.cita)}</blockquote>` : ''}${lista(e.contexto.antecedentes)}</section>`);
+  pon(e.contexto.parrafos.length > 0 || hayTexto(e.contexto.cita) || e.contexto.antecedentes.length > 0, `<section><h2>Contexto</h2>${parrafos(e.contexto.parrafos)}${e.contexto.cita ? `<blockquote>${esc(e.contexto.cita)}</blockquote>` : ''}${lista(e.contexto.antecedentes)}</section>`);
 
   const cabecera = '<thead><tr><th>Marcador</th><th>Valor</th><th>Rango del laboratorio</th><th>Objetivo</th><th>Estado</th><th>Fuente</th><th>Evidencia</th></tr></thead>';
-  secciones.push(`<section><h2>Marcadores</h2>${e.marcadores.intro ? `<p>${esc(e.marcadores.intro)}</p>` : ''}
-${e.marcadores.grupos.map((g) => `<h3>${esc(g.nombre)}</h3><table>${cabecera}<tbody>${g.marcadores.map(filaMarcador).join('')}</tbody></table>`).join('')}
+  pon(hayTexto(e.marcadores.intro) || e.marcadores.grupos.length > 0 || e.marcadores.notas.length > 0, `<section><h2>Marcadores</h2>${e.marcadores.intro ? `<p>${esc(e.marcadores.intro)}</p>` : ''}
+${e.marcadores.grupos.map((g) => `<h3>${esc(g.nombre)}</h3><table>${cabecera}<tbody>${g.marcadores.map(fila).join('')}</tbody></table>`).join('')}
 ${lista(e.marcadores.notas)}</section>`);
 
-  secciones.push(`<section><h2>Composición</h2><table>${cabecera}<tbody>${e.composicion.filas.map(filaMarcador).join('')}</tbody></table></section>`);
+  pon(e.composicion.filas.length > 0, `<section><h2>Composición</h2><table>${cabecera}<tbody>${e.composicion.filas.map(fila).join('')}</tbody></table></section>`);
 
-  secciones.push(`<section><h2>Química cerebral</h2>${e.braverman.intro ? `<p>${esc(e.braverman.intro)}</p>` : ''}
+  pon(hayTexto(e.braverman.intro) || e.braverman.ejes.length > 0 || e.braverman.cierre.length > 0, `<section><h2>Química cerebral</h2>${e.braverman.intro ? `<p>${esc(e.braverman.intro)}</p>` : ''}
 ${e.braverman.ejes.map((x) => `<h3>${esc(x.titulo)}${x.nivel ? ` · ${ETIQUETA_NIVEL_EJE[x.nivel]}` : ''}</h3><p>${esc(x.texto)}</p>`).join('')}
 ${parrafos(e.braverman.cierre)}</section>`);
 
@@ -289,29 +327,34 @@ ${e.genetica.hallazgos.map((h) => `<h3>${esc(h.tema)}: ${esc(h.titulo)}</h3>${h.
 ${e.genetica.resumen.map((b) => `<h3>${esc(b.titulo)}</h3>${parrafos(b.parrafos)}`).join('')}</section>`);
   }
 
-  secciones.push(`<section><h2>Cruces</h2>${e.cruces.hilo ? `<p><strong>${esc(e.cruces.hilo.variable)}</strong> aparece en ${e.cruces.hilo.en} de ${e.cruces.hilo.de} cruces.</p>` : ''}
+  pon(e.cruces.hilo !== null || e.cruces.lista.length > 0, `<section><h2>Cruces</h2>${e.cruces.hilo ? `<p><strong>${esc(e.cruces.hilo.variable)}</strong> aparece en ${e.cruces.hilo.en} de ${e.cruces.hilo.de} cruces.</p>` : ''}
 ${e.cruces.lista.map((x) => `<h3>${esc(x.titulo)}</h3><p>${esc(x.hallazgo)}</p><p>${esc(x.consecuencia)}</p><p><strong>La regla:</strong> ${esc(x.accion)}</p>`).join('')}</section>`);
 
-  secciones.push(`<section><h2>Pendientes</h2>${e.medico.intro ? `<p>${esc(e.medico.intro)}</p>` : ''}
+  pon(hayTexto(e.medico.intro) || e.medico.pendientes.length > 0, `<section><h2>Pendientes</h2>${e.medico.intro ? `<p>${esc(e.medico.intro)}</p>` : ''}
 ${e.medico.pendientes.map((p) => `<p><strong>${esc(p.que)}</strong>: ${esc(p.por_que)} (${esc(p.con_quien)})</p>`).join('')}</section>`);
 
-  secciones.push(`<section><h2>Cierre</h2>${e.cierre.palancas.map((p, i) => `<h3>${i + 1}. ${esc(p.titulo)}</h3><p>${esc(p.por_que)}</p><p>${esc(p.como)}</p>`).join('')}
+  pon(true, `<section><h2>Cierre</h2>${e.cierre.palancas.map((p, i) => `<h3>${i + 1}. ${esc(p.titulo)}</h3><p>${esc(p.por_que)}</p><p>${esc(p.como)}</p>`).join('')}
 ${e.cierre.vigencia ? `<p>${esc(e.cierre.vigencia)}</p>` : ''}${e.cierre.firma ? `<p>${esc(e.cierre.firma)}</p>` : ''}</section>`);
 
-  secciones.push(`<section><h2>Alimentación</h2><h3>Prioriza</h3>${lista(e.alimentacion.prioriza)}<h3>Evita</h3>${lista(e.alimentacion.evita)}
+  pon(e.alimentacion.prioriza.length > 0 || e.alimentacion.evita.length > 0 || e.alimentacion.ventana !== null || e.alimentacion.horarios.length > 0 || e.alimentacion.notas.length > 0, `<section><h2>Alimentación</h2><h3>Prioriza</h3>${lista(e.alimentacion.prioriza)}<h3>Evita</h3>${lista(e.alimentacion.evita)}
 ${e.alimentacion.ventana ? `<p><strong>Ventana:</strong> ${esc(e.alimentacion.ventana.inicio)} a ${esc(e.alimentacion.ventana.fin)}</p>` : ''}
 ${lista(e.alimentacion.horarios.map((h) => `${h.momento}: ${h.que}`))}${lista(e.alimentacion.notas)}</section>`);
 
-  secciones.push(`<section><h2>Suplementos</h2><table><thead><tr><th>Suplemento</th><th>Dosis</th><th>Momento</th><th>Por qué</th></tr></thead><tbody>
-${e.suplementos.map((s) => `<tr><td>${esc(s.nombre)}</td><td>${esc(s.dosis_cantidad !== null && s.dosis_unidad ? `${s.dosis_cantidad} ${s.dosis_unidad}` : SIN_DATO)}${s.unidades_por_toma !== null ? ` x${s.unidades_por_toma}` : ''}</td><td>${esc(s.momento ?? SIN_DATO)}</td><td>${esc(s.por_que)}</td></tr>`).join('')}
+  pon(e.suplementos.length > 0, `<section><h2>Suplementos</h2><table><thead><tr><th>Suplemento</th><th>Dosis</th><th>Momento</th><th>Por qué</th></tr></thead><tbody>
+${e.suplementos.map((s) => `<tr><td>${esc(s.nombre)}</td><td>${esc(s.dosis_cantidad !== null && s.dosis_unidad ? `${s.dosis_cantidad} ${s.dosis_unidad}` : vacio)}${s.unidades_por_toma !== null ? ` x${s.unidades_por_toma}` : ''}</td><td>${esc(s.momento ?? vacio)}</td><td>${esc(s.por_que)}</td></tr>`).join('')}
 </tbody></table></section>`);
 
-  secciones.push(`<section><h2>Entrenamiento</h2>${e.entrenamiento.base ? `<p>${esc(e.entrenamiento.base)}</p>` : ''}
+  pon(hayTexto(e.entrenamiento.base) || e.entrenamiento.sesiones.length > 0 || e.entrenamiento.descanso.length > 0 || e.entrenamiento.notas.length > 0, `<section><h2>Entrenamiento</h2>${e.entrenamiento.base ? `<p>${esc(e.entrenamiento.base)}</p>` : ''}
 ${e.entrenamiento.sesiones.map((s) => `<p><strong>${esc(s.tipo)}</strong>${s.frecuencia_semana ? ` · ${esc(s.frecuencia_semana)}` : ''}${s.duracion ? ` · ${esc(s.duracion)}` : ''}${s.intensidad ? ` · ${esc(s.intensidad)}` : ''}${s.nota ? `. ${esc(s.nota)}` : ''}</p>`).join('')}
 ${lista(e.entrenamiento.descanso)}${lista(e.entrenamiento.notas)}</section>`);
 
   const firma = `${esc(e.interpretado_por.evaluacion)}${e.interpretado_por.genetica ? ` · Genética: ${esc(e.interpretado_por.genetica)}` : ''}`;
-  return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Mi evaluación Elite</title>
+  // Elite: la linea de siempre. Programa: sin toma si no hay, y "preparado
+  // por" cuando no hay evaluacion que alguien haya interpretado.
+  const meta = esProg
+    ? `${esc(c.nombre_preferido)} · versión ${e.version}${c.fecha_toma ? ` · toma ${esc(formatearFecha(c.fecha_toma))}` : ''} · ${voz.conDiagnostico ? 'interpretada por' : 'preparado por'} ${firma}`
+    : `${esc(c.nombre_preferido)} · versión ${e.version} · toma ${esc(formatearFecha(c.fecha_toma))} · interpretada por ${firma}`;
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>${esc(voz.tituloPdf)}</title>
 <style>
 body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#111;margin:32px;font-size:12px;line-height:1.5}
 h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:24px 0 8px;border-bottom:1px solid #ddd;padding-bottom:4px}h3{font-size:13px;margin:14px 0 4px}
@@ -319,8 +362,8 @@ table{border-collapse:collapse;width:100%;margin:6px 0}th,td{border:1px solid #d
 .meta{color:#555}.e-att{color:#b42318}.e-sub{color:#9a6700}.e-opt{color:#1f7a3a}.ev{color:#555;font-size:11px}blockquote{margin:8px 0;padding-left:10px;border-left:3px solid #ddd;color:#333}
 .pie{margin-top:28px;color:#555;font-size:11px}
 </style></head><body>
-<h1>Mi evaluación Elite</h1>
-<p class="meta">${esc(c.nombre_preferido)} · versión ${e.version} · toma ${esc(formatearFecha(c.fecha_toma))} · interpretada por ${firma}</p>
+<h1>${esc(voz.tituloPdf)}</h1>
+<p class="meta">${meta}</p>
 ${secciones.join('\n')}
 ${e.cierre.disclaimer ? `<p class="pie">${esc(e.cierre.disclaimer)}</p>` : ''}
 </body></html>`;

@@ -32,6 +32,12 @@
  *    horas de los habitos (goals.habit_times). Se la entrega al lector de la
  *    casa (horasDeHabitos -> parseHabitTimeEntry) y el core solo ve entradas
  *    validas. El candado de mb27-contratos lo tiene declarado.
+ *
+ * 8-oct-2026 (nivel 2): las practicas se leen pidiendo `assigned_by` (quien
+ * las asigno desde el programa, migracion 329) con la caida del constructor
+ * de practicas (leerConCaidaDeAsignacion): si la base todavia no tiene la
+ * columna, se relee con el select de siempre y ninguna llega como asignada.
+ * Un error de verdad sigue siendo "no se pudo leer", nunca una lista vacia.
  */
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
@@ -43,7 +49,9 @@ import { metasDelPlan } from '@/src/services/nutrition/plan-comidas-core';
 import { getHabitStates } from '@/src/services/hoy/habit-states-service';
 import { DEFAULT_BOOLEANS } from '@/src/services/hoy/day-booleans';
 import { leerEvaluacionEliteVigente } from '@/src/services/hoy/elite-hoy-service';
-import type { UserInterventionRow } from '@/src/services/interventions/intervention-service-core';
+import {
+  leerConCaidaDeAsignacion, type UserInterventionRow,
+} from '@/src/services/interventions/intervention-service-core';
 import {
   conTope, GATE_DESCONOCIDO, habitosDeLecturas, horasDeHabitos, juntarLecturas, LECTURA_FALLIDA, LECTURA_ILEGIBLE,
   lecturaOk, metasDeGoals, necesitaGate, PARTES_TODAS, planDeEvaluacion, practicasDeFilas, TOPE_COMPARTIDA_MS,
@@ -197,11 +205,11 @@ async function leerPracticas(
   chrono: Promise<Lectura<CronotipoIn | null>>,
 ): Promise<InsumosPlan['practicas']> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await leerConCaidaDeAsignacion<unknown>((columnas) => supabase
       .from('user_interventions')
-      .select('*')
+      .select(columnas)
       .eq('user_id', userId)
-      .eq('status', 'active');
+      .eq('status', 'active'));
     if (error) {
       logWarn('[mi-plan] practicas no se pudieron leer', error);
       return LECTURA_FALLIDA;

@@ -16,7 +16,12 @@ import {
   firmaDesdeFila,
   resumenDesdeFila,
   traeBloqueElite,
+  BLOQUE_PROGRAMA_MAX,
+  ENCABEZADO_PROGRAMA,
+  esBloquePrograma,
+  tipoDesdeFila,
 } from '@/src/services/argos-elite-contexto-core';
+import { validarEliteV3 } from '@/src/services/elite/elite-v3-core';
 import { ENCABEZADO_DETALLE_ELITE } from '@/src/services/argos-elite-detalle-core';
 import { RESUMEN_ARGOS_MAX, palabrasRojasEn, resumenParaArgos, type EliteV3 } from '@/src/services/elite/elite-v3-core';
 
@@ -135,5 +140,59 @@ describe('cambioLaVersion', () => {
 
   it('sin nada con qué comparar se relee (mejor una consulta de más que un bloque viejo)', () => {
     expect(cambioLaVersion({ version: null, created_at: null }, { version: null, created_at: null })).toBe(true);
+  });
+});
+
+describe('8-oct-2026 (nivel 2): el bloque de un programa', () => {
+  const programaCrudo: unknown = JSON.parse(
+    readFileSync(resolve(process.cwd(), 'R and D/diagnostico/programa_ejemplo.json'), 'utf8'),
+  );
+  const filaPrograma = { summary_text: null, sources_snapshot: { elite_v3: programaCrudo } };
+  const filaElite = { summary_text: null, sources_snapshot: { elite_v3: ejemplo } };
+
+  it('el tipo sale del snapshot; sin la llave o sin fila es elite', () => {
+    expect(tipoDesdeFila(filaPrograma)).toBe('programa');
+    expect(tipoDesdeFila(filaElite)).toBe('elite');
+    expect(tipoDesdeFila(null)).toBe('elite');
+    expect(tipoDesdeFila({ summary_text: 'x', sources_snapshot: null })).toBe('elite');
+    // Con summary_text guardado el encabezado tambien sigue al documento.
+    expect(tipoDesdeFila({ summary_text: 'Programa v1', sources_snapshot: { elite_v3: { tipo: 'programa' } } })).toBe('programa');
+  });
+
+  it('encabezado de programa: dice programa y evaluacion ligera, nunca Elite', () => {
+    const resumen = resumenDesdeFila(filaPrograma);
+    const b = construirBloqueElite(resumen, tipoDesdeFila(filaPrograma));
+    expect(b.startsWith(`${ENCABEZADO_PROGRAMA}\n`)).toBe(true);
+    expect(ENCABEZADO_PROGRAMA).toMatch('Programa del usuario');
+    expect(ENCABEZADO_PROGRAMA).toMatch('evaluación ligera');
+    expect(b).not.toMatch(/elite/i);
+    // El nombre del programa viaja en el resumen.
+    expect(b).toContain('"Fuerza y sueño"');
+    expect(b.length).toBeLessThanOrEqual(BLOQUE_PROGRAMA_MAX);
+    expect(palabrasRojasEn(b)).toEqual([]);
+    expect(b.includes('—')).toBe(false);
+  });
+
+  it('Elite: mismo bloque de antes (sin tipo o con elite)', () => {
+    const resumen = resumenDesdeFila(filaElite);
+    expect(construirBloqueElite(resumen, 'elite')).toBe(construirBloqueElite(resumen));
+    expect(construirBloqueElite(resumen).startsWith(`${ENCABEZADO_EVALUACION_ELITE}\n`)).toBe(true);
+    expect(esBloquePrograma(construirBloqueElite(resumen))).toBe(false);
+  });
+
+  it('traeBloqueElite reconoce los dos encabezados; esBloquePrograma solo el de programa', () => {
+    const b = construirBloqueElite('x', 'programa');
+    expect(traeBloqueElite(b)).toBe(true);
+    expect(esBloquePrograma(b)).toBe(true);
+    expect(esBloquePrograma(null)).toBe(false);
+  });
+
+  it('el detalle de un programa no dice Elite ni "null"', () => {
+    const r = validarEliteV3(programaCrudo);
+    if (!r.ok) throw new Error(r.errores.join('; '));
+    const d = detalleDesdeFila(filaPrograma);
+    expect(d.length).toBeGreaterThan(0);
+    expect(d).not.toMatch(/elite/i);
+    expect(d).not.toContain('null');
   });
 });

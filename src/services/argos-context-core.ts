@@ -16,9 +16,12 @@ import { metaAlcanzada } from '@/src/services/fasting-cumplido-core';
 // 20-sep-2026: el plan de suplementos completo (dosis, momento, porqué, nota).
 import {
   construirBloquePlanSuplementos,
-  REGLA_PLAN_SUPLEMENTOS,
+  reglaPlanSuplementos,
   type PlanSuplementosArgos,
 } from '@/src/services/argos-suplementos-plan-core';
+// 8-oct-2026 (nivel 2): para saber si el bloque del documento es el de un programa.
+import { esBloquePrograma } from '@/src/services/argos-elite-contexto-core';
+import { esDetallePrograma } from '@/src/services/argos-elite-detalle-core';
 // 21-sep-2026: la regla de "lo que hablaron antes" (memoria de conversaciones).
 import { REGLA_MEMORIA_CONVERSACIONES } from '@/src/services/argos-memoria-core';
 
@@ -139,6 +142,8 @@ export interface UserContext {
    * ATP 3.0 (ruta 3.6): la evaluación Elite del usuario, ya armada como bloque
    * por `argos-elite-contexto-core` (encabezado + resumen). Presente solo si
    * existe la evaluación y el flag ARGOS_LEE_EVALUACION_ELITE está encendido.
+   * 8-oct-2026 (nivel 2): también el de un programa (mismo documento con
+   * `tipo: 'programa'`), con su propio encabezado; ver esBloquePrograma.
    */
   evaluacionElite?: {
     bloque: string;
@@ -472,7 +477,10 @@ export const NOMBRES_DE_BLOQUES: Readonly<Record<string, string>> = {
   'ciclo-menstrual': 'el ciclo',
   'medidas-corporales': 'las medidas corporales',
   'labs': 'los laboratorios',
-  'evaluacion-elite': 'la evaluación Elite',
+  // 8-oct-2026 (nivel 2): si la lectura fallo no se sabe si es Elite o un
+  // programa; la frase es verdad para los dos y al cliente de programa nunca
+  // se le dice "Elite".
+  'evaluacion-elite': 'la evaluación o el programa con su coach',
   'suplementos-hoy': 'los suplementos de hoy',
   'plan-suplementos': 'el plan de suplementos',
   'hidratacion': 'la hidratación',
@@ -701,7 +709,10 @@ export function buildContextPrompt(ctx: UserContext): string {
     const bloquePlan = construirBloquePlanSuplementos(ctx.planSuplementos);
     if (bloquePlan) {
       parts.push(bloquePlan);
-      regla(REGLA_PLAN_SUPLEMENTOS);
+      // 8-oct-2026 (nivel 2): a un cliente de programa la regla le nombra su
+      // programa, no "la evaluación". Sin bloque del documento, la de siempre.
+      const esProg = esBloquePrograma(ctx.evaluacionElite?.bloque) || esDetallePrograma(ctx.evaluacionElite?.detalle);
+      regla(reglaPlanSuplementos(esProg ? 'programa' : 'elite'));
     }
   }
   if (ctx.hydrationStats) {

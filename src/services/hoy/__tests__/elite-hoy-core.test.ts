@@ -16,6 +16,7 @@ import {
   marcadorDePalanca, accionesDePalancas, marcadoresFueraDeEvaluacion, componerTernaElite, tokensDePalanca,
   falloEvaluacionEsFatal, cambioVersionElite, firmaEnrique, lineaPidenAccion, TOPE_HERO_ELITE_MS,
   KEY_ACCION_SUPLEMENTOS, type NivelHoy, type SuplementoHoy,
+  marcaEncabezadoHoy, MARCA_HOY_ATP, MARCA_HOY_ELITE, MARCA_HOY_NEUTRA,
 } from '@/src/services/hoy/elite-hoy-core';
 import type { AccionHoy } from '@/src/services/hoy/que-hacer-hoy-core';
 import { PACKS } from '@/src/constants/packs';
@@ -376,5 +377,72 @@ describe('componerTernaElite', () => {
         expect(s).not.toMatch(VENTA);
       }
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8-oct-2026 (nivel 2): el mismo documento con `tipo: 'programa'`
+// ---------------------------------------------------------------------------
+
+const programaCrudo: unknown = JSON.parse(
+  readFileSync(resolve(process.cwd(), 'R and D/diagnostico/programa_ejemplo.json'), 'utf8'),
+);
+function programa(): EliteV3 {
+  const r = validarEliteV3(JSON.parse(JSON.stringify(programaCrudo)));
+  if (!r.ok) throw new Error(r.errores.join('\n'));
+  return r.valor;
+}
+
+describe('nivel 2: la marca de HOY', () => {
+  it('ATP DAILY en la app general, sin importar el documento', () => {
+    for (const l of [null, { ok: false as const }, { ok: true as const, evaluacion: omar() }, { ok: true as const, evaluacion: programa() }]) {
+      expect(marcaEncabezadoHoy(false, l)).toBe('ATP DAILY');
+    }
+    expect(MARCA_HOY_ATP).toBe('ATP DAILY');
+  });
+  it('en Elite DX: ATP ELITE solo con documento Elite leido; programa, leyendo, sin documento o fallo: ATP', () => {
+    expect(marcaEncabezadoHoy(true, { ok: true, evaluacion: omar() })).toBe(MARCA_HOY_ELITE);
+    expect(MARCA_HOY_ELITE).toBe('ATP ELITE');
+    for (const l of [null, { ok: false as const }, { ok: true as const, evaluacion: null }, { ok: true as const, evaluacion: programa() }]) {
+      expect(marcaEncabezadoHoy(true, l)).toBe(MARCA_HOY_NEUTRA);
+    }
+    expect(/elite/i.test(MARCA_HOY_NEUTRA)).toBe(false);
+  });
+  it('revision en frio: sin documento leido decide el nivel; un documento leido siempre manda', () => {
+    for (const l of [null, { ok: false as const }, { ok: true as const, evaluacion: null }]) {
+      expect(marcaEncabezadoHoy(true, l, 'elite')).toBe(MARCA_HOY_ELITE);
+      expect(marcaEncabezadoHoy(true, l, 'premium')).toBe(MARCA_HOY_NEUTRA);
+      expect(marcaEncabezadoHoy(true, l, 'free')).toBe(MARCA_HOY_NEUTRA);
+    }
+    expect(marcaEncabezadoHoy(true, { ok: true, evaluacion: programa() }, 'elite')).toBe(MARCA_HOY_NEUTRA);
+    expect(marcaEncabezadoHoy(true, { ok: true, evaluacion: omar() }, 'premium')).toBe(MARCA_HOY_ELITE);
+    expect(marcaEncabezadoHoy(false, null, 'elite')).toBe(MARCA_HOY_ATP);
+  });
+});
+
+describe('nivel 2: puertas y palancas de un programa', () => {
+  it('una seccion vacia dice "En tu programa" (Elite sigue en "En tu evaluación")', () => {
+    const e = programa();
+    e.suplementos = [];
+    e.entrenamiento.sesiones = [];
+    e.alimentacion.prioriza = [];
+    e.alimentacion.evita = [];
+    const d = detallePuertas(e);
+    expect([d.suplementos, d.entrenamiento, d.alimentacion]).toEqual(['En tu programa', 'En tu programa', 'En tu programa']);
+  });
+  it('la firma de una palanca sin marcador habla del programa, nunca de una evaluacion que no hubo', () => {
+    expect(firmaEnrique(null, 'tu programa')).toBe(`De tu programa con ${NOMBRE_COACH_ELITE}`);
+    const acciones = accionesDePalancas(programa(), 3);
+    expect(acciones).toHaveLength(3);
+    for (const a of acciones) {
+      expect(a.firma).toBe(`De tu programa con ${NOMBRE_COACH_ELITE}`);
+      expect(/elite|evaluaci[oó]n/i.test(`${a.titulo} ${a.detalle} ${a.firma}`)).toBe(false);
+    }
+    // Elite: la firma de antes (sin el segundo argumento), palanca por palanca.
+    const e = omar();
+    const todos = e.marcadores.grupos.flatMap((g) => g.marcadores).concat(e.composicion.filas);
+    expect(accionesDePalancas(e, 3).map((a) => a.firma)).toEqual(
+      e.cierre.palancas.slice(0, 3).map((p) => firmaEnrique(marcadorDePalanca(p, todos))),
+    );
   });
 });

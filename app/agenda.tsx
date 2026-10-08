@@ -5,7 +5,7 @@
  * cronotipo al entrar, permite editar/completar/posponer/eliminar (EventActionModal) y crear custom
  * (FAB "+"). Atrás regresa a HOY. Sprint VISUAL: no toca agenda-service ni modales.
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { View, ScrollView, StyleSheet, DeviceEventEmitter, Alert, ActivityIndicator } from 'react-native';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { router, useFocusEffect } from 'expo-router';
@@ -35,9 +35,12 @@ import { leerAsignacionDeHoyLigera } from '@/src/services/fitness/today-session-
 import { AppIcon } from '@/src/components/ui/AppIcon';
 import { warn as logWarn } from '@/src/lib/logger';
 import {
-  completeInterventionByKey, adjustIntervention, syncSuggestedInterventions,
+  completeInterventionByKey, adjustIntervention, syncSuggestedInterventions, getUserIntervention,
 } from '@/src/services/interventions/intervention-service';
 import { findUserDuplicateGroups, type UserDupCandidate } from '@/src/services/interventions/intervention-agenda-core';
+import { esPracticaAsignada } from '@/src/services/interventions/intervention-service-core';
+import { avisoHoraDePracticaAsignada, PRACTICA_NO_LEIDA } from '@/src/services/plan/mi-plan-core';
+import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
 import { hasNotificationPermission, registerForPushNotificationsAsync } from '@/src/services/push-notification-service';
 import { syncAgendaLocalNotifications } from '@/src/services/agenda-local-notifications';
 // 31-ago-2026 (12.1): el orden y los divisores viven en el núcleo puro con
@@ -79,6 +82,14 @@ export default function AgendaScreen() {
   const [rutinaHoy, setRutinaHoy] = useState<RutinaHoy>(null);
   const [intentoRutina, setIntentoRutina] = useState(0);
   const [selected, setSelected] = useState<AgendaEventInstance | null>(null);
+  // 8-oct-2026 (nivel 2): el freno de prácticas asignadas lee la red antes de
+  // abrir un editor. Estos refs cuidan que al volver siga montada la pantalla,
+  // siga elegido el MISMO evento y no haya otra lectura en vuelo.
+  const selectedRef = useRef<AgendaEventInstance | null>(null);
+  selectedRef.current = selected;
+  const leyendoPractica = useRef(false);
+  const montada = useRef(true);
+  useEffect(() => { montada.current = true; return () => { montada.current = false; }; }, []);
   const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null);
   // 12.1: "Cambiar hora" abre la rueda (TimeWheelPicker, la misma de journal y
   // Centro ATP) como hermana de los modales: el de acciones se oculta mientras
@@ -259,15 +270,63 @@ export default function AgendaScreen() {
    *  · supplement → la ficha de Suplementos (la hora real vive en dose_times;
    *    editar aquí la agenda la reconciliaría de vuelta al minuto siguiente).
    *  · lo demás → la rueda.
+   *
+   * 8-oct-2026 (nivel 2): una práctica que el coach asignó desde el programa
+   * no abre la rueda: su hora la ajusta el coach ("lo tuyo no"). Se dice y se
+   * ofrece su ficha, donde se pausa. Si la ficha no se pudo leer se dice y no
+   * se abre nada: no se sabe si la hora es suya. Antes de la 329 (la base sin
+   * la columna) ninguna llega como asignada y queda como antes.
    */
-  const handleChangeTime = () => {
-    if (!selected) return;
+  /**
+   * true = no se abre editor (asignada, lectura fallida, otra lectura en
+   * vuelo, o al volver ya no está elegido ese mismo evento).
+   */
+  const frenoPracticaAsignada = async (ev: AgendaEventInstance): Promise<boolean> => {
+    if (leyendoPractica.current) return true;
+    if (ev.source !== 'intervention' || !ev.interventionKey || !userId) return false;
+    const key = ev.interventionKey;
+    leyendoPractica.current = true;
+    let fila: Awaited<ReturnType<typeof getUserIntervention>> = null;
+    let fallo = false;
+    try {
+      fila = await getUserIntervention(userId, key);
+    } catch {
+      fallo = true;
+    } finally {
+      leyendoPractica.current = false;
+    }
+    // Se cerró la hoja, se eligió otra cosa o se salió de la pantalla: nada.
+    if (!montada.current || selectedRef.current?.id !== ev.id) return true;
+    if (fallo) {
+      Alert.alert(PRACTICA_NO_LEIDA.titulo, PRACTICA_NO_LEIDA.cuerpo);
+      return true;
+    }
+    if (!esPracticaAsignada(fila?.row)) return false;
+    const aviso = avisoHoraDePracticaAsignada(NOMBRE_COACH_ELITE);
+    Alert.alert(aviso.titulo, aviso.cuerpo, [
+      { text: 'Cerrar', style: 'cancel' },
+      { text: 'Ver la práctica', onPress: () => { setSelected(null); router.push(`/salud/intervenciones/${key}`); } },
+    ]);
+    return true;
+  };
+  const handleChangeTime = async () => {
+    if (!selected || leyendoPractica.current) return;
     if (selected.source === 'supplement') {
       setSelected(null);
       router.push('/supplements');
       return;
     }
+    if (await frenoPracticaAsignada(selected)) return;
     setTimePickerOpen(true);
+  };
+  /**
+   * 8-oct-2026 (nivel 2): "Editar" un evento de práctica guarda su hora como
+   * manual_override (agenda-service): el mismo freno que "Cambiar hora".
+   */
+  const handleEdit = async () => {
+    if (!selected || leyendoPractica.current) return;
+    if (await frenoPracticaAsignada(selected)) return;
+    setFormMode('edit');
   };
   const handleTimeConfirm = async (date: Date) => {
     const time = localHHMM(date);
@@ -466,7 +525,7 @@ export default function AgendaScreen() {
           reconciliaría de vuelta, así que Editar también lleva a Suplementos. */}
       <EventActionModal
         event={formMode || timePickerOpen ? null : selected}
-        onEdit={() => (selected?.source === 'supplement' ? handleChangeTime() : setFormMode('edit'))}
+        onEdit={() => (selected?.source === 'supplement' ? handleChangeTime() : handleEdit())}
         onChangeTime={handleChangeTime}
         onComplete={handleComplete}
         onSnooze={handleSnooze}

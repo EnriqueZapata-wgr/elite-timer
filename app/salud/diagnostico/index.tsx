@@ -50,6 +50,11 @@ import { fetchOrigenMembresia, type OrigenMembresiaLectura } from '@/src/service
 import { CandadoBloque } from '@/src/components/ui/CandadoBloque';
 import { contextoCandado } from '@/src/constants/rutas-3-0';
 import { esEliteV3 } from '@/src/services/elite/elite-v3-core';
+// 8-oct-2026 (nivel 2): el documento puede ser un programa; sus palabras
+// salen de su voz (mi-programa-core, con test), nunca "Elite".
+import { vozDeDocumento, vozMientras, type VozPrograma } from '@/src/services/elite/voz-programa-core';
+import { puertaDocumento, resumenVigenteDocumento, vozDeSnapshot } from '@/src/services/elite/mi-programa-core';
+import { leerEvaluacionEliteVigente } from '@/src/services/hoy/elite-hoy-service';
 
 const LEVEL_LABELS: Record<number, string> = DX_LEVEL_LABELS;
 // #71 (MB-8): imagen editorial de la Card A (antes sin imagen, card pelona).
@@ -105,6 +110,9 @@ export default function DiagnosticoScreen() {
   // en el perfil, la métrica no se calcula y la tarjeta lo dice.
   const [avisoSexo, setAvisoSexo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // 8-oct-2026 (nivel 2): la voz del documento vigente (lectura compartida con
+  // HOY, cache de 60 s). null = sin documento o no se pudo leer.
+  const [vozLeida, setVozLeida] = useState<VozPrograma | null>(null);
   const [generating, setGenerating] = useState(false);
   const [sharing, setSharing] = useState(false);
   const startedRef = useRef(false);
@@ -129,12 +137,15 @@ export default function DiagnosticoScreen() {
     // saber el precio y el saldo antes de pintar el botón. Sin precio no hay
     // cotización que pedir: la versión vigente ya dice todo lo que el CTA
     // necesita saber (¿genero el primero o actualizo el que hay?).
-    const [current, hist] = await Promise.all([
+    const [current, hist, doc] = await Promise.all([
       getCurrentDX(user.id),
       getDXHistory(user.id),
+      // Fail-soft: si falla, la puerta usa lo que diga la fila vigente o una neutra.
+      leerEvaluacionEliteVigente(user.id).catch(() => null),
     ]);
     setDx(current);
     setHistory(hist);
+    setVozLeida(doc && doc.ok && doc.evaluacion ? vozDeDocumento(doc.evaluacion) : null);
     setLoading(false);
     // Edad ATP como métrica (fail-soft · gate CE≥30 = evaluación suficiente).
     try {
@@ -250,6 +261,12 @@ export default function DiagnosticoScreen() {
   // summary_text es el resumen para ARGOS, no prosa para esta card: aquí se
   // dice qué es y se manda a Mi evaluación Elite.
   const dxEsElite = dx ? esEliteV3(dx.sources_snapshot) : false;
+  // 8-oct-2026 (nivel 2): la voz de la fila vigente (si es el documento) y la
+  // de la puerta (la lectura del documento manda; si no hay, la de la fila).
+  const vozFila = useMemo(() => (dx ? vozDeSnapshot(dx.sources_snapshot) : null), [dx]);
+  // Revision en frio: sin documento leido ni fila del documento, decide el
+  // nivel (Elite: la puerta de siempre; otro: la neutra).
+  const puerta = puertaDocumento(vozLeida ?? vozFila ?? vozMientras({ documento: null, tier }));
   const quality = dx ? computeDxQuality(presenceFromSnapshot(dx.sources_snapshot)) : null;
   const roots = (dx?.roots_detected ?? []) as { root_key: InterventionRoot; severity: number; confidence: number }[];
   const activeSources = dx ? activeSourcesFromSnapshot(dx.sources_snapshot) : [];
@@ -283,10 +300,8 @@ export default function DiagnosticoScreen() {
                 />
                 <View style={styles.heroInner}>
                   <LevelBadge level={dx?.quality_level ?? 1} />
-                  {dxEsElite ? (
-                    <EliteText style={styles.summary}>
-                      Tu versión vigente es tu evaluación Elite, interpretada por Enrique. Ábrela abajo para verla completa.
-                    </EliteText>
+                  {dxEsElite && vozFila ? (
+                    <EliteText style={styles.summary}>{resumenVigenteDocumento(vozFila)}</EliteText>
                   ) : dx?.summary_text ? (
                     <EliteText style={styles.summary}>{dx.summary_text}</EliteText>
                   ) : (
@@ -311,14 +326,12 @@ export default function DiagnosticoScreen() {
                   onPress={() => { haptic.medium(); router.push('/salud/evaluacion-elite'); }}
                   style={styles.protocolCta}
                   accessibilityRole="button"
-                  accessibilityLabel="Abrir Mi evaluación Elite"
+                  accessibilityLabel={puerta.accesibilidad}
                 >
                   <Ionicons name="star" size={18} color={t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto} />
                   <View style={{ flex: 1 }}>
-                    <EliteText style={styles.protocolCtaTitle}>Mi evaluación Elite</EliteText>
-                    <EliteText style={styles.protocolCtaSub}>
-                      Tu evaluación interpretada por Enrique: secciones, marcadores, cruces y tus tres palancas
-                    </EliteText>
+                    <EliteText style={styles.protocolCtaTitle}>{puerta.titulo}</EliteText>
+                    <EliteText style={styles.protocolCtaSub}>{puerta.detalle}</EliteText>
                   </View>
                   <EliteText style={styles.protocolCtaArrow}>→</EliteText>
                 </AnimatedPressable>

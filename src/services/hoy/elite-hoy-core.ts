@@ -22,7 +22,8 @@
  *  - Nada aqui calcula estados ni rangos: el semaforo es el `estado` que
  *    firmo una persona (att / sub / opt).
  */
-import type { EliteEstado, EliteMarcador, ElitePalanca, EliteV3 } from '@/src/services/elite/elite-v3-core';
+import { type EliteEstado, type EliteMarcador, type ElitePalanca, type EliteV3 } from '@/src/services/elite/elite-v3-core';
+import { vozDeDocumento, vozMientras, type LecturaDocumentoVoz } from '@/src/services/elite/voz-programa-core';
 import { esElite, type Tier } from '@/src/services/subscription/tier-logic';
 import { PACK_BY_KEY } from '@/src/constants/packs';
 import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
@@ -147,6 +148,33 @@ export function ocultarPildoraEconomia(nivel: Pick<NivelHoy, 'tier' | 'tieneEval
   return nivel.cargando || esElite(nivel.tier) || nivel.tieneEvaluacionElite;
 }
 
+/** La marca de siempre de la app general y la del cliente Elite. */
+export const MARCA_HOY_ATP = 'ATP DAILY';
+export const MARCA_HOY_ELITE = 'ATP ELITE';
+/** 8-oct-2026 (nivel 2): la marca neutra. Ni Elite ni Daily. */
+export const MARCA_HOY_NEUTRA = 'ATP';
+
+/** Lo minimo de leerEvaluacionEliteVigente que la marca necesita (el servicio trae supabase y aqui no entra). */
+export type LecturaParaMarca = LecturaDocumentoVoz;
+
+/**
+ * 8-oct-2026 (nivel 2): la marca junto al simbolo, arriba de HOY. En Elite DX
+ * decia siempre "ATP ELITE"; ahora tambien entra ahi el cliente de un
+ * programa (mismo documento, `tipo: 'programa'`), que nunca lee "Elite".
+ *  - App general: "ATP DAILY", como siempre.
+ *  - Documento Elite leido: "ATP ELITE", como siempre.
+ *  - Documento de programa: "ATP".
+ *  - Sin documento leido (leyendo, sin documento todavia, sin poder leer):
+ *    decide el nivel (vozMientras). Nivel Elite: "ATP ELITE", como siempre;
+ *    cualquier otro (un programa se activa con codigo premium) o el nivel sin
+ *    leer: "ATP". La marca de Elite no se le pinta a quien no la tiene.
+ */
+export function marcaEncabezadoHoy(eliteDx: boolean, lectura: LecturaParaMarca | null, tier?: Tier | null): string {
+  if (!eliteDx) return MARCA_HOY_ATP;
+  const voz = vozMientras({ documento: lectura, tier });
+  return voz && voz.tipo === 'elite' ? MARCA_HOY_ELITE : MARCA_HOY_NEUTRA;
+}
+
 // ---------------------------------------------------------------------------
 // El hero con evaluacion
 // ---------------------------------------------------------------------------
@@ -227,19 +255,27 @@ function plural(n: number, uno: string, varios: string): string {
  * La segunda linea de cada puerta, con numeros del documento y nunca
  * inventados. Cuando una seccion viene vacia se dice "en tu evaluacion":
  * la puerta sigue abriendo, no se esconde.
+ * 8-oct-2026 (nivel 2): en un programa sin evaluacion se dice "En tu
+ * programa" (la voz del documento); en Elite, el texto de siempre.
  */
 export function detallePuertas(e: EliteV3): DetallePuertas {
   const sesiones = e.entrenamiento.sesiones.length;
   const prioriza = e.alimentacion.prioriza.length;
   const evita = e.alimentacion.evita.length;
+  const enTuDocumento = enTu(vozDeDocumento(e).documento);
   return {
     evaluacion: `Versión ${e.version}${e.inicio.programa_semanas ? ` · ${e.inicio.programa_semanas} semanas` : ''}`,
-    suplementos: e.suplementos.length > 0 ? `${plural(e.suplementos.length, 'en tu plan', 'en tu plan')}` : 'En tu evaluación',
+    suplementos: e.suplementos.length > 0 ? `${plural(e.suplementos.length, 'en tu plan', 'en tu plan')}` : enTuDocumento,
     alimentacion: prioriza + evita > 0
       ? `${plural(prioriza, 'que priorizar', 'que priorizar')} · ${plural(evita, 'que evitar', 'que evitar')}`
-      : 'En tu evaluación',
-    entrenamiento: sesiones > 0 ? plural(sesiones, 'tipo de sesión', 'tipos de sesión') : 'En tu evaluación',
+      : enTuDocumento,
+    entrenamiento: sesiones > 0 ? plural(sesiones, 'tipo de sesión', 'tipos de sesión') : enTuDocumento,
   };
+}
+
+/** "tu evaluación" a "En tu evaluación" (8-oct-2026, nivel 2). */
+function enTu(documento: string): string {
+  return `En ${documento}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -424,11 +460,16 @@ export function marcadorDePalanca(p: ElitePalanca, marcadores: ReadonlyArray<Eli
   return mejor ? mejor.m : null;
 }
 
-/** Firma de una accion ligada a un marcador de la evaluacion. */
-export function firmaEnrique(marcador: EliteMarcador | null): string {
+/**
+ * Firma de una accion ligada a un marcador de la evaluacion.
+ * 8-oct-2026 (nivel 2): `documento` es como se llama el documento a media
+ * frase (la voz); por defecto "tu evaluación", el texto de siempre. A un
+ * programa sin evaluacion su palanca le dice "De tu programa con Enrique".
+ */
+export function firmaEnrique(marcador: EliteMarcador | null, documento = 'tu evaluación'): string {
   return marcador
     ? `${NOMBRE_COACH_ELITE} lo eligió por tu ${marcador.nombre}`
-    : `De tu evaluación con ${NOMBRE_COACH_ELITE}`;
+    : `De ${documento} con ${NOMBRE_COACH_ELITE}`;
 }
 
 /**
@@ -438,6 +479,7 @@ export function firmaEnrique(marcador: EliteMarcador | null): string {
  */
 export function accionesDePalancas(e: EliteV3, max: number): AccionHoy[] {
   const marcadores = marcadoresDeEvaluacion(e);
+  const documento = vozDeDocumento(e).documento;
   return e.cierre.palancas.slice(0, Math.max(0, max)).map((p, i) => {
     const m = marcadorDePalanca(p, marcadores);
     return {
@@ -448,7 +490,7 @@ export function accionesDePalancas(e: EliteV3, max: number): AccionHoy[] {
       origen: 'plan' as const,
       userInterventionId: null,
       porMarcador: m ? m.nombre : null,
-      firma: firmaEnrique(m),
+      firma: firmaEnrique(m, documento),
       hecha: false,
     };
   });

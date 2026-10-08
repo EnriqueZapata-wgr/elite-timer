@@ -88,7 +88,11 @@ import {
   avisoEvaluacionHoyDx, nombreParaMensaje, siguienteLecturaAviso, type LecturaParaAviso,
 } from '@/src/services/hoy/hoy-elite-dx-core';
 import { useSubscription, SUBSCRIPTION_CHANGED_EVENT } from '@/src/hooks/useSubscription';
-import { ocultarPildoraEconomia, TOPE_HERO_ELITE_MS, type NivelHoy } from '@/src/services/hoy/elite-hoy-core';
+import {
+  marcaEncabezadoHoy, ocultarPildoraEconomia, TOPE_HERO_ELITE_MS, type NivelHoy,
+} from '@/src/services/hoy/elite-hoy-core';
+import { useLecturaDocumento } from '@/src/components/elite-dx/useLecturaDocumento';
+import { vozParaTextos } from '@/src/services/elite/voz-programa-core';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { getLocalToday, getLocalHour } from '@/src/utils/date-helpers';
@@ -162,6 +166,9 @@ function AvisoEvaluacionDx({ userId, nivel }: { userId?: string; nivel: NivelHoy
   if (aviso === 'ninguno') return null;
   return (
     <HeroEliteNoSePudoLeer
+      // 8-oct-2026 (nivel 2): aqui el documento no se pudo leer; las palabras
+      // las decide el nivel ("tu evaluación" en Elite, "tu programa" si no).
+      voz={vozParaTextos({ documento: null, tier: nivel.tier })}
       formato={aviso === 'formato'}
       onReintentar={() => {
         // Igual que el hero: si lo colgado es el nivel, se le pide releer.
@@ -209,6 +216,13 @@ export default function TodayScreen() {
     return () => clearTimeout(t);
   }, [sub.isLoading]);
   const pildoraOculta = ocultarPildoraEconomia({ ...nivel, cargando: nivel.cargando && !nivelLento });
+  // 8-oct-2026 (nivel 2): la marca de arriba depende del documento (un
+  // programa entra a este modo y nunca lee "Elite"). Misma lectura compartida
+  // que el aviso y MI PLAN; la regla vive en elite-hoy-core.
+  const lecturaDoc = useLecturaDocumento(user?.id, eliteDx);
+  // Revision en frio: sin documento leido decide el nivel (Elite: su marca
+  // desde el primer cuadro; programa, codigo premium: "ATP").
+  const marca = marcaEncabezadoHoy(eliteDx, lecturaDoc, sub.tier);
 
   // --- Estado único ---
   const [day, setDay] = useState<CompiledDay | null>(null);
@@ -646,8 +660,10 @@ export default function TodayScreen() {
                   resizeMode="contain"
                 />
                 {/* 25-sep-2026 (APP_ELITE_DX): es la app de su programa con
-                    Enrique, no el diario ATP para el publico. */}
-                <Text style={[s.brandLabel, !dark && { color: tokens.textoSecundario }]}>{eliteDx ? 'ATP ELITE' : 'ATP DAILY'}</Text>
+                    Enrique, no el diario ATP para el publico.
+                    8-oct-2026 (nivel 2): "ATP ELITE" solo con documento
+                    Elite leido; un programa (o mientras se lee) dice "ATP". */}
+                <Text style={[s.brandLabel, !dark && { color: tokens.textoSecundario }]}>{marca}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 {/* F3 (AGENDA-COMPLETE): campana con badge real (user_notifications) → /notifications. */}

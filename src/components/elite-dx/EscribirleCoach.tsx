@@ -8,6 +8,14 @@
  * queda sin salida.
  *
  * El mensaje prellenado no lleva datos de salud: viaja por un tercero.
+ *
+ * 8-oct-2026 (nivel 2): el asunto del correo decia siempre "Mi programa ATP
+ * Elite" y el cliente lo lee en su app de correo. Ahora sale del documento
+ * vigente (lectura compartida, useLecturaDocumento; la regla en
+ * mi-programa-core, asuntoCorreoCoach): Elite el de siempre, un programa
+ * "Mi programa ATP". Revision en frio: sin documento leido decide el nivel,
+ * que se pide solo en ese caso y solo al tocar (no se monta otro
+ * useSubscription en cada pantalla que trae este boton).
  */
 import { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
@@ -15,6 +23,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { destinoContacto, mensajeParaCoach } from '@/src/services/elite/programa-elite-core';
+import { asuntoCorreoCoach } from '@/src/services/elite/mi-programa-core';
+import { useAuth } from '@/src/contexts/auth-context';
+import { useLecturaDocumento } from './useLecturaDocumento';
+import { fetchEffectiveTier } from '@/src/services/subscription/subscription-service';
+import type { Tier } from '@/src/services/subscription/tier-logic';
 import { CONTACTO_ELITE_EMAIL, NOMBRE_COACH_ELITE, WHATSAPP_COACH_ELITE } from '@/src/constants/lanzamiento';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
@@ -31,12 +44,24 @@ export function EscribirleCoach({ nombre }: Props) {
   const dark = t.kind === 'dark';
   const acento = dark ? ATP_BRAND.lime : t.tealTexto;
   const [sinSalida, setSinSalida] = useState(false);
-  const destino = destinoContacto(WHATSAPP_COACH_ELITE, CONTACTO_ELITE_EMAIL, mensajeParaCoach(nombre, NOMBRE_COACH_ELITE));
-  const porWhatsApp = destino.tipo === 'whatsapp';
+  const { user } = useAuth();
+  const lectura = useLecturaDocumento(user?.id);
+  const porWhatsApp = destinoContacto(WHATSAPP_COACH_ELITE, CONTACTO_ELITE_EMAIL, '').tipo === 'whatsapp';
 
   const abrir = async () => {
     haptic.light();
     setSinSalida(false);
+    let tier: Tier | null = null;
+    if (!(lectura && lectura.ok && lectura.evaluacion) && user?.id) {
+      try {
+        const r = await fetchEffectiveTier(user.id);
+        if (!r.noSePudoLeer) tier = r.tier;
+      } catch {
+        // Sin nivel: asunto neutro.
+      }
+    }
+    const asunto = { asuntoCorreo: asuntoCorreoCoach(lectura, tier) };
+    const destino = destinoContacto(WHATSAPP_COACH_ELITE, CONTACTO_ELITE_EMAIL, mensajeParaCoach(nombre, NOMBRE_COACH_ELITE), asunto);
     try {
       await Linking.openURL(destino.url);
       return;
@@ -45,7 +70,7 @@ export function EscribirleCoach({ nombre }: Props) {
     }
     if (porWhatsApp) {
       try {
-        await Linking.openURL(destinoContacto(null, CONTACTO_ELITE_EMAIL, mensajeParaCoach(nombre, NOMBRE_COACH_ELITE)).url);
+        await Linking.openURL(destinoContacto(null, CONTACTO_ELITE_EMAIL, mensajeParaCoach(nombre, NOMBRE_COACH_ELITE), asunto).url);
         return;
       } catch {
         // cae abajo

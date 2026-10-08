@@ -83,6 +83,24 @@ export const REGLA_PLAN_SUPLEMENTOS =
   `Si el resumen de la evaluación y el renglón "${ENCABEZADO_PLAN_EQUIPO}" difieren en dosis, momento, o en si un suplemento ` +
   'sigue o está pausado, manda el renglón del plan: es el que su equipo ajustó después de la evaluación.';
 
+/**
+ * 8-oct-2026 (nivel 2): la misma regla para un cliente de programa. Lo unico
+ * que cambia es como se nombra el documento: su resumen es el de su programa
+ * (evaluacion ligera), no el de una evaluacion Elite.
+ */
+export const REGLA_PLAN_SUPLEMENTOS_PROGRAMA =
+  `REGLA PLAN DE SUPLEMENTOS: el renglón "${ENCABEZADO_PLAN_EQUIPO}" ya lo definió su equipo ATP. ` +
+  'Explícalo como plan de su equipo con la dosis, el momento y el porqué tal como están escritos; ' +
+  `no lo rebajes a "puedes considerar" ni lo cuestiones. Donde diga "${DOSIS_SIN_FIJAR}" no inventes una cantidad: ` +
+  'di que el plan no la fija y que lo vea con su equipo. Los pausados no se sugieren de nuevo ni se preguntan como faltantes. ' +
+  `Si el resumen de su programa y el renglón "${ENCABEZADO_PLAN_EQUIPO}" difieren en dosis, momento, o en si un suplemento ` +
+  'sigue o está pausado, manda el renglón del plan: es el que su equipo ajustó después de cargar el programa.';
+
+/** La regla segun el tipo de documento del cliente. Sin tipo, la de siempre. */
+export function reglaPlanSuplementos(tipo: 'elite' | 'programa' | null | undefined): string {
+  return tipo === 'programa' ? REGLA_PLAN_SUPLEMENTOS_PROGRAMA : REGLA_PLAN_SUPLEMENTOS;
+}
+
 export function esDelEquipo(f: FilaSuplementoArgos): boolean {
   return f.source === 'coach';
 }

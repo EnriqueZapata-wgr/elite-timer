@@ -43,6 +43,17 @@
  *    que HOY decide si ofrece el registro del ciclo.
  *  - Las horas de los habitos llegan aqui YA leidas (horasDeHabitos): el
  *    nombre crudo de esa columna de preferencias vive solo en el servicio.
+ *
+ * 8-oct-2026 (nivel 2):
+ *  - Una practica que el coach asigno desde el programa (assigned_by,
+ *    migracion 329) es "Lo fijó {coach}": se consulta y se pausa, su hora la
+ *    ajusta el coach. Antes de la 329 ninguna llega marcada y todas siguen
+ *    siendo "Lo puedes mover", como hoy. La ficha de la practica usa la misma
+ *    decision (ajustesDePractica).
+ *  - Las palabras que nombran el documento ("tu evaluación" o "tu programa")
+ *    salen de la voz del documento cargado (voz-programa-core). Si no se sabe
+ *    de que tipo es, se dice "tu programa", que es verdad para los dos
+ *    niveles; nunca "Elite".
  */
 import { parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import {
@@ -54,6 +65,9 @@ import { esDelCoach, esDiaProgramado, esPlan } from '@/src/services/supplements/
 import { MOMENTO_COMIDA_LABEL, type ComidaPlan } from '@/src/services/nutrition/plan-comidas-core';
 import type { AvancePrograma } from '@/src/services/elite/programa-elite-core';
 import type { EliteV3 } from '@/src/services/elite/elite-v3-core';
+import {
+  nombreVisibleDelPlan, VOZ_ELITE, vozDeDocumento, type VozPrograma,
+} from '@/src/services/elite/voz-programa-core';
 import { seccionTieneContenido } from '@/src/services/elite/mi-programa-core';
 import { detallePuertas } from '@/src/services/hoy/elite-hoy-core';
 import { TAREA_TIME } from '@/src/services/hoy/tareas-core';
@@ -66,7 +80,9 @@ import { appForElectron, electronsForApp } from '@/src/constants/electron-app-br
 import {
   anchorTimes, assignInterventionTimes, type ChronoRawScores,
 } from '@/src/services/interventions/intervention-agenda-core';
-import { resolveRows, type UserInterventionRow } from '@/src/services/interventions/intervention-service-core';
+import {
+  esPracticaAsignada, resolveRows, type UserInterventionRow,
+} from '@/src/services/interventions/intervention-service-core';
 
 // ---------------------------------------------------------------------------
 // 0. Lecturas y utilidades
@@ -269,6 +285,65 @@ export function etiquetaCoach(coach: string | null | undefined): string {
   return `Lo fijó ${n || 'tu coach'}`;
 }
 
+/**
+ * Lo que la ficha de una practica deja hacer (8-oct-2026, nivel 2). Regla del
+ * dueno "lo suyo sí, lo tuyo no": la que asigno el coach desde el programa se
+ * consulta y se pausa (y se reanuda); su hora y su indicacion las ajusta el
+ * coach, y no se descarta desde la app. Una propia, o una que la app no puede
+ * saber si es asignada (base sin la 329, fila sin leer), se edita como
+ * siempre.
+ */
+export interface AjustesPractica {
+  asignada: boolean;
+  /** "Lo fijó Enrique" en una asignada; null en una propia. */
+  etiqueta: string | null;
+  /** Se ofrece el editor de hora y notas. */
+  editaAjustes: boolean;
+  /** Se ofrece Descartar. */
+  puedeDescartar: boolean;
+  /** Lo que se dice en lugar del editor; null en una propia. */
+  avisoAjustes: string | null;
+}
+
+export function ajustesDePractica(
+  row: { assigned_by?: string | null } | null | undefined,
+  coach: string | null | undefined,
+): AjustesPractica {
+  if (!esPracticaAsignada(row)) {
+    return { asignada: false, etiqueta: null, editaAjustes: true, puedeDescartar: true, avisoAjustes: null };
+  }
+  const quien = (coach ?? '').trim() || 'tu coach';
+  return {
+    asignada: true,
+    etiqueta: etiquetaCoach(coach),
+    editaAjustes: false,
+    puedeDescartar: false,
+    avisoAjustes: `Esta práctica es parte de tu programa. Su hora y su indicación las ajusta ${quien}; si no te acomodan, platícalo con ${quien}. La puedes pausar cuando quieras.`,
+  };
+}
+
+/**
+ * El aviso de la agenda cuando se toca "Cambiar hora" en una practica que
+ * asigno el coach (8-oct-2026, nivel 2): en vez de la rueda, se dice quien la
+ * ajusta y se ofrece abrir su ficha, donde se pausa.
+ */
+export function avisoHoraDePracticaAsignada(coach: string | null | undefined): { titulo: string; cuerpo: string } {
+  const quien = (coach ?? '').trim() || 'tu coach';
+  return {
+    titulo: `Su hora la ajusta ${quien}`,
+    cuerpo: `Esta práctica es parte de tu programa. Si la hora no te acomoda, platícalo con ${quien}. En su ficha la puedes pausar.`,
+  };
+}
+
+/**
+ * 8-oct-2026 (nivel 2): la agenda no pudo leer la ficha de la practica antes
+ * de abrir un editor. No se sabe si la hora es suya: se dice y no se abre.
+ */
+export const PRACTICA_NO_LEIDA = {
+  titulo: 'No se pudo leer esta práctica',
+  cuerpo: 'Revisa tu conexión y vuelve a intentar.',
+} as const;
+
 export interface LineaAjuste {
   dueno: DuenoPlan;
   etiqueta: string;
@@ -376,6 +451,12 @@ export interface PracticaPlanRow {
   hora: string | null;
   /** La hora la puso la persona (custom_time); si no, sale de su horario. */
   horaTuya: boolean;
+  /**
+   * 8-oct-2026 (nivel 2): la asigno el coach desde el programa
+   * (esPracticaAsignada). Ausente o false = es de la persona, como siempre.
+   * En una asignada `horaTuya` solo dice que la hora viene de custom_time.
+   */
+  deCoach?: boolean;
 }
 
 export interface HabitoPlanRow {
@@ -429,6 +510,11 @@ export interface EvaluacionPlanIn {
    * dos veces lo mismo el dia que ya toca una de ellas. Opcional: [] si falta.
    */
   rutinas?: string[];
+  /**
+   * 8-oct-2026 (nivel 2): las palabras del documento (vozDeDocumento).
+   * Ausente = VOZ_ELITE, lo que la pantalla decia antes del nivel 2.
+   */
+  voz?: VozPrograma;
 }
 
 /**
@@ -755,6 +841,7 @@ export function practicasDeFilas(
       nombre: iv.def.name,
       hora: tuya ?? (horas ? horaLimpia(horas.get(iv.row.id)) : null),
       horaTuya: tuya !== null,
+      deCoach: esPracticaAsignada(iv.row),
     };
   });
 }
@@ -770,12 +857,16 @@ export function planDeEvaluacion(e: EliteV3): EvaluacionPlanIn {
   const a = e.alimentacion;
   const priorizaEvita = a.prioriza.length + a.evita.length > 0;
   const ventana = a.ventana ?? null;
+  // 8-oct-2026 (nivel 2): "tu evaluación" en Elite (igual que antes); "tu
+  // programa" en un programa sin evaluacion que leer.
+  const voz = vozDeDocumento(e);
   let alimentacion: EvaluacionPlanIn['alimentacion'] = null;
   if (priorizaEvita) alimentacion = { titulo: 'Qué priorizar y qué evitar', detalle: d.alimentacion };
   else if (!ventana && seccionTieneContenido(e, 'alimentacion')) {
-    alimentacion = { titulo: 'Tu alimentación en tu evaluación', detalle: null };
+    alimentacion = { titulo: `Tu alimentación en ${voz.documento}`, detalle: null };
   }
   return {
+    voz,
     entrenamiento: seccionTieneContenido(e, 'entrenamiento') ? d.entrenamiento : null,
     ventana,
     alimentacion,
@@ -859,6 +950,11 @@ export interface DiaPlan {
    * por si mismo que la tiene (la fila existe y esta version no la entiende).
    */
   avisoEvaluacion: MotivoFallo | null;
+  /**
+   * 8-oct-2026 (nivel 2): las palabras del documento de esta cuenta
+   * (vozDelPlan). null = no se sabe de que tipo es: se habla neutro.
+   */
+  voz: VozPrograma | null;
 }
 
 export interface ContextoPlan {
@@ -870,6 +966,32 @@ export interface ContextoPlan {
    * le habla de una evaluacion que no tiene.
    */
   evaluacionEsperada?: boolean;
+  /**
+   * 8-oct-2026 (nivel 2): lo que la pantalla sabe del tipo de documento sin
+   * haberlo leido completo (useProgramaElite lee solo el inicio). Sirve
+   * cuando la parte 'evaluacion' fallo o no se pidio. null o ausente = no se
+   * sabe.
+   */
+  voz?: VozPrograma | null;
+}
+
+/**
+ * Las palabras con las que Mi plan nombra el documento (8-oct-2026, nivel 2).
+ * El documento leido manda; si no se leyo, lo que la pantalla sepa del tipo;
+ * si nada, null y quien pinta habla neutro ("tu programa"), nunca "Elite".
+ */
+export function vozDelPlan(ins: InsumosPlan, ctx: Pick<ContextoPlan, 'voz'>): VozPrograma | null {
+  const ev = ins.evaluacion;
+  if (ev && ev.ok && ev.dato) return ev.dato.voz ?? VOZ_ELITE;
+  return ctx.voz ?? null;
+}
+
+/**
+ * Como se nombra el documento a media frase. Sin voz: "tu programa", que es
+ * verdad para los dos niveles (el cliente Elite tambien tiene MI PROGRAMA).
+ */
+export function documentoDe(voz: Pick<VozPrograma, 'documento'> | null | undefined): string {
+  return voz ? voz.documento : 'tu programa';
 }
 
 function fila(f: Omit<FilaPlan, 'etiqueta'> & { coach?: string | null }): FilaPlan {
@@ -1120,10 +1242,35 @@ function armarSuplementos(
 function armarPracticasYHabitos(
   practicas: PracticaPlanRow[] | null,
   habitos: HabitoPlanRow[] | null,
+  coachElite: string,
 ): Armado {
   const ordenables: Ordenable[] = [];
+  const coaches: Array<string | null> = [];
   for (const p of practicas ?? []) {
     const extra = p.hora && !p.horaTuya ? 'hora sugerida por tu horario' : !p.hora ? 'sin hora' : null;
+    if (p.deCoach) {
+      // 8-oct-2026 (nivel 2): la asigno el coach desde el programa. Mismo
+      // trato que un suplemento del plan: se consulta y se pausa en su ficha,
+      // y su hora la ajusta el coach (la ficha esconde el editor de hora).
+      // "Sugerida por tu horario" no va: contradiria que la ajusta el coach.
+      coaches.push(coachElite);
+      const partes = [p.hora ? null : 'sin hora', `su hora la ajusta ${coachElite.trim() || 'tu coach'}`].filter(Boolean);
+      ordenables.push({
+        nombre: p.nombre,
+        orden: parseHHMM(p.hora),
+        f: fila({
+          id: `pra:${p.key}`,
+          titulo: p.nombre,
+          cuando: p.hora,
+          detalle: `Práctica · ${partes.join(' · ')}`,
+          dueno: 'coach',
+          coach: coachElite,
+          destino: { tipo: 'practica', key: p.key },
+          accion: 'Ver y pausar',
+        }),
+      });
+      continue;
+    }
     ordenables.push({
       nombre: p.nombre,
       orden: parseHHMM(p.hora),
@@ -1182,7 +1329,7 @@ function armarPracticasYHabitos(
       accion: 'Ver la propuesta',
     }));
   }
-  return { filas, nota: null, cta: null, coaches: [] };
+  return { filas, nota: null, cta: null, coaches };
 }
 
 // --- Alimentacion -----------------------------------------------------------
@@ -1192,9 +1339,12 @@ function armarAlimentacion(
   metas: MetasPropiasIn | null,
   evaluacion: EvaluacionPlanIn | null,
   coachElite: string,
+  voz: VozPrograma | null,
 ): Armado {
   const filas: FilaPlan[] = [];
   const coaches: Array<string | null> = [];
+  // 8-oct-2026 (nivel 2): "Leer en tu evaluación" o "Leer en tu programa".
+  const leerEn = `Leer en ${documentoDe(evaluacion?.voz ?? VOZ_ELITE)}`;
   if (plan) {
     const deCoach = !plan.propio;
     // 8-oct-2026 (revisión en frío): un plan PROPIO llevaba "Lo puedes mover"
@@ -1206,9 +1356,13 @@ function armarAlimentacion(
     const accion = 'Ver en Nutrición';
     const metas = plan.metas.length > 0 ? plan.metas.join(' · ') : null;
     if (deCoach) coaches.push(plan.coachNombre);
+    // 8-oct-2026 (nivel 2): la carga guarda "Plan Elite vN" tambien para un
+    // cliente de programa. Sin voz conocida se muestra neutro ("Plan de
+    // alimentación · vN"): es verdad para los dos y no le dice Elite a nadie.
+    const nombrePlan = nombreVisibleDelPlan((plan.nombre ?? '').trim(), voz ?? { tipo: 'programa' });
     filas.push(fila({
       id: 'ali:plan',
-      titulo: (plan.nombre ?? '').trim() || 'Plan de alimentación',
+      titulo: nombrePlan || 'Plan de alimentación',
       cuando: null,
       detalle: deCoach
         ? metas
@@ -1246,7 +1400,7 @@ function armarAlimentacion(
       dueno: 'coach',
       coach: coachElite,
       destino: { tipo: 'evaluacion', seccion: 'alimentacion' },
-      accion: 'Leer en tu evaluación',
+      accion: leerEn,
     }));
   }
   if (evaluacion?.alimentacion) {
@@ -1259,7 +1413,7 @@ function armarAlimentacion(
       dueno: 'coach',
       coach: coachElite,
       destino: { tipo: 'evaluacion', seccion: 'alimentacion' },
-      accion: 'Leer en tu evaluación',
+      accion: leerEn,
     }));
   }
   // La meta propia no se repite debajo de un plan asignado que ya fija ese numero.
@@ -1355,6 +1509,7 @@ export function componerDia(ins: InsumosPlan, fecha: string, hoy: string, ctx: C
   const conteo: ConteoDia = {};
   const coaches: Array<string | null> = [];
   const evaluacion = ins.evaluacion && ins.evaluacion.ok ? ins.evaluacion.dato : null;
+  const voz = vozDelPlan(ins, ctx);
   const agregar = (s: SeccionPlan | null) => { if (s) secciones.push(s); };
 
   // Entrenamiento
@@ -1375,15 +1530,17 @@ export function componerDia(ins: InsumosPlan, fecha: string, hoy: string, ctx: C
         && (evaluacion?.rutinas ?? []).some((n) => mismoNombre(n, rutinaDelDia));
       if (evaluacion?.entrenamiento && !yaEstaEnLaRutina) {
         coaches.push(ctx.coachElite);
+        // 8-oct-2026 (nivel 2): la voz del documento leido ("tu evaluación" o "tu programa").
+        const doc = documentoDe(evaluacion.voz ?? VOZ_ELITE);
         filas.push(fila({
           id: 'ent:evaluacion',
-          titulo: 'Lo que marca tu evaluación',
+          titulo: `Lo que marca ${doc}`,
           cuando: null,
           detalle: evaluacion.entrenamiento,
           dueno: 'coach',
           coach: ctx.coachElite,
           destino: { tipo: 'evaluacion', seccion: 'entrenamiento' },
-          accion: 'Leer en tu evaluación',
+          accion: `Leer en ${doc}`,
         }));
       }
       agregar(seccionOk('entrenamiento', { ...a, filas }, null));
@@ -1407,6 +1564,7 @@ export function componerDia(ins: InsumosPlan, fecha: string, hoy: string, ctx: C
         ins.metas && ins.metas.ok ? ins.metas.dato : null,
         evaluacion,
         ctx.coachElite,
+        voz,
       );
       coaches.push(...a.coaches);
       const parcial = planFallo ? 'No se pudo leer tu plan de alimentación.'
@@ -1446,7 +1604,8 @@ export function componerDia(ins: InsumosPlan, fecha: string, hoy: string, ctx: C
     } else {
       // Una parte no pedida cuenta como "sin filas": solo un FALLO impide
       // decir "no tienes nada encendido".
-      const a = armarPracticasYHabitos(pFallo ? null : practicas ?? [], hFallo ? null : habitos ?? []);
+      const a = armarPracticasYHabitos(pFallo ? null : practicas ?? [], hFallo ? null : habitos ?? [], ctx.coachElite);
+      coaches.push(...a.coaches);
       const parcial = pFallo ? 'No se pudieron leer tus prácticas.'
         : hFallo ? 'No se pudieron leer tus hábitos.'
           : null;
@@ -1467,6 +1626,7 @@ export function componerDia(ins: InsumosPlan, fecha: string, hoy: string, ctx: C
     conteo,
     coaches,
     avisoEvaluacion: motivoAvisoEvaluacion(ins.evaluacion, ctx.evaluacionEsperada === true),
+    voz,
   };
 }
 
@@ -1481,16 +1641,24 @@ function motivoAvisoEvaluacion(ev: InsumosPlan['evaluacion'], esperada: boolean)
  * (8-oct-2026, revisión en frío). Con 'formato' NO se ofrece Reintentar:
  * volver a leer la misma fila con la misma app da lo mismo, y un boton que
  * nunca puede funcionar es peor que no tenerlo.
+ *
+ * 8-oct-2026 (nivel 2): el documento se nombra con la voz que se conozca
+ * (DiaPlan.voz). Con la voz de Elite el texto es el de siempre; sin voz se
+ * dice "tu programa", que es verdad para los dos niveles.
  */
-export function avisoDeEvaluacion(motivo: MotivoFallo): { texto: string; reintentar: boolean } {
+export function avisoDeEvaluacion(
+  motivo: MotivoFallo,
+  voz?: Pick<VozPrograma, 'documento'> | null,
+): { texto: string; reintentar: boolean } {
+  const doc = documentoDe(voz);
   if (motivo === 'formato') {
     return {
-      texto: 'Esta versión de la app no puede leer tu evaluación. Lo demás de tu plan sí está aquí.',
+      texto: `Esta versión de la app no puede leer ${doc}. Lo demás de tu plan sí está aquí.`,
       reintentar: false,
     };
   }
   return {
-    texto: 'No se pudo leer lo que marca tu evaluación. Lo demás de tu plan sí está aquí.',
+    texto: `No se pudo leer lo que marca ${doc}. Lo demás de tu plan sí está aquí.`,
     reintentar: true,
   };
 }

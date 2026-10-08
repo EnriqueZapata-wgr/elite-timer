@@ -18,15 +18,22 @@
  * `html` se pide aparte, por id, cuando se toca "Descargar PDF".
  */
 import { supabase } from '@/src/lib/supabase';
-import { ELITE_SECCIONES } from './elite-v3-core';
+import { ELITE_SECCIONES, type EliteTipo } from './elite-v3-core';
 import { versionesDesdeFilas, type FilaDxElite, type VersionElite } from './evaluacion-elite-core';
+import { datosDelProgramaVigente } from './programa-elite-core';
 
 export type LecturaEvaluacionesElite =
   | { estado: 'ok'; versiones: VersionElite[] }
   | { estado: 'error' };
 
-/** Claves de `elite_v3` que la pantalla necesita (todo menos `html`). */
-const CLAVES_ELITE = ['schema', 'version', 'generado_en', 'interpretado_por', 'cliente', ...ELITE_SECCIONES] as const;
+/**
+ * Claves de `elite_v3` que la pantalla necesita (todo menos `html`).
+ * 8-oct-2026 (nivel 2): se suman `tipo` y `practicas`. Sin ellas en la
+ * proyeccion, un programa llegaba a la app sin su tipo y se leia como Elite.
+ * En una fila anterior al nivel 2 esas rutas no existen y llegan en null:
+ * `filaDesdeProyeccion` no las pone y el documento sigue siendo Elite.
+ */
+const CLAVES_ELITE = ['schema', 'tipo', 'version', 'generado_en', 'interpretado_por', 'cliente', ...ELITE_SECCIONES, 'practicas'] as const;
 
 /** `id, version, created_at, ev_schema:sources_snapshot->elite_v3->schema, ...` */
 const SELECT_LISTA = ['id', 'version', 'created_at', ...CLAVES_ELITE.map((k) => `ev_${k}:sources_snapshot->elite_v3->${k}`)].join(', ');
@@ -101,9 +108,23 @@ export async function fetchHtmlEvaluacionElite(dxId: string): Promise<LecturaHtm
  * es la PRIMERA carga (la version mas vieja); la duracion, la de la version
  * vigente (Enrique puede corregirla en una revision). `inicio: null` = el
  * cliente todavia no tiene evaluacion, que no es lo mismo que un error.
+ *
+ * 8-oct-2026 (nivel 2): de la version VIGENTE salen ademas el nombre del
+ * programa, el inicio que el coach declaro y el tipo del documento. `inicio`
+ * sigue siendo la fecha de la primera carga; quien decide cual de las dos
+ * fechas manda es `situacionDelPrograma` (programa-elite-core). Una fila
+ * cargada antes del nivel 2 no tiene esas rutas: PostgREST las devuelve en
+ * null y quedan `nombre: null`, `inicioDeclarado: null`, `tipo: 'elite'`.
  */
 export type LecturaInicioPrograma =
-  | { estado: 'ok'; inicio: string | null; programaSemanas: number | null }
+  | {
+      estado: 'ok';
+      inicio: string | null;
+      programaSemanas: number | null;
+      nombre: string | null;
+      inicioDeclarado: string | null;
+      tipo: EliteTipo;
+    }
   | { estado: 'error' };
 
 export async function fetchInicioProgramaElite(userId: string): Promise<LecturaInicioPrograma> {
@@ -111,7 +132,7 @@ export async function fetchInicioProgramaElite(userId: string): Promise<LecturaI
   // con tope. Con un tope de 20 versiones, la 21 corria el inicio en silencio.
   const base = () => supabase
     .from('functional_dx')
-    .select('version, created_at, ps:sources_snapshot->elite_v3->inicio->programa_semanas')
+    .select('version, created_at, ps:sources_snapshot->elite_v3->inicio->programa_semanas, pn:sources_snapshot->elite_v3->inicio->programa_nombre, pi:sources_snapshot->elite_v3->inicio->programa_inicio, tipo:sources_snapshot->elite_v3->tipo')
     .eq('user_id', userId)
     .not('sources_snapshot->elite_v3', 'is', null);
   try {
@@ -121,13 +142,13 @@ export async function fetchInicioProgramaElite(userId: string): Promise<LecturaI
     ]);
     if (primera.error || vigente.error) return { estado: 'error' };
     const f0 = ((primera.data ?? []) as unknown as { created_at: unknown }[])[0];
-    const fv = ((vigente.data ?? []) as unknown as { ps: unknown }[])[0];
-    if (!f0 || !fv) return { estado: 'ok', inicio: null, programaSemanas: null };
-    const ps = fv.ps;
+    const fv = ((vigente.data ?? []) as unknown as { ps: unknown; pn: unknown; pi: unknown; tipo: unknown }[])[0];
+    if (!f0 || !fv) return { estado: 'ok', inicio: null, programaSemanas: null, nombre: null, inicioDeclarado: null, tipo: 'elite' };
     return {
       estado: 'ok',
       inicio: typeof f0.created_at === 'string' ? f0.created_at : null,
-      programaSemanas: typeof ps === 'number' && Number.isFinite(ps) ? ps : null,
+      // Los cuatro se revisan en puro: la fila pudo cargarse sin el validador.
+      ...datosDelProgramaVigente(fv),
     };
   } catch {
     return { estado: 'error' };

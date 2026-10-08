@@ -30,7 +30,11 @@ import {
   diasEntre as diasEntreFechas,
   restarDias,
   senalDeVida,
+  nivelDeDocumento,
+  nombreDePrograma,
+  textoNovedadDocumento,
   type ClienteConsola,
+  type DocumentoConsola,
   type FuenteSenal,
   type Novedad,
 } from './consola-core';
@@ -154,8 +158,12 @@ export async function cargarClientes(coachId: string): Promise<Lectura<ClienteCo
       quiz, labs, sintomas, comida, agua, electrones, argos, mente, tomas,
     ] = await Promise.all([
       supabase.from('profiles').select('id, email, full_name, tier, tier_expires_at, is_test').in('id', ids),
+      // 8-oct-2026 (nivel 2): ademas el tipo y el nombre del programa, como
+      // texto (->>). Una fila de antes no trae `tipo`: llega null y es Elite.
       supabase.from('functional_dx')
-        .select('user_id, version, created_at, esElite:sources_snapshot->elite_v3->schema')
+        .select('user_id, version, created_at, esElite:sources_snapshot->elite_v3->schema, '
+          + 'tipoDoc:sources_snapshot->elite_v3->>tipo, '
+          + 'programaNombre:sources_snapshot->elite_v3->inicio->>programa_nombre')
         .in('user_id', ids).order('created_at', { ascending: true }),
       supabase.from('user_interventions').select('id, user_id, activated_at').in('user_id', ids).eq('status', 'active'),
       supabase.from('intervention_completions')
@@ -185,11 +193,11 @@ export async function cargarClientes(coachId: string): Promise<Lectura<ClienteCo
     const porPerfil = new Map<string, FilaPerfil>();
     for (const p of (perfiles.data ?? []) as unknown as FilaPerfil[]) porPerfil.set(p.id, p);
 
-    const evaluacionPorCliente = new Map<string, { version: number; fecha: string }>();
+    const evaluacionPorCliente = new Map<string, DocumentoConsola>();
     const dxPorCliente = new Map<string, string>();
     const evalNovedad = new Map<string, string>();
     for (const d of (dx.data ?? []) as unknown as
-      { user_id: string; version: number; created_at: string; esElite: unknown }[]) {
+      { user_id: string; version: number; created_at: string; esElite: unknown; tipoDoc?: unknown; programaNombre?: unknown }[]) {
       const fecha = soloFecha(d.created_at);
       if (!fecha) continue;
       const prevDx = dxPorCliente.get(d.user_id);
@@ -198,7 +206,15 @@ export async function cargarClientes(coachId: string): Promise<Lectura<ClienteCo
       // trae valor si esa fila ES una evaluacion Elite del generador.
       if (d.esElite === null || d.esElite === undefined) continue;
       const prev = evaluacionPorCliente.get(d.user_id);
-      if (!prev || d.version > prev.version) evaluacionPorCliente.set(d.user_id, { version: d.version, fecha });
+      if (!prev || d.version > prev.version) {
+        const tipo = nivelDeDocumento(d.tipoDoc);
+        evaluacionPorCliente.set(d.user_id, {
+          version: d.version,
+          fecha,
+          tipo,
+          nombre: tipo === 'programa' ? nombreDePrograma(d.programaNombre) : null,
+        });
+      }
       const prevN = evalNovedad.get(d.user_id);
       if (!prevN || fecha > prevN) evalNovedad.set(d.user_id, fecha);
     }
@@ -283,7 +299,8 @@ export async function cargarClientes(coachId: string): Promise<Lectura<ClienteCo
       const lab = labsPorCliente.get(id);
       if (lab) novedades.push({ tipo: 'laboratorios', fecha: lab, texto: 'Subió laboratorios' });
       const ev = evalNovedad.get(id);
-      if (ev) novedades.push({ tipo: 'evaluacion', fecha: ev, texto: 'Evaluación cargada' });
+      // 8-oct-2026 (nivel 2): "Programa cargado" cuando el documento vigente es un programa.
+      if (ev) novedades.push({ tipo: 'evaluacion', fecha: ev, texto: textoNovedadDocumento(evaluacionPorCliente.get(id)?.tipo) });
       const si = sintPorCliente.get(id);
       if (si) novedades.push({ tipo: 'sintomas', fecha: si, texto: 'Registró síntomas' });
       const qz = quizPorCliente.get(id);

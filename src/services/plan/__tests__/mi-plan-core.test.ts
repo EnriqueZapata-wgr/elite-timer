@@ -17,6 +17,10 @@ import type { UserInterventionRow } from '@/src/services/interventions/intervent
 import { validarEliteV3, type EliteV3 } from '@/src/services/elite/elite-v3-core';
 import { avanceDelPrograma } from '@/src/services/elite/programa-elite-core';
 import { TOPE_HERO_ELITE_MS } from '@/src/services/hoy/elite-hoy-core';
+import { VOZ_ELITE, vozDe } from '@/src/services/elite/voz-programa-core';
+import {
+  ajustesDePractica, avisoHoraDePracticaAsignada, documentoDe, PRACTICA_NO_LEIDA, vozDelPlan,
+} from '@/src/services/plan/mi-plan-core';
 import {
   alElegirDia, avisoDeEvaluacion, coachesDeLaSemana, comoSeAjusta, componerDia, contactoCoach, coachDelDia, conTope,
   diaVisible, ETIQUETA_ARGOS, ETIQUETA_TUYO, etiquetaCoach, fusionarInsumos, GATE_DESCONOCIDO, habitosDeLecturas,
@@ -882,11 +886,12 @@ describe('lecturas independientes: una que falla no borra las demas', () => {
     // La fila existe: se avisa aunque el nivel no diga que se esperaba.
     expect(componerDia(ins, HOY, HOY, CTX).avisoEvaluacion).toBe('formato');
     expect(componerDia(ins, HOY, HOY, { ...CTX, evaluacionEsperada: true }).avisoEvaluacion).toBe('formato');
-    expect(avisoDeEvaluacion('formato')).toEqual({
+    // 8-oct-2026 (nivel 2): con la voz de Elite, el texto de siempre.
+    expect(avisoDeEvaluacion('formato', VOZ_ELITE)).toEqual({
       texto: 'Esta versión de la app no puede leer tu evaluación. Lo demás de tu plan sí está aquí.',
       reintentar: false,
     });
-    expect(avisoDeEvaluacion('lectura')).toEqual({
+    expect(avisoDeEvaluacion('lectura', VOZ_ELITE)).toEqual({
       texto: 'No se pudo leer lo que marca tu evaluación. Lo demás de tu plan sí está aquí.',
       reintentar: true,
     });
@@ -1315,7 +1320,15 @@ describe('copy: lo que la persona lee', () => {
     }
     for (const l of [...comoSeAjusta('Enrique', true), ...comoSeAjusta(null, true), ...comoSeAjusta(null, false)]) out.push(l.etiqueta, l.texto);
     // 8-oct-2026 (revisión en frío): los textos nuevos entran al mismo barrido.
-    out.push(avisoDeEvaluacion('formato').texto, avisoDeEvaluacion('lectura').texto, SIN_SESION.titulo, SIN_SESION.cuerpo);
+    out.push(avisoDeEvaluacion('formato', VOZ_ELITE).texto, avisoDeEvaluacion('lectura', VOZ_ELITE).texto, SIN_SESION.titulo, SIN_SESION.cuerpo);
+    // 8-oct-2026 (nivel 2): la voz neutra, la de programa, la practica del
+    // coach y sus avisos entran al mismo barrido.
+    out.push(avisoDeEvaluacion('formato').texto, avisoDeEvaluacion('lectura').texto);
+    const ajustes = ajustesDePractica({ assigned_by: COACH_ID }, 'Enrique');
+    out.push(ajustes.etiqueta ?? '', ajustes.avisoAjustes ?? '');
+    const aviso = avisoHoraDePracticaAsignada(null);
+    out.push(aviso.titulo, aviso.cuerpo, PRACTICA_NO_LEIDA.titulo, PRACTICA_NO_LEIDA.cuerpo);
+    for (const fecha of semanaDe(HOY)) out.push(...textosDe(componerDia(insumosPrograma(), fecha, HOY, CTX)));
     return out.filter((s) => s !== '');
   }
   it('cero em dashes', () => {
@@ -1393,7 +1406,7 @@ describe('lo que la evaluacion Elite aporta a la semana', () => {
     const e = omar();
     e.alimentacion = { prioriza: [], evita: [], ventana: null, horarios: [], notas: [] };
     e.entrenamiento = { base: null, sesiones: [], descanso: [], notas: [] };
-    expect(planDeEvaluacion(e)).toEqual({ entrenamiento: null, ventana: null, alimentacion: null, rutinas: [] });
+    expect(planDeEvaluacion(e)).toEqual({ voz: VOZ_ELITE, entrenamiento: null, ventana: null, alimentacion: null, rutinas: [] });
   });
   it('los nombres de sus rutinas ejecutables viajan tal cual (8-oct-2026: para no repetir el dia que ya tocan)', () => {
     const e = omar();
@@ -1457,6 +1470,187 @@ describe('el dia que se mira sigue a hoy hasta que la persona elige otro', () =>
     for (const f of ['src/screens/plan/MiPlanScreen.tsx', 'src/components/hoy/MiPlanCard.tsx']) {
       const src = readFileSync(resolve(process.cwd(), f), 'utf8');
       expect(src.includes('cuenta.current !== userId') ? 'ok' : `${f} sin guarda de cuenta`).toBe('ok');
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8-oct-2026 (nivel 2): practicas que asigno el coach y la voz del documento
+// ---------------------------------------------------------------------------
+
+/** Una practica del programa (assigned_by) junto a las propias de siempre. */
+const PRACTICA_COACH: PracticaPlanRow = {
+  key: 'respiracion_478', nombre: 'Respiración 4-7-8', hora: '22:15', horaTuya: true, deCoach: true,
+};
+
+/** Cliente de programa sin evaluacion que leer: la voz dice "tu programa". */
+function insumosPrograma(): InsumosPlan {
+  const voz = vozDe({ tipo: 'programa', nombre: 'Fuerza y sueño', conDiagnostico: false });
+  return {
+    ...insumosLlenos(),
+    practicas: lecturaOk([...PRACTICAS, PRACTICA_COACH]),
+    planAlimentacion: lecturaOk<PlanAlimentacionIn | null>({ ...PLAN_COACH, nombre: 'Plan Elite v2' }),
+    evaluacion: lecturaOk({
+      voz,
+      entrenamiento: '3 tipos de sesión',
+      ventana: { inicio: '12:00', fin: '20:00' },
+      alimentacion: { titulo: 'Tu alimentación en tu programa', detalle: null },
+    }),
+  };
+}
+
+describe('nivel 2: la practica que asigno el coach', () => {
+  function filaPractica(p: Partial<UserInterventionRow> & { id: string; intervention_key: string }): UserInterventionRow {
+    return {
+      user_id: USER, status: 'active', priority: 1, source_dx_id: null, is_custom: false, is_universal: false,
+      custom_definition: null, custom_time: null, computed_time: null, custom_notes: null, custom_dose: null,
+      activated_at: null, created_at: '2026-09-01', updated_at: '2026-09-01', ...p,
+    };
+  }
+  it('practicasDeFilas marca la asignada; sin la columna (antes de la 329) ninguna lo es', () => {
+    const out = practicasDeFilas([
+      filaPractica({ id: '1', intervention_key: 'hidratacion_matutina', assigned_by: COACH_ID }),
+      filaPractica({ id: '2', intervention_key: 'exposicion_solar_matutina', assigned_by: null }),
+      filaPractica({ id: '3', intervention_key: 'respiracion_478' }),
+      filaPractica({ id: '4', intervention_key: 'caminata_postprandial', assigned_by: '  ' }),
+    ], LECTURA_FALLIDA);
+    expect(out.map((p) => [p.key, p.deCoach])).toEqual([
+      ['hidratacion_matutina', true],
+      ['exposicion_solar_matutina', false],
+      ['respiracion_478', false],
+      ['caminata_postprandial', false],
+    ]);
+  });
+  it('en Mi plan se firma "Lo fijó Enrique", se consulta y se pausa, y dice quien ajusta su hora', () => {
+    const ins = { ...insumosLlenos(), practicas: lecturaOk([...PRACTICAS, PRACTICA_COACH]) };
+    const f = filaPorId(componerDia(ins, HOY, HOY, CTX), 'pra:respiracion_478');
+    expect(f).toMatchObject({
+      titulo: 'Respiración 4-7-8',
+      cuando: '22:15',
+      dueno: 'coach',
+      etiqueta: 'Lo fijó Enrique',
+      accion: 'Ver y pausar',
+      destino: { tipo: 'practica', key: 'respiracion_478' },
+      detalle: 'Práctica · su hora la ajusta Enrique',
+    });
+    // Nunca "Lo puedes mover" en lo que fijo el coach.
+    expect(f?.etiqueta).not.toBe(ETIQUETA_TUYO);
+  });
+  it('sin hora propia no se dice "sugerida por tu horario": la ajusta el coach', () => {
+    const p: PracticaPlanRow = { ...PRACTICA_COACH, hora: '07:15', horaTuya: false };
+    const ins = { ...insumosLlenos(), practicas: lecturaOk([p]) };
+    expect(filaPorId(componerDia(ins, HOY, HOY, CTX), 'pra:respiracion_478')?.detalle)
+      .toBe('Práctica · su hora la ajusta Enrique');
+    const sinHora: PracticaPlanRow = { ...PRACTICA_COACH, hora: null, horaTuya: false };
+    expect(filaPorId(componerDia({ practicas: lecturaOk([sinHora]) }, HOY, HOY, CTX), 'pra:respiracion_478')?.detalle)
+      .toBe('Práctica · sin hora · su hora la ajusta Enrique');
+  });
+  it('las propias no cambian', () => {
+    const antes = filasDe(componerDia({ ...insumosLlenos() }, HOY, HOY, CTX), 'practicas').filter((f) => f.id.startsWith('pra:'));
+    const ins = { ...insumosLlenos(), practicas: lecturaOk([...PRACTICAS, PRACTICA_COACH]) };
+    const despues = filasDe(componerDia(ins, HOY, HOY, CTX), 'practicas')
+      .filter((f) => f.id.startsWith('pra:') && f.id !== 'pra:respiracion_478');
+    expect(despues).toEqual(antes);
+    for (const f of despues) expect(f).toMatchObject({ dueno: 'tuyo', etiqueta: ETIQUETA_TUYO, accion: 'Cambiar hora o pausar' });
+  });
+  it('cuenta para la leyenda y para el contacto: una sola practica del coach basta', () => {
+    const ins: InsumosPlan = { practicas: lecturaOk([PRACTICA_COACH]), habitos: lecturaOk<HabitoPlanRow[]>([]) };
+    const dia = componerDia(ins, HOY, HOY, CTX);
+    expect(dia.coaches).toEqual(['Enrique']);
+    expect(contactoCoach(dia, 'Enrique')).toEqual({ tipo: 'elite' });
+    const semana = coachesDeLaSemana(ins, HOY, CTX);
+    expect(semana.length).toBe(7);
+    expect(coachDelDia({ coaches: semana })).toBe('Enrique');
+    expect(comoSeAjusta(coachDelDia({ coaches: semana }), semana.length > 0).map((l) => l.etiqueta))
+      .toEqual([ETIQUETA_TUYO, 'Lo fijó Enrique', ETIQUETA_ARGOS]);
+    // Solo propias: la linea del coach no sale.
+    const propias: InsumosPlan = { practicas: lecturaOk(PRACTICAS), habitos: lecturaOk<HabitoPlanRow[]>([]) };
+    expect(coachesDeLaSemana(propias, HOY, CTX)).toEqual([]);
+  });
+});
+
+describe('nivel 2: la ficha de la practica (ajustesDePractica) y la agenda', () => {
+  it('asignada: se consulta y se pausa; ni hora, ni notas, ni descartar', () => {
+    const a = ajustesDePractica({ assigned_by: COACH_ID }, 'Enrique');
+    expect(a).toMatchObject({ asignada: true, etiqueta: 'Lo fijó Enrique', editaAjustes: false, puedeDescartar: false });
+    expect(a.avisoAjustes).toMatch('las ajusta Enrique');
+    expect(a.avisoAjustes).toMatch('La puedes pausar cuando quieras.');
+  });
+  it('propia, sin la columna o sin fila: como siempre', () => {
+    const propia = { asignada: false, etiqueta: null, editaAjustes: true, puedeDescartar: true, avisoAjustes: null };
+    expect(ajustesDePractica({ assigned_by: null }, 'Enrique')).toEqual(propia);
+    expect(ajustesDePractica({}, 'Enrique')).toEqual(propia);
+    expect(ajustesDePractica(null, 'Enrique')).toEqual(propia);
+  });
+  it('sin nombre de coach no se inventa uno', () => {
+    expect(ajustesDePractica({ assigned_by: COACH_ID }, '  ').etiqueta).toBe('Lo fijó tu coach');
+    expect(avisoHoraDePracticaAsignada(null).titulo).toBe('Su hora la ajusta tu coach');
+    expect(avisoHoraDePracticaAsignada('Enrique').cuerpo).toMatch('platícalo con Enrique');
+  });
+});
+
+describe('nivel 2: la voz del documento en Mi plan', () => {
+  function programa(): EliteV3 {
+    const crudo: unknown = JSON.parse(readFileSync(resolve(process.cwd(), 'R and D/diagnostico/programa_ejemplo.json'), 'utf8'));
+    const r = validarEliteV3(crudo);
+    if (!r.ok) throw new Error(r.errores.join('\n'));
+    return r.valor;
+  }
+  it('un programa sin evaluacion dice "tu programa"; nada dice Elite', () => {
+    const e = programa();
+    e.alimentacion = { ...e.alimentacion, prioriza: [], evita: [], ventana: null, notas: ['Come sin pantallas'] };
+    const p = planDeEvaluacion(e);
+    expect(p.voz?.tipo).toBe('programa');
+    expect(p.alimentacion).toEqual({ titulo: 'Tu alimentación en tu programa', detalle: null });
+  });
+  it('las filas que abren el documento usan su voz', () => {
+    const dia = componerDia(insumosPrograma(), HOY, HOY, CTX);
+    expect(filaPorId(dia, 'ent:evaluacion')).toMatchObject({ titulo: 'Lo que marca tu programa', accion: 'Leer en tu programa' });
+    expect(filaPorId(dia, 'ali:ventana')?.accion).toBe('Leer en tu programa');
+    expect(filaPorId(dia, 'ali:evaluacion')?.accion).toBe('Leer en tu programa');
+    // "Plan Elite v2" se le muestra neutro a un cliente de programa.
+    expect(filaPorId(dia, 'ali:plan')?.titulo).toBe('Plan de alimentación · v2');
+    expect(dia.voz?.tipo).toBe('programa');
+  });
+  it('ningun texto de la semana de un programa dice Elite', () => {
+    for (const fecha of semanaDe(HOY)) {
+      for (const s of textosDe(componerDia(insumosPrograma(), fecha, HOY, CTX))) expect(/elite/i.test(s) ? s : 'ok').toBe('ok');
+    }
+  });
+  it('Elite: las mismas palabras de antes, y su plan conserva el nombre', () => {
+    const ins = { ...insumosLlenos(), planAlimentacion: lecturaOk<PlanAlimentacionIn | null>({ ...PLAN_COACH, nombre: 'Plan Elite v2' }) };
+    const dia = componerDia(ins, HOY, HOY, CTX);
+    expect(filaPorId(dia, 'ent:evaluacion')).toMatchObject({ titulo: 'Lo que marca tu evaluación', accion: 'Leer en tu evaluación' });
+    expect(filaPorId(dia, 'ali:ventana')?.accion).toBe('Leer en tu evaluación');
+    expect(filaPorId(dia, 'ali:plan')?.titulo).toBe('Plan Elite v2');
+    expect(dia.voz).toBe(VOZ_ELITE);
+  });
+  it('sin documento leido: manda lo que la pantalla sepa; si nada, neutro', () => {
+    const base = { ...insumosLlenos(), planAlimentacion: lecturaOk<PlanAlimentacionIn | null>({ ...PLAN_COACH, nombre: 'Plan Elite v3' }) };
+    const fallo = { ...base, evaluacion: LECTURA_FALLIDA };
+    expect(vozDelPlan(fallo, {})).toBeNull();
+    expect(filaPorId(componerDia(fallo, HOY, HOY, CTX), 'ali:plan')?.titulo).toBe('Plan de alimentación · v3');
+    const conTipo = { ...CTX, voz: VOZ_ELITE };
+    expect(vozDelPlan(fallo, conTipo)).toBe(VOZ_ELITE);
+    expect(filaPorId(componerDia(fallo, HOY, HOY, conTipo), 'ali:plan')?.titulo).toBe('Plan Elite v3');
+    // El documento leido gana sobre lo que dice la pantalla.
+    expect(vozDelPlan(insumosPrograma(), conTipo)?.tipo).toBe('programa');
+    // Sin documento cargado (cuenta sin evaluacion), neutro tambien.
+    expect(vozDelPlan({ evaluacion: lecturaOk(null) }, {})).toBeNull();
+  });
+  it('el aviso de lectura: Elite igual que antes; programa y neutro dicen "tu programa"', () => {
+    expect(avisoDeEvaluacion('lectura', VOZ_ELITE).texto).toBe('No se pudo leer lo que marca tu evaluación. Lo demás de tu plan sí está aquí.');
+    const prog = vozDe({ tipo: 'programa', nombre: null });
+    expect(avisoDeEvaluacion('lectura', prog).texto).toBe('No se pudo leer lo que marca tu programa. Lo demás de tu plan sí está aquí.');
+    expect(avisoDeEvaluacion('lectura').texto).toBe('No se pudo leer lo que marca tu programa. Lo demás de tu plan sí está aquí.');
+    expect(avisoDeEvaluacion('formato', null)).toEqual({
+      texto: 'Esta versión de la app no puede leer tu programa. Lo demás de tu plan sí está aquí.',
+      reintentar: false,
+    });
+    expect(documentoDe(undefined)).toBe('tu programa');
+    for (const m of ['lectura', 'formato'] as const) {
+      expect(/elite/i.test(avisoDeEvaluacion(m).texto)).toBe(false);
+      expect(/elite/i.test(avisoDeEvaluacion(m, prog).texto)).toBe(false);
     }
   });
 });

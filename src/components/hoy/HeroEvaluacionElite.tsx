@@ -41,6 +41,8 @@ import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, withOpacity } from '@/src/constants/brand';
 import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
+import { VOZ_ELITE, type VozPrograma } from '@/src/services/elite/voz-programa-core';
+import { textosNoSePudoLeer } from '@/src/services/elite/mi-programa-core';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
 
 /** El nombre del coach vive en un solo sitio (lanzamiento.ts); aqui solo se pone en mayusculas. */
@@ -106,18 +108,24 @@ export function HeroEliteEnCamino({ onActualizar }: { onActualizar: () => void }
  * honesto es pedir actualizar la app, no revisar la conexion.
  * `tope` (A8): no fallo nada todavia, se paso el tiempo de espera; no se
  * afirma que la evaluacion "sigue guardada" porque no se llego a leer.
+ * 8-oct-2026 (nivel 2): `voz` nombra el documento ("tu evaluación" o "tu
+ * programa", con su genero; mi-programa-core, textosNoSePudoLeer). Sin ella,
+ * la de Elite: el texto de siempre.
  */
-export function HeroEliteNoSePudoLeer({ onReintentar, formato = false, tope = false }: { onReintentar: () => void; formato?: boolean; tope?: boolean }) {
+export function HeroEliteNoSePudoLeer({ onReintentar, formato = false, tope = false, voz = VOZ_ELITE }: {
+  onReintentar: () => void; formato?: boolean; tope?: boolean; voz?: Pick<VozPrograma, 'documento'>;
+}) {
   const { t, acento, card } = useCard();
+  const x = textosNoSePudoLeer(voz);
   const cuerpo = formato
-    ? 'Tu evaluación está guardada, pero esta versión de la app no la entiende. Actualiza la app y vuelve a intentar.'
+    ? x.formato
     : tope
       ? 'La lectura tardó más de lo normal. Revisa tu conexión y vuelve a intentar.'
-      : 'Revisa tu conexión. Tu evaluación sigue guardada.';
+      : `Revisa tu conexión. ${x.sigueGuardado}`;
   return (
     <View style={card}>
-      <Cabecera acento={acento} />
-      <EliteText style={[s.titulo, { color: t.texto }]}>No pudimos leer tu evaluación</EliteText>
+      <Cabecera acento={acento} texto={x.etiqueta} />
+      <EliteText style={[s.titulo, { color: t.texto }]}>{x.titulo}</EliteText>
       <EliteText style={[s.body, { color: t.textoSecundario }]}>{cuerpo}</EliteText>
       <AnimatedPressable
         style={[s.btnQuiet, { borderColor: t.bordeMarcado }]}

@@ -215,8 +215,12 @@ export const APP_REGISTRY: AppEntry[] = [
   // demás se ve con candado y el candado abre la página Elite (RUTA_ELITE),
   // sin precio ni botón de compra (Apple 3.1.3). Sin parser en 3.0: los
   // hallazgos los escribe a mano quien firma la evaluación.
+  // 8-oct-2026 (nivel 2): la descripcion decia "Parte de tu evaluación
+  // Elite". El cliente de un programa la lee (Genetica se abre por existencia
+  // del documento, que el programa tambien tiene) y quiza no trae genetica:
+  // ahora dice cuando aparece, sin marca.
   { key: 'genetica', label: 'Genética', icon: 'genetica', section: 'salud', route: '/salud/genetica', installable: false, minTier: 'elite', alias: ['adn', 'dna', 'genetico', 'genotipado', 'snp', '23andme'],
-    description: 'Tus hallazgos genéticos interpretados por tema: qué se encontró, qué significa para ti y qué hacer. Parte de tu evaluación Elite.' },
+    description: 'Tus hallazgos genéticos interpretados por tema: qué se encontró, qué significa para ti y qué hacer, cuando tu plan con Enrique incluye estudio genético.' },
 
   // ── Sistema ──
   { key: 'ajustes', label: 'Ajustes', icon: 'ajustes', section: 'sistema', route: '/settings', installable: false, alias: ['configuración', 'settings', 'preferencias', 'cuenta'],

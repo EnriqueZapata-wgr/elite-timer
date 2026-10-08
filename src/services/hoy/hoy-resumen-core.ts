@@ -36,7 +36,9 @@
  */
 import { classifyEdadDelta, edadDeltaYears } from '@/src/services/edad-atp/edad-delta-core';
 import type { EliteV3 } from '@/src/services/elite/elite-v3-core';
-import type { AvancePrograma } from '@/src/services/elite/programa-elite-core';
+import { lineaPorEmpezar, type AvancePrograma, type PorEmpezar } from '@/src/services/elite/programa-elite-core';
+import { vozDeDocumento } from '@/src/services/elite/voz-programa-core';
+import { documentoListo } from '@/src/services/elite/mi-programa-core';
 import {
   ACCION_COMPLETAR_PERFIL, AVISO_FALTA_SEXO_EDAD, RUTA_PERFIL, sexoDePerfil,
 } from '@/src/services/salud/sexo-core';
@@ -379,6 +381,11 @@ export function tarjetaSinEstudio(): TarjetaResumen {
 export const LINEA_EVALUACION_LISTA = 'Tu evaluación está lista';
 
 /**
+ * 8-oct-2026 (nivel 2): el documento puede ser un programa (`tipo:
+ * 'programa'`). Título, línea de "lista" y CTA salen de su voz: "Tu programa
+ * con Enrique", "Tu programa está listo", "Ver mi programa". Con un documento
+ * Elite, el texto de siempre (el test lo amarra).
+ *
  * Con evaluación Elite. La línea: la Edad ATP que puso el coach y su delta si
  * el documento trae las dos edades; si no, sus palabras (`inicio.lead`) en una
  * línea; si tampoco, que está lista. Los marcadores en atención, sus símbolos
@@ -395,13 +402,16 @@ export const LINEA_EVALUACION_LISTA = 'Tu evaluación está lista';
  */
 export function tarjetaEvaluacion(e: EliteV3, sexo: unknown): TarjetaResumen {
   const edad = edadesDeEvaluacion(e);
+  const voz = vozDeDocumento(e);
+  const programaSinEvaluacion = voz.documento === 'tu programa';
   return armarTarjeta({
     key: 'evaluacion',
-    titulo: `Tu evaluación con ${NOMBRE_COACH_ELITE}`,
+    // armarTarjeta sube el título a mayúsculas: aquí va en frase.
+    titulo: programaSinEvaluacion ? `Tu programa con ${NOMBRE_COACH_ELITE}` : `Tu evaluación con ${NOMBRE_COACH_ELITE}`,
     linea: edad
       ? `Edad ATP ${edadIntegralTexto(edad)} · ${deltaConReferente(edad)}`
-      : unaLinea(e.inicio.lead) ?? LINEA_EVALUACION_LISTA,
-    cta: { texto: 'Ver mi evaluación', ruta: '/salud/evaluacion-elite' },
+      : unaLinea(e.inicio.lead) ?? (programaSinEvaluacion ? documentoListo(voz) : LINEA_EVALUACION_LISTA),
+    cta: { texto: programaSinEvaluacion ? 'Ver mi programa' : 'Ver mi evaluación', ruta: '/salud/evaluacion-elite' },
     imagen: imagenEdadAtp(sexo),
   });
 }
@@ -534,21 +544,35 @@ export function escribirLectura(
 // Modo Elite DX: la semana del programa
 // ---------------------------------------------------------------------------
 
-/** Lo mínimo de `EstadoProgramaElite` (useProgramaElite) que se necesita; el hook importa react-native y aquí no entra. */
+/**
+ * Lo mínimo de `EstadoProgramaElite` (useProgramaElite) que se necesita; el hook importa react-native y aquí no entra.
+ * 8-oct-2026 (nivel 2): `nombre` y `porEmpezar` (opcionales: quien no los
+ * pasa ve lo de siempre). Con `porEmpezar`, `avance` es null y NO quiere
+ * decir "fecha ilegible": el programa empieza en una fecha que no llega.
+ */
 export type ProgramaParaResumen =
   | { estado: 'cargando' }
   | { estado: 'error' }
   | { estado: 'sin_evaluacion' }
-  | { estado: 'ok'; avance: AvancePrograma | null };
+  | { estado: 'ok'; avance: AvancePrograma | null; nombre?: string | null; porEmpezar?: PorEmpezar | null };
+
+/** Una línea, o null si no hay nombre que poner. */
+function nombreLimpio(nombre: string | null | undefined): string | null {
+  const n = (nombre ?? '').replace(/\s+/g, ' ').trim();
+  return n.length > 0 ? n : null;
+}
 
 /**
  * La semana del programa como tarjeta editorial. El título es "SEMANA 3 DE
  * 12"; la línea, el día; la barra, el avance. Terminado el programa no se
  * esconde nada: se dice que se completó y que la cuenta sigue de seguimiento
  * (mismo copy que el encabezado anterior).
+ * 8-oct-2026 (nivel 2): con nombre del programa, la línea lo dice ("Fuerza y
+ * sueño · Día 17"). Sin nombre (todo documento Elite de hoy), la de siempre.
  */
-export function tarjetaPrograma(a: AvancePrograma): TarjetaResumen {
+export function tarjetaPrograma(a: AvancePrograma, nombre?: string | null): TarjetaResumen {
   const cta = { texto: 'Ver mi programa', ruta: '/programa' as const };
+  const n = nombreLimpio(nombre);
   if (a.completado) {
     return armarTarjeta({
       key: 'programa',
@@ -561,14 +585,30 @@ export function tarjetaPrograma(a: AvancePrograma): TarjetaResumen {
   return armarTarjeta({
     key: 'programa',
     titulo: `Semana ${a.semana} de ${a.semanasTotales}`,
-    linea: `Día ${a.dia} de tu programa con ${NOMBRE_COACH_ELITE}`,
+    linea: n ? `${n} · Día ${a.dia}` : `Día ${a.dia} de tu programa con ${NOMBRE_COACH_ELITE}`,
     cta,
     imagen: 'programa_sin_persona',
     progreso: { current: a.pct, target: 100 },
     // 8-oct-2026 (revisión en frío): la barra es un dibujo; al lector de
     // pantalla se le dice el avance con palabras (antes la versión plana lo
     // decía con accessibilityRole="progressbar").
-    accesibilidad: `Semana ${a.semana} de ${a.semanasTotales}, día ${a.dia}. Llevas el ${a.pct} por ciento de tu programa con ${NOMBRE_COACH_ELITE}. Ver mi programa.`,
+    accesibilidad: `${n ? `${n}. ` : ''}Semana ${a.semana} de ${a.semanasTotales}, día ${a.dia}. Llevas el ${a.pct} por ciento de tu programa con ${NOMBRE_COACH_ELITE}. Ver mi programa.`,
+  });
+}
+
+/**
+ * 8-oct-2026 (nivel 2): el coach declaró un día de inicio que todavía no
+ * llega. No hay semana ni día que decir (sería inventarlos): el título es el
+ * programa (su nombre, o "Tu programa") y la línea, cuándo empieza ("Empieza
+ * el 12 de octubre de 2026 · faltan 4 días", o "Empieza mañana"). Sin barra.
+ */
+export function tarjetaPorEmpezar(p: PorEmpezar, nombre?: string | null): TarjetaResumen {
+  return armarTarjeta({
+    key: 'programa',
+    titulo: nombreLimpio(nombre) ?? 'Tu programa',
+    linea: lineaPorEmpezar(p),
+    cta: { texto: 'Ver mi programa', ruta: '/programa' },
+    imagen: 'programa_sin_persona',
   });
 }
 
@@ -589,7 +629,13 @@ export type VistaProgramaHoy =
   | { vista: 'error' }
   | { vista: 'sin_evaluacion' }
   | { vista: 'fecha_ilegible' }
-  | { vista: 'compacta'; avance: AvancePrograma | null }
+  | {
+    vista: 'compacta';
+    avance: AvancePrograma | null;
+    /** 8-oct-2026 (nivel 2): no null = por empezar (y `avance` es null por eso, no por fecha rota). */
+    porEmpezar: PorEmpezar | null;
+    nombre: string | null;
+  }
   | { vista: 'tarjeta'; tarjeta: TarjetaResumen };
 
 export interface OpcionesProgramaHoy {
@@ -606,6 +652,9 @@ export interface OpcionesProgramaHoy {
  * orden; lo nuevo es la salida del estado 'ok' en HOY. Una fecha de inicio
  * que no se puede leer NO se viste de tarjeta bonita: se sigue diciendo, en
  * plano, que no se pudo leer (y no se inventa una semana).
+ * 8-oct-2026 (nivel 2): `porEmpezar` se mira ANTES que `avance === null`.
+ * Un programa que empieza el lunes no es una fecha ilegible: en HOY es su
+ * tarjeta ("Empieza el..."), en Mi programa la compacta con esa fecha.
  */
 export function decidirVistaPrograma(programa: ProgramaParaResumen, opts: OpcionesProgramaHoy = {}): VistaProgramaHoy {
   const soloAvance = opts.soloAvance === true;
@@ -615,7 +664,10 @@ export function decidirVistaPrograma(programa: ProgramaParaResumen, opts: Opcion
   if (programa.estado === 'sin_evaluacion' && (opts.tieneEvaluacion === true || !prometer)) return { vista: 'nada' };
   if (programa.estado === 'error') return { vista: 'error' };
   if (programa.estado === 'sin_evaluacion') return { vista: 'sin_evaluacion' };
-  if (soloAvance) return { vista: 'compacta', avance: programa.avance };
+  const porEmpezar = programa.porEmpezar ?? null;
+  const nombre = nombreLimpio(programa.nombre);
+  if (soloAvance) return { vista: 'compacta', avance: porEmpezar ? null : programa.avance, porEmpezar, nombre };
+  if (porEmpezar) return { vista: 'tarjeta', tarjeta: tarjetaPorEmpezar(porEmpezar, nombre) };
   if (programa.avance === null) return { vista: 'fecha_ilegible' };
-  return { vista: 'tarjeta', tarjeta: tarjetaPrograma(programa.avance) };
+  return { vista: 'tarjeta', tarjeta: tarjetaPrograma(programa.avance, nombre) };
 }

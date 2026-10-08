@@ -14,6 +14,12 @@
  * numero. Nunca un 0 de relleno.
  *
  * Cero imports: corre en node para sus tests.
+ *
+ * 8-oct-2026 (nivel 2): el documento del cliente puede ser una evaluacion
+ * Elite o un programa (el mismo elite_v3 con `tipo: 'programa'`). Los dos
+ * cuentan como documento cargado y los dos van en el grupo de coaching
+ * (esElite); el programa lleva su chip "Programa" y su nombre en el detalle.
+ * Las filas viejas no traen `tipo` y se leen como Elite.
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -221,6 +227,38 @@ export const TEXTO_SIN_ADHERENCIA: Readonly<Record<MotivoSinAdherencia, string>>
 // El cliente como lo ve la consola
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** 8-oct-2026 (nivel 2): de que tipo es el documento cargado. */
+export type NivelDocumento = 'elite' | 'programa';
+
+/** Tope del nombre de un programa en pantalla (el mismo que pone el validador). */
+export const PROGRAMA_NOMBRE_MAX = 60;
+
+/**
+ * El tipo leido de la base (`sources_snapshot->elite_v3->>tipo`). Solo
+ * 'programa' escrito tal cual es programa; null, ausente o cualquier otra
+ * cosa es Elite, como todo documento cargado antes del nivel 2.
+ */
+export function nivelDeDocumento(tipo: unknown): NivelDocumento {
+  return tipo === 'programa' ? 'programa' : 'elite';
+}
+
+/** El nombre del programa leido de la base, en una linea y con tope; null si no hay. */
+export function nombreDePrograma(nombre: unknown): string | null {
+  if (typeof nombre !== 'string') return null;
+  const limpio = nombre.replace(/\s+/g, ' ').trim().slice(0, PROGRAMA_NOMBRE_MAX).trim();
+  return limpio || null;
+}
+
+/** El documento vigente del cliente, como lo guarda la consola. */
+export interface DocumentoConsola {
+  version: number;
+  fecha: string;
+  /** 8-oct-2026 (nivel 2). Ausente = 'elite' (filas y pruebas de antes). */
+  tipo?: NivelDocumento;
+  /** 8-oct-2026 (nivel 2): nombre del programa; null o ausente si no trae. */
+  nombre?: string | null;
+}
+
 export interface ClienteConsola {
   id: string;
   nombre: string;
@@ -229,8 +267,11 @@ export interface ClienteConsola {
   tier: string | null;
   /** profiles.tier_expires_at en 'YYYY-MM-DD', o null si no vence. */
   accesoVence: string | null;
-  /** Evaluacion Elite vigente (functional_dx con elite_v3), si la hay. */
-  evaluacion: { version: number; fecha: string } | null;
+  /**
+   * Documento vigente (functional_dx con elite_v3), si lo hay: evaluacion
+   * Elite o, desde el 8-oct-2026 (nivel 2), un programa.
+   */
+  evaluacion: DocumentoConsola | null;
   /** Mapa funcional de ARGOS mas reciente, si lo hay. Es el insumo del seguimiento. */
   dxFecha: string | null;
   /** Suplementos activos asignados. */
@@ -253,6 +294,10 @@ export interface Novedad {
  * Elite = tiene evaluacion Elite cargada, o tier elite vigente. La evaluacion
  * manda sobre el tier: el dato del cliente no se apaga porque venza un cobro
  * (misma regla que evaluacion-elite.tsx).
+ *
+ * 8-oct-2026 (nivel 2): un programa cargado tambien entra aqui. Es el grupo
+ * de los clientes con coaching (Elite y programa); lo que los distingue en
+ * pantalla es el chip de esPrograma, no el segmento.
  */
 export function esElite(c: Pick<ClienteConsola, 'tier' | 'evaluacion'>): boolean {
   if (c.evaluacion) return true;
@@ -267,6 +312,46 @@ export function esElite(c: Pick<ClienteConsola, 'tier' | 'evaluacion'>): boolean
 export function esSeguimiento(c: Pick<ClienteConsola, 'tier' | 'evaluacion' | 'dxFecha' | 'suplementosActivos'>): boolean {
   if (esElite(c)) return false;
   return Boolean(c.dxFecha) || c.suplementosActivos > 0;
+}
+
+/** 8-oct-2026 (nivel 2): el documento cargado es un programa. */
+export function esPrograma(c: Pick<ClienteConsola, 'evaluacion'>): boolean {
+  return c.evaluacion?.tipo === 'programa';
+}
+
+/** El chip del renglon: "Programa" para un programa; null para lo demas (Elite se queda como estaba). */
+export function chipDeNivel(c: Pick<ClienteConsola, 'evaluacion'>): string | null {
+  return esPrograma(c) ? 'Programa' : null;
+}
+
+/** 8-oct-2026 (nivel 2): sin documento. Verdad para los dos niveles. */
+export const SIN_DOCUMENTO = 'Sin evaluación ni programa cargados';
+
+/**
+ * El renglon del documento en el detalle (8-oct-2026, nivel 2). Elite dice
+ * lo de siempre; un programa dice que es programa y su nombre si lo trae.
+ * Sin documento, `valor` null (la pantalla pinta SIN_DOCUMENTO). `fecha`
+ * llega ya escrita por la pantalla (formatLocalDate).
+ */
+export function datoDocumento(
+  c: Pick<ClienteConsola, 'evaluacion'>,
+  fecha: string,
+): { etiqueta: string; valor: string | null } {
+  const d = c.evaluacion;
+  if (!d) return { etiqueta: 'Evaluación o programa', valor: null };
+  if (d.tipo === 'programa') {
+    const nombre = nombreDePrograma(d.nombre);
+    return {
+      etiqueta: 'Programa',
+      valor: `${nombre ? `${nombre} · ` : ''}Versión ${d.version} · ${fecha}`,
+    };
+  }
+  return { etiqueta: 'Evaluación Elite', valor: `Versión ${d.version} · ${fecha}` };
+}
+
+/** Lo que dice la novedad cuando se carga el documento. */
+export function textoNovedadDocumento(tipo: NivelDocumento | null | undefined): string {
+  return tipo === 'programa' ? 'Programa cargado' : 'Evaluación cargada';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -296,7 +381,9 @@ export function pendientesDeCliente(c: ClienteConsola, hoy: string): Pendiente[]
   if (!c.evaluacion) {
     out.push({
       tipo: 'sin-evaluacion',
-      texto: 'Sin evaluación cargada',
+      // 8-oct-2026 (nivel 2): le falta cualquiera de los dos documentos. La
+      // urgencia no cambia.
+      texto: SIN_DOCUMENTO,
       urgencia: 2,
     });
   }

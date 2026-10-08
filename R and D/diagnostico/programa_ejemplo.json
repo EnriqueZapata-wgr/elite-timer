@@ -1,0 +1,316 @@
+{
+  "schema": "elite_v3",
+  "tipo": "programa",
+  "version": 1,
+  "generado_en": "2026-10-08",
+  "interpretado_por": {
+    "evaluacion": "Enrique Zapata"
+  },
+  "cliente": {
+    "nombre_preferido": "Ana Ejemplo",
+    "sexo": "female",
+    "edad": 34,
+    "fecha_toma": null,
+    "fecha_nacimiento": "1992-03-15",
+    "estatura_cm": 165,
+    "peso_kg": 62,
+    "nivel_fitness": "principiante",
+    "fc_reposo": null
+  },
+  "inicio": {
+    "edad_cronologica": null,
+    "edad_atp": null,
+    "diferencia_anios": null,
+    "lead": "Doce semanas para construir fuerza y dormir mejor, con pasos que caben en tu día.",
+    "programa_semanas": 12,
+    "programa_nombre": "Fuerza y sueño",
+    "programa_inicio": "2026-10-12"
+  },
+  "conteo": {
+    "total_medido": null,
+    "piden_accion": null,
+    "valores_medidos": null,
+    "hallazgos_adn": null,
+    "ejes_quimica": null,
+    "mueven_tu_caso": null,
+    "ritmo_envejecimiento_meses": null,
+    "calidad_estudio": null
+  },
+  "edades": {
+    "real": null,
+    "sangre": null,
+    "vida": null,
+    "atp": null,
+    "sf_pct": null,
+    "detalle": []
+  },
+  "sistemas": [],
+  "contexto": {
+    "parrafos": [],
+    "cita": null,
+    "antecedentes": []
+  },
+  "marcadores": {
+    "intro": null,
+    "grupos": [],
+    "notas": []
+  },
+  "composicion": {
+    "reparto": null,
+    "filas": []
+  },
+  "braverman": {
+    "intro": null,
+    "naturaleza": null,
+    "desgaste": null,
+    "lecturas": [],
+    "ejes": [],
+    "cierre": []
+  },
+  "genetica": {
+    "intro": null,
+    "hallazgos": [],
+    "resumen": []
+  },
+  "cruces": {
+    "hilo": null,
+    "lista": []
+  },
+  "medico": {
+    "intro": null,
+    "fuera_del_tuyo": [],
+    "pendientes": [],
+    "advertencias": []
+  },
+  "cierre": {
+    "palancas": [
+      {
+        "titulo": "Fuerza tres días por semana",
+        "por_que": "El músculo es lo que más cambia cómo te sientes y cómo te mueves en doce semanas.",
+        "como": "Lunes, miércoles y viernes. Empiezas con poco peso y subes cuando las repeticiones salgan limpias."
+      },
+      {
+        "titulo": "Una hora fija para dormir",
+        "por_que": "Dormir a la misma hora es lo que más ordena tu energía del día siguiente.",
+        "como": "Pantallas fuera una hora antes, respiración lenta en la cama y la misma hora de lunes a domingo."
+      },
+      {
+        "titulo": "Proteína en cada comida",
+        "por_que": "Sin proteína suficiente el entrenamiento no construye.",
+        "como": "Una porción del tamaño de tu palma en desayuno, comida y cena."
+      }
+    ],
+    "vigencia": "Programa de doce semanas. Lo revisamos juntos en la semana 6 y al terminar.",
+    "firma": "Enrique Zapata y equipo ATP",
+    "disclaimer": "Este documento es una orientación de salud funcional. No sustituye a tu médico tratante."
+  },
+  "alimentacion": {
+    "prioriza": [
+      "Proteína en cada comida: huevo, pollo, pescado, frijoles o lentejas",
+      "Verduras en la comida y en la cena",
+      "Agua natural a lo largo del día"
+    ],
+    "evita": [
+      "Bebidas azucaradas entre semana",
+      "Cenar tarde: la última comida va al menos dos horas antes de dormir"
+    ],
+    "ventana": null,
+    "horarios": [
+      {
+        "momento": "Mañana",
+        "que": "Desayuno con proteína antes de las 9"
+      },
+      {
+        "momento": "Después de comer",
+        "que": "Caminata de 10 minutos"
+      }
+    ],
+    "notas": [
+      "Si un día no sale perfecto, la siguiente comida vuelve al plan."
+    ],
+    "metas": {
+      "proteina_g_dia": 110,
+      "agua_ml_dia": 2200,
+      "kcal_dia": null,
+      "grasa_g_dia": null,
+      "carbohidrato_g_dia": null
+    },
+    "comidas": [
+      {
+        "momento": "desayuno",
+        "hora": "08:00",
+        "nombre": "Huevos con verdura",
+        "componentes": [
+          "2 huevos",
+          "espinaca salteada",
+          "una tortilla de maíz"
+        ],
+        "notas": null
+      },
+      {
+        "momento": "comida",
+        "hora": "14:30",
+        "nombre": "Pollo con arroz y ensalada",
+        "componentes": [
+          "150 g de pollo",
+          "media taza de arroz",
+          "ensalada con aceite de oliva"
+        ],
+        "notas": null
+      },
+      {
+        "momento": "cena",
+        "hora": "20:00",
+        "nombre": "Pescado con verduras asadas",
+        "componentes": [
+          "150 g de pescado",
+          "calabaza y zanahoria asadas"
+        ],
+        "notas": "Última comida del día."
+      }
+    ]
+  },
+  "suplementos": [
+    {
+      "nombre": "Magnesio (glicinato)",
+      "dosis_cantidad": 200,
+      "dosis_unidad": "mg",
+      "unidades_por_toma": 1,
+      "momento": "bedtime",
+      "por_que": "Acompaña tu rutina de bajada antes de dormir."
+    },
+    {
+      "nombre": "Creatina monohidratada",
+      "dosis_cantidad": 3,
+      "dosis_unidad": "g",
+      "unidades_por_toma": 1,
+      "momento": "morning",
+      "por_que": "Apoya el trabajo de fuerza de estas doce semanas.",
+      "duracion": "Las doce semanas del programa"
+    },
+    {
+      "nombre": "Vitamina D3",
+      "dosis_cantidad": 1000,
+      "dosis_unidad": "UI",
+      "unidades_por_toma": 1,
+      "momento": "with_food",
+      "por_que": "Se toma con la comida que lleva grasa para que se aproveche mejor."
+    }
+  ],
+  "entrenamiento": {
+    "base": "Fuerza básica tres días por semana y caminar todos los días.",
+    "sesiones": [
+      {
+        "tipo": "Fuerza",
+        "frecuencia_semana": "3 días",
+        "duracion": "40 minutos",
+        "intensidad": "Moderada, lejos del fallo",
+        "nota": null
+      },
+      {
+        "tipo": "Caminata",
+        "frecuencia_semana": "Diario",
+        "duracion": "20 a 30 minutos",
+        "intensidad": null,
+        "nota": null
+      }
+    ],
+    "descanso": [
+      "Pantallas fuera una hora antes de dormir",
+      "Misma hora para acostarte de lunes a domingo"
+    ],
+    "notas": [
+      "Si una semana viajas, la caminata no se negocia."
+    ],
+    "rutinas": [
+      {
+        "nombre": "Fuerza A",
+        "objetivo": "Piernas y empuje",
+        "dias_semana": [
+          1,
+          5
+        ],
+        "bloques": [
+          {
+            "ejercicio": "Sentadilla goblet con mancuerna",
+            "series": 3,
+            "reps": "8-10",
+            "descanso_s": 90,
+            "notas": null,
+            "slug": "dumbbell-goblet-squat"
+          },
+          {
+            "ejercicio": "Lagartija con rodillas apoyadas",
+            "series": 3,
+            "reps": "8",
+            "descanso_s": 60,
+            "notas": null,
+            "slug": "bodyweight-knee-push-ups"
+          },
+          {
+            "ejercicio": "Peso muerto rumano con banda",
+            "series": 3,
+            "reps": "10",
+            "descanso_s": 90,
+            "notas": "Espalda neutra",
+            "slug": "band-romanian-deadlift"
+          }
+        ],
+        "notas": null
+      },
+      {
+        "nombre": "Fuerza B",
+        "objetivo": "Jalón y piernas",
+        "dias_semana": [
+          3
+        ],
+        "bloques": [
+          {
+            "ejercicio": "Remo con banda",
+            "series": 3,
+            "reps": "10",
+            "descanso_s": 60,
+            "notas": null,
+            "slug": "band-row"
+          },
+          {
+            "ejercicio": "Sentadilla con peso corporal",
+            "series": 3,
+            "reps": "12",
+            "descanso_s": 60,
+            "notas": null,
+            "slug": "bodyweight-squat"
+          }
+        ],
+        "notas": null
+      }
+    ]
+  },
+  "practicas": [
+    {
+      "key": "hidratacion_matutina",
+      "hora": "07:00",
+      "nota": null
+    },
+    {
+      "key": "exposicion_solar_matutina",
+      "hora": "07:30",
+      "nota": "Diez minutos, sin lentes de sol."
+    },
+    {
+      "key": "caminata_postprandial",
+      "hora": null,
+      "nota": "Después de la comida más grande del día."
+    },
+    {
+      "key": "pantallas_off_60min",
+      "hora": "21:30",
+      "nota": null
+    },
+    {
+      "key": "respiracion_478",
+      "hora": "22:15",
+      "nota": "Ya en la cama, cuatro ciclos."
+    }
+  ]
+}

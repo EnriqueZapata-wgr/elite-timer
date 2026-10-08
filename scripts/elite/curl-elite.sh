@@ -8,6 +8,7 @@
 #   bash scripts/elite/curl-elite.sh ver <user_id>              lista las evaluaciones Elite de un usuario
 #   bash scripts/elite/curl-elite.sh quien <correo>             busca el user_id de un cliente por su correo
 #   bash scripts/elite/curl-elite.sh sembrar <user_id>          (325) siembra perfil y convierte rutinas y comidas de la evaluacion vigente
+#   bash scripts/elite/curl-elite.sh practicas <user_id>        (329) asigna las practicas del documento vigente
 #
 # Variables de entorno:
 #   ATP_JWT             obligatoria. Ver scripts/elite/obtener-jwt.md (dura 1 hora).
@@ -35,6 +36,14 @@
 # junta sus avisos en un segundo bloque AVISOS. 'sembrar <user_id>' corre solo
 # esas tres, para un cliente cargado antes de la 325 o para repetir (son
 # idempotentes: la segunda vez no duplican nada y lo dicen).
+#
+# 8 de octubre de 2026 (nivel 2, migracion 329): 'cargar' sirve igual para un
+# PROGRAMA (el mismo documento con tipo "programa"). Al final llama a
+# elite_cargar_practicas, que enciende las practicas que el documento asigna,
+# no revive las que el cliente pauso y pausa las asignadas que salieron del
+# plan. Si la 329 todavia no esta en la base (HTTP 404), lo dice y la carga NO
+# falla: la evaluacion o el programa ya quedaron guardados. Cuando la 329
+# este, 'practicas <user_id>' corre solo ese paso.
 
 set -euo pipefail
 
@@ -85,7 +94,7 @@ explica_http() {
   case "$http" in
     2*) return 0 ;;
     401) echo "HTTP 401: el JWT vencio o no es valido. Genera uno nuevo (scripts/elite/obtener-jwt.md)." >&2 ;;
-    404) echo "HTTP 404: el RPC no existe en produccion. Falta 'npx supabase db push' (315 y 318 para codigos y carga; 324 para elite_cargar_completa; 325 para sembrar perfil, rutinas y comidas)." >&2 ;;
+    404) echo "HTTP 404: el RPC no existe en produccion. Falta 'npx supabase db push' (315 y 318 para codigos y carga; 324 para elite_cargar_completa; 325 para sembrar perfil, rutinas y comidas; 329 para las practicas)." >&2 ;;
     *)   echo "HTTP $http" >&2 ;;
   esac
   echo "$cuerpo" >&2
@@ -134,7 +143,15 @@ cmd_cargar() {
     const ok = p && typeof p.p_user === "string" && p.p_payload && p.p_payload.schema === "elite_v3"
       && typeof p.p_payload.resumen_argos === "string" && Array.isArray(p.p_payload.suplementos_filas);
     if (!ok) { console.error("esto no es la salida de preparar-payload.js (faltan p_user, p_payload.schema, resumen_argos o suplementos_filas)"); process.exit(1); }
-    console.log("Cargando evaluacion v" + p.p_payload.version + " de " + p.p_payload.cliente.nombre_preferido + " para " + p.p_user + " (" + p.p_payload.suplementos_filas.length + " suplementos)...");
+    // 8-oct-2026 (nivel 2): un programa se anuncia como programa. Elite, igual que antes.
+    const esProg = p.p_payload.tipo === "programa";
+    const nPracticas = Array.isArray(p.p_payload.practicas) ? p.p_payload.practicas.length : 0;
+    if (esProg) {
+      const nombreProg = p.p_payload.inicio && p.p_payload.inicio.programa_nombre ? " \"" + p.p_payload.inicio.programa_nombre + "\"" : "";
+      console.log("Cargando programa" + nombreProg + " v" + p.p_payload.version + " de " + p.p_payload.cliente.nombre_preferido + " para " + p.p_user + " (" + p.p_payload.suplementos_filas.length + " suplementos, " + nPracticas + " practicas)...");
+    } else {
+      console.log("Cargando evaluacion v" + p.p_payload.version + " de " + p.p_payload.cliente.nombre_preferido + " para " + p.p_user + " (" + p.p_payload.suplementos_filas.length + " suplementos)...");
+    }
     // 8-sep-2026: el tercer derivado. Si falta, el payload se armo con una
     // version vieja del script y la fila entra sin raices.
     if (!Array.isArray(p.p_payload.roots_detected)) {
@@ -142,7 +159,10 @@ cmd_cargar() {
     }
     // 20-sep-2026 (324): el cuarto derivado. Sin el, el expediente de labs
     // y ARGOS no ven los marcadores de la evaluacion.
-    if (!Array.isArray(p.p_payload.lab_values_filas)) {
+    // 8-oct-2026 (nivel 2): un programa sin toma de sangre viaja SIN esa
+    // llave a proposito (no hay laboratorios); ahi no es un payload viejo.
+    const sinToma = esProg && (p.p_payload.cliente.fecha_toma === null || p.p_payload.cliente.fecha_toma === undefined);
+    if (!Array.isArray(p.p_payload.lab_values_filas) && !sinToma) {
       console.log("Aviso: este payload no trae lab_values_filas. Vuelve a correr preparar-payload.js para que los laboratorios lleguen al expediente.");
     }
   ' "$archivo" || exit 1
@@ -165,7 +185,8 @@ cmd_cargar() {
       process.exit(1);
     }
     if (!r || r.ok !== true) { console.log(JSON.stringify(r, null, 2)); process.exit(0); }
-    console.log("Evaluacion cargada (esta respuesta es la verificacion oficial):");
+    // 8-oct-2026 (nivel 2): un programa se confirma como programa.
+    console.log((process.argv[2] === "programa" ? "Programa cargado" : "Evaluacion cargada") + " (esta respuesta es la verificacion oficial):");
     console.log("  dx_id:                 " + r.dx_id);
     console.log("  version_elite:         " + r.version_elite + "  (fila functional_dx version " + r.version + ")");
     console.log("  quality_level:         " + r.quality_level + (r.quality_level === 5 ? " (con genetica)" : " (sin genetica)"));
@@ -206,19 +227,115 @@ cmd_cargar() {
       console.log("AVISOS de la carga: ninguno (todo entro completo).");
     }
     console.log("==================================================");
-  ' "$body"
+  ' "$body" "$(node -e 'const p = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).p_payload; process.stdout.write(p.tipo === "programa" ? "programa" : "elite")' "$archivo")"
 
   # 21-sep-2026 (325): la carga ya quedo guardada arriba. Ahora, con el mismo
   # JWT, se siembra el perfil y se convierten rutinas y comidas. Si esto
   # falla, la evaluacion NO se deshace: se dice como repetirlo.
   local uid
   uid="$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).p_user)' "$archivo")"
+  # 8-oct-2026 (nivel 2): la siembra y las practicas son pasos separados. Si
+  # la siembra falla, las practicas se intentan igual (no dependen de ella) y
+  # al final se dice que repetir. Antes se salia aqui mismo.
+  local fallo_siembra=0 fallo_practicas=0
   echo ""
-  cmd_sembrar "$uid" || {
+  cmd_sembrar "$uid" || fallo_siembra=1
+  echo ""
+  # cmd_practicas devuelve 3 cuando la 329 todavia no esta en la base: en
+  # una carga eso NO es fallo (ya imprimio la nota y como repetirlo).
+  local rc_practicas=0
+  cmd_practicas "$uid" "$archivo" || rc_practicas=$?
+  if [ "$rc_practicas" -ne 0 ] && [ "$rc_practicas" -ne 3 ]; then fallo_practicas=1; fi
+  if [ "$fallo_siembra" -eq 1 ]; then
     echo "La evaluacion si quedo cargada; la siembra (325) no termino. Repitela con:" >&2
     echo "  bash scripts/elite/curl-elite.sh sembrar $uid" >&2
-    exit 1
-  }
+  fi
+  if [ "$fallo_practicas" -eq 1 ]; then
+    echo "La evaluacion si quedo cargada; las practicas (329) no terminaron. Repitelas con:" >&2
+    echo "  bash scripts/elite/curl-elite.sh practicas $uid" >&2
+  fi
+  if [ "$fallo_siembra" -eq 1 ] || [ "$fallo_practicas" -eq 1 ]; then exit 1; fi
+}
+
+# 329 (nivel 2): elite_cargar_practicas. Lee `practicas` del documento vigente
+# del cliente y deja sus practicas asi: las del documento encendidas y
+# marcadas como asignadas; las que el cliente pauso o descarto, intactas; las
+# asignadas que ya no vienen, en pausa. Segundo argumento opcional: el
+# payload, solo para saber cuantas practicas esperaba el documento.
+#
+# Si la funcion no existe todavia (HTTP 404 o PGRST202: falta empujar la 329)
+# se dice claro y se devuelve 3: corrido solo ('practicas <uid>') el comando
+# sale con 3 para que no parezca hecho; dentro de 'cargar' el 3 NO es un
+# fallo de la carga y 'cargar' sigue saliendo con 0.
+cmd_practicas() {
+  local uid="${1:-}" archivo="${2:-}"
+  [ -n "$uid" ] || falla "uso: practicas <user_id>"
+  case "$uid" in
+    [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]-*) ;;
+    *) falla "user_id no tiene forma de uuid: $uid" ;;
+  esac
+  local cuerpo salida http body esperadas="?"
+  if [ -n "$archivo" ] && [ -f "$archivo" ]; then
+    esperadas="$(node -e 'const p = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).p_payload; process.stdout.write(String(Array.isArray(p.practicas) ? p.practicas.length : 0))' "$archivo" 2>/dev/null || echo "?")"
+  fi
+  cuerpo="$(node -e 'process.stdout.write(JSON.stringify({ p_user_id: process.argv[1] }))' "$uid")"
+  echo "Practicas asignadas (329) para $uid..."
+  salida="$(rpc elite_cargar_practicas "$cuerpo")"
+  http="$(http_de "$salida")"; body="$(cuerpo_de "$salida")"
+
+  # La 329 todavia no esta en la base. PostgREST contesta 404 con codigo
+  # PGRST202 ("no encuentro la funcion"). No se trata como error.
+  if [ "$http" = "404" ] || printf '%s' "$body" | grep -q 'PGRST202'; then
+    echo "  NOTA: la funcion elite_cargar_practicas todavia no existe en la base: la migracion 329 esta pendiente."
+    if [ "$esperadas" != "0" ] && [ "$esperadas" != "?" ]; then
+      echo "  Este documento asigna $esperadas practica(s) y NO se asignaron. Todo lo demas si quedo cargado."
+    elif [ -n "$archivo" ]; then
+      echo "  No se asigno ninguna practica. Todo lo demas si quedo cargado."
+    else
+      echo "  No se asigno ninguna practica."
+    fi
+    echo "  Cuando la 329 este empujada (npx supabase db push), corre:"
+    echo "    bash scripts/elite/curl-elite.sh practicas $uid"
+    return 3
+  fi
+  explica_http "$http" "$body" || return 1
+
+  node -e '
+    let r; try { r = JSON.parse(process.argv[1]); } catch { console.log("  respuesta que no es JSON: " + process.argv[1]); process.exit(1); }
+    if (!r || r.ok !== true) {
+      console.log("  practicas: FALLO: " + (r && r.error ? r.error : JSON.stringify(r)));
+      process.exit(1);
+    }
+    const n = (k) => (typeof r[k] === "number" ? r[k] : 0);
+    const avisos = Array.isArray(r.avisos) ? r.avisos : [];
+    const soloSinPracticas = avisos.length > 0 && avisos.every((a) => a && a.codigo === "sin_practicas");
+    // El documento no asigna nada y el cliente no tenia nada asignado: una
+    // linea y ya (es el caso de toda evaluacion Elite sin practicas).
+    if (n("practicas_en_documento") === 0 && n("pausadas_fuera_del_programa") === 0 && n("desasignadas") === 0 && (avisos.length === 0 || soloSinPracticas)) {
+      console.log("  practicas: el documento no asigna ninguna y el cliente no tenia asignadas. Nada que hacer.");
+      process.exit(0);
+    }
+    console.log("  en el documento:                  " + n("practicas_en_documento"));
+    console.log("  nuevas (encendidas):              " + n("insertadas"));
+    console.log("  sugeridas que se encendieron:     " + n("activadas"));
+    console.log("  ya activas, actualizadas:         " + n("actualizadas") + "  (" + n("sin_cambio") + " sin cambio)");
+    console.log("  respetadas (pausa o descarte):    " + n("en_pausa_respetadas") + "  (no se reviven)");
+    if (n("ya_del_cliente")) console.log("  ya eran del cliente, sin tocar:   " + n("ya_del_cliente"));
+    console.log("  pausadas por salir del programa:  " + n("pausadas_fuera_del_programa"));
+    if (n("invalidas")) console.log("  con forma invalida, saltadas:     " + n("invalidas"));
+    console.log("");
+    console.log("==================================================");
+    if (avisos.length) {
+      console.log("AVISOS de las practicas (329): " + avisos.length + " (lee cada uno)");
+      for (const a of avisos) {
+        if (a && typeof a === "object" && a.codigo) console.log("  - [" + a.codigo + "] " + (a.detalle || JSON.stringify(a)));
+        else console.log("  - " + JSON.stringify(a));
+      }
+    } else {
+      console.log("AVISOS de las practicas (329): ninguno (todo entro completo).");
+    }
+    console.log("==================================================");
+  ' "$body"
 }
 
 # 325: elite_sembrar_perfil + elite_cargar_rutinas + elite_cargar_comidas.
@@ -343,7 +460,8 @@ case "${1:-}" in
   cargar) shift; requiere_entorno; cmd_cargar "$@" ;;
   ver)    shift; requiere_entorno; cmd_ver "$@" ;;
   sembrar) shift; requiere_entorno; cmd_sembrar "$@" ;;
+  practicas) shift; requiere_entorno; cmd_practicas "$@" ;;
   *)
-    sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit 2 ;;
 esac

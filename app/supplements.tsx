@@ -46,6 +46,11 @@ import { destinoContacto, mensajeParaCoach } from '@/src/services/elite/programa
 // la fecha "desde" de la cabecera del plan.
 import { LEYENDA_SUPLEMENTOS } from '@/src/services/argos-suplementos-ayuno-core';
 import { formatearFecha } from '@/src/services/elite/evaluacion-elite-core';
+// 8-oct-2026 (nivel 2): las palabras del plan del coach segun el documento.
+import {
+  asuntoCorreoCoach, AVISO_FICHA_DEL_COACH, copyPlanSuplementos, esFichaDelCoachSoloLectura, type LecturaParaPrograma,
+} from '@/src/services/elite/mi-programa-core';
+import { leerEvaluacionEliteVigente } from '@/src/services/hoy/elite-hoy-service';
 import { contextoCandado } from '@/src/constants/rutas-3-0';
 import { BhaScanSheet } from '@/src/components/supplements/BhaScanSheet';
 import { SupplementScanSheet } from '@/src/components/supplements/SupplementScanSheet';
@@ -111,7 +116,9 @@ export default function SupplementsScreen() {
   // ATP 3.0 (ruta 3.5): las fichas `source='coach'` son el plan Elite. Si el
   // usuario ya no es miembro se ven en solo lectura (sin editar ni borrar; las
   // tomas sí se registran). Nivel ilegible o cargando = miembro (regla 1).
-  const { esMiembro, nivelNoSePudoLeer, isLoading: nivelCargando } = useSubscription();
+  const {
+    esMiembro, nivelNoSePudoLeer, isLoading: nivelCargando, tieneEvaluacionElite, evaluacionEliteNoSePudoLeer, tier,
+  } = useSubscription();
   const planSoloLectura = planEliteSoloLectura({ esMiembro, nivelNoSePudoLeer, cargando: nivelCargando });
   // La pantalla no tenia NINGUNA senal de carga: en cada entrada, mientras
   // la consulta iba y venia, un usuario con ocho fichas veia el estado
@@ -488,7 +495,10 @@ export default function SupplementsScreen() {
    */
   async function escribirleAlCoach() {
     const mensaje = mensajeParaCoach(null, NOMBRE_COACH_ELITE);
-    const destino = destinoContacto(WHATSAPP_COACH_ELITE, CONTACTO_ELITE_EMAIL, mensaje);
+    // 8-oct-2026 (nivel 2): el asunto sale del documento ("Mi programa ATP
+    // Elite" solo con documento Elite leido). lecturaDoc vive mas abajo.
+    const asunto = { asuntoCorreo: asuntoCorreoCoach(lecturaDoc, tier) };
+    const destino = destinoContacto(WHATSAPP_COACH_ELITE, CONTACTO_ELITE_EMAIL, mensaje, asunto);
     try {
       await Linking.openURL(destino.url);
       return;
@@ -497,7 +507,7 @@ export default function SupplementsScreen() {
     }
     if (destino.tipo === 'whatsapp') {
       try {
-        await Linking.openURL(destinoContacto(null, CONTACTO_ELITE_EMAIL, mensaje).url);
+        await Linking.openURL(destinoContacto(null, CONTACTO_ELITE_EMAIL, mensaje, asunto).url);
         return;
       } catch {
         // cae abajo
@@ -595,6 +605,15 @@ export default function SupplementsScreen() {
     }
     if (error) {
       logWarn('[supplements] save failed:', error.message);
+      // 8-oct-2026 (nivel 2): el candado de la 329 (ficha del coach) no se
+      // arregla reintentando: se dice de quien es y que si se puede hacer.
+      if (esFichaDelCoachSoloLectura(error)) {
+        Alert.alert(AVISO_FICHA_DEL_COACH.titulo, AVISO_FICHA_DEL_COACH.texto, [
+          { text: 'Cerrar', style: 'cancel' },
+          { text: `Escribirle a ${NOMBRE_COACH_ELITE}`, onPress: () => { void escribirleAlCoach(); } },
+        ]);
+        return;
+      }
       Alert.alert('No se pudo guardar', 'Intenta de nuevo.');
       return;
     }
@@ -731,6 +750,32 @@ export default function SupplementsScreen() {
     };
   }, [supplements, pausados]);
 
+  // 8-oct-2026 (nivel 2): "a partir de tu evaluación" y "Ver el porqué en mi
+  // evaluación" tienen que ser verdad para Elite, para un programa (que quiza
+  // no trae evaluacion) y para quien tiene fichas del coach SIN documento (el
+  // enlace lo dejaba en un candado "ATP Elite"). Se lee el documento vigente
+  // (lectura compartida con HOY, cache de 60 s) solo si hay plan del coach;
+  // sin documento confirmado por el nivel no se lee. Las palabras las decide
+  // mi-programa-core (copyPlanSuplementos, con test): mientras se lee, o si
+  // no se pudo, van las neutras y sin enlace.
+  const [lecturaDoc, setLecturaDoc] = useState<LecturaParaPrograma | null>(null);
+  // Revision en frio: al cambiar de cuenta, nada de la anterior (sus palabras
+  // ni su enlace) se queda mientras se lee la nueva.
+  useEffect(() => { setLecturaDoc(null); }, [userId]);
+  useEffect(() => {
+    if (!userId || !hayPlanCoach) return;
+    if (!nivelCargando && !tieneEvaluacionElite && !evaluacionEliteNoSePudoLeer) {
+      setLecturaDoc({ ok: true, evaluacion: null });
+      return;
+    }
+    let vivo = true;
+    leerEvaluacionEliteVigente(userId)
+      .then((r) => { if (vivo) setLecturaDoc(r); })
+      .catch(() => { if (vivo) setLecturaDoc({ ok: false, motivo: 'lectura' }); });
+    return () => { vivo = false; };
+  }, [userId, hayPlanCoach, nivelCargando, tieneEvaluacionElite, evaluacionEliteNoSePudoLeer]);
+  const copyPlan = copyPlanSuplementos(lecturaDoc, tier);
+
   // Multi-dosis (188): el progreso cuenta TOMAS, no suplementos (N tomas = N checks)
   // #35: memoizado junto con grouped. 312: HOY mide solo el plan; las
   // eventuales tomadas hoy se dicen aparte.
@@ -826,17 +871,21 @@ export default function SupplementsScreen() {
               </Text>
             ) : null}
             <Text style={{ color: t.textoSecundario, fontSize: 12, lineHeight: 17, marginTop: 8 }}>
-              Lo armó {NOMBRE_COACH_ELITE} a partir de tu evaluación. Aquí registras tus tomas; si algo no te va, díselo y él lo ajusta.
+              {copyPlan.origen}
             </Text>
-            <Pressable
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/salud/evaluacion-elite'); }}
-              hitSlop={6}
-              accessibilityRole="link"
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, alignSelf: 'flex-start' }}
-            >
-              <Text style={{ color: tealTx, fontSize: 12, fontWeight: '700' }}>Ver el porqué en mi evaluación</Text>
-              <Ionicons name="chevron-forward" size={14} color={tealTx} />
-            </Pressable>
+            {/* 8-oct-2026 (nivel 2): solo con documento leido; sin el, el
+                enlace caia en el candado de la pantalla de la evaluacion. */}
+            {copyPlan.enlace ? (
+              <Pressable
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/salud/evaluacion-elite'); }}
+                hitSlop={6}
+                accessibilityRole="link"
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, alignSelf: 'flex-start' }}
+              >
+                <Text style={{ color: tealTx, fontSize: 12, fontWeight: '700' }}>{copyPlan.enlace}</Text>
+                <Ionicons name="chevron-forward" size={14} color={tealTx} />
+              </Pressable>
+            ) : null}
           </View>
         </View>
       )}
@@ -942,7 +991,7 @@ export default function SupplementsScreen() {
         {/* ATP 3.0 (ruta 3.5): sin membresía, el plan Elite se ve pero no se edita. */}
         {planSoloLectura && sec.groups.some(g => g.items.some(esDelCoach)) && (
           <Text style={{ color: t.textoSecundario, fontSize: 11, paddingHorizontal: 20, marginBottom: 10 }}>
-            Tu plan Elite se conserva: lo sigues viendo y registrando tus tomas.
+            {copyPlan.soloLectura}
           </Text>
         )}
       {sec.groups.map(group => (
@@ -1684,7 +1733,7 @@ export default function SupplementsScreen() {
             {LEYENDA_SUPLEMENTOS}
           </Text>
           <Text style={{ color: t.textoSecundario, fontSize: 11, lineHeight: 16 }}>
-            Este plan lo asignó {NOMBRE_COACH_ELITE} a partir de tu evaluación y lo ajusta él. Lo que registras aquí es tuyo.
+            {copyPlan.pie}
           </Text>
         </View>
       ) : (
