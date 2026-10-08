@@ -3,20 +3,46 @@
  * barra. Lo pintan HOY (arriba de todo) y MI PROGRAMA.
  *
  * Estados (regla 13):
- *  - cargando: un hueco del mismo alto, sin spinner (se resuelve en ms).
+ *  - cargando: un hueco con la FORMA de lo que viene, sin spinner (se resuelve
+ *    en ms). En HOY lo que viene es la tarjeta editorial, así que el hueco es
+ *    16:9 con sus mismos márgenes (8-oct-2026, revisión en frío: medía 96 px
+ *    fijos, la tarjeta unos 200, y todo HOY brincaba al llegar el programa).
+ *    Si al final toca una tarjeta plana (error, en preparación) o nada, el
+ *    contenido sube; el caso de todos los días, el programa leído, no brinca.
+ *    Dentro de Mi programa (`soloAvance`) no hay hueco: no se monta nada.
  *  - sin evaluacion: se dice que Enrique la esta preparando. No es un error
  *    ni un candado; es el primer dia de alguien que acaba de activar su codigo.
  *  - error: "no pudimos leer tu programa" + Reintentar. Nunca "no tienes".
  *  - ok: la semana. Si la fecha guardada no se lee, el programa sin semana
  *    (no se inventa una).
+ *
+ * 7-oct-2026 (Hoy editorial): el dueño pidió que lo primero de HOY sea un
+ * resumen con una imagen editorial bonita, y los datos a un toque. En HOY, con
+ * el programa leído, este encabezado es ahora la misma tarjeta editorial que
+ * usa el modo ATP (HoyResumenCard): la foto del momento del día (8-oct-2026:
+ * solo del banco sin persona, nunca un retrato con sexo legible), "SEMANA 3 DE
+ * 12", el día, la barra de avance y "VER MI PROGRAMA" hacia /programa. Para
+ * el lector de pantalla la tarjeta dice "Semana 3 de 12, día 17" y el avance
+ * en palabras (la frase la arma el core).
+ *  - Dentro de Mi programa (`soloAvance`) se queda la versión compacta de
+ *    siempre, sin imagen ni CTA: un botón a /programa desde /programa no lleva
+ *    a ningún lado.
+ *  - Los estados que no son felices (no se pudo leer, en preparación, fecha
+ *    de inicio ilegible) siguen en su tarjeta plana, tal cual: un fallo no se
+ *    viste de tarjeta bonita.
+ * Qué vista toca y qué dice la tarjeta lo decide hoy-resumen-core
+ * (decidirVistaPrograma, con test); las reglas son las mismas del 25-sep.
  */
 import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { HoyResumenCard } from '@/src/components/hoy/HoyResumenCard';
 import { useProgramaElite } from '@/src/hooks/useProgramaElite';
+import { decidirVistaPrograma } from '@/src/services/hoy/hoy-resumen-core';
 import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
@@ -34,6 +60,9 @@ interface Props {
   /**
    * Solo la semana. MI PROGRAMA ya dice "en preparacion" y "no se pudo leer"
    * con sus propias palabras; dos tarjetas diciendo lo mismo es ruido.
+   * 7-oct-2026 (Hoy editorial): tambien es lo que decide la forma. Con
+   * `soloAvance` la semana va compacta (sin imagen, sin CTA a /programa: ya
+   * se esta ahi); sin el, en HOY, es la tarjeta editorial.
    */
   soloAvance?: boolean;
   /** Cambia el numero y se relee (el pull-to-refresh de quien lo monta). */
@@ -60,11 +89,20 @@ export function ProgramaHeader({ userId, tieneEvaluacion, soloAvance, recarga, p
   const eyebrow = `TU PROGRAMA CON ${NOMBRE_COACH_ELITE.toUpperCase()}`;
   const tarjeta = [s.card, { backgroundColor: t.card, borderColor: dark ? withOpacity(ATP_BRAND.lime, 0.2) : t.bordeEditorial }];
 
-  if (programa.estado === 'cargando') return soloAvance ? null : <View style={s.hueco} />;
-  if (soloAvance && programa.estado !== 'ok') return null;
-  if (programa.estado === 'sin_evaluacion' && (tieneEvaluacion || !prometerPreparacion)) return null;
+  // 7-oct-2026 (Hoy editorial): las reglas de qué se pinta (las del 25-sep, en
+  // el mismo orden) viven en hoy-resumen-core para poder probarlas.
+  const vista = decidirVistaPrograma(programa, { tieneEvaluacion, soloAvance, prometerPreparacion });
 
-  if (programa.estado === 'error') {
+  if (vista.vista === 'nada') return null;
+  if (vista.vista === 'hueco') return <View style={s.hueco} />;
+
+  if (vista.vista === 'tarjeta') {
+    // La foto la elige la hora; la variante, el día (misma semilla, misma
+    // imagen: no parpadea entre renders).
+    return <HoyResumenCard tarjeta={vista.tarjeta} semilla={`${userId ?? ''}-${getLocalToday()}`} demora={60} />;
+  }
+
+  if (vista.vista === 'error') {
     return (
       <View style={tarjeta}>
         <EliteText style={[s.eyebrow, { color: acento }]}>{eyebrow}</EliteText>
@@ -81,7 +119,7 @@ export function ProgramaHeader({ userId, tieneEvaluacion, soloAvance, recarga, p
     );
   }
 
-  if (programa.estado === 'sin_evaluacion') {
+  if (vista.vista === 'sin_evaluacion') {
     return (
       <Animated.View entering={FadeInUp.delay(60).springify()} style={tarjeta}>
         <EliteText style={[s.eyebrow, { color: acento }]}>{eyebrow}</EliteText>
@@ -93,7 +131,9 @@ export function ProgramaHeader({ userId, tieneEvaluacion, soloAvance, recarga, p
     );
   }
 
-  const a = programa.avance;
+  // 'fecha_ilegible' (HOY) y 'compacta' (Mi programa): la tarjeta plana de
+  // siempre. En 'fecha_ilegible' no hay avance: se dice, no se inventa.
+  const a = vista.vista === 'compacta' ? vista.avance : null;
   return (
     <Animated.View entering={FadeInUp.delay(60).springify()} style={tarjeta}>
       <EliteText style={[s.eyebrow, { color: acento }]}>{eyebrow}</EliteText>
@@ -131,7 +171,10 @@ export function ProgramaHeader({ userId, tieneEvaluacion, soloAvance, recarga, p
 }
 
 const s = StyleSheet.create({
-  hueco: { height: 96, marginHorizontal: Spacing.md, marginBottom: Spacing.sm },
+  // 8-oct-2026 (revisión en frío): la misma caja que la tarjeta editorial que
+  // viene: HoyResumenCard deja Spacing.md a los lados y EditorialCard mide
+  // 16:9 con Spacing.md abajo. Antes eran 96 px de alto y el contenido brincaba.
+  hueco: { aspectRatio: 16 / 9, marginHorizontal: Spacing.md, marginBottom: Spacing.md },
   card: {
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
