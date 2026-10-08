@@ -126,3 +126,36 @@ Dónde vive: `src/services/modo-app/` (reglas con prueba, estado y lo guardado),
 **4EP:** tres constructores, revisión en frío ("se entrega con estos arreglos": backBehavior fijo al montar, economía sin puerta), arreglos hechos. `tsc` completo sin errores; 294 pruebas dirigidas pasan.
 
 **Fila:** "Salud funcional" en ARGOS lleva a Mi mapa y no al hub; "mis apps" pregunta entre la sala y ordenar apps (igual que en ATP). Probar en el S24 que la sala, SALUD y TRIBU abiertas desde TÚ se ven bien sin pestaña resaltada.
+
+---
+
+# Hoy nuevo · 8 de octubre de 2026 (bloque 1 de 6)
+
+**Lo que pidió Enrique:** que HOY no abra con valores de laboratorio ni puntos rojos (un resumen con una imagen editorial, y quien quiera ver los valores, entra); y que "Qué hacer hoy" sea un "Mi plan" de manual: qué te toca cada día y qué tanto se puede reprogramar. Regla que eligió: **lo suyo sí, lo tuyo no** (el cliente mueve lo propio; lo que fijó el coach se consulta o se pausa; ARGOS propone y él acepta).
+
+**Qué quedó**
+- **HOY, arriba:** una sola tarjeta editorial por modo. En ATP: "Tu Edad ATP: 41.3" con su comparación contra la edad real, sin marcadores ni semáforos. Debajo, dos renglones callados: "Ver mis laboratorios" (directo a ATP Labs) y "Comparar con mi estudio anterior". En Elite DX: la tarjeta del programa ("Semana N de M", "VER MI PROGRAMA") con fotos sin personas. Los estados que no son el feliz (sin estudio, no se pudo leer, evaluación en camino) no cambiaron.
+- **HOY, en lugar de "Qué hacer hoy":** la tarjeta "Mi plan" con "VER MI PLAN".
+- **Pantalla Mi plan (`/mi-plan`):** la semana de lunes a domingo; por día, Entrenamiento, Alimentación, Suplementos, Prácticas y hábitos y Sueño. Cada fila dice de quién es: "Lo puedes mover", "Lo fijó Enrique" o "ARGOS propone". Si el día es hoy, "HOY TE TOCA" trae las mismas tres prácticas de antes para palomear. Al final, "Escríbele a Enrique" y "Cómo se ajusta tu plan".
+- **Honestidad de las etiquetas:** "Lo puedes mover" solo aparece donde de verdad hay un editor. La rutina agendada propia, la ventana de sueño y los hábitos sin editor de hora (ducha fría, sin alcohol, pasos, ayuno, glucosa, cetonas...) no llevan etiqueta y dicen "todavía no se cambia desde la app".
+- **Suplementos:** una ficha que fijó el coach ya no abre el editor al cliente. El lápiz pasa a ser una (i) que dice de quién es y ofrece Pausar o Escribirle a Enrique. Registrar tomas, ×N, pausar con toque largo y escanear siguen igual. Lo propio no cambió. La cuenta de Enrique conserva el lápiz.
+- **ARGOS** entiende "mi plan", "ver mi plan", "mi semana", "qué me toca". "Mi programa" tiene la fila "Ver mi plan de la semana".
+
+**Decisiones tomadas solas (reversibles)**
+- El cliente pierde el editor de las fichas de suplemento del coach. Es la regla que eligió Enrique; hoy no afecta a nadie porque los tres clientes aún no están cargados. Se revierte en un lugar: `puedeEditarFicha` en `src/services/supplements/adherencia-core.ts`.
+- La regla vive solo en la app. La base todavía deja que el dueño de la fila la edite; el candado en la base va con la migración del bloque 2 (número 329 o mayor).
+- "Ver mis laboratorios" se agregó bajo la tarjeta para que los valores queden a un toque.
+
+**Lo que cambió de lugar (avisar a quien ya usaba la app)**
+- Palomear una práctica: antes un toque en HOY, ahora HOY › Mi plan › HOY TE TOCA.
+- El detalle de un marcador de laboratorio: antes desde HOY, ahora HOY › Ver mis laboratorios › el marcador.
+
+**Fila (con motivo)**
+- No hay editor para la ventana de sueño propia ni para cambiar los días de una rutina propia agendada. La pantalla lo dice. El de sueño entra con el bloque 4.
+- Los hábitos sin app no tienen editor de hora. Decidir si se les da uno o se quedan así.
+- Un cliente Elite con suplementos y dos o más palancas ve en "HOY TE TOCA" tres filas que no se palomean ahí; sus prácticas se palomean en la agenda. Ya era así antes de este bloque.
+- Con la venta encendida, el candado "Editar está en Pro" de suplementos ya no tiene sentido para fichas del coach. Revisar en el bloque 6.
+- La tarjeta de Mi plan hace entre 6 y 8 lecturas ligeras cada vez que se enfoca HOY.
+- Nada de esto se ha visto en un teléfono.
+
+**4EP:** dos constructores (tarjeta editorial, Mi plan), dos revisiones en frío con su ronda de arreglos, y una tercera revisión en frío del cierre que encontró un bloqueante (hábitos que prometían moverse sin tener editor), ya arreglado. `tsc` completo sin errores; 770 pruebas dirigidas pasan. `mb27-contratos` y `censo-rutas` solo corren con `npm test` en la máquina de Enrique.
