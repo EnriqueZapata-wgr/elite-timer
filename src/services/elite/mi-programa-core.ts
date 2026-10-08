@@ -334,6 +334,23 @@ export const RUTAS_MI_PROGRAMA = {
   mapa: '/salud/diagnostico',
   padecimientos: '/salud/padecimientos',
   linea: '/salud/mi-expediente',
+  // 7-oct-2026 (Mi plan): la primera fila de TU PLAN. Pantalla real, fuera de
+  // /salud; queda bajo el mismo candado que las demas rutas de la sala.
+  miPlan: '/mi-plan',
+} as const;
+
+/**
+ * 7-oct-2026 (Mi plan): la fila que abre TU PLAN. Las tres filas de abajo
+ * (alimentacion, suplementos, entrenamiento) son el plan por TEMA, tal como
+ * lo escribio Enrique; esta lo muestra por DIA, que es como se vive: que toca
+ * hoy, que toca el jueves y que puede mover el cliente. Va primero porque es
+ * lo que se consulta a diario. El detalle no promete nada que la pantalla no
+ * haga.
+ */
+export const FILA_PLAN_SEMANA = {
+  titulo: 'Ver mi plan de la semana',
+  detalle: 'Lo que te toca cada día y qué puedes mover',
+  ruta: RUTAS_MI_PROGRAMA.miPlan,
 } as const;
 
 export type EstudioKey = 'labs' | 'genetica';

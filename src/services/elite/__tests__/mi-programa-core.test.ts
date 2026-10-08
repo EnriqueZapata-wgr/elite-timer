@@ -13,7 +13,8 @@ import { BLOQUES_PROGRAMA } from '@/src/services/elite/programa-elite-core';
 import { APP_REGISTRY, visibleApps } from '@/src/constants/app-registry';
 import {
   bloquesMiPrograma, caraSinEvaluacion, CUBIERTAS_POR_RESUMEN, destinoEdad, destinoPiden, detalleSeccion,
-  estadoAlVencer, estudiosVisibles, FILAS_EXPEDIENTE, lineaVersion, pidenAccionDelDocumento, resumenEvaluacion,
+  estadoAlVencer, estudiosVisibles, FILA_PLAN_SEMANA, FILAS_EXPEDIENTE, lineaVersion, pidenAccionDelDocumento,
+  resumenEvaluacion,
   RUTAS_MI_PROGRAMA, seccionTieneContenido, siguienteEstado,
   type EstadoMiPrograma, type NivelParaPrograma,
 } from '@/src/services/elite/mi-programa-core';
@@ -49,6 +50,8 @@ function todoElCopy(e: EliteV3): string[] {
   }
   out.push(lineaVersion(e));
   for (const f of FILAS_EXPEDIENTE) out.push(f.titulo, f.detalle);
+  // 7-oct-2026 (Mi plan): la fila que abre TU PLAN pasa por el mismo barrido de copy.
+  out.push(FILA_PLAN_SEMANA.titulo, FILA_PLAN_SEMANA.detalle);
   return out;
 }
 
@@ -315,6 +318,16 @@ describe('rutas de MI PROGRAMA: ninguna cae en el hub de SALUD', () => {
       RUTAS_MI_PROGRAMA.mapa, RUTAS_MI_PROGRAMA.padecimientos, RUTAS_MI_PROGRAMA.linea]) {
       expect(destinosRedirect(readFileSync(archivoDeRuta(r)!, 'utf8'))).toEqual([]);
     }
+  });
+  it('7-oct-2026: "Ver mi plan de la semana" abre /mi-plan, una pantalla real de esta sala', () => {
+    expect(FILA_PLAN_SEMANA.ruta).toBe('/mi-plan');
+    expect(Object.values(RUTAS_MI_PROGRAMA).includes(FILA_PLAN_SEMANA.ruta)).toBe(true);
+    expect(destinosRedirect(readFileSync(archivoDeRuta(FILA_PLAN_SEMANA.ruta)!, 'utf8'))).toEqual([]);
+    // La pantalla empuja el literal (para que el censo de rutas la vea como
+    // puerta): tiene que ser el mismo destino que declara el core.
+    const pantalla = readFileSync(resolve(process.cwd(), 'src/screens/elite-dx/MiProgramaScreen.tsx'), 'utf8');
+    expect(pantalla).toMatch(`router.push('${FILA_PLAN_SEMANA.ruta}')`);
+    expect(pantalla).toMatch('titulo={FILA_PLAN_SEMANA.titulo}');
   });
   it('control: el detector si caza /salud/evolucion (la que salio)', () => {
     const d = destinosRedirect(readFileSync(archivoDeRuta('/salud/evolucion')!, 'utf8'));

@@ -220,6 +220,9 @@ export const TITULOS_RUTA: Readonly<Record<string, string>> = {
   '/lista-compra': 'Lista de compra',
   '/medidas': 'Peso y medidas',
   '/meditation': 'Meditación',
+  // 7-oct-2026 (Mi plan): la pantalla de "que me toca cada dia". Titulo a mano
+  // porque es destino de alto trafico (la tarjeta MI PLAN de HOY lleva ahi).
+  '/mi-plan': 'Mi plan',
   '/mente/nback': 'Entrenamiento N-Back',
   '/mente/progreso': 'Progreso de Mente',
   '/my-chronotype': 'Mi cronotipo',
@@ -304,15 +307,25 @@ export function tituloDe(ruta: string): string {
  * 26-sep-2026 (Elite DX no pierde funciones): en Elite DX se SUMAN al catalogo
  * completo de la ATP (ALIAS_RUTA_BASE), no lo reemplazan. Ninguna frase de
  * aqui le quita a una ruta vieja algo que en la ATP completa resolvia: las
- * palabras que se comparten con rutas viejas ('mi expediente', 'mi plan',
- * 'cuenta', 'mi cuenta') ya competian igual desde el 25-sep y su desenlace
+ * palabras que se comparten con rutas viejas ('mi expediente', 'cuenta',
+ * 'mi cuenta') ya competian igual desde el 25-sep y su desenlace
  * queda clavado en el test. Lo unico que cambia de destino a proposito en
  * Elite DX es "progreso" (y "mi progreso", "mi constancia"): va a la sala
  * PROGRESO en vez de donarse a /fitness-strength, porque en Elite DX la tab
  * PROGRESO existe y es lo que el cliente esta nombrando.
  */
 export const ALIAS_SALAS_ELITE_DX: Readonly<Record<string, readonly string[]>> = {
-  '/programa': ['mi programa', 'programa', 'mi evaluacion', 'mi evaluacion elite', 'mi plan', 'mi expediente'],
+  // 7-oct-2026 (Mi plan): 'mi plan' salio de aqui. Desde hoy "mi plan" es la
+  // pantalla /mi-plan (que te toca cada dia) en los DOS modos; MI PROGRAMA la
+  // abre con su primera fila. Dejarlo aqui era mandar a la sala del servicio a
+  // quien pregunta que le toca hoy.
+  //
+  // 8-oct-2026 (revisión en frío): 'plan elite' entra aqui. Al sacar 'mi plan',
+  // "plan elite" y "mi plan elite" dejaron de resolver a la sala (resolvian
+  // por la palabra "elite") y ARGOS preguntaba entre /mi-plan y esta. Una
+  // sola frase y no dos: con 'mi plan elite' ademas, "elite" a secas pasaba
+  // de preguntar a resolver aqui, y esa palabra tambien nombra la evaluacion.
+  '/programa': ['mi programa', 'programa', 'mi evaluacion', 'mi evaluacion elite', 'mi expediente', 'plan elite'],
   '/progreso': ['progreso', 'mi progreso', 'mi avance', 'avance', 'constancia', 'mi constancia'],
   '/tu': ['mi cuenta', 'cuenta', 'herramientas', 'mis herramientas', 'mi servicio', 'escribirle a enrique', 'contacto'],
 };
@@ -361,7 +374,30 @@ export const ALIAS_RUTA_BASE: Readonly<Record<string, readonly string[]>> = {
   '/fitness-train': ['entrenar ahora', 'empezar entrenamiento', 'rutina de hoy'],
   '/my-routines': ['mis rutinas', 'rutinas', 'rutina'],
   '/exercise-library': ['biblioteca de ejercicios', 'como se hace', 'tecnica'],
-  '/plan-entrenamiento': ['plan de entrenamiento', 'mi plan'],
+  // 7-oct-2026 (Mi plan): 'mi plan' era de aqui (el editor de los dias de
+  // entrenar). El dueno pidio que "Mi plan / Ver mi plan" sea ver lo que toca
+  // cada dia: entrenamiento, alimentacion, suplementos, practicas y sueno. El
+  // editor conserva su nombre exacto y Mi plan lleva a el desde su fila.
+  //
+  // 8-oct-2026 (revisión en frío): 'semana de entrenar' entra aqui. Al mover
+  // 'mi plan', "mi plan de entrenar" y "semana de entrenamiento" dejaron de
+  // resolver al editor y ARGOS preguntaba. La frase NO lleva la palabra
+  // "plan" a proposito: cada alias con "plan" de este lado le quita a /mi-plan
+  // la ventaja con la que "mi plan" resuelve sin preguntar (26 contra 14; con
+  // 20 de este lado ya no alcanza el factor de dominancia). Y lleva "semana"
+  // una sola vez: con dos, "mi semana" empataba con /mi-plan. "entrenar" a
+  // secas sigue yendo a Entrenar (12 contra 8, clavado en el test).
+  '/plan-entrenamiento': ['plan de entrenamiento', 'semana de entrenar'],
+  // 'plan de la semana' no es adorno: es como se llama la fila de MI PROGRAMA
+  // y es lo que le da a "mi plan" la ventaja para resolver sin preguntar. Con
+  // solo 'mi plan' y 'ver mi plan' la palabra "plan" quedaba 20 contra 14 del
+  // editor de entrenar, por debajo del factor de dominancia (1.45), y ARGOS
+  // preguntaba entre tres pantallas (medido el 7-oct con el resolvedor).
+  // 'que me toca hoy' va explicito por lo mismo: sin el, "¿que me toca hoy?"
+  // seguia resolviendo a Entrenar (su docblock dice "que toca hoy"), y lo que
+  // toca hoy ya no es solo el entrenamiento. "hoy" a secas no se movio: sigue
+  // preguntando y ofrece HOY primero (clavado en el test).
+  '/mi-plan': ['mi plan', 'ver mi plan', 'plan de la semana', 'mi semana', 'que me toca', 'que me toca hoy'],
   // 31-ago-2026: /fitness-cardio dejó de ser alias de /log-cardio (ahora es
   // el perfil vivo: zonas, FC máxima, VO2max). Sin este reparto "salir a
   // correr" caía en el perfil en vez de en el registro.
@@ -406,7 +442,11 @@ export const ALIAS_RUTA_BASE: Readonly<Record<string, readonly string[]>> = {
   // entiende. Todas esas formas tienen que caer en el centro de ayuda.
   '/tutorial': ['tutorial', 'ayuda', 'centro de ayuda', 'como se usa', 'como funciona la app',
     'ensename a usar la app', 'no le entiendo', 'explicame la app', 'tour', 'guia'],
-  '/settings/subscription': ['suscripcion', 'plan', 'pago', 'facturacion', 'membresia', 'mi membresia'],
+  // 8-oct-2026 (revisión en frío): 'plan de pago' entra para que "mi plan de
+  // pago" siga resolviendo aqui. Desde que "plan" es de /mi-plan esa frase
+  // preguntaba entre tres pantallas (medido con el resolvedor contra el arbol
+  // del 6-oct). "plan" a secas no se movio con esto: sigue yendo a /mi-plan.
+  '/settings/subscription': ['suscripcion', 'plan', 'pago', 'facturacion', 'membresia', 'mi membresia', 'plan de pago'],
   '/settings/conexiones': ['coach', 'entrenador', 'conectar coach', 'clinico'],
   '/settings/salud-conexion': ['health connect', 'healthkit', 'reloj', 'apple salud', 'sincronizar salud', 'conectar reloj', 'conectar health', 'pasos'],
   '/settings/salud': ['ajustes de salud', 'modo completo', 'modo completo de salud', 'modo completo de nutricion'],

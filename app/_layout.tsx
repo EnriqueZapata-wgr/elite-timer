@@ -392,6 +392,10 @@ function RootLayout() {
                 <Stack.Screen name="my-chronotype" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* MB-30B: filtro nocturno de sistema (Android overlay / guía iOS) */}
                 <Stack.Screen name="night-filter" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* 7-oct-2026 (Mi plan): lo que te toca cada dia de la semana y que
+                    tanto se puede reprogramar. Se llega desde la tarjeta MI PLAN
+                    de HOY y desde MI PROGRAMA; nunca es la primera pantalla. */}
+                <Stack.Screen name="mi-plan" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Suscripciones RevenueCat (sprint IAP V1.3) */}
                 <Stack.Screen name="tutorial" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="paywall" options={{ headerShown: false, animation: 'slide_from_bottom' }} />

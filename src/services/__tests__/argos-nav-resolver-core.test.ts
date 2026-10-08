@@ -660,3 +660,92 @@ describe('NAV-2 · las rutas resueltas son destinos de verdad', () => {
     }
   });
 });
+
+/**
+ * 7-oct-2026 (Mi plan). "Mi plan" dejo de ser dos cosas segun el modo (el
+ * editor de dias de entrenar en la ATP, la sala MI PROGRAMA en Elite DX) y es
+ * una sola pantalla, /mi-plan: que te toca cada dia y que tanto se puede
+ * reprogramar. El dueno lo pidio asi ("Mi plan / Ver mi plan").
+ *
+ * Lo que este bloque clava, en LOS DOS modos:
+ *  - las frases resuelven SIN preguntar (contrato de ARGOS: si empatan, pregunta;
+ *    aqui no debe empatar, porque es el destino de la tarjeta de HOY);
+ *  - el editor de entrenar conserva su nombre exacto. Se rompio a medio camino:
+ *    con las secciones nombradas en el docblock de /mi-plan, "plan de
+ *    entrenamiento" empataba y ARGOS preguntaba entre tres pantallas.
+ */
+for (const modo of MODOS) describe(`"mi plan" lleva a /mi-plan (7-oct-2026, modo ${modo})`, () => {
+  enModo(modo);
+  it('las formas de pedirlo resuelven sin preguntar', () => {
+    esperarRuta('mi plan', '/mi-plan');
+    esperarRuta('ver mi plan', '/mi-plan');
+    esperarRuta('mi semana', '/mi-plan');
+    esperarRuta('que me toca', '/mi-plan');
+    esperarRuta('llévame a mi plan', '/mi-plan');
+    esperarRuta('¿qué me toca hoy?', '/mi-plan');
+    esperarRuta('mi plan de la semana', '/mi-plan');
+  });
+  it('el editor de dias de entrenar conserva su nombre exacto', () => {
+    esperarRuta('plan de entrenamiento', '/plan-entrenamiento');
+    esperarRuta('mi plan de entrenamiento', '/plan-entrenamiento');
+  });
+  // 8-oct-2026 (revisión en frío): al mover 'mi plan' estas frases dejaron de
+  // resolver (antes iban al editor o a la suscripcion) y ARGOS preguntaba.
+  it('lo que se rompio al mover "mi plan" vuelve a resolver', () => {
+    esperarRuta('mi plan de entrenar', '/plan-entrenamiento');
+    esperarRuta('plan de entrenar', '/plan-entrenamiento');
+    esperarRuta('semana de entrenamiento', '/plan-entrenamiento');
+    esperarRuta('semana de entrenar', '/plan-entrenamiento');
+    esperarRuta('mi plan de pago', '/settings/subscription');
+  });
+  it('y el arreglo no le quito nada a los vecinos', () => {
+    // "entrenar" a secas sigue siendo Entrenar: 12 contra 8 del editor.
+    esperarRuta('entrenar', '/fitness-hub');
+    esperarRuta('quiero entrenar', '/fitness-hub');
+    // "semana" sigue siendo de Mi plan: el editor la lleva una sola vez.
+    esperarRuta('semana', '/mi-plan');
+    esperarRuta('pago', '/settings/subscription');
+    // Las frases de entrenar no llevan la palabra "plan": es lo que cuida
+    // la ventaja con la que "mi plan" resuelve sin preguntar.
+    const delEditor = aliasRuta()['/plan-entrenamiento'].filter((f) => /\bplan\b/.test(f));
+    expect(delEditor).toEqual(['plan de entrenamiento']);
+  });
+  it('lo que ya resolvia cerca no se movio', () => {
+    esperarRuta('mis suplementos', '/supplements');
+    esperarRuta('agenda', '/agenda');
+    esperarRuta('ordenar mi dia', '/ordenar-dia');
+    esperarRuta('suscripcion', '/settings/subscription');
+    esperarRuta('coach', '/settings/conexiones');
+    // "hoy" a secas ya preguntaba antes de Mi plan y sigue ofreciendo HOY primero.
+    const hoy = resolverDestino('hoy');
+    expect(hoy.tipo).toBe('ambigua');
+    if (hoy.tipo === 'ambigua') expect(hoy.candidatos[0].ruta).toBe('/');
+  });
+  it('la ruta existe, no esta vetada y tiene titulo de usuario', () => {
+    expect(APP_ROUTES.includes('/mi-plan')).toBe(true);
+    expect(rutaVetada('/mi-plan')).toBeNull();
+    expect(tituloDe('/mi-plan')).toBe('Mi plan');
+    expect(validarRutaPropuesta('/mi-plan').tipo).toBe('resuelta');
+  });
+  it('"mi plan" tiene un solo dueno en el catalogo', () => {
+    const duenos = Object.entries(aliasRuta()).filter(([, frases]) => frases.includes('mi plan')).map(([r]) => r);
+    expect(duenos).toEqual(['/mi-plan']);
+  });
+});
+
+describe('Mi plan y MI PROGRAMA no se pisan en Elite DX (7-oct-2026)', () => {
+  enModo('elite_dx');
+  it('"mi programa" sigue abriendo la sala y "mi plan" la semana', () => {
+    esperarRuta('mi programa', '/programa');
+    esperarRuta('mi plan', '/mi-plan');
+    expect(ALIAS_SALAS_ELITE_DX['/programa'].includes('mi plan')).toBe(false);
+  });
+  // 8-oct-2026 (revisión en frío): "plan elite" resolvia a la sala y, al
+  // sacar 'mi plan' de sus alias, empezo a preguntar.
+  it('"plan elite" vuelve a abrir la sala', () => {
+    esperarRuta('plan elite', '/programa');
+    esperarRuta('mi plan elite', '/programa');
+    // "elite" a secas nombra tambien la evaluacion: sigue preguntando.
+    expect(resolverDestino('elite').tipo).toBe('ambigua');
+  });
+});

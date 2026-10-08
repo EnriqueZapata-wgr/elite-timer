@@ -1,8 +1,8 @@
 {
   "scheme": "atp",
-  "generado": "2026-09-25T05:09:44.765Z",
+  "generado": "2026-10-07T23:00:30.501Z",
   "resumen": {
-    "estaticas": 205,
+    "estaticas": 206,
     "dinamicas": 99,
     "variantes": 12
   },
@@ -1110,6 +1110,12 @@
       "archivo": "app/mente/progreso.tsx",
       "tipo": "estatica",
       "slug": "mente-progreso"
+    },
+    {
+      "ruta": "/mi-plan",
+      "archivo": "app/mi-plan.tsx",
+      "tipo": "estatica",
+      "slug": "mi-plan"
     },
     {
       "ruta": "/mobility-assessment",

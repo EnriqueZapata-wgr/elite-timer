@@ -37,6 +37,17 @@
  * laboratorios, sin píldora de electrones ni toast "+⚡" (los electrones se
  * siguen sumando; ocultos para Elite desde el 20-sep), sin presencia de
  * Tribu, y "Escríbele a Enrique" al pie.
+ * 7-oct-2026 (Hoy editorial): el dueño abrió HOY y lo primero que vio fueron
+ * sus laboratorios con puntos rojos. Su decisión: "No es necesario poner ese
+ * dato en una primera instancia. Vamos a dejarlo como un resumen con una
+ * imagen editorial bonita y ya si te quieres meter a ver los valores, te
+ * metes." Arriba de HOY va ahora UNA tarjeta editorial (imagen, una línea, un
+ * CTA) en los dos modos: en ATP la pinta HeroLaboratorios (Edad ATP,
+ * evaluación Elite o primer estudio) y en Elite DX, ProgramaHeader (la semana
+ * del programa). El semáforo de marcadores queda a un toque. Y la tarjeta
+ * "Qué hacer hoy" pasa a ser "MI PLAN / Ver mi plan" (MiPlanCard, mismas
+ * props). Los estados que no son felices (leyendo, no se pudo leer, en
+ * preparación) no cambian.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -60,7 +71,9 @@ import { TareasView } from '@/src/components/hoy/TareasView';
 import { GraduacionCard } from '@/src/components/hoy/GraduacionCard';
 // ATP 3.0 (6-sep-2026, ruta 2.1 y 2.2): el hero de laboratorios y las tres de hoy.
 import { HeroLaboratorios } from '@/src/components/hoy/HeroLaboratorios';
-import { QueHacerHoy } from '@/src/components/hoy/QueHacerHoy';
+// 7-oct-2026 (Hoy editorial): "Qué hacer hoy" deja su lugar a "MI PLAN / Ver
+// mi plan" (decisión del dueño). QueHacerHoy no se borra del disco.
+import { MiPlanCard } from '@/src/components/hoy/MiPlanCard';
 // 20-sep-2026 (cliente Elite): el indice de su producto bajo el hero, y el
 // nivel leido UNA vez aqui para el hero y la pildora (antes lo leia el hero).
 import { PuertasElite } from '@/src/components/hoy/PuertasElite';
@@ -668,6 +681,9 @@ export default function TodayScreen() {
             su Edad ATP y sus tres marcadores; sin estudio, "Sube tu primer
             estudio". Debajo, las tres acciones que ARGOS eligió por sus
             marcadores. Lo demás de HOY no se toca. */}
+        {/* 7-oct-2026 (Hoy editorial): lo de arriba ya no enseña los tres
+            marcadores ni su semáforo. Es una tarjeta editorial (imagen, una
+            línea, un CTA); los valores quedan a un toque. Debajo, "MI PLAN". */}
         {/* 25-sep-2026 (APP_ELITE_DX): arriba, la semana de su programa. Los dos
             heros apilados (evaluacion y puertas) se van a MI PROGRAMA; de
             HeroLaboratorios solo se queda su aviso de "no pudimos leer tu
@@ -692,7 +708,7 @@ export default function TodayScreen() {
             <PuertasElite userId={user?.id} />
           </>
         )}
-        <QueHacerHoy userId={user?.id} nivel={nivel} />
+        <MiPlanCard userId={user?.id} nivel={nivel} />
 
         {/* ═══════════════════════════════════════
             TAREAS — el checklist del día, dos lentes (MB-20)

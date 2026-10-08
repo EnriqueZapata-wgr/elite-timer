@@ -35,6 +35,8 @@
  *    <Redirect> a /salud (RUTAS_MI_PROGRAMA, con test).
  *  - 26-sep-2026 ("todo lo de ATP mas su programa"): Tu expediente suma Mi
  *    mapa funcional, Padecimientos y Linea de tiempo (FILAS_EXPEDIENTE).
+ *  - 7-oct-2026 (Mi plan): TU PLAN abre con "Ver mi plan de la semana"
+ *    (/mi-plan): el mismo plan, por dia y con lo que el cliente puede mover.
  *
  * Tinta: tokens del scope. El <TabScreen themed> abre el <ThemeReady>, por
  * eso el contenido vive en un componente hijo (useSurfaceTokens arriba de el
@@ -58,8 +60,8 @@ import { useSubscription } from '@/src/hooks/useSubscription';
 import type { EliteV3 } from '@/src/services/elite/elite-v3-core';
 import type { SeccionUiKey } from '@/src/services/elite/evaluacion-elite-core';
 import {
-  bloquesMiPrograma, caraSinEvaluacion, estadoAlVencer, estudiosVisibles, FILAS_EXPEDIENTE, resumenEvaluacion,
-  RUTAS_MI_PROGRAMA, siguienteEstado,
+  bloquesMiPrograma, caraSinEvaluacion, estadoAlVencer, estudiosVisibles, FILA_PLAN_SEMANA, FILAS_EXPEDIENTE,
+  resumenEvaluacion, RUTAS_MI_PROGRAMA, siguienteEstado,
   type CaraSinEvaluacion, type EstadoMiPrograma, type EstudioKey, type ExpedienteKey, type LecturaParaPrograma,
   type MotivoFallo,
 } from '@/src/services/elite/mi-programa-core';
@@ -263,6 +265,21 @@ function Contenido() {
           <Resumen e={evaluacion} ir={ir} />
           {bloquesMiPrograma(evaluacion).map((b, i) => (
             <Grupo key={b.key} titulo={b.titulo} delay={140 + i * 40}>
+              {/* 7-oct-2026 (Mi plan): TU PLAN abre con la semana por dia
+                  (/mi-plan). Las filas de abajo siguen siendo el plan por
+                  tema. Nunca es la ultima: debajo van las tres de siempre. */}
+              {b.key === 'plan' ? (
+                <Fila
+                  icon="protocolos"
+                  titulo={FILA_PLAN_SEMANA.titulo}
+                  detalle={FILA_PLAN_SEMANA.detalle}
+                  ultima={b.filas.length === 0}
+                  // El literal (y no FILA_PLAN_SEMANA.ruta) para que el censo de
+                  // rutas vea esta fila como puerta; el test de mi-programa-core
+                  // clava que los dos dicen lo mismo.
+                  onPress={() => { haptic.light(); router.push('/mi-plan'); }}
+                />
+              ) : null}
               {b.filas.map((f, j) => (
                 <Fila
                   key={f.seccion}

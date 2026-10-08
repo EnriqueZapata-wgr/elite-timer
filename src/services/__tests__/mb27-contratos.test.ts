@@ -226,6 +226,12 @@ describe('mutación 12 (ratchet): nadie nuevo lee goals.habit_times crudo', () =
     'src/services/pack-core.ts',      // define el shape (HabitTimeEntryLike) para el motor
     'src/services/hoy/tareas-core.ts', // comentario (dónde viven las horas)
     'app/centro/[appKey].tsx',         // comentario (lente AGENDA)
+    // 8-oct-2026 (revisión en frío): Mi plan pinta la hora de cada hábito. Su
+    // servicio es el único archivo de esa pantalla que nombra la columna, y
+    // se la entrega cruda a horasDeHabitos (mi-plan-core), que lee cada
+    // entrada con parseHabitTimeEntry: una regla {ancla, offsetMin} llega
+    // como regla, no como string. El core NO está en esta lista a propósito.
+    'src/services/plan/mi-plan-service.ts',
   ]);
 
   it('el árbol no tiene lectores fuera de la lista', () => {
