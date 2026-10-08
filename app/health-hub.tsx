@@ -14,5 +14,7 @@
 import { Redirect } from 'expo-router';
 
 export default function HealthHubRedirect() {
-  return <Redirect href="/salud" />;
+  // 8-oct-2026 (v4): en la v4 el tab /salud es el Perfil; el hub vive en
+  // /salud?seccion=hub. La vista clasica ignora 'hub' y abre el hub igual.
+  return <Redirect href={{ pathname: '/salud', params: { seccion: 'hub' } }} />;
 }

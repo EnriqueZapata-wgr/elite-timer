@@ -18,6 +18,10 @@
  * MB-22: la cuadrícula lista SOLO lo instalado. Todo lo demás vive en el
  * Centro (/centro), que es donde se instala, se desinstala y se configura.
  * Las 17 apps que no usas no necesitan un distintivo: necesitan no estar.
+ *
+ * 8-oct-2026 (v4): en la presentacion v4 esta ruta es APPS. El titulo dice
+ * APPS y arriba de todo va "Recomendadas por tu plan" (AppsRecomendadas, que
+ * se pinta vacia cuando no hay nada que recomendar). Fuera de la v4, igual.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert } from 'react-native';
@@ -56,6 +60,8 @@ import { APP_SECTION_COLORS, ATP_BRAND, PILL } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
 import { warn as logWarn } from '@/src/lib/logger';
+import { useEsV4 } from '@/src/hooks/useModoApp';
+import { AppsRecomendadas } from '@/src/components/v4/AppsRecomendadas';
 
 export default function SalaAtpScreen() {
   const router = useRouter();
@@ -73,6 +79,8 @@ export default function SalaAtpScreen() {
   // instalar vive en el Centro — el deep link se respeta redirigiendo, la
   // pantalla de TAREAS no se toca.
   const { agregar } = useLocalSearchParams<{ agregar?: string }>();
+  // 8-oct-2026 (v4): la sala se llama APPS y lleva las recomendadas arriba.
+  const v4 = useEsV4();
   const modoAgregar = agregar === '1';
 
   const [isFemale, setIsFemale] = useState(false);
@@ -288,8 +296,12 @@ export default function SalaAtpScreen() {
       >
         <Animated.View entering={FadeInUp.delay(40).springify()} style={s.header}>
           <EliteText style={[s.eyebrow, { color: acento }]}>TUS FUNCIONES</EliteText>
-          <EliteText style={[s.title, { color: tokens.texto }]}>ATP</EliteText>
+          <EliteText style={[s.title, { color: tokens.texto }]}>{v4 ? 'APPS' : 'ATP'}</EliteText>
         </Animated.View>
+
+        {/* 8-oct-2026 (v4): "Recomendadas por tu plan", arriba de la sala.
+            Mientras se busca, manda el buscador. */}
+        {v4 && !searching && <AppsRecomendadas />}
 
         {/* ATP 3.0 (ruta 2.3): las cuatro de arriba. Fila fija en Categoría y
             Frecuencia; en "Mío" manda el orden guardado en /atp-orden y no se

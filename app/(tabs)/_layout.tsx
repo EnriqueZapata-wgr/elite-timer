@@ -17,16 +17,34 @@
  *
  * Si el usuario es coach Y la pantalla es ancha (>1024px), muestra el
  * CoachPanelLayout en vez de las tabs normales.
+ *
+ * 8-oct-2026 (v4): en la presentacion v4 de Elite DX (useEsV4) la barra es
+ *
+ *   ┌─────┬──────┬───────┬────────┬──────┐
+ *   │ Hoy │ Plan │ ARGOS │ Perfil │ Apps │
+ *   └─────┴──────┴───────┴────────┴──────┘
+ *
+ * con ARGOS en un boton redondo elevado al centro (BotonArgosV4). Se reusan
+ * rutas: Plan = programa, Perfil = salud, Apps = kit. Ver TabsV4 y
+ * "R and D/ATP_V4_PLAN.md". Elite DX clasica y la ATP completa no cambian.
  */
 import { useState, useEffect, useRef } from 'react';
 import { useWindowDimensions, View, Pressable, StyleSheet, DeviceEventEmitter } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Tabs, Redirect, router, usePathname } from 'expo-router';
+import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EliteText } from '@/components/elite-text';
 import { AppIcon } from '@/src/components/ui/AppIcon';
-import { TAB_BAR_ICONS } from '@/src/constants/tab-bar';
+import {
+  TAB_BAR_ICONS,
+  TABS_OCULTAS_POR_VISTA,
+  TABS_OCULTAS_V4,
+  TABS_V4,
+  ARGOS_V4_A11Y,
+  vistaDeTabs,
+} from '@/src/constants/tab-bar';
 import { useCoachStatus } from '@/src/hooks/useCoachStatus';
 import { useAuth } from '@/src/contexts/auth-context';
 import { isAdmin } from '@/src/constants/admin-config';
@@ -44,7 +62,8 @@ import { countUnreadInbox } from '@/src/services/user-notifications-service';
 import { TABS_EXIGEN_CONSENTIMIENTO } from '@/src/constants/flags';
 // 26-sep-2026 (una app, dos modos): el tab bar sigue el modo de la cuenta
 // (Elite DX o ATP completa), no una constante. Ver src/services/modo-app.
-import { useEsEliteDx } from '@/src/hooks/useModoApp';
+// 8-oct-2026 (v4): y dentro de Elite DX, la presentacion (clasica o v4).
+import { useEsEliteDx, useEsV4 } from '@/src/hooks/useModoApp';
 import { hayVistoBuenoEnMemoria, leerVistoBueno } from '@/src/services/acceso-consentido';
 
 const COACH_PANEL_MIN_WIDTH = 1024;
@@ -144,9 +163,128 @@ const ORB_TAB_SIZE = 42;
  * HOY. Desde el 26-sep (Elite DX no pierde funciones) ATP, SALUD y TRIBU son
  * destinos validos de Elite DX (se abren desde TU), y ademas el <Tabs> se
  * vuelve a montar al cambiar de modo (key), asi que esta red es de respaldo.
+ *
+ * 8-oct-2026 (v4): las listas viven en TABS_OCULTAS_POR_VISTA (tab-bar.ts),
+ * con una tercera vista, la v4, que esconde PROGRESO, TU y TRIBU.
  */
-const TABS_OCULTAS_EN_ELITE_DX: ReadonlySet<string> = new Set(['/kit', '/salud', '/tribu']);
-const TABS_OCULTAS_EN_ATP: ReadonlySet<string> = new Set(['/programa', '/progreso', '/tu']);
+
+/**
+ * 8-oct-2026 (v4): el boton de ARGOS de la v4. Un circulo elevado al centro
+ * de la barra, con la orbe mas grande. Sube con margen negativo; la barra no
+ * recorta (overflow visible en tabBarStyle de TabsV4, y el item de la barra
+ * en variante uikit tampoco recorta). En Android el toque solo entra dentro
+ * de la barra, por eso el circulo sube poco: casi todo queda adentro.
+ */
+const ORB_V4_SIZE = 50;
+const BOTON_ARGOS_V4 = 62;
+const ELEVACION_ARGOS_V4 = 16;
+
+function BotonArgosV4({ onPress, onLongPress, testID, 'aria-selected': seleccionado }: BottomTabBarButtonProps) {
+  const { orbState } = useArgosPresence();
+  const { kind, tokens } = useAppTheme();
+  const activo = kind === 'dark' ? ATP_BRAND.lime : tokens.tealTexto;
+  return (
+    <View style={styles.argosV4Slot} pointerEvents="box-none">
+      <Pressable
+        onPress={onPress}
+        onLongPress={onLongPress}
+        testID={testID}
+        accessibilityRole="button"
+        accessibilityLabel={ARGOS_V4_A11Y}
+        accessibilityState={{ selected: !!seleccionado }}
+        hitSlop={6}
+        style={[
+          styles.argosV4Boton,
+          { backgroundColor: tokens.fondo, borderColor: seleccionado ? activo : tokens.borde },
+        ]}
+      >
+        <ArgosOrb state={orbState} size={ORB_V4_SIZE} />
+      </Pressable>
+    </View>
+  );
+}
+
+/**
+ * 8-oct-2026 (v4): la barra de la v4. Es otro <Tabs> (key propia) para que
+ * el de Elite DX clasica y el de la ATP completa queden intactos, y para que
+ * al cambiar de presentacion el navegador se monte desde cero con su orden y
+ * su backBehavior. 'history': Perfil abre Progreso, Tu y Tribu, que no tienen
+ * boton en la barra, y el atras de Android regresa a donde estaba.
+ * Toda ruta de (tabs) se declara (visible u oculta): una sin declarar
+ * apareceria sola en la barra.
+ */
+/**
+ * 8-oct-2026 (v4): /salud con `?seccion=X` pinta el hub clasico y con
+ * `?marcador=<key>` abre un marcador del Perfil. El tab de abajo recuerda los
+ * params de la ultima visita: sin esto, tocar Perfil despues de abrir el hub
+ * desde Ajustes volveria a pintar el hub. Al tocarlo con params, se navega a
+ * la ruta limpia (navigate en v7 reemplaza los params, no los mezcla).
+ */
+const limpiarParamsAlTocar = ({ navigation, route }: {
+  navigation: { navigate: (name: string, params?: object) => void };
+  route: { name: string; params?: object };
+}) => ({
+  tabPress: (e: { preventDefault: () => void }) => {
+    const p = route.params as { seccion?: unknown; marcador?: unknown } | undefined;
+    if (p && (p.seccion != null || p.marcador != null)) {
+      e.preventDefault();
+      navigation.navigate(route.name, {});
+    }
+  },
+});
+
+function TabsV4() {
+  const insets = useSafeAreaInsets();
+  const { kind, tokens } = useAppTheme();
+  return (
+    <Tabs
+      key="tabs-v4"
+      backBehavior="history"
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: kind === 'dark' ? ATP_BRAND.lime : tokens.tealTexto,
+        tabBarInactiveTintColor: tokens.textoTenue,
+        tabBarStyle: {
+          backgroundColor: tokens.fondo,
+          borderTopWidth: kind === 'light' ? 0.5 : 0,
+          borderTopColor: tokens.borde,
+          elevation: 0,
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom + 8,
+          paddingTop: 4,
+          // El boton de ARGOS sale por arriba: la barra no lo recorta.
+          overflow: 'visible',
+        },
+        tabBarLabelStyle: {
+          fontFamily: Fonts.semiBold,
+          fontSize: 11,
+        },
+      }}>
+      {TABS_V4.map((t) => (t.icon === null ? (
+        <Tabs.Screen
+          key={t.name}
+          name={t.name}
+          options={{
+            title: t.title,
+            tabBarLabel: () => null,
+            tabBarAccessibilityLabel: ARGOS_V4_A11Y,
+            tabBarButton: (props) => <BotonArgosV4 {...props} />,
+          }}
+        />
+      ) : (
+        <Tabs.Screen
+          key={t.name}
+          name={t.name}
+          options={{ title: t.title, tabBarIcon: tabIcon(t.icon) }}
+          listeners={t.name === 'salud' ? limpiarParamsAlTocar : undefined}
+        />
+      )))}
+      {TABS_OCULTAS_V4.map((name) => (
+        <Tabs.Screen key={name} name={name} options={{ href: null }} />
+      ))}
+    </Tabs>
+  );
+}
 
 /**
  * 26-sep-2026 (una app, dos modos; revision en frio M2): sin UI. Vive aparte
@@ -159,23 +297,26 @@ const TABS_OCULTAS_EN_ATP: ReadonlySet<string> = new Set(['/programa', '/progres
  * vuelva a disparar el efecto.
  */
 function RedirectPorModo() {
-  const eliteDx = useEsEliteDx();
+  // 8-oct-2026 (v4): actua en un cambio de VISTA (ATP, Elite DX clasica o v4),
+  // no solo de modo: pasar de clasica a v4 parado en /tu tambien manda a HOY.
+  const vista = vistaDeTabs(useEsEliteDx(), useEsV4());
   const pathname = usePathname();
-  const modoPrevio = useRef(eliteDx);
+  const vistaPrevia = useRef(vista);
   const rutaActual = useRef(pathname);
   rutaActual.current = pathname;
   useEffect(() => {
-    if (modoPrevio.current === eliteDx) return;
-    modoPrevio.current = eliteDx;
-    const ocultas = eliteDx ? TABS_OCULTAS_EN_ELITE_DX : TABS_OCULTAS_EN_ATP;
-    if (ocultas.has(rutaActual.current)) router.replace('/');
-  }, [eliteDx]);
+    if (vistaPrevia.current === vista) return;
+    vistaPrevia.current = vista;
+    if (TABS_OCULTAS_POR_VISTA[vista].has(rutaActual.current)) router.replace('/');
+  }, [vista]);
   return null;
 }
 
 export default function TabLayout() {
   // 26-sep-2026 (una app, dos modos): arriba de todo, antes de cualquier return.
   const eliteDx = useEsEliteDx();
+  // 8-oct-2026 (v4): solo puede ser true en Elite DX.
+  const v4 = useEsV4();
   const { width } = useWindowDimensions();
   const { isCoach } = useCoachStatus();
   const { user, loading: cargandoSesion } = useAuth();
@@ -260,6 +401,9 @@ export default function TabLayout() {
         </Pressable>
       )}
 
+      {/* 8-oct-2026 (v4): la v4 tiene su propia barra; la de abajo queda
+          tal cual para Elite DX clasica y la ATP completa. */}
+      {v4 ? <TabsV4 /> : (
       <Tabs
         // 26-sep-2026 (Elite DX no pierde funciones): en Elite DX, TU abre la
         // sala de apps, SALUD y TRIBU, que no tienen boton en la barra. Con
@@ -370,6 +514,7 @@ export default function TabLayout() {
           options={{ href: null }}
         />
       </Tabs>
+      )}
 
       {/* 26-sep-2026 (una app, dos modos): saca a HOY a quien queda parado en
           una sala que el cambio de modo acaba de esconder. Sin UI. */}
@@ -396,6 +541,21 @@ const styles = StyleSheet.create({
   orbSlot: {
     width: ORB_TAB_SIZE,
     height: ORB_TAB_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // 8-oct-2026 (v4): el hueco del centro y el boton elevado de ARGOS.
+  argosV4Slot: {
+    flex: 1,
+    alignItems: 'center',
+    overflow: 'visible',
+  },
+  argosV4Boton: {
+    width: BOTON_ARGOS_V4,
+    height: BOTON_ARGOS_V4,
+    borderRadius: BOTON_ARGOS_V4 / 2,
+    marginTop: -ELEVACION_ARGOS_V4,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },

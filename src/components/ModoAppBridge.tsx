@@ -25,9 +25,8 @@ import { modoDeLectura } from '@/src/services/modo-app/modo-app-core';
 import {
   fijarEsAdmin,
   fijarModoPorCuenta,
-  fijarPreferencia,
   fijarUltimoConocido,
-  fijarUltimoConocidoSiVacio,
+  hidratarGuardado,
 } from '@/src/services/modo-app/modo-app-estado';
 import { guardarUltimoModo, leerModoGuardado } from '@/src/services/modo-app/modo-app-persistencia';
 
@@ -43,10 +42,11 @@ export function ModoAppBridge() {
 
   useEffect(() => {
     let vivo = true;
-    leerModoGuardado().then(({ ultimo, preferencia }) => {
+    // 8-oct-2026 (v4): una sola lectura y un solo aviso para el modo, su
+    // preferencia y la presentacion (clasica o v4): sin parpadeo en frio.
+    leerModoGuardado().then((g) => {
       if (!vivo) return;
-      fijarUltimoConocidoSiVacio(ultimo);
-      fijarPreferencia(preferencia);
+      hidratarGuardado(g);
     });
     return () => { vivo = false; };
   }, []);

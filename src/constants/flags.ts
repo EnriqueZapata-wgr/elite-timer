@@ -983,3 +983,27 @@ export const VENTA_AL_PUBLICO: boolean = false;
  * Lleva `: boolean` por la misma razon que VENTA_AL_PUBLICO.
  */
 export const APP_ELITE_DX: boolean = true;
+
+/**
+ * NAV_V4 (8-oct-2026 (v4)). La navegacion v4 de Elite DX: cuatro pestanas,
+ * Hoy, Plan, Perfil y Apps, con ARGOS en el boton elevado del centro. Ver
+ * "R and D/ATP_V4_PLAN.md".
+ *
+ * Es el FRENO MAESTRO: en `false` nadie ve la v4 (ni el admin) y todo el
+ * mundo se queda en su presentacion clasica. Solo aplica en modo Elite DX;
+ * la ATP completa nunca cambia.
+ * La regla vive en presentacionEfectiva() (src/services/modo-app/modo-app-core)
+ * y las pantallas la leen con useEsV4() (src/hooks/useModoApp). Nadie fuera
+ * de modo-app-estado deberia leer esta constante para decidir que pintar.
+ * Lleva `: boolean` por la misma razon que VENTA_AL_PUBLICO.
+ */
+export const NAV_V4: boolean = true;
+
+/**
+ * NAV_V4_PARA_TODOS (8-oct-2026 (v4)). El interruptor de Enrique: mientras
+ * sea `false`, solo la cuenta admin ve la v4, y solo si la escoge en
+ * Ajustes > PRESENTACION. En `true`, todas las cuentas Elite DX la reciben
+ * (el admin aun puede fijar la clasica para compararlas). Encenderla es
+ * cambiar UNA palabra y mandar un OTA.
+ */
+export const NAV_V4_PARA_TODOS: boolean = false;

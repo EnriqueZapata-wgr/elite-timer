@@ -23,7 +23,7 @@
 // 26-sep-2026 (una app, dos modos): el modo se lee AL LANZAR, no al cargar el
 // modulo. Un cliente Elite y una cuenta ATP comparten la app, y el modo puede
 // cambiar con la app abierta (la cuenta se resuelve, el admin lo cambia).
-import { modoActual } from '@/src/services/modo-app/modo-app-estado';
+import { esV4, modoActual } from '@/src/services/modo-app/modo-app-estado';
 import type { ModoApp } from '@/src/services/modo-app/modo-app-core';
 
 /** Un paso: un concepto, una frase. */
@@ -238,12 +238,32 @@ function mapasDelModo(): MapasTour {
   return mapas;
 }
 
+/**
+ * 8-oct-2026 (v4): rutas cuya pieza describe la pantalla clasica y en la v4
+ * pintan otra. /salud es el PERFIL en la v4; la pieza 'salud' habla de las
+ * cuatro secciones del hub. En la fase A la pieza no se lanza en la v4: ni
+ * sola, ni a mano (centro de ayuda o ARGOS), porque pintaria el texto de la
+ * Salud clasica encima del Perfil.
+ */
+export const RUTAS_SIN_TOUR_EN_V4: ReadonlySet<string> = new Set(['/salud']);
+
+/** Puro: la pieza de la ruta tal como aplica en la v4 (o null si se salta). */
+export function tourDeRutaSegunPresentacion(
+  t: TourDePantalla | null,
+  ruta: string,
+  v4: boolean,
+): TourDePantalla | null {
+  if (v4 && RUTAS_SIN_TOUR_EN_V4.has(ruta)) return null;
+  return t;
+}
+
 export function tourDeRuta(ruta: string): TourDePantalla | null {
-  return mapasDelModo().porRuta.get(ruta) ?? null;
+  return tourDeRutaSegunPresentacion(mapasDelModo().porRuta.get(ruta) ?? null, ruta, esV4());
 }
 
 export function tourPorId(id: string): TourDePantalla | null {
-  return mapasDelModo().porId.get(id) ?? null;
+  const t = mapasDelModo().porId.get(id) ?? null;
+  return t ? tourDeRutaSegunPresentacion(t, t.ruta, esV4()) : null;
 }
 
 /**

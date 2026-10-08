@@ -187,7 +187,7 @@ export default function SettingsSaludScreen() {
             iconColor={CATEGORY_COLORS.metrics}
             label="Salud Funcional"
             sub="Mapa funcional, datos, síntomas y expediente"
-            onPress={() => { haptic.medium(); router.push('/salud'); }}
+            onPress={() => { haptic.medium(); router.push({ pathname: '/salud', params: { seccion: 'hub' } }); }}
           />
           <Divider />
           {/* SIMPLE (17-ago-2026): aquí estaban la fila de la ficha de emergencia

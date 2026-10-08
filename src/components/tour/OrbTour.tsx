@@ -25,9 +25,10 @@ import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_EVENTS, useAnalytics } from '@/src/lib/analytics';
 import {
-  ORB_TOUR_STEPS,
+  pasosOrbTour,
   ORB_TOUR_DONE_KEY,
 } from '@/src/components/tour/orb-tour-core';
+import { esV4 } from '@/src/services/modo-app/modo-app-estado';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 
@@ -47,7 +48,10 @@ export function OrbTour({ bottomOffset, onDone }: Props) {
   // Ruta que el TOUR pidió y aún no se refleja en pathname: ese desfase no es
   // navegación del usuario y no debe pausar.
   const navTargetRef = useRef<string | null>(null);
-  const step = ORB_TOUR_STEPS[index];
+  // 8-oct-2026 (v4): los pasos se fijan al arrancar el tour; en la v4 se
+  // saltan los de /salud (ahi vive el Perfil). Ver pasosOrbTour.
+  const [pasos] = useState(() => pasosOrbTour(esV4()));
+  const step = pasos[index];
 
   useEffect(() => {
     track(ATP_EVENTS.TOUR_STARTED);
@@ -102,7 +106,7 @@ export function OrbTour({ bottomOffset, onDone }: Props) {
 
   function next() {
     haptic.light();
-    if (index >= ORB_TOUR_STEPS.length - 1) { finish(true); return; }
+    if (index >= pasos.length - 1) { finish(true); return; }
     setIndex(index + 1);
   }
 
@@ -143,7 +147,7 @@ export function OrbTour({ bottomOffset, onDone }: Props) {
           <View style={s.bubbleHeader}>
             <ArgosOrb size={26} state="hablando" />
             <EliteText style={s.kicker}>{step.kicker}</EliteText>
-            <EliteText style={s.progress}>{index + 1} de {ORB_TOUR_STEPS.length}</EliteText>
+            <EliteText style={s.progress}>{index + 1} de {pasos.length}</EliteText>
           </View>
           <EliteText style={s.copy}>{step.copy}</EliteText>
           <View style={s.btnRow}>
@@ -155,7 +159,7 @@ export function OrbTour({ bottomOffset, onDone }: Props) {
               style={({ pressed }) => [s.nextBtn, pressed && { opacity: 0.7 }]}
             >
               <EliteText style={s.nextText}>
-                {index >= ORB_TOUR_STEPS.length - 1 ? 'LISTO' : 'SIGUIENTE'}
+                {index >= pasos.length - 1 ? 'LISTO' : 'SIGUIENTE'}
               </EliteText>
             </Pressable>
           </View>

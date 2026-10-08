@@ -4,8 +4,15 @@
  * la preferencia). Ver src/services/modo-app/modo-app-core.ts.
  */
 import { useSyncExternalStore } from 'react';
-import { esEliteDx, modoActual, preferenciaActual, suscribirModo } from '@/src/services/modo-app/modo-app-estado';
-import type { ModoApp, PreferenciaModo } from '@/src/services/modo-app/modo-app-core';
+import {
+  esEliteDx,
+  esV4,
+  modoActual,
+  preferenciaActual,
+  preferenciaPresentacionActual,
+  suscribirModo,
+} from '@/src/services/modo-app/modo-app-estado';
+import type { ModoApp, PreferenciaModo, PreferenciaPresentacion } from '@/src/services/modo-app/modo-app-core';
 
 export function useModoApp(): ModoApp {
   return useSyncExternalStore(suscribirModo, modoActual, modoActual);
@@ -18,4 +25,16 @@ export function useEsEliteDx(): boolean {
 
 export function usePreferenciaModo(): PreferenciaModo {
   return useSyncExternalStore(suscribirModo, preferenciaActual, preferenciaActual);
+}
+
+/**
+ * 8-oct-2026 (v4): true = la presentacion v4 (Hoy, Plan, ARGOS, Perfil y
+ * Apps). Solo puede ser true en modo Elite DX.
+ */
+export function useEsV4(): boolean {
+  return useSyncExternalStore(suscribirModo, esV4, esV4);
+}
+
+export function usePreferenciaPresentacion(): PreferenciaPresentacion {
+  return useSyncExternalStore(suscribirModo, preferenciaPresentacionActual, preferenciaPresentacionActual);
 }

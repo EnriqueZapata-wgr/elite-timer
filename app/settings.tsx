@@ -38,14 +38,19 @@ import { isAdmin } from '@/src/constants/admin-config';
 import { ui, SectionLabel } from '@/src/components/settings/settings-ui';
 // 26-sep-2026 (una app, dos modos): el admin elige que version ve en este
 // telefono (Elite DX, ATP completa o la de su cuenta) para revisar las dos.
-import { ETIQUETA_PREFERENCIA, type PreferenciaModo } from '@/src/services/modo-app/modo-app-core';
-import { fijarPreferencia } from '@/src/services/modo-app/modo-app-estado';
-import { guardarPreferenciaModo } from '@/src/services/modo-app/modo-app-persistencia';
-import { useModoApp, usePreferenciaModo } from '@/src/hooks/useModoApp';
+import {
+  ETIQUETA_PREFERENCIA,
+  ETIQUETA_PRESENTACION,
+  type PreferenciaModo,
+  type PreferenciaPresentacion,
+} from '@/src/services/modo-app/modo-app-core';
+import { fijarPreferencia, fijarPreferenciaPresentacion } from '@/src/services/modo-app/modo-app-estado';
+import { guardarPreferenciaModo, guardarPreferenciaPresentacion } from '@/src/services/modo-app/modo-app-persistencia';
+import { useEsV4, useModoApp, usePreferenciaModo, usePreferenciaPresentacion } from '@/src/hooks/useModoApp';
 // Revision en frio M3 (26-sep-2026): con el interruptor maestro apagado todos
 // ven la ATP completa y el selector no haria nada; se esconde. Unico lugar,
 // junto con modo-app-estado, que lee la constante.
-import { APP_ELITE_DX } from '@/src/constants/flags';
+import { APP_ELITE_DX, NAV_V4, NAV_V4_PARA_TODOS } from '@/src/constants/flags';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS } from '@/src/constants/brand';
@@ -118,12 +123,18 @@ const GROUPS: SettingsGroup[] = [
 /** Orden de las opciones del modo: el de la etiqueta (auto, Elite DX, ATP). */
 const PREFERENCIAS_MODO = Object.keys(ETIQUETA_PREFERENCIA) as PreferenciaModo[];
 
+/** 8-oct-2026 (v4): opciones de la presentacion (Automática, Clásica, v4). */
+const PREFERENCIAS_PRESENTACION = Object.keys(ETIQUETA_PRESENTACION) as PreferenciaPresentacion[];
+
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
   const showDev = __DEV__ || isAdmin(user?.id);
   const preferenciaModo = usePreferenciaModo();
   const modoApp = useModoApp();
+  // 8-oct-2026 (v4): la presentacion que escogio el admin y la que se ve.
+  const preferenciaPresentacion = usePreferenciaPresentacion();
+  const v4 = useEsV4();
 
   // 26-sep-2026 (una app, dos modos): la preferencia es del telefono, no de la
   // cuenta (modo-app-persistencia). Se vuelve a HOY porque el tab bar cambia
@@ -133,6 +144,16 @@ export default function SettingsScreen() {
     haptic.medium();
     fijarPreferencia(p);
     guardarPreferenciaModo(p);
+    router.replace('/');
+  }
+
+  // 8-oct-2026 (v4): igual que el modo. Tambien es del telefono, y se vuelve a
+  // HOY porque la barra entera cambia (Hoy, Plan, ARGOS, Perfil y Apps).
+  function elegirPresentacion(p: PreferenciaPresentacion) {
+    if (p === preferenciaPresentacion) return;
+    haptic.medium();
+    fijarPreferenciaPresentacion(p);
+    guardarPreferenciaPresentacion(p);
     router.replace('/');
   }
 
@@ -253,6 +274,53 @@ export default function SettingsScreen() {
                       {p === 'auto' && activa && (
                         <EliteText variant="caption" style={styles.groupSubtitle}>
                           Ahora ves: {ETIQUETA_PREFERENCIA[modoApp]}
+                        </EliteText>
+                      )}
+                    </View>
+                    <Ionicons
+                      name={activa ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={20}
+                      color={activa ? acento : tokens.textoSecundario}
+                    />
+                  </AnimatedPressable>
+                );
+              })}
+            </Animated.View>
+          )}
+
+          {/* PRESENTACIÓN (8-oct-2026 (v4)). Solo el admin: con
+              NAV_V4_PARA_TODOS en false es la unica forma de ver la v4. Solo
+              cambia la app Elite DX; la ATP completa se queda igual. Con el
+              freno NAV_V4 apagado la seccion no se pinta. */}
+          {APP_ELITE_DX && NAV_V4 && isAdmin(user?.id) && (
+            <Animated.View entering={FadeInUp.delay(165 + GROUPS.length * 40).springify()} style={styles.modoBloque}>
+              <SectionLabel>PRESENTACIÓN</SectionLabel>
+              <EliteText variant="caption" style={[styles.modoNota, { color: tokens.textoSecundario }]}>
+                {NAV_V4_PARA_TODOS
+                  ? 'Automática: tus clientes Elite ven la v4. Solo cambia la app Elite DX.'
+                  : 'Automática: tus clientes Elite ven la clásica hasta que enciendas la v4 para todos. Solo cambia la app Elite DX.'}
+              </EliteText>
+              {PREFERENCIAS_PRESENTACION.map((p) => {
+                const activa = p === preferenciaPresentacion;
+                const acento = kind === 'dark' ? Colors.neonGreen : tokens.tealTexto;
+                return (
+                  <AnimatedPressable
+                    key={p}
+                    onPress={() => elegirPresentacion(p)}
+                    style={[styles.groupCard, thCard, activa && { borderColor: acento, borderWidth: 1 }]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: activa }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <EliteText variant="body" style={styles.groupTitle}>{ETIQUETA_PRESENTACION[p]}</EliteText>
+                      {activa && modoApp !== 'elite_dx' && (
+                        <EliteText variant="caption" style={styles.groupSubtitle}>
+                          Ahora ves la ATP completa: la presentación solo cambia en Elite DX.
+                        </EliteText>
+                      )}
+                      {p === 'auto' && activa && modoApp === 'elite_dx' && (
+                        <EliteText variant="caption" style={styles.groupSubtitle}>
+                          Ahora ves: {v4 ? ETIQUETA_PRESENTACION.v4 : ETIQUETA_PRESENTACION.clasica}
                         </EliteText>
                       )}
                     </View>

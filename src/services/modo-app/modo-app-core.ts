@@ -93,3 +93,47 @@ export const ETIQUETA_PREFERENCIA: Readonly<Record<PreferenciaModo, string>> = {
   elite_dx: 'App Elite DX',
   atp: 'ATP completa',
 };
+
+/**
+ * Presentacion (8-oct-2026 (v4)): dentro de Elite DX, la app se puede pintar
+ * en su presentacion clasica (HOY · MI PROGRAMA · ARGOS · PROGRESO · TU) o en
+ * la v4 (Hoy · Plan · ARGOS · Perfil · Apps). Ver "R and D/ATP_V4_PLAN.md".
+ *
+ * Reglas de presentacionEfectiva():
+ *  1. Con el freno maestro NAV_V4 apagado, siempre clasica (ni el admin).
+ *  2. La v4 solo existe en modo 'elite_dx': la ATP completa nunca cambia.
+ *  3. El admin puede fijarla a mano ('clasica' o 'v4') desde Ajustes.
+ *  4. Todos los demas (y el admin en 'auto') reciben la v4 solo con
+ *     NAV_V4_PARA_TODOS encendida; si no, clasica.
+ */
+export type Presentacion = 'clasica' | 'v4';
+export type PreferenciaPresentacion = 'auto' | 'clasica' | 'v4';
+
+export interface EntradaPresentacion {
+  /** flags.NAV_V4 (freno maestro) */
+  bandera: boolean;
+  /** flags.NAV_V4_PARA_TODOS */
+  paraTodos: boolean;
+  preferencia: PreferenciaPresentacion;
+  esAdmin: boolean;
+  /** El modo efectivo (modoEfectivo). */
+  modo: ModoApp;
+}
+
+export function presentacionEfectiva(e: EntradaPresentacion): Presentacion {
+  if (!e.bandera) return 'clasica';
+  if (e.modo !== 'elite_dx') return 'clasica';
+  if (e.esAdmin && e.preferencia !== 'auto') return e.preferencia;
+  return e.paraTodos ? 'v4' : 'clasica';
+}
+
+export function esPreferenciaPresentacion(v: unknown): v is PreferenciaPresentacion {
+  return v === 'auto' || v === 'clasica' || v === 'v4';
+}
+
+/** Etiquetas para Ajustes > PRESENTACIÓN. */
+export const ETIQUETA_PRESENTACION: Readonly<Record<PreferenciaPresentacion, string>> = {
+  auto: 'Automática',
+  clasica: 'Clásica',
+  v4: 'v4 (Hoy, Plan, Perfil y Apps)',
+};

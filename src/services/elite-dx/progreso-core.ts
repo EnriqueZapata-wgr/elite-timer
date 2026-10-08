@@ -253,7 +253,9 @@ export const RUTAS_TODAS_TUS_FUNCIONES = {
   centro: '/centro',
   armar: '/packs/armar',
   habitos: '/hoy-habitos',
-  salud: '/salud',
+  // 8-oct-2026 (v4): en la v4 /salud es el Perfil; el hub completo es
+  // ?seccion=hub (la vista clasica lo ignora y abre el hub igual).
+  salud: '/salud?seccion=hub',
   comunidad: '/tribu',
   // Revision en frio (26-sep): Mi Progreso de la economia (rango, electrones,
   // racha, logros) solo tenia entrada por la pildora, oculta para Elite desde

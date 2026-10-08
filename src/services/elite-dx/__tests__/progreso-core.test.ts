@@ -260,7 +260,7 @@ describe('TODAS TUS FUNCIONES (26-sep-2026)', () => {
   it('las seis filas, en orden, cada una con su ruta', () => {
     expect(FILAS_TODAS_TUS_FUNCIONES.map((f) => f.key)).toEqual(['sala', 'centro', 'armar', 'habitos', 'salud', 'comunidad', 'electrones']);
     for (const f of FILAS_TODAS_TUS_FUNCIONES) expect(f.ruta).toBe(RUTAS_TODAS_TUS_FUNCIONES[f.key]);
-    expect(Object.values(RUTAS_TODAS_TUS_FUNCIONES)).toEqual(['/kit', '/centro', '/packs/armar', '/hoy-habitos', '/salud', '/tribu', '/economy/admin']);
+    expect(Object.values(RUTAS_TODAS_TUS_FUNCIONES)).toEqual(['/kit', '/centro', '/packs/armar', '/hoy-habitos', '/salud?seccion=hub', '/tribu', '/economy/admin']);
   });
 
   it('cada ruta es una pantalla real de app/, sin <Redirect>', () => {

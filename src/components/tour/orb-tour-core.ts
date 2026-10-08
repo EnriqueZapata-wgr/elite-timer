@@ -98,6 +98,19 @@ export const ORB_TOUR_STEPS: readonly OrbTourStep[] = [
 
 /** Llave nueva a propósito: el tour de la orbe también es para quien ya vio
  * el carrusel viejo — esta arquitectura nadie la conoce. */
+/**
+ * 8-oct-2026 (v4): en la presentacion v4, /salud es el PERFIL, no la Salud de
+ * cuatro puertas que describen los pasos 'salud' y 'edad-atp'. En la fase A
+ * esos pasos se saltan en la v4 (el Perfil todavia no tiene su texto de tour).
+ * Puro: la v4 entra como parametro.
+ */
+export const RUTAS_SIN_PASO_EN_V4: ReadonlySet<string> = new Set(['/salud']);
+
+export function pasosOrbTour(v4: boolean): readonly OrbTourStep[] {
+  if (!v4) return ORB_TOUR_STEPS;
+  return ORB_TOUR_STEPS.filter((p) => !RUTAS_SIN_PASO_EN_V4.has(p.route));
+}
+
 export const ORB_TOUR_DONE_KEY = '@atp/tour_v2_completed';
 
 /** Evento para relanzar el tour desde Ajustes. */

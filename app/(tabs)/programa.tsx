@@ -10,12 +10,34 @@
  * cuenta (useEsEliteDx, ver src/services/modo-app). Una cuenta general, o
  * cualquiera con la bandera maestra apagada, ve la ATP completa y esta ruta
  * se porta como antes del 25-sep.
+ *
+ * 8-oct-2026 (v4): en la presentacion v4 esta ruta es PLAN. La ruta pone el
+ * <TabScreen themed> y la StatusBar; PlanV4Screen es solo el contenido (a
+ * diferencia de MiProgramaScreen, que trae su propio TabScreen). Fuera de la
+ * v4, igual que antes.
  */
-import { useEsEliteDx } from '@/src/hooks/useModoApp';
+import { StatusBar } from 'expo-status-bar';
+import { useEsEliteDx, useEsV4 } from '@/src/hooks/useModoApp';
 import { MiProgramaScreen } from '@/src/screens/elite-dx/MiProgramaScreen';
 import { RedirectLegacy } from '@/src/screens/elite-dx/RedirectLegacy';
+import { TabScreen } from '@/src/components/ui/TabScreen';
+import { PlanV4Screen } from '@/src/screens/v4/PlanV4Screen';
+import { useAppTheme } from '@/src/contexts/theme-context';
 
 export default function ProgramaTab() {
   const eliteDx = useEsEliteDx();
+  const v4 = useEsV4();
+  if (v4) return <PlanV4Tab />;
   return eliteDx ? <MiProgramaScreen /> : <RedirectLegacy a="/" />;
+}
+
+/** 8-oct-2026 (v4): PLAN. Lee el tema GLOBAL (la ruta abre el scope themed). */
+function PlanV4Tab() {
+  const t = useAppTheme().tokens;
+  return (
+    <TabScreen themed>
+      <StatusBar style={t.kind === 'light' ? 'dark' : 'light'} />
+      <PlanV4Screen />
+    </TabScreen>
+  );
 }
