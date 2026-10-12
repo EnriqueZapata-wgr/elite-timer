@@ -105,3 +105,47 @@
 - **Por pedir a mano:** ARGOS todavía llama "Salud" a `/salud`. Los alias "perfil" y "mi perfil" van a otra pantalla. Va en la fase B.
 - **Ligas por palabra:** las palancas se ligan a un marcador por palabras. La fase C las liga por clave con el Paquete App.
 - **Fase B:** Hoy vivo con palomitas, la ficha completa del marcador con su curva y el Perfil para cuentas sin documento.
+
+---
+
+# Por ver y por cambiar (seguimiento, abierto el 12-oct-2026)
+
+Tres puntos que dejó la Fase A. Cada uno dice qué es, por qué importa, cómo se cierra y quién lo cierra. Se marcan aquí cuando se cierren.
+
+| # | Qué | Tipo | Quién | Estado |
+|---|---|---|---|---|
+| 1 | El botón elevado de ARGOS en Android | Por ver en el S24 | Enrique lo prueba, la app corrige | Abierto |
+| 2 | La foto del pilar Entreno es un corazón esculpido | Por cambiar | Enrique da la foto, la app la cambia | Abierto |
+| 3 | ARGOS todavía le dice "Salud" a la pestaña Perfil | Por cambiar | La app, en la fase B | Abierto |
+
+## 1 · El botón de ARGOS en Android (por ver)
+
+- **Qué es.** En la v4 el botón de ARGOS sobresale unos 12 px por encima de la barra de pestañas (62 px de diámetro, subido 16 px). Está en `app/(tabs)/_layout.tsx`, componente `BotonArgosV4`.
+- **Por qué importa.** En Android, un toque fuera del contenedor de la barra a veces no se registra. La franja de arriba del círculo podría no responder. En iPhone sí responde.
+- **Cómo se ve en el S24.**
+  1. Ajustes › PRESENTACIÓN › v4.
+  2. Tocar el botón justo en su orilla de arriba, la parte que sale de la barra, 5 veces.
+  3. Tocarlo en el centro 5 veces.
+  4. Revisar que no se corte el círculo, ni de día ni de noche (tema claro y oscuro).
+- **Cómo se cierra.**
+  - Si todos los toques abren ARGOS: se marca cerrado.
+  - Si la orilla no responde: se baja el botón hasta que quede dentro de la barra (sin sobresalir), o se agranda la barra en v4. Es un cambio de una línea y va por OTA.
+
+## 2 · La foto del pilar Entreno (por cambiar)
+
+- **Qué es.** En Plan, cada pilar lleva una foto en blanco y negro sin personas. Para Entreno no existe ninguna foto de entreno sin personas en el banco de la app: todas tienen un atleta. Se usó `assets/images/health-hub/mi-salud.webp`, un corazón esculpido, porque cumple la regla (blanco y negro, sin persona) pero no dice "entreno".
+- **Lo que se necesita.** Una foto en blanco y negro, sin personas, que diga entreno: mancuernas, una barra con discos, unos tenis, un kettlebell, un remo vacío.
+  - Que mida menos de 0.05 de saturación (que de verdad sea blanco y negro).
+  - Formato webp, de unos 1200 px de ancho.
+- **Cómo se cierra.** Enrique la deja en `assets/images/` (o pide que se genere con el estilo de la marca), la app cambia una línea en `src/components/v4/plan/plan-imagenes.ts`, y la prueba de fotos confirma que es blanco y negro. Va por OTA.
+
+## 3 · ARGOS le dice "Salud" a la pestaña Perfil (por cambiar)
+
+- **Qué es.**
+  - En la v4, la pestaña Perfil vive en la ruta `/salud`. Para ARGOS esa ruta se llama "Salud" (`src/services/argos-nav-resolver-core.ts`).
+  - Las palabras "perfil" y "mi perfil" ya apuntan a otra pantalla, `/profile` (los datos de la cuenta).
+- **Por qué importa.** Si el cliente le dice a ARGOS "llévame a mi perfil", hoy termina en sus datos de cuenta y no en su Perfil de salud. Y ARGOS habla de "Salud" cuando el cliente ve "Perfil".
+- **Cómo se cierra (fase B).**
+  - Que el resolvedor de ARGOS tenga un juego de nombres para la v4: "perfil", "mi perfil", "mis marcadores" y "mi edad atp" llevan a `/salud`, y la ruta se nombra "Perfil".
+  - Los datos de la cuenta quedan como "mi cuenta" y "mis datos".
+  - Lleva prueba de que la versión clásica sigue igual.
