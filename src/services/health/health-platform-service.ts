@@ -5,9 +5,20 @@
  * fuera de este archivo nadie pregunta en qué sistema operativo corre la app,
  * nadie conoce un recordType y nadie llama a un módulo nativo.
  *
- * Decisión heredada de MB-3.6 y respetada aquí: NO integramos Strava, Garmin,
- * Samsung, Oura ni Whoop por separado. Todos escriben en la plataforma de
- * salud del sistema. Una integración, todas las fuentes.
+ * Este archivo sigue siendo la única puerta a la salud del SISTEMA OPERATIVO.
+ * La decisión de MB-3.6 ("NO integramos Strava, Garmin, Samsung, Oura ni
+ * Whoop por separado") cambió:
+ *  · Se decidió (Enrique, 12-oct-2026) conectar Oura, WHOOP y Polar directo
+ *    por servidor; el código común irá en supabase/functions/_shared/wearables/
+ *    (bloque C en adelante) y todavía no está en este repo. Garmin se prepara
+ *    apagado hasta que den la llave.
+ *  · Lo que ya existe es la base: la migración 344 con la jerarquía campo por
+ *    campo (health_source_priority y su trigger). Cuando dos fuentes traen el
+ *    mismo dato, decide la base, no este archivo.
+ *  · Health Connect y Salud de Apple siguen siendo la puerta del teléfono para
+ *    todo lo demás (Strava, Samsung y cualquier app que escriba ahí). Eso vive
+ *    aquí, y desde aquí se escribe solo como health_connect o healthkit.
+ *  · Sin agregadores de pago.
  *
  * ⚠️ DEPS NATIVAS: lazy require con fail-soft (doctrina "nativos nuevos SIEMPRE
  * lazy require"). Un OTA sobre un binario que no trae el módulo NO puede

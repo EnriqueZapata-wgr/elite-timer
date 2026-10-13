@@ -24,6 +24,16 @@ import { esBloquePrograma } from '@/src/services/argos-elite-contexto-core';
 import { esDetallePrograma } from '@/src/services/argos-elite-detalle-core';
 // 21-sep-2026: la regla de "lo que hablaron antes" (memoria de conversaciones).
 import { REGLA_MEMORIA_CONVERSACIONES } from '@/src/services/argos-memoria-core';
+// 13-oct-2026 (wearables, bloque A): tendencias solo dentro del tramo de una
+// misma fuente, y los vitales del día con su procedencia.
+import {
+  tendenciaEnTramo,
+  fuenteParaTramo,
+  type ClaveVital,
+  type DireccionTendencia,
+  type MetricaVital,
+} from '@/src/services/health/vitales-core';
+import { HRV_VENTANA_PARCIAL, nombreDeFuente, RANGO_DE_LA_CASA } from '@/src/services/health/procedencia-core';
 
 export interface PersonalRecord {
   exercise: string;
@@ -188,13 +198,49 @@ export interface UserContext {
   /** IMPL-03 · sueño de las últimas 7 noches (sleep_nights, fuente externa). */
   sleepContext?: {
     nightsLast7: number;
+    /** Promedio de horas de TODAS las noches (ver `composicion`: de qué fuente vino cada una). */
     avgHours: number;
+    /**
+     * 13-oct-2026: calma promedio de ATP, SOLO con noches cuyo score es de la
+     * sesión propia (fuentes.score === 'sleep_cycle'). El score de una marca
+     * nunca entra aquí: va en `scoresDeMarca`.
+     */
     avgScore: number | null;
+    /** Noches con que se calculó `avgScore`. */
+    avgScoreNoches?: number;
+    /**
+     * Score de sueño de cada marca, aparte y nunca promediado entre fuentes.
+     * `fuente` null = no se sabe de dónde vino: entonces solo el último valor.
+     */
+    scoresDeMarca?: { fuente: string | null; promedio: number | null; ultimo: number; noches: number }[];
+    /** Cuántas de las noches del promedio de horas vino de cada fuente (más reciente primero). */
+    composicion?: { fuente: string | null; noches: number }[];
     lastNightDate: string;
     lastNightHours: number;
-    trend: 'up' | 'down' | 'stable';
-    /** sleep_cycle | health_connect | healthkit */
+    /**
+     * 13-oct-2026: calculada SOLO con el tramo reciente de la misma fuente.
+     * 'no_se_calcula' si ese tramo tiene menos de 4 noches (no es 'stable').
+     */
+    trend: 'up' | 'down' | 'stable' | 'no_se_calcula';
+    /** Fuente real de la duración de la última noche (sleep_cycle, health_connect, oura, mixto...). */
     source: string;
+    /** Noches del tramo de la misma fuente con que se calculó (o no alcanzó) la tendencia. */
+    trendNoches?: number;
+    /** Fuente de ese tramo. */
+    trendFuente?: string | null;
+    /** Si la línea se cortó por cambio de fuente: fecha desde la que se compara. */
+    trendCortadaDesde?: string | null;
+    /** La fuente que había antes del corte. */
+    fuenteAnterior?: string | null;
+  };
+  /**
+   * 13-oct-2026 (wearables, bloque A): los vitales del día de
+   * health_os_daily, cada uno con su procedencia y su tendencia en el tramo
+   * de la misma fuente. Solo existe si la base ya tiene la 344 y hay al menos
+   * un valor. `aplica_rango_casa` viaja en el dato: el prompt no razona marcas.
+   */
+  vitalesContext?: {
+    metricas: VitalArgos[];
   };
   /** IMPL-03 · Edad ATP integral y sub-edades (edad_atp_calculations). */
   edadAtpContext?: {
@@ -217,6 +263,24 @@ export interface UserContext {
     daysWithActivity: number;
     currentStreak: number;
   };
+}
+
+/** Un vital del día tal como viaja a ARGOS (vitalesContext). */
+export interface VitalArgos {
+  clave: ClaveVital;
+  valor: number;
+  fecha: string;
+  fuente: string | null;
+  metodo: 'rmssd' | 'sdnn' | null;
+  aplica_rango_casa: boolean;
+  tendencia: DireccionTendencia;
+  /** Días del tramo de la misma fuente. */
+  tendenciaDias: number;
+  /** Fuente del tramo (null si no se sabe, p. ej. 'mixto'). */
+  tendenciaFuente: string | null;
+  /** Si la línea se cortó por cambio de fuente: fecha desde la que se compara. */
+  cortadaDesde: string | null;
+  fuenteAnterior: string | null;
 }
 
 /**
@@ -486,6 +550,7 @@ export const NOMBRES_DE_BLOQUES: Readonly<Record<string, string>> = {
   'hidratacion': 'la hidratación',
   'health-score': 'el Health Score',
   'sueno-7n': 'el sueño',
+  'vitales-wearable': 'los vitales del wearable',
   'edad-atp': 'la Edad ATP',
   'agenda-hoy': 'la agenda de hoy',
   'adherencia-racha': 'la adherencia y la racha',
@@ -533,6 +598,262 @@ export function reglaLabsCiclo(fase: string): string {
     'ferritina/hierro y marcadores inflamatorios varían por fase. Si la fase hace ambiguo un valor, dilo y ' +
     'sugiere repetir la medición en la fase adecuada; no concluyas con un dato fuera de contexto.'
   );
+}
+
+// ── 13-oct-2026 (wearables, bloque A): tendencias por fuente y vitales ──
+//
+// Revisión en frío (13-oct-2026): el prompt no lleva literales crudos de la
+// base ('oura', 'health_connect', 'mixto') ni banderas tipo
+// aplica_rango_casa. Cada dato se explica solo, en español, con el nombre
+// que la persona reconoce (nombreDeFuente). Son DATOS, no reglas nuevas. Los
+// objetos del contexto sí conservan los literales y las banderas: son el
+// contrato del lector.
+
+/** Umbral del sueño: media hora entre la mitad reciente y la vieja (el de siempre). */
+const UMBRAL_SUENO_HORAS = 0.5;
+
+const SIN_FUENTE = nombreDeFuente(null);
+
+/** El nombre de una fuente conocida, o null si no se sabe de dónde vino. */
+function nombreConocido(fuente: string | null | undefined): string | null {
+  const n = nombreDeFuente(fuente);
+  return n === SIN_FUENTE ? null : n;
+}
+
+/** "1 noche", "3 noches", "1 día", "4 días". */
+function cuenta(n: number, unidad: 'noches' | 'días'): string {
+  return `${n} ${n === 1 ? unidad.replace(/s$/, '') : unidad}`;
+}
+
+/**
+ * La tendencia de horas de sueño, SOLO dentro del tramo reciente de la misma
+ * fuente (de la noche más nueva a la más vieja). `fuente` es la fuente real
+ * de la duración de cada noche (Noche.fuentes.duration_minutes). Si el
+ * tramo tiene menos de 4 noches, 'no_se_calcula'.
+ */
+export function tendenciaSuenoArgos(
+  noches: readonly { fecha: string; horas: number; fuente: string | null }[],
+): {
+  trend: 'up' | 'down' | 'stable' | 'no_se_calcula';
+  trendNoches: number;
+  trendFuente: string | null;
+  trendCortadaDesde: string | null;
+  fuenteAnterior: string | null;
+} {
+  const t = tendenciaEnTramo(
+    noches.map((n) => ({ fecha: n.fecha, valor: n.horas, fuente: fuenteParaTramo(n.fuente) })),
+    { tipo: 'absoluto', valor: UMBRAL_SUENO_HORAS },
+  );
+  const trend = t.direccion === 'sube' ? 'up' : t.direccion === 'baja' ? 'down' : t.direccion === 'estable' ? 'stable' : 'no_se_calcula';
+  return {
+    trend,
+    trendNoches: t.puntos,
+    trendFuente: t.fuente,
+    trendCortadaDesde: t.cortada ? t.desde : null,
+    fuenteAnterior: t.cortada ? t.fuenteAnterior : null,
+  };
+}
+
+/** Una noche ya unificada, lo que ARGOS necesita de ella. La más reciente primero. */
+export interface NocheParaArgos {
+  fecha: string;
+  minutos: number;
+  /** Fuente real de la duración (Noche.fuentes.duration_minutes). */
+  fuenteMinutos: string | null;
+  score: number | null;
+  /** Fuente real del score (Noche.fuentes.score). */
+  fuenteScore: string | null;
+  /** Fuente de la noche (Noche.fuente): respaldo si la duración no trae la suya. */
+  fuenteNoche: string;
+}
+
+const promedioEntero = (xs: number[]) => Math.round(xs.reduce((s, v) => s + v, 0) / xs.length);
+
+/**
+ * El bloque de sueño de ARGOS, puro.
+ *  · avgHours: todas las noches, con su composición por fuente declarada.
+ *  · Calma de ATP (avgScore): SOLO noches con score de la sesión propia.
+ *  · Score de cada marca: aparte, por fuente, nunca promediado entre fuentes.
+ *    Uno sin fuente identificada no se promedia (podrían ser aparatos
+ *    distintos): solo viaja el último.
+ *  · Tendencia: solo en el tramo reciente de la misma fuente.
+ * null si no hay noches.
+ */
+export function construirSleepContext(noches: readonly NocheParaArgos[]): NonNullable<UserContext['sleepContext']> | null {
+  const validas = noches.filter((n) => typeof n.minutos === 'number' && Number.isFinite(n.minutos));
+  if (validas.length === 0) return null;
+  const horas = validas.map((n) => n.minutos / 60);
+  const avgHours = Math.round((horas.reduce((s, h) => s + h, 0) / horas.length) * 10) / 10;
+
+  const composicion: { fuente: string | null; noches: number }[] = [];
+  for (const n of validas) {
+    const f = fuenteParaTramo(n.fuenteMinutos);
+    const ya = composicion.find((c) => c.fuente === f);
+    if (ya) ya.noches += 1;
+    else composicion.push({ fuente: f, noches: 1 });
+  }
+
+  const conScore = validas.filter((n) => typeof n.score === 'number' && Number.isFinite(n.score));
+  const calma = conScore.filter((n) => n.fuenteScore === 'sleep_cycle').map((n) => n.score as number);
+  // Por fuente, en el orden en que aparecen (la más reciente primero).
+  const porMarca = new Map<string | null, number[]>();
+  for (const n of conScore) {
+    if (n.fuenteScore === 'sleep_cycle') continue;
+    const f = fuenteParaTramo(n.fuenteScore);
+    const valores = porMarca.get(f) ?? [];
+    valores.push(n.score as number);
+    porMarca.set(f, valores);
+  }
+  const scoresDeMarca = [...porMarca.entries()].map(([fuente, valores]) => ({
+    fuente,
+    promedio: fuente === null ? null : promedioEntero(valores),
+    ultimo: valores[0],
+    noches: valores.length,
+  }));
+
+  const ultima = validas[0];
+  return {
+    nightsLast7: validas.length,
+    avgHours,
+    avgScore: calma.length > 0 ? promedioEntero(calma) : null,
+    avgScoreNoches: calma.length,
+    scoresDeMarca,
+    composicion,
+    lastNightDate: ultima.fecha,
+    lastNightHours: Math.round((ultima.minutos / 60) * 10) / 10,
+    ...tendenciaSuenoArgos(validas.map((n) => ({ fecha: n.fecha, horas: n.minutos / 60, fuente: n.fuenteMinutos }))),
+    source: ultima.fuenteMinutos ?? ultima.fuenteNoche ?? 'externo',
+  };
+}
+
+/** De MetricaVital (vitales-core) a lo que viaja en vitalesContext. */
+export function vitalesArgosDesde(metricas: readonly MetricaVital[]): VitalArgos[] {
+  return metricas.map((m) => ({
+    clave: m.clave,
+    valor: m.valor,
+    fecha: m.fecha,
+    fuente: m.fuente,
+    metodo: m.metodo,
+    aplica_rango_casa: m.aplicaRangoCasa,
+    tendencia: m.tendencia.direccion,
+    tendenciaDias: m.tendencia.puntos,
+    tendenciaFuente: m.tendencia.fuente,
+    cortadaDesde: m.tendencia.cortada ? m.tendencia.desde : null,
+    fuenteAnterior: m.tendencia.cortada ? m.tendencia.fuenteAnterior : null,
+  }));
+}
+
+const DIRECCION_EN_ESPANOL: Readonly<Record<string, string>> = {
+  up: 'sube', down: 'baja', stable: 'estable', no_se_calcula: 'no_se_calcula',
+  sube: 'sube', baja: 'baja', estable: 'estable',
+};
+
+/**
+ * "tendencia sube sobre 5 noches de Oura", "tendencia no se calcula (3
+ * noches de Oura, antes Health Connect, se cortó)". Dato, no instrucción.
+ * Con `fuente` en undefined se omite (la línea ya la dijo junto al valor).
+ */
+function textoTendencia(
+  direccion: string,
+  n: number,
+  unidad: 'noches' | 'días',
+  fuente: string | null | undefined,
+  cortada: boolean,
+  fuenteAnterior: string | null | undefined,
+): string {
+  const deFuente = cuenta(n, unidad) + (fuente === undefined ? '' : ` de ${nombreDeFuente(fuente)}`);
+  const antes = `antes ${nombreConocido(fuenteAnterior) ?? 'otra fuente'}, se cortó`;
+  const dir = DIRECCION_EN_ESPANOL[direccion] ?? direccion;
+  if (dir === 'no_se_calcula') return `tendencia no se calcula (${deFuente}${cortada ? `, ${antes}` : ''})`;
+  return `tendencia ${dir} sobre ${deFuente}${cortada ? ` (${antes})` : ''}`;
+}
+
+/** La línea de sueño de 7 días, en español y con cada fuente nombrada. */
+export function lineaSueno(s: NonNullable<UserContext['sleepContext']>): string {
+  let comp = '';
+  if (s.composicion && s.composicion.length === 1) comp = ` de ${nombreDeFuente(s.composicion[0].fuente)}`;
+  else if (s.composicion && s.composicion.length > 1) {
+    comp = ` (${s.composicion.map((c) => `${c.noches} de ${nombreDeFuente(c.fuente)}`).join(', ')})`;
+  }
+  const piezas = [`promedio ${s.avgHours} h en ${cuenta(s.nightsLast7, 'noches')}${comp}`];
+  if (s.avgScore !== null) {
+    const n = typeof s.avgScoreNoches === 'number' ? `, ${cuenta(s.avgScoreNoches, 'noches')}` : '';
+    piezas.push(`calma promedio ${s.avgScore}/100 (${nombreDeFuente('sleep_cycle')}${n})`);
+  }
+  for (const g of s.scoresDeMarca ?? []) {
+    const marca = nombreConocido(g.fuente);
+    piezas.push(marca && g.promedio !== null
+      ? `score de sueño de ${marca}, promedio ${g.promedio}/100 en ${cuenta(g.noches, 'noches')} (escala de ${marca}, no de ATP)`
+      : `score de sueño de ${SIN_FUENTE}, el último ${g.ultimo}/100 (escala de la marca, no de ATP)`);
+  }
+  piezas.push(typeof s.trendNoches === 'number'
+    ? textoTendencia(s.trend, s.trendNoches, 'noches', s.trendFuente, !!s.trendCortadaDesde, s.fuenteAnterior)
+    : `tendencia ${DIRECCION_EN_ESPANOL[s.trend] ?? s.trend}`);
+  return (
+    `Sueño 7d: ${piezas.join(', ')}. ` +
+    `Última noche ${s.lastNightHours} h [registrado ${s.lastNightDate}]. Fuente externa: ${nombreDeFuente(s.source)}.`
+  );
+}
+
+const NOMBRE_VITAL: Readonly<Record<'fc_reposo' | 'respiracion' | 'temp_desviacion', { nombre: string; unidad: string }>> = {
+  fc_reposo: { nombre: 'FC en reposo', unidad: ' lpm' },
+  respiracion: { nombre: 'respiración dormido', unidad: ' rpm' },
+  temp_desviacion: { nombre: 'temperatura de piel vs su base', unidad: ' °C' },
+};
+
+const NO_SE_COMPARA = 'no se compara con el rango de la casa, solo con su propia línea';
+
+/** Un vital dicho en español, con su procedencia explicada (sin banderas crudas). */
+function textoVital(m: VitalArgos, fecha: string): string {
+  const marca = nombreConocido(m.fuente);
+  const deDonde = marca ?? SIN_FUENTE;
+  switch (m.clave) {
+    case 'hrv_rmssd': {
+      if (m.aplica_rango_casa) {
+        return `HRV RMSSD ${m.valor} ms${fecha} (${deDonde}, noche completa; rango de la casa: ${RANGO_DE_LA_CASA.hrv_ms})`;
+      }
+      if (marca && m.fuente && HRV_VENTANA_PARCIAL.includes(m.fuente)) {
+        return `HRV RMSSD ${m.valor} ms${fecha} (${marca}, solo una parte de la noche; ${NO_SE_COMPARA})`;
+      }
+      return `HRV RMSSD ${m.valor} ms${fecha} (${deDonde}; ${NO_SE_COMPARA})`;
+    }
+    case 'hrv_sdnn':
+      return `variabilidad SDNN${marca ? ` de ${marca}` : ''} ${m.valor} ms${fecha} ` +
+        `(${marca ? '' : `${SIN_FUENTE}; `}otra medida: no se compara con la RMSSD ni con ningún rango, solo con su propio SDNN)`;
+    case 'spo2':
+      return `oxigenación de noche ${m.valor} %${fecha} (${deDonde}; no es un oxímetro médico; sin rango de la casa)`;
+    case 'readiness':
+      return marca
+        ? `score del día de ${marca} ${m.valor}/100${fecha} (escala de ${marca}, no de ATP)`
+        : `score del día ${m.valor}/100${fecha} (${SIN_FUENTE})`;
+    default: {
+      const e = NOMBRE_VITAL[m.clave];
+      const valor = m.clave === 'temp_desviacion' && m.valor > 0 ? `+${m.valor}` : `${m.valor}`;
+      return `${e.nombre} ${valor}${e.unidad}${fecha} (${deDonde}; sin rango de la casa)`;
+    }
+  }
+}
+
+/**
+ * Una sola línea compacta con los vitales del día. Cada métrica dice de qué
+ * aparato vino, si se compara o no con el rango de la casa (y cuál es), y su
+ * tendencia en el tramo de la misma fuente. La fecha va una vez si todas
+ * coinciden.
+ */
+export function lineaVitales(metricas: readonly VitalArgos[]): string {
+  const fechas = new Set(metricas.map((m) => m.fecha));
+  const unaFecha = fechas.size === 1 ? metricas[0]?.fecha : null;
+  const piezas = metricas.map((m) => {
+    const tendencia = textoTendencia(
+      m.tendencia, m.tendenciaDias, 'días',
+      // La fuente del tramo solo se repite si no es la misma del valor (p. ej. 'mixto').
+      m.tendenciaFuente === m.fuente ? undefined : m.tendenciaFuente,
+      m.cortadaDesde !== null, m.fuenteAnterior,
+    );
+    return `${textoVital(m, unaFecha ? '' : ` [registrado ${m.fecha}]`)}, ${tendencia}`;
+  });
+  const fecha = unaFecha ? ` [registrado ${unaFecha}]` : '';
+  return `Vitales del reloj o anillo (los mide el aparato, ATP no los verifica)${fecha}: ${piezas.join('; ')}.`;
 }
 
 export function buildContextPrompt(ctx: UserContext): string {
@@ -722,12 +1043,15 @@ export function buildContextPrompt(ctx: UserContext): string {
   // === IMPL-03 · los cuatro bloques nuevos ===
   if (ctx.sleepContext) {
     const s = ctx.sleepContext;
-    const score = s.avgScore !== null ? `, calma promedio ${s.avgScore}/100` : '';
-    parts.push(
-      `Sueño 7d: ${s.nightsLast7} noches registradas, promedio ${s.avgHours} h${score}, tendencia ${s.trend}. ` +
-      `Última noche ${s.lastNightHours} h [registrado ${s.lastNightDate}]. Fuente externa: ${s.source}.`,
-    );
+    // 13-oct-2026: fuentes con nombre de persona, calma de ATP aparte del
+    // score de cada marca, composición del promedio y tendencia por fuente.
+    parts.push(lineaSueno(s));
     regla(REGLA_FUENTE_EXTERNA);
+  }
+  // 13-oct-2026: vitales del wearable. Una línea de DATOS; el flag de rango
+  // de la casa y el método viajan en el dato, sin reglas nuevas.
+  if (ctx.vitalesContext && ctx.vitalesContext.metricas.length > 0) {
+    parts.push(lineaVitales(ctx.vitalesContext.metricas));
   }
   if (ctx.edadAtpContext) {
     const e = ctx.edadAtpContext;

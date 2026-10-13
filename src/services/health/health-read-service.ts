@@ -16,6 +16,12 @@
  *
  * FAIL-SOFT en todo: una tabla que no responde es `null`, no una excepción.
  * El día se compila igual sin datos de salud, exactamente como antes.
+ *
+ * ANTES Y DESPUÉS DE LA 344: sleep_nights y health_os_daily se piden con
+ * `field_sources` (de qué fuente vino cada campo). Si la base todavía no tiene
+ * esa columna, PostgREST responde "no existe" y se repite la consulta con el
+ * select viejo (`leerConCaida`, lectura-344.ts, que recuerda unos minutos que
+ * la base no la tiene); el core cae entonces al `source` de la fila.
  */
 import { DeviceEventEmitter } from 'react-native';
 
@@ -29,6 +35,7 @@ import {
   type FilasDelDia,
   type LecturaDelDia,
 } from './health-read-core';
+import { leerConCaida } from './lectura-344';
 
 /**
  * Las tres filas del día. Un solo Promise.all para que el llamador gaste UNA
@@ -45,14 +52,26 @@ export async function leerFilasDelDia(userId: string, fecha: string): Promise<Fi
         .from('health_measurements')
         .select('steps_daily, sleep_hours, resting_hr, weight_kg')
         .eq('user_id', userId).eq('date', fecha).maybeSingle(),
-      supabase
-        .from('sleep_nights')
-        .select('duration_minutes, source')
-        .eq('user_id', userId).eq('night_date', fecha).maybeSingle(),
-      supabase
-        .from('health_os_daily')
-        .select('steps, sleep_minutes, resting_hr, weight_kg, source')
-        .eq('user_id', userId).eq('date', fecha).maybeSingle(),
+      leerConCaida<unknown>(
+        () => supabase
+          .from('sleep_nights')
+          .select('duration_minutes, source, field_sources')
+          .eq('user_id', userId).eq('night_date', fecha).maybeSingle(),
+        () => supabase
+          .from('sleep_nights')
+          .select('duration_minutes, source')
+          .eq('user_id', userId).eq('night_date', fecha).maybeSingle(),
+      ),
+      leerConCaida<unknown>(
+        () => supabase
+          .from('health_os_daily')
+          .select('steps, sleep_minutes, resting_hr, weight_kg, source, field_sources')
+          .eq('user_id', userId).eq('date', fecha).maybeSingle(),
+        () => supabase
+          .from('health_os_daily')
+          .select('steps, sleep_minutes, resting_hr, weight_kg, source')
+          .eq('user_id', userId).eq('date', fecha).maybeSingle(),
+      ),
     ]);
     // supabase-js no lanza en 4xx: una tabla ausente en remoto llega como
     // {error} y se degrada a null, que es "no sé", no "no hay".

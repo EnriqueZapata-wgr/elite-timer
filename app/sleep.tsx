@@ -50,7 +50,7 @@ import {
   reconciliarSuenoSilencioso,
   type Noche,
 } from '@/src/services/sleep/sueno-unificado-service';
-import { conLimite } from '@/src/services/sleep/sueno-unificado-core';
+import { conLimite, esScoreDeCalma, textoScoreDeMarca } from '@/src/services/sleep/sueno-unificado-core';
 import {
   abrirAjustesHealthConnect,
   getHealthPlatform,
@@ -380,11 +380,18 @@ export default function SleepScreen() {
               <EliteText style={s.dataValue}>
                 {anoche.durationMinutes != null ? fmtDur(anoche.durationMinutes) : '—'}
               </EliteText>
-              {anoche.score != null && (
+              {/* 344: el score puede ser de una marca. La etiqueta de calma solo
+                  va con el score de la sesión propia; el de marca se nombra con
+                  su marca y su escala, sin colores de calma. */}
+              {anoche.score != null && (esScoreDeCalma(anoche) ? (
                 <EliteText style={[s.dataScore, { color: getScoreColor(anoche.score) }]}>
                   {etiquetaDeScore(anoche.score)} · score {anoche.score}
                 </EliteText>
-              )}
+              ) : (
+                <EliteText style={s.dataScore}>
+                  {textoScoreDeMarca(anoche.score, anoche.fuentes.score)}
+                </EliteText>
+              ))}
               {anoche.snoreMinutes != null && anoche.snoreMinutes > 0 && (
                 <EliteText style={s.dataSub}>~{anoche.snoreMinutes} min con sonido de ronquido</EliteText>
               )}

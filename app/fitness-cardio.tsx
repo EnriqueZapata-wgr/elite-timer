@@ -51,9 +51,13 @@ const FUENTE_FC: Record<FuenteFcReposo, string> = {
   manual: 'capturada a mano',
   edad_atp: 'capturada en Edad ATP',
   elite: 'de tu evaluación Elite',
-  healthkit: 'de Apple Salud',
+  healthkit: 'de Salud de Apple',
   health_connect: 'de Health Connect',
-  otra: 'de tu app de salud',
+  oura: 'de tu Oura',
+  whoop: 'de tu WHOOP',
+  garmin: 'de tu Garmin',
+  polar: 'de tu Polar',
+  otra: 'de una fuente sin identificar',
 };
 
 const ESTADO_VO2 = {

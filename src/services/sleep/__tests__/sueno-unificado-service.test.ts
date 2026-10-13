@@ -6,6 +6,9 @@
  *    health_os_daily) y devuelve la unión; un {error} en sleep_nights es
  *    ok:false ("no pude leer", no "no hay noches"); un {error} solo en
  *    health_os_daily degrada a ok:true + parcial:'telefono' (A4).
+ *  - 344: se piden las columnas nuevas (sin hypnogram); si la base dice "esa
+ *    columna no existe", esa tabla se relee con el select viejo y se marca
+ *    sinColumnasNuevas. Un error de verdad sigue siendo ok:false.
  *  - reconciliarSuenoSilencioso no escribe nada sin permiso ni con la
  *    lectura apagada por la persona (A2), un permiso que no contestó es
  *    lectura_fallida y no sin_permiso (A1), el respiro es por cuenta (A3), y
@@ -60,6 +63,7 @@ vi.mock('../sleep-import-service', () => ({
 }));
 
 import { leerNochesUnificadas, reconciliarSuenoSilencioso } from '../sueno-unificado-service';
+import { _reiniciarBase344, base344ConocidaAusente, marcarBase344Ausente } from '@/src/services/health/base-344-estado';
 
 const NOCHE_HC = {
   nightDate: '2026-09-19',
@@ -71,6 +75,7 @@ const NOCHE_HC = {
 };
 
 beforeEach(() => {
+  _reiniciarBase344();
   state.emitidos = [];
   state.invalidaciones = 0;
   state.plataforma = { os: 'android', status: 'disponible', nombre: 'Health Connect' };
@@ -136,6 +141,118 @@ describe('leerNochesUnificadas', () => {
     if (!r.ok) return;
     expect(r.parcial).toBe('telefono');
     expect(r.noches.map((n) => [n.nightDate, n.fuente])).toEqual([['2026-09-19', 'sleep_cycle']]);
+  });
+
+  it('344: pide las columnas nuevas (etapas y field_sources) y nunca hypnogram', async () => {
+    state.fake = makeFakeSupabase({
+      sleep_nights: { data: [], error: null },
+      health_os_daily: { data: [], error: null },
+    });
+    const r = await leerNochesUnificadas('user-1', 7);
+    expect(r).toEqual({ ok: true, noches: [] });
+    const selects = state.fake.calls.filter((c) => c.method === 'select');
+    const deNoches = String(selects.find((c) => c.table === 'sleep_nights')?.args[0]);
+    const deDias = String(selects.find((c) => c.table === 'health_os_daily')?.args[0]);
+    for (const col of ['deep_min', 'light_min', 'rem_min', 'awake_min', 'latency_min', 'efficiency', 'field_sources']) {
+      expect(deNoches).toContain(col);
+    }
+    expect(deNoches).not.toContain('hypnogram');
+    expect(deDias).toContain('field_sources');
+    expect(deDias).toContain('source');
+  });
+
+  it('344: trae etapas y la fuente real de cada campo', async () => {
+    state.fake = makeFakeSupabase({
+      sleep_nights: {
+        data: [{
+          night_date: '2026-10-12', duration_minutes: 452, deep_min: 70, efficiency: 91, source: 'oura',
+          field_sources: { duration_minutes: 'oura', deep_min: 'oura', efficiency: 'oura' },
+        }],
+        error: null,
+      },
+      health_os_daily: {
+        data: [{ date: '2026-10-11', sleep_minutes: 410, source: 'mixto', field_sources: { sleep_minutes: 'health_connect' } }],
+        error: null,
+      },
+    });
+    const r = await leerNochesUnificadas('user-1', 7);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.sinColumnasNuevas).toBeUndefined();
+    expect(r.noches[0]).toMatchObject({ fuente: 'oura', deepMin: 70, efficiency: 91 });
+    expect(r.noches[0].fuentes.duration_minutes).toBe('oura');
+    expect(r.noches[1].fuentes.duration_minutes).toBe('health_connect');
+  });
+
+  it('344 todavía no aplicada: columna inexistente se relee con el select viejo, por tabla', async () => {
+    state.fake = makeFakeSupabase({
+      sleep_nights: [
+        { data: null, error: { code: '42703', message: 'column sleep_nights.deep_min does not exist' } },
+        { data: [{ night_date: '2026-09-19', duration_minutes: 431, source: 'sleep_cycle' }], error: null },
+      ],
+      health_os_daily: [
+        { data: null, error: { code: 'PGRST204', message: "Could not find the 'field_sources' column" } },
+        { data: [{ date: '2026-09-18', sleep_minutes: 455, source: 'health_connect' }], error: null },
+      ],
+    });
+    const r = await leerNochesUnificadas('user-1', 7);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.sinColumnasNuevas).toEqual(['sleep_nights', 'health_os_daily']);
+    expect(r.parcial).toBeUndefined();
+    expect(r.noches.map((n) => [n.nightDate, n.durationMinutes, n.fuente, n.deepMin])).toEqual([
+      ['2026-09-19', 431, 'sleep_cycle', null],
+      ['2026-09-18', 455, 'telefono', null],
+    ]);
+    // La noche del teléfono conserva su fuente (source existe desde la 264).
+    expect(r.noches[1].fuentes.duration_minutes).toBe('health_connect');
+    const selectsNoches = state.fake.calls.filter((c) => c.table === 'sleep_nights' && c.method === 'select');
+    expect(selectsNoches).toHaveLength(2);
+    expect(String(selectsNoches[1].args[0])).not.toContain('deep_min');
+    // Avisa a los demás lectores que la base aún no tiene la 344.
+    expect(base344ConocidaAusente()).toBe(true);
+  });
+
+  it('si ya se sabe que la base no tiene la 344, va directo al select viejo (una petición por tabla)', async () => {
+    marcarBase344Ausente();
+    state.fake = makeFakeSupabase({
+      sleep_nights: { data: [{ night_date: '2026-09-19', duration_minutes: 431, source: 'sleep_cycle' }], error: null },
+      health_os_daily: { data: [], error: null },
+    });
+    const r = await leerNochesUnificadas('user-1', 7);
+    expect(r.ok && r.sinColumnasNuevas).toEqual(['sleep_nights', 'health_os_daily']);
+    const selects = state.fake.calls.filter((c) => c.method === 'select');
+    expect(selects).toHaveLength(2);
+    for (const c of selects) expect(String(c.args[0])).not.toContain('field_sources');
+  });
+
+  it('una columna faltante que NO es de la 344 es fallo de lectura y no se reintenta', async () => {
+    state.fake = makeFakeSupabase({
+      sleep_nights: { data: null, error: { code: '42703', message: 'column sleep_nights.algo_raro does not exist' } },
+      health_os_daily: { data: [], error: null },
+    });
+    expect(await leerNochesUnificadas('user-1', 7)).toEqual({ ok: false, motivo: 'lectura' });
+    expect(base344ConocidaAusente()).toBe(false);
+  });
+
+  it('344 todavía no aplicada y el reintento también falla: es ok:false, no "no hay noches"', async () => {
+    state.fake = makeFakeSupabase({
+      sleep_nights: [
+        { data: null, error: { code: '42703', message: 'column sleep_nights.deep_min does not exist' } },
+        { data: null, error: { message: 'timeout' } },
+      ],
+      health_os_daily: { data: [], error: null },
+    });
+    expect(await leerNochesUnificadas('user-1', 7)).toEqual({ ok: false, motivo: 'lectura' });
+  });
+
+  it('un error que no es de columna no se reintenta (y sigue siendo ok:false)', async () => {
+    state.fake = makeFakeSupabase({
+      sleep_nights: { data: null, error: { code: '42501', message: 'permission denied' } },
+      health_os_daily: { data: [], error: null },
+    });
+    expect(await leerNochesUnificadas('user-1', 7)).toEqual({ ok: false, motivo: 'lectura' });
+    expect(state.fake.calls.filter((c) => c.table === 'sleep_nights' && c.method === 'select')).toHaveLength(1);
   });
 
   it('con las dos tablas bien no hay marca parcial', async () => {

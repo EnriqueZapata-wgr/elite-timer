@@ -25,6 +25,16 @@
  * de tocar la plataforma. Escribe por importarNoches: nunca pisa la sesión
  * propia; solo completa una noche de máquina que quedó a medias (A5).
  *
+ * WEARABLES (344, 13-oct-2026): la lectura pide las columnas nuevas (etapas,
+ * latencia, eficiencia, field_sources; nunca `hypnogram`, que pesa y nadie lo
+ * pinta todavía). La app tiene que funcionar ANTES de que la 344 esté en
+ * producción: si una tabla responde "esa columna no existe", se reintenta
+ * esa tabla con el select viejo y se marca en `sinColumnasNuevas`. Un fallo
+ * de lectura de verdad sigue siendo ok:false, nunca "no hay noches". El
+ * detector es uno solo (esColumna344Faltante) y la memoria de "la base aún no
+ * tiene la 344" se comparte con los demás lectores (base-344-estado): si ya
+ * se sabe, se va directo al select viejo sin gastar una petición fallida.
+ *
  * Los módulos con `require` de nativos (health-platform-service,
  * sleep-import-service, health-import-service) se importan de forma
  * dinámica, solo cuando de verdad hace falta leer la plataforma, para no
@@ -38,6 +48,8 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { decidirCorrida } from '@/src/services/pack-avisos-reconcile-core';
 import { invalidarSaludDelDia } from '@/src/hooks/useWearableToday';
+import { esColumna344Faltante } from '@/src/services/health/procedencia-core';
+import { base344ConocidaAusente, marcarBase344Ausente } from '@/src/services/health/base-344-estado';
 // Solo el tipo: el módulo real se importa dinámico más abajo.
 import type { HealthPlatform } from '@/src/services/fitness/health-import-service';
 import {
@@ -52,9 +64,56 @@ import {
 } from './sueno-unificado-core';
 
 export { etiquetaFuenteNoche } from './sueno-unificado-core';
-export type { FuenteNoche, Noche } from './sueno-unificado-core';
+export type { FuenteNoche, FuentesNoche, Noche } from './sueno-unificado-core';
 
 // ── Lectura unificada ──
+
+/** Columnas de sleep_nights antes de la 344 (las que existen hoy en producción). */
+const SELECT_NOCHES_VIEJO = 'night_date, bed_time, wake_time, duration_minutes, score, snore_minutes, source';
+/** Con la 344: etapas, latencia, eficiencia y procedencia por campo. Sin hypnogram. */
+const SELECT_NOCHES_344 =
+  `${SELECT_NOCHES_VIEJO}, deep_min, light_min, rem_min, awake_min, latency_min, efficiency, field_sources`;
+/** health_os_daily antes de la 344: `source` existe desde la 264. */
+const SELECT_TELEFONO_VIEJO = 'date, sleep_minutes, source';
+const SELECT_TELEFONO_344 = `${SELECT_TELEFONO_VIEJO}, field_sources`;
+
+type TablaSueno = 'sleep_nights' | 'health_os_daily';
+
+interface RespuestaTabla {
+  data: unknown[] | null;
+  error: unknown;
+  /** true si las columnas de la 344 no existen y se leyó con el select viejo. */
+  sinColumnas: boolean;
+}
+
+/**
+ * Lee una tabla con el select de la 344 y, SOLO si la base dice que falta
+ * una columna de la 344, marca la base como "sin 344" y reintenta con el
+ * select viejo. Si ya se sabía, va directo al viejo. Cualquier otro error se
+ * devuelve tal cual (y el reintento fallido también).
+ */
+async function leerConCaida(
+  tabla: TablaSueno,
+  consulta: (select: string) => PromiseLike<{ data: unknown; error: unknown }>,
+  selectNuevo: string,
+  selectViejo: string,
+): Promise<RespuestaTabla> {
+  if (!base344ConocidaAusente()) {
+    const nueva = await consulta(selectNuevo);
+    if (!nueva.error || !esColumna344Faltante(nueva.error)) {
+      return { data: (nueva.data ?? null) as unknown[] | null, error: nueva.error, sinColumnas: false };
+    }
+    marcarBase344Ausente();
+    // Sin valores de salud: solo qué tabla cayó al select viejo.
+    logWarn('[sueno-unificado] la base aún no tiene la 344; lectura con el select viejo', tabla);
+  }
+  const vieja = await consulta(selectViejo);
+  return { data: (vieja.data ?? null) as unknown[] | null, error: vieja.error, sinColumnas: true };
+}
+
+function mensajeDe(error: unknown): unknown {
+  return error && typeof error === 'object' && 'message' in error ? (error as { message: unknown }).message : error;
+}
 
 export type ResultadoNochesUnificadas =
   | {
@@ -66,6 +125,12 @@ export type ResultadoNochesUnificadas =
        * la pantalla lo dice. Ausente = las dos tablas contestaron.
        */
       parcial?: 'telefono';
+      /**
+       * 344: tablas que todavía no tienen las columnas nuevas y se leyeron
+       * con el select viejo (etapas y procedencia por campo salen null).
+       * Ausente = las columnas nuevas sí están.
+       */
+      sinColumnasNuevas?: TablaSueno[];
     }
   | { ok: false; motivo: 'sin_usuario' | 'lectura' };
 
@@ -87,35 +152,54 @@ export async function leerNochesUnificadas(
   try {
     const desde = fechaDesde(parseLocalDate(getLocalToday()), dias, toLocalDateString);
     const [nochesRes, telefonoRes] = await Promise.all([
-      supabase
-        .from('sleep_nights')
-        .select('night_date, bed_time, wake_time, duration_minutes, score, snore_minutes, source')
-        .eq('user_id', userId)
-        .gte('night_date', desde)
-        .order('night_date', { ascending: false }),
-      supabase
-        .from('health_os_daily')
-        .select('date, sleep_minutes')
-        .eq('user_id', userId)
-        .gte('date', desde)
-        .order('date', { ascending: false }),
+      leerConCaida(
+        'sleep_nights',
+        (select) => supabase
+          .from('sleep_nights')
+          .select(select)
+          .eq('user_id', userId)
+          .gte('night_date', desde)
+          .order('night_date', { ascending: false }),
+        SELECT_NOCHES_344,
+        SELECT_NOCHES_VIEJO,
+      ),
+      leerConCaida(
+        'health_os_daily',
+        (select) => supabase
+          .from('health_os_daily')
+          .select(select)
+          .eq('user_id', userId)
+          .gte('date', desde)
+          .order('date', { ascending: false }),
+        SELECT_TELEFONO_344,
+        SELECT_TELEFONO_VIEJO,
+      ),
     ]);
     // supabase-js no lanza en 4xx: una tabla que no contesta llega como
     // {error}. La tabla que manda es sleep_nights: sin ella no hay lectura.
     if (nochesRes.error) {
-      logWarn('[sueno-unificado] lectura fallida (sleep_nights)', nochesRes.error.message);
+      logWarn('[sueno-unificado] lectura fallida (sleep_nights)', mensajeDe(nochesRes.error));
       return { ok: false, motivo: 'lectura' };
     }
-    const filasNoches = (nochesRes.data ?? []) as FilaSleepNight[];
+    const filasNoches = (nochesRes.data ?? []) as unknown as FilaSleepNight[];
+    const sinColumnasNuevas: TablaSueno[] = [];
+    if (nochesRes.sinColumnas) sinColumnasNuevas.push('sleep_nights');
     // A4: si solo falla la sync del teléfono, se devuelven las noches
     // guardadas y se marca parcial; esconderlas por la otra tabla era peor.
     if (telefonoRes.error) {
-      logWarn('[sueno-unificado] lectura parcial (health_os_daily)', telefonoRes.error.message);
-      return { ok: true, noches: unirNoches(filasNoches, []), parcial: 'telefono' };
+      logWarn('[sueno-unificado] lectura parcial (health_os_daily)', mensajeDe(telefonoRes.error));
+      return {
+        ok: true,
+        noches: unirNoches(filasNoches, []),
+        parcial: 'telefono',
+        ...(sinColumnasNuevas.length > 0 ? { sinColumnasNuevas } : {}),
+      };
     }
+    if (telefonoRes.sinColumnas) sinColumnasNuevas.push('health_os_daily');
     return {
       ok: true,
-      noches: unirNoches(filasNoches, (telefonoRes.data ?? []) as FilaSuenoTelefono[]),
+      noches: unirNoches(filasNoches, (telefonoRes.data ?? []) as unknown as FilaSuenoTelefono[]),
+      ...(sinColumnasNuevas.length > 0 ? { sinColumnasNuevas } : {}),
     };
   } catch (e) {
     logWarn('[sueno-unificado] lectura fallida', e);

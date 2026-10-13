@@ -8,12 +8,18 @@
  *    'telefono' (era el silo que nadie cruzaba).
  *  - Ningún número se corrige en silencio: una duración rara sale tal cual.
  *  - conLimite: "no contestó" devuelve el respaldo y nunca se cuelga.
+ *  - 344 (13-oct-2026): las marcas y 'mixto' se reconocen y se nombran; cada
+ *    noche lleva la fuente real de cada campo (field_sources) y sus etapas;
+ *    una noche 'telefono' toma su fuente de health_os_daily; el import del
+ *    teléfono NO completa una noche de marca ni una 'mixto'.
  */
 import { describe, it, expect } from 'vitest';
 import {
   conLimite,
   decidirEscrituras,
   esFuenteDeMaquina,
+  esScoreDeCalma,
+  textoScoreDeMarca,
   etiquetaFuenteNoche,
   fechaDesde,
   fuenteDeSleepNight,
@@ -77,6 +83,22 @@ describe('unirNoches: una noche, un registro', () => {
       score: null,
       snoreMinutes: null,
       fuente: 'telefono',
+      fuentes: {
+        duration_minutes: null,
+        score: null,
+        deep_min: null,
+        light_min: null,
+        rem_min: null,
+        awake_min: null,
+        latency_min: null,
+        efficiency: null,
+      },
+      deepMin: null,
+      lightMin: null,
+      remMin: null,
+      awakeMin: null,
+      latencyMin: null,
+      efficiency: null,
     });
   });
 
@@ -133,6 +155,11 @@ describe('fuenteDeSleepNight', () => {
     ['sleep_cycle', 'sleep_cycle'],
     ['health_connect', 'health_connect'],
     ['healthkit', 'healthkit'],
+    ['oura', 'oura'],
+    ['whoop', 'whoop'],
+    ['garmin', 'garmin'],
+    ['polar', 'polar'],
+    ['mixto', 'mixto'],
     ['algo_raro', 'telefono'],
     [null, 'telefono'],
   ] as [string | null, FuenteNoche][])('%s → %s', (source, esperado) => {
@@ -153,10 +180,112 @@ describe('fechaDesde: la ventana cuenta como ARGOS (hoy menos dias-1)', () => {
 });
 
 describe('etiquetaFuenteNoche: toda fuente tiene nombre para el usuario', () => {
-  it.each(['sleep_cycle', 'health_connect', 'healthkit', 'telefono'] as FuenteNoche[])('%s', (f) => {
+  it.each([
+    'sleep_cycle', 'health_connect', 'healthkit', 'telefono', 'oura', 'whoop', 'garmin', 'polar', 'mixto',
+  ] as FuenteNoche[])('%s', (f) => {
     const e = etiquetaFuenteNoche(f);
     expect(e.length).toBeGreaterThan(0);
     expect(e).not.toContain('—');
+  });
+
+  it('las marcas se nombran como el aparato de la persona; mixto dice que se juntó', () => {
+    expect(etiquetaFuenteNoche('oura')).toBe('Medida con tu Oura');
+    expect(etiquetaFuenteNoche('whoop')).toBe('Medida con tu WHOOP');
+    expect(etiquetaFuenteNoche('garmin')).toBe('Medida con tu Garmin');
+    expect(etiquetaFuenteNoche('polar')).toBe('Medida con tu Polar');
+    expect(etiquetaFuenteNoche('mixto')).toBe('De varias fuentes o sin identificar');
+  });
+});
+
+describe('344: fuente real por campo y etapas de la noche', () => {
+  it('lee field_sources campo por campo (una fila mixto con duración de Oura y score de Sleep Cycle)', () => {
+    const r = unirNoches([{
+      night_date: '2026-10-12',
+      duration_minutes: 452,
+      score: 81,
+      deep_min: 70,
+      light_min: 250,
+      rem_min: 100,
+      awake_min: 32,
+      latency_min: 12,
+      efficiency: 91,
+      source: 'mixto',
+      field_sources: {
+        duration_minutes: 'oura', score: 'sleep_cycle', deep_min: 'oura', light_min: 'oura',
+        rem_min: 'oura', awake_min: 'oura', latency_min: 'oura', efficiency: 'oura',
+      },
+    }], []);
+    expect(r[0].fuente).toBe('mixto');
+    expect(r[0].fuentes).toEqual({
+      duration_minutes: 'oura', score: 'sleep_cycle', deep_min: 'oura', light_min: 'oura',
+      rem_min: 'oura', awake_min: 'oura', latency_min: 'oura', efficiency: 'oura',
+    });
+    expect([r[0].deepMin, r[0].lightMin, r[0].remMin, r[0].awakeMin, r[0].latencyMin, r[0].efficiency])
+      .toEqual([70, 250, 100, 32, 12, 91]);
+  });
+
+  it('sin field_sources (fila de antes de la 344) la fuente de cada campo es el source de la fila', () => {
+    const r = unirNoches([importada], []);
+    expect(r[0].fuentes.duration_minutes).toBe('health_connect');
+    // Campo sin valor: sin dato no hay fuente que reportar.
+    expect(r[0].fuentes.score).toBeNull();
+    expect(r[0].fuentes.deep_min).toBeNull();
+  });
+
+  it('sin las columnas nuevas (antes de la 344) las etapas salen null, no cero', () => {
+    const r = unirNoches([propia], []);
+    expect([r[0].deepMin, r[0].lightMin, r[0].remMin, r[0].awakeMin, r[0].latencyMin, r[0].efficiency])
+      .toEqual([null, null, null, null, null, null]);
+  });
+
+  it('noche solo del teléfono: la fuente de la duración sale de field_sources.sleep_minutes', () => {
+    const r = unirNoches([], [{
+      date: '2026-10-11', sleep_minutes: 410, source: 'mixto',
+      field_sources: { sleep_minutes: 'health_connect', steps: 'garmin' },
+    }]);
+    expect(r[0].fuente).toBe('telefono');
+    expect(r[0].fuentes.duration_minutes).toBe('health_connect');
+  });
+
+  it('noche solo del teléfono sin field_sources: usa el source de esa fila', () => {
+    const r = unirNoches([], [{ date: '2026-10-11', sleep_minutes: 410, source: 'healthkit' }]);
+    expect(r[0].fuentes.duration_minutes).toBe('healthkit');
+  });
+
+  it('una racha de Health Connect no cambia de fuente porque una noche vino por la otra tabla', () => {
+    const r = unirNoches(
+      [{ night_date: '2026-10-12', duration_minutes: 400, source: 'health_connect' }],
+      [{ date: '2026-10-11', sleep_minutes: 410, source: 'health_connect' }],
+    );
+    expect(r.map((n) => n.fuentes.duration_minutes)).toEqual(['health_connect', 'health_connect']);
+  });
+
+  it('score de calma solo si su fuente es sleep_cycle; antes de la 344 la noche propia sigue siendo calma', () => {
+    // Sin field_sources: la fuente del score cae al source de la fila.
+    expect(esScoreDeCalma(unirNoches([propia], [])[0])).toBe(true);
+    const deOura = unirNoches([{ night_date: '2026-10-12', duration_minutes: 452, score: 88, source: 'oura' }], [])[0];
+    expect(esScoreDeCalma(deOura)).toBe(false);
+    const mixta = unirNoches([{
+      night_date: '2026-10-12', duration_minutes: 452, score: 88, source: 'mixto',
+      field_sources: { duration_minutes: 'sleep_cycle', score: 'oura' },
+    }], [])[0];
+    expect(esScoreDeCalma(mixta)).toBe(false);
+  });
+
+  it('el score de marca se nombra con su marca y sin etiqueta de calma', () => {
+    expect(textoScoreDeMarca(88, 'oura')).toBe('Score de sueño de Oura · 88');
+    expect(textoScoreDeMarca(70, 'whoop')).toBe('Score de sueño de WHOOP · 70');
+    expect(textoScoreDeMarca(70, 'mixto')).toBe('Score de sueño (fuente sin identificar) · 70');
+  });
+
+  it('la regla de unión no cambia: misma fecha manda sleep_nights entera, aunque sea de una marca', () => {
+    const r = unirNoches(
+      [{ night_date: '2026-10-12', duration_minutes: 452, source: 'oura' }],
+      [{ date: '2026-10-12', sleep_minutes: 999, source: 'health_connect' }],
+    );
+    expect(r).toHaveLength(1);
+    expect(r[0].durationMinutes).toBe(452);
+    expect(r[0].fuentes.duration_minutes).toBe('oura');
   });
 });
 
@@ -205,6 +334,21 @@ describe('decidirEscrituras (A5): la noche parcial no queda congelada, la propia
     expect(r.insertar).toEqual([]);
   });
 
+  it('344: una noche de Oura, WHOOP, Garmin, Polar o mixto no la completa el import del teléfono', () => {
+    const existentes: FilaExistente[] = [
+      { night_date: '2026-10-12', source: 'oura', duration_minutes: 300 },
+      { night_date: '2026-10-11', source: 'whoop', duration_minutes: 300 },
+      { night_date: '2026-10-10', source: 'garmin', duration_minutes: null },
+      { night_date: '2026-10-09', source: 'polar', duration_minutes: 300 },
+      { night_date: '2026-10-08', source: 'mixto', duration_minutes: 300 },
+    ];
+    const r = decidirEscrituras(existentes, [
+      nueva('2026-10-12', 480), nueva('2026-10-11', 480), nueva('2026-10-10', 480),
+      nueva('2026-10-09', 480), nueva('2026-10-08', 480),
+    ]);
+    expect(r).toEqual({ insertar: [], actualizar: [] });
+  });
+
   it('una fecha repetida en las nuevas se decide una sola vez', () => {
     const r = decidirEscrituras([], [nueva('2026-09-19', 400), nueva('2026-09-19', 500)]);
     expect(r.insertar).toHaveLength(1);
@@ -215,6 +359,10 @@ describe('decidirEscrituras (A5): la noche parcial no queda congelada, la propia
     expect(esFuenteDeMaquina('health_connect')).toBe(true);
     expect(esFuenteDeMaquina('healthkit')).toBe(true);
     expect(esFuenteDeMaquina('sleep_cycle')).toBe(false);
+    // 344: a propósito. Una noche de marca o 'mixto' no la completa el teléfono.
+    for (const marca of ['oura', 'whoop', 'garmin', 'polar', 'mixto']) {
+      expect(esFuenteDeMaquina(marca)).toBe(false);
+    }
     expect(esFuenteDeMaquina(null)).toBe(false);
     expect(esFuenteDeMaquina(undefined)).toBe(false);
   });

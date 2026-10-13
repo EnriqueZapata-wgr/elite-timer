@@ -32,6 +32,7 @@ import { chatFailureOutcome } from './argos-chat-core';
 import { buildHistoryWindow } from './argos-history-core';
 import {
   buildContextPrompt, compararConMeta, nombreDeBloque, puedeCargarContextoRico,
+  construirSleepContext, vitalesArgosDesde,
   type PersonalRecord, type UserContext,
 } from './argos-context-core';
 import { computeStreak } from './adherence-service';
@@ -1439,37 +1440,43 @@ export async function loadUserContext(userId: string, opciones?: OpcionesDeConte
     const { leerNochesUnificadas } = await import('./sleep/sueno-unificado-service');
     const lectura = await leerNochesUnificadas(userId, 7);
     if (!lectura.ok) throw new Error('leerNochesUnificadas: sleep_nights o health_os_daily no contestaron');
-    const rows = lectura.noches
-      .filter((n) => typeof n.durationMinutes === 'number')
-      .map((n) => ({ night_date: n.nightDate, duration_minutes: n.durationMinutes as number, score: n.score, source: n.fuente }));
-    if (rows.length > 0) {
-      const horas = rows.map(n => n.duration_minutes / 60);
-      const avgHours = Math.round((horas.reduce((s, h) => s + h, 0) / horas.length) * 10) / 10;
-      const scores = rows.map(n => n.score).filter((s: any) => typeof s === 'number');
-      const avgScore = scores.length > 0
-        ? Math.round(scores.reduce((s: number, v: number) => s + v, 0) / scores.length)
-        : null;
-      // Tendencia: mitad reciente vs mitad antigua (rows viene de más nueva a
-      // más vieja). Umbral 0.5h para no llamar tendencia al ruido.
-      let trend: 'up' | 'down' | 'stable' = 'stable';
-      if (horas.length >= 4) {
-        const mitad = Math.floor(horas.length / 2);
-        const recientes = horas.slice(0, mitad).reduce((s, h) => s + h, 0) / mitad;
-        const viejas = horas.slice(-mitad).reduce((s, h) => s + h, 0) / mitad;
-        if (recientes - viejas >= 0.5) trend = 'up';
-        else if (viejas - recientes >= 0.5) trend = 'down';
-      }
-      context.sleepContext = {
-        nightsLast7: rows.length,
-        avgHours,
-        avgScore,
-        lastNightDate: rows[0].night_date,
-        lastNightHours: Math.round((rows[0].duration_minutes / 60) * 10) / 10,
-        trend,
-        source: rows[0].source || 'externo',
-      };
-    }
+    // 13-oct-2026 (wearables): cada noche viaja con la fuente REAL de su
+    // duración y de su score (field_sources de la 344, o el source de la
+    // fila; en una noche que solo vive en health_os_daily, la de esa fila).
+    // construirSleepContext (puro, con test) arma el bloque: la calma de ATP
+    // solo con scores de la sesión propia, el score de cada marca aparte y
+    // nunca promediado entre fuentes, la composición del promedio de horas y
+    // la tendencia SOLO en el tramo de la misma fuente.
+    const sueno = construirSleepContext(
+      lectura.noches
+        .filter((n) => typeof n.durationMinutes === 'number')
+        .map((n) => ({
+          fecha: n.nightDate,
+          minutos: n.durationMinutes as number,
+          fuenteMinutos: n.fuentes.duration_minutes,
+          score: n.score,
+          fuenteScore: n.fuentes.score,
+          fuenteNoche: n.fuente,
+        })),
+    );
+    if (sueno) context.sleepContext = sueno;
   } catch (e) { registrar('sueno-7n', 'error', e); }
+
+  try {
+    // 13-oct-2026 (wearables, bloque A): vitales del día de health_os_daily
+    // (HRV, FC en reposo, respiración, temperatura, SpO2, score de la marca),
+    // cada uno con fuente, método y si aplica el rango de la casa, y su
+    // tendencia SOLO en el tramo de la misma fuente. Vive aquí, detrás del
+    // mismo gate de consentimiento que el resto de la salud. Antes de la 344
+    // (columnas inexistentes) no hay bloque y no es un fallo; un fallo de
+    // lectura sí viaja como "no pude leer".
+    const { leerVitales } = await import('./health/vitales-service');
+    const vitales = await leerVitales(userId, 14);
+    if (!vitales.ok) throw new Error('leerVitales: health_os_daily no contestó');
+    if (vitales.disponible && vitales.metricas.length > 0) {
+      context.vitalesContext = { metricas: vitalesArgosDesde(vitales.metricas) };
+    }
+  } catch (e) { registrar('vitales-wearable', 'error', e); }
 
   try {
     // Edad ATP — último cálculo. OJO: NO vive en functional_dx (esa tabla no

@@ -22,19 +22,51 @@
  *     está prohibido (la limpieza de filas imposibles es la migración 300,
  *     que aplica el dueño).
  *
- * PURO: sin imports, sin red, sin fechas del sistema. La capa con I/O vive en
- * sueno-unificado-service.ts.
+ * WEARABLES (bloque A, 13-oct-2026, migración 344): sleep_nights ya puede
+ * venir de Oura, WHOOP, Garmin o Polar, o 'mixto' (campos de varias fuentes;
+ * la base cumple la jerarquía campo por campo y deja la procedencia en
+ * `field_sources`). Cada noche lleva ahora `fuentes`: la fuente REAL de cada
+ * campo, leída con procedencia-core. Sirve para que una tendencia no mezcle
+ * noches de aparatos distintos (ARGOS corta la línea donde cambia la fuente).
+ * También trae las etapas (profundo, ligero, REM, despierto), la latencia y
+ * la eficiencia: null si no hay dato o si la base todavía no tiene la 344.
+ *
+ * PURO: sin red ni fechas del sistema. Su único import es procedencia-core,
+ * también puro. La capa con I/O vive en sueno-unificado-service.ts.
  */
+
+import { fuenteDelCampo, nombreDeFuente } from '../health/procedencia-core';
 
 // ── Tipos ──
 
 /**
- * De dónde salió la noche. Los tres primeros son los literales del CHECK de
- * sleep_nights.source (migración 261); 'telefono' marca una noche que SOLO
- * existe en health_os_daily.sleep_minutes (la sync de Ajustes › Salud del
- * teléfono), donde no hay hora de acostarse ni de despertar.
+ * De dónde salió la noche. Todos menos 'telefono' son los literales del CHECK
+ * de sleep_nights.source (261, ampliado en la 344 con las marcas y 'mixto':
+ * la fila junta campos de varias fuentes). 'telefono' marca una noche que
+ * SOLO existe en health_os_daily.sleep_minutes (la sync de Ajustes › Salud
+ * del teléfono), donde no hay hora de acostarse ni de despertar.
  */
-export type FuenteNoche = 'sleep_cycle' | 'health_connect' | 'healthkit' | 'telefono';
+export type FuenteNoche =
+  | 'sleep_cycle' | 'health_connect' | 'healthkit'
+  | 'oura' | 'whoop' | 'garmin' | 'polar' | 'mixto'
+  | 'telefono';
+
+/**
+ * La fuente real de cada campo de la noche, con el literal de la base
+ * ('oura', 'health_connect', 'sleep_cycle', 'mixto'...). null si el campo no
+ * trae valor (sin dato no hay fuente que reportar). Sale de `field_sources`
+ * (344) y, si la fila no lo trae, del `source` de la fila.
+ */
+export interface FuentesNoche {
+  duration_minutes: string | null;
+  score: string | null;
+  deep_min: string | null;
+  light_min: string | null;
+  rem_min: string | null;
+  awake_min: string | null;
+  latency_min: string | null;
+  efficiency: string | null;
+}
 
 /** Una noche ya resuelta entre las dos tablas. La más reciente va primero. */
 export interface Noche {
@@ -44,10 +76,26 @@ export interface Noche {
   durationMinutes: number | null;
   bedTimeISO: string | null;
   wakeTimeISO: string | null;
-  /** Score de calma (0-100): solo lo trae la sesión propia. */
+  /**
+   * Score de la noche (0-100). Desde la 344 puede ser el score de calma de la
+   * sesión propia (fuentes.score === 'sleep_cycle') O el score de sueño de
+   * una marca (Oura, WHOOP...), con la escala de esa marca. Nunca se
+   * presenta uno como el otro: ver esScoreDeCalma.
+   */
   score: number | null;
   snoreMinutes: number | null;
   fuente: FuenteNoche;
+  /** Fuente real por campo (344). Una noche 'telefono' la saca de health_os_daily. */
+  fuentes: FuentesNoche;
+  /** Minutos de sueño profundo, ligero, REM y despierto (344). null = sin dato o sin columna. */
+  deepMin: number | null;
+  lightMin: number | null;
+  remMin: number | null;
+  awakeMin: number | null;
+  /** Minutos para quedarse dormido (344). */
+  latencyMin: number | null;
+  /** Eficiencia 0-100: dormido entre tiempo en cama (344). */
+  efficiency: number | null;
 }
 
 /** Fila de sleep_nights tal como la devuelve la tabla (solo lo que se usa). */
@@ -59,12 +107,25 @@ export interface FilaSleepNight {
   score?: number | null;
   snore_minutes?: number | null;
   source?: string | null;
+  // 344: opcionales; antes de la migración el select no los pide.
+  deep_min?: number | null;
+  light_min?: number | null;
+  rem_min?: number | null;
+  awake_min?: number | null;
+  latency_min?: number | null;
+  efficiency?: number | null;
+  /** jsonb {campo: fuente} que llena el trigger de la 344. */
+  field_sources?: unknown;
 }
 
 /** Fila de health_os_daily, solo la parte de sueño. */
 export interface FilaSuenoTelefono {
   date: string;
   sleep_minutes?: number | null;
+  /** health_connect | healthkit (264) y, con la 344, marcas o 'mixto'. */
+  source?: string | null;
+  /** 344: de qué fuente vino cada campo (aquí importa `sleep_minutes`). */
+  field_sources?: unknown;
 }
 
 // ── Unión ──
@@ -73,18 +134,43 @@ function numeroONull(v: number | null | undefined): number | null {
   return v == null || !Number.isFinite(v) ? null : v;
 }
 
+const FUENTES_DE_SLEEP_NIGHTS: readonly FuenteNoche[] = [
+  'sleep_cycle', 'health_connect', 'healthkit', 'oura', 'whoop', 'garmin', 'polar', 'mixto',
+];
+
 /** El `source` crudo de sleep_nights a nuestro vocabulario, sin adivinar. */
 export function fuenteDeSleepNight(source: string | null | undefined): FuenteNoche {
-  if (source === 'sleep_cycle' || source === 'health_connect' || source === 'healthkit') return source;
+  if (typeof source === 'string' && (FUENTES_DE_SLEEP_NIGHTS as readonly string[]).includes(source)) {
+    return source as FuenteNoche;
+  }
   // Un valor fuera del CHECK no puede existir en la base; si llegara, lo
   // único seguro que sabemos es que no fue la sesión propia.
   return 'telefono';
+}
+
+/** Campos de sleep_nights que llevan fuente propia en la Noche. */
+const CAMPOS_FUENTE_NOCHE: readonly (keyof FuentesNoche)[] = [
+  'duration_minutes', 'score', 'deep_min', 'light_min', 'rem_min', 'awake_min', 'latency_min', 'efficiency',
+];
+
+/** Fuente de cada campo de una fila de sleep_nights; null donde no hay valor. */
+function fuentesDeFila(f: FilaSleepNight): FuentesNoche {
+  const r = {} as FuentesNoche;
+  for (const campo of CAMPOS_FUENTE_NOCHE) {
+    r[campo] = numeroONull(f[campo]) === null ? null : fuenteDelCampo(f.field_sources, campo, f.source);
+  }
+  return r;
 }
 
 /**
  * Une las dos tablas en una lista de noches, la más reciente primero, sin
  * fechas repetidas. Misma fecha: manda sleep_nights. Una fila del teléfono
  * sin minutos no es una noche y se ignora.
+ *
+ * En una noche 'telefono', `fuentes.duration_minutes` sale de
+ * `field_sources.sleep_minutes` (o del `source` de esa fila de
+ * health_os_daily): así una racha de Health Connect no se corta solo porque
+ * una de sus noches llegó por la otra tabla.
  */
 export function unirNoches(
   filasSleepNights: readonly FilaSleepNight[],
@@ -102,6 +188,13 @@ export function unirNoches(
       score: numeroONull(f.score),
       snoreMinutes: numeroONull(f.snore_minutes),
       fuente: fuenteDeSleepNight(f.source),
+      fuentes: fuentesDeFila(f),
+      deepMin: numeroONull(f.deep_min),
+      lightMin: numeroONull(f.light_min),
+      remMin: numeroONull(f.rem_min),
+      awakeMin: numeroONull(f.awake_min),
+      latencyMin: numeroONull(f.latency_min),
+      efficiency: numeroONull(f.efficiency),
     });
   }
 
@@ -117,6 +210,22 @@ export function unirNoches(
       score: null,
       snoreMinutes: null,
       fuente: 'telefono',
+      fuentes: {
+        duration_minutes: fuenteDelCampo(f.field_sources, 'sleep_minutes', f.source),
+        score: null,
+        deep_min: null,
+        light_min: null,
+        rem_min: null,
+        awake_min: null,
+        latency_min: null,
+        efficiency: null,
+      },
+      deepMin: null,
+      lightMin: null,
+      remMin: null,
+      awakeMin: null,
+      latencyMin: null,
+      efficiency: null,
     });
   }
 
@@ -147,8 +256,33 @@ export function etiquetaFuenteNoche(fuente: FuenteNoche): string {
     case 'sleep_cycle': return 'Medida con tu Sleep Cycle';
     case 'health_connect': return 'Importada de Health Connect';
     case 'healthkit': return 'Importada de Salud de Apple';
+    case 'oura': return 'Medida con tu Oura';
+    case 'whoop': return 'Medida con tu WHOOP';
+    case 'garmin': return 'Medida con tu Garmin';
+    case 'polar': return 'Medida con tu Polar';
+    case 'mixto': return 'De varias fuentes o sin identificar';
     case 'telefono': return 'Sincronizada desde tu teléfono';
   }
+}
+
+/**
+ * ¿El score de esta noche es el de calma de la sesión propia? Solo si su
+ * fuente es 'sleep_cycle'. Antes de la 344 `fuentes.score` cae al source de
+ * la fila, así que la noche propia sigue mostrando su calma.
+ */
+export function esScoreDeCalma(noche: Pick<Noche, 'fuentes'>): boolean {
+  return noche.fuentes.score === 'sleep_cycle';
+}
+
+/**
+ * El score de una marca dicho como lo que es: "Score de sueño de Oura · 88".
+ * Sin la etiqueta de calma: es la escala de la marca, no la de ATP.
+ */
+export function textoScoreDeMarca(score: number, fuente: string | null | undefined): string {
+  const nombre = nombreDeFuente(fuente);
+  return nombre === nombreDeFuente(null)
+    ? `Score de sueño (${nombre}) · ${score}`
+    : `Score de sueño de ${nombre} · ${score}`;
 }
 
 // ── Escritura del import: qué se inserta y qué se actualiza (A5, 20-sep-2026) ──
@@ -173,7 +307,19 @@ export interface DecisionEscrituras<N extends NocheAEscribir> {
   actualizar: N[];
 }
 
-/** ¿La fila la escribió una máquina (import o sync), no la sesión propia? */
+/**
+ * ¿La fila la escribió el IMPORT DEL TELÉFONO (Health Connect o Salud de
+ * Apple), no la sesión propia? Decide qué filas puede COMPLETAR
+ * decidirEscrituras.
+ *
+ * Se queda en esos dos literales A PROPÓSITO (344): una noche de Oura, WHOOP,
+ * Garmin o Polar, o una 'mixto', no la completa el teléfono aunque traiga más
+ * minutos. Esas marcas están arriba en la jerarquía (Sueño de ATP > Oura >
+ * WHOOP > Garmin = Polar > Health Connect > HealthKit) y el trigger de la 344
+ * tampoco dejaría que el teléfono las pise; intentarlo sería una escritura
+ * que la base rechaza o descarta. Por eso aquí no se usa
+ * FUENTES_DE_MAQUINA de procedencia-core.
+ */
 export function esFuenteDeMaquina(source: string | null | undefined): boolean {
   return source === 'health_connect' || source === 'healthkit';
 }
@@ -192,6 +338,8 @@ export function esFuenteDeMaquina(source: string | null | undefined): boolean {
  *     completa (null no es "igual o mayor").
  *   · Fila `sleep_cycle` (sesión propia): jamás se toca, traiga lo que traiga.
  *   · Fila con source desconocido: tampoco (no se pisa lo que no se entiende).
+ *   · Fila de Oura, WHOOP, Garmin, Polar o 'mixto' (344): tampoco. Están
+ *     arriba del teléfono en la jerarquía (ver esFuenteDeMaquina).
  *   · Misma o menor duración: nada.
  *
  * Una fecha repetida en `nuevas` se decide una sola vez (gana la primera).

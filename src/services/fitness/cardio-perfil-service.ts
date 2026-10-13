@@ -8,7 +8,8 @@
  *   - FC en reposo: health_measurements.resting_hr (manual, captura Edad ATP
  *     o sembrada por la evaluacion Elite con source='elite', migracion 325)
  *     y health_os_daily.resting_hr (Health Connect / HealthKit, via
- *     health-platform-service). Gana la fecha mas reciente; se dice la fuente.
+ *     health-platform-service, o una marca conectada por servidor desde la
+ *     344). Gana la fecha mas reciente; se dice la fuente (la del campo).
  *   - VO2max registrado: health_measurements.vo2max_estimate (Cooper de
  *     /tests/run/cooper, o valor directo del wearable capturado a mano en
  *     /edad-atp/vitals). Es lo que ya lee el motor de Edad ATP.
@@ -37,14 +38,39 @@ import {
   resumirSesiones, filtrarVentana, restarDias,
   type SesionCardioLite, type ZonaFC, type MinutosPorZona, type ResumenSesiones, type MetodoVo2,
 } from './cardio-core';
+import { leerConCaida } from '@/src/services/health/lectura-344';
+import { fuenteDelCampo } from '@/src/services/health/procedencia-core';
 
 /**
  * De donde salio la FC en reposo que se usa. 'elite' (21-sep-2026, migracion
  * 325): la sembro la carga de la evaluacion Elite en health_measurements con
  * source='elite'; antes caia en 'manual' y la pantalla decia "capturada a
  * mano" de un dato que el cliente nunca tecleo.
+ * oura/whoop/garmin/polar (13-oct-2026, migracion 344): conexion directa de
+ * la marca. La fuente sale de field_sources.resting_hr (la fila puede ser
+ * 'mixto'); lo que no se sabe o no se reconoce es 'otra', nunca una marca
+ * adivinada.
  */
-export type FuenteFcReposo = 'manual' | 'edad_atp' | 'elite' | 'healthkit' | 'health_connect' | 'otra';
+export type FuenteFcReposo =
+  | 'manual' | 'edad_atp' | 'elite' | 'healthkit' | 'health_connect'
+  | 'oura' | 'whoop' | 'garmin' | 'polar' | 'otra';
+
+/** Fuente de la FC en reposo de health_os_daily, leida del CAMPO (344) con caida al source de la fila. */
+export function fuenteFcReposoDeOs(fieldSources: unknown, sourceFila: string | null | undefined): FuenteFcReposo {
+  const f = fuenteDelCampo(fieldSources, 'resting_hr', sourceFila);
+  switch (f) {
+    case 'healthkit':
+    case 'health_connect':
+    case 'oura':
+    case 'whoop':
+    case 'garmin':
+    case 'polar':
+      return f;
+    default:
+      // 'mixto' (el telefono escribio sin decir su fuente), null o desconocida.
+      return 'otra';
+  }
+}
 
 export interface FcReposoLeida {
   bpm: number;
@@ -105,7 +131,7 @@ export interface ResultadoPerfilCardio {
 /** Filas tal como llegan de PostgREST (numeric viaja como string). */
 interface FilaSesion { date: string; discipline: string | null; duration_seconds: number | null; distance_meters: number | string | null; avg_heart_rate: number | null; source: string | null; avg_pace_seconds_per_km: number | null }
 interface FilaMedida { date: string; resting_hr: number | null; vo2max_estimate: number | string | null; weight_kg: number | string | null; source: string | null }
-interface FilaOs { date: string; resting_hr: number | null; source: string | null }
+interface FilaOs { date: string; resting_hr: number | null; source: string | null; field_sources?: unknown }
 
 const DIAS_VENTANA = 28;
 /** Filas de health_measurements que se leen para coalescer por columna
@@ -136,13 +162,23 @@ export async function cargarPerfilCardio(userId: string): Promise<ResultadoPerfi
       .eq('user_id', userId)
       .order('date', { ascending: false })
       .limit(FILAS_MEDIDAS),
-    supabase
-      .from('health_os_daily')
-      .select('date, resting_hr, source')
-      .eq('user_id', userId)
-      .not('resting_hr', 'is', null)
-      .order('date', { ascending: false })
-      .limit(1),
+    // field_sources llega con la 344; antes de aplicarla, select viejo.
+    leerConCaida<unknown>(
+      () => supabase
+        .from('health_os_daily')
+        .select('date, resting_hr, source, field_sources')
+        .eq('user_id', userId)
+        .not('resting_hr', 'is', null)
+        .order('date', { ascending: false })
+        .limit(1),
+      () => supabase
+        .from('health_os_daily')
+        .select('date, resting_hr, source')
+        .eq('user_id', userId)
+        .not('resting_hr', 'is', null)
+        .order('date', { ascending: false })
+        .limit(1),
+    ),
   ]);
 
   // Esencial: sin sesiones legibles la pantalla no puede decir nada honesto.
@@ -205,7 +241,7 @@ export async function cargarPerfilCardio(userId: string): Promise<ResultadoPerfi
     const r = ((osRes.value.data ?? []) as FilaOs[])[0];
     const rhr = r ? numOrNull(r.resting_hr) : null;
     if (r && rhr != null && rhr > 0) {
-      fcReposoOs = { bpm: rhr, fecha: String(r.date), fuente: r.source === 'healthkit' ? 'healthkit' : r.source === 'health_connect' ? 'health_connect' : 'otra' };
+      fcReposoOs = { bpm: rhr, fecha: String(r.date), fuente: fuenteFcReposoDeOs(r.field_sources, r.source) };
     }
   } else {
     // Tabla ausente o sin permiso: no es "no hay", es "no se pudo leer".

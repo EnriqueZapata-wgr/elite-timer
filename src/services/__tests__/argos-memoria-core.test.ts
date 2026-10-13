@@ -330,13 +330,14 @@ describe('contrato de fuente: privacidad y gate (el core no filtra; la consulta 
     expect(argos).toMatch(/loadUserContext\(userId, \{ memoria: \{ conversacionActualId: conversationId \} \}\)/);
   });
 
-  it('cada clave que registra loadUserContext tiene nombre humano, y viceversa (31 hoy)', () => {
+  it('cada clave que registra loadUserContext tiene nombre humano, y viceversa (32 hoy)', () => {
     const claves = new Set<string>();
     for (const m of argos.matchAll(/registrar\('([a-z0-9-]+)',\s*'(?:error|vacio)'/g)) claves.add(m[1]);
     const nombres = Object.keys(NOMBRES_DE_BLOQUES);
     expect([...claves].sort()).toEqual([...nombres].sort());
     expect(nombres).toContain('memoria-conversaciones');
-    expect(nombres).toHaveLength(31);
+    // 13-oct-2026: 32 con 'vitales-wearable' (wearables, bloque A).
+    expect(nombres).toHaveLength(32);
   });
 
   it('el cache por usuario se vacía al cerrar sesión y al renombrar o borrar', () => {
