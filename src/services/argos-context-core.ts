@@ -801,7 +801,7 @@ const NOMBRE_VITAL: Readonly<Record<'fc_reposo' | 'respiracion' | 'temp_desviaci
   temp_desviacion: { nombre: 'temperatura de piel vs su base', unidad: ' °C' },
 };
 
-const NO_SE_COMPARA = 'no se compara con el rango de la casa, solo con su propia línea';
+const NO_SE_COMPARA = 'no se compara con la meta de ATP, solo con su propia línea';
 
 /** Un vital dicho en español, con su procedencia explicada (sin banderas crudas). */
 function textoVital(m: VitalArgos, fecha: string): string {
@@ -810,7 +810,7 @@ function textoVital(m: VitalArgos, fecha: string): string {
   switch (m.clave) {
     case 'hrv_rmssd': {
       if (m.aplica_rango_casa) {
-        return `HRV RMSSD ${m.valor} ms${fecha} (${deDonde}, noche completa; rango de la casa: ${RANGO_DE_LA_CASA.hrv_ms})`;
+        return `HRV RMSSD ${m.valor} ms${fecha} (${deDonde}, noche completa; meta de ATP: ${RANGO_DE_LA_CASA.hrv_ms})`;
       }
       if (marca && m.fuente && HRV_VENTANA_PARCIAL.includes(m.fuente)) {
         return `HRV RMSSD ${m.valor} ms${fecha} (${marca}, solo una parte de la noche; ${NO_SE_COMPARA})`;
@@ -821,7 +821,7 @@ function textoVital(m: VitalArgos, fecha: string): string {
       return `variabilidad SDNN${marca ? ` de ${marca}` : ''} ${m.valor} ms${fecha} ` +
         `(${marca ? '' : `${SIN_FUENTE}; `}otra medida: no se compara con la RMSSD ni con ningún rango, solo con su propio SDNN)`;
     case 'spo2':
-      return `oxigenación de noche ${m.valor} %${fecha} (${deDonde}; no es un oxímetro médico; sin rango de la casa)`;
+      return `oxigenación de noche ${m.valor} %${fecha} (${deDonde}; no es un oxímetro médico; sin meta de ATP)`;
     case 'readiness':
       return marca
         ? `score del día de ${marca} ${m.valor}/100${fecha} (escala de ${marca}, no de ATP)`
@@ -829,14 +829,14 @@ function textoVital(m: VitalArgos, fecha: string): string {
     default: {
       const e = NOMBRE_VITAL[m.clave];
       const valor = m.clave === 'temp_desviacion' && m.valor > 0 ? `+${m.valor}` : `${m.valor}`;
-      return `${e.nombre} ${valor}${e.unidad}${fecha} (${deDonde}; sin rango de la casa)`;
+      return `${e.nombre} ${valor}${e.unidad}${fecha} (${deDonde}; sin meta de ATP)`;
     }
   }
 }
 
 /**
  * Una sola línea compacta con los vitales del día. Cada métrica dice de qué
- * aparato vino, si se compara o no con el rango de la casa (y cuál es), y su
+ * aparato vino, si se compara o no con la meta de ATP (y cuál es), y su
  * tendencia en el tramo de la misma fuente. La fecha va una vez si todas
  * coinciden.
  */

@@ -66,6 +66,9 @@ export interface FuentesNoche {
   awake_min: string | null;
   latency_min: string | null;
   efficiency: string | null;
+  /** 345: la hora de acostarse y despertar pueden venir de otra fuente que los minutos. */
+  bed_time: string | null;
+  wake_time: string | null;
 }
 
 /** Una noche ya resuelta entre las dos tablas. La más reciente va primero. */
@@ -96,6 +99,15 @@ export interface Noche {
   latencyMin: number | null;
   /** Eficiencia 0-100: dormido entre tiempo en cama (344). */
   efficiency: number | null;
+  /**
+   * Regla 7 de la jerarquía por dato (345): el Sueño de ATP manda en la hora
+   * de acostarse y despertar, y un reloj o anillo puede mandar en los
+   * minutos. Si las horas y los minutos vienen de fuentes distintas y los
+   * minutos NO caben entre esas horas (más de 10 min de sobra), las horas no
+   * describen esa noche: false, y la pantalla no las muestra. No se borra
+   * nada: los dos valores siguen en la base.
+   */
+  horasCoherentes: boolean;
 }
 
 /** Fila de sleep_nights tal como la devuelve la tabla (solo lo que se usa). */
@@ -149,7 +161,7 @@ export function fuenteDeSleepNight(source: string | null | undefined): FuenteNoc
 }
 
 /** Campos de sleep_nights que llevan fuente propia en la Noche. */
-const CAMPOS_FUENTE_NOCHE: readonly (keyof FuentesNoche)[] = [
+const CAMPOS_FUENTE_NOCHE: readonly Exclude<keyof FuentesNoche, 'bed_time' | 'wake_time'>[] = [
   'duration_minutes', 'score', 'deep_min', 'light_min', 'rem_min', 'awake_min', 'latency_min', 'efficiency',
 ];
 
@@ -159,7 +171,34 @@ function fuentesDeFila(f: FilaSleepNight): FuentesNoche {
   for (const campo of CAMPOS_FUENTE_NOCHE) {
     r[campo] = numeroONull(f[campo]) === null ? null : fuenteDelCampo(f.field_sources, campo, f.source);
   }
+  r.bed_time = f.bed_time ? fuenteDelCampo(f.field_sources, 'bed_time', f.source) : null;
+  r.wake_time = f.wake_time ? fuenteDelCampo(f.field_sources, 'wake_time', f.source) : null;
   return r;
+}
+
+/** Holgura para la regla 7: los minutos dormidos pueden pasar la ventana por redondeo. */
+export const HOLGURA_HORAS_MIN = 10;
+
+/**
+ * Regla 7 (345): ¿las horas de acostarse y despertar describen la misma noche
+ * que los minutos dormidos? Solo se puede romper cuando vienen de fuentes
+ * distintas. Sin horas, sin minutos o con fechas ilegibles: true (no hay nada
+ * que contradiga).
+ */
+export function horasCoherentes(
+  bedISO: string | null,
+  wakeISO: string | null,
+  minutos: number | null,
+  fuentes: Pick<FuentesNoche, 'bed_time' | 'wake_time' | 'duration_minutes'>,
+): boolean {
+  if (!bedISO || !wakeISO || minutos == null) return true;
+  const misma = fuentes.duration_minutes != null
+    && fuentes.bed_time === fuentes.duration_minutes
+    && fuentes.wake_time === fuentes.duration_minutes;
+  if (misma) return true;
+  const ventana = (Date.parse(wakeISO) - Date.parse(bedISO)) / 60000;
+  if (!Number.isFinite(ventana)) return true;
+  return minutos <= ventana + HOLGURA_HORAS_MIN;
 }
 
 /**
@@ -195,7 +234,10 @@ export function unirNoches(
       awakeMin: numeroONull(f.awake_min),
       latencyMin: numeroONull(f.latency_min),
       efficiency: numeroONull(f.efficiency),
+      horasCoherentes: true,
     });
+    const n = porFecha.get(f.night_date)!;
+    n.horasCoherentes = horasCoherentes(n.bedTimeISO, n.wakeTimeISO, n.durationMinutes, n.fuentes);
   }
 
   for (const f of filasTelefono) {
@@ -219,6 +261,8 @@ export function unirNoches(
         awake_min: null,
         latency_min: null,
         efficiency: null,
+        bed_time: null,
+        wake_time: null,
       },
       deepMin: null,
       lightMin: null,
@@ -226,6 +270,7 @@ export function unirNoches(
       awakeMin: null,
       latencyMin: null,
       efficiency: null,
+      horasCoherentes: true,
     });
   }
 

@@ -53,7 +53,7 @@ describe('sleepContext', () => {
 });
 
 // Literales crudos de la base que nunca deben llegar al texto del prompt.
-const CRUDOS = /\b(oura|whoop|garmin|polar|health_connect|healthkit|sleep_cycle|mixto|aplica_rango_casa)\b/;
+const CRUDOS = /\b(oura|whoop|garmin|polar|health_connect|healthkit|sleep_cycle|mixto|aplica_rango_casa)\b|rango de la casa/;
 
 describe('sleepContext · tendencia solo dentro de la misma fuente (13-oct-2026)', () => {
   const noche = (dia: number, horas: number, fuente: string | null) => ({
@@ -181,17 +181,17 @@ describe('vitalesContext (13-oct-2026)', () => {
   it('cabecera y cada métrica explicada en español, sin banderas ni literales crudos', () => {
     const p = buildContextPrompt({ name: 'Cliente', vitalesContext: { metricas } });
     expect(p).toContain('Vitales del reloj o anillo (los mide el aparato, ATP no los verifica) [registrado 2026-10-12]:');
-    expect(p).toContain('HRV RMSSD 62 ms (Oura, noche completa; rango de la casa: más de 50 ms), tendencia sube sobre 4 días (antes Health Connect, se cortó)');
+    expect(p).toContain('HRV RMSSD 62 ms (Oura, noche completa; meta de ATP: más de 50 ms), tendencia sube sobre 4 días (antes Health Connect, se cortó)');
     expect(p).toContain('variabilidad SDNN de Salud de Apple 41 ms (otra medida: no se compara con la RMSSD ni con ningún rango, solo con su propio SDNN)');
-    expect(p).toContain('FC en reposo 54 lpm (Oura; sin rango de la casa), tendencia baja sobre 4 días (antes Health Connect, se cortó)');
-    expect(p).toContain('temperatura de piel vs su base +0.3 °C (Oura; sin rango de la casa)');
+    expect(p).toContain('FC en reposo 54 lpm (Oura; sin meta de ATP), tendencia baja sobre 4 días (antes Health Connect, se cortó)');
+    expect(p).toContain('temperatura de piel vs su base +0.3 °C (Oura; sin meta de ATP)');
     expect(p).toContain('score del día de Oura 81/100 (escala de Oura, no de ATP)');
     expect(p).not.toMatch(CRUDOS);
   });
 
   it('SpO2: oxigenación de noche, dicho que no es un oxímetro médico; sin nombrar enfermedades', () => {
     const p = buildContextPrompt({ name: 'Cliente', vitalesContext: { metricas } });
-    expect(p).toContain('oxigenación de noche 96 % (Oura; no es un oxímetro médico; sin rango de la casa)');
+    expect(p).toContain('oxigenación de noche 96 % (Oura; no es un oxímetro médico; sin meta de ATP)');
     for (const prohibida of ['apnea', 'fiebre', 'arritmia', 'diagnóstico', '—']) {
       expect(p.toLowerCase()).not.toContain(prohibida);
     }
@@ -200,7 +200,7 @@ describe('vitalesContext (13-oct-2026)', () => {
   it('HRV de ventana parcial (Polar): solo una parte de la noche, solo contra su propia línea', () => {
     const [hrv] = vitalesArgosDesde(resumirVitales([{ date: '2026-10-12', hrv_ms: 48, source: 'polar' }]));
     expect(lineaVitales([hrv])).toContain(
-      'HRV RMSSD 48 ms (Polar, solo una parte de la noche; no se compara con el rango de la casa, solo con su propia línea)',
+      'HRV RMSSD 48 ms (Polar, solo una parte de la noche; no se compara con la meta de ATP, solo con su propia línea)',
     );
   });
 
@@ -209,7 +209,7 @@ describe('vitalesContext (13-oct-2026)', () => {
       { date: '2026-10-12', hrv_ms: 50, source: 'mixto', field_sources: { hrv_ms: 'mixto' } },
     ]));
     const l = lineaVitales([hrv]);
-    expect(l).toContain('HRV RMSSD 50 ms (fuente sin identificar; no se compara con el rango de la casa, solo con su propia línea)');
+    expect(l).toContain('HRV RMSSD 50 ms (fuente sin identificar; no se compara con la meta de ATP, solo con su propia línea)');
     expect(l).not.toMatch(CRUDOS);
   });
 

@@ -25,6 +25,7 @@ import {
   fuenteDeSleepNight,
   respiroDe,
   unirNoches,
+  horasCoherentes,
   type FilaExistente,
   type FilaSleepNight,
   type FilaSuenoTelefono,
@@ -92,6 +93,8 @@ describe('unirNoches: una noche, un registro', () => {
         awake_min: null,
         latency_min: null,
         efficiency: null,
+        bed_time: null,
+        wake_time: null,
       },
       deepMin: null,
       lightMin: null,
@@ -99,6 +102,7 @@ describe('unirNoches: una noche, un registro', () => {
       awakeMin: null,
       latencyMin: null,
       efficiency: null,
+      horasCoherentes: true,
     });
   });
 
@@ -219,6 +223,7 @@ describe('344: fuente real por campo y etapas de la noche', () => {
     expect(r[0].fuentes).toEqual({
       duration_minutes: 'oura', score: 'sleep_cycle', deep_min: 'oura', light_min: 'oura',
       rem_min: 'oura', awake_min: 'oura', latency_min: 'oura', efficiency: 'oura',
+      bed_time: null, wake_time: null,
     });
     expect([r[0].deepMin, r[0].lightMin, r[0].remMin, r[0].awakeMin, r[0].latencyMin, r[0].efficiency])
       .toEqual([70, 250, 100, 32, 12, 91]);
@@ -414,5 +419,43 @@ describe('conLimite: la plataforma que no contesta no cuelga la pantalla', () =>
     const v = await conLimite(Promise.reject(new Error('x')), null, 200, (m) => motivos.push(m));
     expect(v).toBeNull();
     expect(motivos).toEqual(['error']);
+  });
+});
+
+
+describe('regla 7 (345): horas del Sueño de ATP y minutos de un aparato', () => {
+  const base = { night_date: '2026-10-14', bed_time: '2026-10-14T05:00:00.000Z', wake_time: '2026-10-14T12:00:00.000Z' };
+  it('misma fuente en todo: coherente aunque los minutos pasen la ventana (no se corrige el dato de nadie)', () => {
+    const [n] = unirNoches([{ ...base, duration_minutes: 500, source: 'health_connect' }], []);
+    expect(n.horasCoherentes).toBe(true);
+  });
+  it('horas del Sueño de ATP y minutos de Oura que caben en la ventana: coherente', () => {
+    const [n] = unirNoches([{ ...base, duration_minutes: 400, source: 'mixto',
+      field_sources: { bed_time: 'sleep_cycle', wake_time: 'sleep_cycle', duration_minutes: 'oura' } }], []);
+    expect(n.fuentes.bed_time).toBe('sleep_cycle');
+    expect(n.horasCoherentes).toBe(true);
+  });
+  it('minutos de Oura que NO caben entre las horas del Sueño de ATP: las horas no se muestran', () => {
+    const [n] = unirNoches([{ ...base, duration_minutes: 480, source: 'mixto',
+      field_sources: { bed_time: 'sleep_cycle', wake_time: 'sleep_cycle', duration_minutes: 'oura' } }], []);
+    expect(n.horasCoherentes).toBe(false);
+    // No se borra nada: las horas siguen en la noche.
+    expect(n.bedTimeISO).toBe(base.bed_time);
+  });
+  it('holgura de 10 min por redondeo', () => {
+    const f = { bed_time: 'sleep_cycle', wake_time: 'sleep_cycle', duration_minutes: 'oura' };
+    expect(horasCoherentes(base.bed_time, base.wake_time, 430, f)).toBe(true);
+    expect(horasCoherentes(base.bed_time, base.wake_time, 431, f)).toBe(false);
+  });
+  it('sin horas, sin minutos o fechas ilegibles: nada que contradiga', () => {
+    const f = { bed_time: 'sleep_cycle', wake_time: 'sleep_cycle', duration_minutes: 'oura' };
+    expect(horasCoherentes(null, base.wake_time, 500, f)).toBe(true);
+    expect(horasCoherentes(base.bed_time, base.wake_time, null, f)).toBe(true);
+    expect(horasCoherentes('x', 'y', 500, f)).toBe(true);
+  });
+  it('noche que solo vive en el teléfono: sin horas, coherente', () => {
+    const [n] = unirNoches([], [{ date: '2026-10-13', sleep_minutes: 420 }]);
+    expect(n.horasCoherentes).toBe(true);
+    expect(n.fuentes.bed_time).toBeNull();
   });
 });

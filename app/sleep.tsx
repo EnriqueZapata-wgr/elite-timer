@@ -318,7 +318,10 @@ export default function SleepScreen() {
   const wakeLabel = fmtHora(wake);
   // La noche más reciente (cualquier fuente: el núcleo garantiza una por fecha).
   const anoche = noches[0] ?? null;
-  const desfase = anoche?.bedTimeISO ? desfaseAcostarse(anoche.bedTimeISO, sleep) : null;
+  // Regla 7 (345): si las horas vienen del Sueño de ATP y los minutos de un
+  // reloj o anillo, y no cuadran, no se muestran horas de otra noche.
+  const horasDeAnoche = anoche?.bedTimeISO && anoche.horasCoherentes ? anoche.bedTimeISO : null;
+  const desfase = horasDeAnoche ? desfaseAcostarse(horasDeAnoche, sleep) : null;
 
   return (
     <Screen edges={[]} themed>
@@ -395,9 +398,9 @@ export default function SleepScreen() {
               {anoche.snoreMinutes != null && anoche.snoreMinutes > 0 && (
                 <EliteText style={s.dataSub}>~{anoche.snoreMinutes} min con sonido de ronquido</EliteText>
               )}
-              {anoche.bedTimeISO && (
+              {horasDeAnoche && (
                 <EliteText style={s.dataSub}>
-                  Te acostaste a las {fmtHoraISO(anoche.bedTimeISO)}
+                  Te acostaste a las {fmtHoraISO(horasDeAnoche)}
                   {desfase != null && sleepLabel
                     ? desfase > 15
                       ? ` · ${desfase} min después de tu objetivo (${sleepLabel})`
