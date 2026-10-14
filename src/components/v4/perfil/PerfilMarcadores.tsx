@@ -9,18 +9,23 @@
  * (para el enlace `/salud?marcador=<key>`), y cuando hay un marcador que
  * enfocar se reporta su altura dentro de esta pieza (onPosicionFila) para que
  * la pantalla lo traiga a la vista.
+ *
+ * 14-oct-2026 (ronda de marca): la pildora del estado ya no lleva la letra
+ * del color sobre su tinte al 16% (en oscuro, lima por cada marcador optimo):
+ * tinte al 6%, punto de color y letra en t.texto.
  */
 import { useCallback, useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useTintaMarca } from '@/src/components/marca/useTintaMarca';
+import { LETTER_SPACING } from '@/src/constants/brand';
 import type { EliteMarcador } from '@/src/services/elite/elite-v3-core';
 import type { GrupoMarcadoresVista, InsumosVinculo } from '@/src/services/perfil/perfil-core';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { colorEstado, suave, TOQUE_MIN } from './perfil-ui';
+import { colorEstado, suave, TINTE_MAX, TOQUE_MIN } from './perfil-ui';
 import { PerfilMarcadorDetalle } from './PerfilMarcadorDetalle';
 
 interface Props {
@@ -46,7 +51,7 @@ export function PerfilMarcadores({
   grupos, porKey, programa, insumos, filtro, onQuitarFiltro, abierto, onAbrir, enfocar, onPosicionFila,
   onReintentarPlan, reintentandoPlan,
 }: Props) {
-  const t = useSurfaceTokens();
+  const { t, borde } = useTintaMarca();
   const yGrupo = useRef(new Map<string, number>());
   const yCard = useRef(new Map<string, number>());
   const yFila = useRef(new Map<string, number>());
@@ -75,7 +80,7 @@ export function PerfilMarcadores({
           onPress={() => { haptic.light(); onQuitarFiltro(); }}
           accessibilityRole="button"
           accessibilityLabel={`Quitar el filtro de ${filtro.nombre}`}
-          style={[s.filtro, { borderColor: t.borde, backgroundColor: t.card }]}
+          style={[s.filtro, { borderColor: borde, backgroundColor: t.card }]}
         >
           <EliteText style={[s.filtroTexto, { color: t.texto }]} numberOfLines={1}>Sistema: {filtro.nombre}</EliteText>
           <Ionicons name="close" size={16} color={t.textoSecundario} />
@@ -96,7 +101,7 @@ export function PerfilMarcadores({
               </EliteText>
             </View>
             <View
-              style={[s.card, { backgroundColor: t.card, borderColor: t.borde }]}
+              style={[s.card, { backgroundColor: t.card, borderColor: borde }]}
               onLayout={(e) => { yCard.current.set(g.estado ?? 'sin', e.nativeEvent.layout.y); intentarReportar(); }}
             >
               {g.marcadores.map((m, i) => {
@@ -106,7 +111,7 @@ export function PerfilMarcadores({
                 return (
                   <View
                     key={m.key}
-                    style={i > 0 ? [s.separador, { borderTopColor: t.borde }] : null}
+                    style={i > 0 ? [s.separador, { borderTopColor: borde }] : null}
                     onLayout={(e) => { yFila.current.set(m.key, e.nativeEvent.layout.y); intentarReportar(); }}
                   >
                     <AnimatedPressable
@@ -120,8 +125,9 @@ export function PerfilMarcadores({
                       <View style={s.derecha}>
                         <EliteText style={[s.valor, { color: t.texto }]}>{m.valorTexto}</EliteText>
                         {m.etiqueta ? (
-                          <View style={[s.pildora, { backgroundColor: suave(colorM, 0.16) }]}>
-                            <EliteText style={[s.pildoraTexto, { color: colorM }]} numberOfLines={1}>{m.etiqueta}</EliteText>
+                          <View style={[s.pildora, { backgroundColor: suave(colorM, TINTE_MAX) }]}>
+                            <View style={[s.puntoChico, { backgroundColor: colorM }]} />
+                            <EliteText style={[s.pildoraTexto, { color: t.texto }]} numberOfLines={1}>{m.etiqueta}</EliteText>
                           </View>
                         ) : null}
                       </View>
@@ -151,19 +157,23 @@ const s = StyleSheet.create({
   caja: { paddingHorizontal: Spacing.md, gap: Spacing.md },
   filtro: {
     minHeight: TOQUE_MIN, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: Spacing.sm,
-    borderWidth: 1, borderRadius: 999, paddingHorizontal: Spacing.md,
+    borderWidth: 1, borderRadius: Radius.pill, paddingHorizontal: Spacing.md,
   },
   filtroTexto: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, maxWidth: 260 },
   grupo: { gap: Spacing.sm },
-  grupoCabeza: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  grupoCabeza: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   punto: { width: 8, height: 8, borderRadius: 4 },
-  grupoTitulo: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 1.5 },
+  grupoTitulo: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: LETTER_SPACING.wide },
   card: { borderRadius: Radius.card, borderWidth: 1, paddingHorizontal: Spacing.md },
   separador: { borderTopWidth: StyleSheet.hairlineWidth },
   fila: { minHeight: TOQUE_MIN + 8, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.sm },
   nombre: { flex: 1, fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
-  derecha: { alignItems: 'flex-end', gap: 4, maxWidth: '45%' },
+  derecha: { alignItems: 'flex-end', gap: Spacing.xs, maxWidth: '45%' },
   valor: { fontSize: FontSizes.md, fontFamily: Fonts.bold },
-  pildora: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
-  pildoraTexto: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  pildora: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.sm, paddingVertical: 2,
+  },
+  puntoChico: { width: 6, height: 6, borderRadius: 3 },
+  pildoraTexto: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, flexShrink: 1 },
 });

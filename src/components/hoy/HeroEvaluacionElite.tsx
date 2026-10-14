@@ -39,30 +39,33 @@ import { HoyResumenCard } from '@/src/components/hoy/HoyResumenCard';
 import type { TarjetaResumen } from '@/src/services/hoy/hoy-resumen-core';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { ELEVATION, SECTION_TITLE } from '@/src/constants/brand';
 import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
 import { VOZ_ELITE, type VozPrograma } from '@/src/services/elite/voz-programa-core';
 import { textosNoSePudoLeer } from '@/src/services/elite/mi-programa-core';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useTintaMarca } from '@/src/components/marca/useTintaMarca';
 
 /** El nombre del coach vive en un solo sitio (lanzamiento.ts); aqui solo se pone en mayusculas. */
 const ETIQUETA = `TU EVALUACIÓN CON ${NOMBRE_COACH_ELITE.toUpperCase()}`;
 
+/**
+ * 14-oct-2026 (marca): borde neutro (nunca lima), ícono teal sobre t.hundido
+ * y ceja gris. Estas tarjetas planas no llevan lima: no hay CTA ni dato heroico.
+ */
 function useCard() {
-  const t = useSurfaceTokens();
-  const dark = t.kind === 'dark';
-  const acento = dark ? ATP_BRAND.lime : t.tealTexto;
-  const card = [s.card, { backgroundColor: t.card, borderColor: dark ? withOpacity(ATP_BRAND.lime, 0.35) : t.bordeEditorial }];
-  return { t, dark, acento, card };
+  const { t, dark, teal, borde } = useTintaMarca();
+  const card = [s.card, { backgroundColor: t.card, borderColor: borde }];
+  return { t, dark, teal, card };
 }
 
-function Cabecera({ acento, texto = ETIQUETA }: { acento: string; texto?: string }) {
+function Cabecera({ texto = ETIQUETA }: { texto?: string }) {
+  const { t, teal } = useTintaMarca();
   return (
     <View style={s.headerRow}>
-      <View style={[s.iconWrap, { backgroundColor: withOpacity(acento, 0.14) }]}>
-        <AppIcon name="evaluaciones" size={18} color={acento} />
+      <View style={[s.iconWrap, { backgroundColor: t.hundido }]}>
+        <AppIcon name="evaluaciones" size={18} color={teal} />
       </View>
-      <EliteText style={[s.label, { color: acento }]}>{texto}</EliteText>
+      <EliteText style={[s.label, { color: t.textoSecundario }]}>{texto}</EliteText>
     </View>
   );
 }
@@ -78,10 +81,10 @@ export function HeroEvaluacionElite({ tarjeta }: { tarjeta: TarjetaResumen }) {
 
 /** Cliente Elite sin evaluacion cargada todavia. No se le pide subir nada. */
 export function HeroEliteEnCamino({ onActualizar }: { onActualizar: () => void }) {
-  const { t, acento, card } = useCard();
+  const { t, card } = useCard();
   return (
     <Animated.View entering={FadeInUp.delay(100).springify()} style={card}>
-      <Cabecera acento={acento} />
+      <Cabecera />
       <EliteText style={[s.tituloGrande, { color: t.texto }]}>{NOMBRE_COACH_ELITE} está preparando tu evaluación</EliteText>
       {/* 8-oct-2026 (revisión en frío): decía "tu Edad ATP, tus marcadores y
           tu plan". Desde el Hoy editorial los marcadores ya no salen aquí
@@ -115,7 +118,7 @@ export function HeroEliteEnCamino({ onActualizar }: { onActualizar: () => void }
 export function HeroEliteNoSePudoLeer({ onReintentar, formato = false, tope = false, voz = VOZ_ELITE }: {
   onReintentar: () => void; formato?: boolean; tope?: boolean; voz?: Pick<VozPrograma, 'documento'>;
 }) {
-  const { t, acento, card } = useCard();
+  const { t, card } = useCard();
   const x = textosNoSePudoLeer(voz);
   const cuerpo = formato
     ? x.formato
@@ -124,7 +127,7 @@ export function HeroEliteNoSePudoLeer({ onReintentar, formato = false, tope = fa
       : `Revisa tu conexión. ${x.sigueGuardado}`;
   return (
     <View style={card}>
-      <Cabecera acento={acento} texto={x.etiqueta} />
+      <Cabecera texto={x.etiqueta} />
       <EliteText style={[s.titulo, { color: t.texto }]}>{x.titulo}</EliteText>
       <EliteText style={[s.body, { color: t.textoSecundario }]}>{cuerpo}</EliteText>
       <AnimatedPressable
@@ -141,10 +144,10 @@ export function HeroEliteNoSePudoLeer({ onReintentar, formato = false, tope = fa
 
 /** Mientras se lee: cabecera neutra, porque todavia no se sabe si es Elite. */
 export function HeroEliteCargando() {
-  const { t, acento, card } = useCard();
+  const { t, card } = useCard();
   return (
     <View style={card}>
-      <Cabecera acento={acento} texto="TU INICIO" />
+      <Cabecera texto="TU INICIO" />
       <EliteText style={[s.body, { color: t.textoSecundario }]}>Leyendo tus datos...</EliteText>
     </View>
   );
@@ -156,10 +159,10 @@ export function HeroEliteCargando() {
  * que lo de Enrique viene.
  */
 export function NotaEvaluacionEnCamino() {
-  const { t, acento } = useCard();
+  const { t, teal } = useCard();
   return (
-    <View style={[s.nota, { backgroundColor: withOpacity(acento, 0.1) }]}>
-      <AppIcon name="evaluaciones" size={14} color={acento} />
+    <View style={[s.nota, { backgroundColor: t.hundido }]}>
+      <AppIcon name="evaluaciones" size={14} color={teal} />
       <EliteText style={[s.notaTexto, { color: t.texto }]}>{NOMBRE_COACH_ELITE} está preparando tu evaluación. Aparece aquí cuando la termine.</EliteText>
     </View>
   );
@@ -168,23 +171,23 @@ export function NotaEvaluacionEnCamino() {
 const s = StyleSheet.create({
   card: {
     borderWidth: 0.5,
-    borderRadius: Radius.md,
+    borderRadius: Radius.card,
     padding: Spacing.md,
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iconWrap: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  label: { fontFamily: Fonts.bold, fontSize: 10, letterSpacing: 2 },
-  titulo: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginTop: 10 },
-  tituloGrande: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, marginTop: 10 },
+  iconWrap: { width: 32, height: 32, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  label: { fontFamily: Fonts.semiBold, fontSize: SECTION_TITLE.fontSize, letterSpacing: SECTION_TITLE.letterSpacing },
+  titulo: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginTop: Spacing.sm },
+  tituloGrande: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, marginTop: Spacing.sm },
   body: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 20, marginTop: 6 },
   btnQuiet: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    borderWidth: 0.5, borderColor: ELEVATION[2].border, borderRadius: 12,
+    borderWidth: 0.5, borderColor: ELEVATION[2].border, borderRadius: Radius.card,
     paddingVertical: 11, marginTop: Spacing.sm,
   },
   btnQuietText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
-  nota: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, marginTop: 10 },
+  nota: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, borderRadius: Radius.sm, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.sm, marginTop: Spacing.sm },
   notaTexto: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, lineHeight: 16 },
 });

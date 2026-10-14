@@ -52,8 +52,8 @@ import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { SECTION_TITLE } from '@/src/constants/brand';
+import { useTintaMarca } from '@/src/components/marca/useTintaMarca';
 
 interface Props {
   userId?: string;
@@ -84,9 +84,9 @@ interface Props {
 }
 
 export function ProgramaHeader({ userId, tieneEvaluacion, soloAvance, recarga, prometerPreparacion = true }: Props) {
-  const t = useSurfaceTokens();
-  const dark = t.kind === 'dark';
-  const acento = dark ? ATP_BRAND.lime : t.tealTexto;
+  // 14-oct-2026 (marca): borde neutro, ceja gris y Reintentar neutro. El
+  // lima se queda solo en la barra de avance (el dato del programa).
+  const { t, dark, lima, borde } = useTintaMarca();
   const { programa, recargar } = useProgramaElite(userId);
   const primeraRecarga = useRef(recarga);
   useEffect(() => {
@@ -94,7 +94,7 @@ export function ProgramaHeader({ userId, tieneEvaluacion, soloAvance, recarga, p
     recargar();
   }, [recarga, recargar]);
   const eyebrow = `TU PROGRAMA CON ${NOMBRE_COACH_ELITE.toUpperCase()}`;
-  const tarjeta = [s.card, { backgroundColor: t.card, borderColor: dark ? withOpacity(ATP_BRAND.lime, 0.2) : t.bordeEditorial }];
+  const tarjeta = [s.card, { backgroundColor: t.card, borderColor: borde }];
 
   // 7-oct-2026 (Hoy editorial): las reglas de qué se pinta (las del 25-sep, en
   // el mismo orden) viven en hoy-resumen-core para poder probarlas.
@@ -112,15 +112,15 @@ export function ProgramaHeader({ userId, tieneEvaluacion, soloAvance, recarga, p
   if (vista.vista === 'error') {
     return (
       <View style={tarjeta}>
-        <EliteText style={[s.eyebrow, { color: acento }]}>{eyebrow}</EliteText>
+        <EliteText style={[s.eyebrow, { color: t.textoSecundario }]}>{eyebrow}</EliteText>
         <EliteText style={[s.texto, { color: t.texto }]}>No pudimos leer tu programa. Revisa tu conexión.</EliteText>
         <AnimatedPressable
           onPress={() => { haptic.light(); recargar(); }}
-          style={[s.boton, { borderColor: acento }]}
+          style={[s.boton, { backgroundColor: t.hundido }]}
           accessibilityRole="button"
           accessibilityLabel="Reintentar"
         >
-          <EliteText style={[s.botonTexto, { color: acento }]}>Reintentar</EliteText>
+          <EliteText style={[s.botonTexto, { color: t.texto }]}>Reintentar</EliteText>
         </AnimatedPressable>
       </View>
     );
@@ -129,7 +129,7 @@ export function ProgramaHeader({ userId, tieneEvaluacion, soloAvance, recarga, p
   if (vista.vista === 'sin_evaluacion') {
     return (
       <Animated.View entering={FadeInUp.delay(60).springify()} style={tarjeta}>
-        <EliteText style={[s.eyebrow, { color: acento }]}>{eyebrow}</EliteText>
+        <EliteText style={[s.eyebrow, { color: t.textoSecundario }]}>{eyebrow}</EliteText>
         <EliteText style={[s.titulo, { color: t.texto }]}>Tu evaluación está en preparación</EliteText>
         <EliteText style={[s.texto, { color: t.textoSecundario }]}>
           {`Cuando ${NOMBRE_COACH_ELITE} la cargue, aquí verás en qué semana de tu programa vas.`}
@@ -143,7 +143,7 @@ export function ProgramaHeader({ userId, tieneEvaluacion, soloAvance, recarga, p
   if (vista.vista === 'compacta' && vista.porEmpezar) {
     return (
       <Animated.View entering={FadeInUp.delay(60).springify()} style={tarjeta}>
-        <EliteText style={[s.eyebrow, { color: acento }]}>{eyebrow}</EliteText>
+        <EliteText style={[s.eyebrow, { color: t.textoSecundario }]}>{eyebrow}</EliteText>
         <EliteText style={[s.titulo, { color: t.texto }]}>{vista.nombre ?? 'Tu programa'}</EliteText>
         <EliteText style={[s.texto, { color: t.textoSecundario }]}>{lineaPorEmpezar(vista.porEmpezar)}</EliteText>
       </Animated.View>
@@ -155,7 +155,7 @@ export function ProgramaHeader({ userId, tieneEvaluacion, soloAvance, recarga, p
   const a = vista.vista === 'compacta' ? vista.avance : null;
   return (
     <Animated.View entering={FadeInUp.delay(60).springify()} style={tarjeta}>
-      <EliteText style={[s.eyebrow, { color: acento }]}>{eyebrow}</EliteText>
+      <EliteText style={[s.eyebrow, { color: t.textoSecundario }]}>{eyebrow}</EliteText>
       {a === null ? (
         <EliteText style={[s.texto, { color: t.textoSecundario }]}>
           No se pudo leer la fecha de inicio de tu programa.
@@ -181,7 +181,7 @@ export function ProgramaHeader({ userId, tieneEvaluacion, soloAvance, recarga, p
             accessibilityRole="progressbar"
             accessibilityValue={{ min: 0, max: 100, now: a.pct }}
           >
-            <View style={[s.relleno, { width: `${a.pct}%`, backgroundColor: acento }]} />
+            <View style={[s.relleno, { width: `${a.pct}%`, backgroundColor: lima }]} />
           </View>
         </>
       )}
@@ -198,15 +198,15 @@ const s = StyleSheet.create({
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
     borderWidth: 0.5,
-    borderRadius: Radius.md,
-    padding: 14,
-    gap: 4,
+    borderRadius: Radius.card,
+    padding: Spacing.md,
+    gap: Spacing.xs,
   },
-  eyebrow: { fontFamily: Fonts.bold, fontSize: 10, letterSpacing: 2 },
+  eyebrow: { fontFamily: Fonts.semiBold, fontSize: SECTION_TITLE.fontSize, letterSpacing: SECTION_TITLE.letterSpacing },
   titulo: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, marginTop: 2 },
   texto: { fontFamily: Fonts.regular, fontSize: FontSizes.sm },
-  pista: { height: 6, borderRadius: 3, overflow: 'hidden', marginTop: 8 },
+  pista: { height: 6, borderRadius: 3, overflow: 'hidden', marginTop: Spacing.sm },
   relleno: { height: 6, borderRadius: 3 },
-  boton: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: 14, paddingVertical: 6, marginTop: 8 },
+  boton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', borderRadius: Radius.pill, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, marginTop: Spacing.sm },
   botonTexto: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 });

@@ -4,6 +4,10 @@
  * documento, documento sin evaluacion) con sus botones, para que nunca se
  * vea vacio y nada se pierda; y la fila de enlace ("Tu historia",
  * "Tu documento completo").
+ *
+ * 14-oct-2026 (ronda de marca): bordes neutros, esqueleto del heroe en 16/9
+ * (igual que el heroe) y el indicador de carga del boton principal con la
+ * misma tinta que su texto (en claro iba negro sobre teal).
  */
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -11,15 +15,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { AppIcon, type AppIconName } from '@/src/components/ui/AppIcon';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useTintaMarca } from '@/src/components/marca/useTintaMarca';
+import { LETTER_SPACING } from '@/src/constants/brand';
 import type { RutaPerfil } from '@/src/services/perfil/perfil-core';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { acento, suave, TOQUE_MIN } from './perfil-ui';
 
 export function PerfilEsqueleto({ etiqueta }: { etiqueta: string }) {
-  const t = useSurfaceTokens();
-  const bloque = { backgroundColor: t.card, borderColor: t.borde };
+  const { t, borde } = useTintaMarca();
+  const bloque = { backgroundColor: t.card, borderColor: borde };
   return (
     <View style={s.esqueleto} accessible accessibilityLabel={etiqueta}>
       <View style={[s.esqTitulo, bloque]} />
@@ -49,10 +54,11 @@ interface TarjetaProps {
 }
 
 export function PerfilTarjetaHonesta({ ceja, titulo, texto, icono, botones }: TarjetaProps) {
-  const t = useSurfaceTokens();
+  const { t, borde } = useTintaMarca();
   const color = acento(t);
+  const tintaPrincipal = t.kind === 'dark' ? t.textoSobreLima : t.card;
   return (
-    <View style={[s.tarjeta, { backgroundColor: t.card, borderColor: t.borde }]}>
+    <View style={[s.tarjeta, { backgroundColor: t.card, borderColor: borde }]}>
       {icono ? <AppIcon name={icono} size={28} color={color} /> : null}
       {ceja ? <EliteText style={[s.ceja, { color }]}>{ceja}</EliteText> : null}
       <EliteText style={[s.titulo, { color: t.texto }]} accessibilityRole="header">{titulo}</EliteText>
@@ -70,14 +76,14 @@ export function PerfilTarjetaHonesta({ ceja, titulo, texto, icono, botones }: Ta
               s.boton,
               b.principal
                 ? { backgroundColor: t.kind === 'dark' ? color : t.tealTexto, borderColor: 'transparent' }
-                : { borderColor: t.borde, backgroundColor: suave(t.hundido, 0.6) },
+                : { borderColor: borde, backgroundColor: suave(t.hundido, 0.6) },
             ]}
           >
             {b.cargando ? (
-              <ActivityIndicator size="small" color={b.principal ? t.textoSobreLima : t.texto} />
+              <ActivityIndicator size="small" color={b.principal ? tintaPrincipal : t.texto} />
             ) : (
               <EliteText
-                style={[s.botonTexto, { color: b.principal ? (t.kind === 'dark' ? t.textoSobreLima : t.card) : t.texto }]}
+                style={[s.botonTexto, { color: b.principal ? tintaPrincipal : t.texto }]}
               >
                 {b.texto}
               </EliteText>
@@ -97,14 +103,14 @@ interface FilaProps {
 }
 
 export function PerfilFilaEnlace({ icono, titulo, detalle, ruta }: FilaProps) {
-  const t = useSurfaceTokens();
+  const { t, borde } = useTintaMarca();
   const router = useRouter();
   return (
     <AnimatedPressable
       onPress={() => { haptic.light(); router.push(ruta); }}
       accessibilityRole="link"
       accessibilityLabel={detalle ? `${titulo}. ${detalle}` : titulo}
-      style={[s.fila, { backgroundColor: t.card, borderColor: t.borde }]}
+      style={[s.fila, { backgroundColor: t.card, borderColor: borde }]}
     >
       <AppIcon name={icono} size={22} color={t.texto} />
       <View style={s.filaTextos}>
@@ -119,20 +125,20 @@ export function PerfilFilaEnlace({ icono, titulo, detalle, ruta }: FilaProps) {
 const s = StyleSheet.create({
   esqueleto: { paddingHorizontal: Spacing.md, paddingTop: Spacing.lg, gap: Spacing.md },
   esqTitulo: { height: 56, width: '70%', borderRadius: Radius.sm, borderWidth: 1 },
-  esqHero: { aspectRatio: 16 / 10, borderRadius: Radius.card, borderWidth: 1 },
+  esqHero: { aspectRatio: 16 / 9, borderRadius: Radius.card, borderWidth: 1 },
   esqChips: { flexDirection: 'row', gap: Spacing.sm },
-  esqChip: { height: TOQUE_MIN, width: 96, borderRadius: 999, borderWidth: 1 },
+  esqChip: { height: TOQUE_MIN, width: 96, borderRadius: Radius.pill, borderWidth: 1 },
   esqFila: { height: 52, borderRadius: Radius.sm, borderWidth: 1 },
   tarjeta: {
     marginHorizontal: Spacing.md, marginTop: Spacing.md, borderRadius: Radius.card, borderWidth: 1,
     padding: Spacing.lg, gap: Spacing.sm,
   },
-  ceja: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2 },
+  ceja: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: LETTER_SPACING.wide },
   titulo: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, lineHeight: 24 },
   texto: { fontSize: FontSizes.sm, lineHeight: 20 },
   botones: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.sm },
   boton: {
-    minHeight: TOQUE_MIN, minWidth: 120, paddingHorizontal: Spacing.md, borderRadius: 999, borderWidth: 1,
+    minHeight: TOQUE_MIN, minWidth: 120, paddingHorizontal: Spacing.md, borderRadius: Radius.pill, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   botonTexto: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },

@@ -37,6 +37,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EliteText } from '@/components/elite-text';
 import { AppIcon } from '@/src/components/ui/AppIcon';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { haptic } from '@/src/utils/haptics';
 import {
   TAB_BAR_ICONS,
   TABS_OCULTAS_POR_VISTA,
@@ -50,7 +52,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { isAdmin } from '@/src/constants/admin-config';
 import { CoachPanelLayout } from '@/src/screens/coach/CoachPanelLayout';
 import { Fonts, Spacing } from '@/constants/theme';
-import { ATP_BRAND, CATEGORY_COLORS } from '@/src/constants/brand';
+import { ATP_BRAND, CATEGORY_COLORS, SECTION_TITLE } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { FeedbackButton } from '@/src/components/FeedbackButton';
 import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
@@ -174,6 +176,10 @@ const ORB_TAB_SIZE = 42;
  * recorta (overflow visible en tabBarStyle de TabsV4, y el item de la barra
  * en variante uikit tampoco recorta). En Android el toque solo entra dentro
  * de la barra, por eso el circulo sube poco: casi todo queda adentro.
+ * 14-oct-2026 (ronda de marca): el toque es AnimatedPressable con haptico
+ * ligero, como todo toque de la v4. AnimatedPressable no reenvia testID: va
+ * en el hueco que lo envuelve. La barra no usa el evento del toque, por eso
+ * onPress y onLongPress se llaman sin el.
  */
 const ORB_V4_SIZE = 50;
 const BOTON_ARGOS_V4 = 62;
@@ -184,11 +190,10 @@ function BotonArgosV4({ onPress, onLongPress, testID, 'aria-selected': seleccion
   const { kind, tokens } = useAppTheme();
   const activo = kind === 'dark' ? ATP_BRAND.lime : tokens.tealTexto;
   return (
-    <View style={styles.argosV4Slot} pointerEvents="box-none">
-      <Pressable
-        onPress={onPress}
-        onLongPress={onLongPress}
-        testID={testID}
+    <View style={styles.argosV4Slot} pointerEvents="box-none" testID={testID}>
+      <AnimatedPressable
+        onPress={() => { haptic.light(); (onPress as (() => void) | undefined)?.(); }}
+        onLongPress={onLongPress ? () => { (onLongPress as () => void)(); } : undefined}
         accessibilityRole="button"
         accessibilityLabel={ARGOS_V4_A11Y}
         accessibilityState={{ selected: !!seleccionado }}
@@ -199,7 +204,7 @@ function BotonArgosV4({ onPress, onLongPress, testID, 'aria-selected': seleccion
         ]}
       >
         <ArgosOrb state={orbState} size={ORB_V4_SIZE} />
-      </Pressable>
+      </AnimatedPressable>
     </View>
   );
 }
@@ -255,9 +260,11 @@ function TabsV4() {
           // El boton de ARGOS sale por arriba: la barra no lo recorta.
           overflow: 'visible',
         },
+        // Etiqueta de la barra: la escala de rotulo de la casa (11), sin
+        // numero a mano. T1 (token propio de barra) queda pendiente.
         tabBarLabelStyle: {
           fontFamily: Fonts.semiBold,
-          fontSize: 11,
+          fontSize: SECTION_TITLE.fontSize,
         },
       }}>
       {TABS_V4.map((t) => (t.icon === null ? (

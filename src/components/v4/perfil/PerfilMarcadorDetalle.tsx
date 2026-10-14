@@ -9,6 +9,9 @@
  * test). Sin vinculo no se dice nada; si una parte del plan no se pudo leer,
  * se dice cual, con su Reintentar (8-oct-2026 (v4, revision en frio)). Cada vinculo lleva a su lugar: practicas y palancas a Mi
  * plan, suplementos a Suplementos.
+ *
+ * 14-oct-2026 (ronda de marca): el aviso ambar baja su tinte a 6% con borde
+ * neutro; la letra chica (10-12 px) nunca en textoTenue.
  */
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -17,7 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { AppIcon, type AppIconName } from '@/src/components/ui/AppIcon';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useTintaMarca } from '@/src/components/marca/useTintaMarca';
+import { LETTER_SPACING } from '@/src/constants/brand';
 import type { EliteMarcador } from '@/src/services/elite/elite-v3-core';
 import {
   avisoVinculosNoLeidos, detalleMarcador, TITULO_LO_MUEVE, vincularMarcadorPlan,
@@ -25,7 +29,7 @@ import {
 } from '@/src/services/perfil/perfil-core';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { acento, colorEstado, suave, TOQUE_MIN } from './perfil-ui';
+import { acento, colorEstado, suave, TINTE_MAX, TOQUE_MIN } from './perfil-ui';
 import { PerfilRangoBarra } from './PerfilRangoBarra';
 
 interface Props {
@@ -46,7 +50,7 @@ const ICONO_VINCULO: Record<TipoVinculo, AppIconName> = {
 type Nivel = 'tuya' | 'general';
 
 export function PerfilMarcadorDetalle({ marcador, programa, insumos, onReintentarPlan, reintentandoPlan }: Props) {
-  const t = useSurfaceTokens();
+  const { t, borde } = useTintaMarca();
   const router = useRouter();
   const d = useMemo(() => detalleMarcador(marcador, { programa }), [marcador, programa]);
   const vinc = useMemo(() => (insumos ? vincularMarcadorPlan(marcador, insumos) : null), [marcador, insumos]);
@@ -61,7 +65,7 @@ export function PerfilMarcadorDetalle({ marcador, programa, insumos, onReintenta
       {d.barra ? <PerfilRangoBarra barra={d.barra} colorPunto={colorEstado(t, d.token)} /> : null}
 
       {d.avisoLabOk ? (
-        <View style={[s.aviso, { backgroundColor: suave(t.advertencia, 0.12), borderColor: suave(t.advertencia, 0.4) }]}>
+        <View style={[s.aviso, { backgroundColor: suave(t.advertencia, TINTE_MAX), borderColor: borde }]}>
           <EliteText style={[s.avisoTexto, { color: t.advertencia }]}>{d.avisoLabOk}</EliteText>
         </View>
       ) : null}
@@ -80,7 +84,7 @@ export function PerfilMarcadorDetalle({ marcador, programa, insumos, onReintenta
                     accessibilityRole="tab"
                     accessibilityLabel={texto}
                     accessibilityState={{ selected: on }}
-                    style={[s.nivel, { borderColor: on ? color : t.borde, backgroundColor: on ? suave(color, 0.12) : 'transparent' }]}
+                    style={[s.nivel, { borderColor: on ? color : borde, backgroundColor: on ? suave(color, 0.12) : 'transparent' }]}
                   >
                     <EliteText style={[s.nivelTexto, { color: on ? t.texto : t.textoSecundario }]}>{texto}</EliteText>
                   </AnimatedPressable>
@@ -101,7 +105,7 @@ export function PerfilMarcadorDetalle({ marcador, programa, insumos, onReintenta
       ) : null}
 
       {vinc === null ? (
-        <EliteText style={[s.cargando, { color: t.textoTenue }]}>Buscando qué lo mueve en tu plan…</EliteText>
+        <EliteText style={[s.cargando, { color: t.textoSecundario }]}>Buscando qué lo mueve en tu plan…</EliteText>
       ) : vinc.vinculos.length > 0 || aviso ? (
         <View style={s.bloque}>
           <EliteText style={[s.subtitulo, { color: t.textoSecundario }]}>{TITULO_LO_MUEVE.toUpperCase()}</EliteText>
@@ -119,7 +123,7 @@ export function PerfilMarcadorDetalle({ marcador, programa, insumos, onReintenta
                 {v.detalle ? (
                   <EliteText style={[s.vinculoDetalle, { color: t.textoSecundario }]} numberOfLines={2}>{v.detalle}</EliteText>
                 ) : null}
-                <EliteText style={[s.fuerza, { color: v.fuerza === 'texto' ? t.textoTenue : color }]}>{v.etiquetaFuerza}</EliteText>
+                <EliteText style={[s.fuerza, { color: v.fuerza === 'texto' ? t.textoSecundario : color }]}>{v.etiquetaFuerza}</EliteText>
               </View>
               <Ionicons name="chevron-forward" size={16} color={t.textoTenue} />
             </AnimatedPressable>
@@ -133,7 +137,7 @@ export function PerfilMarcadorDetalle({ marcador, programa, insumos, onReintenta
                 accessibilityRole="button"
                 accessibilityLabel="Reintentar leer tu plan"
                 accessibilityState={{ busy: reintentandoPlan }}
-                style={[s.reintentar, { borderColor: t.borde }]}
+                style={[s.reintentar, { borderColor: borde }]}
               >
                 {reintentandoPlan
                   ? <ActivityIndicator size="small" color={t.texto} />
@@ -153,9 +157,9 @@ const s = StyleSheet.create({
   avisoTexto: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
   bloque: { gap: Spacing.xs, marginTop: Spacing.xs },
   niveles: { flexDirection: 'row', gap: Spacing.sm },
-  nivel: { minHeight: TOQUE_MIN, borderWidth: 1, borderRadius: 999, paddingHorizontal: Spacing.md, justifyContent: 'center' },
+  nivel: { minHeight: TOQUE_MIN, borderWidth: 1, borderRadius: Radius.pill, paddingHorizontal: Spacing.md, justifyContent: 'center' },
   nivelTexto: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
-  subtitulo: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 1.5 },
+  subtitulo: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: LETTER_SPACING.wide },
   lectura: { fontSize: FontSizes.sm, lineHeight: 20 },
   evidencia: { fontSize: FontSizes.xs, fontFamily: Fonts.regular },
   cargando: { fontSize: FontSizes.xs, fontFamily: Fonts.regular },
@@ -170,7 +174,7 @@ const s = StyleSheet.create({
   avisoPlan: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   avisoPlanTexto: { flex: 1 },
   reintentar: {
-    minHeight: TOQUE_MIN, minWidth: 96, borderWidth: 1, borderRadius: 999, paddingHorizontal: Spacing.md,
+    minHeight: TOQUE_MIN, minWidth: 96, borderWidth: 1, borderRadius: Radius.pill, paddingHorizontal: Spacing.md,
     alignItems: 'center', justifyContent: 'center',
   },
   reintentarTexto: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },

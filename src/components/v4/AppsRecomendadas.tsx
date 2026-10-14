@@ -13,6 +13,11 @@
  * Devuelve null mientras lee, si no hay nada que recomendar o si nada se pudo
  * leer: nunca una fila inventada ni un hueco que parezca vacio.
  *
+ * Ronda de marca (14-oct-2026): cada tarjeta pinta su icono con el color de
+ * la SECCION de la app (APP_SECTION_COLORS, las tres capas del mosaico de la
+ * cuadricula: fondo al 10%, borde al 22%, icono al 100%), asi la misma app
+ * se ve igual aqui y abajo. El rotulo es SECTION_TITLE, gris.
+ *
  * Candados: misma regla que la sala (kit.tsx). Con el nivel sin leer no se
  * cierra nada a quien pago. El Ciclo no necesita compuerta aqui: un habito
  * del ciclo solo llega a la lista si ya paso la de HOY (mi-plan-core), y sin
@@ -29,13 +34,14 @@ import { usePlanV4 } from '@/src/components/v4/plan/usePlanV4';
 import { useAuth } from '@/src/contexts/auth-context';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import { APP_BY_KEY, visibleApps } from '@/src/constants/app-registry';
+import { APP_SECTION_COLORS, SECTION_TITLE, withOpacity } from '@/src/constants/brand';
 import { appsDelPlan } from '@/src/services/plan/plan-v4-core';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 export function AppsRecomendadas(): JSX.Element | null {
   const router = useRouter();
-  const { t, teal, borde } = useTintaPlan();
+  const { t, borde } = useTintaPlan();
   const { user } = useAuth();
   const { insumos, hoy, ahoraMin } = usePlanV4(user?.id);
   const {
@@ -61,6 +67,7 @@ export function AppsRecomendadas(): JSX.Element | null {
         {lista.map((a) => {
           const app = APP_BY_KEY[a.appKey];
           if (!app) return null;
+          const color = APP_SECTION_COLORS[app.section];
           return (
             <AnimatedPressable
               key={a.appKey}
@@ -69,8 +76,8 @@ export function AppsRecomendadas(): JSX.Element | null {
               accessibilityRole="button"
               accessibilityLabel={`${app.label}. ${a.motivo}${a.hoy ? '. Toca hoy' : ''}`}
             >
-              <View style={[s.icono, { backgroundColor: t.hundido }]}>
-                <AppIcon name={app.icon} size={22} color={teal} />
+              <View style={[s.icono, { backgroundColor: withOpacity(color, 0.10), borderColor: withOpacity(color, 0.22) }]}>
+                <AppIcon name={app.icon} size={22} color={color} />
               </View>
               <EliteText style={[s.nombre, { color: t.texto }]} numberOfLines={1}>{app.label}</EliteText>
               <EliteText style={[s.motivo, { color: t.textoSecundario }]} numberOfLines={2}>{a.motivo}</EliteText>
@@ -85,12 +92,17 @@ export function AppsRecomendadas(): JSX.Element | null {
 const s = StyleSheet.create({
   bloque: { marginBottom: Spacing.md },
   titulo: {
-    fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 2,
-    marginHorizontal: Spacing.md + 2, marginBottom: 10,
+    fontFamily: Fonts.semiBold, fontSize: SECTION_TITLE.fontSize, letterSpacing: SECTION_TITLE.letterSpacing,
+    marginHorizontal: Spacing.md, marginBottom: SECTION_TITLE.marginBottom,
   },
   carrusel: { paddingHorizontal: Spacing.md, gap: Spacing.sm },
-  tarjeta: { width: 156, minHeight: 124, borderWidth: 0.5, borderRadius: Radius.md, padding: 12, gap: 6 },
-  icono: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  tarjeta: {
+    width: 156, minHeight: 124, borderWidth: 0.5, borderRadius: Radius.card,
+    padding: Spacing.md - Spacing.xs, gap: Spacing.xs,
+  },
+  icono: {
+    width: 40, height: 40, borderRadius: Radius.card, borderWidth: 0.5, alignItems: 'center', justifyContent: 'center',
+  },
   nombre: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
   motivo: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 16 },
 });

@@ -27,6 +27,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useSystemReducedMotion } from '@/src/components/ui/useSystemReducedMotion';
 import type { AppIconName } from '@/src/components/ui/app-icon-names';
 import { EscribirleCoach } from '@/src/components/elite-dx/EscribirleCoach';
 import { useLecturaDocumento } from '@/src/components/elite-dx/useLecturaDocumento';
@@ -68,8 +70,11 @@ const ICONO_EXPEDIENTE: Record<ExpedienteKey, AppIconName> = {
 };
 
 export function PlanV4Screen(): JSX.Element {
-  // El jalon de refrescar va en teal: el lima queda para los micro-acentos.
+  // El jalon de refrescar va en teal: el lima queda para la barra del heroe.
   const { teal } = useTintaPlan();
+  // 14-oct-2026 (ronda de marca): los pilares entran escalonados (40 ms
+  // cada uno); con "reducir movimiento" del sistema, quietos.
+  const movimientoReducido = useSystemReducedMotion();
   const router = useRouter();
   const { user, loading: sesionCargando } = useAuth();
   const userId = user?.id;
@@ -194,14 +199,15 @@ export function PlanV4Screen(): JSX.Element {
               onReintentar={() => plan.reintentar('todo')}
             />
           ) : null}
-          {pilares?.map((p) => (
-            <TarjetaPilar
-              key={p.key}
-              p={p}
-              ocupado={plan.releyendo.includes(p.key)}
-              onIr={ir}
-              onReintentar={() => plan.reintentar(p.key, PARTES_DE_SECCION[SECCION_DE_PILAR[p.key]])}
-            />
+          {pilares?.map((p, i) => (
+            <Animated.View key={p.key} entering={movimientoReducido ? undefined : FadeInDown.delay(i * 40)}>
+              <TarjetaPilar
+                p={p}
+                ocupado={plan.releyendo.includes(p.key)}
+                onIr={ir}
+                onReintentar={() => plan.reintentar(p.key, PARTES_DE_SECCION[SECCION_DE_PILAR[p.key]])}
+              />
+            </Animated.View>
           ))}
         </View>
 

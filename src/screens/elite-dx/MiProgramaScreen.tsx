@@ -43,6 +43,11 @@
  *    bloques sin contenido no salen. La ceja va neutra ("ATP") mientras no
  *    hay documento leido. Con un documento Elite, todo como antes.
  *
+ * 14-oct-2026 (marca): useTintaMarca. Bordes neutros, íconos teal sobre
+ * t.hundido, cejas grises. El resumen de la evaluacion es un HEROE (foto B/N
+ * + degradado de marca + velo, FondoEditorial) y su cifra de Edad ATP es el
+ * unico lima de la pantalla junto con la barra del programa.
+ *
  * Tinta: tokens del scope. El <TabScreen themed> abre el <ThemeReady>, por
  * eso el contenido vive en un componente hijo (useSurfaceTokens arriba de el
  * devolveria el oscuro de siempre). Glifos por <AppIcon>; Ionicons solo
@@ -73,14 +78,16 @@ import {
   type MotivoFallo,
 } from '@/src/services/elite/mi-programa-core';
 import { lineaPidenAccion, TOPE_HERO_ELITE_MS } from '@/src/services/hoy/elite-hoy-core';
-import { edadIntegralTexto, textoDeltaEdad, tonoDeltaEdad } from '@/src/services/hoy/hero-laboratorios-core';
+import { edadIntegralTexto, textoDeltaEdad } from '@/src/services/hoy/hero-laboratorios-core';
 import { EVALUACION_ELITE_CHANGED_EVENT, leerEvaluacionEliteVigente } from '@/src/services/hoy/elite-hoy-service';
 import { vozDeDocumento, vozParaTextos, VOZ_ELITE, type VozPrograma } from '@/src/services/elite/voz-programa-core';
 import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
-import { useAppTheme, useSurfaceTokens } from '@/src/contexts/theme-context';
+import { ATP_BRAND, SECTION_TITLE, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { FondoEditorial } from '@/src/components/marca/FondoEditorial';
+import { useTintaMarca } from '@/src/components/marca/useTintaMarca';
 
 const RUTA_EVALUACION = RUTAS_MI_PROGRAMA.evaluacion;
 
@@ -173,25 +180,23 @@ export function MiProgramaScreen() {
  */
 function Encabezado({ ceja }: { ceja: string }) {
   const tg = useAppTheme().tokens;
-  const acento = tg.kind === 'dark' ? ATP_BRAND.lime : tg.tealTexto;
+  // 14-oct-2026 (marca): la ceja es gris; el lima es del dato heroico.
   return (
     <View style={s.header}>
-      <EliteText style={[s.eyebrow, { color: acento }]} numberOfLines={1}>{ceja}</EliteText>
+      <EliteText style={[s.eyebrow, { color: tg.textoSecundario }]} numberOfLines={1}>{ceja}</EliteText>
       <EliteText style={[s.title, { color: tg.texto }]}>MI PROGRAMA</EliteText>
     </View>
   );
 }
 
 function Contenido() {
-  const t = useSurfaceTokens();
+  const { teal } = useTintaMarca();
   const router = useRouter();
   const { user } = useAuth();
   const userId = user?.id;
   const {
     esElite, tieneEvaluacionElite, nivelNoSePudoLeer, isLoading: nivelCargando, refresh: refrescarNivel, tier,
   } = useSubscription();
-  const dark = t.kind === 'dark';
-  const acento = dark ? ATP_BRAND.lime : t.tealTexto;
 
   const [estado, setEstado] = useState<EstadoMiPrograma>({ estado: 'cargando' });
   const [refrescando, setRefrescando] = useState(false);
@@ -274,7 +279,7 @@ function Contenido() {
     <ScrollView
       showsVerticalScrollIndicator={false}
       contentContainerStyle={s.scroll}
-      refreshControl={<RefreshControl refreshing={refrescando} onRefresh={onRefresh} tintColor={acento} colors={[acento]} />}
+      refreshControl={<RefreshControl refreshing={refrescando} onRefresh={onRefresh} tintColor={teal} colors={[teal]} />}
     >
       <ProgramaHeader userId={userId} soloAvance recarga={recarga} />
 
@@ -367,22 +372,15 @@ function Contenido() {
 
 // ─── Piezas ─────────────────────────────────────────────────────────────────
 
-function useTinta() {
-  const t = useSurfaceTokens();
-  const dark = t.kind === 'dark';
-  const acento = dark ? ATP_BRAND.lime : t.tealTexto;
-  const borde = dark ? withOpacity(ATP_BRAND.lime, 0.2) : t.bordeEditorial;
-  return { t, dark, acento, borde };
-}
-
+/** Ceja de las tarjetas planas: ícono teal sobre hundido y texto gris. */
 function Cabecera({ texto }: { texto: string }) {
-  const { acento } = useTinta();
+  const { t, teal } = useTintaMarca();
   return (
     <View style={s.cabecera}>
-      <View style={[s.iconWrap, { backgroundColor: withOpacity(acento, 0.14) }]}>
-        <AppIcon name="evaluaciones" size={18} color={acento} />
+      <View style={[s.iconWrap, { backgroundColor: t.hundido }]}>
+        <AppIcon name="evaluaciones" size={18} color={teal} />
       </View>
-      <EliteText style={[s.eyebrowCard, { color: acento }]}>{texto}</EliteText>
+      <EliteText style={[s.eyebrowCard, { color: t.textoSecundario }]}>{texto}</EliteText>
     </View>
   );
 }
@@ -394,59 +392,83 @@ function Cabecera({ texto }: { texto: string }) {
  */
 const ETIQUETA_EVALUACION = etiquetaDocumentoConCoach(VOZ_ELITE);
 
-/** Edad ATP contra la real, cuantos piden accion y la version. Solo lo que trae el documento. */
+/**
+ * Foto del heroe: blanco y negro, sin persona, del banco que ya usa PerfilHero
+ * (hoy-extra/tu-dia/noche-02, saturacion media 0.000 medida con PIL).
+ */
+const FOTO_HERO_PROGRAMA = require('@/assets/images/hoy-extra/tu-dia/noche-02.webp');
+/** Letra del heroe: blanca sobre la foto oscura en los dos temas. */
+const BLANCO = ATP_BRAND.white;
+const BLANCO_SUAVE = withOpacity(ATP_BRAND.white, 0.72);
+const VIDRIO = withOpacity(ATP_BRAND.white, 0.12);
+
+/**
+ * Edad ATP contra la real, cuantos piden accion y la version. Solo lo que trae el documento.
+ * 14-oct-2026 (marca): es el heroe de la pantalla (FondoEditorial). La cifra de
+ * Edad ATP es el dato heroico: lima en los dos temas, porque la superficie del
+ * heroe siempre es oscura (la regla "en claro el lima nunca es letra" es sobre
+ * fondo claro). Igual que la Edad ATP del Perfil v4. La edad
+ * real y el delta van en blanco: el delta ya dice en palabras si es mejor o peor.
+ */
 function Resumen({ e, voz, ir }: { e: EliteV3; voz: VozPrograma; ir: (h: Href) => void }) {
-  const { t, acento, borde } = useTinta();
+  const { dark, borde } = useTintaMarca();
   const r = resumenEvaluacion(e);
   const destinoPiden = r.destinoPiden;
-  const tono = r.edad ? tonoDeltaEdad(r.edad) : 'neutro';
-  const colorDelta = tono === 'exito' ? t.exito : tono === 'advertencia' ? t.advertencia : t.textoSecundario;
+  // El héroe es oscuro en los dos temas: la cifra va en lima siempre, igual
+  // que la Edad ATP del Perfil v4 (una sola regla para el dato heroico).
+  const cifra = ATP_BRAND.lime;
 
   return (
-    <Animated.View entering={FadeInUp.delay(100).springify()} style={[s.card, { backgroundColor: t.card, borderColor: borde }]}>
-      <Cabecera texto={etiquetaDocumentoConCoach(voz)} />
+    <Animated.View
+      entering={FadeInUp.delay(100).springify()}
+      style={[s.hero, !dark && { borderWidth: 1, borderColor: borde }]}
+    >
+      <FondoEditorial imagen={FOTO_HERO_PROGRAMA} />
+      <View style={s.heroCuerpo}>
+        <EliteText style={s.heroCeja}>{etiquetaDocumentoConCoach(voz)}</EliteText>
 
-      {r.edad ? (
-        <AnimatedPressable
-          style={s.edadRow}
-          onPress={() => ir(hrefDeSeccion(r.destinoEdad))}
-          accessibilityRole="button"
-          accessibilityLabel={`Edad ATP ${edadIntegralTexto(r.edad)}, edad real ${r.edad.cronologica}. ${textoDeltaEdad(r.edad)}`}
-        >
-          <View>
-            <EliteText style={[s.edadGrande, { color: acento }]}>{edadIntegralTexto(r.edad)}</EliteText>
-            <EliteText style={[s.edadEtiqueta, { color: t.textoSecundario }]}>EDAD ATP</EliteText>
-          </View>
-          <View>
-            <EliteText style={[s.edadReal, { color: t.texto }]}>{r.edad.cronologica}</EliteText>
-            <EliteText style={[s.edadEtiqueta, { color: t.textoSecundario }]}>EDAD REAL</EliteText>
-          </View>
-          <EliteText style={[s.delta, { color: colorDelta }]}>{textoDeltaEdad(r.edad)}</EliteText>
-          <Ionicons name="chevron-forward" size={16} color={t.textoSecundario} />
-        </AnimatedPressable>
-      ) : (
-        <EliteText style={[s.tituloCard, { color: t.texto }]}>{documentoListo(voz)}</EliteText>
-      )}
+        {r.edad ? (
+          <AnimatedPressable
+            style={s.edadRow}
+            onPress={() => ir(hrefDeSeccion(r.destinoEdad))}
+            accessibilityRole="button"
+            accessibilityLabel={`Edad ATP ${edadIntegralTexto(r.edad)}, edad real ${r.edad.cronologica}. ${textoDeltaEdad(r.edad)}`}
+          >
+            <View>
+              <EliteText style={[s.edadGrande, { color: cifra }]}>{edadIntegralTexto(r.edad)}</EliteText>
+              <EliteText style={s.edadEtiqueta}>EDAD ATP</EliteText>
+            </View>
+            <View>
+              <EliteText style={s.edadReal}>{r.edad.cronologica}</EliteText>
+              <EliteText style={s.edadEtiqueta}>EDAD REAL</EliteText>
+            </View>
+            <EliteText style={s.delta}>{textoDeltaEdad(r.edad)}</EliteText>
+            <Ionicons name="chevron-forward" size={16} color={BLANCO_SUAVE} />
+          </AnimatedPressable>
+        ) : (
+          <EliteText style={s.heroTitulo}>{documentoListo(voz)}</EliteText>
+        )}
 
-      {r.piden !== null && destinoPiden !== null && (
-        <AnimatedPressable
-          style={[s.pidenRow, { backgroundColor: t.hundido }]}
-          onPress={() => ir(hrefDeSeccion(destinoPiden))}
-          accessibilityRole="button"
-          accessibilityLabel={lineaPidenAccion(r.piden)}
-        >
-          <EliteText style={[s.pidenTexto, { color: t.texto }]}>{lineaPidenAccion(r.piden)}</EliteText>
-          <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} />
-        </AnimatedPressable>
-      )}
+        {r.piden !== null && destinoPiden !== null && (
+          <AnimatedPressable
+            style={[s.pidenRow, { backgroundColor: VIDRIO }]}
+            onPress={() => ir(hrefDeSeccion(destinoPiden))}
+            accessibilityRole="button"
+            accessibilityLabel={lineaPidenAccion(r.piden)}
+          >
+            <EliteText style={s.pidenTexto}>{lineaPidenAccion(r.piden)}</EliteText>
+            <Ionicons name="chevron-forward" size={14} color={BLANCO_SUAVE} />
+          </AnimatedPressable>
+        )}
 
-      <EliteText style={[s.pie, { color: t.textoSecundario }]}>{r.version}</EliteText>
+        <EliteText style={s.pie}>{r.version}</EliteText>
+      </View>
     </Animated.View>
   );
 }
 
 function Grupo({ titulo, delay, children }: { titulo?: string; delay: number; children: ReactNode }) {
-  const { t, borde } = useTinta();
+  const { t, borde } = useTintaMarca();
   return (
     <Animated.View entering={FadeInUp.delay(delay).springify()} style={s.grupo}>
       {titulo ? <EliteText style={[s.label, { color: t.textoSecundario }]}>{titulo}</EliteText> : null}
@@ -462,7 +484,7 @@ function Fila({ icon, titulo, detalle, ultima, onPress }: {
   ultima: boolean;
   onPress: () => void;
 }) {
-  const { t, acento } = useTinta();
+  const { t, teal } = useTintaMarca();
   return (
     <AnimatedPressable
       style={[s.fila, !ultima && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.borde }]}
@@ -470,8 +492,8 @@ function Fila({ icon, titulo, detalle, ultima, onPress }: {
       accessibilityRole="button"
       accessibilityLabel={detalle ? `${titulo}: ${detalle}` : titulo}
     >
-      <View style={[s.iconWrap, { backgroundColor: withOpacity(acento, 0.14) }]}>
-        <AppIcon name={icon} size={18} color={acento} />
+      <View style={[s.iconWrap, { backgroundColor: t.hundido }]}>
+        <AppIcon name={icon} size={18} color={teal} />
       </View>
       <View style={s.filaTextos}>
         <EliteText style={[s.filaTitulo, { color: t.texto }]} numberOfLines={1}>{titulo}</EliteText>
@@ -491,7 +513,7 @@ function Fila({ icon, titulo, detalle, ultima, onPress }: {
  * tambien entra quien aun no la tiene y la lectura no llego a saberlo.
  */
 function NoSePudoLeer({ motivo, textos, onReintentar }: { motivo: MotivoFallo; textos: TextosNoSePudoLeer; onReintentar: () => void }) {
-  const { t, borde } = useTinta();
+  const { t, borde } = useTintaMarca();
   // 8-oct-2026 (nivel 2): "tu evaluación" o "tu programa" segun el nivel (textosNoSePudoLeer).
   const cuerpo = motivo === 'formato'
     ? textos.formato
@@ -520,7 +542,7 @@ function SinEvaluacion({ cara, onActualizar, onReintentarCuenta }: {
   onActualizar: () => void;
   onReintentarCuenta: () => void;
 }) {
-  const { t, borde } = useTinta();
+  const { t, borde } = useTintaMarca();
   if (cara === 'cargando') return <View style={s.hueco} />;
   const tarjeta = [s.card, { backgroundColor: t.card, borderColor: borde }];
   if (cara === 'cuenta_no_leida') {
@@ -558,7 +580,7 @@ function SinEvaluacion({ cara, onActualizar, onReintentarCuenta }: {
 }
 
 function BotonQuieto({ texto, onPress }: { texto: string; onPress: () => void }) {
-  const { t } = useTinta();
+  const { t } = useTintaMarca();
   return (
     <AnimatedPressable
       style={[s.btnQuieto, { borderColor: t.bordeMarcado }]}
@@ -574,44 +596,54 @@ function BotonQuieto({ texto, onPress }: { texto: string; onPress: () => void })
 
 const s = StyleSheet.create({
   header: { paddingHorizontal: Spacing.md, paddingTop: Spacing.lg, paddingBottom: Spacing.xs },
-  eyebrow: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 3 },
-  title: { fontSize: 28, fontFamily: Fonts.extraBold, letterSpacing: 2, marginTop: 2 },
+  // 14-oct-2026 (marca): ceja de seccion (11 / 600 / 2) y titulo hero Bold sin
+  // espaciado de logo (letterSpacing 3 es solo del logo).
+  eyebrow: { fontSize: SECTION_TITLE.fontSize, fontFamily: Fonts.semiBold, letterSpacing: SECTION_TITLE.letterSpacing },
+  title: { fontSize: FontSizes.hero, fontFamily: Fonts.bold, marginTop: Spacing.xs },
   scroll: { paddingTop: Spacing.sm, paddingBottom: 120 },
   // Mismo alto aproximado que el resumen: al llegar la lectura no brinca todo.
-  hueco: { height: 150, marginHorizontal: Spacing.md, marginBottom: Spacing.sm },
+  hueco: { height: 150, marginHorizontal: Spacing.md, marginBottom: Spacing.lg },
   card: {
     marginHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.lg,
     borderWidth: 0.5,
-    borderRadius: Radius.md,
+    borderRadius: Radius.card,
     padding: Spacing.md,
   },
-  cabecera: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iconWrap: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  eyebrowCard: { fontFamily: Fonts.bold, fontSize: 10, letterSpacing: 2 },
-  tituloCard: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginTop: 10 },
-  cuerpo: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 20, marginTop: 6 },
-  edadRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 12 },
+  cabecera: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  iconWrap: { width: 32, height: 32, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  eyebrowCard: { fontFamily: Fonts.semiBold, fontSize: SECTION_TITLE.fontSize, letterSpacing: SECTION_TITLE.letterSpacing },
+  tituloCard: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginTop: Spacing.sm },
+  cuerpo: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 20, marginTop: Spacing.xs },
+  // El heroe: FondoEditorial va adentro; aqui solo la caja y el radio.
+  hero: { marginHorizontal: Spacing.md, marginBottom: Spacing.lg, borderRadius: Radius.card, overflow: 'hidden' },
+  heroCuerpo: { padding: Spacing.lg, paddingTop: Spacing.xl },
+  heroCeja: { fontFamily: Fonts.semiBold, fontSize: SECTION_TITLE.fontSize, letterSpacing: SECTION_TITLE.letterSpacing, color: ATP_BRAND.white },
+  heroTitulo: { fontFamily: Fonts.bold, fontSize: FontSizes.xxl, color: BLANCO, marginTop: Spacing.sm },
+  edadRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginTop: Spacing.md },
   edadGrande: { fontFamily: Fonts.extraBold, fontSize: FontSizes.mega, lineHeight: 46 },
-  edadReal: { fontFamily: Fonts.bold, fontSize: FontSizes.hero, lineHeight: 46 },
-  edadEtiqueta: { fontFamily: Fonts.bold, fontSize: 9, letterSpacing: 1.5 },
-  delta: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  edadReal: { fontFamily: Fonts.bold, fontSize: FontSizes.hero, lineHeight: 46, color: BLANCO },
+  edadEtiqueta: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, letterSpacing: SECTION_TITLE.letterSpacing, color: BLANCO_SUAVE },
+  delta: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.md, color: BLANCO },
   pidenRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12, marginTop: 12,
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    borderRadius: Radius.sm, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, marginTop: Spacing.md,
   },
-  pidenTexto: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, lineHeight: 18 },
-  pie: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: 10 },
-  grupo: { marginHorizontal: Spacing.md, marginBottom: Spacing.sm },
-  label: { fontFamily: Fonts.bold, fontSize: 10, letterSpacing: 2, marginBottom: 8, marginTop: 6, marginLeft: 2 },
-  lista: { borderWidth: 0.5, borderRadius: Radius.md, overflow: 'hidden' },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingHorizontal: 12 },
+  pidenTexto: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, lineHeight: 18, color: BLANCO },
+  pie: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: Spacing.sm, color: BLANCO_SUAVE },
+  grupo: { marginHorizontal: Spacing.md, marginBottom: Spacing.lg },
+  label: {
+    fontFamily: Fonts.semiBold, fontSize: SECTION_TITLE.fontSize, letterSpacing: SECTION_TITLE.letterSpacing,
+    marginBottom: Spacing.sm, marginLeft: Spacing.xs,
+  },
+  lista: { borderWidth: 0.5, borderRadius: Radius.card, overflow: 'hidden' },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md },
   filaTextos: { flex: 1, gap: 1 },
   filaTitulo: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
   filaDetalle: { fontFamily: Fonts.regular, fontSize: FontSizes.sm },
   btnQuieto: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    borderWidth: 0.5, borderRadius: 12, paddingVertical: 11, marginTop: Spacing.sm,
+    borderWidth: 0.5, borderRadius: Radius.card, paddingVertical: 12, marginTop: Spacing.sm,
   },
   btnQuietoTexto: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 });

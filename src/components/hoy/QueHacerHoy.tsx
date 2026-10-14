@@ -35,8 +35,8 @@ import { lineaPlanHoy, tituloTarjetaHoy, type NivelHoy } from '@/src/services/ho
 import { EVALUACION_ELITE_CHANGED_EVENT } from '@/src/services/hoy/elite-hoy-service';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, withOpacity } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { ATP_BRAND, ELEVATION, SECTION_TITLE } from '@/src/constants/brand';
+import { useTintaMarca } from '@/src/components/marca/useTintaMarca';
 
 interface Props {
   userId?: string;
@@ -49,10 +49,10 @@ interface Props {
 }
 
 export function QueHacerHoy({ userId, nivel }: Props) {
-  const t = useSurfaceTokens();
+  // 14-oct-2026 (marca): el lima aqui es SOLO la palomita de "hecho". Borde
+  // neutro, ceja gris, íconos teal sobre hundido y enlaces en tinta.
+  const { t, dark, teal, lima, borde } = useTintaMarca();
   const router = useRouter();
-  const dark = t.kind === 'dark';
-  const acento = dark ? ATP_BRAND.lime : t.tealTexto;
   // 7-sep-2026 (pivote limpio): esta tarjeta abría la lista "Mi Protocolo",
   // que era app Pro, así que una cuenta Free tocaba su propio día y chocaba
   // con un candado. La lista se retiró y con ella el candado: el detalle de
@@ -137,14 +137,14 @@ export function QueHacerHoy({ userId, nivel }: Props) {
     setOcupada(null);
   }, [userId, ocupada, abrirDelPlan]);
 
-  const card = [s.card, { backgroundColor: t.card, borderColor: dark ? withOpacity(ATP_BRAND.lime, 0.2) : t.bordeEditorial }];
+  const card = [s.card, { backgroundColor: t.card, borderColor: borde }];
 
   const cabecera = (
     <View style={s.headerRow}>
-      <View style={[s.iconWrap, { backgroundColor: withOpacity(acento, 0.14) }]}>
-        <AppIcon name="protocolos" size={18} color={acento} />
+      <View style={[s.iconWrap, { backgroundColor: t.hundido }]}>
+        <AppIcon name="protocolos" size={18} color={teal} />
       </View>
-      <EliteText style={[s.label, { color: acento }]}>{tituloTarjetaHoy(plan.evaluacion)}</EliteText>
+      <EliteText style={[s.label, { color: t.textoSecundario }]}>{tituloTarjetaHoy(plan.evaluacion)}</EliteText>
     </View>
   );
 
@@ -189,12 +189,12 @@ export function QueHacerHoy({ userId, nivel }: Props) {
           <View key={a.key} style={[s.fila, { backgroundColor: t.hundido }]}>
             {a.tipo === 'palanca' ? (
               // Una palanca no se palomea: es de semanas. El glifo dice "lee".
-              <View style={[s.check, { borderColor: 'transparent', backgroundColor: withOpacity(acento, 0.14) }]}>
-                <AppIcon name="evaluaciones" size={14} color={acento} />
+              <View style={[s.check, { borderColor: borde, backgroundColor: t.card }]}>
+                <AppIcon name="evaluaciones" size={14} color={teal} />
               </View>
             ) : (
             <AnimatedPressable
-              style={[s.check, { borderColor: a.hecha ? acento : t.bordeMarcado, backgroundColor: a.hecha ? acento : 'transparent' }]}
+              style={[s.check, { borderColor: a.hecha ? lima : t.bordeMarcado, backgroundColor: a.hecha ? lima : 'transparent' }]}
               onPress={() => palomear(a)}
               disabled={a.hecha || ocupada != null}
               // La fila de suplementos no palomea: abre Mis suplementos. Un
@@ -215,7 +215,7 @@ export function QueHacerHoy({ userId, nivel }: Props) {
               <EliteText style={[s.filaTitulo, { color: t.texto }, a.hecha && s.tachado]} numberOfLines={1}>{a.titulo}</EliteText>
               <EliteText style={[s.filaDetalle, { color: t.textoSecundario }]} numberOfLines={2}>{a.detalle}</EliteText>
               {firma ? (
-                <EliteText style={[s.filaMotivo, { color: acento }]} numberOfLines={1}>{firma}</EliteText>
+                <EliteText style={[s.filaMotivo, { color: teal }]} numberOfLines={1}>{firma}</EliteText>
               ) : null}
             </AnimatedPressable>
             {delPlan ? <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} /> : null}
@@ -224,8 +224,8 @@ export function QueHacerHoy({ userId, nivel }: Props) {
         })}
       </View>
       <AnimatedPressable style={s.verTodo} onPress={() => abrirPractica()}>
-        <EliteText style={[s.verTodoText, { color: acento }]}>Ver todo mi día</EliteText>
-        <Ionicons name="chevron-forward" size={14} color={acento} />
+        <EliteText style={[s.verTodoText, { color: t.texto }]}>Ver todo mi día</EliteText>
+        <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} />
       </AnimatedPressable>
     </Animated.View>
   );
@@ -234,24 +234,24 @@ export function QueHacerHoy({ userId, nivel }: Props) {
 const s = StyleSheet.create({
   card: {
     borderWidth: 0.5,
-    borderRadius: Radius.md,
+    borderRadius: Radius.card,
     padding: Spacing.md,
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iconWrap: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  label: { fontFamily: Fonts.bold, fontSize: 10, letterSpacing: 2 },
-  titulo: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginTop: 10 },
+  iconWrap: { width: 32, height: 32, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  label: { fontFamily: Fonts.semiBold, fontSize: SECTION_TITLE.fontSize, letterSpacing: SECTION_TITLE.letterSpacing },
+  titulo: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginTop: Spacing.sm },
   body: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 20, marginTop: 6 },
   btnQuiet: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    borderWidth: 0.5, borderColor: ELEVATION[2].border, borderRadius: 12,
+    borderWidth: 0.5, borderColor: ELEVATION[2].border, borderRadius: Radius.card,
     paddingVertical: 11, marginTop: Spacing.sm,
   },
   btnQuietText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
-  lista: { marginTop: 10, gap: 6 },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
+  lista: { marginTop: Spacing.sm, gap: Spacing.sm },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: Radius.sm, paddingVertical: Spacing.sm, paddingHorizontal: 12 },
   check: { width: 26, height: 26, borderRadius: 13, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   filaTitulo: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   filaDetalle: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, lineHeight: 16, marginTop: 2 },

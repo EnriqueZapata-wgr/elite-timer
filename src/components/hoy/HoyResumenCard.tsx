@@ -46,8 +46,8 @@ import {
 import { pickEdadAtpImage, YO_STATIC_IMAGES } from '@/src/utils/yo-image-picker';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Spacing } from '@/constants/theme';
-import { ATP_BRAND, brandGradient } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { brandGradient } from '@/src/constants/brand';
+import { useTintaMarca } from '@/src/components/marca/useTintaMarca';
 
 /**
  * Superficie heroica = degradado de marca, de lima a teal (DESIGN_SYSTEM,
@@ -88,16 +88,12 @@ const ICONO_ENLACE: Record<EnlaceResumen['key'], AppIconName> = {
  * compara estos `require()` contra la lista del core.
  */
 const IMAGEN_PROGRAMA: Record<ImagenProgramaKey, ImageSourcePropType> = {
-  'amanecer-03': require('@/assets/images/hoy-extra/tu-dia/amanecer-03.webp'),
   'medio-dia-02': require('@/assets/images/hoy-extra/tu-dia/medio-dia-02.webp'),
-  'medio-dia-04': require('@/assets/images/hoy-extra/tu-dia/medio-dia-04.webp'),
   'atardecer-01': require('@/assets/images/hoy-extra/tu-dia/atardecer-01.webp'),
   'atardecer-03': require('@/assets/images/hoy-extra/tu-dia/atardecer-03.webp'),
-  'atardecer-04': require('@/assets/images/hoy-extra/tu-dia/atardecer-04.webp'),
   'noche-01': require('@/assets/images/hoy-extra/tu-dia/noche-01.webp'),
   'noche-02': require('@/assets/images/hoy-extra/tu-dia/noche-02.webp'),
   'noche-03': require('@/assets/images/hoy-extra/tu-dia/noche-03.webp'),
-  'noche-04': require('@/assets/images/hoy-extra/tu-dia/noche-04.webp'),
 };
 
 /**
@@ -131,9 +127,11 @@ interface Props {
 }
 
 export function HoyResumenCard({ tarjeta, semilla, compararConCandado = false, demora = 100, children }: Props) {
-  const t = useSurfaceTokens();
+  // 14-oct-2026 (marca): los enlaces de abajo son puertas secundarias, no la
+  // acción principal: texto en tinta, ícono teal y chevron gris (el lima es
+  // solo del CTA de la tarjeta y de su barra).
+  const { t, teal } = useTintaMarca();
   const router = useRouter();
-  const acento = t.kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const hayDebajo = tarjeta.enlaces.length > 0 || children != null;
 
   // Un solo destino: el CTA del modelo. Lo usan el toque y el lector de pantalla.
@@ -188,11 +186,11 @@ export function HoyResumenCard({ tarjeta, semilla, compararConCandado = false, d
               accessibilityRole="link"
               accessibilityLabel={e.texto}
             >
-              <AppIcon name={ICONO_ENLACE[e.key]} size={16} color={acento} />
-              <EliteText style={[s.enlaceTexto, { color: acento }]}>{e.texto}</EliteText>
+              <AppIcon name={ICONO_ENLACE[e.key]} size={16} color={teal} />
+              <EliteText style={[s.enlaceTexto, { color: t.texto }]}>{e.texto}</EliteText>
               {e.key === 'comparar' && compararConCandado
                 ? <CandadoNivel appKey="comparar" nivel="premium" tocable={false} />
-                : <Ionicons name="chevron-forward" size={14} color={acento} />}
+                : <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} />}
             </AnimatedPressable>
           ))}
         </View>

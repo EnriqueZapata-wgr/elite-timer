@@ -43,6 +43,7 @@ import {
 import { nombreVisibleDelPlan, vozDe, vozDeDocumento } from '@/src/services/elite/voz-programa-core';
 import { marcadorDePalanca, marcadoresDeEvaluacion } from '@/src/services/hoy/elite-hoy-core';
 import { INTERVENTIONS_CATALOG } from '@/src/constants/interventions-catalog';
+import type { ConceptKey } from '@/src/constants/concept-colors';
 import {
   coachDelDia, etiquetaCoach, horaLimpia, momentosDeToma, RUTAS_MI_PLAN, semanaDe,
   type DiaPlan, type FilaPlan, type InsumosPlan, type SeccionKey, type SuplementoPlanRow,
@@ -283,6 +284,26 @@ export const SECCION_DE_PILAR: Readonly<Record<PilarKey, SeccionKey>> = {
   entrenamiento: 'entrenamiento',
   sueno: 'sueno',
   practicas: 'practicas',
+};
+
+/**
+ * El dominio de color de cada pilar (14-oct-2026, ronda de marca). La
+ * miniatura del pilar lleva la diagonal del degradado de su dominio
+ * (CONCEPT_COLORS, la fuente unica de color por concepto): un pilar se
+ * reconoce por su color como en HOY y en Habitos. Solo tipo: este modulo
+ * sigue sin importar colores.
+ *  - suplementos: suplementos (naranja)
+ *  - alimentacion: nutricion (azul)
+ *  - entrenamiento: fitness (lima de categoria, no el lima de acento)
+ *  - sueno: sueno (indigo)
+ *  - practicas: mente (morado)
+ */
+export const CONCEPTO_DE_PILAR: Readonly<Record<PilarKey, ConceptKey>> = {
+  suplementos: 'suplementos',
+  alimentacion: 'nutricion',
+  entrenamiento: 'fitness',
+  sueno: 'sueno',
+  practicas: 'mente',
 };
 
 /**

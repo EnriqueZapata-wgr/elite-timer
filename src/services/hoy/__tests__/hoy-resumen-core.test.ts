@@ -499,11 +499,21 @@ describe('la foto del programa: solo del banco SIN persona (8-oct-2026, revisió
 
   it('los nombres permitidos, uno por uno (cambiar esta lista es una decisión, no un descuido)', () => {
     expect(IMAGENES_PROGRAMA_SIN_PERSONA).toEqual({
-      despertar: ['amanecer-03'],
-      'medio-dia': ['medio-dia-02', 'medio-dia-04'],
-      atardecer: ['atardecer-01', 'atardecer-03', 'atardecer-04'],
-      noche: ['noche-01', 'noche-02', 'noche-03', 'noche-04'],
+      despertar: ['atardecer-03'],
+      'medio-dia': ['medio-dia-02'],
+      atardecer: ['atardecer-01', 'atardecer-03'],
+      noche: ['noche-01', 'noche-02', 'noche-03'],
     });
+  });
+  it('14-oct-2026 (marca): fuera las cuatro fotos a color (saturación media > 0.05)', () => {
+    // Medidas con PIL (canal S de HSV, promedio 0 a 1): amanecer-03 0.653,
+    // medio-dia-04 0.601, atardecer-04 0.720, noche-04 0.665. La marca pide
+    // fotos editoriales en blanco y negro (< 0.05). Node no decodifica webp
+    // sin una dependencia nueva (sharp no carga en Linux en este repo), así
+    // que el test clava los nombres; la medición vive en el comentario del core.
+    for (const color of ['amanecer-03', 'medio-dia-04', 'atardecer-04', 'noche-04']) {
+      expect(todas.includes(color), `${color} (a color) volvió al banco del programa`).toBe(false);
+    }
   });
   it('fuera las cuatro fotos con una persona de sexo legible (y la del senderista)', () => {
     // amanecer-01 un hombre sin camisa, amanecer-02 una mujer, atardecer-02 un
@@ -513,10 +523,14 @@ describe('la foto del programa: solo del banco SIN persona (8-oct-2026, revisió
       expect(todas.includes(fuera), `${fuera} volvió al banco del programa`).toBe(false);
     }
   });
-  it('cada franja tiene al menos una foto, sin repetidos, y cada nombre es un archivo que existe', () => {
+  it('cada franja tiene al menos una foto, sin repetidos dentro de la franja, y cada nombre es un archivo que existe', () => {
     expect(Object.keys(IMAGENES_PROGRAMA_SIN_PERSONA).sort()).toEqual([...FRANJAS].sort());
-    for (const f of FRANJAS) expect(IMAGENES_PROGRAMA_SIN_PERSONA[f].length, f).toBeGreaterThanOrEqual(1);
-    expect(new Set(todas).size).toBe(todas.length);
+    for (const f of FRANJAS) {
+      const banco: readonly string[] = IMAGENES_PROGRAMA_SIN_PERSONA[f];
+      expect(banco.length, f).toBeGreaterThanOrEqual(1);
+      // 14-oct-2026: una foto puede servir a dos franjas (despertar usa atardecer-03).
+      expect(new Set(banco).size, f).toBe(banco.length);
+    }
     for (const n of todas) {
       expect(existsSync(resolve(process.cwd(), `assets/images/hoy-extra/tu-dia/${n}.webp`)), `falta ${n}.webp`).toBe(true);
     }
@@ -527,8 +541,8 @@ describe('la foto del programa: solo del banco SIN persona (8-oct-2026, revisió
       const banco: readonly string[] = IMAGENES_PROGRAMA_SIN_PERSONA[tuDiaImageGroup(h)];
       expect(banco.includes(imagenProgramaKey(h, semilla)), `hora ${h}, semilla ${semilla}`).toBe(true);
     }
-    expect(imagenProgramaKey(5)).toBe('amanecer-03');
-    expect(imagenProgramaKey(11)).toBe('amanecer-03');
+    expect(imagenProgramaKey(5)).toBe('atardecer-03');
+    expect(imagenProgramaKey(11)).toBe('atardecer-03');
     expect(IMAGENES_PROGRAMA_SIN_PERSONA['medio-dia'].includes(imagenProgramaKey(12) as never)).toBe(true);
     expect(IMAGENES_PROGRAMA_SIN_PERSONA.atardecer.includes(imagenProgramaKey(18) as never)).toBe(true);
     expect(IMAGENES_PROGRAMA_SIN_PERSONA.noche.includes(imagenProgramaKey(22) as never)).toBe(true);
@@ -542,7 +556,7 @@ describe('la foto del programa: solo del banco SIN persona (8-oct-2026, revisió
     expect(imagenProgramaKey(23)).toBe('noche-01');
     const vistas = new Set<string>();
     for (let d = 1; d <= 28; d += 1) vistas.add(imagenProgramaKey(23, `u1-2026-10-${String(d).padStart(2, '0')}`));
-    expect([...vistas].sort()).toEqual(['noche-01', 'noche-02', 'noche-03', 'noche-04']);
+    expect([...vistas].sort()).toEqual(['noche-01', 'noche-02', 'noche-03']);
   });
   it('una hora rara no truena ni se sale del banco', () => {
     for (const rara of [NaN, -1, 24, 99, Infinity]) {
@@ -552,7 +566,7 @@ describe('la foto del programa: solo del banco SIN persona (8-oct-2026, revisió
   it('el componente carga exactamente esos archivos de tu-dia y ya no usa el banco con personas', () => {
     const tarjeta = leer('src/components/hoy/HoyResumenCard.tsx');
     const cargadas = [...tarjeta.matchAll(/require\('@\/assets\/images\/hoy-extra\/tu-dia\/([a-z0-9-]+)\.webp'\)/g)].map((m) => m[1]);
-    expect([...cargadas].sort()).toEqual([...todas].sort());
+    expect([...cargadas].sort()).toEqual([...new Set(todas)].sort());
     // Cada llave apunta a SU archivo (no a otro con el nombre cambiado).
     for (const n of todas) {
       expect(tarjeta.includes(`'${n}': require('@/assets/images/hoy-extra/tu-dia/${n}.webp'),`), n).toBe(true);

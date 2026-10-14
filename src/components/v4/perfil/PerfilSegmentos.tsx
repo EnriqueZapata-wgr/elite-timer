@@ -6,10 +6,10 @@
 import { ScrollView, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useTintaMarca } from '@/src/components/marca/useTintaMarca';
 import { ETIQUETA_PESTANA, type PestanaPerfil } from '@/src/services/perfil/perfil-core';
 import { haptic } from '@/src/utils/haptics';
-import { Fonts, FontSizes, Spacing } from '@/constants/theme';
+import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { acento, suave, TOQUE_MIN } from './perfil-ui';
 
 interface Props {
@@ -19,7 +19,7 @@ interface Props {
 }
 
 export function PerfilSegmentos({ pestanas, activa, onCambiar }: Props) {
-  const t = useSurfaceTokens();
+  const { t, borde } = useTintaMarca();
   const color = acento(t);
   return (
     <ScrollView
@@ -39,7 +39,7 @@ export function PerfilSegmentos({ pestanas, activa, onCambiar }: Props) {
             accessibilityState={{ selected: on }}
             style={[
               s.chip,
-              { borderColor: on ? color : t.borde, backgroundColor: on ? suave(color, 0.14) : t.card },
+              { borderColor: on ? color : borde, backgroundColor: on ? suave(color, 0.14) : t.card },
             ]}
           >
             <EliteText style={[s.texto, { color: on ? t.texto : t.textoSecundario }]}>{ETIQUETA_PESTANA[p]}</EliteText>
@@ -53,7 +53,7 @@ export function PerfilSegmentos({ pestanas, activa, onCambiar }: Props) {
 const s = StyleSheet.create({
   fila: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, gap: Spacing.sm },
   chip: {
-    minHeight: TOQUE_MIN, paddingHorizontal: Spacing.md, borderRadius: 999, borderWidth: 1,
+    minHeight: TOQUE_MIN, paddingHorizontal: Spacing.md, borderRadius: Radius.pill, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   texto: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },

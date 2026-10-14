@@ -2,13 +2,18 @@
  * Piezas de PLAN v4 (8-oct-2026 (v4), Fase A). Solo pintan: lo que dicen y a
  * donde llevan lo decide plan-v4-core (con test).
  *
- * Tinta: tokens del tema (claro y oscuro). El lima es micro-acento (la ceja,
- * la barra del programa, el punto de "Hoy") y en claro baja a teal; nunca
- * pinta numeros, porcentajes ni chips enteros. El heroe es una ventana
- * oscura en los dos modos (foto B/N, degradado negro, letra blanca), como la
- * tarjeta editorial de HOY; solo su borde cambia con el tema. Glifos por
- * <AppIcon>; Ionicons solo cromo. Toques de 44 o mas (los chips llevan
- * hitSlop) y haptico ligero en cada uno.
+ * Tinta: tokens del tema (claro y oscuro), por useTintaMarca. El heroe es
+ * una ventana oscura en los dos modos (foto B/N, degradado de marca, velo y
+ * letra blanca) con FondoEditorial; solo su borde cambia con el tema. Glifos
+ * por <AppIcon> en teal sobre t.hundido; Ionicons solo cromo. Toques de 44 o
+ * mas (los chips llevan hitSlop) y haptico ligero en cada uno.
+ *
+ * Ronda de marca (14-oct-2026): Enrique vio PLAN "en Lima Brutalist". El
+ * lima queda en UN lugar, la barra del programa dentro del heroe (el dato
+ * heroico de la pantalla). La ceja del heroe va en blanco suave y el punto
+ * de "Hoy" en teal en los dos temas. Cada pilar lleva en su miniatura el
+ * degradado de su dominio (CONCEPTO_DE_PILAR); su titulo sigue en gris.
+ * Tarjetas con Radius.card y etiquetas con SECTION_TITLE.
  *
  * Revisión en frío (8-oct-2026 (v4)):
  *  - El chip "Por qué" ya no lleva al Perfil (que no muestra esa razon): se
@@ -18,41 +23,43 @@
  */
 import { useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { AppIcon } from '@/src/components/ui/AppIcon';
 import type { AppIconName } from '@/src/components/ui/app-icon-names';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
-import { ATP_BRAND, TEXT, withOpacity } from '@/src/constants/brand';
+import { FondoEditorial, DEGRADADO_MARCA } from '@/src/components/marca/FondoEditorial';
+import { useTintaMarca } from '@/src/components/marca/useTintaMarca';
+import { ATP_BRAND, SECTION_TITLE, TEXT, withOpacity } from '@/src/constants/brand';
+import { CONCEPT_COLORS } from '@/src/constants/concept-colors';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { haptic } from '@/src/utils/haptics';
 import { FOTO_HERO_PLAN, FOTO_PILAR } from '@/src/components/v4/plan/plan-imagenes';
-import type {
-  CabeceraPlanV4, ChipPlan, PilarKey, PilarV4, PorQuePlan, PrioridadV4,
+import {
+  CONCEPTO_DE_PILAR,
+  type CabeceraPlanV4, type ChipPlan, type PilarKey, type PilarV4, type PorQuePlan, type PrioridadV4,
 } from '@/src/services/plan/plan-v4-core';
 
 /** A donde lleva un toque (rutas del core, algunas con parametro). */
 export type IrA = (ruta: string) => void;
 
+/**
+ * La tinta de PLAN. Delega en useTintaMarca (la regla unica de la marca):
+ * `acento` es teal en los dos temas (ceja, punto de "Hoy"); `lima` solo para
+ * CTA, cifra heroica, "hecho" y la barra del programa en el heroe. Mismos
+ * nombres de siempre (Mi plan, Hoy y Elite DX la importan).
+ */
 export function useTintaPlan() {
-  const t = useSurfaceTokens();
-  const dark = t.kind === 'dark';
-  // Lima solo de micro-acento (ceja, barra, punto de "Hoy"). Iconos, bordes
-  // y el resto van en teal o en tinta (8-oct-2026 (v4), revisión en frío).
-  const acento = dark ? ATP_BRAND.lime : t.tealTexto;
-  const teal = t.tealTexto;
-  const borde = dark ? t.borde : t.bordeEditorial;
-  return { t, dark, acento, teal, borde };
+  const { t, dark, acento, teal, borde, lima } = useTintaMarca();
+  return { t, dark, acento, teal, borde, lima };
 }
 
 /** Letra del heroe: blanca sobre la foto oscura en los dos modos. */
 const BLANCO = TEXT.primary;
-const BLANCO_SUAVE = withOpacity('#FFFFFF', 0.72);
-const PISTA_BARRA = withOpacity('#FFFFFF', 0.18);
-const VENTANA = '#0B0C0E';
+const BLANCO_SUAVE = withOpacity(ATP_BRAND.white, 0.72);
+const PISTA_BARRA = withOpacity(ATP_BRAND.white, 0.18);
+/** Lo que se ve mientras la foto decodifica (debajo del degradado). */
+const VENTANA = ATP_BRAND.black;
 
 // ─── Heroe del programa ─────────────────────────────────────────────────────
 
@@ -64,7 +71,8 @@ const VENTANA = '#0B0C0E';
  */
 export function HeroPlan({ c, ocupado, onReintentar }: { c: CabeceraPlanV4; ocupado: boolean; onReintentar: () => void }) {
   const { t, dark } = useTintaPlan();
-  // En el heroe la barra es lima en los dos modos: la foto siempre es oscura.
+  // El UNICO lima de PLAN: la barra del programa (dato heroico), en los dos
+  // modos porque el heroe siempre es oscuro. La ceja va en blanco suave.
   const barra = ATP_BRAND.lime;
   const p = c.progreso;
   return (
@@ -74,14 +82,10 @@ export function HeroPlan({ c, ocupado, onReintentar }: { c: CabeceraPlanV4; ocup
       accessibilityRole="header"
       accessibilityLabel={[c.ceja, c.dueno, c.accesible, p ? `${p.pct} por ciento del programa` : null].filter(Boolean).join('. ')}
     >
-      <Image source={FOTO_HERO_PLAN} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} cachePolicy="memory-disk" />
-      <LinearGradient
-        colors={[withOpacity('#000000', 0.15), withOpacity('#000000', 0.55), withOpacity('#000000', 0.92)]}
-        style={StyleSheet.absoluteFill}
-      />
+      <FondoEditorial imagen={FOTO_HERO_PLAN} degradado={DEGRADADO_MARCA} velo="fuerte" />
       <View style={s.heroCuerpo}>
         <View style={s.cejaFila}>
-          <EliteText style={[s.ceja, { color: barra }]}>{c.ceja}</EliteText>
+          <EliteText style={[s.ceja, { color: BLANCO }]}>{c.ceja}</EliteText>
           {c.dueno ? <EliteText style={[s.ceja, { color: BLANCO_SUAVE }]} numberOfLines={1}>{`  ·  ${c.dueno}`}</EliteText> : null}
         </View>
         {c.estado === 'cargando' ? <View style={s.heroHueco} /> : (
@@ -159,8 +163,8 @@ export function Aviso({ texto, ocupado = false, onReintentar }: { texto: string;
 }
 
 /**
- * Un chip. `punto` pone el micro-acento (el de "Hoy"); el chip entero nunca
- * va en lima. El texto siempre dice que es: el color nunca es lo unico.
+ * Un chip. `punto` pone el micro-acento (el de "Hoy", teal en los dos temas);
+ * el chip entero nunca va en lima. El texto siempre dice que es: el color nunca es lo unico.
  */
 function ChipBase({ texto, accesible, punto = false, abierto, onPress }: {
   texto: string;
@@ -254,11 +258,16 @@ export function Prioridades({ lista, onIr }: { lista: PrioridadV4[]; onIr: IrA }
 
 // ─── Pilares ────────────────────────────────────────────────────────────────
 
+/**
+ * La foto B/N del pilar con la diagonal del degradado de SU dominio
+ * (CONCEPT_COLORS por CONCEPTO_DE_PILAR): el color dice de que pilar se
+ * habla sin pintar el titulo, que sigue en gris.
+ */
 function Miniatura({ k }: { k: PilarKey }) {
   const { t } = useTintaPlan();
   return (
-    <View style={[s.mini, { backgroundColor: t.hundido }]}>
-      <Image source={FOTO_PILAR[k]} style={s.miniFoto} contentFit="cover" transition={150} cachePolicy="memory-disk" accessible={false} />
+    <View style={[s.mini, { backgroundColor: t.hundido }]} accessible={false}>
+      <FondoEditorial imagen={FOTO_PILAR[k]} degradado={CONCEPT_COLORS[CONCEPTO_DE_PILAR[k]].gradient} velo="abajo" />
     </View>
   );
 }
@@ -384,81 +393,88 @@ export function BotonAncho({ texto, detalle, onPress }: { texto: string; detalle
 
 const s = StyleSheet.create({
   hero: {
-    marginHorizontal: Spacing.md, marginTop: Spacing.sm, marginBottom: Spacing.lg, borderRadius: Radius.lg,
+    marginHorizontal: Spacing.md, marginTop: Spacing.sm, marginBottom: Spacing.lg, borderRadius: Radius.card,
     overflow: 'hidden', minHeight: 280, justifyContent: 'flex-end', backgroundColor: VENTANA,
   },
   heroCuerpo: { padding: Spacing.lg, paddingTop: Spacing.xxl },
-  cejaFila: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 },
-  ceja: { fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 2 },
+  cejaFila: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: Spacing.sm },
+  ceja: { fontFamily: Fonts.semiBold, fontSize: SECTION_TITLE.fontSize, letterSpacing: SECTION_TITLE.letterSpacing },
   heroTitulo: { fontFamily: Fonts.bold, fontSize: FontSizes.display, lineHeight: 38, color: BLANCO },
-  heroHueco: { height: 38, width: '60%', borderRadius: 8, backgroundColor: PISTA_BARRA },
-  heroSub: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg, color: BLANCO_SUAVE, marginTop: 6 },
+  heroHueco: { height: 38, width: '60%', borderRadius: Radius.sm, backgroundColor: PISTA_BARRA },
+  heroSub: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg, color: BLANCO_SUAVE, marginTop: Spacing.xs },
   heroBarraBloque: { marginTop: Spacing.md },
-  heroBarraPie: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  heroBarraPie: { flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.sm },
   heroPie: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: BLANCO_SUAVE },
   heroBoton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: Spacing.md,
-    minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: BLANCO_SUAVE, alignSelf: 'flex-start',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, marginTop: Spacing.md,
+    minHeight: 44, borderRadius: Radius.card, borderWidth: 1, borderColor: BLANCO_SUAVE, alignSelf: 'flex-start',
     paddingHorizontal: Spacing.md,
   },
   heroBotonTexto: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: BLANCO },
   barra: { height: 6, borderRadius: 3, overflow: 'hidden' },
   barraLlena: { height: 6, borderRadius: 3 },
   card: {
-    marginHorizontal: Spacing.md, marginBottom: Spacing.md, borderWidth: 0.5, borderRadius: Radius.md, padding: Spacing.md,
+    marginHorizontal: Spacing.md, marginBottom: Spacing.md, borderWidth: 0.5, borderRadius: Radius.card, padding: Spacing.md,
   },
+  // Titulo de seccion de la casa (SECTION_TITLE): 11, 600, letterSpacing 2,
+  // gris. El texto ya llega en mayusculas desde la pantalla.
   etiqueta: {
-    fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 2,
-    marginHorizontal: Spacing.md + 2, marginBottom: 12,
+    fontFamily: Fonts.semiBold, fontSize: SECTION_TITLE.fontSize, letterSpacing: SECTION_TITLE.letterSpacing,
+    marginHorizontal: Spacing.md, marginBottom: SECTION_TITLE.marginBottom,
   },
-  hueco: { marginHorizontal: Spacing.md, marginBottom: Spacing.sm, borderRadius: Radius.md, opacity: 0.5 },
+  hueco: { marginHorizontal: Spacing.md, marginBottom: Spacing.sm, borderRadius: Radius.card, opacity: 0.5 },
   cuerpo: { fontFamily: Fonts.regular, fontSize: FontSizes.md, lineHeight: 20 },
   btnQuieto: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    borderWidth: 0.5, borderRadius: 12, minHeight: 44, marginTop: Spacing.sm,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
+    borderWidth: 0.5, borderRadius: Radius.card, minHeight: 44, marginTop: Spacing.sm,
   },
   btnQuietoTexto: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   ocupado: { opacity: 0.6 },
   chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 0.5, borderRadius: Radius.pill,
-    paddingHorizontal: 12, minHeight: 32, maxWidth: '100%',
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, borderWidth: 0.5, borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md - Spacing.xs, minHeight: 32, maxWidth: '100%',
   },
   chipPunto: { width: 6, height: 6, borderRadius: 3 },
   chipTexto: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, flexShrink: 1 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
-  enlace: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.md },
+  enlace: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, minHeight: 44 },
   enlaceTexto: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
-  carrusel: { paddingHorizontal: Spacing.md, gap: Spacing.sm, paddingBottom: 4 },
+  carrusel: { paddingHorizontal: Spacing.md, gap: Spacing.sm, paddingBottom: Spacing.xs },
   prioridad: {
-    borderWidth: 0.5, borderRadius: Radius.lg, padding: Spacing.lg, minHeight: 260, justifyContent: 'space-between',
+    borderWidth: 0.5, borderRadius: Radius.card, padding: Spacing.lg, minHeight: 260, justifyContent: 'space-between',
   },
   prioridadNumero: { fontFamily: Fonts.extraBold, fontSize: FontSizes.mega, lineHeight: 46, marginBottom: Spacing.sm },
   prioridadTitulo: { fontFamily: Fonts.bold, fontSize: FontSizes.xl, lineHeight: 24 },
   prioridadPorQue: { fontFamily: Fonts.regular, fontSize: FontSizes.md, lineHeight: 20, marginTop: Spacing.sm },
-  prioridadPie: { marginTop: Spacing.md, gap: 4, alignItems: 'flex-start' },
+  prioridadPie: { marginTop: Spacing.md, gap: Spacing.xs, alignItems: 'flex-start' },
   pilar: {
-    marginHorizontal: Spacing.md, marginBottom: Spacing.sm, borderWidth: 0.5, borderRadius: Radius.md, padding: 14,
+    marginHorizontal: Spacing.md, marginBottom: Spacing.sm, borderWidth: 0.5, borderRadius: Radius.card, padding: Spacing.md,
   },
-  pilarArriba: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  pilarTextos: { flex: 1, gap: 3 },
-  pilarTitulo: { fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 2 },
+  pilarArriba: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  pilarTextos: { flex: 1, gap: Spacing.xs },
+  pilarTitulo: { fontFamily: Fonts.semiBold, fontSize: SECTION_TITLE.fontSize, letterSpacing: SECTION_TITLE.letterSpacing },
   pilarResumen: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg, lineHeight: 22 },
   pilarNota: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 18 },
-  parcial: { marginTop: 10 },
-  porQue: { marginTop: 10, borderRadius: Radius.card, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 2 },
-  porQueTexto: { fontFamily: Fonts.regular, fontSize: FontSizes.md, lineHeight: 20, marginBottom: 6 },
+  parcial: { marginTop: Spacing.sm },
+  porQue: {
+    marginTop: Spacing.sm, borderRadius: Radius.card, paddingHorizontal: Spacing.md - Spacing.xs,
+    paddingTop: Spacing.sm, paddingBottom: Spacing.xs / 2,
+  },
+  porQueTexto: { fontFamily: Fonts.regular, fontSize: FontSizes.md, lineHeight: 20, marginBottom: Spacing.xs },
   mini: { width: 72, height: 72, borderRadius: Radius.card, overflow: 'hidden' },
-  miniFoto: { width: '100%', height: '100%' },
   grupo: { marginBottom: Spacing.lg },
-  lista: { marginHorizontal: Spacing.md, borderWidth: 0.5, borderRadius: Radius.md, overflow: 'hidden' },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10, paddingHorizontal: 14 },
-  filaTextos: { flex: 1, gap: 2 },
+  lista: { marginHorizontal: Spacing.md, borderWidth: 0.5, borderRadius: Radius.card, overflow: 'hidden' },
+  fila: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md - Spacing.xs, minHeight: 56,
+    paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md,
+  },
+  filaTextos: { flex: 1, gap: Spacing.xs / 2 },
   filaTitulo: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
   filaDetalle: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 17 },
-  iconWrap: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  iconWrap: { width: 32, height: 32, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
   ancho: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: Spacing.md, marginBottom: Spacing.lg,
-    borderWidth: 0.5, borderRadius: Radius.md, paddingHorizontal: Spacing.md, minHeight: 64,
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginHorizontal: Spacing.md, marginBottom: Spacing.lg,
+    borderWidth: 0.5, borderRadius: Radius.card, paddingHorizontal: Spacing.md, minHeight: 64,
   },
   anchoTexto: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg },
 });

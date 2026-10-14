@@ -9,17 +9,21 @@
  * marcadores del documento que caen en el (la matriz lo dice), debajo del
  * porque va "Ver sus N marcadores", que abre Marcadores filtrados a ese
  * sistema. Antes el toque saltaba directo al filtro y el porque no se veia.
+ *
+ * 14-oct-2026 (ronda de marca): en oscuro "exito" es lima; el numero y la
+ * etiqueta van en tinta de texto y el color del estado queda solo en la
+ * barra (y en el punto de la leyenda), para no competir con la Edad ATP.
  */
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useTintaMarca } from '@/src/components/marca/useTintaMarca';
 import { TITULO_TUS_SISTEMAS, type LeyendaEstado, type SistemaVista } from '@/src/services/perfil/perfil-core';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { acento, colorEstado, suave, TOQUE_MIN } from './perfil-ui';
+import { acento, colorEstado, suave, TINTE_MAX, TOQUE_MIN } from './perfil-ui';
 
 interface Props {
   sistemas: SistemaVista[];
@@ -28,14 +32,14 @@ interface Props {
 }
 
 export function PerfilSistemas({ sistemas, leyenda, onFiltrar }: Props) {
-  const t = useSurfaceTokens();
+  const { t, borde } = useTintaMarca();
   const [abierto, setAbierto] = useState<string | null>(null);
   const colorAcento = acento(t);
   const titulo = sistemas.length === 10 ? TITULO_TUS_SISTEMAS : 'Tus sistemas';
   return (
     <View style={s.caja}>
       <EliteText style={[s.titulo, { color: t.texto }]} accessibilityRole="header">{titulo}</EliteText>
-      <View style={[s.card, { backgroundColor: t.card, borderColor: t.borde }]}>
+      <View style={[s.card, { backgroundColor: t.card, borderColor: borde }]}>
         {sistemas.map((sis, i) => {
           const color = colorEstado(t, sis.token);
           const abiertoEste = abierto === sis.key;
@@ -45,7 +49,7 @@ export function PerfilSistemas({ sistemas, leyenda, onFiltrar }: Props) {
           const etiqueta = [sis.nombre, sis.score !== null ? `${Math.round(sis.score)} de 100` : null, sis.etiqueta]
             .filter(Boolean).join(', ');
           return (
-            <View key={sis.key} style={i > 0 ? [s.separador, { borderTopColor: t.borde }] : null}>
+            <View key={sis.key} style={i > 0 ? [s.separador, { borderTopColor: borde }] : null}>
               <AnimatedPressable
                 disabled={!tocable}
                 onPress={() => { haptic.light(); setAbierto(abiertoEste ? null : sis.key); }}
@@ -56,7 +60,7 @@ export function PerfilSistemas({ sistemas, leyenda, onFiltrar }: Props) {
               >
                 <View style={s.cabeza}>
                   <EliteText style={[s.nombre, { color: t.texto }]} numberOfLines={1}>{sis.nombre}</EliteText>
-                  <EliteText style={[s.score, { color }]}>{sis.score !== null ? Math.round(sis.score) : '-'}</EliteText>
+                  <EliteText style={[s.score, { color: t.texto }]}>{sis.score !== null ? Math.round(sis.score) : '-'}</EliteText>
                   {tocable ? (
                     <Ionicons
                       name={abiertoEste ? 'chevron-up' : 'chevron-down'}
@@ -70,7 +74,7 @@ export function PerfilSistemas({ sistemas, leyenda, onFiltrar }: Props) {
                     <View style={[s.relleno, { width: `${Math.max(2, sis.fraccion * 100)}%`, backgroundColor: color }]} />
                   ) : null}
                 </View>
-                {sis.etiqueta ? <EliteText style={[s.estado, { color }]}>{sis.etiqueta}</EliteText> : null}
+                {sis.etiqueta ? <EliteText style={[s.estado, { color: t.textoSecundario }]}>{sis.etiqueta}</EliteText> : null}
               </AnimatedPressable>
               {abiertoEste ? (
                 <View style={s.abierto}>
@@ -82,7 +86,7 @@ export function PerfilSistemas({ sistemas, leyenda, onFiltrar }: Props) {
                       onPress={() => { haptic.light(); onFiltrar(sis.key); }}
                       accessibilityRole="button"
                       accessibilityLabel={`${verMarcadores} de ${sis.nombre}`}
-                      style={[s.ver, { borderColor: colorAcento, backgroundColor: suave(colorAcento, 0.1) }]}
+                      style={[s.ver, { borderColor: colorAcento, backgroundColor: suave(colorAcento, TINTE_MAX) }]}
                     >
                       <EliteText style={[s.verTexto, { color: t.texto }]}>{verMarcadores}</EliteText>
                       <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} />
@@ -113,22 +117,22 @@ const s = StyleSheet.create({
   titulo: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, marginBottom: Spacing.sm },
   card: { borderRadius: Radius.card, borderWidth: 1, paddingHorizontal: Spacing.md },
   separador: { borderTopWidth: StyleSheet.hairlineWidth },
-  fila: { minHeight: TOQUE_MIN, paddingVertical: Spacing.sm + 2, justifyContent: 'center' },
+  fila: { minHeight: TOQUE_MIN, paddingVertical: Spacing.sm, justifyContent: 'center' },
   cabeza: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   nombre: { flex: 1, fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
   score: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, minWidth: 28, textAlign: 'right' },
-  pista: { height: 6, borderRadius: 3, marginTop: 6, overflow: 'hidden' },
+  pista: { height: 6, borderRadius: 3, marginTop: Spacing.sm, overflow: 'hidden' },
   relleno: { height: '100%', borderRadius: 3 },
-  estado: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, marginTop: 4 },
+  estado: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, marginTop: Spacing.xs },
   abierto: { paddingBottom: Spacing.md, gap: Spacing.sm },
   porQue: { fontSize: FontSizes.sm, lineHeight: 19 },
   ver: {
-    minHeight: TOQUE_MIN, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderWidth: 1, borderRadius: 999, paddingHorizontal: Spacing.md,
+    minHeight: TOQUE_MIN, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: Spacing.xs,
+    borderWidth: 1, borderRadius: Radius.pill, paddingHorizontal: Spacing.md,
   },
   verTexto: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
   leyenda: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md, marginTop: Spacing.sm },
-  leyendaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  leyendaItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   punto: { width: 8, height: 8, borderRadius: 4 },
   leyendaTexto: { fontSize: FontSizes.xs, fontFamily: Fonts.regular },
 });

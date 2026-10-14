@@ -22,9 +22,19 @@
  * 8-oct-2026 (v4): en la presentacion v4 esta ruta es APPS. El titulo dice
  * APPS y arriba de todo va "Recomendadas por tu plan" (AppsRecomendadas, que
  * se pinta vacia cuando no hay nada que recomendar). Fuera de la v4, igual.
+ *
+ * 14-oct-2026 (ronda de marca): Enrique vio esta sala "en Lima Brutalist".
+ * La marca es una en las dos presentaciones: cabecera con TabCabecera (ceja
+ * gris, titulo FontSizes.hero), cajas del Centro y de Armar mi app neutras
+ * (chip t.hundido con <AppIcon> teal, borde neutro), EDITAR en teal y los
+ * botones de vacio y de reintentar neutros. El UNICO lima de la pantalla es
+ * la pildora del orden activo (PILL.activeBg: la pildora seleccionada es el
+ * micro-acento que el design system reserva al lima, y es la misma en toda
+ * la app). Los colores de seccion (encabezados y mosaicos) son identidad de
+ * dominio, no acento.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TextInput, Alert } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, LinearTransition } from 'react-native-reanimated';
@@ -33,6 +43,8 @@ import { EliteText } from '@/components/elite-text';
 import { TabScreen } from '@/src/components/ui/TabScreen';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useSystemReducedMotion } from '@/src/components/ui/useSystemReducedMotion';
+import { AppIcon } from '@/src/components/ui/AppIcon';
+import { TabCabecera } from '@/src/components/marca/TabCabecera';
 import { AppTile } from '@/src/components/atp/AppTile';
 import { destinoCandado } from '@/src/components/ui/CandadoNivel';
 import { useSubscription } from '@/src/hooks/useSubscription';
@@ -55,8 +67,8 @@ import { getCycleAppMode } from '@/src/services/app-mode-service';
 import {
   appInstallState, gridApps, uninstallAlertBody, type InstallPrefs,
 } from '@/src/services/hoy/install-core';
-import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { APP_SECTION_COLORS, ATP_BRAND, PILL } from '@/src/constants/brand';
+import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
+import { APP_SECTION_COLORS, PILL, SECTION_TITLE } from '@/src/constants/brand';
 import { useAppTheme } from '@/src/contexts/theme-context';
 import { haptic } from '@/src/utils/haptics';
 import { warn as logWarn } from '@/src/lib/logger';
@@ -67,11 +79,12 @@ export default function SalaAtpScreen() {
   const router = useRouter();
   const { user } = useAuth();
   // MB-31B: pantalla migrada — superficies y texto del tema; los colores de
-  // sección (encabezados, mosaicos) son identidad y quedan tal cual. El lima
-  // como TEXTO solo existe en oscuro; en claro el acento de texto es el teal
-  // calibrado (regla 1 del manual 3.6).
+  // sección (encabezados, mosaicos) son identidad y quedan tal cual.
+  // 14-oct-2026 (ronda de marca): el micro-acento es teal en los dos temas
+  // (useTintaMarca) y los bordes de tarjeta son neutros, nunca lima.
   const { kind, tokens } = useAppTheme();
-  const acento = kind === 'dark' ? ATP_BRAND.lime : tokens.tealTexto;
+  const teal = tokens.tealTexto;
+  const bordeCard = kind === 'dark' ? tokens.borde : tokens.bordeEditorial;
   // El tenue del oscuro (#555) se queda; en claro sube a secundario para que
   // el texto informativo pequeño no caiga bajo AA (tenue 3.19 = solo grande).
   const tenueInformativo = kind === 'dark' ? tokens.textoTenue : tokens.textoSecundario;
@@ -294,9 +307,8 @@ export default function SalaAtpScreen() {
         contentContainerStyle={s.scroll}
         keyboardShouldPersistTaps="handled"
       >
-        <Animated.View entering={FadeInUp.delay(40).springify()} style={s.header}>
-          <EliteText style={[s.eyebrow, { color: acento }]}>TUS FUNCIONES</EliteText>
-          <EliteText style={[s.title, { color: tokens.texto }]}>{v4 ? 'APPS' : 'ATP'}</EliteText>
+        <Animated.View entering={FadeInUp.delay(40).springify()}>
+          <TabCabecera ceja="TUS FUNCIONES" titulo={v4 ? 'APPS' : 'ATP'} />
         </Animated.View>
 
         {/* 8-oct-2026 (v4): "Recomendadas por tu plan", arriba de la sala.
@@ -308,7 +320,7 @@ export default function SalaAtpScreen() {
             pinta. Sin tap largo: aquí no se desinstala nada. */}
         {!searching && order !== 'mio' && (
           <Animated.View entering={FadeInUp.delay(50).springify()}>
-            <EliteText style={[s.destacadasTitle, { color: tenueInformativo }]}>PARA EMPEZAR</EliteText>
+            <EliteText style={[s.destacadasTitle, { color: tokens.textoSecundario }]}>PARA EMPEZAR</EliteText>
             <View style={s.grid}>
               {destacadas.map((app) => (
                 <View key={app.key} style={s.tileSlot}>
@@ -329,11 +341,11 @@ export default function SalaAtpScreen() {
             encuentra, no puede instalar nada y la app se le queda chica. */}
         <Animated.View entering={FadeInUp.delay(60).springify()}>
           <AnimatedPressable
-            style={[s.centroCard, { backgroundColor: tokens.card, borderColor: tokens.borde }]}
+            style={[s.centroCard, { backgroundColor: tokens.card, borderColor: bordeCard }]}
             onPress={() => { haptic.light(); router.push('/centro'); }}
           >
-            <View style={s.centroIcon}>
-              <Ionicons name="apps-outline" size={18} color={acento} />
+            <View style={[s.centroIcon, { backgroundColor: tokens.hundido }]}>
+              <AppIcon name="tab-atp" size={18} color={teal} />
             </View>
             <View style={s.centroBody}>
               <EliteText style={[s.centroTitle, { color: tokens.texto }]}>Centro ATP</EliteText>
@@ -351,11 +363,11 @@ export default function SalaAtpScreen() {
             resuelvan. Es la misma decisión de "guiado pero no prisionero". */}
         <Animated.View entering={FadeInUp.delay(70).springify()}>
           <AnimatedPressable
-            style={[s.centroCard, { backgroundColor: tokens.card, borderColor: tokens.borde }]}
+            style={[s.centroCard, { backgroundColor: tokens.card, borderColor: bordeCard }]}
             onPress={() => { haptic.light(); router.push('/packs/armar'); }}
           >
-            <View style={s.centroIcon}>
-              <Ionicons name="color-wand-outline" size={18} color={acento} />
+            <View style={[s.centroIcon, { backgroundColor: tokens.hundido }]}>
+              <AppIcon name="cuestionario" size={18} color={teal} />
             </View>
             <View style={s.centroBody}>
               <EliteText style={[s.centroTitle, { color: tokens.texto }]}>Armar mi app</EliteText>
@@ -369,8 +381,8 @@ export default function SalaAtpScreen() {
             esconder apps en silencio. */}
         {perfilFallo && (
           <Animated.View entering={FadeInUp.delay(75).springify()}>
-            <View style={[s.centroCard, { backgroundColor: tokens.card, borderColor: tokens.borde }]}>
-              <View style={s.centroIcon}>
+            <View style={[s.centroCard, { backgroundColor: tokens.card, borderColor: bordeCard }]}>
+              <View style={[s.centroIcon, { backgroundColor: tokens.hundido }]}>
                 <Ionicons name="cloud-offline-outline" size={18} color={tokens.textoSecundario} />
               </View>
               <View style={s.centroBody}>
@@ -382,10 +394,10 @@ export default function SalaAtpScreen() {
                 </EliteText>
               </View>
               <AnimatedPressable
-                style={[s.emptyCta, kind === 'light' && { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime }]}
+                style={[s.emptyCta, { backgroundColor: tokens.hundido, borderColor: tokens.bordeMarcado }]}
                 onPress={() => { haptic.light(); setPerfilIntento((n) => n + 1); }}
               >
-                <EliteText style={[s.emptyCtaText, kind === 'light' && { color: tokens.textoSobreLima }]}>Reintentar</EliteText>
+                <EliteText style={[s.emptyCtaText, { color: tokens.texto }]}>Reintentar</EliteText>
               </AnimatedPressable>
             </View>
           </Animated.View>
@@ -421,9 +433,14 @@ export default function SalaAtpScreen() {
             clearButtonMode="while-editing"
           />
           {searching && (
-            <Pressable onPress={() => setQuery('')} hitSlop={10}>
+            <AnimatedPressable
+              onPress={() => { haptic.light(); setQuery(''); }}
+              hitSlop={14}
+              accessibilityRole="button"
+              accessibilityLabel="Borrar búsqueda"
+            >
               <Ionicons name="close-circle" size={16} color={tokens.textoTenue} />
-            </Pressable>
+            </AnimatedPressable>
           )}
         </Animated.View>
 
@@ -434,17 +451,17 @@ export default function SalaAtpScreen() {
               : (
                 <View style={s.emptySearch}>
                   <EliteText style={[s.emptyText, { color: tenueInformativo }]}>No está en tu cuadrícula</EliteText>
-                  {/* En claro el lima no es texto: la píldora pasa a relleno
-                      lima sólido con negro encima (patrón Chip de MB-31A). */}
+                  {/* 14-oct-2026 (ronda de marca): botón neutro (pozo y
+                      borde marcado, letra en tinta), sin tinte lima. */}
                   <AnimatedPressable
-                    style={[s.emptyCta, kind === 'light' && { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime }]}
+                    style={[s.emptyCta, { backgroundColor: tokens.hundido, borderColor: tokens.bordeMarcado }]}
                     onPress={() => {
                       haptic.light();
                       router.push({ pathname: '/centro', params: { q: query.trim() } });
                     }}
                   >
-                    <Ionicons name="apps-outline" size={14} color={kind === 'dark' ? ATP_BRAND.lime : tokens.textoSobreLima} />
-                    <EliteText style={[s.emptyCtaText, kind === 'light' && { color: tokens.textoSobreLima }]}>Buscarla en el Centro</EliteText>
+                    <AppIcon name="tab-atp" size={14} color={teal} />
+                    <EliteText style={[s.emptyCtaText, { color: tokens.texto }]}>Buscarla en el Centro</EliteText>
                   </AnimatedPressable>
                 </View>
               )}
@@ -479,8 +496,8 @@ export default function SalaAtpScreen() {
                   style={s.editOrder}
                   onPress={() => { haptic.light(); router.push('/atp-orden'); }}
                 >
-                  <Ionicons name="options-outline" size={14} color={acento} />
-                  <EliteText style={[s.editOrderText, { color: acento }]}>EDITAR</EliteText>
+                  <AppIcon name="ajustes" size={14} color={teal} />
+                  <EliteText style={[s.editOrderText, { color: teal }]}>EDITAR</EliteText>
                 </AnimatedPressable>
               )}
             </Animated.View>
@@ -518,22 +535,19 @@ export default function SalaAtpScreen() {
 }
 
 // MB-31B: aquí queda SOLO layout; el color vivo entra inline desde los tokens
-// del tema. Los tintes lima (centroIcon, emptyCta) son acento de marca y se
-// quedan — en claro la píldora pasa a relleno sólido con negro (inline).
+// del tema. 14-oct-2026 (ronda de marca): sin tintes lima; medidas con
+// Spacing y Radius, rótulos con SECTION_TITLE.
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md },
-  header: { paddingTop: Spacing.lg, paddingBottom: Spacing.md },
-  eyebrow: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 3 },
-  title: { fontSize: 28, fontFamily: Fonts.extraBold, letterSpacing: 2, marginTop: 2 },
 
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
     // Input = pozo recedido frente a la card elevada (design system §1).
     borderWidth: 0.5,
-    borderRadius: 14,
-    paddingHorizontal: 12,
+    borderRadius: Radius.card,
+    paddingHorizontal: Spacing.md - Spacing.xs,
     height: 42,
     marginTop: Spacing.md,
   },
@@ -552,7 +566,7 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
 
-  chipRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing.md },
+  chipRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.md },
   chip: {
     height: PILL.height,
     paddingHorizontal: PILL.paddingHorizontal,
@@ -567,20 +581,28 @@ const s = StyleSheet.create({
     fontFamily: Fonts.bold,
     letterSpacing: PILL.letterSpacing,
   },
-  editOrder: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto', paddingHorizontal: 6 },
-  editOrderText: { fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1.5 },
+  editOrder: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginLeft: 'auto',
+    paddingHorizontal: Spacing.xs, minHeight: 44,
+  },
+  editOrderText: { fontSize: PILL.fontSize, fontFamily: Fonts.semiBold, letterSpacing: PILL.letterSpacing },
 
+  // Encabezado de sección: la escala de SECTION_TITLE; el color es el de la
+  // sección (Pieza 4), que es identidad de dominio y no acento.
   sectionTitle: {
-    fontSize: 11,
-    fontFamily: Fonts.bold,
-    letterSpacing: 2,
+    fontSize: SECTION_TITLE.fontSize,
+    fontFamily: Fonts.semiBold,
+    letterSpacing: SECTION_TITLE.letterSpacing,
     marginTop: Spacing.lg,
     marginBottom: Spacing.xs,
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   gridFlat: { marginTop: Spacing.md },
   // ATP 3.0 (ruta 2.3): rótulo de la fila fija de arriba.
-  destacadasTitle: { fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2, marginBottom: Spacing.xs },
+  destacadasTitle: {
+    fontSize: SECTION_TITLE.fontSize, fontFamily: Fonts.semiBold, letterSpacing: SECTION_TITLE.letterSpacing,
+    marginBottom: Spacing.xs,
+  },
   tileSlot: { width: '25%' },
 
   emptySearch: { width: '100%', paddingVertical: Spacing.xl, alignItems: 'center', gap: Spacing.md },
@@ -588,37 +610,33 @@ const s = StyleSheet.create({
   emptyCta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(168,224,42,0.10)',
+    gap: Spacing.xs,
     borderWidth: 0.5,
-    borderColor: 'rgba(168,224,42,0.3)',
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    height: 34,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    minHeight: 44,
   },
-  emptyCtaText: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 0.5 },
+  emptyCtaText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 
   centroCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: Spacing.md - Spacing.xs,
     borderWidth: 0.5,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: Radius.card,
+    paddingHorizontal: Spacing.md - Spacing.xs,
+    paddingVertical: Spacing.sm,
     marginBottom: Spacing.md,
   },
+  // Patrón v4 aprobado: chip de pozo (t.hundido, inline) con glifo teal.
   centroIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    backgroundColor: 'rgba(168,224,42,0.10)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(168,224,42,0.25)',
+    width: 32,
+    height: 32,
+    borderRadius: Radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   centroBody: { flex: 1 },
-  centroTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.sm },
-  centroSub: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: 1 },
+  centroTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  centroSub: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, marginTop: Spacing.xs / 2 },
 });

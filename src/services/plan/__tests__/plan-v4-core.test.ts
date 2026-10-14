@@ -18,12 +18,13 @@ import { resolve } from 'node:path';
 import type { AsignacionRow } from '@/src/services/fitness/plan-semanal-core';
 import { validarEliteV3, type EliteV3 } from '@/src/services/elite/elite-v3-core';
 import { APP_BY_KEY, visibleApps } from '@/src/constants/app-registry';
+import { CONCEPT_COLORS } from '@/src/constants/concept-colors';
 import {
   componerDia, coachesDeLaSemana, LECTURA_FALLIDA, lecturaOk,
   type HabitoPlanRow, type InsumosPlan, type PracticaPlanRow, type SuplementoPlanRow,
 } from '@/src/services/plan/mi-plan-core';
 import {
-  APP_POR_CATEGORIA, APP_POR_FAMILIA, APP_POR_PRACTICA, appDePractica, appsDelPlan, cabeceraDelPlan, CEJA_PLAN,
+  APP_POR_CATEGORIA, APP_POR_FAMILIA, CONCEPTO_DE_PILAR, APP_POR_PRACTICA, appDePractica, appsDelPlan, cabeceraDelPlan, CEJA_PLAN,
   IMAGEN_HERO_PLAN, puntajePilar, RUTA_SUPLEMENTOS, rutaMarcador, sinPuntoFinal, TITULO_PROGRAMA_NO_LEIDO,
   extrasDelPlan, horaCorta, IMAGEN_PILAR, MAX_APPS_RECOMENDADAS, objetivoDeRutina, ORDEN_PILARES, palancaDePilar,
   pilaresConPlan, pilaresDelPlan, prioridadesDelPlan, razonDeSuplemento, recortar, resumenEntreno, resumenSuplementos,
@@ -541,6 +542,26 @@ describe('revisión en frío (8-oct-2026 (v4))', () => {
     }
     expect(comp.includes(`FOTO_HERO_PLAN: ImageSourcePropType = require('@/${IMAGEN_HERO_PLAN}')`)).toBe(true);
     expect((comp.match(/require\(/g) ?? []).length).toBe(ORDEN_PILARES.length + 1);
+  });
+  it('cada pilar tiene su dominio de color en CONCEPT_COLORS, y la miniatura lo pinta (14-oct-2026)', () => {
+    expect(CONCEPTO_DE_PILAR).toEqual({
+      suplementos: 'suplementos', alimentacion: 'nutricion', entrenamiento: 'fitness', sueno: 'sueno', practicas: 'mente',
+    });
+    for (const k of ORDEN_PILARES) {
+      const g = CONCEPT_COLORS[CONCEPTO_DE_PILAR[k]]?.gradient;
+      expect(Array.isArray(g) && g.length >= 2 ? 'ok' : `${k} sin degradado`).toBe('ok');
+    }
+    // Cinco pilares, cinco dominios distintos: el color distingue.
+    expect(new Set(Object.values(CONCEPTO_DE_PILAR)).size).toBe(ORDEN_PILARES.length);
+    const piezas = readFileSync(resolve(process.cwd(), 'src/components/v4/plan/PlanPiezas.tsx'), 'utf8');
+    expect(piezas).toContain('CONCEPT_COLORS[CONCEPTO_DE_PILAR[k]].gradient');
+  });
+  it('PLAN: el lima vive solo en la barra del heroe; heroe con degradado de marca (14-oct-2026)', () => {
+    const piezas = readFileSync(resolve(process.cwd(), 'src/components/v4/plan/PlanPiezas.tsx'), 'utf8');
+    expect(piezas).toContain('<FondoEditorial imagen={FOTO_HERO_PLAN} degradado={DEGRADADO_MARCA} velo="fuerte" />');
+    expect((piezas.match(/ATP_BRAND\.lime/g) ?? []).length).toBe(1);
+    expect(piezas.includes("dark ? ATP_BRAND.lime") ? 'acento lima en oscuro' : 'ok').toBe('ok');
+    expect((piezas.match(/#[0-9a-fA-F]{3,8}\b/g) ?? [])).toEqual([]);
   });
   it('las filas del expediente no caen en el Perfil (ni /salud pelado ni el puente /salud/expediente)', () => {
     const src = readFileSync(resolve(process.cwd(), 'src/screens/v4/PlanV4Screen.tsx'), 'utf8');

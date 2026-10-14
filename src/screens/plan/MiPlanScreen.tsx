@@ -43,9 +43,14 @@
  * documento salen de su voz; si la evaluacion no se pudo leer, la voz sale
  * del tipo que ya conoce useProgramaElite, y si tampoco, se habla neutro.
  *
- * Tinta: tokens del tema (claro y oscuro); acento lima en oscuro y teal en
- * claro. Glifos por <AppIcon>; Ionicons solo cromo (chevron, refresh). Cero
- * em dashes en copy.
+ * Tinta: tokens del scope (claro y oscuro). Glifos por <AppIcon>; Ionicons
+ * solo cromo (chevron, refresh). Cero em dashes en copy.
+ *
+ * 14-oct-2026 (marca): Enrique vio Mi plan "todo en Lima Brutalist". Ahora
+ * con useTintaMarca: bordes neutros, íconos teal sobre t.hundido, cejas y
+ * horas en gris, chips de dueño neutros. Arriba va un HEROE (foto B/N +
+ * degradado de marca + velo, FondoEditorial) con la semana y el dia. El lima
+ * se queda solo en la palomita de "hecho" de HOY TE TOCA (QueHacerHoy).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, DeviceEventEmitter, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
@@ -80,8 +85,11 @@ import {
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
-import { useAppTheme, useSurfaceTokens } from '@/src/contexts/theme-context';
+import { ATP_BRAND, SECTION_TITLE, withOpacity } from '@/src/constants/brand';
+import { useAppTheme } from '@/src/contexts/theme-context';
+import { FondoEditorial } from '@/src/components/marca/FondoEditorial';
+import { useTintaMarca } from '@/src/components/marca/useTintaMarca';
+import { FOTO_HERO_PLAN } from '@/src/components/v4/plan/plan-imagenes';
 
 /** Glifo de cada seccion. Solo nombres de app-icon-names. */
 const ICONO_SECCION: Record<SeccionKey, AppIconName> = {
@@ -102,19 +110,14 @@ function hrefDe(d: DestinoPlan): Href {
   }
 }
 
-function useTinta() {
-  const t = useSurfaceTokens();
-  const dark = t.kind === 'dark';
-  const acento = dark ? ATP_BRAND.lime : t.tealTexto;
-  const borde = dark ? withOpacity(ATP_BRAND.lime, 0.2) : t.bordeEditorial;
-  return { t, dark, acento, borde };
-}
+/** Letra del heroe: blanca sobre la foto oscura en los dos temas. */
+const BLANCO = ATP_BRAND.white;
+const BLANCO_SUAVE = withOpacity(ATP_BRAND.white, 0.72);
 
 export function MiPlanScreen() {
   // La pantalla sigue el tema global (<Screen themed>): estos tokens son los
   // mismos que useSurfaceTokens entrega a las piezas de adentro.
   const { kind, tokens: t } = useAppTheme();
-  const acento = kind === 'dark' ? ATP_BRAND.lime : t.tealTexto;
   const router = useRouter();
   const { user, loading: sesionCargando } = useAuth();
   const userId = user?.id;
@@ -283,16 +286,21 @@ export function MiPlanScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={s.scroll}
-        refreshControl={<RefreshControl refreshing={refrescando} onRefresh={onRefresh} tintColor={acento} colors={[acento]} />}
+        refreshControl={<RefreshControl refreshing={refrescando} onRefresh={onRefresh} tintColor={t.tealTexto} colors={[t.tealTexto]} />}
       >
-        <View style={s.cabecera}>
-          {semanaPrograma ? (
-            <EliteText style={[s.semanaPrograma, { color: acento }]}>{semanaPrograma.toUpperCase()}</EliteText>
-          ) : null}
-          <EliteText style={[s.tituloDia, { color: t.texto }]}>{tituloDia(fecha, hoy)}</EliteText>
-          {resumen?.tipo === 'linea' ? (
-            <EliteText style={[s.resumen, { color: t.textoSecundario }]}>{resumen.texto}</EliteText>
-          ) : null}
+        {/* 14-oct-2026 (marca): el protagonista. Foto B/N + degradado de marca
+            + velo; la semana del programa, el dia y su resumen en blanco. */}
+        <View style={[s.hero, kind === 'light' && { borderWidth: 1, borderColor: t.bordeEditorial }]}>
+          <FondoEditorial imagen={FOTO_HERO_PLAN} />
+          <View style={s.heroCuerpo}>
+            {semanaPrograma ? (
+              <EliteText style={s.semanaPrograma}>{semanaPrograma.toUpperCase()}</EliteText>
+            ) : null}
+            <EliteText style={s.tituloDia} accessibilityRole="header">{tituloDia(fecha, hoy)}</EliteText>
+            {resumen?.tipo === 'linea' ? (
+              <EliteText style={s.resumen}>{resumen.texto}</EliteText>
+            ) : null}
+          </View>
         </View>
 
         <View style={s.tira}>
@@ -329,7 +337,7 @@ export function MiPlanScreen() {
             con su logica y su escritura, solo cuando el dia elegido es hoy. Su
             "Ver todo mi día" ya abre la agenda: aqui no se repite el enlace. */}
         {esHoy && userId ? (
-          <View>
+          <View style={s.bloqueHoy}>
             <Etiqueta texto="HOY TE TOCA" />
             <QueHacerHoy userId={userId} nivel={nivel} />
           </View>
@@ -369,7 +377,7 @@ export function MiPlanScreen() {
 // ─── Piezas ─────────────────────────────────────────────────────────────────
 
 function DiaBoton({ dia, elegido, onPress }: { dia: DiaSemana; elegido: boolean; onPress: () => void }) {
-  const { t, acento } = useTinta();
+  const { t, acento, borde } = useTintaMarca();
   const partes = [`${dia.nombre} ${dia.numero}`];
   if (dia.esHoy) partes.push('hoy');
   if (dia.entrena) partes.push('con entrenamiento');
@@ -377,7 +385,9 @@ function DiaBoton({ dia, elegido, onPress }: { dia: DiaSemana; elegido: boolean;
     <AnimatedPressable
       style={[
         s.diaBoton,
-        { borderColor: elegido ? acento : t.borde, backgroundColor: elegido ? withOpacity(acento, 0.16) : t.card },
+        // 14-oct-2026 (marca): el elegido se marca con borde fuerte y fondo
+        // hundido, no con lima. Solo HOY lleva el micro-acento (su inicial y su punto).
+        { borderColor: elegido ? t.bordeMarcado : borde, backgroundColor: elegido ? t.hundido : t.card },
       ]}
       onPress={onPress}
       accessibilityRole="button"
@@ -387,29 +397,29 @@ function DiaBoton({ dia, elegido, onPress }: { dia: DiaSemana; elegido: boolean;
       <EliteText style={[s.diaInicial, { color: dia.esHoy ? acento : t.textoSecundario }]}>{dia.inicial}</EliteText>
       <EliteText style={[s.diaNumero, { color: t.texto }]}>{dia.numero}</EliteText>
       {/* El punto dice "ese dia entrenas" solo cuando se sabe; sin lectura no se pinta ni se niega. */}
-      <View style={[s.diaPunto, { backgroundColor: dia.entrena ? acento : 'transparent' }]} />
+      <View style={[s.diaPunto, { backgroundColor: dia.entrena ? (dia.esHoy ? acento : t.textoSecundario) : 'transparent' }]} />
     </AnimatedPressable>
   );
 }
 
 function Etiqueta({ texto }: { texto: string }) {
-  const { t } = useTinta();
+  const { t } = useTintaMarca();
   return <EliteText style={[s.etiquetaSeccion, { color: t.textoSecundario }]}>{texto}</EliteText>;
 }
 
 function Enlace({ texto, onPress }: { texto: string; onPress: () => void }) {
-  const { acento } = useTinta();
+  const { t } = useTintaMarca();
   return (
     <AnimatedPressable style={s.enlace} onPress={onPress} accessibilityRole="button" accessibilityLabel={texto}>
-      <EliteText style={[s.enlaceTexto, { color: acento }]}>{texto}</EliteText>
-      <Ionicons name="chevron-forward" size={14} color={acento} />
+      <EliteText style={[s.enlaceTexto, { color: t.texto }]}>{texto}</EliteText>
+      <Ionicons name="chevron-forward" size={14} color={t.textoSecundario} />
     </AnimatedPressable>
   );
 }
 
 /** Reintentar. Mientras relee lo dice y no acepta otro toque: nunca un boton mudo. */
 function BotonReintentar({ ocupado, onPress }: { ocupado: boolean; onPress: () => void }) {
-  const { t } = useTinta();
+  const { t } = useTintaMarca();
   const texto = ocupado ? 'Leyendo...' : 'Reintentar';
   return (
     <AnimatedPressable
@@ -432,7 +442,7 @@ function BotonReintentar({ ocupado, onPress }: { ocupado: boolean; onPress: () =
  * esta version no entiende no se arregla volviendo a leer).
  */
 function Aviso({ texto, ocupado, onReintentar }: { texto: string; ocupado: boolean; onReintentar?: () => void }) {
-  const { t, borde } = useTinta();
+  const { t, borde } = useTintaMarca();
   return (
     <View style={[s.card, { backgroundColor: t.card, borderColor: borde }]}>
       <EliteText style={[s.cuerpo, { color: t.texto }]}>{texto}</EliteText>
@@ -443,13 +453,15 @@ function Aviso({ texto, ocupado, onReintentar }: { texto: string; ocupado: boole
 
 /** De quien es. Tres tratamientos y el texto siempre dice cual: el color nunca es lo unico que distingue. */
 function ChipDueno({ dueno, texto }: { dueno: DuenoPlan; texto: string }) {
-  const { t, acento } = useTinta();
+  const { t } = useTintaMarca();
+  // 14-oct-2026 (marca): los tres neutros; el texto dice de quien es y el
+  // borde los separa (ARGOS con borde teal, el coach con borde marcado).
   const estilo = dueno === 'tuyo'
-    ? { backgroundColor: withOpacity(acento, 0.14), borderColor: 'transparent' }
+    ? { backgroundColor: t.hundido, borderColor: t.borde }
     : dueno === 'argos'
-      ? { backgroundColor: 'transparent', borderColor: acento }
+      ? { backgroundColor: t.hundido, borderColor: t.tealTexto }
       : { backgroundColor: t.hundido, borderColor: t.bordeMarcado };
-  const color = dueno === 'coach' ? t.texto : acento;
+  const color = t.texto;
   return (
     <View style={[s.chip, estilo]}>
       <EliteText style={[s.chipTexto, { color }]}>{texto}</EliteText>
@@ -458,7 +470,7 @@ function ChipDueno({ dueno, texto }: { dueno: DuenoPlan; texto: string }) {
 }
 
 function Fila({ fila, ultima, onIr }: { fila: FilaPlan; ultima: boolean; onIr: (d: DestinoPlan) => void }) {
-  const { t, acento } = useTinta();
+  const { t } = useTintaMarca();
   const destino = fila.destino;
   const leido = [fila.cuando, fila.titulo, fila.detalle, fila.etiqueta, fila.accion].filter(Boolean).join('. ');
   return (
@@ -470,7 +482,7 @@ function Fila({ fila, ultima, onIr }: { fila: FilaPlan; ultima: boolean; onIr: (
       accessibilityLabel={leido}
     >
       <View style={s.filaTextos}>
-        {fila.cuando ? <EliteText style={[s.filaCuando, { color: acento }]}>{fila.cuando}</EliteText> : null}
+        {fila.cuando ? <EliteText style={[s.filaCuando, { color: t.textoSecundario }]}>{fila.cuando}</EliteText> : null}
         <EliteText style={[s.filaTitulo, { color: t.texto }]}>{fila.titulo}</EliteText>
         {fila.detalle ? (
           <EliteText style={[s.filaDetalle, { color: t.textoSecundario }]}>{fila.detalle}</EliteText>
@@ -494,11 +506,11 @@ function Seccion({ seccion, ocupada, onIr, onReintentar }: {
   onIr: (d: DestinoPlan) => void;
   onReintentar: () => void;
 }) {
-  const { t, acento, borde } = useTinta();
+  const { t, teal, borde } = useTintaMarca();
   const cabecera = (
     <View style={s.seccionCabecera}>
-      <View style={[s.iconWrap, { backgroundColor: withOpacity(acento, 0.14) }]}>
-        <AppIcon name={ICONO_SECCION[seccion.key]} size={16} color={acento} />
+      <View style={[s.iconWrap, { backgroundColor: t.hundido }]}>
+        <AppIcon name={ICONO_SECCION[seccion.key]} size={18} color={teal} />
       </View>
       <EliteText style={[s.seccionTitulo, { color: t.textoSecundario }]}>{seccion.titulo}</EliteText>
     </View>
@@ -536,7 +548,7 @@ function Seccion({ seccion, ocupada, onIr, onReintentar }: {
 
 /** Lo que falta, dicho llano, con la puerta para armarlo cuando existe. */
 function Nota({ texto, cta, onIr }: { texto: string; cta: CtaPlan | null; onIr: (d: DestinoPlan) => void }) {
-  const { t } = useTinta();
+  const { t } = useTintaMarca();
   return (
     <View style={s.listaConPadding}>
       <EliteText style={[s.cuerpo, { color: t.textoSecundario }]}>{texto}</EliteText>
@@ -547,7 +559,7 @@ function Nota({ texto, cta, onIr }: { texto: string; cta: CtaPlan | null; onIr: 
 
 /** Una linea por etiqueta que la cuenta puede ver (la del coach, solo si tiene algo fijado por un coach). */
 function ComoSeAjusta({ coach, hayDeCoach }: { coach: string | null; hayDeCoach: boolean }) {
-  const { t, borde } = useTinta();
+  const { t, borde } = useTintaMarca();
   const lineas = comoSeAjusta(coach, hayDeCoach);
   return (
     <View style={s.seccion}>
@@ -572,57 +584,64 @@ function ComoSeAjusta({ coach, hayDeCoach }: { coach: string | null; hayDeCoach:
 
 const s = StyleSheet.create({
   scroll: { paddingTop: Spacing.sm, paddingBottom: 120 },
-  cabecera: { paddingHorizontal: Spacing.md, marginBottom: Spacing.sm },
-  semanaPrograma: { fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 2, marginBottom: 2 },
-  tituloDia: { fontFamily: Fonts.bold, fontSize: FontSizes.xl },
-  resumen: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 18, marginTop: 4 },
-  tira: { flexDirection: 'row', gap: 6, paddingHorizontal: Spacing.md, marginBottom: Spacing.md },
+  // 14-oct-2026 (marca): el heroe. FondoEditorial va adentro; aqui la caja y el radio.
+  hero: { marginHorizontal: Spacing.md, marginBottom: Spacing.md, borderRadius: Radius.card, overflow: 'hidden' },
+  heroCuerpo: { padding: Spacing.lg, paddingTop: Spacing.xxl },
+  semanaPrograma: {
+    fontFamily: Fonts.semiBold, fontSize: SECTION_TITLE.fontSize, letterSpacing: SECTION_TITLE.letterSpacing,
+    color: ATP_BRAND.white, marginBottom: Spacing.sm,
+  },
+  tituloDia: { fontFamily: Fonts.bold, fontSize: FontSizes.display, lineHeight: 38, color: BLANCO },
+  resumen: { fontFamily: Fonts.regular, fontSize: FontSizes.md, lineHeight: 20, marginTop: Spacing.xs, color: BLANCO_SUAVE },
+  tira: { flexDirection: 'row', gap: Spacing.xs, paddingHorizontal: Spacing.md, marginBottom: Spacing.lg },
   diaBoton: {
     flex: 1, alignItems: 'center', borderWidth: 1, borderRadius: Radius.card,
-    paddingVertical: 8, minHeight: 56,
+    paddingVertical: Spacing.sm, minHeight: 56,
   },
   diaInicial: { fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 1 },
   diaNumero: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg, marginTop: 1 },
   diaPunto: { width: 5, height: 5, borderRadius: 3, marginTop: 3 },
   // Mismo alto aproximado que una seccion: al llegar la lectura no brinca todo.
-  hueco: { height: 160, marginHorizontal: Spacing.md, marginBottom: Spacing.sm },
+  hueco: { height: 160, marginHorizontal: Spacing.md, marginBottom: Spacing.lg },
+  // QueHacerHoy trae su propio margen de abajo (Spacing.sm): sumado da Spacing.lg.
+  bloqueHoy: { marginBottom: Spacing.md },
   card: {
-    marginHorizontal: Spacing.md, marginBottom: Spacing.sm, borderWidth: 0.5, borderRadius: Radius.md,
+    marginHorizontal: Spacing.md, marginBottom: Spacing.lg, borderWidth: 0.5, borderRadius: Radius.card,
     padding: Spacing.md,
   },
   cuerpo: { fontFamily: Fonts.regular, fontSize: FontSizes.md, lineHeight: 20 },
-  cuerpoApoyo: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 18, marginTop: 4 },
+  cuerpoApoyo: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 18, marginTop: Spacing.xs },
   etiquetaSeccion: {
-    fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 2,
-    marginHorizontal: Spacing.md + 2, marginBottom: 8, marginTop: 6,
+    fontFamily: Fonts.semiBold, fontSize: SECTION_TITLE.fontSize, letterSpacing: SECTION_TITLE.letterSpacing,
+    marginHorizontal: Spacing.md, marginBottom: Spacing.sm,
   },
-  enlace: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
+  enlace: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, paddingVertical: Spacing.sm },
   enlaceTexto: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
   btnQuieto: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    borderWidth: 0.5, borderRadius: 12, paddingVertical: 11, marginTop: Spacing.sm,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
+    borderWidth: 0.5, borderRadius: Radius.card, paddingVertical: 12, marginTop: Spacing.sm,
   },
   btnQuietoTexto: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   btnOcupado: { opacity: 0.6 },
-  seccion: { marginBottom: Spacing.sm, marginTop: 6 },
-  seccionCabecera: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: Spacing.md, marginBottom: 8 },
-  seccionTitulo: { fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 2 },
-  iconWrap: { width: 26, height: 26, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  lista: { marginHorizontal: Spacing.md, borderWidth: 0.5, borderRadius: Radius.md, overflow: 'hidden' },
+  seccion: { marginBottom: Spacing.lg },
+  seccionCabecera: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginHorizontal: Spacing.md, marginBottom: Spacing.sm },
+  seccionTitulo: { fontFamily: Fonts.semiBold, fontSize: SECTION_TITLE.fontSize, letterSpacing: SECTION_TITLE.letterSpacing },
+  iconWrap: { width: 32, height: 32, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  lista: { marginHorizontal: Spacing.md, borderWidth: 0.5, borderRadius: Radius.card, overflow: 'hidden' },
   listaConPadding: { padding: Spacing.md },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 14 },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 12, paddingHorizontal: Spacing.md },
   filaTextos: { flex: 1, gap: 2 },
-  filaCuando: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, letterSpacing: 0.5 },
+  filaCuando: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, letterSpacing: 0.5 },
   filaTitulo: { fontFamily: Fonts.semiBold, fontSize: FontSizes.md, lineHeight: 20 },
   filaDetalle: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 17 },
-  filaPie: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  filaPie: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.xs },
   filaAccion: { fontFamily: Fonts.regular, fontSize: FontSizes.sm },
-  chip: { borderWidth: 0.5, borderRadius: Radius.pill, paddingHorizontal: 9, paddingVertical: 3 },
-  chipTexto: { fontFamily: Fonts.semiBold, fontSize: 11 },
+  chip: { borderWidth: 0.5, borderRadius: Radius.pill, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs },
+  chipTexto: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
   contactoTexto: {
     fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 18,
-    marginHorizontal: Spacing.md + 2, marginBottom: Spacing.sm,
+    marginHorizontal: Spacing.md, marginBottom: Spacing.lg,
   },
-  ajuste: { paddingVertical: 12, paddingHorizontal: 14, gap: 6, alignItems: 'flex-start' },
+  ajuste: { paddingVertical: 12, paddingHorizontal: Spacing.md, gap: Spacing.sm, alignItems: 'flex-start' },
   ajusteTexto: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 18 },
 });

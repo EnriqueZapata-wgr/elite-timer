@@ -1,9 +1,11 @@
 /**
  * PerfilHero (8-oct-2026 (v4)): la tarjeta editorial de arriba del Perfil.
  * Foto en blanco y negro de un banco SIN persona (perfil-core,
- * IMAGENES_PERFIL_SIN_PERSONA), velo oscuro, "TU EDAD ATP", el numero grande
- * en lima (el dato heroico de la vista), la linea contra la edad real y la
- * fila "Sangre · Vida · Ritmo" con lo que exista.
+ * IMAGENES_PERFIL_SIN_PERSONA), degradado de marca y velo (FondoEditorial,
+ * 14-oct-2026: antes era foto + velo negro, sin la firma de la marca),
+ * "TU EDAD ATP", el numero grande en lima (el dato heroico de la vista, el
+ * UNICO lima del Perfil, con el unico GLOW), la linea contra la edad real y
+ * la fila "Sangre · Vida · Ritmo" con lo que exista.
  *
  * Como la EditorialCard de la casa, la tarjeta se queda OSCURA en los dos
  * temas (es la ventana, no el marco): texto blanco sobre foto. Lo unico que
@@ -11,11 +13,10 @@
  * su molde (titulo + subtitulo) no tiene lugar para el numero heroico.
  */
 import { StyleSheet, View, type ImageSourcePropType } from 'react-native';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
 import { useSurfaceTokens } from '@/src/contexts/theme-context';
-import { ATP_BRAND, TEXT } from '@/src/constants/brand';
+import { ATP_BRAND, CATEGORY_COLORS, GLOW, LETTER_SPACING, TEXT } from '@/src/constants/brand';
+import { FondoEditorial } from '@/src/components/marca/FondoEditorial';
 import { imagenPerfilKey, type HeroPerfil, type ImagenPerfilKey } from '@/src/services/perfil/perfil-core';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
@@ -29,6 +30,9 @@ const IMAGEN: Record<ImagenPerfilKey, ImageSourcePropType> = {
   'medio-dia-02': require('@/assets/images/hoy-extra/tu-dia/medio-dia-02.webp'),
 };
 
+/** Degradado de marca del Perfil: el teal de Salud (CATEGORY_COLORS.metrics) al teal de marca. */
+const DEGRADADO_SALUD = [CATEGORY_COLORS.metrics, ATP_BRAND.teal] as const;
+
 interface Props {
   hero: HeroPerfil;
   /** Semilla de la foto (por ejemplo `${userId}-${hoy}`). */
@@ -40,18 +44,10 @@ export function PerfilHero({ hero, semilla }: Props) {
   const borde = t.kind === 'light' ? { borderWidth: 1, borderColor: t.bordeEditorial } : null;
   return (
     <View style={[s.card, borde]} accessible accessibilityLabel={hero.accesible}>
-      <Image
-        source={IMAGEN[imagenPerfilKey(semilla)]}
-        style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]}
-        contentFit="cover"
-        transition={180}
-        cachePolicy="memory-disk"
-      />
-      <LinearGradient
-        colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0.82)']}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFill}
+      <FondoEditorial
+        imagen={IMAGEN[imagenPerfilKey(semilla)]}
+        degradado={DEGRADADO_SALUD}
+        velo="fuerte"
       />
       <View style={s.contenido}>
         <EliteText style={s.ceja}>TU EDAD ATP</EliteText>
@@ -66,11 +62,14 @@ export function PerfilHero({ hero, semilla }: Props) {
 const s = StyleSheet.create({
   card: {
     marginHorizontal: Spacing.md, marginTop: Spacing.sm, borderRadius: Radius.card, overflow: 'hidden',
-    aspectRatio: 16 / 10, backgroundColor: ATP_BRAND.black,
+    aspectRatio: 16 / 9, backgroundColor: ATP_BRAND.black,
   },
   contenido: { flex: 1, padding: Spacing.lg, justifyContent: 'flex-end' },
-  ceja: { color: 'rgba(255,255,255,0.8)', fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 3 },
-  numero: { color: ATP_BRAND.lime, fontFamily: Fonts.extraBold, fontSize: 64, lineHeight: 72, marginTop: 2 },
+  ceja: { color: 'rgba(255,255,255,0.8)', fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: LETTER_SPACING.wide },
+  numero: {
+    color: ATP_BRAND.lime, fontFamily: Fonts.extraBold, fontSize: FontSizes.mega, lineHeight: 50,
+    marginTop: Spacing.xs, ...GLOW.accent,
+  },
   delta: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
   linea: { color: 'rgba(255,255,255,0.75)', fontFamily: Fonts.regular, fontSize: FontSizes.sm, marginTop: Spacing.xs },
 });

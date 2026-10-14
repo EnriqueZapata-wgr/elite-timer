@@ -78,17 +78,30 @@ export type ImagenResumenKey = 'edad_atp_el' | 'edad_atp_ella' | 'estudio_neutra
  * medio-dia-01, que la revisión daba por buena: abierto el archivo, trae un
  * senderista diminuto sentado en la cumbre. No se le lee el sexo a ese
  * tamaño, pero es una persona y lo que se pidió es un banco "sin persona";
- * la franja de medio día sigue rotando entre dos. Si el dueño lo quiere de
+ * la franja de medio día queda con las suyas (14-oct-2026: ver abajo, las
+ * de color también salieron). Si el dueño lo quiere de
  * vuelta, es agregar su nombre aquí y su `require()` en HoyResumenCard.
  * La lista la vigila el test (nombres exactos, y que el componente no cargue
  * ningún otro); el `require()` de cada archivo vive en HoyResumenCard.
  * pickTuDiaImage y su banco completo no se tocan (image-rotation.ts).
  */
+/*
+ * 14-oct-2026 (revisión de marca): las fotos editoriales van en blanco y
+ * negro (saturación media < 0.05, docs/MANUAL_DE_MARCA.md). Medidas con PIL
+ * (canal S de HSV, promedio 0 a 1): amanecer-03 0.653, medio-dia-04 0.601,
+ * atardecer-04 0.720 y noche-04 0.665 eran fotos a COLOR y salen del banco.
+ * Las que quedan miden: medio-dia-02 0.027, atardecer-01 0.040,
+ * atardecer-03 0.000, noche-01 0.000, noche-02 0.000, noche-03 0.033.
+ * La franja de despertar se quedó sin foto propia sin persona y en B/N:
+ * usa atardecer-03 (la misma foto puede servir a dos franjas; no se usa
+ * medio-dia-02 para que despertar y medio día no enseñen la misma foto
+ * doce horas seguidas).
+ */
 export const IMAGENES_PROGRAMA_SIN_PERSONA = {
-  despertar: ['amanecer-03'],
-  'medio-dia': ['medio-dia-02', 'medio-dia-04'],
-  atardecer: ['atardecer-01', 'atardecer-03', 'atardecer-04'],
-  noche: ['noche-01', 'noche-02', 'noche-03', 'noche-04'],
+  despertar: ['atardecer-03'],
+  'medio-dia': ['medio-dia-02'],
+  atardecer: ['atardecer-01', 'atardecer-03'],
+  noche: ['noche-01', 'noche-02', 'noche-03'],
 } as const satisfies Record<TuDiaGroup, readonly string[]>;
 
 /** El nombre del archivo (sin extensión) dentro de hoy-extra/tu-dia. */

@@ -7,8 +7,9 @@
  * Cuatro estados (regla 13): cargando, "no se pudo leer" con reintentar,
  * sin estudio, con estudio. La decisión vive en hero-laboratorios-core.ts.
  *
- * Tinta: tokens del scope (useSurfaceTokens: HOY monta <ThemeReady>). El
- * lima como texto solo en oscuro; en claro el acento es el teal calibrado.
+ * Tinta: tokens del scope (useTintaMarca: HOY monta <ThemeReady>). 14-oct-2026
+ * (marca): las tarjetas planas van con borde neutro, ceja gris e ícono teal
+ * sobre t.hundido; el lima se queda en el CTA de la tarjeta editorial.
  * Glifos de función por <AppIcon>; Ionicons solo cromo (refresh). (Hasta el
  * 7-oct-2026 aquí se pintaba un semáforo por marcador; ver la nota de abajo.)
  *
@@ -75,8 +76,8 @@ import {
 } from '@/src/components/hoy/HeroEvaluacionElite';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { ATP_BRAND, ELEVATION, withOpacity } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { ELEVATION, SECTION_TITLE } from '@/src/constants/brand';
+import { useTintaMarca } from '@/src/components/marca/useTintaMarca';
 
 interface Props {
   userId?: string;
@@ -85,9 +86,7 @@ interface Props {
 }
 
 export function HeroLaboratorios({ userId, nivel }: Props) {
-  const t = useSurfaceTokens();
-  const dark = t.kind === 'dark';
-  const acento = dark ? ATP_BRAND.lime : t.tealTexto;
+  const { t, borde } = useTintaMarca();
   const { tier, cargando: nivelCargando, noSePudoLeer: nivelNoSePudoLeer } = nivel;
   // Candado solo cuando SABEMOS que es free (fail-open: ante la duda se abre).
   // 7-sep-2026 (VENTA_AL_PUBLICO): el candado de venta lo decide una sola
@@ -202,12 +201,12 @@ export function HeroLaboratorios({ userId, nivel }: Props) {
   if (vista.vista === 'elite_cargando') return <HeroEliteCargando />;
   if (vista.vista === 'elite_en_camino') return <HeroEliteEnCamino onActualizar={reintentar} />;
 
-  const card = [s.card, { backgroundColor: t.card, borderColor: dark ? withOpacity(ATP_BRAND.lime, 0.35) : t.bordeEditorial }];
+  const card = [s.card, { backgroundColor: t.card, borderColor: borde }];
 
   if (vista.vista === 'labs_cargando') {
     return (
       <View style={card}>
-        <Cabecera acento={acento} texto="TUS LABORATORIOS" />
+        <Cabecera texto="TUS LABORATORIOS" />
         <EliteText style={[s.body, { color: t.textoSecundario }]}>Leyendo tus laboratorios...</EliteText>
       </View>
     );
@@ -216,7 +215,7 @@ export function HeroLaboratorios({ userId, nivel }: Props) {
   if (vista.vista === 'labs_no_se_pudo_leer') {
     return (
       <View style={card}>
-        <Cabecera acento={acento} texto="TUS LABORATORIOS" />
+        <Cabecera texto="TUS LABORATORIOS" />
         <EliteText style={[s.titulo, { color: t.texto }]}>No pudimos leer tus laboratorios</EliteText>
         <EliteText style={[s.body, { color: t.textoSecundario }]}>
           Revisa tu conexión. Tus datos siguen aquí.
@@ -244,13 +243,14 @@ export function HeroLaboratorios({ userId, nivel }: Props) {
   );
 }
 
-function Cabecera({ acento, texto }: { acento: string; texto: string }) {
+function Cabecera({ texto }: { texto: string }) {
+  const { t, teal } = useTintaMarca();
   return (
     <View style={s.headerRow}>
-      <View style={[s.iconWrap, { backgroundColor: withOpacity(acento, 0.14) }]}>
-        <AppIcon name="labs" size={18} color={acento} />
+      <View style={[s.iconWrap, { backgroundColor: t.hundido }]}>
+        <AppIcon name="labs" size={18} color={teal} />
       </View>
-      <EliteText style={[s.label, { color: acento }]}>{texto}</EliteText>
+      <EliteText style={[s.label, { color: t.textoSecundario }]}>{texto}</EliteText>
     </View>
   );
 }
@@ -258,19 +258,19 @@ function Cabecera({ acento, texto }: { acento: string; texto: string }) {
 const s = StyleSheet.create({
   card: {
     borderWidth: 0.5,
-    borderRadius: Radius.md,
+    borderRadius: Radius.card,
     padding: Spacing.md,
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iconWrap: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  label: { fontFamily: Fonts.bold, fontSize: 10, letterSpacing: 2 },
-  titulo: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginTop: 10 },
+  iconWrap: { width: 32, height: 32, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  label: { fontFamily: Fonts.semiBold, fontSize: SECTION_TITLE.fontSize, letterSpacing: SECTION_TITLE.letterSpacing },
+  titulo: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginTop: Spacing.sm },
   body: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 20, marginTop: 6 },
   btnQuiet: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    borderWidth: 0.5, borderColor: ELEVATION[2].border, borderRadius: 12,
+    borderWidth: 0.5, borderColor: ELEVATION[2].border, borderRadius: Radius.card,
     paddingVertical: 11, marginTop: Spacing.sm,
   },
   btnQuietText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },

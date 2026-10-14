@@ -31,8 +31,7 @@ import type { Tier } from '@/src/services/subscription/tier-logic';
 import { CONTACTO_ELITE_EMAIL, NOMBRE_COACH_ELITE, WHATSAPP_COACH_ELITE } from '@/src/constants/lanzamiento';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
-import { useSurfaceTokens } from '@/src/contexts/theme-context';
+import { useTintaMarca } from '@/src/components/marca/useTintaMarca';
 
 interface Props {
   /** Como se llama el cliente, para el saludo. Opcional. */
@@ -40,9 +39,9 @@ interface Props {
 }
 
 export function EscribirleCoach({ nombre }: Props) {
-  const t = useSurfaceTokens();
-  const dark = t.kind === 'dark';
-  const acento = dark ? ATP_BRAND.lime : t.tealTexto;
+  // 14-oct-2026 (marca): borde neutro e ícono teal sobre t.hundido. Es una
+  // puerta secundaria, no la acción principal de la pantalla: sin lima.
+  const { t, teal, borde } = useTintaMarca();
   const [sinSalida, setSinSalida] = useState(false);
   const { user } = useAuth();
   const lectura = useLecturaDocumento(user?.id);
@@ -83,12 +82,12 @@ export function EscribirleCoach({ nombre }: Props) {
     <View style={s.wrap}>
       <AnimatedPressable
         onPress={abrir}
-        style={[s.card, { backgroundColor: t.card, borderColor: dark ? withOpacity(ATP_BRAND.lime, 0.2) : t.bordeEditorial }]}
+        style={[s.card, { backgroundColor: t.card, borderColor: borde }]}
         accessibilityRole="button"
         accessibilityLabel={`Escríbele a ${NOMBRE_COACH_ELITE}${porWhatsApp ? ' por WhatsApp' : ' por correo'}`}
       >
-        <View style={[s.icono, { backgroundColor: withOpacity(acento, 0.14) }]}>
-          <Ionicons name={porWhatsApp ? 'logo-whatsapp' : 'mail-outline'} size={18} color={acento} />
+        <View style={[s.icono, { backgroundColor: t.hundido }]}>
+          <Ionicons name={porWhatsApp ? 'logo-whatsapp' : 'mail-outline'} size={18} color={teal} />
         </View>
         <View style={{ flex: 1 }}>
           <EliteText style={[s.titulo, { color: t.texto }]}>{`Escríbele a ${NOMBRE_COACH_ELITE}`}</EliteText>
@@ -109,8 +108,8 @@ export function EscribirleCoach({ nombre }: Props) {
 
 const s = StyleSheet.create({
   wrap: { marginHorizontal: Spacing.md, marginBottom: Spacing.sm },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 0.5, borderRadius: Radius.md, padding: 14 },
-  icono: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 0.5, borderRadius: Radius.card, padding: Spacing.md },
+  icono: { width: 32, height: 32, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
   titulo: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg },
   detalle: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, marginTop: 2 },
   aviso: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, marginTop: 6, marginLeft: 2 },

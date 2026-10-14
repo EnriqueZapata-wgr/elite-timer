@@ -40,7 +40,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { DeviceEventEmitter, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { EditorialCard } from '@/src/components/hoy/EditorialCard';
-import { CONCEPT_COLORS } from '@/src/constants/concept-colors';
+import { DEGRADADO_MARCA } from '@/src/components/marca/FondoEditorial';
 import { NOMBRE_COACH_ELITE } from '@/src/constants/lanzamiento';
 import { INTERVENTIONS_CHANGED_EVENT } from '@/src/services/interventions/intervention-service';
 import { TOPE_HERO_ELITE_MS, type NivelHoy } from '@/src/services/hoy/elite-hoy-core';
@@ -52,8 +52,19 @@ import {
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { Spacing } from '@/constants/theme';
 
-/** require() estatico: Metro necesita la ruta literal. Un calendario con una pluma, en blanco y negro. */
-const IMAGEN_PLAN = require('@/assets/images/yo/disciplina-semanal.webp');
+/**
+ * require() estatico: Metro necesita la ruta literal. Un calendario con una pluma, en blanco y negro.
+ * 14-oct-2026 (marca): la original (disciplina-semanal.webp) medía 0.079 de saturación
+ * media, arriba del 0.05 del manual. Esta es la misma foto en escala de grises (0.0001).
+ * La original sigue en su lugar para quien ya la usa (yo-image-picker).
+ */
+const IMAGEN_PLAN = require('@/assets/images/yo/disciplina-semanal-bn.webp');
+
+/**
+ * 14-oct-2026 (marca): el degradado de marca (lima a teal), no el lima plano de
+ * fitness: la tarjeta es de todo el plan, no de un pilar.
+ */
+const DEGRADADO: [string, string] = [DEGRADADO_MARCA[0], DEGRADADO_MARCA[1]];
 
 interface Props {
   userId?: string;
@@ -133,7 +144,7 @@ export function MiPlanCard({ userId }: Props) {
         title="MI PLAN"
         subtitle={tarjeta?.linea}
         message={tarjeta?.mensaje ?? undefined}
-        gradient={CONCEPT_COLORS.fitness.gradient}
+        gradient={DEGRADADO}
         imageBn={IMAGEN_PLAN}
         ctaLabel={cta?.texto}
         quickActions={tarjeta?.reintentar ? [{ label: 'Reintentar', onTap: reintentar }] : undefined}
